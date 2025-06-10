@@ -230,7 +230,12 @@
 <a href="#229" id="229">229</a>
 <a href="#230" id="230">230</a>
 <a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -306,6 +311,10 @@
         <span class="string">"Cannot return a function from an if or match expression, or assignment within these expressions"
     </span>)]
     </span>ReturnedFunctionFromDynamicIf { call_stack: CallStack },
+    <span class="doccomment">/// This case is not an error. It's used during codegen to prevent inserting instructions after
+    /// code when a break or continue is generated.
+    </span><span class="attr">#[error(<span class="string">"Break or continue"</span>)]
+    </span>BreakOrContinue { call_stack: CallStack },
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -418,6 +427,7 @@
             | RuntimeError::UnknownReference { call_stack } =&gt; call_stack,
             RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } =&gt; call_stack,
             RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } =&gt; call_stack,
+            RuntimeError::BreakOrContinue { call_stack } =&gt; call_stack,
         }
     }
 }

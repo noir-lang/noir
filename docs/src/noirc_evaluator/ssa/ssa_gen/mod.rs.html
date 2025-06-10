@@ -1161,12 +1161,35 @@
 <a href="#1160" id="1160">1160</a>
 <a href="#1161" id="1161">1161</a>
 <a href="#1162" id="1162">1162</a>
-<a href="#1163" id="1163">1163</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1163" id="1163">1163</a>
+<a href="#1164" id="1164">1164</a>
+<a href="#1165" id="1165">1165</a>
+<a href="#1166" id="1166">1166</a>
+<a href="#1167" id="1167">1167</a>
+<a href="#1168" id="1168">1168</a>
+<a href="#1169" id="1169">1169</a>
+<a href="#1170" id="1170">1170</a>
+<a href="#1171" id="1171">1171</a>
+<a href="#1172" id="1172">1172</a>
+<a href="#1173" id="1173">1173</a>
+<a href="#1174" id="1174">1174</a>
+<a href="#1175" id="1175">1175</a>
+<a href="#1176" id="1176">1176</a>
+<a href="#1177" id="1177">1177</a>
+<a href="#1178" id="1178">1178</a>
+<a href="#1179" id="1179">1179</a>
+<a href="#1180" id="1180">1180</a>
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
 
 <span class="kw">use </span>acvm::AcirField;
+<span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="kw">use </span>noirc_frontend::hir_def::expr::Constructor;
 <span class="kw">use </span>noirc_frontend::token::FmtStrFragment;
 <span class="kw">pub use </span>program::Ssa;
@@ -1332,8 +1355,8 @@
             }
             Expression::Assign(assign) =&gt; <span class="self">self</span>.codegen_assign(assign),
             Expression::Semi(semi) =&gt; <span class="self">self</span>.codegen_semi(semi),
-            Expression::Break =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_break()),
-            Expression::Continue =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_continue()),
+            Expression::Break =&gt; <span class="self">self</span>.codegen_break(),
+            Expression::Continue =&gt; <span class="self">self</span>.codegen_continue(),
             Expression::Clone(expr) =&gt; <span class="self">self</span>.codegen_clone(expr),
             Expression::Drop(expr) =&gt; <span class="self">self</span>.codegen_drop(expr),
         }
@@ -1499,12 +1522,6 @@
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">Self</span>::unit_value();
         <span class="kw">for </span>expr <span class="kw">in </span>block {
             result = <span class="self">self</span>.codegen_expression(expr)<span class="question-mark">?</span>;
-
-            <span class="comment">// A break or continue might happen in a block, in which case we must
-            // not codegen any further expressions.
-            </span><span class="kw">if </span><span class="self">self</span>.builder.current_block_is_closed() {
-                <span class="kw">break</span>;
-            }
         }
         <span class="prelude-val">Ok</span>(result)
     }
@@ -1746,13 +1763,11 @@
         </span><span class="self">self</span>.builder.switch_to_block(loop_body);
         <span class="self">self</span>.define(for_expr.index_variable, loop_index.into());
 
-        <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>for_expr.block)<span class="question-mark">?</span>;
-
-        <span class="kw">if </span>!<span class="self">self</span>.builder.current_block_is_closed() {
-            <span class="comment">// No need to jump if the current block is already closed
-            </span><span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(loop_entry, <span class="macro">vec!</span>[new_loop_index]);
-        }
+        <span class="kw">let </span>result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>for_expr.block);
+        <span class="self">self</span>.codegen_unless_break_or_continue(result, |this, <span class="kw">_</span>| {
+            <span class="kw">let </span>new_loop_index = this.make_offset(loop_index, <span class="number">1</span>);
+            this.builder.terminate_with_jmp(loop_entry, <span class="macro">vec!</span>[new_loop_index]);
+        })<span class="question-mark">?</span>;
 
         <span class="comment">// Finish by switching back to the end of the loop
         </span><span class="self">self</span>.builder.switch_to_block(loop_end);
@@ -1783,8 +1798,10 @@
 
         <span class="comment">// Compile the loop body
         </span><span class="self">self</span>.builder.switch_to_block(loop_body);
-        <span class="self">self</span>.codegen_expression(block)<span class="question-mark">?</span>;
-        <span class="self">self</span>.builder.terminate_with_jmp(loop_body, <span class="macro">vec!</span>[]);
+        <span class="kw">let </span>result = <span class="self">self</span>.codegen_expression(block);
+        <span class="self">self</span>.codegen_unless_break_or_continue(result, |this, <span class="kw">_</span>| {
+            this.builder.terminate_with_jmp(loop_body, <span class="macro">vec!</span>[]);
+        })<span class="question-mark">?</span>;
 
         <span class="comment">// Finish by switching to the end of the loop
         </span><span class="self">self</span>.builder.switch_to_block(loop_end);
@@ -1824,8 +1841,10 @@
 
         <span class="comment">// Codegen the body
         </span><span class="self">self</span>.builder.switch_to_block(while_body);
-        <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>while_.body)<span class="question-mark">?</span>;
-        <span class="self">self</span>.builder.terminate_with_jmp(while_entry, <span class="macro">vec!</span>[]);
+        <span class="kw">let </span>result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>while_.body);
+        <span class="self">self</span>.codegen_unless_break_or_continue(result, |this, <span class="kw">_</span>| {
+            this.builder.terminate_with_jmp(while_entry, <span class="macro">vec!</span>[]);
+        })<span class="question-mark">?</span>;
 
         <span class="comment">// Finish by switching to the end of the while
         </span><span class="self">self</span>.builder.switch_to_block(while_end);
@@ -1873,19 +1892,24 @@
         <span class="self">self</span>.builder.terminate_with_jmpif(condition, then_block, else_block);
 
         <span class="self">self</span>.builder.switch_to_block(then_block);
-        <span class="kw">let </span>then_value = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>if_expr.consequence)<span class="question-mark">?</span>;
+        <span class="kw">let </span>then_result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>if_expr.consequence);
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">Self</span>::unit_value();
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(alternative) = <span class="kw-2">&amp;</span>if_expr.alternative {
             <span class="kw">let </span>end_block = <span class="self">self</span>.builder.insert_block();
-            <span class="kw">let </span>then_values = then_value.into_value_list(<span class="self">self</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(end_block, then_values);
+
+            <span class="self">self</span>.codegen_unless_break_or_continue(then_result, |this, then_value| {
+                <span class="kw">let </span>then_values = then_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, then_values);
+            })<span class="question-mark">?</span>;
 
             <span class="self">self</span>.builder.switch_to_block(else_block);
-            <span class="kw">let </span>else_value = <span class="self">self</span>.codegen_expression(alternative)<span class="question-mark">?</span>;
-            <span class="kw">let </span>else_values = else_value.into_value_list(<span class="self">self</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(end_block, else_values);
+            <span class="kw">let </span>else_result = <span class="self">self</span>.codegen_expression(alternative);
+            <span class="self">self</span>.codegen_unless_break_or_continue(else_result, |this, else_value| {
+                <span class="kw">let </span>else_values = else_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, else_values);
+            })<span class="question-mark">?</span>;
 
             <span class="comment">// Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -1968,13 +1992,16 @@
 
             <span class="self">self</span>.builder.switch_to_block(case_block);
             <span class="self">self</span>.bind_case_arguments(variable.clone(), case);
-            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>case.branch)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
+            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>case.branch);
+            <span class="self">self</span>.codegen_unless_break_or_continue(results, |this, results| {
+                <span class="kw">let </span>results = results.into_value_list(this);
 
-            <span class="comment">// Each branch will jump to a different end block for now. We have to merge them all
-            // later since SSA doesn't support more than two blocks jumping to the same end block.
-            </span><span class="kw">let </span>local_end_block = make_end_block(<span class="self">self</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(local_end_block.<span class="number">0</span>, results);
-            blocks_to_merge.push(local_end_block);
+                <span class="comment">// Each branch will jump to a different end block for now. We have to merge them all
+                // later since SSA doesn't support more than two blocks jumping to the same end block.
+                </span><span class="kw">let </span>local_end_block = make_end_block(this);
+                this.builder.terminate_with_jmp(local_end_block.<span class="number">0</span>, results);
+                blocks_to_merge.push(local_end_block);
+            })<span class="question-mark">?</span>;
 
             <span class="self">self</span>.builder.switch_to_block(else_block);
         }
@@ -1983,15 +2010,21 @@
         blocks_to_merge.push((last_local_end_block, last_results));
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(branch) = <span class="kw-2">&amp;</span>match_expr.default_case {
-            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(branch)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(last_local_end_block, results);
+            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(branch);
+            <span class="self">self</span>.codegen_unless_break_or_continue(results, |this, results| {
+                <span class="kw">let </span>results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })<span class="question-mark">?</span>;
         } <span class="kw">else </span>{
             <span class="comment">// If there is no default case, assume we saved the last case from the
             // last_case optimization above
             </span><span class="kw">let </span>case = match_expr.cases.last().unwrap();
             <span class="self">self</span>.bind_case_arguments(variable, case);
-            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>case.branch)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
-            <span class="self">self</span>.builder.terminate_with_jmp(last_local_end_block, results);
+            <span class="kw">let </span>results = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>case.branch);
+            <span class="self">self</span>.codegen_unless_break_or_continue(results, |this, results| {
+                <span class="kw">let </span>results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })<span class="question-mark">?</span>;
         }
 
         <span class="comment">// Merge blocks as last-in first-out:
@@ -2261,13 +2294,9 @@
         <span class="comment">// Evaluate the rhs first - when we load the expression in the lvalue we want that
         // to reflect any mutations from evaluating the rhs.
         </span><span class="kw">let </span>rhs = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>assign.expression)<span class="question-mark">?</span>;
+        <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
 
-        <span class="comment">// Can't assign to a variable if the expression had an unconditional break in it
-        </span><span class="kw">if </span>!<span class="self">self</span>.builder.current_block_is_closed() {
-            <span class="kw">let </span>lhs = <span class="self">self</span>.extract_current_value(<span class="kw-2">&amp;</span>assign.lvalue)<span class="question-mark">?</span>;
-
-            <span class="self">self</span>.assign_new_value(lhs, rhs);
-        }
+        <span class="self">self</span>.assign_new_value(lhs, rhs);
 
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
     }
@@ -2277,16 +2306,14 @@
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
     }
 
-    <span class="kw">fn </span>codegen_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Values {
+    <span class="kw">fn </span>codegen_break(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="kw">let </span>loop_end = <span class="self">self</span>.current_loop().loop_end;
         <span class="self">self</span>.builder.terminate_with_jmp(loop_end, Vec::new());
 
-        <span class="self">self</span>.builder.close_block();
-
-        <span class="self">Self</span>::unit_value()
+        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
-    <span class="kw">fn </span>codegen_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Values {
+    <span class="kw">fn </span>codegen_continue(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
         <span class="kw">let </span>loop_ = <span class="self">self</span>.current_loop();
 
         <span class="comment">// Must remember to increment i before jumping
@@ -2297,9 +2324,7 @@
             <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
         }
 
-        <span class="self">self</span>.builder.close_block();
-
-        <span class="self">Self</span>::unit_value()
+        <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
     <span class="doccomment">/// Evaluate the given expression, increment the reference count of each array within,
@@ -2322,6 +2347,25 @@
             <span class="self">self</span>.builder.decrement_array_reference_count(value);
         });
         <span class="prelude-val">Ok</span>(<span class="self">Self</span>::unit_value())
+    }
+
+    <span class="attr">#[must_use = <span class="string">"do not forget to add `?` at the end of this function call"</span>]
+    </span><span class="kw">fn </span>codegen_unless_break_or_continue&lt;T, F&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        result: <span class="prelude-ty">Result</span>&lt;T, RuntimeError&gt;,
+        f: F,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt;
+    <span class="kw">where
+        </span>F: FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, T),
+    {
+        <span class="kw">match </span>result {
+            <span class="prelude-val">Ok</span>(value) =&gt; {
+                f(<span class="self">self</span>, value);
+                <span class="prelude-val">Ok</span>(())
+            }
+            <span class="prelude-val">Err</span>(RuntimeError::BreakOrContinue { .. }) =&gt; <span class="prelude-val">Ok</span>(()),
+            <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(err),
+        }
     }
 }
 </code></pre></div></section></main></body></html>
