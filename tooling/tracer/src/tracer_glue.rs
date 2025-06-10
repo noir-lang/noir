@@ -3,7 +3,7 @@ use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 use acvm::FieldElement;
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord};
+use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord, TraceEventsFileFormat};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 pub fn store_trace(tracer: Tracer, trace_dir: &str) {
     let trace_path = Path::new(trace_dir).join("trace.json");
     let mut storing_errors = false;
-    match tracer.store_trace_events(&trace_path) {
+    match tracer.store_trace_events(&trace_path, TraceEventsFileFormat::Json) {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;
