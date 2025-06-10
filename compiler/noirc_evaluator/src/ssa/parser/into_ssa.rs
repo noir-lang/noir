@@ -25,8 +25,8 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self, simplify: bool) -> Result<Ssa, SsaError> {
-        Translator::translate(self, simplify)
+    pub(crate) fn into_ssa(self, simplify: bool, validate: bool) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify, validate)
     }
 }
 
@@ -62,7 +62,11 @@ struct Translator {
 }
 
 impl Translator {
-    fn translate(mut parsed_ssa: ParsedSsa, simplify: bool) -> Result<Ssa, SsaError> {
+    fn translate(
+        mut parsed_ssa: ParsedSsa,
+        simplify: bool,
+        validate: bool,
+    ) -> Result<Ssa, SsaError> {
         let mut translator = Self::new(&mut parsed_ssa, simplify)?;
 
         // Note that the `new` call above removed the main function,
@@ -71,7 +75,13 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
-        Ok(translator.finish())
+        let ssa = translator.finish();
+
+        if validate {
+            validate_ssa(&ssa);
+        }
+
+        Ok(ssa)
     }
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {

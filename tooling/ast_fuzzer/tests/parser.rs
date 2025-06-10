@@ -76,7 +76,7 @@ fn arb_ssa_roundtrip() {
         ssa1.normalize_ids();
 
         // Print to str and parse back.
-        let ssa2 = Ssa::from_str(&ssa1.to_string()).unwrap_or_else(|e| {
+        let ssa2 = Ssa::from_str_no_validation(&ssa1.to_string()).unwrap_or_else(|e| {
             let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
             print_ast_and_panic(&format!(
                 "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
