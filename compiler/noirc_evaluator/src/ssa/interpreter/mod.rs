@@ -39,6 +39,14 @@ struct Interpreter<'ssa> {
     /// expected to have no effect if there are no such instructions or if the code
     /// being executed is an unconstrained function.
     side_effects_enabled: bool,
+
+    options: InterpreterOptions,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct InterpreterOptions {
+    /// If true, the interpreter will print each value definition to stdout.
+    pub print_definitions: bool,
 }
 
 struct CallContext {
@@ -66,20 +74,33 @@ type IResults = IResult<Vec<Value>>;
 #[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
-        self.interpret_function(self.main_id, args)
+        self.interpret_with_options(args, InterpreterOptions::default())
     }
 
-    pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {
-        let mut interpreter = Interpreter::new(self);
+    pub fn interpret_with_options(
+        &self,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+    ) -> IResults {
+        self.interpret_function(self.main_id, args, options)
+    }
+
+    fn interpret_function(
+        &self,
+        function: FunctionId,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+    ) -> IResults {
+        let mut interpreter = Interpreter::new(self, options);
         interpreter.interpret_globals()?;
         interpreter.call_function(function, args)
     }
 }
 
 impl<'ssa> Interpreter<'ssa> {
-    fn new(ssa: &'ssa Ssa) -> Self {
+    fn new(ssa: &'ssa Ssa, options: InterpreterOptions) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true }
+        Self { ssa, call_stack, side_effects_enabled: true, options }
     }
 
     fn call_context(&self) -> &CallContext {
@@ -113,6 +134,9 @@ impl<'ssa> Interpreter<'ssa> {
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     fn define(&mut self, id: ValueId, value: Value) {
+        if self.options.print_definitions {
+            println!("{id} = {value}");
+        }
         self.call_context_mut().scope.insert(id, value);
     }
 
