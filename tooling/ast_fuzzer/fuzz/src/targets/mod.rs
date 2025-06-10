@@ -11,7 +11,7 @@ mod tests {
     const MIN_SIZE: u32 = 1 << 12;
     const MAX_SIZE: u32 = 1 << 20;
 
-    use std::time::{Duration, Instant};
+    use std::time::Duration;
 
     use arbitrary::Unstructured;
     use color_eyre::eyre;
@@ -39,9 +39,8 @@ mod tests {
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     ///
-    /// The `cases` determine how many tests to run on CI. By setting it we can
-    /// avoid flakiness seeping in due to slow CI not getting to some cases that
-    /// a faster machine fails on, due to hitting the overall timeout earlier.
+    /// The `cases` determine how many tests to run on CI.
+    /// Tune this so that we can expect CI to be able to get through all cases in reasonable time.
     pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
         let _ = env_logger::try_init();
 
@@ -82,9 +81,6 @@ mod tests {
     ///
     /// This is the behavior on CI.
     fn run_deterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
-        // Comptime tests run slower than others.
-        let start = Instant::now();
-
         let config = proptest::test_runner::Config {
             cases,
             failure_persistence: None,
@@ -96,9 +92,7 @@ mod tests {
 
         runner
             .run(&seed_strategy(), |seed| {
-                if start.elapsed() < TIMEOUT {
-                    run_reproduce(&f, seed);
-                }
+                run_reproduce(&f, seed);
                 Ok(())
             })
             .unwrap();
