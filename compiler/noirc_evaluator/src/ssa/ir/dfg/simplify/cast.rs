@@ -57,12 +57,16 @@ pub(super) fn simplify_cast(
                 | NumericType::Signed { .. },
                 NumericType::Signed { bit_size },
             ) => {
+                // `IntegerConstant::from_numeric_constant` cannot handle i128
+                if bit_size == 128 {
+                    return None;
+                }
                 // Field/Unsigned -> signed
+                // We could only simplify to signed when we are below the maximum integer of the destination type.
+                // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
                 // We only simplify to signed when we are below the maximum integer of the destination type.
-                let integer_modulus = BigUint::from(2u128).pow(bit_size);
-                let constant_uint: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
                 let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
-                if constant_uint < integer_modulus && integer_constant.is_some() {
+                if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
                 } else {
                     None
@@ -78,10 +82,7 @@ pub(super) fn simplify_cast(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
-    };
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn unsigned_u8_to_i8_safe() {
@@ -120,6 +121,14 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
-        assert_normalized_ssa_equals(ssa, src);
+
+        // The overflow check would fail here.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 1 == u1 0
+            return i8 44
+        }
+        ");
     }
 }
