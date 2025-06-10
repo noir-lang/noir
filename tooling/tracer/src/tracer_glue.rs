@@ -9,10 +9,13 @@ use std::path::{Path, PathBuf};
 
 /// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
 /// multiple JSON files.
-pub fn store_trace(tracer: Tracer, trace_dir: &str) {
-    let trace_path = Path::new(trace_dir).join("trace.json");
+pub fn store_trace(tracer: Tracer, trace_dir: &str, trace_format: TraceEventsFileFormat) {
+    let trace_path = Path::new(trace_dir).join(match trace_format {
+        TraceEventsFileFormat::Json => "trace.json",
+        TraceEventsFileFormat::Binary => "trace.bin",
+    });
     let mut storing_errors = false;
-    match tracer.store_trace_events(&trace_path, TraceEventsFileFormat::Json) {
+    match tracer.store_trace_events(&trace_path, trace_format) {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;

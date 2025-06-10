@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 
@@ -15,9 +17,30 @@ use noirc_frontend::graph::CrateName;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
-use runtime_tracing::Tracer;
+use runtime_tracing::{TraceEventsFileFormat, Tracer};
 
 use super::NargoConfig;
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TraceFormat {
+    /// Binary format
+    Binary,
+
+    /// JSON text format
+    Json
+}
+
+impl FromStr for TraceFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "binary" => Ok(Self::Binary),
+            "json" => Ok(Self::Json),
+            other => Err(format!("Unknown trace format '{other}'")),
+        }
+    }
+}
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
@@ -36,11 +59,21 @@ pub(crate) struct TraceCommand {
     /// Directory where to store trace.json
     #[clap(long, short)]
     trace_dir: String,
+
+    /// The trace file format to use ('binary' or 'json')
+    #[arg(value_parser = clap::value_parser!(TraceFormat))]
+    #[clap(long, default_value = "binary")]
+    trace_format: TraceFormat,
 }
 
 pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliError> {
     let acir_mode = false;
     let skip_instrumentation = false;
+
+    let trace_format = match args.trace_format {
+        TraceFormat::Binary => TraceEventsFileFormat::Binary,
+        TraceFormat::Json => TraceEventsFileFormat::Json,
+    };
 
     let toml_path = get_package_manifest(&config.program_dir)?;
     let selection = args.package.map_or(PackageSelection::DefaultOrAll, PackageSelection::Selected);
@@ -73,6 +106,7 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
         &args.prover_name,
         &args.trace_dir,
         args.compile_options.pedantic_solving,
+        trace_format,
     )
 }
 
@@ -82,12 +116,13 @@ fn trace_program_and_decode(
     prover_name: &str,
     trace_dir: &str,
     pedantic_solving: bool,
+    trace_format: TraceEventsFileFormat,
 ) -> Result<(), CliError> {
     // Parse the initial witness values from Prover.toml
     let (inputs_map, _) =
         read_inputs_from_file(&package.root_dir, prover_name, Format::Toml, &program.abi)?;
 
-    trace_program(&program, &package.name, &inputs_map, trace_dir, pedantic_solving)
+    trace_program(&program, &package.name, &inputs_map, trace_dir, pedantic_solving, trace_format)
 }
 
 pub(crate) fn trace_program(
@@ -96,6 +131,7 @@ pub(crate) fn trace_program(
     inputs_map: &InputMap,
     trace_dir: &str,
     pedantic_solving: bool,
+    trace_format: TraceEventsFileFormat,
 ) -> Result<(), CliError> {
     let initial_witness = compiled_program.abi.encode(inputs_map, None)?;
 
@@ -118,7 +154,7 @@ pub(crate) fn trace_program(
         return Err(CliError::from(error));
     };
 
-    store_trace(tracer, trace_dir);
+    store_trace(tracer, trace_dir, trace_format);
 
     Ok(())
 }
