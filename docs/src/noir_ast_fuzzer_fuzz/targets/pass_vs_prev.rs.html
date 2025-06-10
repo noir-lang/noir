@@ -74,9 +74,7 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of an SSA pass to the one preceding it
+<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of an SSA pass to the one preceding it
 //! using the SSA interpreter.
 //!
 //! By using the SSA interpreter we can execute any pass in the pipeline,
@@ -98,11 +96,9 @@
         <span class="kw">let </span>ssa_options = options.onto(default_ssa_options());
         <span class="kw">let </span>ssa_passes = primary_passes(<span class="kw-2">&amp;</span>ssa_options);
 
-        <span class="comment">// For now limit the passes to the ones in the canary audit.
-        </span><span class="kw">let </span>max_passes = ssa_passes.len().min(<span class="number">3</span>);
-
         <span class="comment">// Choose the number of passes we run on top of the initial SSA.
-        </span><span class="kw">let </span>run_passes = u.int_in_range(<span class="number">1</span>..=max_passes)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>max_passes = ssa_passes.len();
+        <span class="kw">let </span>run_passes = u.int_in_range(<span class="number">1</span>..=max_passes)<span class="question-mark">?</span>;
 
         <span class="comment">// Generate the initial SSA, which is considered to be step 0.
         </span><span class="kw">let </span>ssa = ssa_gen::generate_ssa(program).expect(<span class="string">"failed to generate initial SSA"</span>);
