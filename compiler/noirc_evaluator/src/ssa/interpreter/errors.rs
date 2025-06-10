@@ -58,6 +58,8 @@ pub enum InterpreterError {
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
     BlackBoxError { name: String, reason: String },
+    #[error("Constant `{constant}` does not fit in type `{typ}`")]
+    ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -140,6 +142,4 @@ pub enum InternalError {
     UnexpectedInstruction { reason: &'static str },
     #[error("Expected array of {expected_size} elements, got {size}")]
     InvalidInputSize { expected_size: usize, size: usize },
-    #[error("Constant `{constant}` does not fit in type `{typ}`")]
-    ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
 }

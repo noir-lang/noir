@@ -286,10 +286,10 @@ impl NumericValue {
     }
 
     pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
-        use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
-        use super::InterpreterError::Internal;
+        use super::InterpreterError::{ConstantDoesNotFitInType, Internal};
+        use super::InternalError::UnsupportedNumericType;
 
-        let does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
+        let does_not_fit = ConstantDoesNotFitInType { constant, typ };
 
         match typ {
             NumericType::NativeField => Ok(Self::Field(constant)),
