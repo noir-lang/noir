@@ -7,6 +7,10 @@ pub mod pass_vs_prev;
 #[cfg(test)]
 mod tests {
 
+    const TIMEOUT: Duration = Duration::from_secs(20);
+    const MIN_SIZE: u32 = 1 << 12;
+    const MAX_SIZE: u32 = 1 << 20;
+
     use std::time::{Duration, Instant};
 
     use arbitrary::Unstructured;
@@ -20,14 +24,7 @@ mod tests {
         Some(seed)
     }
 
-    /// We can use this to disable the proptests on CI until we fix known bugs.
-    ///
-    /// The tests should always be enabled locally. They can be run with:
-    ///
-    /// ```ignore
-    /// cargo test -p noir_ast_fuzzer_fuzz
-    /// ```
-    #[allow(unused)]
+    /// Check if we are running on CI.
     pub fn is_running_in_ci() -> bool {
         std::env::var("CI").is_ok()
     }
@@ -46,8 +43,10 @@ mod tests {
 
         if let Some(seed) = seed_from_env() {
             run_reproduce(f, seed);
-        } else {
+        } else if is_running_in_ci() {
             run_deterministic(f);
+        } else {
+            run_nondeterministic(f);
         }
     }
 
@@ -61,11 +60,26 @@ mod tests {
         .run();
     }
 
+    /// Run the tests non-deterministically until the timeout.
+    ///
+    /// This is the local behavior.
+    fn run_nondeterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
+        arbtest::arbtest(|u| {
+            f(u).unwrap();
+            Ok(())
+        })
+        .size_min(MIN_SIZE)
+        .size_max(MAX_SIZE)
+        .budget(TIMEOUT)
+        .run();
+    }
+
     /// Run multiple tests with a deterministic RNG.
+    ///
+    /// This is the behavior on CI.
     fn run_deterministic(f: impl Fn(&mut Unstructured) -> eyre::Result<()>) {
         // Comptime tests run slower than others.
         let start = Instant::now();
-        let timeout = Duration::from_secs(20);
 
         let config = proptest::test_runner::Config {
             cases: 1000,
@@ -77,7 +91,7 @@ mod tests {
 
         runner
             .run(&seed_strategy(), |seed| {
-                if start.elapsed() < timeout {
+                if start.elapsed() < TIMEOUT {
                     run_reproduce(&f, seed);
                 }
                 Ok(())
@@ -87,9 +101,7 @@ mod tests {
 
     /// Generate seeds for `arbtest` where the top 32 bits are random and the lower 32 bits represent the input size.
     fn seed_strategy() -> proptest::strategy::BoxedStrategy<u64> {
-        let min_size: u32 = 1 << 12;
-        let max_size: u32 = 1 << 20;
-        (min_size..max_size)
+        (MIN_SIZE..MAX_SIZE)
             .prop_flat_map(move |size| {
                 any::<u64>().prop_map(move |raw| (size as u64) | (raw << u32::BITS))
             })
