@@ -578,10 +578,9 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::Subtract
                 | BinaryOpKind::Multiply
                 | BinaryOpKind::ShiftLeft
-        ) {
-            if !self.builder.current_function.dfg.is_constant(result) {
-                result = self.check_overflow(result, lhs, rhs, operator, location);
-            }
+        ) && !self.builder.current_function.dfg.is_constant(result)
+        {
+            result = self.check_overflow(result, lhs, rhs, operator, location);
         }
 
         if operator_requires_not(operator) {
