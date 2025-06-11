@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749675318646,
+  "lastUpdate": 1749675321157,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "109b5f803e45ebd6435f0e4dff249b1bed4615ce",
-          "message": "chore: add a failing test for #8780 (#8785)",
-          "timestamp": "2025-06-04T16:12:46Z",
-          "tree_id": "042bb3148341a20ed436e380e08777bada9c7140",
-          "url": "https://github.com/noir-lang/noir/commit/109b5f803e45ebd6435f0e4dff249b1bed4615ce"
-        },
-        "date": 1749055527717,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.69,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14805,6 +14736,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd",
+          "message": "fix: always error if integer literal doesn't fit its type on the fron… (#8885)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-06-11T20:19:02Z",
+          "tree_id": "f6606f405fc4d18abd6fd277211e872d55ba870a",
+          "url": "https://github.com/noir-lang/noir/commit/f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd"
+        },
+        "date": 1749675306869,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.76,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
             "unit": "MB"
           }
         ]
