@@ -39,7 +39,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         compile_options,
         max_ssa_blocks_num: 30, // it takes too long to run program with more blocks
         max_instructions_num: 1500, // it takes too long to run program with more instructions
-        max_iterations_num: 10,
+        max_iterations_num: 10000,
         instruction_options,
         fuzzer_command_options: FuzzerCommandOptions::default(),
     };
