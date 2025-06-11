@@ -606,7 +606,7 @@ pub fn build_debug_crate_file() -> String {
                 // The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
-                let indexes =
+                let indices =
                     (0..n).map(|i| format!["Index{i}"]).collect::<Vec<String>>().join(", ");
                 let var_sig =
                     (0..n).map(|i| format!["_v{i}: Index{i}"]).collect::<Vec<String>>().join(", ");
@@ -614,15 +614,15 @@ pub fn build_debug_crate_file() -> String {
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_oracle_member_assign_{n}<T, {indexes}>(
+                unconstrained fn __debug_oracle_member_assign_{n}<T, {indices}>(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_inner_member_assign_{n}<T, {indexes}>(
+                unconstrained fn __debug_inner_member_assign_{n}<T, {indices}>(
                     var_id: u32, value: T, {var_sig}
                 ) {{
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
-                pub fn __debug_member_assign_{n}<T, {indexes}>(var_id: u32, value: T, {var_sig}) {{
+                pub fn __debug_member_assign_{n}<T, {indices}>(var_id: u32, value: T, {var_sig}) {{
                     /// Safety: debug context
                     unsafe {{
                         __debug_inner_member_assign_{n}(var_id, value, {vars});
