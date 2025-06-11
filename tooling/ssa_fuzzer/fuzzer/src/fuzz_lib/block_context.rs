@@ -4,7 +4,7 @@ use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, value::ValueId};
+use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use std::collections::{HashMap, VecDeque};
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state

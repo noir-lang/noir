@@ -31,6 +31,7 @@ pub(crate) enum WitnessValue {
     U64(u64),
     Boolean(bool),
     I64(u64),
+    I32(u32),
 }
 
 /// Represents the data for the fuzzer
@@ -58,7 +59,8 @@ fn initialize_witness_map(
             WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
             WitnessValue::U64(u64) => (FieldElement::from(*u64), ValueType::U64),
             WitnessValue::Boolean(bool) => (FieldElement::from(*bool as u64), ValueType::Boolean),
-            WitnessValue::I64(i64) => (FieldElement::from(*i64 as u64), ValueType::I64),
+            WitnessValue::I64(i64) => (FieldElement::from(*i64), ValueType::I64),
+            WitnessValue::I32(i32) => (FieldElement::from(*i32 as u64), ValueType::I32),
         };
         witness_map.insert(Witness(i as u32), value);
         values.push(value);
@@ -239,43 +241,43 @@ mod tests {
 
     /// fn main(x: Field) -> pub Field {
     ///   let mut y = x;
-    ///   for i in 0..10 {
+    ///   for i in 1..10 {
     ///     y *= x;
     ///   }
     ///   y
     /// }
+    /// x = 2, so we expect that y = 2 * 2 ^ 9 = 2 ^ 10
     #[test]
     fn test_simple_loop() {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+
+        // v8 = allocate -> &mut Field (memory address)
+        // store v2 at v8
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        // load v8 -> Field (loads from first defined memory address, which is v8)
         let load_block = InstructionBlock {
             instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
         };
         let load_mul_set_block = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v13 = load v8 -> Field (loaded value is 5th defined field)
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v14 = mul v13, v2 (v14 -- 6th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v14 at v8
             ],
         };
         let commands = vec![
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 2,
-                block_end_idx: 1,
-                start_iter: 1,
-                end_iter: 10,
-            },
+            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
         ];
         let data = FuzzerData {
             blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
             commands,
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // last block returns v6
+            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
@@ -302,46 +304,40 @@ mod tests {
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
         let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
         let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
+
+        // v9 = allocate -> &mut Field
+        // store v2 at v9
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        // load v9 -> Field (loads from first defined memory address, which is v9)
         let load_block = InstructionBlock {
             instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
         };
         let load_mul_set_block = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v14 = load v9 -> Field (loaded value is 5th defined field)
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v15 = mul v14, v2 (v15 -- 6th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v15 at v9
             ],
         };
         let load_mul_set_block2 = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_7_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_8_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v18 = load v9 -> Field (loaded value is 7th defined field)
+                Instruction::MulChecked { lhs: arg_7_field, rhs: arg_2_field }, // v19 = mul v18, v2 (v19 -- 8th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_8_field }, // store v19 at v9
             ],
         };
         let commands = vec![
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 2,
-                block_end_idx: 1,
-                start_iter: 0,
-                end_iter: 4,
-            },
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 3,
-                block_end_idx: 1,
-                start_iter: 1,
-                end_iter: 4,
-            },
+            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 4 }, // for i in 0..4 do load_mul_set_block
+            FuzzerCommand::InsertCycle { block_body_idx: 3, start_iter: 1, end_iter: 4 }, // for j in 1..4 do load_mul_set_block2 (added to previous loop)
         ];
         let data = FuzzerData {
             blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_mul_set_block2],
             commands,
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // last block returns v6
+            return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
@@ -350,6 +346,8 @@ mod tests {
         }
     }
 
+    /// Tests if fuzzer Jmp command breaks the loop
+    ///
     /// fn main(x: Field) -> pub Field{
     ///   let mut y = x;
     ///   for i in 0..10 {
@@ -358,45 +356,52 @@ mod tests {
     ///   y *= x;
     ///   y
     /// }
-    /// x = 2; y = 2 ^ 12
+    /// x = 2; so we expect that y = 2 ^ 12
+    ///
+    /// if Jmp command does not break the loop, we will receive the following program:
+    /// fn main(x: Field) -> pub Field{
+    ///   let mut y = x;
+    ///   for i in 0..10 {
+    ///     y *= x;
+    ///     y *= x;
+    ///   }
+    ///   y
+    /// }
     #[test]
     fn test_loop_broken_with_jmp() {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+
+        // v8 = allocate -> &mut Field (memory address)
+        // store v2 at v8
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+
+        // v14 = load v8 -> Field
         let load_block = InstructionBlock {
             instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
         };
+
+        // end block does not inherit variables defined in cycle body, so we can use this instruction block twice
+        // for loop body block and for the end block
         let load_mul_set_block = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v14 = load v8 -> Field
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v15 = mul v14, v2 (v15 -- 6th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v15 at v8
             ],
         };
-        let load_mul_set_block2 = InstructionBlock {
-            instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
-            ],
-        };
+
         let commands = vec![
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 2,
-                block_end_idx: 1,
-                start_iter: 0,
-                end_iter: 10,
-            },
-            FuzzerCommand::InsertJmpBlock { block_idx: 1 },
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 },
+            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 10 }, // for i in 0..10 do load_mul_set_block
+            FuzzerCommand::InsertJmpBlock { block_idx: 1 }, // if we in cycle body, jmp doesn't insert new block, just jumps to the end of the cycle
+            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // load_mul_set_block
         ];
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_mul_set_block2],
+            blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
@@ -423,38 +428,39 @@ mod tests {
     #[test]
     fn test_jmp_if_in_cycle() {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
-        let arg_8_field = Argument { index: 8, value_type: ValueType::Field };
-        let arg_9_field = Argument { index: 9, value_type: ValueType::Field };
+        // v9 = allocate -> &mut Field
+        // store v2 at v9
         let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+
+        // load v9 -> Field
         let load_block = InstructionBlock {
             instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
         };
+
+        // load_*_block will be used for then and else blocks
+        // then and else blocks does not share variables, so indices of arguments are the same (loaded variables from then block cannot be used in else block)
         let load_mul_set_block = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_6_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v15 = load v9 -> Field (loaded value is 5th defined field in then block)
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v16 = mul v15, v2 (v16 -- 6th defined field in then block)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v16 at v9
             ],
         };
         let load_add_set_block = InstructionBlock {
             instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::AddChecked { lhs: arg_8_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_9_field },
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v17 = load v9 -> Field (loaded value is 5th defined field in else block)
+                Instruction::AddChecked { lhs: arg_5_field, rhs: arg_2_field }, // v18 = add v17, v2 (v18 -- 6th defined field in else block)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v18 at v9
             ],
         };
         let commands = vec![
             FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 1,
-                block_end_idx: 1,
-                start_iter: 0,
-                end_iter: 10,
-            },
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 2, block_else_idx: 3 },
+            FuzzerCommand::InsertCycle { block_body_idx: 1, start_iter: 0, end_iter: 10 }, // for i in 0..10 do ...
+            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 2, block_else_idx: 3 }, // if(LAST_BOOL) { load_mul_set_block } else { load_add_set_block }
         ];
         let data = FuzzerData {
             blocks: vec![
@@ -463,7 +469,7 @@ mod tests {
                 load_mul_set_block.clone(),
                 load_add_set_block.clone(),
             ],
-            commands,
+            commands: commands.clone(),
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
         };
@@ -473,34 +479,26 @@ mod tests {
             None => panic!("Program failed to execute"),
         }
 
-        // replaced args order
-        let load_mul_set_block = InstructionBlock {
-            instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::MulChecked { lhs: arg_8_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_9_field },
-            ],
-        };
-        let load_add_set_block = InstructionBlock {
-            instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 },
-                Instruction::AddChecked { lhs: arg_6_field, rhs: arg_2_field },
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field },
-            ],
+        let arg_0_boolean = Argument { index: 0, value_type: ValueType::Boolean };
+        let arg_1_boolean = Argument { index: 1, value_type: ValueType::Boolean };
+        let add_boolean_block = InstructionBlock {
+            instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }], // jmpif uses last defined boolean variable
+                                                                                            // [initialize_witness_map] func inserts two boolean variables itself, first is true, last is false
+                                                                                            // so by inserting new boolean = first | last, we will get last variable = true
         };
 
-        let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle {
-                block_body_idx: 1,
-                block_end_idx: 1,
-                start_iter: 0,
-                end_iter: 10,
-            },
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 3, block_else_idx: 2 }, // replaced blocks order
-        ];
+        // use the same commands, but add boolean block at the beginning
+        let mut commands = commands;
+        commands
+            .insert(0, FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 }); // add true boolean
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_add_set_block],
+            blocks: vec![
+                add_to_memory_block,
+                load_block,
+                load_mul_set_block,
+                load_add_set_block,
+                add_boolean_block,
+            ],
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
