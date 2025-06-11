@@ -276,9 +276,8 @@ impl LastUseContext {
             .filter_map(|(definition, use_data)| {
                 // Only consider moves where the last use was not in a nested loop.
                 // All uses of a variable inside a loop it was not defined in need to be clones.
-                (use_data.defined_in == use_data.last_used_in).then(|| {
-                    (definition, use_data.branches.flatten_uses())
-                })
+                (use_data.defined_in == use_data.last_used_in)
+                    .then(|| (definition, use_data.branches.flatten_uses()))
             })
             .collect();
 
