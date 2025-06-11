@@ -104,6 +104,8 @@ struct LastUseContext {
     ///           println((x, b));
     ///       }
     ///   }
+    ///   - The exception to this is if the variable is assigned to within a loop, we may be able
+    ///   to move the last use of the variable before it is assigned a fresh value.
     ///   ```
     ///   In the snippet above, `x` will have loop index 0 which does not match its last use
     ///   within the for loop (1 loop deep = loop index of 1). However, `b` has loop index 1
@@ -122,20 +124,7 @@ struct LastUseContext {
     ///   }
     ///   ```
     ///   `x` above has two last uses, one in each if branch.
-    last_uses: HashMap<LocalId, (LoopIndex, Branches)>,
-
-    /// The most recent use of a variable. Unlike `last_uses`, this includes uses in loops.
-    /// Normally we always need to clone in loops, but when a variable is immediately assigned
-    /// to we can move into the expression since the assignment will still give the variable
-    /// back a value afterward, e.g:
-    ///
-    /// ```noir
-    /// let mut foo = bar();
-    /// for i in 0 .. 10 {
-    ///     foo = baz(foo); // we can move into baz here, foo will have a value after
-    /// }
-    /// ```
-    most_recent_uses: HashMap<LocalId, (LoopIndex, Branches)>,
+    last_uses: HashMap<LocalId, UseData>,
 
     /// When an assignment comes we want to cut the last_uses of the variable being assigned to
     /// so that the last use before the assignment - if there is one, can be moved since we're
@@ -143,7 +132,24 @@ struct LastUseContext {
     ///
     /// E.g. `foo = bar(foo)` should be able to move `foo` into `bar` even if it is used afterward
     /// since the result of `bar(foo)` will be assigned to `foo` afterward anyway.
-    last_assignment_uses: Vec<(LocalId, LoopIndex, Branches)>,
+    last_assignment_uses: Vec<(LocalId, Branches)>,
+}
+
+struct UseData {
+    /// The loop index this variable was defined in
+    defined_in: LoopIndex,
+
+    /// The loop index the most recent instance of this variable was used in
+    last_used_in: LoopIndex,
+
+    /// The Branches conditional structure which locates the last use of the variable.
+    branches: Branches,
+}
+
+impl UseData {
+    fn new(defined_in: LoopIndex) -> Self {
+        Self { defined_in, last_used_in: defined_in, branches: Branches::None }
+    }
 }
 
 type LoopIndex = usize;
@@ -157,7 +163,6 @@ impl Context {
         let mut context = LastUseContext {
             current_loop_and_branch: Vec::new(),
             last_uses: HashMap::default(),
-            most_recent_uses: HashMap::default(),
             last_assignment_uses: Vec::new(),
         };
         context.push_loop_scope();
@@ -202,8 +207,7 @@ impl LastUseContext {
 
     fn declare_variable(&mut self, id: LocalId) {
         let loop_index = self.loop_index();
-        self.last_uses.insert(id, (loop_index, Branches::None));
-        self.most_recent_uses.insert(id, (loop_index, Branches::None));
+        self.last_uses.insert(id, UseData::new(loop_index));
     }
 
     /// Remember a new use of the given variable, possibly overwriting or
@@ -219,20 +223,12 @@ impl LastUseContext {
             self.current_loop_and_branch.last().expect("We should always have at least 1 scope");
         let loop_index = self.loop_index();
 
-        if let Some((variable_loop_index, uses)) = self.last_uses.get_mut(&id) {
-            if *variable_loop_index == loop_index {
-                Self::remember_use_of_variable_rec(uses, path, variable);
-            } else {
-                *uses = Branches::None;
+        if let Some(use_data) = self.last_uses.get_mut(&id) {
+            if use_data.defined_in != loop_index {
+                use_data.branches = Branches::None;
             }
-        }
-
-        // Always remember the most recent use of a variable
-        if let Some((variable_loop_index, uses)) = self.most_recent_uses.get_mut(&id) {
-            if *variable_loop_index != loop_index {
-                *uses = Branches::None;
-            }
-            Self::remember_use_of_variable_rec(uses, path, variable);
+            use_data.last_used_in = loop_index;
+            Self::remember_use_of_variable_rec(&mut use_data.branches, path, variable);
         }
     }
 
@@ -277,10 +273,16 @@ impl LastUseContext {
         let mut last_uses: HashMap<LocalId, Vec<IdentId>> = self
             .last_uses
             .into_iter()
-            .map(|(definition, (_, last_uses))| (definition, last_uses.flatten_uses()))
+            .filter_map(|(definition, use_data)| {
+                // Only consider moves where the last use was not in a nested loop.
+                // All uses of a variable inside a loop it was not defined in need to be clones.
+                (use_data.defined_in == use_data.last_used_in).then(|| {
+                    (definition, use_data.branches.flatten_uses())
+                })
+            })
             .collect();
 
-        for (local, _, assignment_uses) in self.last_assignment_uses {
+        for (local, assignment_uses) in self.last_assignment_uses {
             last_uses.entry(local).or_default().extend(assignment_uses.flatten_uses());
         }
         last_uses
@@ -444,9 +446,8 @@ impl LastUseContext {
 
         // Try to make the last use of a variable in the current loop index a move
         if let Some(id) = Self::try_get_lvalue_local_id(&assign.lvalue) {
-            if let Some((variable_loop_index, uses)) = self.most_recent_uses.get_mut(&id) {
-                // TODO: I think we need a dominates analysis here
-                self.last_assignment_uses.push((id, *variable_loop_index, uses.clone()));
+            if let Some(use_data) = self.last_uses.get_mut(&id) {
+                self.last_assignment_uses.push((id, use_data.branches.clone()));
             }
         }
     }
