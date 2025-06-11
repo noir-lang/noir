@@ -1183,7 +1183,16 @@
 <a href="#1182" id="1182">1182</a>
 <a href="#1183" id="1183">1183</a>
 <a href="#1184" id="1184">1184</a>
-<a href="#1185" id="1185">1185</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a>
+<a href="#1187" id="1187">1187</a>
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a>
+<a href="#1191" id="1191">1191</a>
+<a href="#1192" id="1192">1192</a>
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1216,6 +1225,7 @@
 <span class="kw">use </span><span class="kw">super</span>::ir::dfg::GlobalsGraph;
 <span class="kw">use </span><span class="kw">super</span>::ir::instruction::{ArrayOffset, ErrorType};
 <span class="kw">use </span><span class="kw">super</span>::ir::types::NumericType;
+<span class="kw">use </span><span class="kw">super</span>::validation::validate_function;
 <span class="kw">use super</span>::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -1316,7 +1326,15 @@
     }
 
     <span class="kw">let </span>ssa = function_context.builder.finish();
+    validate_ssa(<span class="kw-2">&amp;</span>ssa);
+
     <span class="prelude-val">Ok</span>(ssa)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) {
+    <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
+        validate_function(function);
+    }
 }
 
 <span class="kw">impl </span>FunctionContext&lt;<span class="lifetime">'_</span>&gt; {

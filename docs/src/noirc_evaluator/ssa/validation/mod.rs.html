@@ -715,7 +715,170 @@
 <a href="#714" id="714">714</a>
 <a href="#715" id="715">715</a>
 <a href="#716" id="716">716</a>
-<a href="#717" id="717">717</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -729,7 +892,8 @@
 //! - Check that the input values of certain instructions matches that instruction's constraint
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
-</span><span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
+</span><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::TerminatorInstruction;
 
@@ -747,6 +911,12 @@
     <span class="comment">// State for truncate-after-signed-sub validation
     // Stores: Option&lt;(bit_size, result)&gt;
     </span>signed_binary_op: <span class="prelude-ty">Option</span>&lt;PendingSignedOverflowOp&gt;,
+
+    <span class="comment">// State for valid Field to integer casts
+    // Range checks are laid down in isolation and can make for safe casts
+    // If they occurred before the value being cast to a smaller type
+    // Stores: A set of (value being range constrained, the value's max bit size)
+    </span>range_checks: HashMap&lt;ValueId, u32&gt;,
 }
 
 <span class="attr">#[derive(Debug)]
@@ -757,7 +927,7 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; Validator&lt;<span class="lifetime">'f</span>&gt; {
     <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Function) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ function, signed_binary_op: <span class="prelude-val">None </span>}
+        <span class="self">Self </span>{ function, signed_binary_op: <span class="prelude-val">None</span>, range_checks: HashMap::default() }
     }
 
     <span class="doccomment">/// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -851,6 +1021,82 @@
                 <span class="kw">if </span><span class="self">self</span>.signed_binary_op.is_some() {
                     <span class="macro">panic!</span>(<span class="string">"Signed binary operation does not follow overflow pattern"</span>);
                 }
+            }
+        }
+    }
+
+    <span class="doccomment">/// Enforces that every cast from Field -&gt; unsigned/signed integer must obey the following invariants:
+    /// The value being cast is either:
+    /// 1. A truncate instruction that ensures the cast is valid
+    /// 2. A constant value known to be in-range
+    /// 3. A division or other operation whose result is known to fit within the target bit size
+    ///
+    /// Our initial SSA gen only generates preceding truncates for safe casts.
+    /// The cases accepted here are extended past what we perform during our initial SSA gen
+    /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
+    </span><span class="kw">fn </span>validate_field_to_integer_cast_invariant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId) {
+        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.function.dfg;
+
+        <span class="kw">let </span>(cast_input, typ) = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[instruction_id] {
+            Instruction::Cast(cast_input, typ) =&gt; (<span class="kw-2">*</span>cast_input, <span class="kw-2">*</span>typ),
+            Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
+                <span class="self">self</span>.range_checks.insert(<span class="kw-2">*</span>value, <span class="kw-2">*</span>max_bit_size);
+                <span class="kw">return</span>;
+            }
+            <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
+        };
+
+        <span class="kw">if </span>!<span class="macro">matches!</span>(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">let </span>(NumericType::Signed { bit_size: target_type_size }
+        | NumericType::Unsigned { bit_size: target_type_size }) = typ
+        <span class="kw">else </span>{
+            <span class="kw">return</span>;
+        };
+
+        <span class="comment">// If the cast input has already been range constrained to a bit size that fits
+        // in the destination type, we have a safe cast.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(max_bit_size) = <span class="self">self</span>.range_checks.get(<span class="kw-2">&amp;</span>cast_input) {
+            <span class="macro">assert!</span>(<span class="kw-2">*</span>max_bit_size &lt;= target_type_size);
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[cast_input] {
+            Value::Instruction { instruction, .. } =&gt; <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction] {
+                Instruction::Truncate { value: <span class="kw">_</span>, bit_size, max_bit_size } =&gt; {
+                    <span class="macro">assert!</span>(<span class="kw-2">*</span>bit_size &lt;= target_type_size);
+                    <span class="macro">assert!</span>(<span class="kw-2">*</span>max_bit_size &lt;= FieldElement::max_num_bits());
+                }
+                Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })
+                    <span class="kw">if </span>dfg.is_constant(<span class="kw-2">*</span>rhs) =&gt;
+                {
+                    <span class="kw">let </span>numerator_bits = dfg.type_of_value(<span class="kw-2">*</span>lhs).bit_size();
+                    <span class="kw">let </span>divisor = dfg.get_numeric_constant(<span class="kw-2">*</span>rhs).unwrap();
+                    <span class="kw">let </span>divisor_bits = divisor.num_bits();
+                    <span class="kw">let </span>max_quotient_bits = numerator_bits - divisor_bits;
+
+                    <span class="macro">assert!</span>(
+                        max_quotient_bits &lt;= target_type_size,
+                        <span class="string">"Cast from field after div could exceed bit size: expected ≤ {target_type_size}, got {max_quotient_bits}"
+                    </span>);
+                }
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"Invalid cast from Field, must be truncated or provably safe"</span>);
+                }
+            },
+            Value::NumericConstant { constant, .. } =&gt; {
+                <span class="kw">let </span>max_val_bits = constant.num_bits();
+                <span class="macro">assert!</span>(
+                    max_val_bits &lt;= target_type_size,
+                    <span class="string">"Constant too large for cast target: {max_val_bits} bits &gt; {target_type_size}"
+                </span>);
+            }
+            <span class="kw">_ </span>=&gt; {
+                <span class="macro">panic!</span>(
+                    <span class="string">"Invalid cast from Field, not preceded by valid truncation or known safe value"
+                </span>);
             }
         }
     }
@@ -965,6 +1211,7 @@
         <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.function.reachable_blocks() {
             <span class="kw">for </span>instruction <span class="kw">in </span><span class="self">self</span>.function.dfg[block].instructions() {
                 <span class="self">self</span>.validate_signed_op_overflow_pattern(<span class="kw-2">*</span>instruction);
+                <span class="self">self</span>.validate_field_to_integer_cast_invariant(<span class="kw-2">*</span>instruction);
                 <span class="self">self</span>.type_check_instruction(<span class="kw-2">*</span>instruction);
             }
         }
@@ -1427,6 +1674,85 @@
           b0(v0: u8, v1: i8):
             constrain v0 != v1
             return
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>cast_from_field_constant_in_range() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 42 as u8
+            return v0
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>cast_from_field_constant_out_of_range_with_truncate() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>cast_from_field_division_safe() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div u16 256, u16 256
+            v1 = cast v0 as u8
+            return v1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Constant too large"</span>)]
+    </span><span class="kw">fn </span>cast_from_field_constant_too_large() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 300 as u8
+            return v0
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Invalid cast from Field"</span>)]
+    </span><span class="kw">fn </span>cast_from_raw_field() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = add Field 255, Field 1
+            v1 = cast v0 as u8
+            return v1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src);
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"assertion"</span>)]
+    </span><span class="kw">fn </span>cast_after_unsafe_truncate() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
         }
         "</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src);

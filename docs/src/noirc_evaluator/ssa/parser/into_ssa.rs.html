@@ -567,7 +567,18 @@
 <a href="#566" id="566">566</a>
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
 };
@@ -585,6 +596,7 @@
         value::ValueId,
     },
     opt::pure::FunctionPurities,
+    ssa_gen::validate_ssa,
 };
 
 <span class="kw">use super</span>::{
@@ -593,8 +605,8 @@
 };
 
 <span class="kw">impl </span>ParsedSsa {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_ssa(<span class="self">self</span>, simplify: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaError&gt; {
-        Translator::translate(<span class="self">self</span>, simplify)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_ssa(<span class="self">self</span>, simplify: bool, validate: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaError&gt; {
+        Translator::translate(<span class="self">self</span>, simplify, validate)
     }
 }
 
@@ -630,7 +642,11 @@
 }
 
 <span class="kw">impl </span>Translator {
-    <span class="kw">fn </span>translate(<span class="kw-2">mut </span>parsed_ssa: ParsedSsa, simplify: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaError&gt; {
+    <span class="kw">fn </span>translate(
+        <span class="kw-2">mut </span>parsed_ssa: ParsedSsa,
+        simplify: bool,
+        validate: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>translator = <span class="self">Self</span>::new(<span class="kw-2">&amp;mut </span>parsed_ssa, simplify)<span class="question-mark">?</span>;
 
         <span class="comment">// Note that the `new` call above removed the main function,
@@ -639,7 +655,13 @@
             translator.translate_non_main_function(function)<span class="question-mark">?</span>;
         }
 
-        <span class="prelude-val">Ok</span>(translator.finish())
+        <span class="kw">let </span>ssa = translator.finish();
+
+        <span class="kw">if </span>validate {
+            validate_ssa(<span class="kw-2">&amp;</span>ssa);
+        }
+
+        <span class="prelude-val">Ok</span>(ssa)
     }
 
     <span class="kw">fn </span>new(parsed_ssa: <span class="kw-2">&amp;mut </span>ParsedSsa, simplify: bool) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, SsaError&gt; {

@@ -1179,7 +1179,12 @@
 <a href="#1178" id="1178">1178</a>
 <a href="#1179" id="1179">1179</a>
 <a href="#1180" id="1180">1180</a>
-<a href="#1181" id="1181">1181</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#1181" id="1181">1181</a>
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{<span class="self">self</span>, Debug, Formatter},
     str::FromStr,
     sync::Arc,
@@ -1218,7 +1223,7 @@
     <span class="kw">type </span><span class="prelude-val">Err </span>= SsaErrorWithSource;
 
     <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
-        <span class="self">Self</span>::from_str_impl(s, <span class="bool-val">false</span>)
+        <span class="self">Self</span>::from_str_impl(s, <span class="bool-val">false</span>, <span class="bool-val">true</span>)
     }
 }
 
@@ -1229,19 +1234,24 @@
         FromStr::from_str(src)
     }
 
+    <span class="doccomment">/// Creates an Ssa object from the given string without running SSA validation
+    </span><span class="kw">pub fn </span>from_str_no_validation(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaErrorWithSource&gt; {
+        <span class="self">Self</span>::from_str_impl(src, <span class="bool-val">false</span>, <span class="bool-val">false</span>)
+    }
+
     <span class="doccomment">/// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
     </span><span class="kw">pub fn </span>from_str_simplifying(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaErrorWithSource&gt; {
-        <span class="self">Self</span>::from_str_impl(src, <span class="bool-val">true</span>)
+        <span class="self">Self</span>::from_str_impl(src, <span class="bool-val">true</span>, <span class="bool-val">true</span>)
     }
 
-    <span class="kw">fn </span>from_str_impl(src: <span class="kw-2">&amp;</span>str, simplify: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaErrorWithSource&gt; {
+    <span class="kw">fn </span>from_str_impl(src: <span class="kw-2">&amp;</span>str, simplify: bool, validate: bool) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, SsaErrorWithSource&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))<span class="question-mark">?</span>;
         <span class="kw">let </span>parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))<span class="question-mark">?</span>;
         parsed_ssa
-            .into_ssa(simplify)
+            .into_ssa(simplify, validate)
             .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }

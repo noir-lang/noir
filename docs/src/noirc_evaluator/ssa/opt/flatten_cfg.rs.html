@@ -1845,7 +1845,8 @@
 <a href="#1844" id="1844">1844</a>
 <a href="#1845" id="1845">1845</a>
 <a href="#1846" id="1846">1846</a>
-<a href="#1847" id="1847">1847</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
@@ -3319,8 +3320,9 @@
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
+            v10 = truncate v9 to 8 bits, max_bit_size: 254
+            v11 = cast v10 as u8
+            store v11 at v6
             jmp b3()
           b3():
             constrain v5 == u1 1
@@ -3332,7 +3334,6 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
         <span class="kw">let </span>flattened_ssa = ssa.flatten_cfg();
         <span class="kw">let </span>main = flattened_ssa.main();
 
@@ -3362,21 +3363,22 @@
             enable_side_effects v5
             v8 = cast v2 as Field
             v10 = add v8, Field 1
-            v11 = cast v10 as u8
-            v12 = load v6 -&gt; u8
-            v13 = not v5
-            v14 = cast v4 as u8
-            v15 = cast v13 as u8
-            v16 = unchecked_mul v14, v11
+            v11 = truncate v10 to 8 bits, max_bit_size: 254
+            v12 = cast v11 as u8
+            v13 = load v6 -&gt; u8
+            v14 = not v5
+            v15 = cast v4 as u8
+            v16 = cast v14 as u8
             v17 = unchecked_mul v15, v12
-            v18 = unchecked_add v16, v17
-            store v18 at v6
-            enable_side_effects v13
-            v19 = load v6 -&gt; u8
-            v20 = cast v13 as u8
-            v21 = cast v4 as u8
-            v22 = unchecked_mul v21, v19
-            store v22 at v6
+            v18 = unchecked_mul v16, v13
+            v19 = unchecked_add v17, v18
+            store v19 at v6
+            enable_side_effects v14
+            v20 = load v6 -&gt; u8
+            v21 = cast v14 as u8
+            v22 = cast v4 as u8
+            v23 = unchecked_mul v22, v20
+            store v23 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return

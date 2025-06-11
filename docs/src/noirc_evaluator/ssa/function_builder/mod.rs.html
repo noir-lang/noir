@@ -607,16 +607,7 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -646,7 +637,6 @@
     },
     opt::pure::FunctionPurities,
     ssa_gen::Ssa,
-    validation::validate_function,
 };
 
 <span class="doccomment">/// The per-function context for each ssa function being generated.
@@ -775,8 +765,6 @@
     <span class="doccomment">/// Consume the FunctionBuilder returning all the functions it has generated.
     </span><span class="kw">pub fn </span>finish(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="self">self</span>.finished_functions.push(<span class="self">self</span>.current_function);
-
-        <span class="self">Self</span>::validate_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>.finished_functions);
 
         Ssa::new(<span class="self">self</span>.finished_functions, <span class="self">self</span>.error_types)
     }
@@ -1141,12 +1129,6 @@
 
     <span class="kw">pub fn </span>record_error_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, selector: ErrorSelector, typ: HirType) {
         <span class="self">self</span>.error_types.insert(selector, typ);
-    }
-
-    <span class="kw">fn </span>validate_ssa(functions: <span class="kw-2">&amp;</span>[Function]) {
-        <span class="kw">for </span>function <span class="kw">in </span>functions {
-            validate_function(function);
-        }
     }
 }
 
