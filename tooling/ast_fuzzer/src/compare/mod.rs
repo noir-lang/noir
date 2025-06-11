@@ -17,7 +17,8 @@ pub use compiled::{
 };
 pub use comptime::CompareComptime;
 pub use interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
+    input_values_to_ssa,
 };
 
 #[derive(Clone, Debug, PartialEq)]

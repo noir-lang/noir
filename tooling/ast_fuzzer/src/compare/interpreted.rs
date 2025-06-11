@@ -194,7 +194,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
@@ -236,15 +236,12 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                let elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                    input_value_to_ssa(typ, input)
-                })
-                .into_iter()
-                .flatten()
-                .collect();
-
                 // Tuples are not wrapped into arrays, they are returned as a vector.
-                elements
+                fields
+                    .iter()
+                    .zip(input_values)
+                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
+                    .collect()
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")

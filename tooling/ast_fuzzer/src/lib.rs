@@ -3,13 +3,15 @@
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+use rand as _;
+
 mod abi;
 pub mod compare;
 mod input;
 mod program;
 
 pub use abi::program_abi;
-pub use compare::input_values_to_ssa;
+pub use compare::{input_value_to_ssa, input_values_to_ssa};
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};

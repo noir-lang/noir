@@ -138,15 +138,19 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = tempfile::tempdir().unwrap().into_path();
+        let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
 
+        let mut has_circuit_output = false;
+
         if check_stdout {
             let output = nargo.output().unwrap();
             let stdout = String::from_utf8(output.stdout).unwrap();
+            has_circuit_output = stdout.contains("Circuit output:");
+
             let stdout = remove_noise_lines(stdout);
 
             let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
@@ -158,6 +162,24 @@ mod tests {
                 {
                 insta::assert_snapshot!(snapshot_name, stdout)
             })
+        }
+
+        if has_circuit_output {
+            let prover_toml_path = find_prover_toml_in_dir(&test_program_dir).expect(
+                "Expected a Prover.toml file to exist because the program produced an output",
+            );
+            let prover_toml_contents =
+                fs::read_to_string(prover_toml_path).expect("Failed to read Prover.toml");
+            let prover_toml: toml::Value =
+                toml::from_str(&prover_toml_contents).expect("Failed to parse Prover.toml");
+            let toml::Value::Table(table) = prover_toml else {
+                panic!("Expected Prover.toml to be a table");
+            };
+            if !table.contains_key("return") {
+                panic!(
+                    "Expected Prover.toml to contain a `return` key because the program produced an output"
+                );
+            }
         }
 
         check_program_artifact(
@@ -343,7 +365,7 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
         // (because some depdendencies might be there and might be needed for the expanded code to work)
@@ -404,7 +426,7 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
         // (because some depdendencies might be there and might be needed for the expanded code to work)
@@ -532,6 +554,34 @@ mod tests {
 
             let path = entry.path();
             if path.extension().is_none_or(|ext| ext != "json") {
+                continue;
+            };
+
+            return Some(path);
+        }
+
+        None
+    }
+
+    fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
+        if !dir.exists() {
+            return None;
+        }
+
+        for entry in fs::read_dir(dir).unwrap() {
+            let Ok(entry) = entry else {
+                continue;
+            };
+
+            let path = entry.path();
+
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
+                    return Some(prover_toml);
+                }
+            }
+
+            if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
             };
 
