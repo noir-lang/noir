@@ -189,8 +189,6 @@ pub(super) struct FunctionContext<'a> {
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
-    /// Indicator of being in an if-then-else.
-    in_if: bool,
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
     call_targets: BTreeMap<CallableId, HashSet<Type>>,
@@ -252,7 +250,6 @@ impl<'a> FunctionContext<'a> {
             globals,
             locals,
             in_loop: false,
-            in_if: false,
             call_targets,
             next_ident_id: 0,
             has_call: false,
@@ -883,11 +880,8 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter(|(_, (mutable, _, typ))| {
-                // Trying to re-assign a mutable reference in an if leads to panics or errors
-                *mutable
-                    && !(self.in_if
-                        && self.ctx.config.avoid_assign_ref_in_if
-                        && types::contains_reference(typ))
+                // We banned reassigning variables which contain mutable references in ACIR (#8790)
+                *mutable && (self.unconstrained() || !types::contains_reference(typ))
             })
             .map(|(id, _)| id)
             .collect::<Vec<_>>();
@@ -1010,8 +1004,6 @@ impl<'a> FunctionContext<'a> {
 
         let condition = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
-        let was_in_if = std::mem::replace(&mut self.in_if, true);
-
         let consequence = {
             if flags.allow_blocks {
                 self.gen_block(u, typ)?
@@ -1031,8 +1023,6 @@ impl<'a> FunctionContext<'a> {
             };
             Some(expr)
         };
-
-        self.in_if = was_in_if;
 
         Ok(expr::if_then(condition, consequence, alternative, typ.clone()))
     }
