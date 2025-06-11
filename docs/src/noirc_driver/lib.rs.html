@@ -835,7 +835,8 @@
 <a href="#834" id="834">834</a>
 <a href="#835" id="835">835</a>
 <a href="#836" id="836">836</a>
-<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
@@ -875,6 +876,7 @@
 
 <span class="kw">use </span>debug::filter_relevant_files;
 
+<span class="kw">pub use </span>abi_gen::gen_abi;
 <span class="kw">pub use </span>contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 <span class="kw">pub use </span>debug::DebugFile;
 <span class="kw">pub use </span>noirc_frontend::graph::{CrateId, CrateName};
@@ -1631,7 +1633,7 @@
             create_program(program, <span class="kw-2">&amp;</span>ssa_evaluator_options)<span class="question-mark">?
         </span>};
 
-    <span class="kw">let </span>abi = abi_gen::gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
+    <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);
     <span class="kw">let </span>file_map = filter_relevant_files(<span class="kw-2">&amp;</span>debug, <span class="kw-2">&amp;</span>context.file_manager);
 
     <span class="prelude-val">Ok</span>(CompiledProgram {

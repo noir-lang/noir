@@ -101,8 +101,8 @@
         FieldElement::modulus()
     )]
     </span>InputExceedsFieldModulus { arg_name: String, value: String },
-    <span class="attr">#[error(<span class="string">"cannot parse value into {0:?}"</span>)]
-    </span>AbiTypeMismatch(AbiType),
+    <span class="attr">#[error(<span class="string">"cannot parse value `{0}` into {1:?}"</span>)]
+    </span>AbiTypeMismatch(String, AbiType),
     <span class="attr">#[error(<span class="string">"Expected argument `{0}`, but none was found"</span>)]
     </span>MissingArgument(String),
 }

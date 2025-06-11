@@ -271,16 +271,24 @@
 <a href="#270" id="270">270</a>
 <a href="#271" id="271">271</a>
 <a href="#272" id="272">272</a>
-<a href="#273" id="273">273</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
-</span><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
+</span><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>nargo::constants::PROVER_INPUT_FILE;
 <span class="kw">use </span>nargo::ops::report_errors;
 <span class="kw">use </span>nargo::package::Package;
 <span class="kw">use </span>nargo::workspace::Workspace;
 <span class="kw">use </span>nargo_toml::PackageSelection;
-<span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions};
+<span class="kw">use </span>noirc_abi::Abi;
+<span class="kw">use </span>noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
@@ -353,7 +361,7 @@
         );
 
         <span class="comment">// Report warnings and get the AST, or exit if the compilation failed.
-        </span><span class="kw">let </span>program = report_errors(
+        </span><span class="kw">let </span>(program, abi) = report_errors(
             program_result,
             <span class="kw-2">&amp;</span>file_manager,
             args.compile_options.deny_warnings,
@@ -361,8 +369,7 @@
         )<span class="question-mark">?</span>;
 
         <span class="comment">// Parse the inputs and convert them to what the SSA interpreter expects.
-        </span><span class="kw">let </span>abi = noir_ast_fuzzer::program_abi(<span class="kw-2">&amp;</span>program);
-        <span class="kw">let </span>prover_file = package.root_dir.join(<span class="kw-2">&amp;</span>args.prover_name).with_extension(<span class="string">"toml"</span>);
+        </span><span class="kw">let </span>prover_file = package.root_dir.join(<span class="kw-2">&amp;</span>args.prover_name).with_extension(<span class="string">"toml"</span>);
         <span class="kw">let </span>(prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(<span class="kw-2">&amp;</span>prover_file, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
 
@@ -427,7 +434,7 @@
     workspace: <span class="kw-2">&amp;</span>Workspace,
     package: <span class="kw-2">&amp;</span>Package,
     options: <span class="kw-2">&amp;</span>CompileOptions,
-) -&gt; CompilationResult&lt;Program&gt; {
+) -&gt; CompilationResult&lt;(Program, Abi)&gt; {
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     <span class="kw">if </span>options.disable_comptime_printing {
         context.disable_comptime_printing();
@@ -464,7 +471,10 @@
         <span class="macro">println!</span>(<span class="string">"{program}"</span>);
     }
 
-    <span class="prelude-val">Ok</span>((program, warnings))
+    <span class="kw">let </span>error_types = BTreeMap::default();
+    <span class="kw">let </span>abi = gen_abi(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span>main_id, program.return_visibility(), error_types);
+
+    <span class="prelude-val">Ok</span>(((program, abi), warnings))
 }
 
 <span class="kw">fn </span>to_ssa_options(options: <span class="kw-2">&amp;</span>CompileOptions) -&gt; SsaEvaluatorOptions {
