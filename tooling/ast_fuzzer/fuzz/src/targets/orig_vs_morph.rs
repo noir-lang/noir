@@ -16,7 +16,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
     let config = Config {
-        avoid_negative_int_literals: true,
+        avoid_overflow: u.arbitrary()?,
         avoid_large_int_literals: true,
         ..Default::default()
     };
@@ -363,6 +363,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2000);
     }
 }

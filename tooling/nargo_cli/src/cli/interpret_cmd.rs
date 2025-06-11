@@ -12,6 +12,7 @@ use noirc_driver::{CompilationResult, CompileOptions};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
+use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
@@ -44,6 +45,10 @@ pub(super) struct InterpretCommand {
     /// When nothing is specified, the SSA is interpreted after all passes.
     #[clap(long)]
     ssa_pass: Vec<String>,
+
+    /// If true, the interpreter will print each value definition to stdout.
+    #[clap(long)]
+    print_definitions: bool,
 }
 
 impl WorkspaceCommand for InterpretCommand {
@@ -93,7 +98,16 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let mut ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
 
-        print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, "Initial SSA", &ssa_input);
+        let interpreter_options = InterpreterOptions { print_definitions: args.print_definitions };
+
+        print_and_interpret_ssa(
+            &ssa_options,
+            &args.ssa_pass,
+            &mut ssa,
+            "Initial SSA",
+            &ssa_input,
+            interpreter_options,
+        );
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
         for (i, ssa_pass) in ssa_passes.iter().enumerate() {
@@ -107,7 +121,14 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .run(ssa)
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
-            print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, &msg, &ssa_input);
+            print_and_interpret_ssa(
+                &ssa_options,
+                &args.ssa_pass,
+                &mut ssa,
+                &msg,
+                &ssa_input,
+                interpreter_options,
+            );
         }
     }
     Ok(())
@@ -202,11 +223,17 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
     }
 }
 
-fn interpret_ssa(passes_to_interpret: &[String], ssa: &Ssa, msg: &str, args: &[Value]) {
+fn interpret_ssa(
+    passes_to_interpret: &[String],
+    ssa: &Ssa,
+    msg: &str,
+    args: &[Value],
+    options: InterpreterOptions,
+) {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
-        let result = ssa.interpret(args);
+        let result = ssa.interpret_with_options(args, options);
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
     }
 }
@@ -217,7 +244,8 @@ fn print_and_interpret_ssa(
     ssa: &mut Ssa,
     msg: &str,
     args: &[Value],
+    interpreter_options: InterpreterOptions,
 ) {
     print_ssa(options, ssa, msg);
-    interpret_ssa(passes_to_interpret, ssa, msg, args);
+    interpret_ssa(passes_to_interpret, ssa, msg, args, interpreter_options);
 }
