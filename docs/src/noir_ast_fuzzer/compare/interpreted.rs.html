@@ -533,7 +533,7 @@
 <span class="doccomment">/// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-</span><span class="kw">fn </span>input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue) -&gt; Vec&lt;Value&gt; {
+</span><span class="kw">pub fn </span>input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue) -&gt; Vec&lt;Value&gt; {
     <span class="kw">use </span>ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     <span class="kw">use </span>ssa::ir::types::Type;
     <span class="kw">let </span>array_value = |elements: Vec&lt;Vec&lt;Value&gt;&gt;, types: Vec&lt;Type&gt;| {

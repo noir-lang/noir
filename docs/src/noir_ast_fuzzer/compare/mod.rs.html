@@ -141,7 +141,8 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     fmt::{Debug, Display},
     ops::Deref,
 };
@@ -160,7 +161,8 @@
 };
 <span class="kw">pub use </span>comptime::CompareComptime;
 <span class="kw">pub use </span>interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
+    input_values_to_ssa,
 };
 
 <span class="attr">#[derive(Clone, Debug, PartialEq)]
