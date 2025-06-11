@@ -12,7 +12,6 @@ use noirc_frontend::{
     },
     signed_field::SignedField,
 };
-use strum::IntoEnumIterator;
 
 use super::{Name, VariableId, types, visitor::visit_expr};
 
@@ -99,70 +98,6 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
     };
     Ok(expr)
 }
-
-// /// Generate an arbitrary pure (free of side effects) expression, returning a specific type.
-// pub fn gen_expr(
-//     u: &mut Unstructured,
-//     typ: &Type,
-//     max_depth: usize,
-// ) -> arbitrary::Result<Expression> {
-//     if max_depth > 0 {
-//         let idx = u.choose_index(3)?;
-//         if idx == 0 {
-//             if let Some(expr) = gen_unary(u, typ, max_depth)? {
-//                 return Ok(expr);
-//             }
-//         }
-//         if idx == 1 {
-//             if let Some(expr) = gen_binary(u, typ, max_depth)? {
-//                 return Ok(expr);
-//             }
-//         }
-//     }
-//     gen_literal(u, typ)
-// }
-
-// /// Generate an arbitrary unary expression, returning a specific type.
-// pub fn gen_unary(
-//     u: &mut Unstructured,
-//     typ: &Type,
-//     max_depth: usize,
-// ) -> arbitrary::Result<Option<Expression>> {
-//     if !types::can_unary_return(typ) {
-//         return Ok(None);
-//     }
-//     let mut make_unary = |op| {
-//         let expr = gen_expr(u, typ, max_depth - 1)?;
-//         Ok(Some(unary(op, expr, typ.clone())))
-//     };
-//     if types::is_numeric(typ) {
-//         make_unary(UnaryOp::Minus)
-//     } else if types::is_bool(typ) {
-//         make_unary(UnaryOp::Not)
-//     } else {
-//         Ok(None)
-//     }
-// }
-
-// /// Generate an arbitrary binary expression, returning a specific type.
-// pub fn gen_binary(
-//     u: &mut Unstructured,
-//     typ: &Type,
-//     max_depth: usize,
-// ) -> arbitrary::Result<Option<Expression>> {
-//     // Collect the operations can return the expected type.
-//     let ops =
-//         BinaryOp::iter().filter(|op| types::can_binary_op_return(op, typ)).collect::<Vec<_>>();
-
-//     // Ideally we checked that the target type can be returned, but just in case.
-//     if ops.is_empty() {
-//         return Ok(None);
-//     }
-
-//     // Choose a random operation.
-//     let op = u.choose_iter(ops)?;
-
-// }
 
 /// Generate a literals for loop ranges with signed/unsigned integers with bits 8, 16, 32 or 64 bits,
 /// in a way that start is not higher than the end, and the maximum difference between them is limited,

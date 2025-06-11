@@ -3444,6 +3444,7 @@ dependencies = [
  "noirc_abi",
  "noirc_evaluator",
  "noirc_frontend",
+ "strum",
 ]
 
 [[package]]

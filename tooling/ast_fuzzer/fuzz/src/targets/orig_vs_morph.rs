@@ -196,6 +196,7 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
+    use super::helpers::{gen_expr, has_side_effect};
     use arbitrary::{Arbitrary, Unstructured};
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
@@ -362,26 +363,24 @@ mod rules {
     /// * `x` into `if c { x } else { x }`
     pub fn inevitable() -> Rule {
         Rule::new(
-            |ctx, _expr| !ctx.is_in_special_call && !ctx.is_in_ref_mut,
+            |ctx, expr| {
+                !ctx.is_in_special_call
+                    && !ctx.is_in_ref_mut
+                    // If we're in ACIR then don't turn loop ranges into expressions.
+                    && (ctx.unconstrained || !ctx.is_in_range)
+                    // Avoid creating new variables because:
+                    // * `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
+                    // * Creating variables in blocks would need to be assigned new IDs, and subsequent expressions would need to be rewritten,
+                    //   for which we currently lack the context. `for` introduces the index variable.
+                    && !expr::exists(expr, |expr| matches!(expr, Expression::Let(_) | Expression::For(_)))
+            },
             |u, expr| {
                 let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
-                // *expr = expr::if_else(gen_condition(u)?, expr.clone(), expr.clone(), typ);
-
+                let cond = gen_expr(u, &Type::Bool, 2)?;
+                *expr = expr::if_else(cond, expr.clone(), expr.clone(), typ);
                 Ok(())
             },
         )
-    }
-
-    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
-    /// change the behavior of the program.
-    fn has_side_effect(expr: &Expression) -> bool {
-        expr::exists(expr, |expr| {
-            matches!(
-                expr,
-                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
-                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
-            )
-        })
     }
 
     /// Common match condition for boolean rules.
@@ -411,6 +410,144 @@ mod rules {
             false
         }
     }
+}
+
+mod helpers {
+    use std::sync::OnceLock;
+
+    use arbitrary::Unstructured;
+    use noir_ast_fuzzer::{expr, types};
+    use noirc_frontend::{
+        ast::{IntegerBitSize, UnaryOp},
+        monomorphization::ast::{BinaryOp, Expression, Type},
+        shared::Signedness,
+    };
+    use strum::IntoEnumIterator;
+
+    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    pub(super) fn has_side_effect(expr: &Expression) -> bool {
+        expr::exists(expr, |expr| {
+            matches!(
+                expr,
+                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
+                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+            )
+        })
+    }
+
+    /// Generate an arbitrary pure (free of side effects) expression, returning a specific type.
+    pub(super) fn gen_expr(
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Expression> {
+        if max_depth > 0 {
+            let idx = u.choose_index(3)?;
+            if idx == 0 {
+                if let Some(expr) = gen_unary(u, typ, max_depth)? {
+                    return Ok(expr);
+                }
+            }
+            if idx == 1 {
+                if let Some(expr) = gen_binary(u, typ, max_depth)? {
+                    return Ok(expr);
+                }
+            }
+        }
+        expr::gen_literal(u, typ)
+    }
+
+    /// Generate an arbitrary unary expression, returning a specific type.
+    pub(super) fn gen_unary(
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        if !types::can_unary_return(typ) {
+            return Ok(None);
+        }
+        let mut make_unary = |op| {
+            let expr = gen_expr(u, typ, max_depth.saturating_sub(1))?;
+            Ok(Some(expr::unary(op, expr, typ.clone())))
+        };
+        if types::is_numeric(typ) {
+            make_unary(UnaryOp::Minus)
+        } else if types::is_bool(typ) {
+            make_unary(UnaryOp::Not)
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Generate an arbitrary binary expression, returning a specific type.
+    ///
+    /// The operation should not have any side effects, ie. it must not fail.
+    pub(super) fn gen_binary(
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<Expression>> {
+        // Collect the operations can return the expected type.
+        // Do not introduce new errors in randomly generated code that only exists in the morph.
+        let ops = BinaryOp::iter()
+            .filter(|op| {
+                types::can_binary_op_return(op, typ)
+                    && !types::can_binary_op_overflow(op)
+                    && !types::can_binary_op_err_by_zero(op)
+            })
+            .collect::<Vec<_>>();
+
+        // Ideally we checked that the target type can be returned, but just in case.
+        if ops.is_empty() {
+            return Ok(None);
+        }
+
+        // Choose a random operation.
+        let op = u.choose_iter(ops)?;
+
+        let type_options = TYPES.get_or_init(|| {
+            let mut types = vec![Type::Bool, Type::Field];
+            for sign in [Signedness::Signed, Signedness::Unsigned] {
+                for size in IntegerBitSize::iter() {
+                    if sign.is_signed() && size.bit_size() == 1 {
+                        continue;
+                    }
+                    types.push(Type::Integer(sign, size));
+                }
+            }
+            types
+        });
+
+        // Select input types that can produce the output we want.
+        let type_options = type_options
+            .iter()
+            .filter(|input| types::can_binary_op_return_from_input(&op, input, typ))
+            .collect::<Vec<_>>();
+
+        // Choose a type for the LHS and RHS.
+        let lhs_type = u.choose_iter(type_options)?;
+        let rhs_type = match op {
+            BinaryOp::ShiftLeft | BinaryOp::ShiftRight => &types::U8,
+            _ => lhs_type,
+        };
+
+        // Generate expressions for LHS and RHS.
+        let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
+        let rhs_expr = gen_expr(u, rhs_type, max_depth.saturating_sub(1))?;
+
+        let mut expr = expr::binary(lhs_expr, op, rhs_expr);
+
+        // If we have chosen e.g. u8 and need u32 we need to cast.
+        if !(lhs_type == typ || types::is_bool(typ) && op.is_comparator()) {
+            expr = expr::cast(expr, typ.clone());
+        }
+
+        Ok(Some(expr))
+    }
+
+    /// Types we can consider using in this context.
+    static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 }
 
 #[cfg(test)]

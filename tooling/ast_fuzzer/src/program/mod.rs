@@ -21,7 +21,7 @@ pub(crate) mod freq;
 mod func;
 pub mod rewrite;
 mod scope;
-mod types;
+pub mod types;
 pub mod visitor;
 
 #[cfg(test)]
