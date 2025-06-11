@@ -1,4 +1,4 @@
-//! The loop invariant code motion pass moves code from inside a loop to before the loop
+//! The loop invariant code motion (LICM) pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -549,7 +549,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// We know a loop body will execute if we have constant loop bounds where the upper bound
     /// is greater than the lower bound.
     fn does_loop_body_execute(&self) -> bool {
-        // The loop will never be executed if we have an upper bound of zero, equal loop bounds,
+        // The loop will never be executed if we have equal loop bounds
         // or we are unsure if the loop will ever be executed (dynamic loop bounds).
         // If certain instructions were to be hoisted out of a loop that never executed it
         // could potentially cause the program to fail when it is not meant to fail.
@@ -699,7 +699,7 @@ impl<'f> LoopInvariantContext<'f> {
             .map(|(is_left, min, max)| (is_left, min, max, binary))
     }
 
-    /// If the inputs are an induction and a loop invariant variables, it returns
+    /// If the inputs are an induction and loop invariant variables, it returns
     /// the maximum and minimum values of the induction variable, based on the loop bounds,
     /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
     fn match_induction_and_invariant(
@@ -716,7 +716,7 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        assert!(!upper.is_zero(), "executing a non executable loop");
+        assert!(self.does_loop_body_execute(), "executing a non executable loop");
 
         let (upper_field, upper_type) = upper.dec().into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
@@ -1664,6 +1664,40 @@ mod test {
         ";
 
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    #[test]
+    fn negative_lower_bound() {
+      // Regression fro issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
+      // do not panic on a negative lower bound
+      let src = "
+      acir(inline) predicate_pure fn main f0 {
+        b0():
+          jmp b1(i32 4294967295)
+        b1(v0: i32):
+          v3 = lt v0, i32 0
+          jmpif v3 then: b2, else: b3
+        b2():
+          v4 = truncate v0 to 32 bits, max_bit_size: 33
+          v5 = cast v4 as u32
+          v6 = cast v0 as u32
+          v8 = lt v6, u32 2147483648
+          v9 = lt v5, u32 2147483648
+          v10 = eq v9, v8
+          v11 = unchecked_mul v10, v8
+          constrain v11 == v8
+          v12 = lt v0, v4
+          constrain v12 == u1 0
+          v15 = unchecked_add v0, i32 1
+          jmp b1(v15)
+        b3():
+          return
+      }
+      ";
+
+      let ssa = Ssa::from_str(src).unwrap();
+      let ssa = ssa.loop_invariant_code_motion();
+      assert_normalized_ssa_equals(ssa, src);
     }
 }
 
