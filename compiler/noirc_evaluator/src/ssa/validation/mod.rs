@@ -15,6 +15,8 @@
 use acvm::{AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+pub(crate) mod dynamic_array_indices;
+
 use crate::ssa::ir::instruction::TerminatorInstruction;
 
 use super::ir::{

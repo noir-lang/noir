@@ -212,6 +212,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
+        SsaPass::new_try(
+            Ssa::verify_no_dynamic_indices_to_references,
+            "Verifying no dynamic array indices to reference value elements",
+        ),
     ]
 }
 
