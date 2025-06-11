@@ -4903,7 +4903,7 @@ checksum = "afab94fb28594581f62d981211a9a4d53cc8130bbcbbb89a0440d9b8e81a7746"
 [[package]]
 name = "runtime_tracing"
 version = "0.10.0"
-source = "git+https://github.com/metacraft-labs/runtime_tracing.git?branch=binary_trace_format#0bcb1feb59dacf70f2f3fec41f07f107990c51c4"
+source = "git+https://github.com/metacraft-labs/runtime_tracing.git?branch=binary_trace_format#905b2b2fe7f45e72065649dd0528a44c77995325"
 dependencies = [
  "capnp",
  "capnpc",
