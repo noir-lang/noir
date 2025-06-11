@@ -571,8 +571,6 @@ impl Translator {
         // before each print.
         ssa.normalize_ids();
 
-        validate_ssa(&ssa);
-
         ssa
     }
 

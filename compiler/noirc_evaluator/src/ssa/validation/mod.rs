@@ -203,7 +203,6 @@ impl<'f> Validator<'f> {
                     );
                 }
                 _ => {
-                    dbg!(&dfg[*instruction]);
                     panic!("Invalid cast from Field, must be truncated or provably safe");
                 }
             },
@@ -795,6 +794,85 @@ mod tests {
           b0(v0: u8, v1: i8):
             constrain v0 != v1
             return
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn cast_from_field_constant_in_range() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 42 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn cast_from_field_constant_out_of_range_with_truncate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    fn cast_from_field_division_safe() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div u16 256, u16 256
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large")]
+    fn cast_from_field_constant_too_large() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 300 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid cast from Field")]
+    fn cast_from_raw_field() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = add Field 255, Field 1
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src);
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion")]
+    fn cast_after_unsafe_truncate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
         }
         ";
         let _ = Ssa::from_str(src);
