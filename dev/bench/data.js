@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749674176050,
+  "lastUpdate": 1749674389771,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "109b5f803e45ebd6435f0e4dff249b1bed4615ce",
-          "message": "chore: add a failing test for #8780 (#8785)",
-          "timestamp": "2025-06-04T16:12:46Z",
-          "tree_id": "042bb3148341a20ed436e380e08777bada9c7140",
-          "url": "https://github.com/noir-lang/noir/commit/109b5f803e45ebd6435f0e4dff249b1bed4615ce"
-        },
-        "date": 1749054799710,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254917,
-            "range": "± 786",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223548,
-            "range": "± 4283",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3573210,
-            "range": "± 14213",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784226,
             "range": "± 3345",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd",
+          "message": "fix: always error if integer literal doesn't fit its type on the fron… (#8885)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-06-11T20:19:02Z",
+          "tree_id": "f6606f405fc4d18abd6fd277211e872d55ba870a",
+          "url": "https://github.com/noir-lang/noir/commit/f34d5c25fe7ce51d8d1f13cc9fbb764c7dfe23fd"
+        },
+        "date": 1749674376723,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249220,
+            "range": "± 1319",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223350,
+            "range": "± 2387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784646,
+            "range": "± 16629",
             "unit": "ns/iter"
           }
         ]
