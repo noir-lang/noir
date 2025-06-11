@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749664129753,
+  "lastUpdate": 1749664373491,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3968,85 +3968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "879926c2e258626b309606bf90329a855f17c49d",
-          "message": "fix: Merge `replacement_type` and `is_function_type` in `defunctionalization` (#8784)",
-          "timestamp": "2025-06-04T14:17:38Z",
-          "tree_id": "fff01d00f5cd3b0dfd9311b7068624af9dc69190",
-          "url": "https://github.com/noir-lang/noir/commit/879926c2e258626b309606bf90329a855f17c49d"
-        },
-        "date": 1749048829926,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.356,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.47,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.298,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 124,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.602,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.812,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "d3ee1a3016b301772626d342fe16b638611b239f",
           "message": "chore: Adjust the frequency of 'for' statements in ACIR fuzz generation (#8788)",
           "timestamp": "2025-06-04T15:38:29Z",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.802,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5a0182fa5c9371ceb91c1f216526812344f6054a",
+          "message": "chore(ssa): Simplify truncate when the bit size we are truncating to is greater than the value's max bit size (#8875)",
+          "timestamp": "2025-06-11T17:26:17Z",
+          "tree_id": "cedeee43177c8ffb6a4b5505fe134e3a145418ca",
+          "url": "https://github.com/noir-lang/noir/commit/5a0182fa5c9371ceb91c1f216526812344f6054a"
+        },
+        "date": 1749664362692,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.308,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.64,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.254,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 121,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 124,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.544,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.753,
             "unit": "s"
           }
         ]
