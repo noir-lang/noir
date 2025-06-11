@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749663874756,
+  "lastUpdate": 1749663877820,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,75 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "b21a44cd5fff5261025fb52e091a931ece8a9c91",
-          "message": "chore(fuzz): Remove unreachable functions in the AST fuzzer (#8782)",
-          "timestamp": "2025-06-03T19:24:56Z",
-          "tree_id": "b9be1dd803769cde2621155cf8d0960db76407ab",
-          "url": "https://github.com/noir-lang/noir/commit/b21a44cd5fff5261025fb52e091a931ece8a9c91"
-        },
-        "date": 1748980638174,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.69,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "879926c2e258626b309606bf90329a855f17c49d",
           "message": "fix: Merge `replacement_type` and `is_function_type` in `defunctionalization` (#8784)",
           "timestamp": "2025-06-04T14:17:38Z",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/12bf0dbfeae032cd4d09622259a99abbcff950ce"
         },
         "date": 1749658744339,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "229d57ba59d1f1f94d2ce0b93d267abb1227ac38",
+          "message": "fix(ssa): Validate field to integer cast (#8799)",
+          "timestamp": "2025-06-11T17:12:07Z",
+          "tree_id": "87e9b467ef34a047f70f9a05205d516d0f273447",
+          "url": "https://github.com/noir-lang/noir/commit/229d57ba59d1f1f94d2ce0b93d267abb1227ac38"
+        },
+        "date": 1749663865659,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
