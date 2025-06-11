@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 468
 expression: artifact
 ---
 {
@@ -23,7 +24,7 @@ expression: artifact
         "type": {
           "kind": "integer",
           "sign": "unsigned",
-          "width": 8
+          "width": 32
         },
         "visibility": "private"
       }
@@ -90,10 +91,10 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "jZDRCoMwDEX/Jc99mE4d+CtjSK1RCqUtsR0M8d8Xi930YbCXmya3p6F3gQH7OHXajm6G9r5AT9oYPXXGKRm0szxdVgG57QIh8ggOPlNeEtoArY3GCHhKE9Ol2UubapDE7kUA2oErPzhqg9tpFV/68httmp29FR+4/p+uMl2e6Ad3Umk6/RYKaAsBZdJr0ippDW0poGFdt1WkZW9wz2eMVh3iCi+fnRyoJ6dwiITbsuTx+jc=",
+  "debug_symbols": "jZBNCsMgEIXvMmsX+WkS8CqlBGMmQRAVo4UScvdOJLbJotDNG2een4NvhRGHOPfKTHYBfl9h8EprNffaShGUNTRdNwa57YNHpBGcfKKc8GgCcBO1ZvAUOqZLixMm1SA8uQUDNCNVenBSGvfTxr508Rttu4Ptqg/c/E83ma4v9IM6IZW//BZK4CWDKmmd9Ja0AV4xaEm3fZVXYtB45DNFI09xhZfLTg7UeStxjB73Zcmj9W8=",
   "file_map": {
     "50": {
-      "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
+      "source": "fn main(mut x: [Field; 10], index: u32) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
       "path": ""
     }
   },

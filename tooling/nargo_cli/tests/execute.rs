@@ -139,7 +139,7 @@ mod tests {
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = tempfile::tempdir().unwrap().into_path();
+        let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
@@ -344,7 +344,7 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
         // (because some depdendencies might be there and might be needed for the expanded code to work)
@@ -405,7 +405,7 @@ mod tests {
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
         // (because some depdendencies might be there and might be needed for the expanded code to work)

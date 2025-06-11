@@ -170,6 +170,8 @@ impl Context<'_, '_, '_> {
         let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
         let rhs_is_less_than_bit_size_with_rhs_typ =
             self.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
+        let rhs_is_less_than_bit_size_with_lhs_typ =
+            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
         // Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
         let rhs = self.insert_binary(
             rhs_is_less_than_bit_size_with_rhs_typ,
@@ -178,49 +180,75 @@ impl Context<'_, '_, '_> {
         );
         let pow = self.pow(base, rhs);
         let pow = self.insert_cast(pow, lhs_typ);
-        let result = if lhs_typ.is_unsigned() {
-            // unsigned right bit shift is just a normal division
-            self.insert_binary(lhs, BinaryOp::Div, pow)
-        } else {
-            // Get the sign of the operand; positive signed operand will just do a division as well
-            let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-            let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-            let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-            let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-            // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-            // Unchecked add as these are fields
-            let one_complement = self.insert_binary(
-                lhs_sign_as_field,
-                BinaryOp::Add { unchecked: true },
-                lhs_as_field,
-            );
-            let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-            let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
-            // Performs the division on the 1-complement (or the operand if positive)
-            let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-            // Convert back to 2-complement representation if operand is negative
-            let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
-            // The requirements for this to underflow are all of these:
-            // - lhs < 0
-            // - ones_complement(lhs) / (2^rhs) == 0
-            // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-            // to be larger than the lhs bitsize for this to overflow.
-            let shifted = self.insert_binary(
-                shifted_complement,
-                BinaryOp::Sub { unchecked: true },
-                lhs_sign_as_int,
+        if lhs_typ.is_unsigned() {
+            // unsigned right bit shift is just a normal division
+            let result = self.insert_binary(lhs, BinaryOp::Div, pow);
+            // In  case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
+            return self.insert_binary(
+                rhs_is_less_than_bit_size_with_lhs_typ,
+                BinaryOp::Mul { unchecked: true },
+                result,
             );
-            self.insert_truncate(shifted, bit_size, bit_size + 1)
-        };
-        // Returns 0 in case of overflow
-        let rhs_is_less_than_bit_size_with_lhs_typ =
-            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
-        self.insert_binary(
+        }
+        // Get the sign of the operand; positive signed operand will just do a division as well
+        let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+        let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+        let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
+        let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
+        // For negative numbers, convert to 1-complement using wrapping addition of a + 1
+        // Unchecked add as these are fields
+        let one_complement =
+            self.insert_binary(lhs_sign_as_field, BinaryOp::Add { unchecked: true }, lhs_as_field);
+        let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+        let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
+        // Performs the division on the 1-complement (or the operand if positive)
+        let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
+        // Convert back to 2-complement representation if operand is negative
+        let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+
+        // The requirements for this to underflow are all of these:
+        // - lhs < 0
+        // - ones_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        let shifted = self.insert_binary(
+            shifted_complement,
+            BinaryOp::Sub { unchecked: true },
+            lhs_sign_as_int,
+        );
+        let result = self.insert_truncate(shifted, bit_size, bit_size + 1);
+
+        // Returns 0 or -1 in case of overflow:
+        // In  case of overflow, and because rhs was nullified, we need to
+        // return the correct value, which is 0 or -1 depending on the sign of lhs
+
+        // Computes -1, or 0 if lhs is positive: is the expected result if there is an overflow
+        let minus_one = self.numeric_constant(
+            NumericType::Unsigned { bit_size }.max_value().expect("Invalid bit size"),
+            lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one, BinaryOp::Mul { unchecked: true }, lhs_sign_as_int);
+        // -1, or 0 if lhs is positive or if there is no overflow
+        let one = self.numeric_constant(FieldElement::one(), lhs_typ);
+        let no_overflow = self.insert_binary(
+            one,
+            BinaryOp::Sub { unchecked: true },
+            rhs_is_less_than_bit_size_with_lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one_or_zero, BinaryOp::Mul { unchecked: true }, no_overflow);
+
+        // predicated result: 0 if overflow, else: result
+        let result = self.insert_binary(
             rhs_is_less_than_bit_size_with_lhs_typ,
             BinaryOp::Mul { unchecked: true },
             result,
-        )
+        );
+
+        // result + minus_one_or_zero gives the expected result in all cases
+        self.insert_binary(result, BinaryOp::Add { unchecked: true }, minus_one_or_zero)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs

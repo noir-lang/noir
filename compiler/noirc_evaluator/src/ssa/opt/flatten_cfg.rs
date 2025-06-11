@@ -248,6 +248,8 @@ struct ConditionalContext {
     else_branch: Option<ConditionalBranch>,
     // Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
+    // List of predicated values, and their previous mapping
+    predicated_values: HashMap<ValueId, ValueId>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -497,6 +499,7 @@ impl<'f> Context<'f> {
             then_branch: branch,
             else_branch: None,
             call_stack,
+            predicated_values: HashMap::default(),
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -516,6 +519,7 @@ impl<'f> Context<'f> {
     /// Switch context to the 'else-branch':
     /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
     /// - Move the local allocations to the 'else_branch'
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Returns the exit block of the conditional statement
     fn then_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -537,6 +541,7 @@ impl<'f> Context<'f> {
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
+        self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
@@ -558,6 +563,7 @@ impl<'f> Context<'f> {
 
     /// Process the 'exit' block of a conditional statement:
     /// - Retrieves the local allocations from the Conditional Context
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -574,6 +580,8 @@ impl<'f> Context<'f> {
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
+
+        self.reset_predicated_values(&mut cond_context);
 
         // We must remember to reset whether side effects are enabled when both branches
         // end, in addition to resetting the value of old_condition since it is set to
@@ -650,6 +658,26 @@ impl<'f> Context<'f> {
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
         destination
+    }
+
+    /// Map the value to its predicated value, and store the previous mapping
+    /// to the 'predicated_values' map if not already stored.
+    fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
+        let conditional_context = self.condition_stack.last_mut().unwrap();
+
+        conditional_context
+            .predicated_values
+            .entry(value)
+            .or_insert_with(|| self.inserter.resolve(value));
+
+        self.inserter.map_value(value, predicated_value);
+    }
+
+    /// Restore the previous mapping of predicated values.
+    fn reset_predicated_values(&mut self, conditional_context: &mut ConditionalContext) {
+        for (value, old_mapping) in conditional_context.predicated_values.drain() {
+            self.inserter.map_value(value, old_mapping);
+        }
     }
 
     /// Insert a new instruction into the target block.
@@ -781,8 +809,12 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let casted_condition =
                         self.cast_condition_to_value_type(condition, value, call_stack);
-                    let value = self.mul_by_condition(value, casted_condition, call_stack);
-                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                    let predicate_value =
+                        self.mul_by_condition(value, casted_condition, call_stack);
+                    // Issue #8617: update the value to be the predicated value.
+                    // This ensures that the value has the correct bit size in all cases.
+                    self.predicate_value(value, predicate_value);
+                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
@@ -1665,6 +1697,7 @@ mod test {
             .flatten_cfg()
             .mem2reg()
             .remove_if_else()
+            .unwrap()
             .fold_constants()
             .dead_instruction_elimination();
 
@@ -1766,5 +1799,49 @@ mod test {
                     == FieldElement::zero()
             );
         }
+    }
+
+    #[test]
+    fn use_predicated_value() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: u32):
+            v3 = add u32 42, v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            range_check v3 to 16 bits
+            jmp b3(v3)
+          b2():
+            v4 = add u32 3, v3
+            jmp b3(v4)
+          b3(v5: u32):
+            return v5
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v3 = add u32 42, v1
+            enable_side_effects v0
+            v4 = cast v0 as u32
+            v5 = cast v0 as u32
+            v6 = unchecked_mul v3, v5
+            range_check v6 to 16 bits
+            v7 = not v0
+            enable_side_effects v7
+            v9 = add u32 3, v3
+            enable_side_effects u1 1
+            v11 = cast v0 as u32
+            v12 = cast v7 as u32
+            v13 = unchecked_mul v11, v3
+            v14 = unchecked_mul v12, v9
+            v15 = unchecked_add v13, v14
+            return v15
+        }
+        ");
     }
 }

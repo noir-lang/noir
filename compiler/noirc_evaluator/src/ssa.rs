@@ -49,6 +49,7 @@ pub mod ir;
 pub(crate) mod opt;
 pub mod parser;
 pub mod ssa_gen;
+pub(crate) mod validation;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
@@ -199,11 +200,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(Ssa::defunctionalize, "Defunctionalization", vec![All, Debug]);
-    ssa_pass_builder.add_pass(
-        Ssa::inline_simple_functions,
-        "Inlining simple functions",
-        vec![All],
-    );
+    ssa_pass_builder.add_pass(Ssa::inline_simple_functions, "Inlining simple functions", vec![All]);
     // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
     // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
     //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -266,7 +263,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Inlining",
         vec![All],
     );
-    ssa_pass_builder.add_pass(Ssa::remove_if_else, "Remove IfElse", vec![All]);
+    ssa_pass_builder.add_try_pass(Ssa::remove_if_else, "Remove IfElse", vec![All]);
     ssa_pass_builder.add_pass(Ssa::purity_analysis, "Purity Analysis", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::fold_constants, "Constant Folding", vec![All]);
     ssa_pass_builder.add_pass(

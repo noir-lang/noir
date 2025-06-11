@@ -6,10 +6,14 @@ use noirc_frontend::Shared;
 use crate::ssa::{
     interpreter::{
         InterpreterError, NumericValue, Value,
-        tests::{expect_value, expect_values, expect_values_with_args, from_constant},
+        tests::{
+            expect_value, expect_value_with_args, expect_values, expect_values_with_args,
+            from_constant,
+        },
         value::ReferenceValue,
     },
     ir::{
+        integer::IntegerConstant,
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -18,7 +22,7 @@ use crate::ssa::{
 use super::{executes_with_no_errors, expect_error};
 
 #[test]
-fn add() {
+fn add_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -32,7 +36,22 @@ fn add() {
 }
 
 #[test]
-fn add_overflow() {
+fn add_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i32 2, i32 100
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I32(102)));
+}
+
+#[test]
+fn add_overflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
@@ -46,7 +65,22 @@ fn add_overflow() {
 }
 
 #[test]
-fn add_unchecked() {
+fn add_overflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = add i8 2, i8 127
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+}
+
+#[test]
+fn add_unchecked_unsigned() {
     executes_with_no_errors(
         "
         acir(inline) fn main f0 {
@@ -59,7 +93,21 @@ fn add_unchecked() {
 }
 
 #[test]
-fn sub() {
+fn add_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_add i8 2, i8 127
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-127)));
+}
+
+#[test]
+fn sub_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -73,12 +121,27 @@ fn sub() {
 }
 
 #[test]
-fn sub_underflow() {
+fn sub_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i32 10101, i32 10102
+            v1 = truncate v0 to 32 bits, max_bit_size: 33
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I32(-1)));
+}
+
+#[test]
+fn sub_underflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = sub i8 136, i8 10  // -120 - 10
+            v0 = sub u8 0, u8 10  // 0 - 10
             v1 = truncate v0 to 8 bits, max_bit_size: 9
             return v1
         }
@@ -88,7 +151,39 @@ fn sub_underflow() {
 }
 
 #[test]
-fn sub_unchecked() {
+fn sub_underflow_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = sub i8 136, i8 10  // -120 - 10
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+    ",
+    );
+    // Expected wrapping sub:
+    // i8 can only be -128 to 127
+    // -120 - 10 = -130 = 126
+    assert!(matches!(value, Value::Numeric(NumericValue::I8(126))));
+}
+
+#[test]
+fn sub_unchecked_unsigned() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_sub u8 0, u8 10  // 0 - 10
+            return v0
+        }
+    ",
+    );
+    assert!(matches!(value, Value::Numeric(NumericValue::U8(246))));
+}
+
+#[test]
+fn sub_unchecked_signed() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -102,7 +197,7 @@ fn sub_unchecked() {
 }
 
 #[test]
-fn mul() {
+fn mul_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -116,7 +211,24 @@ fn mul() {
 }
 
 #[test]
-fn mul_overflow() {
+fn mul_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i64 2, i64 100
+            v1 = cast v0 as u128
+            v2 = truncate v1 to 64 bits, max_bit_size: 128
+            v3 = cast v2 as i64
+            return v3
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I64(200)));
+}
+
+#[test]
+fn mul_overflow_unsigned() {
     let error = expect_error(
         "
         acir(inline) fn main f0 {
@@ -130,7 +242,27 @@ fn mul_overflow() {
 }
 
 #[test]
-fn mul_unchecked() {
+fn mul_overflow_signed() {
+    // We return v0 as we simply want the output from the mul operation in this test.
+    // However, the valid SSA signed overflow patterns requires that the appropriate
+    // casts and truncates follow a signed mul.
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = mul i8 127, i8 2
+            v1 = cast v0 as u16
+            v2 = truncate v1 to 8 bits, max_bit_size: 16
+            v3 = cast v2 as i8
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
+}
+
+#[test]
+fn mul_unchecked_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -141,6 +273,20 @@ fn mul_unchecked() {
     ",
     );
     assert_eq!(value, Value::Numeric(NumericValue::U8(0)));
+}
+
+#[test]
+fn mul_unchecked_signed() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = unchecked_mul i8 127, i8 2
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::I8(-2)));
 }
 
 #[test]
@@ -316,7 +462,7 @@ fn shl_overflow() {
 }
 
 #[test]
-fn shr() {
+fn shr_unsigned() {
     let values = expect_values(
         "
         acir(inline) fn main f0 {
@@ -334,8 +480,33 @@ fn shr() {
 }
 
 #[test]
-/// shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
-fn shr_overflow() {
+fn shr_signed() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i16 65520, u8 2      
+            v1 = shr i16 65533, u8 1      
+            v2 = shr i16 65528, u8 3 
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let neg_four = IntegerConstant::Signed { value: -4, bit_size: 16 };
+    let (neg_four_constant, typ) = neg_four.into_numeric_constant();
+    assert_eq!(values[0], from_constant(neg_four_constant, typ));
+    let neg_two = IntegerConstant::Signed { value: -2, bit_size: 16 };
+    let (neg_two_constant, typ) = neg_two.into_numeric_constant();
+    assert_eq!(values[1], from_constant(neg_two_constant, typ));
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 16 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(values[2], from_constant(neg_one_constant, typ));
+}
+
+#[test]
+/// shr on unsigned integer does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
+fn shr_overflow_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -346,6 +517,44 @@ fn shr_overflow() {
     ",
     );
     assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+/// shr on signed integers does not error on overflow.
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
+/// See https://github.com/noir-lang/noir/pull/8805.
+fn shr_overflow_signed_negative_lhs() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 192, u8 9
+            return v0
+        }
+    ",
+    );
+
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(value, from_constant(neg_one_constant, typ));
+}
+
+#[test]
+/// shr on signed integers does not error on overflow.
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
+/// See https://github.com/noir-lang/noir/pull/8805.
+fn shr_overflow_signed_positive_lhs() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 1, u8 255
+            return v0
+        }
+    ",
+    );
+
+    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
 
 #[test]
@@ -421,8 +630,8 @@ fn constrain() {
 }
 
 #[test]
-fn constrain_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn constrain_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -434,34 +643,33 @@ fn constrain_disabled_by_enable_side_effects() {
     );
 }
 
-// SSA Parser does not yet parse ConstrainNotEqual
-// #[test]
-// fn constrain_not_equal() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             v0 = eq u8 3, u8 4
-//             constrain v0 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
-//
-// #[test]
-// fn constrain_not_equal_disabled_by_enable_side_effects() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             enable_side_effects u1 0
-//             constrain u1 1 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
+#[test]
+fn constrain_not_equal() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            constrain v0 != u1 1
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_equal_not_disabled_by_enable_side_effects() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            constrain u1 1 != u1 1
+            return
+        }
+    ",
+    );
+}
 
 #[test]
 fn range_check() {
@@ -491,8 +699,8 @@ fn range_check_fail() {
 }
 
 #[test]
-fn range_check_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn range_check_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -640,7 +848,7 @@ fn array_get_with_offset() {
 }
 
 #[test]
-fn array_get_disabled_by_enable_side_effects() {
+fn array_get_not_disabled_by_enable_side_effects_if_index_is_known_to_be_safe() {
     let value = expect_value(
         r#"
         acir(inline) fn main f0 {
@@ -651,6 +859,23 @@ fn array_get_disabled_by_enable_side_effects() {
             return v1
         }
     "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() {
+    let value = expect_value_with_args(
+        r#"
+        acir(inline) fn main f0 {
+          b0(v2: u32):
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index v2 -> Field
+            return v1
+        }
+    "#,
+        vec![Value::Numeric(NumericValue::U32(1))],
     );
     assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
 }

@@ -1,4 +1,4 @@
-define: &AZ_COMMIT ad837fe0687a4c9e58c43c7295ea31e39420060e
+define: &AZ_COMMIT a725813bf05acb2aba88831bc80ef97b7c558c2b
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -71,7 +71,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 70
+    timeout: 75
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
@@ -141,7 +141,7 @@ libraries:
     critical: false
   tdd:
     repo: teddav/tdd.nr
-    ref: 4bebfb361f2e5175d23376645310eecca96749a5
+    ref: c5c2d8ed9d9c7dc73346bb0bd7884f871bd16236
     timeout: 20
     critical: false
   zkpassport_rsa:
