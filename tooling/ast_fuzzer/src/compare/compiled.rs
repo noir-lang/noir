@@ -125,9 +125,6 @@ impl Comparable for NargoErrorWithTypes {
             return false;
         };
 
-        println!("{:?}", e1.1);
-        println!("{:?}", e2.1);
-
         let msg1 = e1.user_defined_failure_message();
         let msg2 = e2.user_defined_failure_message();
         let is_same_msg = msg1.is_some() && msg2.is_some() && msg1 == msg2;

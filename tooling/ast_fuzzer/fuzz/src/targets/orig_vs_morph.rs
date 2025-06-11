@@ -508,9 +508,19 @@ mod helpers {
 
         let type_options = TYPES.get_or_init(|| {
             let mut types = vec![Type::Bool, Type::Field];
+
             for sign in [Signedness::Signed, Signedness::Unsigned] {
                 for size in IntegerBitSize::iter() {
                     if sign.is_signed() && size.bit_size() == 1 {
+                        continue;
+                    }
+                    // Avoid negative literals; the frontend makes them difficult to work with in expressions
+                    // where no type inference information is available.
+                    if sign.is_signed() {
+                        continue;
+                    }
+                    // Avoid large integers; frontend doesn't like them.
+                    if size.bit_size() > 32 {
                         continue;
                     }
                     types.push(Type::Integer(sign, size));
