@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749674906666,
+  "lastUpdate": 1749674929432,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d3ee1a3016b301772626d342fe16b638611b239f",
-          "message": "chore: Adjust the frequency of 'for' statements in ACIR fuzz generation (#8788)",
-          "timestamp": "2025-06-04T15:38:29Z",
-          "tree_id": "69bf4d279011d363c04910ea50f6940f0e631b49",
-          "url": "https://github.com/noir-lang/noir/commit/d3ee1a3016b301772626d342fe16b638611b239f"
-        },
-        "date": 1749053527114,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.69,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5a0182fa5c9371ceb91c1f216526812344f6054a"
         },
         "date": 1749664741491,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.09,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.81,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.35,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.96,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d8313935c3382f4e2f8568f7de3beb311273f194",
+          "message": "fix: Count array copies for slice functions (#8867)",
+          "timestamp": "2025-06-11T20:14:25Z",
+          "tree_id": "baaa63dff01fc76426306c8552bc7b047530daa4",
+          "url": "https://github.com/noir-lang/noir/commit/d8313935c3382f4e2f8568f7de3beb311273f194"
+        },
+        "date": 1749674917952,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
