@@ -322,6 +322,10 @@ mod tests {
         })
     }
 
+    fn interpret_execution_success(mut nargo: Command) {
+        nargo.assert().success();
+    }
+
     fn nargo_expand_execute(test_program_dir: PathBuf) {
         // First run `nargo execute` on the original code to get the output
         let mut nargo = Command::cargo_bin("nargo").unwrap();
