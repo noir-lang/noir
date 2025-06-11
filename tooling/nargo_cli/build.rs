@@ -119,7 +119,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 43] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 35] = [
     // slow
     "regression_4709",
     // bug
@@ -128,7 +128,6 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 43] = [
     "array_oob_regression_7975",
     "as_witness",
     "brillig_block_parameter_liveness",
-    "brillig_cow",
     "brillig_cow_regression",
     "databus",
     "databus_composite_calldata",
@@ -137,33 +136,26 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 43] = [
     "fold_numeric_generic_poseidon",
     "global_array_rc_regression_8259",
     "hash_to_field",
-    "hashmap",
     "inline_decompose_hint_brillig_call",
     "multi_scalar_mul",
-    "nested_array_dynamic",
     "nested_if_then_block_same_cond",
     "no_predicates_numeric_generic_poseidon",
-    "pedersen_commitment",
     "ram_blowup_regression",
     "regression_11294",
     "regression_3889",
-    "regression_4088",
     "regression_5252",
     "regression_7128",
     "regression_7612",
     "regression_7744",
     "regression_8174",
     "regression_struct_array_conditional",
-    "signed_div",
     "simple_shield",
     "slice_loop",
     "struct_array_inputs",
-    "struct_fields_ordering",
     "struct_inputs",
     "to_be_bytes",
     "to_le_bytes",
     "tuple_inputs",
-    "uhashmap",
     "unrolling_regression_8333",
 ];
 
