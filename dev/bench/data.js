@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749664753380,
+  "lastUpdate": 1749674176050,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d3ee1a3016b301772626d342fe16b638611b239f",
-          "message": "chore: Adjust the frequency of 'for' statements in ACIR fuzz generation (#8788)",
-          "timestamp": "2025-06-04T15:38:29Z",
-          "tree_id": "69bf4d279011d363c04910ea50f6940f0e631b49",
-          "url": "https://github.com/noir-lang/noir/commit/d3ee1a3016b301772626d342fe16b638611b239f"
-        },
-        "date": 1749052728566,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254123,
-            "range": "± 432",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223377,
-            "range": "± 2919",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3564071,
-            "range": "± 4150",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782968,
             "range": "± 2666",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d8313935c3382f4e2f8568f7de3beb311273f194",
+          "message": "fix: Count array copies for slice functions (#8867)",
+          "timestamp": "2025-06-11T20:14:25Z",
+          "tree_id": "baaa63dff01fc76426306c8552bc7b047530daa4",
+          "url": "https://github.com/noir-lang/noir/commit/d8313935c3382f4e2f8568f7de3beb311273f194"
+        },
+        "date": 1749674164528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248713,
+            "range": "± 352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220900,
+            "range": "± 8709",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784226,
+            "range": "± 3345",
             "unit": "ns/iter"
           }
         ]
