@@ -210,7 +210,18 @@
 <a href="#209" id="209">209</a>
 <a href="#210" id="210">210</a>
 <a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -393,6 +404,11 @@
                             .mov_instruction(target_vector.pointer, source_vector.pointer);
                         brillig_context.codegen_update_vector_length(target_vector, target_size);
                     } <span class="kw">else </span>{
+                        <span class="comment">// Increase our array copy counter if that flag is set
+                        </span><span class="kw">if </span>brillig_context.count_arrays_copied {
+                            brillig_context.codegen_increment_array_copy_counter();
+                        }
+
                         brillig_context.codegen_initialize_vector(
                             target_vector,
                             target_size,
@@ -414,6 +430,12 @@
                     target_size,
                     <span class="prelude-val">Some</span>(double_size),
                 );
+
+                <span class="comment">// Increase our array copy counter if that flag is set
+                </span><span class="kw">if </span>brillig_context.count_arrays_copied {
+                    brillig_context.codegen_increment_array_copy_counter();
+                }
+
                 brillig_context.deallocate_single_addr(double_size);
             }
         },

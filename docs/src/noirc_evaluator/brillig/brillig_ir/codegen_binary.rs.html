@@ -34,7 +34,12 @@
 <a href="#33" id="33">33</a>
 <a href="#34" id="34">34</a>
 <a href="#35" id="35">35</a>
-<a href="#36" id="36">36</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
+<a href="#36" id="36">36</a>
+<a href="#37" id="37">37</a>
+<a href="#38" id="38">38</a>
+<a href="#39" id="39">39</a>
+<a href="#40" id="40">40</a>
+<a href="#41" id="41">41</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
 <span class="kw">use super</span>::{
     BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
@@ -68,6 +73,11 @@
             <span class="comment">// Mark as no longer used for this purpose, frees for reuse
             </span><span class="self">self</span>.deallocate_single_addr(const_register);
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_increment_array_copy_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>array_copy_counter = <span class="self">self</span>.array_copy_counter_address();
+        <span class="self">self</span>.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, <span class="number">1</span>);
     }
 }
 </code></pre></div></section></main></body></html>
