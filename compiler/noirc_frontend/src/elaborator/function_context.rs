@@ -54,10 +54,10 @@ impl Elaborator<'_> {
     /// Push a type variable into the current FunctionContext to be defaulted if needed
     /// at the end of the earlier of either the current function or the current comptime scope.
     pub(super) fn push_defaultable_type_variable(&mut self, typ: Type) {
-        self.get_function_context().defaultable_type_variables.push(typ);
+        self.get_function_context_mut().defaultable_type_variables.push(typ);
     }
 
-    /// Push a type variable (it's ID and type) as a required type variable: it must be
+    /// Push a type variable (its ID and type) as a required type variable: it must be
     /// bound after type-checking the current function.
     pub(super) fn push_required_type_variable(
         &mut self,
@@ -67,7 +67,7 @@ impl Elaborator<'_> {
         location: Location,
     ) {
         let var = RequiredTypeVariable { type_variable_id, typ, kind, location };
-        self.get_function_context().required_type_variables.push(var);
+        self.get_function_context_mut().required_type_variables.push(var);
     }
 
     /// Push a trait constraint into the current FunctionContext to be solved if needed
@@ -78,10 +78,10 @@ impl Elaborator<'_> {
         expr_id: ExprId,
         select_impl: bool,
     ) {
-        self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
+        self.get_function_context_mut().trait_constraints.push((constraint, expr_id, select_impl));
     }
 
-    fn get_function_context(&mut self) -> &mut FunctionContext {
+    fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
     }
