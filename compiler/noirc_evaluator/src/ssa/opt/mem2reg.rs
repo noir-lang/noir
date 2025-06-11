@@ -190,7 +190,7 @@ impl<'f> PerFunctionContext<'f> {
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
-            for (store_address, store_instruction) in block.last_stores.iter() {  
+            for (store_address, store_instruction) in block.last_stores.iter() {
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
@@ -649,7 +649,7 @@ impl<'f> PerFunctionContext<'f> {
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
-                // This prevents us potentially removing a last store from a preceding block or is altered within another function. 
+                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for return_value in return_values {
                     references.for_each_alias_of(*return_value, |_, alias| {
                         self.instruction_input_references.insert(alias);
