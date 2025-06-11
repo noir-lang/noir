@@ -1446,7 +1446,8 @@ impl Elaborator<'_> {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
-                                    kind: rhs_type.to_string(),
+                                    typ: rhs_type.to_string(),
+                                    operator: "!",
                                     location,
                                 }
                             });
@@ -1457,7 +1458,8 @@ impl Elaborator<'_> {
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
                             return Err(TypeCheckError::InvalidUnaryOp {
-                                kind: rhs_type.to_string(),
+                                typ: rhs_type.to_string(),
+                                operator: "-",
                                 location,
                             });
                         }
@@ -2261,6 +2263,12 @@ impl Elaborator<'_> {
         select_impl: bool,
     ) {
         self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
+    }
+
+    /// Push an `ExprId` that corresponds to an integer literal.
+    /// At the end of the current function we'll check that they fit in their type's range.
+    pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
+        self.get_function_context().integer_literal_expr_ids.push(literal_expr_id);
     }
 
     fn get_function_context(&mut self) -> &mut FunctionContext {

@@ -181,6 +181,11 @@ pub(crate) fn reallocate_vector_for_insertion<
                             .mov_instruction(target_vector.pointer, source_vector.pointer);
                         brillig_context.codegen_update_vector_length(target_vector, target_size);
                     } else {
+                        // Increase our array copy counter if that flag is set
+                        if brillig_context.count_arrays_copied {
+                            brillig_context.codegen_increment_array_copy_counter();
+                        }
+
                         brillig_context.codegen_initialize_vector(
                             target_vector,
                             target_size,
@@ -202,6 +207,12 @@ pub(crate) fn reallocate_vector_for_insertion<
                     target_size,
                     Some(double_size),
                 );
+
+                // Increase our array copy counter if that flag is set
+                if brillig_context.count_arrays_copied {
+                    brillig_context.codegen_increment_array_copy_counter();
+                }
+
                 brillig_context.deallocate_single_addr(double_size);
             }
         },

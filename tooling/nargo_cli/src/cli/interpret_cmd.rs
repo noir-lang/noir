@@ -1,5 +1,7 @@
 //! Use the SSA Interpreter to execute a SSA after a certain pass.
 
+use std::collections::BTreeMap;
+
 use acvm::acir::circuit::ExpressionWidth;
 use fm::{FileId, FileManager};
 use nargo::constants::PROVER_INPUT_FILE;
@@ -7,7 +9,8 @@ use nargo::ops::report_errors;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompilationResult, CompileOptions};
+use noirc_abi::Abi;
+use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
@@ -80,7 +83,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         );
 
         // Report warnings and get the AST, or exit if the compilation failed.
-        let program = report_errors(
+        let (program, abi) = report_errors(
             program_result,
             &file_manager,
             args.compile_options.deny_warnings,
@@ -88,7 +91,6 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         )?;
 
         // Parse the inputs and convert them to what the SSA interpreter expects.
-        let abi = noir_ast_fuzzer::program_abi(&program);
         let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
         let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
@@ -154,7 +156,7 @@ fn compile_into_program(
     workspace: &Workspace,
     package: &Package,
     options: &CompileOptions,
-) -> CompilationResult<Program> {
+) -> CompilationResult<(Program, Abi)> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     if options.disable_comptime_printing {
         context.disable_comptime_printing();
@@ -191,7 +193,10 @@ fn compile_into_program(
         println!("{program}");
     }
 
-    Ok((program, warnings))
+    let error_types = BTreeMap::default();
+    let abi = gen_abi(&context, &main_id, program.return_visibility(), error_types);
+
+    Ok(((program, abi), warnings))
 }
 
 fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
