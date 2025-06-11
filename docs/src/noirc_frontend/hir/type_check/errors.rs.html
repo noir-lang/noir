@@ -764,7 +764,12 @@
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -804,7 +809,12 @@
     <span class="attr">#[error(<span class="string">"Modulo on Field elements: {lhs} % {rhs}"</span>)]
     </span>ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     <span class="attr">#[error(<span class="string">"The value `{expr}` cannot fit into `{ty}` which has range `{range}`"</span>)]
-    </span>OverflowingAssignment { expr: SignedField, ty: Type, range: String, location: Location },
+    </span>IntegerLiteralDoesNotFitItsType {
+        expr: SignedField,
+        ty: Type,
+        range: String,
+        location: Location,
+    },
     <span class="attr">#[error(
         <span class="string">"The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     </span>)]
@@ -876,8 +886,8 @@
     </span>IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     <span class="attr">#[error(<span class="string">"Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}"</span>)]
     </span>IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
-    <span class="attr">#[error(<span class="string">"{kind} cannot be used in a unary operation"</span>)]
-    </span>InvalidUnaryOp { kind: String, location: Location },
+    <span class="attr">#[error(<span class="string">"Cannot apply unary operator `{operator}` to type `{typ}`"</span>)]
+    </span>InvalidUnaryOp { operator: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, typ: String, location: Location },
     <span class="attr">#[error(
         <span class="string">"Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
     </span>)]
@@ -1017,7 +1027,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
@@ -1247,7 +1257,7 @@
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }

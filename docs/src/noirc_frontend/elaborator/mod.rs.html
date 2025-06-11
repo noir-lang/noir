@@ -2458,7 +2458,18 @@
 <a href="#2457" id="2457">2457</a>
 <a href="#2458" id="2458">2458</a>
 <a href="#2459" id="2459">2459</a>
-<a href="#2460" id="2460">2460</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2467,6 +2478,7 @@
 <span class="kw">use crate</span>::{
     DataType, NamedGeneric, StructField, TypeBindings,
     ast::{ItemVisibility, UnresolvedType},
+    elaborator::lints::check_integer_literal_fits_its_type,
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
@@ -2710,6 +2722,10 @@
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     </span>trait_constraints: Vec&lt;(TraitConstraint, ExprId, bool <span class="comment">/* select impl */</span>)&gt;,
+
+    <span class="doccomment">/// All ExprId in a function that correspond to integer literals.
+    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
+    </span>integer_literal_expr_ids: Vec&lt;ExprId&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'context</span>&gt; Elaborator&lt;<span class="lifetime">'context</span>&gt; {
@@ -3052,6 +3068,12 @@
             <span class="kw">if let </span>Type::TypeVariable(variable) = typ.follow_bindings() {
                 <span class="kw">let </span>msg = <span class="string">"TypeChecker should only track defaultable type vars"</span>;
                 variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+
+        <span class="kw">for </span>expr_id <span class="kw">in </span>context.integer_literal_expr_ids {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = check_integer_literal_fits_its_type(<span class="self">self</span>.interner, <span class="kw-2">&amp;</span>expr_id) {
+                <span class="self">self</span>.push_err(error);
             }
         }
 

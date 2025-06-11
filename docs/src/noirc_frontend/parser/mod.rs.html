@@ -353,7 +353,7 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>SortedModule {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">for </span>inner_attribute <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.inner_attributes {
-            <span class="macro">write!</span>(f, <span class="string">"#![{}]"</span>, inner_attribute.kind.contents())<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"#![{}]"</span>, inner_attribute.kind.contents())<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>decl <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.module_decls {
@@ -361,42 +361,42 @@
         }
 
         <span class="kw">for </span>import <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.imports {
-            <span class="macro">write!</span>(f, <span class="string">"{import}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{import};"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>(global_const, _visibility) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.globals {
-            <span class="macro">write!</span>(f, <span class="string">"{global_const}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{global_const}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>type_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.structs {
-            <span class="macro">write!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>type_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.enums {
-            <span class="macro">write!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{type_}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
-            <span class="macro">write!</span>(f, <span class="string">"{function}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{function}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>trait_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.traits {
-            <span class="macro">write!</span>(f, <span class="string">"{trait_}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{trait_}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>impl_ <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.impls {
-            <span class="macro">write!</span>(f, <span class="string">"{impl_}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{impl_}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>trait_impl <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.trait_impls {
-            <span class="macro">write!</span>(f, <span class="string">"{trait_impl}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{trait_impl}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>type_alias <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.type_aliases {
-            <span class="macro">write!</span>(f, <span class="string">"{type_alias}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{type_alias}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">for </span>submodule <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.submodules {
-            <span class="macro">write!</span>(f, <span class="string">"{submodule}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{submodule}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())

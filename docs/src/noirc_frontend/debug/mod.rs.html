@@ -792,7 +792,9 @@
 <a href="#791" id="791">791</a>
 <a href="#792" id="792">792</a>
 <a href="#793" id="793">793</a>
-<a href="#794" id="794">794</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -1400,21 +1402,23 @@
                 <span class="comment">// The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
-                </span><span class="kw">let </span>var_sig =
-                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"_v{i}: Index"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+                </span><span class="kw">let </span>indices =
+                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"Index{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+                <span class="kw">let </span>var_sig =
+                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"_v{i}: Index{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
                 <span class="kw">let </span>vars = (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"_v{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
                 <span class="macro">format!</span>(
                     <span class="string">r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_oracle_member_assign_{n}&lt;T, Index&gt;(
+                unconstrained fn __debug_oracle_member_assign_{n}&lt;T, {indices}&gt;(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_inner_member_assign_{n}&lt;T, Index&gt;(
+                unconstrained fn __debug_inner_member_assign_{n}&lt;T, {indices}&gt;(
                     var_id: u32, value: T, {var_sig}
                 ) {{
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
-                pub fn __debug_member_assign_{n}&lt;T, Index&gt;(var_id: u32, value: T, {var_sig}) {{
+                pub fn __debug_member_assign_{n}&lt;T, {indices}&gt;(var_id: u32, value: T, {var_sig}) {{
                     /// Safety: debug context
                     unsafe {{
                         __debug_inner_member_assign_{n}(var_id, value, {vars});

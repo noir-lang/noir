@@ -2358,7 +2358,15 @@
 <a href="#2357" id="2357">2357</a>
 <a href="#2358" id="2358">2358</a>
 <a href="#2359" id="2359">2359</a>
-<a href="#2360" id="2360">2360</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2360" id="2360">2360</a>
+<a href="#2361" id="2361">2361</a>
+<a href="#2362" id="2362">2362</a>
+<a href="#2363" id="2363">2363</a>
+<a href="#2364" id="2364">2364</a>
+<a href="#2365" id="2365">2365</a>
+<a href="#2366" id="2366">2366</a>
+<a href="#2367" id="2367">2367</a>
+<a href="#2368" id="2368">2368</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3806,7 +3814,8 @@
                             <span class="kw">let </span>integer_type = Type::polymorphic_integer(<span class="self">self</span>.interner);
                             <span class="self">self</span>.unify(rhs_type, <span class="kw-2">&amp;</span>integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
-                                    kind: rhs_type.to_string(),
+                                    typ: rhs_type.to_string(),
+                                    operator: <span class="string">"!"</span>,
                                     location,
                                 }
                             });
@@ -3817,7 +3826,8 @@
                     Integer(sign_x, bit_width_x) =&gt; {
                         <span class="kw">if </span><span class="kw-2">*</span>op == UnaryOp::Minus &amp;&amp; <span class="kw-2">*</span>sign_x == Signedness::Unsigned {
                             <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidUnaryOp {
-                                kind: rhs_type.to_string(),
+                                typ: rhs_type.to_string(),
+                                operator: <span class="string">"-"</span>,
                                 location,
                             });
                         }
@@ -4621,6 +4631,12 @@
         select_impl: bool,
     ) {
         <span class="self">self</span>.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
+    }
+
+    <span class="doccomment">/// Push an `ExprId` that corresponds to an integer literal.
+    /// At the end of the current function we'll check that they fit in their type's range.
+    </span><span class="kw">pub fn </span>push_integer_literal_expr_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal_expr_id: ExprId) {
+        <span class="self">self</span>.get_function_context().integer_literal_expr_ids.push(literal_expr_id);
     }
 
     <span class="kw">fn </span>get_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>FunctionContext {

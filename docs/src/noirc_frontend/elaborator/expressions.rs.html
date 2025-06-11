@@ -1449,7 +1449,14 @@
 <a href="#1448" id="1448">1448</a>
 <a href="#1449" id="1449">1449</a>
 <a href="#1450" id="1450">1450</a>
-<a href="#1451" id="1451">1451</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1505,6 +1512,8 @@
         expr: Expression,
         target_type: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Type&gt;,
     ) -&gt; (ExprId, Type) {
+        <span class="kw">let </span>is_integer_literal = <span class="macro">matches!</span>(expr.kind, ExpressionKind::Literal(Literal::Integer(<span class="kw">_</span>)));
+
         <span class="kw">let </span>(hir_expr, typ) = <span class="kw">match </span>expr.kind {
             ExpressionKind::Literal(literal) =&gt; <span class="self">self</span>.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) =&gt; <span class="self">self</span>.elaborate_block(block, target_type),
@@ -1558,6 +1567,11 @@
         <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(hir_expr);
         <span class="self">self</span>.interner.push_expr_location(id, expr.location);
         <span class="self">self</span>.interner.push_expr_type(id, typ.clone());
+
+        <span class="kw">if </span>is_integer_literal {
+            <span class="self">self</span>.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
     }
 
