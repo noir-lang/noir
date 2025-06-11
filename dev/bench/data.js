@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749675321157,
+  "lastUpdate": 1749677910414,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9d44ab793a378f88d700294adfe0ec468960685c",
-          "message": "feat: use `asm` feature flag in arkworks (#8792)",
-          "timestamp": "2025-06-04T18:18:48Z",
-          "tree_id": "75081dfaf68d366f108a6cc07adf8a642ad459a6",
-          "url": "https://github.com/noir-lang/noir/commit/9d44ab793a378f88d700294adfe0ec468960685c"
-        },
-        "date": 1749062379096,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247763,
-            "range": "± 901",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218383,
-            "range": "± 2161",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778522,
-            "range": "± 7503",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784646,
             "range": "± 16629",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b1142b62f2d14cc92adc88ab889f1529843a3601",
+          "message": "chore: interpret all execution_success programs (#8887)",
+          "timestamp": "2025-06-11T21:03:55Z",
+          "tree_id": "3ac9f2a6466d62636dfcca1b8f1f7daedfa51cc0",
+          "url": "https://github.com/noir-lang/noir/commit/b1142b62f2d14cc92adc88ab889f1529843a3601"
+        },
+        "date": 1749677899240,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250757,
+            "range": "± 1502",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224421,
+            "range": "± 1726",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790301,
+            "range": "± 4339",
             "unit": "ns/iter"
           }
         ]
