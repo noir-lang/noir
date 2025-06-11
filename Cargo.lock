@@ -3414,6 +3414,7 @@ dependencies = [
  "noirc_abi",
  "noirc_evaluator",
  "noirc_frontend",
+ "proptest",
 ]
 
 [[package]]

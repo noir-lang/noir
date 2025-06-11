@@ -194,7 +194,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
