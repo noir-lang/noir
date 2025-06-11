@@ -27,6 +27,7 @@ noir_ast_fuzzer = { path = ".." }
 [dev-dependencies]
 arbtest.workspace = true
 env_logger.workspace = true
+proptest.workspace = true
 
 
 [[bin]]
