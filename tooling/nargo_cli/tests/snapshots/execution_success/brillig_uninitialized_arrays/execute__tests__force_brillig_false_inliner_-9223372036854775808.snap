@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 468
 expression: artifact
 ---
 {
@@ -85,7 +86,7 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "nZPdisMgEIXfxetcOI7mp69SSrGpLYKYYJOFpeTdd3SadmHp7pKb8yUx5+iMehdnd5qvRx8vw03s9ndxSj4Efz2GobeTHyJ9vQuZRSmxg0ooZGiGYdSMhtEyugIkNyxLJdbI45Scy4nf5qCZR5tcnMQuziFU4sOGufx0G20snGyiUVkJF89ECrz44PLTUr3c8r1VqfphVqZ72s2//SCbhx+U2eJHs/oNvvPjL+tHta5fyy3+V/0atviNfPav3eLX+u/+45b9O9Cb7X36cWqpYVCUzi5NjkV1UVO0LtoUbYt2RUEygMF2YD9wAHACUATtK1AGLQ9aRlegJAMYioEMzTCMmsEpilMUpyCnIKU0S25P8vYUXK4xd2GO/VoyvU6f4zqyXuUxDb07z8nl9rzuMy1jj1hpPHC5e9oe3R2W3M4v",
+  "debug_symbols": "pZPbisMgEIbfxetcZBzNoa9SSrGpLYKYYJOFpeTdd3Rqu+xSWLI38+X0/epE7+JsT8v16MJlvInd/i5O0Xnvrkc/DmZ2Y6Cnd1GnIqXYQSUkMhRDMxpGy+gYfQaSDetaiRJ5nKO1KfHbGDTyZKINs9iFxftKfBi/5I9ukwmZs4n0tq6EDWciBV6ct+lqrV52/V5FbB8yYvfU9Z99qIsPUm/xURdf4zsf3/sS5cOXqt7iy+bpwxZfl+ZL3W3xlXr6/f/m/8M/0J0ZXPy1a6lhkCvtXRocc1W56lybXNtcu1z7XKFmAIN1YB84ADgBKIL+K1AGTQ86Rp8hawYwJAMZiqEZDYNTJKdITkFOQUpp19Se6MzJ27TG1IUlDGXJdDt/TuVNOcpTHAd7XqJN7XmdZ5rGHrFSeODl7un3qP6wpnZ+AQ==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x as u32] + notes[y as u32]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",

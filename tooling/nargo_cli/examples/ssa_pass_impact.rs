@@ -28,7 +28,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::{
     brillig::BrilligOptions,
     errors::RuntimeError,
-    ssa::{SsaEvaluatorOptions, SsaLogging, SsaPass, primary_passes, ssa_gen},
+    ssa::{OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaPass, primary_passes, ssa_gen},
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -133,6 +133,7 @@ fn main() {
         inliner_aggressiveness: opts.inliner_aggressiveness,
         max_bytecode_increase_percent: None,
         skip_passes: Default::default(),
+        optimization_level: OptimizationLevel::All,
     };
 
     let last_pass = primary_passes(&ssa_options)

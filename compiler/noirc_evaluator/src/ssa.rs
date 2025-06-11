@@ -58,10 +58,19 @@ pub enum SsaLogging {
     Contains(Vec<String>),
 }
 
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum OptimizationLevel {
+    Debug, // optimizations that don't change the control-flow
+    All,   // all available optimizations
+}
+
 #[derive(Debug, Clone)]
 pub struct SsaEvaluatorOptions {
     /// Emit debug information for the intermediate SSA IR
     pub ssa_logging: SsaLogging,
+
+    /// How much to optimize the IR
+    pub optimization_level: OptimizationLevel,
 
     /// Options affecting Brillig code generation.
     pub brillig_options: BrilligOptions,
@@ -130,6 +139,51 @@ impl<'a> SsaPass<'a> {
     }
 }
 
+pub struct SsaPassBuilder<'a> {
+    current_optimization_level: OptimizationLevel,
+    ssa_passes: Vec<SsaPass<'a>>,
+}
+
+impl<'a> SsaPassBuilder<'a> {
+    pub fn new(ssa_optimization_level: OptimizationLevel) -> Self {
+        Self { current_optimization_level: ssa_optimization_level, ssa_passes: Vec::new() }
+    }
+
+    /// Attempts to add an SSA pass. The pass will be added successfully
+    /// only if the current optimization level fits in the allowed optimization levels.
+    pub(crate) fn add_pass<F>(
+        &mut self,
+        f: F,
+        msg: &'static str,
+        allowed_optimization_levels: Vec<OptimizationLevel>,
+    ) where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            self.ssa_passes.push(SsaPass::new(f, msg));
+        }
+    }
+
+    /// Attempts to add an SSA "try" pass. The pass will be added successfully
+    /// only if the current optimization level fits in the allowed optimization levels.
+    pub(crate) fn add_try_pass<F>(
+        &mut self,
+        f: F,
+        msg: &'static str,
+        allowed_optimization_levels: Vec<OptimizationLevel>,
+    ) where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        if allowed_optimization_levels.contains(&self.current_optimization_level) {
+            self.ssa_passes.push(SsaPass::new_try(f, msg));
+        }
+    }
+
+    pub(crate) fn finish(self) -> Vec<SsaPass<'a>> {
+        self.ssa_passes
+    }
+}
+
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// The default SSA optimization pipeline.
@@ -137,82 +191,162 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 /// After these passes everything is ready for execution, which is
 /// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
-    vec![
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
-        // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
-        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
-        //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
-        SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
-        SsaPass::new(
-            move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
-            "Preprocessing Functions",
-        ),
-        SsaPass::new(move |ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining"),
-        // Run mem2reg with the CFG separated into blocks
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new_try(
-            Ssa::evaluate_static_assert_and_assert_constant,
-            "`static_assert` and `assert_constant`",
-        ),
-        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new(Ssa::loop_invariant_code_motion, "Loop Invariant Code Motion"),
-        SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
-            "Unrolling",
-        ),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        SsaPass::new(Ssa::flatten_cfg, "Flattening"),
-        SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
-        // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
-        // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
-        // This pass must come immediately following `mem2reg` as the succeeding passes
-        // may create an SSA which inlining fails to handle.
-        SsaPass::new(
-            move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
-            "Inlining",
-        ),
-        SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
-        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
-        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
-        SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
-        SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding"),
-        SsaPass::new_try(
-            move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
-            "Unrolling",
-        ),
-        SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
-        SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
-        // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
-        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
-        // This pass makes transformations specific to Brillig generation.
-        // It must be the last pass to either alter or add new instructions before Brillig generation,
-        // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
-    ]
+    let mut ssa_pass_builder = SsaPassBuilder::new(options.optimization_level.clone());
+    use OptimizationLevel::*;
+
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_functions,
+        "Removing Unreachable Functions",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::defunctionalize, "Defunctionalization", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::inline_simple_functions, "Inlining simple functions", vec![All]);
+    // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
+    // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
+    //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
+    ssa_pass_builder.add_pass(
+        Ssa::remove_paired_rc,
+        "Removing Paired rc_inc & rc_decs",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(
+        move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
+        "Preprocessing Functions",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+        "Inlining",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All]);
+    ssa_pass_builder.add_pass(
+        Ssa::as_slice_optimization,
+        "`as_slice` optimization",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_functions,
+        "Removing Unreachable Functions",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_try_pass(
+        Ssa::evaluate_static_assert_and_assert_constant,
+        "`static_assert` and `assert_constant`",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::purity_analysis, "Purity Analysis", vec![All, Debug]);
+
+    ssa_pass_builder.add_pass(
+        Ssa::loop_invariant_code_motion,
+        "Loop Invariant Code Motion",
+        vec![All],
+    );
+    ssa_pass_builder.add_try_pass(
+        move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+        "Unrolling",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::flatten_cfg, "Flattening", vec![All]);
+    ssa_pass_builder.add_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts", vec![All, Debug]);
+    // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
+    // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
+    // This pass must come immediately following `mem2reg` as the succeeding passes
+    // may create an SSA which inlining fails to handle.
+    ssa_pass_builder.add_pass(
+        move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+        "Inlining",
+        vec![All],
+    );
+    ssa_pass_builder.add_try_pass(Ssa::remove_if_else, "Remove IfElse", vec![All]);
+    ssa_pass_builder.add_pass(Ssa::purity_analysis, "Purity Analysis", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::fold_constants, "Constant Folding", vec![All]);
+    ssa_pass_builder.add_pass(
+        Ssa::flatten_basic_conditionals,
+        "Simplify conditionals for unconstrained",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::remove_enable_side_effects,
+        "EnableSideEffectsIf removal",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::fold_constants_using_constraints,
+        "Constraint Folding",
+        vec![All],
+    );
+    ssa_pass_builder.add_try_pass(
+        move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
+        "Unrolling",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::make_constrain_not_equal_instructions,
+        "Adding constrain not equal",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::check_u128_mul_overflow, "Check u128 mul overflow", vec![All]);
+    ssa_pass_builder.add_pass(
+        Ssa::dead_instruction_elimination,
+        "Dead Instruction Elimination",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All]);
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.add_pass(
+        Ssa::array_set_optimization,
+        "Array Set Optimizations",
+        vec![All, Debug],
+    );
+    // The Brillig globals pass expected that we have the used globals map set for each function.
+    // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
+    ssa_pass_builder.add_pass(
+        Ssa::brillig_entry_point_analysis,
+        "Brillig Entry Point Analysis",
+        vec![All],
+    );
+    // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_functions,
+        "Removing Unreachable Functions",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::remove_truncate_after_range_check,
+        "Removing Truncate after RangeCheck",
+        vec![All],
+    );
+    // This pass makes transformations specific to Brillig generation.
+    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // as other semantics in the compiler can potentially break (e.g. inserting instructions).
+    // We can safely place the pass before DIE as that pass only removes instructions.
+    // We also need DIE's tracking of used globals in case the array get transformations
+    // end up using an existing constant from the globals space.
+    ssa_pass_builder.add_pass(
+        Ssa::brillig_array_get_and_set,
+        "Brillig Array Get and Set Optimizations",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::dead_instruction_elimination,
+        "Dead Instruction Elimination",
+        vec![All, Debug],
+    );
+    // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_functions,
+        "Removing Unreachable Functions",
+        vec![All, Debug],
+    );
+    ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
+
+    ssa_pass_builder.finish()
 }
 
 /// The second SSA pipeline, in which we take the Brillig functions compiled after
@@ -468,7 +602,7 @@ where
     let func_sigs = program.function_signatures.clone();
 
     let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
+        (mut generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
     ) = optimize_into_acir(program, options, primary, secondary)?;
 
@@ -478,10 +612,14 @@ where
         "The generated ACIRs should match the supplied function signatures"
     );
 
-    let error_types = error_types
+    let mut error_types: BTreeMap<_, _> = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
+
+    for acir in &mut generated_acirs {
+        error_types.append(&mut acir.error_types);
+    }
 
     let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
 
