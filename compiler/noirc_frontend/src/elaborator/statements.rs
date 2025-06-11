@@ -24,7 +24,7 @@ use crate::{
     shared::Signedness,
 };
 
-use super::{Elaborator, Loop, TypedPath, lints};
+use super::{Elaborator, Loop, TypedPath};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -125,13 +125,6 @@ impl Elaborator<'_> {
                 expr_location,
             }
         });
-
-        if annotated_type.is_integer() {
-            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
-            for error in errors {
-                self.push_err(error);
-            }
-        }
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
