@@ -1668,9 +1668,9 @@ mod test {
 
     #[test]
     fn negative_lower_bound() {
-      // Regression fro issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
-      // do not panic on a negative lower bound
-      let src = "
+        // Regression fro issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
+        // do not panic on a negative lower bound
+        let src = "
       acir(inline) predicate_pure fn main f0 {
         b0():
           jmp b1(i32 4294967295)
@@ -1695,9 +1695,9 @@ mod test {
       }
       ";
 
-      let ssa = Ssa::from_str(src).unwrap();
-      let ssa = ssa.loop_invariant_code_motion();
-      assert_normalized_ssa_equals(ssa, src);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
 
