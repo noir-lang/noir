@@ -739,6 +739,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
+        || options.count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
