@@ -141,7 +141,7 @@ pub(crate) fn simplify(
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
-            if bit_size == max_bit_size {
+            if bit_size >= max_bit_size {
                 return SimplifiedTo(*value);
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
@@ -489,5 +489,26 @@ mod tests {
             let ssa: Ssa = Ssa::from_str_simplifying(&src).unwrap();
             assert_normalized_ssa_equals(ssa, &expected);
         }
+    }
+
+    #[test]
+    fn truncate_to_bit_size_bigger_than_value_max_bit_size() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = truncate v0 to 16 bits, max_bit_size: 8
+            v2 = cast v1 as u16
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            return v1
+        }
+        ");
     }
 }
