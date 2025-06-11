@@ -7,6 +7,7 @@ use std::{
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
     ast::{ItemVisibility, UnresolvedType},
+    elaborator::lints::check_integer_literal_fits_its_type,
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
@@ -250,6 +251,10 @@ struct FunctionContext {
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+
+    /// All ExprId in a function that correspond to integer literals.
+    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
+    integer_literal_expr_ids: Vec<ExprId>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -592,6 +597,12 @@ impl<'context> Elaborator<'context> {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
                 variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+
+        for expr_id in context.integer_literal_expr_ids {
+            if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
+                self.push_err(error);
             }
         }
 
