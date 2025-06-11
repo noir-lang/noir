@@ -988,14 +988,18 @@ fn can_be_hoisted(
             }
         }
 
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
+        // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
+        // Since at the end a cast is a no-op, not hoisting a cast should not have much impact.
+        Cast(_, _) | Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
+            hoist_with_predicate
+        }
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
         Noop => true,
 
         // These instructions can always be hoisted
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
+        Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
