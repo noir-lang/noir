@@ -445,8 +445,21 @@ impl LastUseContext {
 
         // Try to make the last use of a variable in the current loop index a move
         if let Some(id) = Self::try_get_lvalue_local_id(&assign.lvalue) {
+            let loop_index = self.loop_index();
             if let Some(use_data) = self.last_uses.get_mut(&id) {
-                self.last_assignment_uses.push((id, use_data.branches.clone()));
+                // Don't apply this optimization if the variable was last used in a loop
+                // which has since ended, e.g:
+                // ```noir
+                // for _ in 0 .. 10 {
+                //     foo(bar);
+                // }
+                // bar = new_value;
+                // ```
+                // without this check we'd make `foo(bar)` a move despite `bar` being used
+                // again on the next iteration of the loop.
+                if use_data.last_used_in <= loop_index {
+                    self.last_assignment_uses.push((id, use_data.branches.clone()));
+                }
             }
         }
     }

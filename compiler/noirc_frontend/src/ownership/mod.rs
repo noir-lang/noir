@@ -320,11 +320,13 @@ impl Context {
     }
 
     fn handle_call(&mut self, call: &mut crate::monomorphization::ast::Call) {
-        // Hack: We don't have references yet but pretend the array length builtin
+        // Hack: We don't have immutable references yet so we pretend some array builtins
         // accepts arrays as a reference to avoid unnecessary clones.
         if let crate::monomorphization::ast::Expression::Ident(variable) = call.func.as_ref() {
             if let crate::monomorphization::ast::Definition::Builtin(name) = &variable.definition {
-                if name == "array_len" {
+                // Having {array,slice}_refcount not increment refcounts makes debugging
+                // refcounts much easier
+                if name == "array_len" || name == "slice_refcount" || name == "array_refcount" {
                     for arg in &mut call.arguments {
                         self.handle_reference_expression(arg);
                     }
