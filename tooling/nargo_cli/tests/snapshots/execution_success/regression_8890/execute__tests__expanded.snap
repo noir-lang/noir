@@ -2,11 +2,11 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: Field, y: pub Field) {
+fn main(x: Field, y: pub Field) -> pub Field {
     assert(x != y);
     let mut f: [fn(Field) -> Field; 1] = [my_fun];
     f[0] = my_fun2;
-    let _: Field = f[0](x);
+    f[0](x)
 }
 
 fn my_fun(x: Field) -> Field {
