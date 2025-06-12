@@ -228,6 +228,18 @@ mod tests {
         compare_results(values[0] >> values[1], noir_res);
     }
 
+    fn check_expected_validation_error(
+        compilation_result: Result<CompiledProgram, FuzzerBuilderError>,
+        expected_message: &str,
+    ) {
+        match compilation_result {
+            Ok(_) => panic!("Expected an SSA validation failure"),
+            Err(FuzzerBuilderError::RuntimeError(error)) => {
+                assert!(error.contains(expected_message));
+            }
+        }
+    }
+
     #[test]
     fn regression_multiplication_without_range_check() {
         let mut acir_builder = FuzzerBuilder::new_acir();
@@ -284,15 +296,87 @@ mod tests {
         );
     }
 
-    fn check_expected_validation_error(
-        compilation_result: Result<CompiledProgram, FuzzerBuilderError>,
-        expected_message: &str,
-    ) {
-        match compilation_result {
-            Ok(_) => panic!("Expected an SSA validation failure"),
-            Err(FuzzerBuilderError::RuntimeError(error)) => {
-                assert!(error.contains(expected_message))
-            }
-        }
+    #[test]
+    fn regression_cast_without_truncate() {
+        let mut acir_builder = FuzzerBuilder::new_acir();
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+
+        let field_var_acir_id_1 =
+            acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+        let u64_var_acir_id_2 = acir_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+        let field_var_brillig_id_1 =
+            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+        let u64_var_brillig_id_2 =
+            brillig_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+
+        let casted_acir = acir_builder
+            .builder
+            .insert_cast(field_var_acir_id_1, NumericType::Unsigned { bit_size: 64 });
+        let casted_brillig = brillig_builder
+            .builder
+            .insert_cast(field_var_brillig_id_1, NumericType::Unsigned { bit_size: 64 });
+
+        let mul_acir = acir_builder.builder.insert_binary(
+            casted_acir,
+            BinaryOp::Mul { unchecked: false },
+            u64_var_acir_id_2,
+        );
+        let mul_brillig = brillig_builder.builder.insert_binary(
+            casted_brillig,
+            BinaryOp::Mul { unchecked: false },
+            u64_var_brillig_id_2,
+        );
+
+        acir_builder.builder.terminate_with_return(vec![mul_acir]);
+        brillig_builder.builder.terminate_with_return(vec![mul_brillig]);
+
+        let acir_result = acir_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            acir_result,
+            "Invalid cast from Field, not preceded by valid truncation or known safe value",
+        );
+        let brillig_result = brillig_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            brillig_result,
+            "Invalid cast from Field, not preceded by valid truncation or known safe value",
+        );
+    }
+
+    #[test]
+    fn regression_signed_sub() {
+        let mut acir_builder = FuzzerBuilder::new_acir();
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+
+        let i16_acir_var_1 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
+        let i16_acir_var_2 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
+        let i16_brillig_var_1 =
+            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
+        let i16_brillig_var_2 =
+            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
+
+        let sub_acir = acir_builder.builder.insert_binary(
+            i16_acir_var_1,
+            BinaryOp::Sub { unchecked: false },
+            i16_acir_var_2,
+        );
+        let sub_brillig = brillig_builder.builder.insert_binary(
+            i16_brillig_var_1,
+            BinaryOp::Sub { unchecked: false },
+            i16_brillig_var_2,
+        );
+
+        acir_builder.builder.terminate_with_return(vec![sub_acir]);
+        brillig_builder.builder.terminate_with_return(vec![sub_brillig]);
+
+        let acir_result = acir_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            acir_result,
+            "Signed binary operation does not follow overflow pattern",
+        );
+        let brillig_result = brillig_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            brillig_result,
+            "Signed binary operation does not follow overflow pattern",
+        );
     }
 }
