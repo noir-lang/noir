@@ -79,4 +79,29 @@ mod tests {
         let result = ssa.verify_no_dynamic_indices_to_references();
         assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
     }
+
+    #[test]
+    fn no_error_in_brillig() {
+        // unconstrained fn main(c: u32) -> pub bool {
+        //     let b: [&mut bool; 2] = [&mut false, &mut true];
+        //     *b[c % 2]
+        //}
+        let src = r#"
+            brillig(inline) predicate_pure fn main f0 {
+            b0(v0: u32):
+                v1 = allocate -> &mut u1
+                v2 = allocate -> &mut u1
+                v3 = make_array [v1, v2] : [&mut u1; 2]
+                v4 = truncate v0 to 1 bits, max_bit_size: 32
+                v6 = lt v4, u32 2
+                constrain v6 == u1 1, "Index out of bounds"
+                v8 = array_get v3, index v4 -> &mut u1
+                v9 = load v8 -> u1
+                return v9
+            }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.verify_no_dynamic_indices_to_references();
+        assert!(result.is_ok());
+    }
 }

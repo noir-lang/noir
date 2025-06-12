@@ -101,7 +101,7 @@ fn double(y: u32) -> u32 {
 }
 ```
 
-There is another restriction with constant indices: they cannot be used on arrays with
+There is another restriction with dynamic indices: they cannot be used on arrays with
 elements which contain a reference type:
 
 ```rust
