@@ -87,6 +87,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
                 Instruction::Store { .. }
                     | Instruction::Call { .. }
                     | Instruction::MakeArray { .. }
+                    | Instruction::ArraySet { .. }
             ) {
                 instruction.for_each_value(&mut find_functions);
             }
@@ -205,6 +206,45 @@ mod tests {
             return
         }
         "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_functions_used_in_array_set() {
+        // f2 is written to an array using an `array_set` instruction. Thus, we do not want to remove it.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            v6 = make_array [f1] : [function; 1]
+            v7 = allocate -> &mut [function; 1]
+            store v6 at v7
+            v8 = load v7 -> [function; 1]
+            v11 = array_set v8, index u32 0, value f2
+            store v11 at v7
+            v12 = load v7 -> [function; 1]
+            v13 = array_get v12, index u32 0 -> function
+            v14 = call v13(v0) -> Field
+            return
+          }
+          
+          acir(inline) fn my_fun f1 {
+            b0(v0: Field):
+              v2 = add v0, Field 1
+              return v2
+          }
+          
+          acir(inline) fn my_fun2 f2 {
+            b0(v0: Field):
+              v2 = add v0, Field 2
+              return v2
+          }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_functions();
