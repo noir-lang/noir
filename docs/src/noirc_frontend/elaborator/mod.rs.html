@@ -2409,67 +2409,7 @@
 <a href="#2408" id="2408">2408</a>
 <a href="#2409" id="2409">2409</a>
 <a href="#2410" id="2410">2410</a>
-<a href="#2411" id="2411">2411</a>
-<a href="#2412" id="2412">2412</a>
-<a href="#2413" id="2413">2413</a>
-<a href="#2414" id="2414">2414</a>
-<a href="#2415" id="2415">2415</a>
-<a href="#2416" id="2416">2416</a>
-<a href="#2417" id="2417">2417</a>
-<a href="#2418" id="2418">2418</a>
-<a href="#2419" id="2419">2419</a>
-<a href="#2420" id="2420">2420</a>
-<a href="#2421" id="2421">2421</a>
-<a href="#2422" id="2422">2422</a>
-<a href="#2423" id="2423">2423</a>
-<a href="#2424" id="2424">2424</a>
-<a href="#2425" id="2425">2425</a>
-<a href="#2426" id="2426">2426</a>
-<a href="#2427" id="2427">2427</a>
-<a href="#2428" id="2428">2428</a>
-<a href="#2429" id="2429">2429</a>
-<a href="#2430" id="2430">2430</a>
-<a href="#2431" id="2431">2431</a>
-<a href="#2432" id="2432">2432</a>
-<a href="#2433" id="2433">2433</a>
-<a href="#2434" id="2434">2434</a>
-<a href="#2435" id="2435">2435</a>
-<a href="#2436" id="2436">2436</a>
-<a href="#2437" id="2437">2437</a>
-<a href="#2438" id="2438">2438</a>
-<a href="#2439" id="2439">2439</a>
-<a href="#2440" id="2440">2440</a>
-<a href="#2441" id="2441">2441</a>
-<a href="#2442" id="2442">2442</a>
-<a href="#2443" id="2443">2443</a>
-<a href="#2444" id="2444">2444</a>
-<a href="#2445" id="2445">2445</a>
-<a href="#2446" id="2446">2446</a>
-<a href="#2447" id="2447">2447</a>
-<a href="#2448" id="2448">2448</a>
-<a href="#2449" id="2449">2449</a>
-<a href="#2450" id="2450">2450</a>
-<a href="#2451" id="2451">2451</a>
-<a href="#2452" id="2452">2452</a>
-<a href="#2453" id="2453">2453</a>
-<a href="#2454" id="2454">2454</a>
-<a href="#2455" id="2455">2455</a>
-<a href="#2456" id="2456">2456</a>
-<a href="#2457" id="2457">2457</a>
-<a href="#2458" id="2458">2458</a>
-<a href="#2459" id="2459">2459</a>
-<a href="#2460" id="2460">2460</a>
-<a href="#2461" id="2461">2461</a>
-<a href="#2462" id="2462">2462</a>
-<a href="#2463" id="2463">2463</a>
-<a href="#2464" id="2464">2464</a>
-<a href="#2465" id="2465">2465</a>
-<a href="#2466" id="2466">2466</a>
-<a href="#2467" id="2467">2467</a>
-<a href="#2468" id="2468">2468</a>
-<a href="#2469" id="2469">2469</a>
-<a href="#2470" id="2470">2470</a>
-<a href="#2471" id="2471">2471</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2411" id="2411">2411</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2478,7 +2418,6 @@
 <span class="kw">use crate</span>::{
     DataType, NamedGeneric, StructField, TypeBindings,
     ast::{ItemVisibility, UnresolvedType},
-    elaborator::lints::check_integer_literal_fits_its_type,
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
@@ -2517,7 +2456,7 @@
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
@@ -2526,6 +2465,7 @@
 <span class="kw">mod </span>comptime;
 <span class="kw">mod </span>enums;
 <span class="kw">mod </span>expressions;
+<span class="kw">mod </span>function_context;
 <span class="kw">mod </span>lints;
 <span class="kw">mod </span>options;
 <span class="kw">mod </span>path_resolution;
@@ -2538,6 +2478,7 @@
 <span class="kw">pub mod </span>types;
 <span class="kw">mod </span>unquote;
 
+<span class="kw">use </span>function_context::FunctionContext;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2704,28 +2645,6 @@
             }
         }
     }
-}
-
-<span class="attr">#[derive(Default)]
-</span><span class="kw">struct </span>FunctionContext {
-    <span class="doccomment">/// All type variables created in the current function.
-    /// This map is used to default any integer type variables at the end of
-    /// a function (before checking trait constraints) if a type wasn't already chosen.
-    </span>type_variables: Vec&lt;Type&gt;,
-
-    <span class="doccomment">/// Trait constraints are collected during type checking until they are
-    /// verified at the end of a function. This is because constraints arise
-    /// on each variable, but it is only until function calls when the types
-    /// needed for the trait constraint may become known.
-    /// The `select impl` bool indicates whether, after verifying the trait constraint,
-    /// the resulting trait impl should be the one used for a call (sometimes trait
-    /// constraints are verified but there's no call associated with them, like in the
-    /// case of checking generic arguments)
-    </span>trait_constraints: Vec&lt;(TraitConstraint, ExprId, bool <span class="comment">/* select impl */</span>)&gt;,
-
-    <span class="doccomment">/// All ExprId in a function that correspond to integer literals.
-    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
-    </span>integer_literal_expr_ids: Vec&lt;ExprId&gt;,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'context</span>&gt; Elaborator&lt;<span class="lifetime">'context</span>&gt; {
@@ -2955,7 +2874,7 @@
         <span class="kw">let </span>old_item = <span class="self">self</span>.current_item.replace(DependencyId::Function(id));
 
         <span class="self">self</span>.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
-        <span class="self">self</span>.function_context.push(FunctionContext::default());
+        <span class="self">self</span>.push_function_context();
 
         <span class="kw">let </span>modifiers = <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>id).clone();
 
@@ -3057,45 +2976,6 @@
         <span class="self">self</span>.trait_bounds.clear();
         <span class="self">self</span>.interner.update_fn(id, hir_func);
         <span class="self">self</span>.current_item = old_item;
-    }
-
-    <span class="doccomment">/// Defaults all type variables used in this function context then solves
-    /// all still-unsolved trait constraints in this context.
-    </span><span class="kw">fn </span>check_and_pop_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="kw">let </span>context = <span class="self">self</span>.function_context.pop().expect(<span class="string">"Imbalanced function_context pushes"</span>);
-
-        <span class="kw">for </span>typ <span class="kw">in </span>context.type_variables {
-            <span class="kw">if let </span>Type::TypeVariable(variable) = typ.follow_bindings() {
-                <span class="kw">let </span>msg = <span class="string">"TypeChecker should only track defaultable type vars"</span>;
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
-        }
-
-        <span class="kw">for </span>expr_id <span class="kw">in </span>context.integer_literal_expr_ids {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(error) = check_integer_literal_fits_its_type(<span class="self">self</span>.interner, <span class="kw-2">&amp;</span>expr_id) {
-                <span class="self">self</span>.push_err(error);
-            }
-        }
-
-        <span class="kw">for </span>(<span class="kw-2">mut </span>constraint, expr_id, select_impl) <span class="kw">in </span>context.trait_constraints {
-            <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-
-            <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>constraint.typ, Type::Reference(..)) {
-                <span class="kw">let </span>(<span class="kw">_</span>, dereferenced_typ) =
-                    <span class="self">self</span>.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            <span class="self">self</span>.verify_trait_constraint(
-                <span class="kw-2">&amp;</span>constraint.typ,
-                constraint.trait_bound.trait_id,
-                <span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered,
-                <span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
-        }
     }
 
     <span class="doccomment">/// This turns function parameters of the form:

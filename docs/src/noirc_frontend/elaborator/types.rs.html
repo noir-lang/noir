@@ -2338,35 +2338,7 @@
 <a href="#2337" id="2337">2337</a>
 <a href="#2338" id="2338">2338</a>
 <a href="#2339" id="2339">2339</a>
-<a href="#2340" id="2340">2340</a>
-<a href="#2341" id="2341">2341</a>
-<a href="#2342" id="2342">2342</a>
-<a href="#2343" id="2343">2343</a>
-<a href="#2344" id="2344">2344</a>
-<a href="#2345" id="2345">2345</a>
-<a href="#2346" id="2346">2346</a>
-<a href="#2347" id="2347">2347</a>
-<a href="#2348" id="2348">2348</a>
-<a href="#2349" id="2349">2349</a>
-<a href="#2350" id="2350">2350</a>
-<a href="#2351" id="2351">2351</a>
-<a href="#2352" id="2352">2352</a>
-<a href="#2353" id="2353">2353</a>
-<a href="#2354" id="2354">2354</a>
-<a href="#2355" id="2355">2355</a>
-<a href="#2356" id="2356">2356</a>
-<a href="#2357" id="2357">2357</a>
-<a href="#2358" id="2358">2358</a>
-<a href="#2359" id="2359">2359</a>
-<a href="#2360" id="2360">2360</a>
-<a href="#2361" id="2361">2361</a>
-<a href="#2362" id="2362">2362</a>
-<a href="#2363" id="2363">2363</a>
-<a href="#2364" id="2364">2364</a>
-<a href="#2365" id="2365">2365</a>
-<a href="#2366" id="2366">2366</a>
-<a href="#2367" id="2367">2367</a>
-<a href="#2368" id="2368">2368</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2340" id="2340">2340</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2409,7 +2381,7 @@
 };
 
 <span class="kw">use super</span>::{
-    Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
+    Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
 };
 
@@ -3315,7 +3287,7 @@
     /// in self.type_variables to default it later.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>polymorphic_integer_or_field(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Type {
         <span class="kw">let </span>typ = Type::polymorphic_integer_or_field(<span class="self">self</span>.interner);
-        <span class="self">self</span>.push_type_variable(typ.clone());
+        <span class="self">self</span>.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -3323,7 +3295,7 @@
     /// in self.type_variables to default it later.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>polymorphic_integer(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Type {
         <span class="kw">let </span>typ = Type::polymorphic_integer(<span class="self">self</span>.interner);
-        <span class="self">self</span>.push_type_variable(typ.clone());
+        <span class="self">self</span>.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -3331,7 +3303,7 @@
     /// in self.type_variables to default it later.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>type_variable_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_var_kind: Kind) -&gt; Type {
         <span class="kw">let </span>typ = Type::type_variable_with_kind(<span class="self">self</span>.interner, type_var_kind);
-        <span class="self">self</span>.push_type_variable(typ.clone());
+        <span class="self">self</span>.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -4614,34 +4586,6 @@
         } <span class="kw">else </span>{
             <span class="self">self</span>.generics.push(resolved_generic.clone());
         }
-    }
-
-    <span class="doccomment">/// Push a type variable into the current FunctionContext to be defaulted if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    </span><span class="kw">fn </span>push_type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: Type) {
-        <span class="self">self</span>.get_function_context().type_variables.push(typ);
-    }
-
-    <span class="doccomment">/// Push a trait constraint into the current FunctionContext to be solved if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    </span><span class="kw">pub fn </span>push_trait_constraint(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        constraint: TraitConstraint,
-        expr_id: ExprId,
-        select_impl: bool,
-    ) {
-        <span class="self">self</span>.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    <span class="doccomment">/// Push an `ExprId` that corresponds to an integer literal.
-    /// At the end of the current function we'll check that they fit in their type's range.
-    </span><span class="kw">pub fn </span>push_integer_literal_expr_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal_expr_id: ExprId) {
-        <span class="self">self</span>.get_function_context().integer_literal_expr_ids.push(literal_expr_id);
-    }
-
-    <span class="kw">fn </span>get_function_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>FunctionContext {
-        <span class="kw">let </span>context = <span class="self">self</span>.function_context.last_mut();
-        context.expect(<span class="string">"The function_context stack should always be non-empty"</span>)
     }
 
     <span class="kw">pub fn </span>bind_generics_from_trait_constraint(

@@ -2778,7 +2778,7 @@
     <span class="doccomment">/// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
-    </span>instantiation_bindings: HashMap&lt;ExprId, TypeBindings&gt;,
+    </span><span class="kw">pub </span>instantiation_bindings: HashMap&lt;ExprId, TypeBindings&gt;,
 
     <span class="doccomment">/// Remembers the field index a given HirMemberAccess expression was resolved to during type
     /// checking.

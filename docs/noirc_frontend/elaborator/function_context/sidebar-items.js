@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["BindableTypeVariableKind"],"struct":["FunctionContext","RequiredTypeVariable"]};

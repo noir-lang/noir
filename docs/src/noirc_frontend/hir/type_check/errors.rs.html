@@ -769,7 +769,39 @@
 <a href="#768" id="768">768</a>
 <a href="#769" id="769">769</a>
 <a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -1006,6 +1038,16 @@
     </span>MissingManyCases { typ: String, location: Location },
     <span class="attr">#[error(<span class="string">"Expected a tuple with {} elements, found one with {} elements"</span>, tuple_types.len(), actual_count)]
     </span>TupleMismatch { tuple_types: Vec&lt;Type&gt;, actual_count: usize, location: Location },
+    <span class="attr">#[error(<span class="string">"Type annotation needed on item"</span>)]
+    </span>TypeAnnotationNeededOnItem {
+        location: Location,
+        generic_name: String,
+        item_kind: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+        item_name: String,
+        is_numeric: bool,
+    },
+    <span class="attr">#[error(<span class="string">"Type annotation needed on array literal"</span>)]
+    </span>TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
@@ -1093,7 +1135,9 @@
             | TypeCheckError::MissingCases { location, .. }
             | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location }
-            | TypeCheckError::TupleMismatch { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | TypeCheckError::TupleMismatch { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } =&gt; <span class="kw-2">*</span>location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } =&gt; ident.location(),
@@ -1493,6 +1537,26 @@
                 );
                 <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"The expression the tuple is assigned to has type `({})`"</span>, vecmap(tuple_types, ToString::to_string).join(<span class="string">","</span>));
                 Diagnostic::simple_error(msg, secondary, <span class="kw-2">*</span>location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnItem {
+                location,
+                generic_name,
+                item_kind,
+                item_name,
+                is_numeric,
+            } =&gt; {
+                <span class="kw">let </span>message = <span class="string">"Type annotation needed"</span>.into();
+                <span class="kw">let </span>type_or_value = <span class="kw">if </span><span class="kw-2">*</span>is_numeric { <span class="string">"value" </span>} <span class="kw">else </span>{ <span class="string">"type" </span>};
+                <span class="kw">let </span>secondary = <span class="macro">format!</span>(
+                    <span class="string">"Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`"</span>,
+                );
+                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } =&gt; {
+                <span class="kw">let </span>message = <span class="string">"Type annotation needed"</span>.into();
+                <span class="kw">let </span>array_or_slice = <span class="kw">if </span><span class="kw-2">*</span>is_array { <span class="string">"array" </span>} <span class="kw">else </span>{ <span class="string">"slice" </span>};
+                <span class="kw">let </span>secondary = <span class="macro">format!</span>(<span class="string">"Could not determine the type of the {array_or_slice}"</span>);
+                Diagnostic::simple_error(message, secondary, <span class="kw-2">*</span>location)
             }
         }
     }

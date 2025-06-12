@@ -1456,13 +1456,36 @@
 <a href="#1455" id="1455">1455</a>
 <a href="#1456" id="1456">1456</a>
 <a href="#1457" id="1457">1457</a>
-<a href="#1458" id="1458">1458</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -1499,6 +1522,7 @@
 
 <span class="kw">use super</span>::{
     Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -1736,7 +1760,16 @@
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>(expr, elem_type, length) = <span class="kw">match </span>array_literal {
             ArrayLiteral::Standard(elements) =&gt; {
-                <span class="kw">let </span>first_elem_type = <span class="self">self</span>.interner.next_type_variable();
+                <span class="kw">let </span>type_variable_id = <span class="self">self</span>.interner.next_type_variable_id();
+                <span class="kw">let </span>type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                <span class="self">self</span>.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                <span class="kw">let </span>first_elem_type = Type::TypeVariable(type_variable);
                 <span class="kw">let </span>first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 <span class="kw">let </span>elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -2308,6 +2341,19 @@
                 last_segment.generics,
                 turbofish_location,
             );
+        }
+
+        <span class="comment">// Each of the struct generics must be bound at the end of the function
+        </span><span class="kw">let </span>struct_id = r#type.borrow().id;
+        <span class="kw">for </span>(index, generic) <span class="kw">in </span>generics.iter().enumerate() {
+            <span class="kw">if let </span>Type::TypeVariable(type_variable) = generic {
+                <span class="self">self</span>.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
         }
 
         <span class="kw">let </span>struct_type = r#type.clone();

@@ -720,7 +720,7 @@
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-<span class="kw">use super</span>::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
+<span class="kw">use super</span>::{ElaborateReason, Elaborator, ResolverMeta};
 
 <span class="attr">#[derive(Debug, Copy, Clone)]
 </span><span class="kw">struct </span>AttributeContext {
@@ -792,7 +792,7 @@
             <span class="self">self</span>.elaborate_reasons.clone(),
         );
 
-        elaborator.function_context.push(FunctionContext::default());
+        elaborator.push_function_context();
         elaborator.scopes.start_function();
 
         elaborator.local_module = <span class="self">self</span>.local_module;
@@ -1340,7 +1340,7 @@
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
         // call is not yet solved for.
-        </span><span class="self">self</span>.function_context.push(Default::default());
+        </span><span class="self">self</span>.push_function_context();
 
         <span class="kw">let </span>result = f(<span class="self">self</span>);
 

@@ -3120,7 +3120,15 @@
 <a href="#3119" id="3119">3119</a>
 <a href="#3120" id="3120">3120</a>
 <a href="#3121" id="3121">3121</a>
-<a href="#3122" id="3122">3122</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3122" id="3122">3122</a>
+<a href="#3123" id="3123">3123</a>
+<a href="#3124" id="3124">3124</a>
+<a href="#3125" id="3125">3125</a>
+<a href="#3126" id="3126">3126</a>
+<a href="#3127" id="3127">3127</a>
+<a href="#3128" id="3128">3128</a>
+<a href="#3129" id="3129">3129</a>
+<a href="#3130" id="3130">3130</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3140,7 +3148,7 @@
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use crate</span>::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -5614,7 +5622,15 @@
     ));
     <span class="kw">let </span>typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.type_check_variable(hir_ident, expr_id, generics)
+            <span class="kw">let </span>bindings = TypeBindings::default();
+            <span class="kw">let </span>push_required_type_variables = <span class="bool-val">false</span>;
+            elaborator.type_check_variable_with_bindings(
+                hir_ident,
+                expr_id,
+                generics,
+                bindings,
+                push_required_type_variables,
+            )
         });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     <span class="prelude-val">Ok</span>(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
