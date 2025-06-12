@@ -119,7 +119,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 18] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 17] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
@@ -144,10 +144,8 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 18] = [
     "regression_3889",
     // panic: index out of bounds
     "regression_7612",
-    // gives a wrong result
+    // panic: Internal(MismatchedTypesInBinaryOperator) when not forcing brillig
     "regression_7744",
-    // gives a wrong result
-    "regression_8174",
     // panic: index out of bounds
     "regression_struct_array_conditional",
     // panic Internal(TypeError)
