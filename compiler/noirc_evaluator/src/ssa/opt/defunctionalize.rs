@@ -1432,4 +1432,118 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn differentiates_between_function_and_field_return_values() {
+        // This test is a counterpart to `differentiates_between_function_and_field_arguments` except testing the
+        // return values of functions instead of the arguments.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 1) -> Field
+            v6 = eq v0, Field 0
+            jmpif v6 then: b1, else: b2
+          b1():
+            jmp b3(f2)
+          b2():
+            jmp b3(f3)
+          b3(v1: function):
+            v9 = call v1(v0) -> function
+            v10 = call v9() -> Field
+            v11 = add v4, v10
+            return v11
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v2 = mul v0, Field 3
+            return v2
+        }
+        acir(inline) fn fn1 f2 {
+          b0(v0: Field):
+            return f5
+        }
+        acir(inline) fn fn2 f3 {
+          b0(v0: Field):
+            return f4
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return Field 5
+        }
+        acir(inline) fn lambda f5 {
+          b0():
+            return Field 1
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 1) -> Field
+            v6 = eq v0, Field 0
+            jmpif v6 then: b1, else: b2
+          b1():
+            jmp b3(Field 2)
+          b2():
+            jmp b3(Field 3)
+          b3(v1: Field):
+            v9 = call v1(v0) -> Field
+            v11 = call f6(v9) -> Field
+            v12 = add v4, v11
+            return v12
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v2 = mul v0, Field 3
+            return v2
+        }
+        acir(inline) fn fn1 f2 {
+          b0(v0: Field):
+            return Field 5
+        }
+        acir(inline) fn fn2 f3 {
+          b0(v0: Field):
+            return Field 4
+        }
+        acir(inline) fn lambda f4 {
+          b0():
+            return Field 5
+        }
+        acir(inline) fn lambda f5 {
+          b0():
+            return Field 1
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v3 = eq v0, Field 4
+            jmpif v3 then: b2, else: b1
+          b1():
+            constrain v0 == Field 5
+            v8 = call f5() -> Field
+            jmp b3(v8)
+          b2():
+            v5 = call f4() -> Field
+            jmp b3(v5)
+          b3(v1: Field):
+            return v1
+        }
+        acir(inline_always) fn apply f7 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 3
+            v9 = call f3(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f2(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
+    }
 }
