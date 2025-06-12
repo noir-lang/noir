@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_argument_count","check_slice_can_pop_all_element_types"]};
+window.SIDEBAR_ITEMS = {"fn":["check_argument_count","check_argument_count_is_at_least","check_slice_can_pop_all_element_types"]};

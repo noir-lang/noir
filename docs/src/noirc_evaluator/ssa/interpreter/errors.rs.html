@@ -143,7 +143,11 @@
 <a href="#142" id="142">142</a>
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
@@ -216,6 +220,10 @@
         <span class="string">"Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
     </span>)]
     </span>IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
+    <span class="attr">#[error(
+        <span class="string">"Argument count {arguments} to `{intrinsic}` does not match the expected minimum parameter count {parameters}"
+    </span>)]
+    </span>IntrinsicMinArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     <span class="attr">#[error(<span class="string">"Block {block} is missing the terminator instruction"</span>)]
     </span>BlockMissingTerminator { block: BasicBlockId },
     <span class="attr">#[error(<span class="string">"Cannot call non-function value {value_id} = {value}"</span>)]

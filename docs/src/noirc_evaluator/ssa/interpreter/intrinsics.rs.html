@@ -613,7 +613,37 @@
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
 <a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>num_bigint::BigUint;
@@ -664,13 +694,20 @@
                 </span><span class="prelude-val">Ok</span>(Vec::new())
             }
             Intrinsic::StaticAssert =&gt; {
-                check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
+                check_argument_count_is_at_least(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>condition = <span class="self">self</span>.lookup_bool(args[<span class="number">0</span>], <span class="string">"static_assert"</span>)<span class="question-mark">?</span>;
                 <span class="kw">if </span>condition {
                     <span class="prelude-val">Ok</span>(Vec::new())
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>message = <span class="self">self</span>.lookup_string(args[<span class="number">1</span>], <span class="string">"static_assert"</span>)<span class="question-mark">?</span>;
+                    <span class="comment">// Static assert can either have 2 arguments, in which case the second one is a string,
+                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // For simplicity, we won't build the dynamic message here.
+                    </span><span class="kw">let </span>message = <span class="kw">if </span>args.len() == <span class="number">2 </span>{
+                        <span class="self">self</span>.lookup_string(args[<span class="number">1</span>], <span class="string">"static_assert"</span>)<span class="question-mark">?
+                    </span>} <span class="kw">else </span>{
+                        <span class="string">"static_assert failed"</span>.to_string()
+                    };
                     <span class="prelude-val">Err</span>(InterpreterError::StaticAssertFailed { condition: args[<span class="number">0</span>], message })
                 }
             }
@@ -685,10 +722,15 @@
                     reason: <span class="string">"Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction"</span>,
                 }))
             }
-            <span class="comment">// Both of these are no-ops
-            </span>Intrinsic::StrAsBytes | Intrinsic::AsWitness =&gt; {
-                check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
+            Intrinsic::StrAsBytes =&gt; {
+                <span class="comment">// This one is a no-op
+                </span>check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[<span class="self">self</span>.lookup(args[<span class="number">0</span>])<span class="question-mark">?</span>])
+            }
+            Intrinsic::AsWitness =&gt; {
+                <span class="comment">// This one is also a no-op, but it doesn't return anything
+                </span>check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[])
             }
             Intrinsic::ToBits(endian) =&gt; {
                 check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
@@ -945,12 +987,14 @@
                     }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation =&gt; {
-                    check_argument_count(args, <span class="number">1</span>, intrinsic)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>inputs =
-                        <span class="self">self</span>.lookup_vec_field(args[<span class="number">0</span>], <span class="string">"call Poseidon2Permutation BlackBox"</span>)<span class="question-mark">?</span>;
+                    check_argument_count(args, <span class="number">2</span>, intrinsic)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>inputs = <span class="self">self
+                        </span>.lookup_vec_field(args[<span class="number">0</span>], <span class="string">"call Poseidon2Permutation BlackBox (inputs)"</span>)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>length =
+                        <span class="self">self</span>.lookup_u32(args[<span class="number">1</span>], <span class="string">"call Poseidon2Permutation BlackBox (length)"</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>solver = bn254_blackbox_solver::Bn254BlackBoxSolver(<span class="bool-val">false</span>);
                     <span class="kw">let </span>result = solver
-                        .poseidon2_permutation(<span class="kw-2">&amp;</span>inputs, inputs.len() <span class="kw">as </span>u32)
+                        .poseidon2_permutation(<span class="kw-2">&amp;</span>inputs, length)
                         .map_err(<span class="self">Self</span>::convert_error)<span class="question-mark">?</span>;
                     <span class="kw">let </span>result = Value::array_from_iter(result, NumericType::NativeField)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[result])
@@ -1206,6 +1250,22 @@
 ) -&gt; IResult&lt;()&gt; {
     <span class="kw">if </span>args.len() != expected_count {
         <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::IntrinsicArgumentCountMismatch {
+            intrinsic,
+            arguments: args.len(),
+            parameters: expected_count,
+        }))
+    } <span class="kw">else </span>{
+        <span class="prelude-val">Ok</span>(())
+    }
+}
+
+<span class="kw">fn </span>check_argument_count_is_at_least(
+    args: <span class="kw-2">&amp;</span>[ValueId],
+    expected_count: usize,
+    intrinsic: Intrinsic,
+) -&gt; IResult&lt;()&gt; {
+    <span class="kw">if </span>args.len() &lt; expected_count {
+        <span class="prelude-val">Err</span>(InterpreterError::Internal(InternalError::IntrinsicMinArgumentCountMismatch {
             intrinsic,
             arguments: args.len(),
             parameters: expected_count,

@@ -430,7 +430,18 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -489,7 +500,7 @@
     <span class="kw">pub </span>element_type: Arc&lt;Type&gt;,
 }
 
-<span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
+<span class="attr">#[derive(Debug, Clone)]
 </span><span class="kw">pub struct </span>ArrayValue {
     <span class="kw">pub </span>elements: Shared&lt;Vec&lt;Value&gt;&gt;,
 
@@ -862,4 +873,15 @@
         <span class="macro">write!</span>(f, <span class="string">"rc{} {is_slice}[{elements}]"</span>, <span class="self">self</span>.rc.borrow())
     }
 }
+
+<span class="kw">impl </span>PartialEq <span class="kw">for </span>ArrayValue {
+    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="comment">// Don't compare RC
+        </span><span class="self">self</span>.elements == other.elements
+            &amp;&amp; <span class="self">self</span>.element_types == other.element_types
+            &amp;&amp; <span class="self">self</span>.is_slice == other.is_slice
+    }
+}
+
+<span class="kw">impl </span>Eq <span class="kw">for </span>ArrayValue {}
 </code></pre></div></section></main></body></html>
