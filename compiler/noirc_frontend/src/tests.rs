@@ -4730,3 +4730,29 @@ fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numer
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
 }
+
+#[named]
+#[test]
+fn overflowing_int_in_for_loop() {
+    let src = r#"
+    fn main() {
+        for _ in -2..-1 {}
+                 ^^ The value `-2` cannot fit into `u32` which has range `0..=4294967295`
+                     ^^ The value `-1` cannot fit into `u32` which has range `0..=4294967295`
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_use_prefix_minus_on_u32() {
+    let src = r#"
+    fn main() {
+        let x: u32 = 1;
+        let _ = -x;
+                ^^ Cannot apply unary operator `-` to type `u32`
+    }
+    "#;
+    check_errors!(src);
+}

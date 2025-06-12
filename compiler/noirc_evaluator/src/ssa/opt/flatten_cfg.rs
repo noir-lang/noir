@@ -1472,8 +1472,9 @@ mod test {
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
+            v10 = truncate v9 to 8 bits, max_bit_size: 254
+            v11 = cast v10 as u8
+            store v11 at v6
             jmp b3()
           b3():
             constrain v5 == u1 1
@@ -1485,7 +1486,6 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
 
@@ -1515,21 +1515,22 @@ mod test {
             enable_side_effects v5
             v8 = cast v2 as Field
             v10 = add v8, Field 1
-            v11 = cast v10 as u8
-            v12 = load v6 -> u8
-            v13 = not v5
-            v14 = cast v4 as u8
-            v15 = cast v13 as u8
-            v16 = unchecked_mul v14, v11
+            v11 = truncate v10 to 8 bits, max_bit_size: 254
+            v12 = cast v11 as u8
+            v13 = load v6 -> u8
+            v14 = not v5
+            v15 = cast v4 as u8
+            v16 = cast v14 as u8
             v17 = unchecked_mul v15, v12
-            v18 = unchecked_add v16, v17
-            store v18 at v6
-            enable_side_effects v13
-            v19 = load v6 -> u8
-            v20 = cast v13 as u8
-            v21 = cast v4 as u8
-            v22 = unchecked_mul v21, v19
-            store v22 at v6
+            v18 = unchecked_mul v16, v13
+            v19 = unchecked_add v17, v18
+            store v19 at v6
+            enable_side_effects v14
+            v20 = load v6 -> u8
+            v21 = cast v14 as u8
+            v22 = cast v4 as u8
+            v23 = unchecked_mul v22, v20
+            store v23 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
