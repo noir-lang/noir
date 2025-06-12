@@ -234,7 +234,7 @@ mod rules {
     use crate::targets::orig_vs_morph::{LocalContext, helpers::reassign_ids};
 
     use super::helpers::{gen_expr, has_side_effect};
-    use arbitrary::{Arbitrary, Unstructured};
+    use arbitrary::Unstructured;
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
         ast::BinaryOpKind,
@@ -297,7 +297,10 @@ mod rules {
     /// Construct all rules that we can apply on a program.
     pub fn all() -> Vec<Rule> {
         vec![
-            num_plus_minus_zero(),
+            num_add_zero(),
+            num_sub_zero(),
+            num_mul_one(),
+            num_div_one(),
             bool_or_self(),
             bool_xor_self(),
             bool_xor_rand(),
@@ -306,43 +309,33 @@ mod rules {
         ]
     }
 
-    // TODO: any numeric value `x` into `x * 1` or `x / 1`.
-    /// Transform any numeric value `x` into `x +/- 0`.
-    pub fn num_plus_minus_zero() -> Rule {
-        Rule::new(
-            |ctx, expr| {
-                // Because of #8305 we can't reliably use expressions in ranges in ACIR.
-                if ctx.is_in_range && !ctx.unconstrained {
-                    return false;
-                }
-                // If we rewrite `&mut x` into `&mut (x - 0)` we will alter the semantics.
-                if ctx.is_in_ref_mut {
-                    return false;
-                }
-                // Appending 0 to a block would look odd.
-                if matches!(expr, Expression::Block(_)) {
-                    return false;
-                }
-                // We can apply this rule on anything that returns a number.
-                if let Some(typ) = expr.return_type() {
-                    matches!(typ.as_ref(), Type::Field | Type::Integer(_, _))
-                } else {
-                    false
-                }
-            },
-            |u, _locals, expr| {
-                let typ = expr.return_type().expect("only called on matching type").into_owned();
+    /// Transform any numeric value `x` into `x <op> <rhs>`
+    fn num_op(op: BinaryOpKind, rhs: u32) -> Rule {
+        Rule::new(num_rule_matches, move |_u, _locals, expr| {
+            let typ = expr.return_type().expect("only called on matching type").into_owned();
+            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, false, typ)));
+            Ok(())
+        })
+    }
 
-                let op =
-                    if bool::arbitrary(u)? { BinaryOpKind::Add } else { BinaryOpKind::Subtract };
+    /// Transform any numeric value `x` into `x+0`
+    pub fn num_add_zero() -> Rule {
+        num_op(BinaryOpKind::Add, 0)
+    }
 
-                expr::replace(expr, |expr| {
-                    expr::binary(expr, op, expr::int_literal(0u32, false, typ))
-                });
+    /// Transform any numeric value `x` into `x-0`
+    pub fn num_sub_zero() -> Rule {
+        num_op(BinaryOpKind::Subtract, 0)
+    }
 
-                Ok(())
-            },
-        )
+    /// Transform any numeric value `x` into `x*1`
+    pub fn num_mul_one() -> Rule {
+        num_op(BinaryOpKind::Multiply, 1)
+    }
+
+    /// Transform any numeric value `x` into `x/1`
+    pub fn num_div_one() -> Rule {
+        num_op(BinaryOpKind::Divide, 1)
     }
 
     /// Transform boolean value `x` into `x | x`.
@@ -453,6 +446,28 @@ mod rules {
                     | Expression::Block(_) // Applying logical operations on blocks would look odd
                     )
                 })
+        } else {
+            false
+        }
+    }
+
+    /// Common condition for numeric rules
+    fn num_rule_matches(ctx: &Context, expr: &Expression) -> bool {
+        // Because of #8305 we can't reliably use expressions in ranges in ACIR.
+        if ctx.is_in_range && !ctx.unconstrained {
+            return false;
+        }
+        // If we rewrite `&mut x` into `&mut (x - 0)` we will alter the semantics.
+        if ctx.is_in_ref_mut {
+            return false;
+        }
+        // Appending 0 to a block would look odd.
+        if matches!(expr, Expression::Block(_)) {
+            return false;
+        }
+        // We can apply this rule on anything that returns a number.
+        if let Some(typ) = expr.return_type() {
+            matches!(typ.as_ref(), Type::Field | Type::Integer(_, _))
         } else {
             false
         }
