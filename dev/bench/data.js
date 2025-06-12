@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749744815733,
+  "lastUpdate": 1749749584591,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18501,48 +18501,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cf32e5b1045ea2ff58f0d647ad8ac1347217a3a6",
-          "message": "fix(mem2reg): Keep last stores used in MakeArray (#8743)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-06-06T13:46:02Z",
-          "tree_id": "30c51aa798abe74db12ca854a919884b4dd16007",
-          "url": "https://github.com/noir-lang/noir/commit/cf32e5b1045ea2ff58f0d647ad8ac1347217a3a6"
-        },
-        "date": 1749219476221,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255675,
-            "range": "± 2771",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226411,
-            "range": "± 3293",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2821773,
-            "range": "± 11452",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20594,6 +20552,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788354,
             "range": "± 11428",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53bd661af5be4bdf683225f2ec6cb8798a722415",
+          "message": "fix: catch unbound type variables during frontend compilation (#8686)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-12T17:09:08Z",
+          "tree_id": "dd2138b62a7330cc9ef2d984e857851d86bf57c2",
+          "url": "https://github.com/noir-lang/noir/commit/53bd661af5be4bdf683225f2ec6cb8798a722415"
+        },
+        "date": 1749749572904,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250682,
+            "range": "± 684",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222796,
+            "range": "± 1437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784621,
+            "range": "± 50705",
             "unit": "ns/iter"
           }
         ]
