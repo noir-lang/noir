@@ -148,7 +148,7 @@ impl Interpreter<'_> {
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
                     let result = result.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 => {
@@ -157,7 +157,7 @@ impl Interpreter<'_> {
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
                     let results = results.iter().map(|e| (*e as u128).into());
-                    let results = Value::array_from_iter(results, NumericType::NativeField)?;
+                    let results = Value::array_from_iter(results, NumericType::unsigned(8))?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
@@ -286,8 +286,8 @@ impl Interpreter<'_> {
                     }
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
-                    let (a, b, c) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([a, b, c], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -327,8 +327,8 @@ impl Interpreter<'_> {
                     );
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
-                    let (x, y, inf) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([x, y, inf], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -374,7 +374,7 @@ impl Interpreter<'_> {
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result = state.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
             },
@@ -642,4 +642,22 @@ fn check_slice_can_pop_all_element_types(slice_id: ValueId, slice: &ArrayValue) 
             element_types: vecmap(slice.element_types.iter(), ToString::to_string),
         }))
     }
+}
+
+fn new_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: FieldElement,
+) -> IResult<Value> {
+    let x = Value::from_constant(x, NumericType::NativeField)?;
+    let y = Value::from_constant(y, NumericType::NativeField)?;
+    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
+    Ok(Value::array(
+        vec![x, y, is_infinite],
+        vec![
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::bool()),
+        ],
+    ))
 }
