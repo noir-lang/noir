@@ -438,7 +438,7 @@ mod rules {
                     (BinaryOpKind::Subtract, (*b - *a))
                 };
 
-                let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), loc.clone()));
+                let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), *loc));
 
                 *expr = expr::binary(b_expr, op, c_expr);
 
