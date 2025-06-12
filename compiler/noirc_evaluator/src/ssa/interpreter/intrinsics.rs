@@ -385,32 +385,47 @@ impl Interpreter<'_> {
             }
             Intrinsic::DerivePedersenGenerators => {
                 check_argument_count(args, 2, intrinsic)?;
+
                 let inputs =
                     self.lookup_bytes(args[0], "call DerivePedersenGenerators BlackBox")?;
                 let index = self.lookup_u32(args[1], "call DerivePedersenGenerators BlackBox")?;
-                let generators = derive_generators(&inputs, inputs.len() as u32, index);
+
+                // The definition is:
+                //
+                // ```noir
+                // fn __derive_generators<let N: u32, let M: u32>(
+                //     domain_separator_bytes: [u8; M],
+                //     starting_index: u32,
+                // ) -> [EmbeddedCurvePoint; N] {}
+                // ```
+                //
+                // We need to get N from the return type.
+                assert_eq!(results.len(), 1);
+                let Type::Array(_, n) = self.dfg().type_of_value(results[0]) else {
+                    panic!("Expected result to be an array");
+                };
+
+                let generators = derive_generators(&inputs, n, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in generators.iter() {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
-                    let generator_slice = Value::array_from_iter(
-                        [x, y, generator.infinity.into()],
-                        NumericType::NativeField,
-                    )?;
-                    result.push(generator_slice);
+                    result.push(Value::from_constant(x, NumericType::NativeField)?);
+                    result.push(Value::from_constant(y, NumericType::NativeField)?);
+                    result.push(Value::from_constant(
+                        generator.infinity.into(),
+                        NumericType::bool(),
+                    )?);
                 }
                 let results = Value::array(
                     result,
-                    vec![Type::Array(
-                        std::sync::Arc::new(vec![
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                        ]),
-                        3,
-                    )],
+                    vec![
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::bool()),
+                    ],
                 );
                 Ok(vec![results])
             }
