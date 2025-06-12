@@ -584,7 +584,10 @@ fn create_apply_function(
         function_builder.switch_to_block(end_block);
         function_builder.terminate_with_return(end_results);
 
-        function_builder.current_function
+        // The above code can result in a suboptimal CFG so we simplify it here.
+        let mut function = function_builder.current_function;
+        function.simplify_function();
+        function
     })
 }
 
@@ -742,33 +745,25 @@ mod tests {
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -888,23 +883,17 @@ mod tests {
         }
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
-            v6 = eq v0, Field 1
-            jmpif v6 then: b3, else: b2
-          b1(v1: u32):
-            return v1
-          b2():
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2, else: b1
+          b1():
             constrain v0 == Field 2
-            v11 = call f2() -> u32
-            jmp b5(v11)
-          b3():
-            v8 = call f1() -> u32
-            jmp b4(v8)
-          b4(v2: u32):
-            jmp b6(v2)
-          b5(v3: u32):
-            jmp b6(v3)
-          b6(v4: u32):
-            jmp b1(v4)
+            v8 = call f2() -> u32
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -> u32
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
         }
         "
         );
@@ -1045,33 +1034,25 @@ mod tests {
         }
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -1138,42 +1119,32 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b6, else: b5
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b4()
-          b4():
-            jmp b14()
-          b5():
+            jmp b9()
+          b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b9, else: b8
-          b6():
+            jmpif v8 then: b6, else: b5
+          b4():
             call f2()
-            jmp b7()
-          b7():
-            jmp b13()
-          b8():
+            jmp b8()
+          b5():
             constrain v0 == Field 4
             call f4()
-            jmp b11()
-          b9():
+            jmp b7()
+          b6():
             call f3()
-            jmp b10()
-          b10():
-            jmp b12()
-          b11():
-            jmp b12()
-          b12():
-            jmp b13()
-          b13():
-            jmp b14()
-          b14():
-            jmp b1()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
         }
         "#);
     }
