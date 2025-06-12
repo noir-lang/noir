@@ -37,6 +37,13 @@ error: Cannot assign an expression of type [u32] to a value of type [_; 0]
   │             -----------
   │
 
+error: Type annotation needed
+  ┌─ src/main.nr:4:21
+  │
+4 │     let mut new_x = [];
+  │                     -- Could not determine the type of the array
+  │
+
 error: No method named 'push_back' found for type '[u32; 0]'
    ┌─ src/main.nr:11:13
    │
@@ -44,4 +51,4 @@ error: No method named 'push_back' found for type '[u32; 0]'
    │             -----------------
    │
 
-Aborting due to 4 previous errors
+Aborting due to 5 previous errors
