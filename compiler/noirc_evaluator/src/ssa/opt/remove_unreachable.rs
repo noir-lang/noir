@@ -215,6 +215,9 @@ mod tests {
 
     #[test]
     fn keep_functions_used_in_array_set() {
+        // Regression test for issue "V-NSCA-VUL-003: Missing ArraySet case in Removing Unreachable Functions pass"
+        // found in Veridise Audit. https://github.com/noir-lang/noir/issues/8890
+
         // f2 is written to an array using an `array_set` instruction. Thus, we do not want to remove it.
         let src = r#"
         acir(inline) fn main f0 {
