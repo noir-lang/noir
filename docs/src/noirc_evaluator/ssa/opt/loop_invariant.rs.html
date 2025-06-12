@@ -2578,7 +2578,41 @@
 <a href="#2577" id="2577">2577</a>
 <a href="#2578" id="2578">2578</a>
 <a href="#2579" id="2579">2579</a>
-<a href="#2580" id="2580">2580</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion pass moves code from inside a loop to before the loop
+<a href="#2580" id="2580">2580</a>
+<a href="#2581" id="2581">2581</a>
+<a href="#2582" id="2582">2582</a>
+<a href="#2583" id="2583">2583</a>
+<a href="#2584" id="2584">2584</a>
+<a href="#2585" id="2585">2585</a>
+<a href="#2586" id="2586">2586</a>
+<a href="#2587" id="2587">2587</a>
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a>
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -3129,7 +3163,7 @@
     /// We know a loop body will execute if we have constant loop bounds where the upper bound
     /// is greater than the lower bound.
     </span><span class="kw">fn </span>does_loop_body_execute(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="comment">// The loop will never be executed if we have an upper bound of zero, equal loop bounds,
+        <span class="comment">// The loop will never be executed if we have equal loop bounds
         // or we are unsure if the loop will ever be executed (dynamic loop bounds).
         // If certain instructions were to be hoisted out of a loop that never executed it
         // could potentially cause the program to fail when it is not meant to fail.
@@ -3279,7 +3313,7 @@
             .map(|(is_left, min, max)| (is_left, min, max, binary))
     }
 
-    <span class="doccomment">/// If the inputs are an induction and a loop invariant variables, it returns
+    <span class="doccomment">/// If the inputs are an induction and loop invariant variables, it returns
     /// the maximum and minimum values of the induction variable, based on the loop bounds,
     /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
     </span><span class="kw">fn </span>match_induction_and_invariant(
@@ -3296,7 +3330,7 @@
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }<span class="question-mark">?</span>;
 
-        <span class="macro">assert!</span>(!upper.is_zero(), <span class="string">"executing a non executable loop"</span>);
+        <span class="macro">assert!</span>(<span class="self">self</span>.does_loop_body_execute(), <span class="string">"executing a non executable loop"</span>);
 
         <span class="kw">let </span>(upper_field, upper_type) = upper.dec().into_numeric_constant();
         <span class="kw">let </span>(lower_field, lower_type) = lower.into_numeric_constant();
@@ -4244,6 +4278,40 @@
         "</span>;
 
         assert_normalized_ssa_equals(ssa, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>negative_lower_bound() {
+        <span class="comment">// Regression fro issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
+        // do not panic on a negative lower bound
+        </span><span class="kw">let </span>src = <span class="string">"
+      acir(inline) predicate_pure fn main f0 {
+        b0():
+          jmp b1(i32 4294967295)
+        b1(v0: i32):
+          v3 = lt v0, i32 0
+          jmpif v3 then: b2, else: b3
+        b2():
+          v4 = truncate v0 to 32 bits, max_bit_size: 33
+          v5 = cast v4 as u32
+          v6 = cast v0 as u32
+          v8 = lt v6, u32 2147483648
+          v9 = lt v5, u32 2147483648
+          v10 = eq v9, v8
+          v11 = unchecked_mul v10, v8
+          constrain v11 == v8
+          v12 = lt v0, v4
+          constrain v12 == u1 0
+          v15 = unchecked_add v0, i32 1
+          jmp b1(v15)
+        b3():
+          return
+      }
+      "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
 
