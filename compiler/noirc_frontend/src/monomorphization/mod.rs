@@ -1191,12 +1191,12 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
-            let (expr, is_closure) = if let GlobalValue::Resolved(value) = global.value.clone() {
-                let is_closure = value.is_closure();
+            let (expr, contains_function) = if let GlobalValue::Resolved(value) = global.value.clone() {
+                let contains_function = value.contains_function();
                 let expr = value
                     .into_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
-                (expr, is_closure)
+                (expr, contains_function)
             } else {
                 unreachable!(
                     "All global values should be resolved at compile time and before monomorphization"
@@ -1212,7 +1212,7 @@ impl<'interner> Monomorphizer<'interner> {
             // just with an extra step of indirection through a global variable.
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
-            if !is_closure {
+            if !contains_function {
                 let new_id = self.next_global_id();
                 self.globals.insert(id, new_id);
                 let typ = Self::convert_type(typ, location)?;
