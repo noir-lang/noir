@@ -2649,44 +2649,44 @@ mod control_dependence {
         // If we were to hoist that cast to the outer loop's header, we would get potentially
         // an unsafe cast. It must stay just after the range-check.
         assert_ssa_snapshot!(ssa, @r"
-acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: i8):
-    v4 = mul v1, i8 127
-    jmp b1(u32 0)
-  b1(v2: u32):
-    v6 = eq v2, u32 0
-    jmpif v6 then: b2, else: b3
-  b2():
-    jmpif v0 then: b4, else: b5
-  b3():
-    return i16 3
-  b4():
-    v8 = cast v4 as u16
-    v9 = truncate v8 to 8 bits, max_bit_size: 16
-    v10 = cast v1 as u8
-    v12 = lt v10, u8 128
-    v13 = not v12
-    v14 = cast v1 as Field
-    v15 = cast v12 as Field
-    v16 = mul v15, v14
-    v18 = sub Field 256, v14
-    v19 = cast v13 as Field
-    v20 = mul v19, v18
-    v21 = add v16, v20
-    v23 = mul v21, Field 127
-    range_check v23 to 8 bits
-    v24 = cast v23 as u8
-    v25 = not v12
-    v26 = cast v25 as u8
-    v27 = unchecked_add u8 128, v26
-    v28 = lt v24, v27
-    constrain v28 == u1 1
-    v30 = cast v9 as i8
-    jmp b5()
-  b5():
-    v32 = unchecked_add v2, u32 1
-    jmp b1(v32)
-}
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: i8):
+            v4 = mul v1, i8 127
+            v5 = cast v1 as Field
+            v7 = sub Field 256, v5
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v9 = eq v2, u32 0
+            jmpif v9 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return i16 3
+          b4():
+            v11 = cast v4 as u16
+            v12 = truncate v11 to 8 bits, max_bit_size: 16
+            v13 = cast v1 as u8
+            v15 = lt v13, u8 128
+            v16 = not v15
+            v17 = cast v15 as Field
+            v18 = mul v17, v5
+            v19 = cast v16 as Field
+            v20 = mul v19, v7
+            v21 = add v18, v20
+            v23 = mul v21, Field 127
+            range_check v23 to 8 bits
+            v24 = cast v23 as u8
+            v25 = not v15
+            v26 = cast v25 as u8
+            v27 = unchecked_add u8 128, v26
+            v28 = lt v24, v27
+            constrain v28 == u1 1
+            v30 = cast v12 as i8
+            jmp b5()
+          b5():
+            v32 = unchecked_add v2, u32 1
+            jmp b1(v32)
+        }
         ");
     }
 }
