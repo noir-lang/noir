@@ -1240,7 +1240,14 @@
 <a href="#1239" id="1239">1239</a>
 <a href="#1240" id="1240">1240</a>
 <a href="#1241" id="1241">1241</a>
-<a href="#1242" id="1242">1242</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -2034,11 +2041,18 @@
     <span class="doccomment">/// Looks up the value of a given local variable. Expects the variable to have
     /// been previously defined or panics otherwise.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup(<span class="kw-2">&amp;</span><span class="self">self</span>, id: LocalId) -&gt; Values {
-        <span class="self">self</span>.definitions.get(<span class="kw-2">&amp;</span>id).expect(<span class="string">"lookup: variable not defined"</span>).clone()
+        <span class="self">self</span>.definitions
+            .get(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup: variable {id:?} not defined"</span>))
+            .clone()
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>lookup_global(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GlobalId) -&gt; Values {
-        <span class="self">self</span>.shared_context.globals.get(<span class="kw-2">&amp;</span>id).expect(<span class="string">"lookup_global: variable not defined"</span>).clone()
+        <span class="self">self</span>.shared_context
+            .globals
+            .get(<span class="kw-2">&amp;</span>id)
+            .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"lookup_global: variable {id:?} not defined"</span>))
+            .clone()
     }
 
     <span class="doccomment">/// Extract the given field of the tuple. Panics if the given Values is not

@@ -220,15 +220,85 @@
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
-</span><span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a>
+<a href="#244" id="244">244</a>
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+</span><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>color_eyre::eyre::{<span class="self">self</span>, WrapErr};
 <span class="kw">use </span>nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 <span class="kw">use </span>noirc_abi::{Abi, InputMap, input_parser::InputValue};
-<span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
+<span class="kw">use </span>noirc_evaluator::{ErrorType, ssa::SsaProgramArtifact};
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Program;
 
 <span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
@@ -252,15 +322,56 @@
     }
 }
 
+<span class="doccomment">/// These are the error types in the `SsaProgramArtifact`, which are not the same as the ones in the ABI,
+/// but they can provide extra information when comparing errors.
+</span><span class="kw">type </span>SsaErrorTypes = BTreeMap&lt;acir::circuit::ErrorSelector, ErrorType&gt;;
+
 <span class="doccomment">/// The execution result is the value returned from the circuit and any output from `println`.
 </span><span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
 
+<span class="kw">pub struct </span>NargoErrorWithTypes(NargoError&lt;FieldElement&gt;, SsaErrorTypes);
+
+<span class="kw">impl </span>NargoErrorWithTypes {
+    <span class="doccomment">/// Copy of `NargoError::user_defined_failure_message` accepting `SsaErrorTypes` instead of ABI errors.
+    </span><span class="kw">fn </span>user_defined_failure_message(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
+        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0 </span>{
+            NargoError::ExecutionError(error) =&gt; <span class="kw">match </span>error {
+                ExecutionError::AssertionFailed(payload, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="kw">match </span>payload {
+                    ResolvedAssertionPayload::String(message) =&gt; <span class="prelude-val">Some</span>(message.to_string()),
+                    ResolvedAssertionPayload::Raw(raw) =&gt; {
+                        <span class="kw">let </span>ssa_type = <span class="self">self</span>.<span class="number">1</span>.get(<span class="kw-2">&amp;</span>raw.selector)<span class="question-mark">?</span>;
+                        <span class="kw">match </span>ssa_type {
+                            ErrorType::String(message) =&gt; <span class="prelude-val">Some</span>(message.to_string()),
+                            ErrorType::Dynamic(_hir_type) =&gt; {
+                                <span class="comment">// This would be the case if we have a format string that needs to be filled with the raw payload
+                                // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
+                                // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
+                                </span><span class="macro">panic!</span>(<span class="string">"didn't expect dynamic error types"</span>)
+                            }
+                        }
+                    }
+                },
+                ExecutionError::SolvingError(error, <span class="kw">_</span>) =&gt; <span class="kw">match </span>error {
+                    OpcodeResolutionError::BlackBoxFunctionFailed(<span class="kw">_</span>, reason) =&gt; {
+                        <span class="prelude-val">Some</span>(reason.to_string())
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                },
+            },
+            NargoError::ForeignCallError(error) =&gt; <span class="prelude-val">Some</span>(error.to_string()),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
+}
+
 <span class="doccomment">/// The result of the execution of compiled programs, decoded by their ABI.
-</span><span class="kw">pub type </span>CompareCompiledResult = CompareResult&lt;InputValue, NargoError&lt;FieldElement&gt;&gt;;
+</span><span class="kw">pub type </span>CompareCompiledResult = CompareResult&lt;InputValue, NargoErrorWithTypes&gt;;
 
 <span class="kw">impl </span>CompareCompiledResult {
     <span class="kw">pub fn </span>new(
         abi: <span class="kw-2">&amp;</span>Abi,
+        ets1: <span class="kw-2">&amp;</span>SsaErrorTypes,
+        ets2: <span class="kw-2">&amp;</span>SsaErrorTypes,
         (res1, print1): ExecResult,
         (res2, print2): ExecResult,
     ) -&gt; eyre::Result&lt;<span class="self">Self</span>&gt; {
@@ -271,14 +382,17 @@
         };
 
         <span class="kw">match </span>(res1, res2) {
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::BothFailed(e1, e2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::BothFailed(
+                NargoErrorWithTypes(e1, ets1.clone()),
+                NargoErrorWithTypes(e2, ets2.clone()),
+            )),
             (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(ws2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::LeftFailed(
-                e1,
+                NargoErrorWithTypes(e1, ets1.clone()),
                 ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 },
             )),
             (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::RightFailed(
                 ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 },
-                e2,
+                NargoErrorWithTypes(e2, ets2.clone()),
             )),
             (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Ok</span>(ws2)) =&gt; {
                 <span class="kw">let </span>o1 = ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 };
@@ -289,17 +403,21 @@
     }
 }
 
-<span class="kw">impl </span>Comparable <span class="kw">for </span>NargoError&lt;FieldElement&gt; {
+<span class="kw">impl </span>Comparable <span class="kw">for </span>NargoErrorWithTypes {
     <span class="kw">fn </span>equivalent(e1: <span class="kw-2">&amp;</span><span class="self">Self</span>, e2: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
         <span class="kw">use </span>ExecutionError::<span class="kw-2">*</span>;
 
         <span class="comment">// For now consider non-execution errors as failures we need to investigate.
-        </span><span class="kw">let </span>NargoError::ExecutionError(ee1) = e1 <span class="kw">else </span>{
+        </span><span class="kw">let </span>NargoError::ExecutionError(ee1) = <span class="kw-2">&amp;</span>e1.<span class="number">0 </span><span class="kw">else </span>{
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
-        <span class="kw">let </span>NargoError::ExecutionError(ee2) = e2 <span class="kw">else </span>{
+        <span class="kw">let </span>NargoError::ExecutionError(ee2) = <span class="kw-2">&amp;</span>e2.<span class="number">0 </span><span class="kw">else </span>{
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
+
+        <span class="kw">let </span>msg1 = e1.user_defined_failure_message();
+        <span class="kw">let </span>msg2 = e2.user_defined_failure_message();
+        <span class="kw">let </span>is_same_msg = msg1.is_some() &amp;&amp; msg2.is_some() &amp;&amp; msg1 == msg2;
 
         <span class="kw">match </span>(ee1, ee2) {
             (
@@ -309,7 +427,7 @@
                 <span class="comment">// Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 </span><span class="bool-val">true
             </span>}
-            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
+            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2 || is_same_msg,
             (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
             (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
             | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
@@ -317,7 +435,7 @@
                     OpcodeResolutionError::UnsatisfiedConstrain { .. },
                     ResolvedAssertionPayload::String(s),
                 ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
-                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                <span class="kw">_ </span>=&gt; is_same_msg,
             },
         }
     }
@@ -326,6 +444,18 @@
 <span class="kw">impl </span>Comparable <span class="kw">for </span>InputValue {
     <span class="kw">fn </span>equivalent(a: <span class="kw-2">&amp;</span><span class="self">Self</span>, b: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
         a == b
+    }
+}
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>NargoErrorWithTypes {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        std::fmt::Display::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
+    }
+}
+
+<span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>NargoErrorWithTypes {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        std::fmt::Debug::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
 
@@ -366,7 +496,13 @@
         <span class="kw">let </span>(res1, print1) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.artifact.program);
         <span class="kw">let </span>(res2, print2) = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.artifact.program);
 
-        CompareCompiledResult::new(<span class="kw-2">&amp;</span><span class="self">self</span>.abi, (res1, print1), (res2, print2))
+        CompareCompiledResult::new(
+            <span class="kw-2">&amp;</span><span class="self">self</span>.abi,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.artifact.error_types,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.artifact.error_types,
+            (res1, print1),
+            (res2, print2),
+        )
     }
 }
 

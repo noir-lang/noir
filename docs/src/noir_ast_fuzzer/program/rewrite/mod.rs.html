@@ -58,7 +58,7 @@
 
 <span class="doccomment">/// Find the next local ID and ident IDs (in that order) that we can use to add
 /// variables to a [Function] during mutations.
-</span><span class="kw">fn </span>next_local_and_ident_id(func: <span class="kw-2">&amp;</span>Function) -&gt; (u32, u32) {
+</span><span class="kw">pub fn </span>next_local_and_ident_id(func: <span class="kw-2">&amp;</span>Function) -&gt; (u32, u32) {
     <span class="kw">let </span><span class="kw-2">mut </span>next_local_id = func.parameters.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
     <span class="kw">let </span><span class="kw-2">mut </span>next_ident_id = <span class="number">0</span>;
 

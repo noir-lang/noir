@@ -200,7 +200,7 @@
 
 <span class="doccomment">/// A layer of variables available to choose from in blocks.
 </span><span class="attr">#[derive(Debug, Clone)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Scope&lt;K: Ord&gt; {
+</span><span class="kw">pub struct </span>Scope&lt;K: Ord&gt; {
     <span class="doccomment">/// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
     </span>variables: im::OrdMap&lt;K, Variable&gt;,
@@ -215,7 +215,7 @@
     </span>K: Ord + Clone + Copy + Debug,
 {
     <span class="doccomment">/// Create the initial scope from function parameters.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>scope = <span class="self">Self </span>{ variables: im::OrdMap::new(), producers: im::OrdMap::new() };
         <span class="kw">for </span>(id, mutable, name, typ) <span class="kw">in </span>vars {
             scope.add(id, mutable, name, typ);
@@ -264,7 +264,7 @@
     }
 
     <span class="doccomment">/// Choose a random producer of a type, if there is one.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>choose_producer(
+    </span><span class="kw">pub fn </span>choose_producer(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
@@ -279,7 +279,7 @@
     }
 
     <span class="doccomment">/// Get a variable in scope.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>K) -&gt; <span class="kw-2">&amp;</span>Variable {
+    </span><span class="kw">pub fn </span>get_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>K) -&gt; <span class="kw-2">&amp;</span>Variable {
         <span class="self">self</span>.variables.get(id).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"variable doesn't exist: {:?}"</span>, id))
     }
 }
@@ -289,62 +289,62 @@
     </span>K: Ord,
 {
     <span class="doccomment">/// Check if there are any variables in scope.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.variables.is_empty()
     }
 
     <span class="doccomment">/// Iterate the variables in scope.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = (<span class="kw-2">&amp;</span>K, <span class="kw-2">&amp;</span>Variable)&gt; {
+    </span><span class="kw">pub fn </span>variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = (<span class="kw-2">&amp;</span>K, <span class="kw-2">&amp;</span>Variable)&gt; {
         <span class="self">self</span>.variables.iter()
     }
 
     <span class="doccomment">/// Iterate the IDs of the variables in scope.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>variable_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = <span class="kw-2">&amp;</span>K&gt; {
+    </span><span class="kw">pub fn </span>variable_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = <span class="kw-2">&amp;</span>K&gt; {
         <span class="self">self</span>.variables.keys()
     }
 
     <span class="doccomment">/// Iterate the types we can produce from other variables.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>types_produced(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = <span class="kw-2">&amp;</span>Type&gt; {
+    </span><span class="kw">pub fn </span>types_produced(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>ExactSizeIterator&lt;Item = <span class="kw-2">&amp;</span>Type&gt; {
         <span class="self">self</span>.producers.keys()
     }
 }
 
 <span class="doccomment">/// Scope stack as we exit and enter blocks
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ScopeStack&lt;K: Ord&gt;(Vec&lt;Scope&lt;K&gt;&gt;);
+</span><span class="kw">pub struct </span>ScopeStack&lt;K: Ord&gt;(Vec&lt;Scope&lt;K&gt;&gt;);
 
 <span class="kw">impl</span>&lt;K&gt; ScopeStack&lt;K&gt;
 <span class="kw">where
     </span>K: Ord + Clone + Copy + Debug,
 {
     <span class="doccomment">/// Create a stack from the base variables.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>(<span class="macro">vec!</span>[Scope::new(vars)])
     }
 
     <span class="doccomment">/// The top scope in the stack.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Scope&lt;K&gt; {
+    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Scope&lt;K&gt; {
         <span class="self">self</span>.<span class="number">0</span>.last().expect(<span class="string">"there is always the base layer"</span>)
     }
 
     <span class="doccomment">/// Push a new scope on top of the current one.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>enter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">pub fn </span>enter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
         </span><span class="self">self</span>.<span class="number">0</span>.push(<span class="self">self</span>.current().clone());
     }
 
     <span class="doccomment">/// Remove the last layer of block variables.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>exit(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    </span><span class="kw">pub fn </span>exit(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.<span class="number">0</span>.pop();
         <span class="macro">assert!</span>(!<span class="self">self</span>.<span class="number">0</span>.is_empty(), <span class="string">"never pop the base layer"</span>);
     }
 
     <span class="doccomment">/// Add a new variable to the current scope.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: K, mutable: bool, name: String, typ: Type) {
+    </span><span class="kw">pub fn </span>add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: K, mutable: bool, name: String, typ: Type) {
         <span class="self">self</span>.<span class="number">0</span>.last_mut().expect(<span class="string">"there is always a layer"</span>).add(id, mutable, name, typ);
     }
 
     <span class="doccomment">/// Remove a variable from all scopes.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>K) {
+    </span><span class="kw">pub fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>K) {
         <span class="kw">for </span>scope <span class="kw">in </span><span class="self">self</span>.<span class="number">0</span>.iter_mut() {
             scope.remove(id);
         }

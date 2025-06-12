@@ -366,18 +366,468 @@
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random equivalence mutations on the AST and check that the
-//! execution result does not change, a.k.a. metamorphic testing.
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+//! execution result does not change.
 
-</span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+</span><span class="kw">use </span>std::cell::{Cell, RefCell};
+
+<span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
-<span class="kw">use </span>noir_ast_fuzzer::visitor;
-<span class="kw">use </span>noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
+<span class="kw">use </span>noir_ast_fuzzer::scope::ScopeStack;
+<span class="kw">use </span>noir_ast_fuzzer::{Config, visitor::visit_expr_be_mut};
+<span class="kw">use </span>noir_ast_fuzzer::{rewrite, visitor};
 <span class="kw">use </span>noirc_frontend::ast::UnaryOp;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{
-    Call, Definition, Expression, Function, Ident, Program, Unary,
+    Call, Definition, Expression, Function, Ident, IdentId, LocalId, Program, Unary,
 };
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
@@ -424,14 +874,55 @@
     rules: <span class="kw-2">&amp;</span>[rules::Rule],
     max_rewrites: usize,
 ) {
-    <span class="comment">// We can call `rewrite::next_local_and_ident_id`) and pass the results to the rewrite rules,
+    <span class="comment">// We can call `rewrite::next_local_and_ident_id` and pass the results to the rewrite rules,
     // if they want to add new variables with new local IDs.
     </span><span class="kw">let </span>ctx = rules::Context { unconstrained: func.unconstrained, ..Default::default() };
 
     <span class="kw">let </span>estimate = estimate_applicable_rules(<span class="kw-2">&amp;</span>ctx, <span class="kw-2">&amp;</span>func.body, rules);
-    <span class="kw">let </span><span class="kw-2">mut </span>morph = MorphContext { target: max_rewrites.min(estimate), estimate, count: <span class="number">0</span>, rules };
+    <span class="kw">let </span>morph = MorphContext {
+        target: max_rewrites.min(estimate),
+        estimate,
+        count: Cell::new(<span class="number">0</span>),
+        rules,
+        vars: RefCell::new(VariableContext::new(func)),
+    };
 
     morph.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>func.body);
+}
+
+<span class="doccomment">/// Context necessary to generate new local IDs during rewrites.
+///
+/// Potentially a place to reconstruct local variable scopes.
+</span><span class="kw">struct </span>VariableContext {
+    next_local_id: u32,
+    next_ident_id: u32,
+    locals: ScopeStack&lt;LocalId&gt;,
+}
+
+<span class="kw">impl </span>VariableContext {
+    <span class="kw">fn </span>new(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>(next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
+
+        <span class="kw">let </span>locals = ScopeStack::new(
+            func.parameters
+                .iter()
+                .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
+        );
+
+        <span class="self">Self </span>{ next_local_id, next_ident_id, locals }
+    }
+
+    <span class="kw">fn </span>next_local_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; LocalId {
+        <span class="kw">let </span>id = <span class="self">self</span>.next_local_id;
+        <span class="self">self</span>.next_local_id += <span class="number">1</span>;
+        LocalId(id)
+    }
+
+    <span class="kw">fn </span>next_ident_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IdentId {
+        <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id;
+        <span class="self">self</span>.next_ident_id += <span class="number">1</span>;
+        IdentId(id)
+    }
 }
 
 <span class="doccomment">/// Recursively apply rules while keeping a tally on how many we have done.
@@ -441,76 +932,133 @@
     <span class="doccomment">/// (Over)estimate of the maximum number we could hope to apply.
     </span>estimate: usize,
     <span class="doccomment">/// Number of rewrites applied so far, up to the `target`.
-    </span>count: usize,
+    </span>count: Cell&lt;usize&gt;,
     <span class="doccomment">/// Rules to apply.
     </span>rules: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[rules::Rule],
+    <span class="doccomment">/// Book keeping for local variables.
+    </span>vars: RefCell&lt;VariableContext&gt;,
 }
 
 <span class="kw">impl </span>MorphContext&lt;<span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// Check if we have reached the target.
     </span><span class="kw">fn </span>limit_reached(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="self">self</span>.target == <span class="number">0 </span>|| <span class="self">self</span>.estimate == <span class="number">0 </span>|| <span class="self">self</span>.count == <span class="self">self</span>.target
+        <span class="self">self</span>.target == <span class="number">0 </span>|| <span class="self">self</span>.estimate == <span class="number">0 </span>|| <span class="self">self</span>.count.get() == <span class="self">self</span>.target
     }
 
-    <span class="kw">fn </span>rewrite_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>rules::Context, u: <span class="kw-2">&amp;mut </span>Unstructured, expr: <span class="kw-2">&amp;mut </span>Expression) {
-        visit_expr_mut(expr, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
-            <span class="kw">if </span><span class="self">self</span>.limit_reached() {
-                <span class="kw">return </span><span class="bool-val">false</span>;
-            }
-            <span class="kw">match </span>expr {
-                Expression::For(for_) =&gt; {
-                    <span class="comment">// Separate context for just the ranges.
-                    </span><span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.start_range);
-                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.end_range);
-                    <span class="comment">// Original context for the body.
-                    </span><span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
-                    <span class="comment">// No need to visit children, we just visited them.
-                    </span><span class="bool-val">false
-                </span>}
-                Expression::Unary(
-                    unary @ Unary { operator: UnaryOp::Reference { mutable: <span class="bool-val">true </span>}, .. },
-                ) =&gt; {
-                    <span class="kw">let </span>ctx = rules::Context { is_in_ref_mut: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>unary.rhs);
-                    <span class="bool-val">false
-                </span>}
-                Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
-                    <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-                    <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
-                        <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
-                    }
-                    <span class="bool-val">false
-                </span>}
-                <span class="comment">// The rest can just have the rules applied on them, using the same context.
-                </span><span class="kw">_ </span>=&gt; {
-                    <span class="kw">for </span>rule <span class="kw">in </span><span class="self">self</span>.rules {
-                        <span class="kw">match </span><span class="self">self</span>.try_apply_rule(ctx, u, expr, rule) {
-                            <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
-                                <span class="comment">// We couldn't, or decided not to apply this rule; try the next one.
-                                </span><span class="kw">continue</span>;
-                            }
-                            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
-                                <span class="comment">// We ran out of randomness; stop visiting the AST.
-                                </span><span class="kw">return </span><span class="bool-val">false</span>;
-                            }
+    <span class="kw">fn </span>rewrite_expr(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>rules::Context, u: <span class="kw-2">&amp;mut </span>Unstructured, expr: <span class="kw-2">&amp;mut </span>Expression) {
+        visit_expr_be_mut(
+            expr,
+            <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
+                <span class="kw">if </span><span class="self">self</span>.limit_reached() {
+                    <span class="kw">return </span>(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+                }
 
-                            <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; {
-                                <span class="comment">// We applied a rule on this expression.
-                                </span><span class="self">self</span>.count += <span class="number">1</span>;
-                                <span class="comment">// We could visit the children of this morphed expression, which could result in repeatedly applying
-                                // the same rule over and over again. When we have 100% application rate (e.g. a small function),
-                                // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
-                                // It would also throw off the estimate if we introduce new items on which we can apply rules.
-                                </span><span class="kw">return </span><span class="bool-val">false</span>;
-                            }
+                <span class="comment">// Check if we are entering a new scope.
+                </span><span class="kw">let </span>entered = <span class="macro">matches!</span>(
+                    expr,
+                    Expression::Block(<span class="kw">_</span>)
+                        | Expression::For(<span class="kw">_</span>)
+                        | Expression::Loop(<span class="kw">_</span>)
+                        | Expression::While(<span class="kw">_</span>)
+                        | Expression::If(<span class="kw">_</span>)
+                );
+
+                <span class="kw">if </span>entered {
+                    <span class="self">self</span>.vars.borrow_mut().locals.enter();
+                }
+
+                <span class="comment">// We apply the rules on this expression, but its
+                // children will be visited after this call.
+                </span><span class="kw">let </span>cont = <span class="self">self</span>.apply_rules(ctx, u, expr);
+
+                (cont, entered)
+            },
+            <span class="kw-2">&amp;mut </span>|expr, entered| {
+                <span class="comment">// A `let` variable becomes visible *after* we have have processed all its children,
+                // so, only its siblings can see it.
+                </span><span class="kw">if let </span>Expression::Let(let_) = expr {
+                    <span class="kw">let </span>typ = let_.expression.return_type().expect(<span class="string">"let should have a type"</span>);
+                    <span class="self">self</span>.vars.borrow_mut().locals.add(
+                        let_.id,
+                        let_.mutable,
+                        let_.name.clone(),
+                        typ.into_owned(),
+                    );
+                }
+                <span class="kw">if </span>entered {
+                    <span class="self">self</span>.vars.borrow_mut().locals.exit();
+                }
+            },
+            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>| {},
+        );
+    }
+
+    <span class="kw">fn </span>apply_rules(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        ctx: <span class="kw-2">&amp;</span>rules::Context,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        expr: <span class="kw-2">&amp;mut </span>Expression,
+    ) -&gt; bool {
+        <span class="kw">match </span>expr {
+            Expression::For(for_) =&gt; {
+                <span class="comment">// Separate context for just the ranges.
+                </span><span class="kw">let </span>range_ctx = rules::Context { is_in_range: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.start_range);
+                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>range_ctx, u, <span class="kw-2">&amp;mut </span>for_.end_range);
+                <span class="comment">// Original context for the body.
+                </span><span class="self">self</span>.vars.borrow_mut().locals.add(
+                    for_.index_variable,
+                    <span class="bool-val">false</span>,
+                    for_.index_name.clone(),
+                    for_.index_type.clone(),
+                );
+                <span class="self">self</span>.rewrite_expr(ctx, u, <span class="kw-2">&amp;mut </span>for_.block);
+                <span class="self">self</span>.vars.borrow_mut().locals.remove(<span class="kw-2">&amp;</span>for_.index_variable);
+                <span class="comment">// No need to visit children, we just visited them.
+                </span><span class="bool-val">false
+            </span>}
+            Expression::Unary(
+                unary @ Unary { operator: UnaryOp::Reference { mutable: <span class="bool-val">true </span>}, .. },
+            ) =&gt; {
+                <span class="kw">let </span>ctx = rules::Context { is_in_ref_mut: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+                <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, <span class="kw-2">&amp;mut </span>unary.rhs);
+                <span class="bool-val">false
+            </span>}
+            Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
+                <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
+                <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
+                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
+                }
+                <span class="bool-val">false
+            </span>}
+            <span class="comment">// The rest can just have the rules applied on them, using the same context.
+            </span><span class="kw">_ </span>=&gt; {
+                <span class="kw">for </span>rule <span class="kw">in </span><span class="self">self</span>.rules {
+                    <span class="kw">match </span><span class="self">self</span>.try_apply_rule(ctx, u, expr, rule) {
+                        <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>) =&gt; {
+                            <span class="comment">// We couldn't, or decided not to apply this rule; try the next one.
+                            </span><span class="kw">continue</span>;
+                        }
+                        <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+                            <span class="comment">// We ran out of randomness; stop visiting the AST.
+                            </span><span class="kw">return </span><span class="bool-val">false</span>;
+                        }
+
+                        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>) =&gt; {
+                            <span class="comment">// We applied a rule on this expression.
+                            </span><span class="self">self</span>.count.set(<span class="self">self</span>.count.get() + <span class="number">1</span>);
+                            <span class="comment">// We could visit the children of this morphed expression, which could result in repeatedly applying
+                            // the same rule over and over again. When we have 100% application rate (e.g. a small function),
+                            // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
+                            // It would also throw off the estimate if we introduce new items on which we can apply rules.
+                            </span><span class="kw">return </span><span class="bool-val">false</span>;
                         }
                     }
-                    <span class="comment">// If we made it this far, we did not apply any rule, so look deeper in the AST.
-                    </span><span class="bool-val">true
-                </span>}
-            }
-        });
+                }
+                <span class="comment">// If we made it this far, we did not apply any rule, so look deeper in the AST.
+                </span><span class="bool-val">true
+            </span>}
+        }
     }
 
     <span class="doccomment">/// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
@@ -523,7 +1071,7 @@
         rule: <span class="kw-2">&amp;</span>rules::Rule,
     ) -&gt; arbitrary::Result&lt;bool&gt; {
         <span class="kw">if </span>rule.matches(ctx, expr) &amp;&amp; u.ratio(<span class="self">self</span>.target, <span class="self">self</span>.estimate)<span class="question-mark">? </span>{
-            rule.rewrite(u, expr)<span class="question-mark">?</span>;
+            rule.rewrite(u, <span class="kw-2">&amp;mut </span><span class="self">self</span>.vars.borrow_mut(), expr)<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(<span class="bool-val">false</span>)
@@ -564,11 +1112,15 @@
 
 <span class="doccomment">/// Metamorphic transformation rules.
 </span><span class="kw">mod </span>rules {
-    <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
+    <span class="kw">use </span><span class="kw">crate</span>::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
+
+    <span class="kw">use </span><span class="kw">super</span>::helpers::{gen_expr, has_side_effect};
+    <span class="kw">use </span>arbitrary::Unstructured;
     <span class="kw">use </span>noir_ast_fuzzer::expr;
     <span class="kw">use </span>noirc_frontend::{
         ast::BinaryOpKind,
-        monomorphization::ast::{Expression, Type},
+        monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
+        signed_field::SignedField,
     };
 
     <span class="attr">#[derive(Clone, Debug, Default)]
@@ -586,7 +1138,8 @@
     <span class="doccomment">/// Check if the rule can be applied on an expression.
     </span><span class="kw">type </span>MatchFn = <span class="kw">dyn </span>Fn(<span class="kw-2">&amp;</span>Context, <span class="kw-2">&amp;</span>Expression) -&gt; bool;
     <span class="doccomment">/// Apply the rule on an expression, mutating/replacing it in-place.
-    </span><span class="kw">type </span>RewriteFn = <span class="kw">dyn </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, <span class="kw-2">&amp;mut </span>Expression) -&gt; arbitrary::Result&lt;()&gt;;
+    </span><span class="kw">type </span>RewriteFn =
+        <span class="kw">dyn </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, <span class="kw-2">&amp;mut </span>VariableContext, <span class="kw-2">&amp;mut </span>Expression) -&gt; arbitrary::Result&lt;()&gt;;
 
     <span class="doccomment">/// Metamorphic transformation rule.
     </span><span class="kw">pub struct </span>Rule {
@@ -597,7 +1150,12 @@
     <span class="kw">impl </span>Rule {
         <span class="kw">pub fn </span>new(
             matches: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Context, <span class="kw-2">&amp;</span>Expression) -&gt; bool + <span class="lifetime">'static</span>,
-            rewrite: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, <span class="kw-2">&amp;mut </span>Expression) -&gt; arbitrary::Result&lt;()&gt; + <span class="lifetime">'static</span>,
+            rewrite: <span class="kw">impl </span>Fn(
+                <span class="kw-2">&amp;mut </span>Unstructured,
+                <span class="kw-2">&amp;mut </span>VariableContext,
+                <span class="kw-2">&amp;mut </span>Expression,
+            ) -&gt; arbitrary::Result&lt;()&gt;
+            + <span class="lifetime">'static</span>,
         ) -&gt; <span class="self">Self </span>{
             <span class="self">Self </span>{ matches: Box::new(matches), rewrite: Box::new(rewrite) }
         }
@@ -611,50 +1169,203 @@
         </span><span class="kw">pub fn </span>rewrite(
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             u: <span class="kw-2">&amp;mut </span>Unstructured,
+            vars: <span class="kw-2">&amp;mut </span>VariableContext,
             expr: <span class="kw-2">&amp;mut </span>Expression,
         ) -&gt; arbitrary::Result&lt;()&gt; {
-            (<span class="self">self</span>.rewrite)(u, expr)
+            (<span class="self">self</span>.rewrite)(u, vars, expr)
         }
     }
 
     <span class="doccomment">/// Construct all rules that we can apply on a program.
     </span><span class="kw">pub fn </span>all() -&gt; Vec&lt;Rule&gt; {
-        <span class="macro">vec!</span>[num_plus_minus_zero(), bool_or_self(), bool_xor_self(), bool_xor_rand()]
+        <span class="macro">vec!</span>[
+            num_add_zero(),
+            num_sub_zero(),
+            num_mul_one(),
+            num_div_one(),
+            bool_or_self(),
+            bool_xor_self(),
+            bool_xor_rand(),
+            num_commute(),
+            any_inevitable(),
+            int_break_up(),
+        ]
     }
 
-    <span class="doccomment">/// Transform any numeric value `x` into `x +/- 0`.
-    </span><span class="kw">pub fn </span>num_plus_minus_zero() -&gt; Rule {
+    <span class="doccomment">/// Transform any numeric value `x` into `x &lt;op&gt; &lt;rhs&gt;`
+    </span><span class="kw">fn </span>num_op(op: BinaryOpKind, rhs: u32) -&gt; Rule {
+        Rule::new(num_rule_matches, <span class="kw">move </span>|_u, _locals, expr| {
+            <span class="kw">let </span>typ = expr.return_type().expect(<span class="string">"only called on matching type"</span>).into_owned();
+            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, <span class="bool-val">false</span>, typ)));
+            <span class="prelude-val">Ok</span>(())
+        })
+    }
+
+    <span class="doccomment">/// Transform any numeric value `x` into `x+0`
+    </span><span class="kw">pub fn </span>num_add_zero() -&gt; Rule {
+        num_op(BinaryOpKind::Add, <span class="number">0</span>)
+    }
+
+    <span class="doccomment">/// Transform any numeric value `x` into `x-0`
+    </span><span class="kw">pub fn </span>num_sub_zero() -&gt; Rule {
+        num_op(BinaryOpKind::Subtract, <span class="number">0</span>)
+    }
+
+    <span class="doccomment">/// Transform any numeric value `x` into `x*1`
+    </span><span class="kw">pub fn </span>num_mul_one() -&gt; Rule {
+        num_op(BinaryOpKind::Multiply, <span class="number">1</span>)
+    }
+
+    <span class="doccomment">/// Transform any numeric value `x` into `x/1`
+    </span><span class="kw">pub fn </span>num_div_one() -&gt; Rule {
+        num_op(BinaryOpKind::Divide, <span class="number">1</span>)
+    }
+
+    <span class="doccomment">/// Break an integer literal `a` into `b + c`.
+    </span><span class="kw">pub fn </span>int_break_up() -&gt; Rule {
         Rule::new(
             |ctx, expr| {
-                <span class="comment">// Because of #8305 we can't reliably use expressions in ranges in ACIR.
-                </span><span class="kw">if </span>ctx.is_in_range &amp;&amp; !ctx.unconstrained {
+                <span class="kw">if </span>ctx.is_in_range &amp;&amp; !ctx.unconstrained || ctx.is_in_ref_mut {
                     <span class="kw">return </span><span class="bool-val">false</span>;
                 }
-                <span class="comment">// If we rewrite `&amp;mut x` into `&amp;mut (x - 0)` we will alter the semantics.
-                </span><span class="kw">if </span>ctx.is_in_ref_mut {
-                    <span class="kw">return </span><span class="bool-val">false</span>;
-                }
-                <span class="comment">// Appending 0 to a block would look odd.
-                </span><span class="kw">if </span><span class="macro">matches!</span>(expr, Expression::Block(<span class="kw">_</span>)) {
-                    <span class="kw">return </span><span class="bool-val">false</span>;
-                }
-                <span class="comment">// We can apply this rule on anything that returns a number.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = expr.return_type() {
-                    <span class="macro">matches!</span>(typ.as_ref(), Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>))
-                } <span class="kw">else </span>{
-                    <span class="bool-val">false
-                </span>}
+                <span class="macro">matches!</span>(expr, Expression::Literal(Literal::Integer(<span class="kw">_</span>, Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>), <span class="kw">_</span>)))
             },
-            |u, expr| {
-                <span class="kw">let </span>typ = expr.return_type().expect(<span class="string">"only called on matching type"</span>).into_owned();
+            |u, _locals, expr| {
+                <span class="kw">let </span>Expression::Literal(Literal::Integer(a, typ, loc)) = expr <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"matched only integer literals, got {expr}"</span>);
+                };
+                <span class="kw">let </span><span class="kw-2">mut </span>b_expr = expr::gen_literal(u, typ)<span class="question-mark">?</span>;
+                <span class="kw">let </span>Expression::Literal(Literal::Integer(b, <span class="kw">_</span>, <span class="kw">_</span>)) = <span class="kw-2">&amp;mut </span>b_expr <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"generated a literal of the same type"</span>);
+                };
 
-                <span class="kw">let </span>op =
-                    <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{ BinaryOpKind::Add } <span class="kw">else </span>{ BinaryOpKind::Subtract };
+                <span class="comment">// Make them have the same sign, so they are on the same side of 0 and a single number
+                // can add up to them without overflow. (e.g. there is no x such that `i32::MIN + x == i32::MAX`)
+                </span><span class="kw">if </span>a.is_negative() &amp;&amp; !b.is_negative() {
+                    <span class="kw-2">*</span>b = SignedField::negative(b.absolute_value());
+                } <span class="kw">else if </span>!a.is_negative() &amp;&amp; b.is_negative() {
+                    <span class="kw-2">*</span>b = SignedField::positive(b.absolute_value());
+                }
 
-                expr::replace(expr, |expr| {
-                    expr::binary(expr, op, expr::int_literal(<span class="number">0u32</span>, <span class="bool-val">false</span>, typ))
-                });
+                <span class="kw">let </span>(op, c) = <span class="kw">if </span><span class="kw-2">*</span>a &gt;= <span class="kw-2">*</span>b {
+                    (BinaryOpKind::Add, (<span class="kw-2">*</span>a - <span class="kw-2">*</span>b))
+                } <span class="kw">else </span>{
+                    (BinaryOpKind::Subtract, (<span class="kw-2">*</span>b - <span class="kw-2">*</span>a))
+                };
 
+                <span class="kw">let </span>c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), <span class="kw-2">*</span>loc));
+
+                <span class="kw-2">*</span>expr = expr::binary(b_expr, op, c_expr);
+
+                <span class="prelude-val">Ok</span>(())
+            },
+        )
+    }
+
+    <span class="doccomment">/// Transform boolean value `x` into `x | x`.
+    </span><span class="kw">pub fn </span>bool_or_self() -&gt; Rule {
+        Rule::new(bool_rule_matches, |_u, _locals, expr| {
+            expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
+            <span class="prelude-val">Ok</span>(())
+        })
+    }
+
+    <span class="doccomment">/// Transform boolean value `x` into `x ^ x ^ x`.
+    </span><span class="kw">pub fn </span>bool_xor_self() -&gt; Rule {
+        Rule::new(bool_rule_matches, |_u, _locals, expr| {
+            expr::replace(expr, |expr| {
+                <span class="kw">let </span>rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
+                expr::binary(expr, BinaryOpKind::Xor, rhs)
+            });
+            <span class="prelude-val">Ok</span>(())
+        })
+    }
+
+    <span class="doccomment">/// Transform boolean value `x` into `rnd ^ x ^ rnd`.
+    </span><span class="kw">pub fn </span>bool_xor_rand() -&gt; Rule {
+        Rule::new(bool_rule_matches, |u, _locals, expr| {
+            <span class="comment">// This is where we could access the scope to look for a random bool variable.
+            </span><span class="kw">let </span>rnd = expr::gen_literal(u, <span class="kw-2">&amp;</span>Type::Bool)<span class="question-mark">?</span>;
+            expr::replace(expr, |expr| {
+                <span class="kw">let </span>rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
+                expr::binary(rnd, BinaryOpKind::Xor, rhs)
+            });
+            <span class="prelude-val">Ok</span>(())
+        })
+    }
+
+    <span class="doccomment">/// Transform commutative arithmetic operations:
+    /// * `a + b` into `b + a`
+    /// * `a * b` into `b * a`
+    </span><span class="kw">pub fn </span>num_commute() -&gt; Rule {
+        Rule::new(
+            |_ctx, expr| {
+                <span class="macro">matches!</span>(
+                    expr,
+                    Expression::Binary(Binary {
+                        operator: BinaryOpKind::Add | BinaryOpKind::Multiply,
+                        ..
+                    })
+                ) &amp;&amp; !has_side_effect(expr)
+            },
+            |_u, _locals, expr| {
+                <span class="kw">let </span>Expression::Binary(binary) = expr <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"the rule only matches Binary expressions"</span>);
+                };
+
+                std::mem::swap(<span class="kw-2">&amp;mut </span>binary.lhs, <span class="kw-2">&amp;mut </span>binary.rhs);
+
+                <span class="prelude-val">Ok</span>(())
+            },
+        )
+    }
+
+    <span class="doccomment">/// Transform any expression into an if-then-else with the itself
+    /// repeated in the _then_ and _else_ branch:
+    /// * `x` into `if c { x } else { x }`
+    </span><span class="kw">pub fn </span>any_inevitable() -&gt; Rule {
+        Rule::new(
+            |ctx, expr| {
+                !ctx.is_in_special_call
+                    &amp;&amp; !ctx.is_in_ref_mut
+                    <span class="comment">// If we're in ACIR then don't turn loop ranges into non-constant expressions.
+                    </span>&amp;&amp; (ctx.unconstrained || !ctx.is_in_range)
+                    <span class="comment">// `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
+                    </span>&amp;&amp; !<span class="macro">matches!</span>(expr, Expression::Let(<span class="kw">_</span>))
+            },
+            |u, vars, expr| {
+                <span class="kw">let </span>typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
+
+                <span class="comment">// Find a bool expression we can use. For simplicity just consider actual bool variables,
+                // not things that can produce variables, so we have less logic to repeat for the `FunctionContext`.
+                </span><span class="kw">let </span>bool_vars = vars
+                    .locals
+                    .current()
+                    .variables()
+                    .filter_map(|(id, (<span class="kw">_</span>, <span class="kw">_</span>, typ))| (<span class="kw-2">*</span>typ == Type::Bool).then_some(id))
+                    .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+                <span class="comment">// If we don't have a bool variable, generate some random expression.
+                </span><span class="kw">let </span>cond = <span class="kw">if </span>bool_vars.is_empty() {
+                    gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="number">2</span>)<span class="question-mark">?
+                </span>} <span class="kw">else </span>{
+                    <span class="kw">let </span>id = u.choose_iter(bool_vars)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>(mutable, name, typ) = vars.locals.current().get_variable(id);
+                    Expression::Ident(Ident {
+                        location: <span class="prelude-val">None</span>,
+                        definition: Definition::Local(<span class="kw-2">*</span>id),
+                        mutable: <span class="kw-2">*</span>mutable,
+                        name: name.clone(),
+                        typ: typ.clone(),
+                        id: vars.next_ident_id(),
+                    })
+                };
+
+                <span class="comment">// Duplicate the expression, then assign new IDs to all variables created in it.
+                </span><span class="kw">let </span><span class="kw-2">mut </span>alt = expr.clone();
+                reassign_ids(vars, <span class="kw-2">&amp;mut </span>alt);
+
+                expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
                 <span class="prelude-val">Ok</span>(())
             },
         )
@@ -675,13 +1386,12 @@
         // unless the expression can have a side effect, which we don't want to duplicate.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = expr.return_type() {
             <span class="macro">matches!</span>(typ.as_ref(), Type::Bool)
+                &amp;&amp; !has_side_effect(expr)
                 &amp;&amp; !expr::exists(expr, |expr| {
                     <span class="macro">matches!</span>(
                         expr,
-                        Expression::Call(<span class="kw">_</span>) <span class="comment">// Functions can have side effects, maybe mutating some reference
-                            </span>| Expression::Assign(<span class="kw">_</span>) <span class="comment">// Assignment to a mutable variable could double up effects
-                            </span>| Expression::Let(<span class="kw">_</span>) <span class="comment">// Creating a variable needs a new ID
-                            </span>| Expression::Block(<span class="kw">_</span>) <span class="comment">// Applying logical operations on blocks would look odd
+                        Expression::Let(<span class="kw">_</span>) <span class="comment">// Creating a variable needs a new ID
+                    </span>| Expression::Block(<span class="kw">_</span>) <span class="comment">// Applying logical operations on blocks would look odd
                     </span>)
                 })
         } <span class="kw">else </span>{
@@ -689,36 +1399,220 @@
         </span>}
     }
 
-    <span class="doccomment">/// Transform boolean value `x` into `x | x`.
-    </span><span class="kw">pub fn </span>bool_or_self() -&gt; Rule {
-        Rule::new(bool_rule_matches, |_u, expr| {
-            expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
-            <span class="prelude-val">Ok</span>(())
+    <span class="doccomment">/// Common condition for numeric rules
+    </span><span class="kw">fn </span>num_rule_matches(ctx: <span class="kw-2">&amp;</span>Context, expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+        <span class="comment">// Because of #8305 we can't reliably use expressions in ranges in ACIR.
+        </span><span class="kw">if </span>ctx.is_in_range &amp;&amp; !ctx.unconstrained {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+        <span class="comment">// If we rewrite `&amp;mut x` into `&amp;mut (x - 0)` we will alter the semantics.
+        </span><span class="kw">if </span>ctx.is_in_ref_mut {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+        <span class="comment">// Appending 0 to a block would look odd.
+        </span><span class="kw">if </span><span class="macro">matches!</span>(expr, Expression::Block(<span class="kw">_</span>)) {
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        }
+        <span class="comment">// We can apply this rule on anything that returns a number.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = expr.return_type() {
+            <span class="macro">matches!</span>(typ.as_ref(), Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>))
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>}
+    }
+}
+
+<span class="kw">mod </span>helpers {
+    <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, sync::OnceLock};
+
+    <span class="kw">use </span>arbitrary::Unstructured;
+    <span class="kw">use </span>noir_ast_fuzzer::{expr, types, visitor::visit_expr_be_mut};
+    <span class="kw">use </span>noirc_frontend::{
+        ast::{IntegerBitSize, UnaryOp},
+        monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
+        shared::Signedness,
+    };
+    <span class="kw">use </span>strum::IntoEnumIterator;
+
+    <span class="kw">use </span><span class="kw">crate</span>::targets::orig_vs_morph::VariableContext;
+
+    <span class="doccomment">/// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_side_effect(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+        expr::exists(expr, |expr| {
+            <span class="macro">matches!</span>(
+                expr,
+                Expression::Call(<span class="kw">_</span>) <span class="comment">// Functions can have side effects, maybe mutating some reference, printing
+                </span>| Expression::Assign(<span class="kw">_</span>) <span class="comment">// Assignment to a mutable variable could double up effects
+            </span>)
         })
     }
 
-    <span class="doccomment">/// Transform boolean value `x` into `x ^ x ^ x`.
-    </span><span class="kw">pub fn </span>bool_xor_self() -&gt; Rule {
-        Rule::new(bool_rule_matches, |_u, expr| {
-            expr::replace(expr, |expr| {
-                <span class="kw">let </span>rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
-                expr::binary(expr, BinaryOpKind::Xor, rhs)
-            });
-            <span class="prelude-val">Ok</span>(())
-        })
+    <span class="doccomment">/// Generate an arbitrary pure (free of side effects) expression, returning a specific type.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_expr(
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+        max_depth: usize,
+    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+        <span class="kw">if </span>max_depth &gt; <span class="number">0 </span>{
+            <span class="kw">let </span>idx = u.choose_index(<span class="number">3</span>)<span class="question-mark">?</span>;
+            <span class="kw">if </span>idx == <span class="number">0 </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = gen_unary(u, typ, max_depth)<span class="question-mark">? </span>{
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
+                }
+            }
+            <span class="kw">if </span>idx == <span class="number">1 </span>{
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = gen_binary(u, typ, max_depth)<span class="question-mark">? </span>{
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
+                }
+            }
+        }
+        expr::gen_literal(u, typ)
     }
 
-    <span class="doccomment">/// Transform boolean value `x` into `rnd ^ x ^ rnd`.
-    </span><span class="kw">pub fn </span>bool_xor_rand() -&gt; Rule {
-        Rule::new(bool_rule_matches, |u, expr| {
-            <span class="comment">// This is where we could access the scope to look for a random bool variable.
-            </span><span class="kw">let </span>rnd = expr::gen_literal(u, <span class="kw-2">&amp;</span>Type::Bool)<span class="question-mark">?</span>;
-            expr::replace(expr, |expr| {
-                <span class="kw">let </span>rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
-                expr::binary(rnd, BinaryOpKind::Xor, rhs)
-            });
-            <span class="prelude-val">Ok</span>(())
-        })
+    <span class="doccomment">/// Generate an arbitrary unary expression, returning a specific type.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_unary(
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+        max_depth: usize,
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="kw">if </span>!types::can_unary_return(typ) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+        <span class="kw">let </span><span class="kw-2">mut </span>make_unary = |op| {
+            <span class="kw">let </span>expr = gen_expr(u, typ, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr::unary(op, expr, typ.clone())))
+        };
+        <span class="kw">if </span>types::is_numeric(typ) {
+            make_unary(UnaryOp::Minus)
+        } <span class="kw">else if </span>types::is_bool(typ) {
+            make_unary(UnaryOp::Not)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
+        }
+    }
+
+    <span class="doccomment">/// Generate an arbitrary binary expression, returning a specific type.
+    ///
+    /// The operation should not have any side effects, ie. it must not fail.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>gen_binary(
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+        max_depth: usize,
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+        <span class="comment">// Collect the operations can return the expected type.
+        // Do not introduce new errors in randomly generated code that only exists in the morph.
+        </span><span class="kw">let </span>ops = BinaryOp::iter()
+            .filter(|op| {
+                types::can_binary_op_return(op, typ)
+                    &amp;&amp; !types::can_binary_op_overflow(op)
+                    &amp;&amp; !types::can_binary_op_err_by_zero(op)
+            })
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="comment">// Ideally we checked that the target type can be returned, but just in case.
+        </span><span class="kw">if </span>ops.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+
+        <span class="comment">// Choose a random operation.
+        </span><span class="kw">let </span>op = u.choose_iter(ops)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>type_options = TYPES.get_or_init(|| {
+            <span class="kw">let </span><span class="kw-2">mut </span>types = <span class="macro">vec!</span>[Type::Bool, Type::Field];
+
+            <span class="kw">for </span>sign <span class="kw">in </span>[Signedness::Signed, Signedness::Unsigned] {
+                <span class="kw">for </span>size <span class="kw">in </span>IntegerBitSize::iter() {
+                    <span class="kw">if </span>sign.is_signed() &amp;&amp; size.bit_size() == <span class="number">1 </span>{
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="comment">// Avoid negative literals; the frontend makes them difficult to work with in expressions
+                    // where no type inference information is available.
+                    </span><span class="kw">if </span>sign.is_signed() {
+                        <span class="kw">continue</span>;
+                    }
+                    <span class="comment">// Avoid large integers; frontend doesn't like them.
+                    </span><span class="kw">if </span>size.bit_size() &gt; <span class="number">32 </span>{
+                        <span class="kw">continue</span>;
+                    }
+                    types.push(Type::Integer(sign, size));
+                }
+            }
+            types
+        });
+
+        <span class="comment">// Select input types that can produce the output we want.
+        </span><span class="kw">let </span>type_options = type_options
+            .iter()
+            .filter(|input| types::can_binary_op_return_from_input(<span class="kw-2">&amp;</span>op, input, typ))
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+        <span class="comment">// Choose a type for the LHS and RHS.
+        </span><span class="kw">let </span>lhs_type = u.choose_iter(type_options)<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs_type = <span class="kw">match </span>op {
+            BinaryOp::ShiftLeft | BinaryOp::ShiftRight =&gt; <span class="kw-2">&amp;</span>types::U8,
+            <span class="kw">_ </span>=&gt; lhs_type,
+        };
+
+        <span class="comment">// Generate expressions for LHS and RHS.
+        </span><span class="kw">let </span>lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs_expr = gen_expr(u, rhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
+
+        <span class="comment">// If we have chosen e.g. u8 and need u32 we need to cast.
+        </span><span class="kw">if </span>!(lhs_type == typ || types::is_bool(typ) &amp;&amp; op.is_comparator()) {
+            expr = expr::cast(expr, typ.clone());
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr))
+    }
+
+    <span class="doccomment">/// Types we can consider using in this context.
+    </span><span class="kw">static </span>TYPES: OnceLock&lt;Vec&lt;Type&gt;&gt; = OnceLock::new();
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reassign_ids(vars: <span class="kw-2">&amp;mut </span>VariableContext, expr: <span class="kw-2">&amp;mut </span>Expression) {
+        <span class="kw">fn </span>replace_local_id(
+            vars: <span class="kw-2">&amp;mut </span>VariableContext,
+            replacements: <span class="kw-2">&amp;mut </span>HashMap&lt;LocalId, LocalId&gt;,
+            id: <span class="kw-2">&amp;mut </span>LocalId,
+        ) {
+            <span class="kw">let </span>curr = <span class="kw-2">*</span>id;
+            <span class="kw">let </span>next = vars.next_local_id();
+            replacements.insert(curr, next);
+            <span class="kw-2">*</span>id = next;
+        }
+
+        <span class="kw">let </span>replacements = RefCell::new(HashMap::new());
+
+        visit_expr_be_mut(
+            expr,
+            <span class="kw-2">&amp;mut </span>|expr| {
+                <span class="kw">match </span>expr {
+                    Expression::Let(let_) =&gt; {
+                        replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id)
+                    }
+                    Expression::For(for_) =&gt; replace_local_id(
+                        vars,
+                        <span class="kw-2">&amp;mut </span>replacements.borrow_mut(),
+                        <span class="kw-2">&amp;mut </span>for_.index_variable,
+                    ),
+                    Expression::Ident(ident) =&gt; {
+                        ident.id = vars.next_ident_id();
+                    }
+                    <span class="kw">_ </span>=&gt; (),
+                }
+                (<span class="bool-val">true</span>, ())
+            },
+            <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {},
+            <span class="kw-2">&amp;mut </span>|ident| {
+                <span class="kw">if let </span>Definition::Local(id) = <span class="kw-2">&amp;mut </span>ident.definition {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.borrow().get(id) {
+                        <span class="kw-2">*</span>id = <span class="kw-2">*</span>replacement;
+                    }
+                }
+            },
+        );
     }
 }
 

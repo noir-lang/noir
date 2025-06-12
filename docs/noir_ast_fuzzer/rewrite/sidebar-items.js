@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["change_all_functions_into_unconstrained"]};
+window.SIDEBAR_ITEMS = {"fn":["change_all_functions_into_unconstrained","next_local_and_ident_id"]};

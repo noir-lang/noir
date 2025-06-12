@@ -300,13 +300,13 @@
 };
 <span class="kw">use </span>strum::IntoEnumIterator <span class="kw">as _</span>;
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>U8: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+<span class="kw">pub const </span>U8: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
+<span class="kw">pub const </span>U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
 
 <span class="doccomment">/// Calculate the depth of a type.
 ///
 /// Leaf types have a depth of 0.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_depth(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
+</span><span class="kw">pub fn </span>type_depth(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
     <span class="kw">match </span>typ {
         Type::Field | Type::Bool | Type::String(<span class="kw">_</span>) | Type::Unit | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
         Type::Array(<span class="kw">_</span>, typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
@@ -318,7 +318,7 @@
 <span class="doccomment">/// We can only use globals that can be evaluated at comptime.
 /// Some types don't compile in Noir, so avoid those as we couldn't
 /// put any related failures into an integration test.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_be_global(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_be_global(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     !<span class="macro">matches!</span>(
         typ,
         Type::Integer(Signedness::Signed, IntegerBitSize::One | IntegerBitSize::HundredTwentyEight)
@@ -331,7 +331,7 @@
 /// We decided we will avoid 0 length arrays in the main inputs and outputs, because we don't generate
 /// witnesses for them anyway, and they are tricky to handle consistently when they can be regular inputs
 /// as well as part of the databus. They are not expected in real programs as they don't do anything useful.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_be_main(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_be_main(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>typ {
         Type::String(size) =&gt; <span class="kw-2">*</span>size &gt; <span class="number">0</span>,
         Type::Array(size, typ) =&gt; <span class="kw-2">*</span>size &gt; <span class="number">0 </span>&amp;&amp; can_be_main(typ),
@@ -344,7 +344,7 @@
 <span class="doccomment">/// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>types_produced(typ: <span class="kw-2">&amp;</span>Type) -&gt; HashSet&lt;Type&gt; {
+</span><span class="kw">pub fn </span>types_produced(typ: <span class="kw-2">&amp;</span>Type) -&gt; HashSet&lt;Type&gt; {
     <span class="doccomment">/// Recursively visit subtypes.
     </span><span class="kw">fn </span>visit(acc: <span class="kw-2">&amp;mut </span>HashSet&lt;Type&gt;, typ: <span class="kw-2">&amp;</span>Type) {
         <span class="kw">if </span>acc.contains(typ) {
@@ -421,7 +421,7 @@
     acc
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_hir_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; hir_def::types::Type {
+<span class="kw">pub fn </span>to_hir_type(typ: <span class="kw-2">&amp;</span>Type) -&gt; hir_def::types::Type {
     <span class="kw">use </span>hir_def::types::{Kind <span class="kw">as </span>HirKind, Type <span class="kw">as </span>HirType};
 
     <span class="comment">// Meet the expectations of `Type::evaluate_to_u32`.
@@ -459,27 +459,27 @@
 }
 
 <span class="doccomment">/// Check if the type is a number.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_numeric(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>is_numeric(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="macro">matches!</span>(typ, Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>))
 }
 
 <span class="doccomment">/// Check if a type is `Unit`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_unit(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>is_unit(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="macro">matches!</span>(typ, Type::Unit)
 }
 
 <span class="doccomment">/// Check if the type works with `UnaryOp::Not`
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_bool(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>is_bool(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="macro">matches!</span>(typ, Type::Bool)
 }
 
 <span class="doccomment">/// Check if the type is a reference wrapping another.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_reference(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>is_reference(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="macro">matches!</span>(typ, Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>))
 }
 
 <span class="doccomment">/// Check if the type can be used with a `println` statement.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_printable(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>is_printable(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>typ {
         Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) | Type::String(<span class="kw">_</span>) | Type::Bool | Type::Unit =&gt; <span class="bool-val">true</span>,
@@ -491,7 +491,7 @@
 }
 
 <span class="doccomment">/// Can the type be returned by some `UnaryOp`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_unary_return(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_unary_return(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>typ {
         Type::Field =&gt; <span class="bool-val">true</span>,
         Type::Bool =&gt; <span class="bool-val">true</span>,
@@ -511,12 +511,12 @@
 }
 
 <span class="doccomment">/// Can the type be returned by some `BinaryOp`.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_return(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_binary_return(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     BinaryOp::iter().any(|op| can_binary_op_return(<span class="kw-2">&amp;</span>op, typ))
 }
 
 <span class="doccomment">/// Check if a certain binary operation can return a target type as output.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_return(op: <span class="kw-2">&amp;</span>BinaryOp, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_binary_op_return(op: <span class="kw-2">&amp;</span>BinaryOp, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
     <span class="kw">match </span>typ {
         Type::Bool =&gt; op.is_comparator(),
@@ -532,7 +532,7 @@
 
 <span class="doccomment">/// Can the binary operation result in an overflow.
 /// These are operations that commonly fail with random constants.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_overflow(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
+</span><span class="kw">pub fn </span>can_binary_op_overflow(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
     <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
     <span class="macro">matches!</span>(op, Add | Subtract | Multiply | ShiftLeft)
 }
@@ -541,13 +541,13 @@
 /// These operations can fail because of an unfortunate combination of
 /// expressions, such as `a / (a % a)` or `a % (a % a)`, but it's less
 /// like to occur than the overflows.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_err_by_zero(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
+</span><span class="kw">pub fn </span>can_binary_op_err_by_zero(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
     <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
     <span class="macro">matches!</span>(op, Divide | Modulo)
 }
 
 <span class="doccomment">/// Check if a certain binary operation can take a type as input and produce the target output.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>can_binary_op_return_from_input(op: <span class="kw-2">&amp;</span>BinaryOp, input: <span class="kw-2">&amp;</span>Type, output: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+</span><span class="kw">pub fn </span>can_binary_op_return_from_input(op: <span class="kw-2">&amp;</span>BinaryOp, input: <span class="kw-2">&amp;</span>Type, output: <span class="kw-2">&amp;</span>Type) -&gt; bool {
     <span class="kw">match </span>(input, output) {
         (Type::Field, Type::Field) =&gt; op.is_valid_for_field_type() &amp;&amp; !op.is_equality(),
         (Type::Field, Type::Bool) =&gt; op.is_equality(),
@@ -575,7 +575,7 @@
 }
 
 <span class="doccomment">/// Reference an expression into a target type
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ref_mut(typ: Type) -&gt; Type {
+</span><span class="kw">pub fn </span>ref_mut(typ: Type) -&gt; Type {
     Type::Reference(Box::new(typ), <span class="bool-val">true</span>)
 }
 </code></pre></div></section></main></body></html>

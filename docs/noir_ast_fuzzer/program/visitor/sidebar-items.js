@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["visit_expr","visit_expr_be","visit_expr_be_mut","visit_expr_mut","visit_lvalue","visit_lvalue_mut"]};
+window.SIDEBAR_ITEMS = {"fn":["visit_expr","visit_expr_be","visit_expr_be_mut","visit_expr_mut","visit_ident_mut","visit_lvalue","visit_lvalue_mut"]};

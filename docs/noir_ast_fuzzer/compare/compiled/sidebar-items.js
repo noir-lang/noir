@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["CompareArtifact","CompareCompiled"],"type":["CompareCompiledResult","CompareMorph","ComparePipelines","ExecResult"]};
+window.SIDEBAR_ITEMS = {"struct":["CompareArtifact","CompareCompiled","NargoErrorWithTypes"],"type":["CompareCompiledResult","CompareMorph","ComparePipelines","ExecResult","SsaErrorTypes"]};
