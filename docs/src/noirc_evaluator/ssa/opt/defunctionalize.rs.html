@@ -1308,36 +1308,7 @@
 <a href="#1307" id="1307">1307</a>
 <a href="#1308" id="1308">1308</a>
 <a href="#1309" id="1309">1309</a>
-<a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a>
-<a href="#1312" id="1312">1312</a>
-<a href="#1313" id="1313">1313</a>
-<a href="#1314" id="1314">1314</a>
-<a href="#1315" id="1315">1315</a>
-<a href="#1316" id="1316">1316</a>
-<a href="#1317" id="1317">1317</a>
-<a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a>
-<a href="#1320" id="1320">1320</a>
-<a href="#1321" id="1321">1321</a>
-<a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a>
-<a href="#1326" id="1326">1326</a>
-<a href="#1327" id="1327">1327</a>
-<a href="#1328" id="1328">1328</a>
-<a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a>
-<a href="#1331" id="1331">1331</a>
-<a href="#1332" id="1332">1332</a>
-<a href="#1333" id="1333">1333</a>
-<a href="#1334" id="1334">1334</a>
-<a href="#1335" id="1335">1335</a>
-<a href="#1336" id="1336">1336</a>
-<a href="#1337" id="1337">1337</a>
-<a href="#1338" id="1338">1338</a>
-<a href="#1339" id="1339">1339</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1310" id="1310">1310</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1923,7 +1894,10 @@
         function_builder.switch_to_block(end_block);
         function_builder.terminate_with_return(end_results);
 
-        function_builder.current_function
+        <span class="comment">// The above code can result in a suboptimal CFG so we simplify it here.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>function = function_builder.current_function;
+        function.simplify_function();
+        function
     })
 }
 
@@ -2081,33 +2055,25 @@
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -&gt; u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -&gt; u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -&gt; u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -&gt; u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -&gt; u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -&gt; u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         "</span>);
     }
@@ -2227,23 +2193,17 @@
         }
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
-            v6 = eq v0, Field 1
-            jmpif v6 then: b3, else: b2
-          b1(v1: u32):
-            return v1
-          b2():
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2, else: b1
+          b1():
             constrain v0 == Field 2
-            v11 = call f2() -&gt; u32
-            jmp b5(v11)
-          b3():
-            v8 = call f1() -&gt; u32
-            jmp b4(v8)
-          b4(v2: u32):
-            jmp b6(v2)
-          b5(v3: u32):
-            jmp b6(v3)
-          b6(v4: u32):
-            jmp b1(v4)
+            v8 = call f2() -&gt; u32
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -&gt; u32
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
         }
         "
         </span>);
@@ -2384,33 +2344,25 @@
         }
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -&gt; u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -&gt; u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -&gt; u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -&gt; u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -&gt; u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -&gt; u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         "</span>);
     }
@@ -2477,42 +2429,32 @@
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b6, else: b5
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b4()
-          b4():
-            jmp b14()
-          b5():
+            jmp b9()
+          b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b9, else: b8
-          b6():
+            jmpif v8 then: b6, else: b5
+          b4():
             call f2()
-            jmp b7()
-          b7():
-            jmp b13()
-          b8():
+            jmp b8()
+          b5():
             constrain v0 == Field 4
             call f4()
-            jmp b11()
-          b9():
+            jmp b7()
+          b6():
             call f3()
-            jmp b10()
-          b10():
-            jmp b12()
-          b11():
-            jmp b12()
-          b12():
-            jmp b13()
-          b13():
-            jmp b14()
-          b14():
-            jmp b1()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
         }
         "#</span>);
     }
