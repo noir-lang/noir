@@ -87,6 +87,8 @@ type ApplyFunctions = HashMap<(Signature, RuntimeType), ApplyFunction>;
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     apply_functions: ApplyFunctions,
+
+    function_types: HashMap<FunctionId, (Signature, RuntimeType)>,
 }
 
 impl Ssa {
@@ -95,12 +97,13 @@ impl Ssa {
     pub(crate) fn defunctionalize(mut self) -> Ssa {
         // Find all functions used as value that share the same signature and runtime type
         let variants = find_variants(&self);
+        let function_types = collect_function_types(&self);
 
         // Generate the apply functions for the provided variants
         let apply_functions = create_apply_functions(&mut self, variants);
 
         // Setup the pass context
-        let context = DefunctionalizationContext { apply_functions };
+        let context = DefunctionalizationContext { apply_functions, function_types };
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
@@ -378,6 +381,15 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
     dispatches
 }
 
+/// Collects the type of all functions used in Ssa.
+/// This is necessary to do before any modifications to these function types are made
+/// later to e.g. remove higher-order functions from their signatures.
+fn collect_function_types(ssa: &Ssa) -> HashMap<FunctionId, (Signature, RuntimeType)> {
+    ssa.functions.iter().map(|(id, function)| {
+        (*id, (function.signature(), function.runtime()))
+    }).collect()
+}
+
 /// Creates all apply functions needed for dispatch of function values.
 ///
 /// This function maintains the grouping set in [Variants], meaning an apply
@@ -394,6 +406,7 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// [ApplyFunctions]
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
+
     for ((mut signature, runtime), variants) in variants_map.into_iter() {
         if variants.is_empty() {
             // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
@@ -427,6 +440,7 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
     }
+
     apply_functions
 }
 
