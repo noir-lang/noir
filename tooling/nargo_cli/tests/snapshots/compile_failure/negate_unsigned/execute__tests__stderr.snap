@@ -9,4 +9,11 @@ error: Cannot apply unary operator `-` to type `u8`
   │               --------
   │
 
-Aborting due to 1 previous error
+error: Type annotation needed
+  ┌─ src/main.nr:3:10
+  │
+3 │     std::println(var);
+  │          ------- Could not determine the type of the generic argument `T` declared on the function `println`
+  │
+
+Aborting due to 2 previous errors
