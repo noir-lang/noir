@@ -802,9 +802,16 @@ impl<'ssa> Interpreter<'ssa> {
     }
 
     fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
-        let address = self.lookup_reference(address, "store")?;
+        let reference_address = self.lookup_reference(address, "store")?;
+
         let value = self.lookup(value)?;
-        *address.element.borrow_mut() = Some(value);
+
+        if self.options.print_definitions {
+            println!("store {value} at {address}");
+        }
+
+        *reference_address.element.borrow_mut() = Some(value);
+
         Ok(())
     }
 
