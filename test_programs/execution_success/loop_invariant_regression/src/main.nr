@@ -24,6 +24,7 @@ fn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {
     for _ in 0..upper_bound {
         if x == 5 {
             let mut z = U32_MAX * y;
+            assert_eq(((3 * y as i8) * 127), 12);
             assert_eq(z, 12);
         }
     }
