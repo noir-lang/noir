@@ -988,6 +988,9 @@ fn can_be_hoisted(
             }
         }
 
+        // These instructions can always be hoisted
+        Cast(_, NumericType::NativeField) | Not(_) | Truncate { .. } | IfElse { .. } => true,
+
         // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
         Cast(_, _) | Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
             hoist_with_predicate
@@ -996,9 +999,6 @@ fn can_be_hoisted(
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
         Noop => true,
-
-        // These instructions can always be hoisted
-        Not(_) | Truncate { .. } | IfElse { .. } => true,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
