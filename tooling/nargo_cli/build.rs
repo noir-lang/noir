@@ -119,11 +119,9 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // slow
     "regression_4709",
-    // panic: Internal(TypeError)
-    "brillig_cow_regression",
     // wrong result
     "databus",
     // panic: index out of bounds
@@ -132,8 +130,6 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 7] = [
     "databus_two_calldata",
     // wrong result
     "databus_two_calldata_simple",
-    // panic Internal(TypeError)
-    "simple_shield",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
