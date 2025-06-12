@@ -7,7 +7,6 @@ use std::{
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
     ast::{ItemVisibility, UnresolvedType},
-    elaborator::lints::check_integer_literal_fits_its_type,
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
@@ -46,7 +45,7 @@ use crate::{
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
@@ -55,6 +54,7 @@ use crate::{
 mod comptime;
 mod enums;
 mod expressions;
+mod function_context;
 mod lints;
 mod options;
 mod path_resolution;
@@ -67,6 +67,7 @@ mod traits;
 pub mod types;
 mod unquote;
 
+use function_context::FunctionContext;
 use fxhash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
@@ -233,28 +234,6 @@ impl ElaborateReason {
             }
         }
     }
-}
-
-#[derive(Default)]
-struct FunctionContext {
-    /// All type variables created in the current function.
-    /// This map is used to default any integer type variables at the end of
-    /// a function (before checking trait constraints) if a type wasn't already chosen.
-    type_variables: Vec<Type>,
-
-    /// Trait constraints are collected during type checking until they are
-    /// verified at the end of a function. This is because constraints arise
-    /// on each variable, but it is only until function calls when the types
-    /// needed for the trait constraint may become known.
-    /// The `select impl` bool indicates whether, after verifying the trait constraint,
-    /// the resulting trait impl should be the one used for a call (sometimes trait
-    /// constraints are verified but there's no call associated with them, like in the
-    /// case of checking generic arguments)
-    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
-
-    /// All ExprId in a function that correspond to integer literals.
-    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
-    integer_literal_expr_ids: Vec<ExprId>,
 }
 
 impl<'context> Elaborator<'context> {
@@ -484,7 +463,7 @@ impl<'context> Elaborator<'context> {
         let old_item = self.current_item.replace(DependencyId::Function(id));
 
         self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
-        self.function_context.push(FunctionContext::default());
+        self.push_function_context();
 
         let modifiers = self.interner.function_modifiers(&id).clone();
 
@@ -586,45 +565,6 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
-    }
-
-    /// Defaults all type variables used in this function context then solves
-    /// all still-unsolved trait constraints in this context.
-    fn check_and_pop_function_context(&mut self) {
-        let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-
-        for typ in context.type_variables {
-            if let Type::TypeVariable(variable) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
-        }
-
-        for expr_id in context.integer_literal_expr_ids {
-            if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
-                self.push_err(error);
-            }
-        }
-
-        for (mut constraint, expr_id, select_impl) in context.trait_constraints {
-            let location = self.interner.expr_location(&expr_id);
-
-            if matches!(&constraint.typ, Type::Reference(..)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_bound.trait_id,
-                &constraint.trait_bound.trait_generics.ordered,
-                &constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
-        }
     }
 
     /// This turns function parameters of the form:

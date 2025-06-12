@@ -235,6 +235,16 @@ pub enum TypeCheckError {
     MissingManyCases { typ: String, location: Location },
     #[error("Expected a tuple with {} elements, found one with {} elements", tuple_types.len(), actual_count)]
     TupleMismatch { tuple_types: Vec<Type>, actual_count: usize, location: Location },
+    #[error("Type annotation needed on item")]
+    TypeAnnotationNeededOnItem {
+        location: Location,
+        generic_name: String,
+        item_kind: &'static str,
+        item_name: String,
+        is_numeric: bool,
+    },
+    #[error("Type annotation needed on array literal")]
+    TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -322,7 +332,9 @@ impl TypeCheckError {
             | TypeCheckError::MissingCases { location, .. }
             | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location }
-            | TypeCheckError::TupleMismatch { location, .. } => *location,
+            | TypeCheckError::TupleMismatch { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -722,6 +734,26 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 );
                 let secondary = format!("The expression the tuple is assigned to has type `({})`", vecmap(tuple_types, ToString::to_string).join(","));
                 Diagnostic::simple_error(msg, secondary, *location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnItem {
+                location,
+                generic_name,
+                item_kind,
+                item_name,
+                is_numeric,
+            } => {
+                let message = "Type annotation needed".into();
+                let type_or_value = if *is_numeric { "value" } else { "type" };
+                let secondary = format!(
+                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
+                );
+                Diagnostic::simple_error(message, secondary, *location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } => {
+                let message = "Type annotation needed".into();
+                let array_or_slice = if *is_array { "array" } else { "slice" };
+                let secondary = format!("Could not determine the type of the {array_or_slice}");
+                Diagnostic::simple_error(message, secondary, *location)
             }
         }
     }
