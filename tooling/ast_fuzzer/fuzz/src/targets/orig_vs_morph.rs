@@ -238,7 +238,8 @@ mod rules {
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
         ast::BinaryOpKind,
-        monomorphization::ast::{Binary, Expression, Type},
+        monomorphization::ast::{Binary, Expression, Literal, Type},
+        signed_field::SignedField,
     };
 
     #[derive(Clone, Debug, Default)]
@@ -306,6 +307,7 @@ mod rules {
             bool_xor_rand(),
             num_commute(),
             any_inevitable(),
+            int_break_up(),
         ]
     }
 
@@ -336,6 +338,47 @@ mod rules {
     /// Transform any numeric value `x` into `x/1`
     pub fn num_div_one() -> Rule {
         num_op(BinaryOpKind::Divide, 1)
+    }
+
+    /// Break an integer literal `a` into `b + c`.
+    pub fn int_break_up() -> Rule {
+        Rule::new(
+            |ctx, expr| {
+                if ctx.is_in_range && !ctx.unconstrained || ctx.is_in_ref_mut {
+                    return false;
+                }
+                matches!(expr, Expression::Literal(Literal::Integer(_, Type::Integer(_, _), _)))
+            },
+            |u, _locals, expr| {
+                let Expression::Literal(Literal::Integer(a, typ, loc)) = expr else {
+                    unreachable!("matched only integer literals, got {expr}");
+                };
+                let mut b_expr = expr::gen_literal(u, typ)?;
+                let Expression::Literal(Literal::Integer(b, _, _)) = &mut b_expr else {
+                    unreachable!("generated a literal of the same type");
+                };
+
+                // Make them have the same sign, so they are on the same side of 0 and a single number
+                // can add up to them without overflow. (e.g. there is no x such that `i32::MIN + x == i32::MAX`)
+                if a.is_negative() && !b.is_negative() {
+                    *b = SignedField::negative(b.absolute_value());
+                } else if !a.is_negative() && b.is_negative() {
+                    *b = SignedField::positive(b.absolute_value());
+                }
+
+                let (op, c) = if *a >= *b {
+                    (BinaryOpKind::Add, (*a - *b))
+                } else {
+                    (BinaryOpKind::Subtract, (*b - *a))
+                };
+
+                let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), loc.clone()));
+
+                *expr = expr::binary(b_expr, op, c_expr);
+
+                Ok(())
+            },
+        )
     }
 
     /// Transform boolean value `x` into `x | x`.
