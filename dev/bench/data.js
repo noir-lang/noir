@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749749853296,
+  "lastUpdate": 1749749858186,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cf32e5b1045ea2ff58f0d647ad8ac1347217a3a6",
-          "message": "fix(mem2reg): Keep last stores used in MakeArray (#8743)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-06-06T13:46:02Z",
-          "tree_id": "30c51aa798abe74db12ca854a919884b4dd16007",
-          "url": "https://github.com/noir-lang/noir/commit/cf32e5b1045ea2ff58f0d647ad8ac1347217a3a6"
-        },
-        "date": 1749219956819,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.568,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.498,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.156,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.246,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 120,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.07,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.534,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.792,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.782,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53bd661af5be4bdf683225f2ec6cb8798a722415",
+          "message": "fix: catch unbound type variables during frontend compilation (#8686)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-12T17:09:08Z",
+          "tree_id": "dd2138b62a7330cc9ef2d984e857851d86bf57c2",
+          "url": "https://github.com/noir-lang/noir/commit/53bd661af5be4bdf683225f2ec6cb8798a722415"
+        },
+        "date": 1749749845640,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.308,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.358,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.094,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 130,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 125,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.536,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.812,
             "unit": "s"
           }
         ]
