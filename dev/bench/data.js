@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749743997238,
+  "lastUpdate": 1749744024092,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18496,48 +18496,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b888c34b2b28e4c58b38f584b48a0adc154594e3",
-          "message": "fix!: Error when re-assigning a mutable reference (#8790)",
-          "timestamp": "2025-06-06T13:17:37Z",
-          "tree_id": "dfbd0f3db199441272709a9fef1b2c5471e3184c",
-          "url": "https://github.com/noir-lang/noir/commit/b888c34b2b28e4c58b38f584b48a0adc154594e3"
-        },
-        "date": 1749217190521,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253373,
-            "range": "± 508",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223210,
-            "range": "± 10445",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784237,
-            "range": "± 1982",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20589,6 +20547,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794352,
             "range": "± 17650",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "945ea6e11d5ca89cfb62bc8e7dc5dda16fefd512",
+          "message": "fix: preserve functions which are used in `array_set` instructions (#8891)",
+          "timestamp": "2025-06-12T15:30:56Z",
+          "tree_id": "8cf216331194f398ce0c56f4f79905d8f238cae2",
+          "url": "https://github.com/noir-lang/noir/commit/945ea6e11d5ca89cfb62bc8e7dc5dda16fefd512"
+        },
+        "date": 1749744012444,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248890,
+            "range": "± 3382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221261,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788354,
+            "range": "± 11428",
             "unit": "ns/iter"
           }
         ]
