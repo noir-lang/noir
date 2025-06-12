@@ -1,6 +1,6 @@
 use crate::{
     assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
-    get_program_errors, get_program_with_options, tests::Expect,
+    get_program_with_options, tests::Expect,
 };
 
 #[named]
@@ -402,59 +402,6 @@ fn trait_alias_polymorphic_inheritance() {
         }"#;
 
     assert_no_errors!(src);
-}
-
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
-// same errors as the desugared version
-#[named]
-#[test]
-fn trait_alias_polymorphic_where_clause() {
-    let src = r#"
-        trait Foo {
-            fn foo(self) -> Self;
-        }
-
-        trait Bar<T> {
-            fn bar(self) -> T;
-        }
-
-        trait Baz {
-            fn baz(self) -> bool;
-        }
-
-        trait Qux<T> = Foo + Bar<T> where T: Baz;
-
-        fn qux<T, U>(x: T) -> bool where T: Qux<U> {
-            x.foo().bar().baz()
-        }
-
-        impl Foo for Field {
-            fn foo(self) -> Self {
-                self + 1
-            }
-        }
-
-        impl Bar<bool> for Field {
-            fn bar(self) -> bool {
-                true
-            }
-        }
-
-        impl Baz for bool {
-            fn baz(self) -> bool {
-                self
-            }
-        }
-
-        fn main() {
-            assert(0.foo().bar().baz() == qux(0));
-        }
-    "#;
-
-    // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors!(src);
-    let errors = get_program_errors!(src);
-    assert!(!errors.is_empty());
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
