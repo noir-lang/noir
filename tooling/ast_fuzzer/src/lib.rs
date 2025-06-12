@@ -15,7 +15,7 @@ pub use compare::input_values_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
-pub use program::{expr, rewrite, types, visitor};
+pub use program::{expr, rewrite, scope, types, visitor};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]

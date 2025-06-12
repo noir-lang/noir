@@ -1,11 +1,14 @@
 //! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
+use std::cell::{Cell, RefCell};
+
 use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
-use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
+use noir_ast_fuzzer::scope::ScopeStack;
+use noir_ast_fuzzer::{Config, visitor::visit_expr_be_mut};
 use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
@@ -61,12 +64,12 @@ fn rewrite_function(
     let ctx = rules::Context { unconstrained: func.unconstrained, ..Default::default() };
 
     let estimate = estimate_applicable_rules(&ctx, &func.body, rules);
-    let mut morph = MorphContext {
+    let morph = MorphContext {
         target: max_rewrites.min(estimate),
         estimate,
-        count: 0,
+        count: Cell::new(0),
         rules,
-        locals: LocalContext::new(func),
+        vars: RefCell::new(VariableContext::new(func)),
     };
 
     morph.rewrite_expr(&ctx, u, &mut func.body);
@@ -75,15 +78,23 @@ fn rewrite_function(
 /// Context necessary to generate new local IDs during rewrites.
 ///
 /// Potentially a place to reconstruct local variable scopes.
-struct LocalContext {
+struct VariableContext {
     next_local_id: u32,
     next_ident_id: u32,
+    locals: ScopeStack<LocalId>,
 }
 
-impl LocalContext {
+impl VariableContext {
     fn new(func: &Function) -> Self {
         let (next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
-        Self { next_local_id, next_ident_id }
+
+        let locals = ScopeStack::new(
+            func.parameters
+                .iter()
+                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
+        );
+
+        Self { next_local_id, next_ident_id, locals }
     }
 
     fn next_local_id(&mut self) -> LocalId {
@@ -106,91 +117,146 @@ struct MorphContext<'a> {
     /// (Over)estimate of the maximum number we could hope to apply.
     estimate: usize,
     /// Number of rewrites applied so far, up to the `target`.
-    count: usize,
+    count: Cell<usize>,
     /// Rules to apply.
     rules: &'a [rules::Rule],
     /// Book keeping for local variables.
-    locals: LocalContext,
+    vars: RefCell<VariableContext>,
 }
 
 impl MorphContext<'_> {
     /// Check if we have reached the target.
     fn limit_reached(&self) -> bool {
-        self.target == 0 || self.estimate == 0 || self.count == self.target
+        self.target == 0 || self.estimate == 0 || self.count.get() == self.target
     }
 
-    fn rewrite_expr(&mut self, ctx: &rules::Context, u: &mut Unstructured, expr: &mut Expression) {
-        visit_expr_mut(expr, &mut |expr: &mut Expression| {
-            if self.limit_reached() {
-                return false;
-            }
-            match expr {
-                Expression::For(for_) => {
-                    // Separate context for just the ranges.
-                    let range_ctx = rules::Context { is_in_range: true, ..*ctx };
-                    self.rewrite_expr(&range_ctx, u, &mut for_.start_range);
-                    self.rewrite_expr(&range_ctx, u, &mut for_.end_range);
-                    // Original context for the body.
-                    self.rewrite_expr(ctx, u, &mut for_.block);
-                    // No need to visit children, we just visited them.
-                    false
+    fn rewrite_expr(&self, ctx: &rules::Context, u: &mut Unstructured, expr: &mut Expression) {
+        visit_expr_be_mut(
+            expr,
+            &mut |expr: &mut Expression| {
+                if self.limit_reached() {
+                    return (false, false);
                 }
-                Expression::Unary(
-                    unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
-                ) => {
-                    let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
-                    self.rewrite_expr(&ctx, u, &mut unary.rhs);
-                    false
-                }
-                Expression::Call(call) if is_special_call(call) => {
-                    let ctx = rules::Context { is_in_special_call: true, ..*ctx };
-                    for arg in call.arguments.iter_mut() {
-                        self.rewrite_expr(&ctx, u, arg);
-                    }
-                    false
-                }
-                // The rest can just have the rules applied on them, using the same context.
-                _ => {
-                    for rule in self.rules {
-                        match self.try_apply_rule(ctx, u, expr, rule) {
-                            Ok(false) => {
-                                // We couldn't, or decided not to apply this rule; try the next one.
-                                continue;
-                            }
-                            Err(_) => {
-                                // We ran out of randomness; stop visiting the AST.
-                                return false;
-                            }
 
-                            Ok(true) => {
-                                // We applied a rule on this expression.
-                                self.count += 1;
-                                // We could visit the children of this morphed expression, which could result in repeatedly applying
-                                // the same rule over and over again. When we have 100% application rate (e.g. a small function),
-                                // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
-                                // It would also throw off the estimate if we introduce new items on which we can apply rules.
-                                return false;
-                            }
+                // Check if we are entering a new scope.
+                let entered = matches!(
+                    expr,
+                    Expression::Block(_)
+                        | Expression::For(_)
+                        | Expression::Loop(_)
+                        | Expression::While(_)
+                        | Expression::If(_)
+                );
+
+                if entered {
+                    self.vars.borrow_mut().locals.enter();
+                }
+
+                // We apply the rules on this expression, but its
+                // children will be visited after this call.
+                let cont = self.apply_rules(ctx, u, expr);
+
+                (cont, entered)
+            },
+            &mut |expr, entered| {
+                // A `let` variable becomes visible *after* we have have processed all its children,
+                // so, only its siblings can see it.
+                if let Expression::Let(let_) = expr {
+                    let typ = let_.expression.return_type().expect("let should have a type");
+                    self.vars.borrow_mut().locals.add(
+                        let_.id,
+                        let_.mutable,
+                        let_.name.clone(),
+                        typ.into_owned(),
+                    );
+                }
+                if entered {
+                    self.vars.borrow_mut().locals.exit();
+                }
+            },
+            &mut |_| {},
+        );
+    }
+
+    fn apply_rules(
+        &self,
+        ctx: &rules::Context,
+        u: &mut Unstructured,
+        expr: &mut Expression,
+    ) -> bool {
+        match expr {
+            Expression::For(for_) => {
+                // Separate context for just the ranges.
+                let range_ctx = rules::Context { is_in_range: true, ..*ctx };
+                self.rewrite_expr(&range_ctx, u, &mut for_.start_range);
+                self.rewrite_expr(&range_ctx, u, &mut for_.end_range);
+                // Original context for the body.
+                self.vars.borrow_mut().locals.add(
+                    for_.index_variable,
+                    false,
+                    for_.index_name.clone(),
+                    for_.index_type.clone(),
+                );
+                self.rewrite_expr(ctx, u, &mut for_.block);
+                self.vars.borrow_mut().locals.remove(&for_.index_variable);
+                // No need to visit children, we just visited them.
+                false
+            }
+            Expression::Unary(
+                unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
+            ) => {
+                let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
+                self.rewrite_expr(&ctx, u, &mut unary.rhs);
+                false
+            }
+            Expression::Call(call) if is_special_call(call) => {
+                let ctx = rules::Context { is_in_special_call: true, ..*ctx };
+                for arg in call.arguments.iter_mut() {
+                    self.rewrite_expr(&ctx, u, arg);
+                }
+                false
+            }
+            // The rest can just have the rules applied on them, using the same context.
+            _ => {
+                for rule in self.rules {
+                    match self.try_apply_rule(ctx, u, expr, rule) {
+                        Ok(false) => {
+                            // We couldn't, or decided not to apply this rule; try the next one.
+                            continue;
+                        }
+                        Err(_) => {
+                            // We ran out of randomness; stop visiting the AST.
+                            return false;
+                        }
+
+                        Ok(true) => {
+                            // We applied a rule on this expression.
+                            self.count.set(self.count.get() + 1);
+                            // We could visit the children of this morphed expression, which could result in repeatedly applying
+                            // the same rule over and over again. When we have 100% application rate (e.g. a small function),
+                            // it would be wasting all the potential on the first rule that matched, e.g. `(x - (0 + (0 - 0)))`.
+                            // It would also throw off the estimate if we introduce new items on which we can apply rules.
+                            return false;
                         }
                     }
-                    // If we made it this far, we did not apply any rule, so look deeper in the AST.
-                    true
                 }
+                // If we made it this far, we did not apply any rule, so look deeper in the AST.
+                true
             }
-        });
+        }
     }
 
     /// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
     /// criteria, returning a flag showing whether it was applied.
     fn try_apply_rule(
-        &mut self,
+        &self,
         ctx: &rules::Context,
         u: &mut Unstructured,
         expr: &mut Expression,
         rule: &rules::Rule,
     ) -> arbitrary::Result<bool> {
         if rule.matches(ctx, expr) && u.ratio(self.target, self.estimate)? {
-            rule.rewrite(u, &mut self.locals, expr)?;
+            rule.rewrite(u, &mut self.vars.borrow_mut(), expr)?;
             Ok(true)
         } else {
             Ok(false)
@@ -231,14 +297,14 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use crate::targets::orig_vs_morph::{LocalContext, helpers::reassign_ids};
+    use crate::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
 
     use super::helpers::{gen_expr, has_side_effect};
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::expr;
     use noirc_frontend::{
         ast::BinaryOpKind,
-        monomorphization::ast::{Binary, Expression, Literal, Type},
+        monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
         signed_field::SignedField,
     };
 
@@ -258,7 +324,7 @@ mod rules {
     type MatchFn = dyn Fn(&Context, &Expression) -> bool;
     /// Apply the rule on an expression, mutating/replacing it in-place.
     type RewriteFn =
-        dyn Fn(&mut Unstructured, &mut LocalContext, &mut Expression) -> arbitrary::Result<()>;
+        dyn Fn(&mut Unstructured, &mut VariableContext, &mut Expression) -> arbitrary::Result<()>;
 
     /// Metamorphic transformation rule.
     pub struct Rule {
@@ -271,7 +337,7 @@ mod rules {
             matches: impl Fn(&Context, &Expression) -> bool + 'static,
             rewrite: impl Fn(
                 &mut Unstructured,
-                &mut LocalContext,
+                &mut VariableContext,
                 &mut Expression,
             ) -> arbitrary::Result<()>
             + 'static,
@@ -288,10 +354,10 @@ mod rules {
         pub fn rewrite(
             &self,
             u: &mut Unstructured,
-            locals: &mut LocalContext,
+            vars: &mut VariableContext,
             expr: &mut Expression,
         ) -> arbitrary::Result<()> {
-            (self.rewrite)(u, locals, expr)
+            (self.rewrite)(u, vars, expr)
         }
     }
 
@@ -452,13 +518,37 @@ mod rules {
                     // `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
                     && !matches!(expr, Expression::Let(_))
             },
-            |u, locals, expr| {
+            |u, vars, expr| {
                 let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
-                let cond = gen_expr(u, &Type::Bool, 2)?;
+
+                // Find a bool expression we can use. For simplicity just consider actual bool variables,
+                // not things that can produce variables, so we have less logic to repeat for the `FunctionContext`.
+                let bool_vars = vars
+                    .locals
+                    .current()
+                    .variables()
+                    .filter_map(|(id, (_, _, typ))| (*typ == Type::Bool).then_some(id))
+                    .collect::<Vec<_>>();
+
+                // If we don't have a bool variable, generate some random expression.
+                let cond = if bool_vars.is_empty() {
+                    gen_expr(u, &Type::Bool, 2)?
+                } else {
+                    let id = u.choose_iter(bool_vars)?;
+                    let (mutable, name, typ) = vars.locals.current().get_variable(id);
+                    Expression::Ident(Ident {
+                        location: None,
+                        definition: Definition::Local(*id),
+                        mutable: *mutable,
+                        name: name.clone(),
+                        typ: typ.clone(),
+                        id: vars.next_ident_id(),
+                    })
+                };
 
                 // Duplicate the expression, then assign new IDs to all variables created in it.
                 let mut alt = expr.clone();
-                reassign_ids(locals, &mut alt);
+                reassign_ids(vars, &mut alt);
 
                 expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
                 Ok(())
@@ -529,7 +619,7 @@ mod helpers {
     };
     use strum::IntoEnumIterator;
 
-    use crate::targets::orig_vs_morph::LocalContext;
+    use crate::targets::orig_vs_morph::VariableContext;
 
     /// Check if an expression can have a side effect, in which case duplicating or reordering it could
     /// change the behavior of the program.
@@ -666,14 +756,14 @@ mod helpers {
     /// Types we can consider using in this context.
     static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 
-    pub(super) fn reassign_ids(locals: &mut LocalContext, expr: &mut Expression) {
+    pub(super) fn reassign_ids(vars: &mut VariableContext, expr: &mut Expression) {
         fn replace_local_id(
-            locals: &mut LocalContext,
+            vars: &mut VariableContext,
             replacements: &mut HashMap<LocalId, LocalId>,
             id: &mut LocalId,
         ) {
             let curr = *id;
-            let next = locals.next_local_id();
+            let next = vars.next_local_id();
             replacements.insert(curr, next);
             *id = next;
         }
@@ -685,15 +775,15 @@ mod helpers {
             &mut |expr| {
                 match expr {
                     Expression::Let(let_) => {
-                        replace_local_id(locals, &mut replacements.borrow_mut(), &mut let_.id)
+                        replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id)
                     }
                     Expression::For(for_) => replace_local_id(
-                        locals,
+                        vars,
                         &mut replacements.borrow_mut(),
                         &mut for_.index_variable,
                     ),
                     Expression::Ident(ident) => {
-                        ident.id = locals.next_ident_id();
+                        ident.id = vars.next_ident_id();
                     }
                     _ => (),
                 }

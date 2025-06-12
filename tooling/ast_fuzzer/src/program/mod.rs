@@ -20,7 +20,7 @@ pub mod expr;
 pub(crate) mod freq;
 mod func;
 pub mod rewrite;
-mod scope;
+pub mod scope;
 pub mod types;
 pub mod visitor;
 
