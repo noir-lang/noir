@@ -75,14 +75,14 @@ impl ArgumentsMutatorFactory for DefaultMutation {
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn ArgumentsMutator> {
-    let mutator = if rng.gen_bool(0.5) {
-        RandomMutation::new()
-    } else if rng.gen_bool(0.3) {
+    let mutator = if rng.gen_bool(0.9) {
         IncrementArgumentIndexMutation::new()
-    } else if rng.gen_bool(0.2) {
+    } else if rng.gen_bool(0.9) {
         DecrementArgumentIndexMutation::new()
-    } else if rng.gen_bool(0.2) {
+    } else if rng.gen_bool(0.5) {
         ChangeTypeMutation::new()
+    } else if rng.gen_bool(0.1) {
+        RandomMutation::new()
     } else {
         DefaultMutation::new()
     };

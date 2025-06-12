@@ -1,5 +1,5 @@
 use crate::fuzz_lib::instruction::Instruction;
-use crate::mutations::argument_mutator::argument_mutator;
+use crate::mutations::instructions::argument_mutator::argument_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
@@ -112,10 +112,10 @@ impl InstructionMutatorFactory for DefaultMutation {
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn InstructionMutator> {
-    let mutator = if rng.gen_bool(0.5) {
-        RandomMutation::new()
-    } else if rng.gen_bool(0.3) {
+    let mutator = if rng.gen_bool(0.9) {
         InstructionArgumentsMutation::new()
+    } else if rng.gen_bool(0.1) {
+        RandomMutation::new()
     } else {
         DefaultMutation::new()
     };

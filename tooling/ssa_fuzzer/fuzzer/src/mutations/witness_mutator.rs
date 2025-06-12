@@ -87,15 +87,14 @@ fn mutation_factory(rng: &mut StdRng) -> Box<dyn WitnessMutator> {
     mutator
 }
 
-pub(crate) fn witness_mutator(
-    witness_value: Vec<WitnessValue>,
+pub(crate) fn witness_mutate(
+    witness_value: [WitnessValue; (crate::fuzz_lib::NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     rng: &mut StdRng,
-) -> Vec<WitnessValue> {
-    let mut witness_values: Vec<WitnessValue> = Vec::new();
-    for witness in witness_value {
+) -> [WitnessValue; (crate::fuzz_lib::NUMBER_OF_VARIABLES_INITIAL - 2) as usize] {
+    let mut witness_values = witness_value;
+    for witness in witness_values.iter_mut() {
         let mutator = mutation_factory(rng);
-        let witness = mutator.mutate(rng, witness);
-        witness_values.push(witness);
+        *witness = mutator.mutate(rng, witness.clone());
     }
     witness_values
 }

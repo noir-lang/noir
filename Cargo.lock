@@ -3572,6 +3572,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "rand 0.8.5",
+ "serde",
  "thiserror 1.0.69",
 ]
 
@@ -5503,6 +5504,7 @@ dependencies = [
  "noirc_driver",
  "noirc_evaluator",
  "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]
