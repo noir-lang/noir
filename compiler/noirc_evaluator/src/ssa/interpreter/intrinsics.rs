@@ -124,7 +124,7 @@ impl Interpreter<'_> {
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
                     let result = result.iter().map(|v| (*v as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
