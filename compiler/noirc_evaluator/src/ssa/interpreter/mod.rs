@@ -136,7 +136,7 @@ impl<'ssa> Interpreter<'ssa> {
 
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
-    fn define(&mut self, id: ValueId, value: Value) {
+    fn define(&mut self, id: ValueId, value: Value) -> IResult<()> {
         if self.options.print_definitions {
             println!("{id} = {value}");
         }
@@ -145,13 +145,19 @@ impl<'ssa> Interpreter<'ssa> {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
             if expected_type != actual_type {
-                panic!(
-                    "Type mismatch when defining {id}: expected {expected_type}, got {actual_type}"
-                );
+                return Err(InterpreterError::Internal(
+                    InternalError::ValueTypeDoesNotMatchReturnType {
+                        value_id: id,
+                        expected_type: expected_type.to_string(),
+                        actual_type: actual_type.to_string(),
+                    },
+                ));
             }
         }
 
         self.call_context_mut().scope.insert(id, value);
+
+        Ok(())
     }
 
     fn interpret_globals(&mut self) -> IResult<()> {
@@ -175,7 +181,7 @@ impl<'ssa> Interpreter<'ssa> {
                     unreachable!()
                 }
             };
-            self.define(global_id, value);
+            self.define(global_id, value)?;
         }
         Ok(())
     }
@@ -203,7 +209,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
-                self.define(*parameter, argument);
+                self.define(*parameter, argument)?;
             }
 
             for instruction_id in block.instructions() {
@@ -440,7 +446,7 @@ impl<'ssa> Interpreter<'ssa> {
         match instruction {
             Instruction::Binary(binary) => {
                 let result = self.interpret_binary(binary, side_effects_enabled)?;
-                self.define(results[0], result);
+                self.define(results[0], result)?;
                 Ok(())
             }
             // Cast in SSA changes the type without altering the value
@@ -448,7 +454,7 @@ impl<'ssa> Interpreter<'ssa> {
                 let value = self.lookup_numeric(*value, "cast")?;
                 let field = value.convert_to_field();
                 let result = Value::from_constant(field, *numeric_type)?;
-                self.define(results[0], result);
+                self.define(results[0], result)?;
                 Ok(())
             }
             Instruction::Not(id) => self.interpret_not(*id, results[0]),
@@ -570,8 +576,7 @@ impl<'ssa> Interpreter<'ssa> {
             NumericValue::I32(value) => NumericValue::I32(!value),
             NumericValue::I64(value) => NumericValue::I64(!value),
         };
-        self.define(result, Value::Numeric(new_result));
-        Ok(())
+        self.define(result, Value::Numeric(new_result))
     }
 
     fn interpret_truncate(
@@ -608,8 +613,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
         };
 
-        self.define(result, Value::Numeric(truncated));
-        Ok(())
+        self.define(result, Value::Numeric(truncated))
     }
 
     fn interpret_range_check(
@@ -742,7 +746,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
 
         for (result, new_result) in results.iter().zip(new_results) {
-            self.define(*result, new_result);
+            self.define(*result, new_result)?;
         }
         Ok(())
     }
@@ -788,7 +792,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
     }
 
-    fn interpret_allocate(&mut self, result: ValueId) {
+    fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
         let result_type = self.dfg().type_of_value(result);
         let element_type = match result_type {
             Type::Reference(element_type) => element_type,
@@ -796,7 +800,7 @@ impl<'ssa> Interpreter<'ssa> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type));
+        self.define(result, Value::reference(result, element_type))
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
@@ -808,7 +812,7 @@ impl<'ssa> Interpreter<'ssa> {
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
-        self.define(result, value.clone());
+        self.define(result, value.clone())?;
         Ok(())
     }
 
@@ -843,7 +847,7 @@ impl<'ssa> Interpreter<'ssa> {
             let typ = self.dfg().type_of_value(result);
             Value::uninitialized(&typ, result)
         };
-        self.define(result, element);
+        self.define(result, element)?;
         Ok(())
     }
 
@@ -884,7 +888,7 @@ impl<'ssa> Interpreter<'ssa> {
             // Side effects are disabled, return the original array
             Value::ArrayOrSlice(array)
         };
-        self.define(result, result_array);
+        self.define(result, result_array)?;
         Ok(())
     }
 
@@ -950,8 +954,7 @@ impl<'ssa> Interpreter<'ssa> {
             else_value
         };
 
-        self.define(result, new_result);
-        Ok(())
+        self.define(result, new_result)
     }
 
     fn interpret_make_array(
@@ -969,8 +972,7 @@ impl<'ssa> Interpreter<'ssa> {
             element_types: result_type.clone().element_types(),
             is_slice,
         });
-        self.define(result, array);
-        Ok(())
+        self.define(result, array)
     }
 }
 

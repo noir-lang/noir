@@ -400,9 +400,23 @@ impl Interpreter<'_> {
                 // ```
                 //
                 // We need to get N from the return type.
-                assert_eq!(results.len(), 1);
-                let Type::Array(_, n) = self.dfg().type_of_value(results[0]) else {
-                    panic!("Expected result to be an array");
+                if results.len() != 1 {
+                    return Err(InterpreterError::Internal(
+                        InternalError::UnexpectedResultLength {
+                            actual_length: results.len(),
+                            expected_length: 1,
+                            instruction: "call DerivePedersenGenerators BlackBox",
+                        },
+                    ));
+                }
+
+                let result_type = self.dfg().type_of_value(results[0]);
+                let Type::Array(_, n) = result_type else {
+                    return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
+                        actual_type: result_type.to_string(),
+                        expected_type: "array",
+                        instruction: "call DerivePedersenGenerators BlackBox",
+                    }));
                 };
 
                 let generators = derive_generators(&inputs, n, index);
