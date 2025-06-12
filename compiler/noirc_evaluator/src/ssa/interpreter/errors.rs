@@ -71,6 +71,10 @@ pub enum InternalError {
         "Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
     )]
     IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
+    #[error(
+        "Argument count {arguments} to `{intrinsic}` does not match the expected minimum parameter count {parameters}"
+    )]
+    IntrinsicMinArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     #[error("Block {block} is missing the terminator instruction")]
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
