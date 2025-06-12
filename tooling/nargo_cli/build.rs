@@ -119,7 +119,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 31] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 25] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
@@ -142,22 +142,16 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 31] = [
     "databus_two_calldata_simple",
     // gives a different result with `--force-brillig`
     "global_array_rc_regression_8259",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "hash_to_field",
     // panic: Internal(TypeError)
     "inline_decompose_hint_brillig_call",
     // panic: Internal(TypeError)
     "multi_scalar_mul",
     // gives a different result with `--force-brillig`
     "nested_if_then_block_same_cond",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "ram_blowup_regression",
     // panic: index out of bounds
     "regression_11294",
     // panic: Internal(TypeError)
     "regression_3889",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "regression_7128",
     // panic: index out of bounds
     "regression_7612",
     // gives a wrong result
@@ -174,14 +168,8 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 31] = [
     "struct_array_inputs",
     // panic: BlockArgumentCountMismatch
     "struct_inputs",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "to_be_bytes",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "to_le_bytes",
     // panic: BlockArgumentCountMismatch
     "tuple_inputs",
-    // panic: IntrinsicArgumentCountMismatch(StaticAssert)
-    "unrolling_regression_8333",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that

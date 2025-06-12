@@ -49,13 +49,20 @@ impl Interpreter<'_> {
                 Ok(Vec::new())
             }
             Intrinsic::StaticAssert => {
-                check_argument_count(args, 2, intrinsic)?;
+                check_argument_count_is_at_least(args, 2, intrinsic)?;
 
                 let condition = self.lookup_bool(args[0], "static_assert")?;
                 if condition {
                     Ok(Vec::new())
                 } else {
-                    let message = self.lookup_string(args[1], "static_assert")?;
+                    // Static assert can either have 2 arguments, in which case the second one is a string,
+                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // For simplicity, we won't build the dynamic message her.
+                    let message = if args.len() == 2 {
+                        self.lookup_string(args[1], "static_assert")?
+                    } else {
+                        "static_assert failed".to_string()
+                    };
                     Err(InterpreterError::StaticAssertFailed { condition: args[0], message })
                 }
             }
@@ -598,6 +605,22 @@ fn check_argument_count(
 ) -> IResult<()> {
     if args.len() != expected_count {
         Err(InterpreterError::Internal(InternalError::IntrinsicArgumentCountMismatch {
+            intrinsic,
+            arguments: args.len(),
+            parameters: expected_count,
+        }))
+    } else {
+        Ok(())
+    }
+}
+
+fn check_argument_count_is_at_least(
+    args: &[ValueId],
+    expected_count: usize,
+    intrinsic: Intrinsic,
+) -> IResult<()> {
+    if args.len() < expected_count {
+        Err(InterpreterError::Internal(InternalError::IntrinsicMinArgumentCountMismatch {
             intrinsic,
             arguments: args.len(),
             parameters: expected_count,
