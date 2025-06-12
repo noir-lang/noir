@@ -119,7 +119,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 35] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 34] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
@@ -128,8 +128,6 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 35] = [
     "array_oob_regression_7965",
     // gives a different result with `--force-brillig`
     "array_oob_regression_7975",
-    // panic: FunctionReturnedIncorrectArgCount
-    "as_witness",
     // wrong result
     "brillig_block_parameter_liveness",
     // panic: BlockArgumentCountMismatch

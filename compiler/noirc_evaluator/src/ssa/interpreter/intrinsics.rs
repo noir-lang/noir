@@ -70,10 +70,15 @@ impl Interpreter<'_> {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
                 }))
             }
-            // Both of these are no-ops
-            Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
+            Intrinsic::StrAsBytes => {
+                // This one is a no-op
                 check_argument_count(args, 1, intrinsic)?;
                 Ok(vec![self.lookup(args[0])?])
+            }
+            Intrinsic::AsWitness => {
+                // This one is also a no-op, but it doesn't return anything
+                check_argument_count(args, 1, intrinsic)?;
+                Ok(vec![])
             }
             Intrinsic::ToBits(endian) => {
                 check_argument_count(args, 1, intrinsic)?;
