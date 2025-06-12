@@ -1,8 +1,11 @@
 #![no_main]
 
 mod fuzz_lib;
+mod mutations;
+
 use fuzz_lib::fuzz_target_lib::{FuzzerData, fuzz_target};
 use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
+use mutations::mutate;
 use noirc_driver::CompileOptions;
 
 libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
@@ -39,7 +42,7 @@ libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
         compile_options,
         max_ssa_blocks_num: 30, // it takes too long to run program with more blocks
         max_instructions_num: 1500, // it takes too long to run program with more instructions
-        max_iterations_num: 10,
+        max_iterations_num: 10000,
         instruction_options,
         fuzzer_command_options: FuzzerCommandOptions::default(),
     };
