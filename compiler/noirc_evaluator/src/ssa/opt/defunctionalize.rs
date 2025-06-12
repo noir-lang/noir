@@ -153,6 +153,18 @@ impl DefunctionalizationContext {
                 let mut instruction = func.dfg[instruction_id].clone();
                 let mut replacement_instruction = None;
 
+                // In order to select the correct apply function, we need to get the called function signature
+                // *before* we replace the function with a field value so that we can distinguish between parameter
+                // which is a function which has been replaced with a `Field` value and a parameter which was always a `Field`.
+                let params = match &instruction {
+                    Instruction::Call { func: _, arguments } => {
+                        vecmap(arguments, |param| func.dfg.type_of_value(*param))
+                    }
+                    _ => {
+                        continue;
+                    }
+                };
+
                 if remove_first_class_functions_in_instruction(func, &mut instruction) {
                     func.dfg[instruction_id] = instruction.clone();
                 }
@@ -180,8 +192,10 @@ impl DefunctionalizationContext {
                     Value::Param { .. } | Value::Instruction { .. } => {
                         let mut arguments = arguments.clone();
                         let results = func.dfg.instruction_results(instruction_id);
+
+                        // Do we need to pull out the return values earlier as well?
                         let signature = Signature {
-                            params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
+                            params,
                             returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
                         };
 
@@ -394,7 +408,8 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// [ApplyFunctions]
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
-    for ((mut signature, runtime), variants) in variants_map.into_iter() {
+    for ((original_signature, runtime), variants) in variants_map.into_iter() {
+        let mut mutated_signature = original_signature.clone();
         if variants.is_empty() {
             // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
             continue;
@@ -403,14 +418,14 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
 
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
-        for param in &mut signature.params {
+        for param in &mut mutated_signature.params {
             if let Some(rep) = replacement_type(param) {
                 *param = rep;
             }
         }
 
         // Update the return value types as we did for the signature parameters above.
-        for ret in &mut signature.returns {
+        for ret in &mut mutated_signature.returns {
             if let Some(rep) = replacement_type(ret) {
                 *ret = rep;
             }
@@ -419,13 +434,23 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         let id = if dispatches_to_multiple_functions {
             // If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            create_apply_function(ssa, signature.clone(), runtime, variants)
+            create_apply_function(ssa, mutated_signature.clone(), runtime, variants)
         } else {
             // If there is only variant, we can use it directly rather than creating a new apply function.
             variants[0]
         };
-        apply_functions
-            .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
+
+        if apply_functions
+            .insert(
+                (original_signature.clone(), runtime),
+                ApplyFunction { id, dispatches_to_multiple_functions },
+            )
+            .is_some()
+        {
+            panic!(
+                "Duplicate apply function for signature {original_signature:?} and runtime {runtime:?}"
+            );
+        };
     }
     apply_functions
 }
@@ -1306,5 +1331,105 @@ mod tests {
         assert_eq!(functions.len(), 2);
         assert!(functions.contains(&FunctionId::test_new(1))); // foo
         assert!(functions.contains(&FunctionId::test_new(2))); // bar
+    }
+
+    #[test]
+    fn differentiates_between_function_and_field_arguments() {
+        // This test checks that we use the correct function signatures when looking up apply functions.
+        //
+        // Previously we were looking up the apply function using the function signature *after* any function types
+        // were replaced with `Field`, which resulted in incorrect function signatures.
+        //
+        // `f2` takes a function type as an argument so it's signature is distinct from `f3` and `f4`,
+        // the call inside of `dispatch1` should then resolved directly to `f2` and not to the apply function used
+        // for `f3` and `f4`.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(f2) -> Field
+            v8 = eq v0, Field 0
+            jmpif v8 then: b1, else: b2
+          b1():
+            jmp b3(f3)
+          b2():
+            jmp b3(f4)
+          b3(v1: function):
+            v12 = call v1(v0) -> Field
+            return
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: function):
+            v2 = call v0(f5) -> Field
+            v4 = mul v2, Field 3
+            return v4
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: function):
+            return Field 1
+        }
+        acir(inline) fn fn1 f3 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        acir(inline) fn fn2 f4 {
+          b0(v0: Field):
+            v2 = mul v0, Field 5
+            return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 2) -> Field
+            v6 = eq v0, Field 0
+            jmpif v6 then: b1, else: b2
+          b1():
+            jmp b3(Field 3)
+          b2():
+            jmp b3(Field 4)
+          b3(v1: Field):
+            v10 = call f6(v1, v0) -> Field
+            return
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v3 = call f2(Field 5) -> Field
+            v5 = mul v3, Field 3
+            return v5
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: Field):
+            return Field 1
+        }
+        acir(inline) fn fn1 f3 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        acir(inline) fn fn2 f4 {
+          b0(v0: Field):
+            v2 = mul v0, Field 5
+            return v2
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 3
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 4
+            v9 = call f4(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f3(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
     }
 }
