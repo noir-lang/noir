@@ -635,8 +635,11 @@ fn defunctionalize_post_check(func: &Function) {
                 let function = &func.dfg[*target_func];
 
                 assert!(
-                    matches!(function, Value::Function(_)),
-                    "Call instructions should only call functions, not function values. Got '{function:?}' in instruction {instruction_id} of block {block_id} in function {} {}",
+                    matches!(
+                        function,
+                        Value::Function(_) | Value::ForeignFunction(_) | Value::Intrinsic(_)
+                    ),
+                    "Call instructions should only call functions, foreign functions, and intrinsics, not function values. Got '{function:?}' in instruction {instruction_id} of block {block_id} in function {} {}",
                     func.name(),
                     func.id()
                 );
