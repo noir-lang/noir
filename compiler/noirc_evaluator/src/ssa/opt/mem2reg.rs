@@ -225,7 +225,7 @@ impl<'f> PerFunctionContext<'f> {
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
-        // Check whether the store address has an alias that is cross the entry point boundary (e.g. a Call or Return)
+        // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
         if let Some(expression) = block.expressions.get(store_address) {
             if let Some(aliases) = block.aliases.get(expression) {
                 let allocation_aliases_parameter =
