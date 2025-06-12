@@ -119,13 +119,11 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 19] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 18] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
     "array_dynamic_nested_blackbox_input",
-    // wrong result
-    "brillig_block_parameter_liveness",
     // panic: Internal(TypeError)
     "brillig_cow_regression",
     // wrong result
