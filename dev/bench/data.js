@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749720256888,
+  "lastUpdate": 1749720514254,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20568,85 +20568,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "52b2c32cc22da53c0d98d2833aaa37a4040d6222",
-          "message": "fix: unify infix expressions by isolating unbound type variables (#8796)",
-          "timestamp": "2025-06-04T19:56:05Z",
-          "tree_id": "d2814f1da2a051a6c6592c927e9dbf24094e6c9b",
-          "url": "https://github.com/noir-lang/noir/commit/52b2c32cc22da53c0d98d2833aaa37a4040d6222"
-        },
-        "date": 1749069322055,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1133,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2064.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 588.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4955.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3995.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 256.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 25707.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 25714.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 183.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 417.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.3,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -24456,6 +24377,85 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b1142b62f2d14cc92adc88ab889f1529843a3601"
         },
         "date": 1749678145178,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1134.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2071.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 588.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4944.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3986.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 240.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 25691.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 25717.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 184.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 420.8,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 636.4,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6c150e415d366957137183d0b2510e72001a040",
+          "message": "chore: Incorrect clippy warning blocking PRs (#8861)",
+          "timestamp": "2025-06-12T09:02:17Z",
+          "tree_id": "b4d5d37d89d7f31738a355c9a60f97451cd999c4",
+          "url": "https://github.com/noir-lang/noir/commit/f6c150e415d366957137183d0b2510e72001a040"
+        },
+        "date": 1749720502717,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
