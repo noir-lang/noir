@@ -2,6 +2,13 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unused variable foo
+   ┌─ src/main.nr:11:9
+   │
+11 │     let foo = Foo::new();
+   │         --- unused variable
+   │
+
 error: Type annotation needed
    ┌─ src/main.nr:11:20
    │
