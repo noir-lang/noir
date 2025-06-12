@@ -222,18 +222,10 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
-            v2 = eq v0, v1
-            v3 = not v2
-            constrain v2 == u1 0
-            v6 = make_array [f1] : [function; 1]
-            v7 = allocate -> &mut [function; 1]
-            store v6 at v7
-            v8 = load v7 -> [function; 1]
-            v11 = array_set v8, index u32 0, value f2
-            store v11 at v7
-            v12 = load v7 -> [function; 1]
-            v13 = array_get v12, index u32 0 -> function
-            v14 = call v13(v0) -> Field
+            v2 = make_array [f1] : [function; 1]
+            v3 = array_set v2, index u32 0, value f2
+            v4 = array_get v3, index u32 0 -> function
+            v5 = call v4(v0) -> Field
             return
           }
           
