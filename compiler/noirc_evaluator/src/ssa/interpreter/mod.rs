@@ -140,6 +140,17 @@ impl<'ssa> Interpreter<'ssa> {
         if self.options.print_definitions {
             println!("{id} = {value}");
         }
+
+        if let Some(func) = self.try_current_function() {
+            let expected_type = func.dfg.type_of_value(id);
+            let actual_type = value.get_type();
+            if expected_type != actual_type {
+                panic!(
+                    "Type mismatch when defining {id}: expected {expected_type}, got {actual_type}"
+                );
+            }
+        }
+
         self.call_context_mut().scope.insert(id, value);
     }
 

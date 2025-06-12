@@ -238,7 +238,7 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 for input in input_values {
                     append_input_value_to_ssa(typ, input, &mut elements);
                 }
-                values.push(array_value(elements, vec![input_type_to_ssa(typ)]));
+                values.push(array_value(elements, input_type_to_ssa(typ)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
@@ -270,24 +270,37 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
 }
 
 /// Convert an ABI type into SSA.
-fn input_type_to_ssa(typ: &AbiType) -> ssa::ir::types::Type {
+fn input_type_to_ssa(typ: &AbiType) -> Vec<ssa::ir::types::Type> {
+    let mut types = Vec::new();
+    append_input_type_to_ssa(typ, &mut types);
+    types
+}
+
+fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>) {
     use ssa::ir::types::Type;
     match typ {
-        AbiType::Field => Type::field(),
+        AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            Type::Array(Arc::new(vec![input_type_to_ssa(typ)]), *length)
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length))
         }
-        AbiType::Integer { sign: Sign::Signed, width } => Type::signed(*width),
-        AbiType::Integer { sign: Sign::Unsigned, width } => Type::unsigned(*width),
-        AbiType::Boolean => Type::bool(),
-        AbiType::Struct { path: _, fields } => Type::Array(
-            Arc::new(vecmap(fields, |(_, typ)| input_type_to_ssa(typ))),
-            fields.len() as u32,
-        ),
+        AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
+        AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
+        AbiType::Boolean => types.push(Type::bool()),
+        AbiType::Struct { path: _, fields } => {
+            // Structs are flattend
+            for (_, typ) in fields {
+                append_input_type_to_ssa(typ, types);
+            }
+        }
         AbiType::Tuple { fields } => {
-            Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() as u32)
+            // Tuples are flattened
+            for typ in fields {
+                append_input_type_to_ssa(typ, types);
+            }
         }
-        AbiType::String { length } => Type::Array(Arc::new(vec![Type::unsigned(8)]), *length),
+        AbiType::String { length } => {
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length))
+        }
     }
 }
 
