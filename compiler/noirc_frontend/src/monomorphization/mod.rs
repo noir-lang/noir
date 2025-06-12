@@ -1191,8 +1191,10 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
-            let (expr, contains_function) = if let GlobalValue::Resolved(value) = global.value.clone() {
-                let contains_function = value.contains_function();
+            let (expr, contains_function) = if let GlobalValue::Resolved(value) =
+                global.value.clone()
+            {
+                let contains_function = value.contains_function_or_closure();
                 let expr = value
                     .into_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
