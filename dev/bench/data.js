@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749678538895,
+  "lastUpdate": 1749720256888,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18466,48 +18466,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "52b2c32cc22da53c0d98d2833aaa37a4040d6222",
-          "message": "fix: unify infix expressions by isolating unbound type variables (#8796)",
-          "timestamp": "2025-06-04T19:56:05Z",
-          "tree_id": "d2814f1da2a051a6c6592c927e9dbf24094e6c9b",
-          "url": "https://github.com/noir-lang/noir/commit/52b2c32cc22da53c0d98d2833aaa37a4040d6222"
-        },
-        "date": 1749068325999,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247440,
-            "range": "± 2699",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219226,
-            "range": "± 1712",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779224,
-            "range": "± 1902",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20559,6 +20517,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790301,
             "range": "± 4339",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6c150e415d366957137183d0b2510e72001a040",
+          "message": "chore: Incorrect clippy warning blocking PRs (#8861)",
+          "timestamp": "2025-06-12T09:02:17Z",
+          "tree_id": "b4d5d37d89d7f31738a355c9a60f97451cd999c4",
+          "url": "https://github.com/noir-lang/noir/commit/f6c150e415d366957137183d0b2510e72001a040"
+        },
+        "date": 1749720245236,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251867,
+            "range": "± 1171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226999,
+            "range": "± 2088",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792641,
+            "range": "± 1094",
             "unit": "ns/iter"
           }
         ]
