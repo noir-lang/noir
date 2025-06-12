@@ -10,13 +10,16 @@ pub mod typed_value;
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::{FuzzerBuilder, InstructionWithTwoArgs};
+    use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
-    use noirc_driver::CompileOptions;
+    use noirc_driver::{CompileOptions, CompiledProgram};
     use rand::RngCore;
+
+    use noirc_evaluator::ssa::ir::instruction::BinaryOp;
+    use noirc_evaluator::ssa::ir::types::NumericType;
 
     const NUMBER_OF_VARIABLES_INITIAL: u32 = 7;
 
@@ -223,5 +226,73 @@ mod tests {
         let noir_res =
             run_instruction_double_arg(FuzzerBuilder::insert_shr_instruction, values.clone());
         compare_results(values[0] >> values[1], noir_res);
+    }
+
+    #[test]
+    fn regression_multiplication_without_range_check() {
+        let mut acir_builder = FuzzerBuilder::new_acir();
+        let mut brillig_builder = FuzzerBuilder::new_brillig();
+
+        let field_acir_var = acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+        let field_brillig_var =
+            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+
+        let truncated_acir = acir_builder.builder.insert_truncate(field_acir_var, 16, 254);
+        let truncated_brillig = brillig_builder.builder.insert_truncate(field_brillig_var, 16, 254);
+
+        let field_casted_i16_acir =
+            acir_builder.builder.insert_cast(truncated_acir, NumericType::Signed { bit_size: 16 });
+        let field_casted_i16_brillig = brillig_builder
+            .builder
+            .insert_cast(truncated_brillig, NumericType::Signed { bit_size: 16 });
+
+        let casted_pow_2_acir = acir_builder.builder.insert_binary(
+            field_casted_i16_acir,
+            BinaryOp::Mul { unchecked: false },
+            field_casted_i16_acir,
+        );
+        let casted_pow_2_brillig = brillig_builder.builder.insert_binary(
+            field_casted_i16_brillig,
+            BinaryOp::Mul { unchecked: false },
+            field_casted_i16_brillig,
+        );
+
+        let last_var = acir_builder.builder.insert_binary(
+            casted_pow_2_acir,
+            BinaryOp::Div,
+            field_casted_i16_acir,
+        );
+        let last_var_brillig = brillig_builder.builder.insert_binary(
+            casted_pow_2_brillig,
+            BinaryOp::Div,
+            field_casted_i16_brillig,
+        );
+
+        acir_builder.builder.terminate_with_return(vec![last_var]);
+        brillig_builder.builder.terminate_with_return(vec![last_var_brillig]);
+
+        let acir_result = acir_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            acir_result,
+            "Signed binary operation does not follow overflow pattern",
+        );
+
+        let brillig_result = brillig_builder.compile(CompileOptions::default());
+        check_expected_validation_error(
+            brillig_result,
+            "Signed binary operation does not follow overflow pattern",
+        );
+    }
+
+    fn check_expected_validation_error(
+        compilation_result: Result<CompiledProgram, FuzzerBuilderError>,
+        expected_message: &str,
+    ) {
+        match compilation_result {
+            Ok(_) => panic!("Expected an SSA validation failure"),
+            Err(FuzzerBuilderError::RuntimeError(error)) => {
+                assert!(error.contains(expected_message))
+            }
+        }
     }
 }
