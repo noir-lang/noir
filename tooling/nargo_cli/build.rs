@@ -119,14 +119,14 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 19] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
     "array_dynamic_nested_blackbox_input",
     // wrong result
     "brillig_block_parameter_liveness",
-    // panic: BlockArgumentCountMismatch
+    // panic: Internal(TypeError)
     "brillig_cow_regression",
     // wrong result
     "databus",
@@ -158,10 +158,6 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
     "slice_loop",
     // panic: index out of bounds
     "struct_array_inputs",
-    // panic: BlockArgumentCountMismatch
-    "struct_inputs",
-    // panic: BlockArgumentCountMismatch
-    "tuple_inputs",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that

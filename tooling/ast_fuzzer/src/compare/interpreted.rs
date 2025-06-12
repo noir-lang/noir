@@ -193,19 +193,23 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
-/// Tuple types are returned flattened.
+/// Tuple types and structs are flattened.
 pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+    let mut values = Vec::new();
+    append_input_value_to_ssa(typ, input, &mut values);
+    values
+}
+
+fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
-        let elements = elements.into_iter().flatten().collect();
-        let arr = Value::ArrayOrSlice(ArrayValue {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
+        Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
             is_slice: false,
-        });
-        vec![arr]
+        })
     };
     match input {
         InputValue::Field(f) => {
@@ -221,27 +225,28 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
-            vec![Value::Numeric(num_val)]
+            values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => array_value(
-            vec![vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b)))],
+        InputValue::String(s) => values.push(array_value(
+            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
             vec![Type::unsigned(8)],
-        ),
+        )),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
-                let elements = vecmap(input_values, |input| input_value_to_ssa(typ, input));
-                array_value(elements, vec![input_type_to_ssa(typ)])
+                let mut elements = Vec::with_capacity(*length as usize);
+                for input in input_values {
+                    append_input_value_to_ssa(typ, input, &mut elements);
+                }
+                values.push(array_value(elements, vec![input_type_to_ssa(typ)]));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                // Tuples are not wrapped into arrays, they are returned as a vector.
-                fields
-                    .iter()
-                    .zip(input_values)
-                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
-                    .collect()
+                // Tuples are flattened
+                for (typ, input) in fields.iter().zip(input_values) {
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")
@@ -250,11 +255,12 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
         InputValue::Struct(field_values) => match typ {
             AbiType::Struct { path: _, fields } => {
                 assert_eq!(fields.len(), field_values.len(), "struct size != input length");
-                let elements = vecmap(fields, |(name, typ)| {
+
+                // Structs are flattened
+                for (name, typ) in fields {
                     let input = &field_values[name];
-                    input_value_to_ssa(typ, input)
-                });
-                array_value(elements, vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa))
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for map input: {other:?}")
