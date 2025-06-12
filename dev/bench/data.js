@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749737899532,
+  "lastUpdate": 1749739991691,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18486,48 +18486,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "f0d3d05caa7bfe74b85977b81d4da11301614ba8",
-          "message": "chore(fuzz): Tool to minimize Noir programs with `cvise` (#8789)",
-          "timestamp": "2025-06-06T08:11:12Z",
-          "tree_id": "a8d08ebbca01644d8f428a82f5862275b893e5f6",
-          "url": "https://github.com/noir-lang/noir/commit/f0d3d05caa7bfe74b85977b81d4da11301614ba8"
-        },
-        "date": 1749198750019,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252354,
-            "range": "± 3185",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223071,
-            "range": "± 1864",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2815078,
-            "range": "± 1896",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20579,6 +20537,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785241,
             "range": "± 3351",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b09073a7ec8b5a56a4b7a95847654d6311681721",
+          "message": "feat: simplify apply function cfg immediately (#8895)",
+          "timestamp": "2025-06-12T14:29:19Z",
+          "tree_id": "c4abc0c688921bf34f9c2c585c61ef3242893c28",
+          "url": "https://github.com/noir-lang/noir/commit/b09073a7ec8b5a56a4b7a95847654d6311681721"
+        },
+        "date": 1749739979041,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249806,
+            "range": "± 684",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221260,
+            "range": "± 6491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784447,
+            "range": "± 8698",
             "unit": "ns/iter"
           }
         ]
