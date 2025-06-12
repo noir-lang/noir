@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749752940464,
+  "lastUpdate": 1749760793000,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18511,48 +18511,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2e5cd41fce372853417bdb9825f40b252cb4ef68",
-          "message": "chore(docs): Reorder tooling docs (#8742)",
-          "timestamp": "2025-06-06T16:18:47Z",
-          "tree_id": "cad4d227f3cb37f7c258eef6e191d1d2bf9d64a9",
-          "url": "https://github.com/noir-lang/noir/commit/2e5cd41fce372853417bdb9825f40b252cb4ef68"
-        },
-        "date": 1749228036474,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250163,
-            "range": "± 3607",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218362,
-            "range": "± 4432",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780062,
-            "range": "± 1825",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20604,6 +20562,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790907,
             "range": "± 1546",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c17cd4179548b9271f1efb17df22f33b3c23188b",
+          "message": "chore(ssa_fuzzer): Add SSA validation to the SSA fuzzer (#8901)",
+          "timestamp": "2025-06-12T20:16:10Z",
+          "tree_id": "18a2421b55ac37f199df32bf0ad9fa11a60843de",
+          "url": "https://github.com/noir-lang/noir/commit/c17cd4179548b9271f1efb17df22f33b3c23188b"
+        },
+        "date": 1749760780802,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248260,
+            "range": "± 1707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220910,
+            "range": "± 3814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798227,
+            "range": "± 4894",
             "unit": "ns/iter"
           }
         ]
