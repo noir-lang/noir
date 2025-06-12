@@ -119,15 +119,11 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 28] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
     // slow
     "regression_4709",
     // panic: index out of bounds
     "array_dynamic_nested_blackbox_input",
-    // gives a different result with `--force-brillig`
-    "array_oob_regression_7965",
-    // gives a different result with `--force-brillig`
-    "array_oob_regression_7975",
     // wrong result
     "brillig_block_parameter_liveness",
     // panic: BlockArgumentCountMismatch
@@ -140,14 +136,10 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 28] = [
     "databus_two_calldata",
     // wrong result
     "databus_two_calldata_simple",
-    // gives a different result with `--force-brillig`
-    "global_array_rc_regression_8259",
     // panic: Internal(TypeError)
     "inline_decompose_hint_brillig_call",
     // panic: Internal(TypeError)
     "multi_scalar_mul",
-    // gives a different result with `--force-brillig`
-    "nested_if_then_block_same_cond",
     // panic: index out of bounds
     "regression_11294",
     // panic: Internal(TypeError)
@@ -168,14 +160,8 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 28] = [
     "struct_array_inputs",
     // panic: BlockArgumentCountMismatch
     "struct_inputs",
-    // gives a different result with `--force-brillig`
-    "to_be_bytes",
-    // gives a different result with `--force-brillig`
-    "to_le_bytes",
     // panic: BlockArgumentCountMismatch
     "tuple_inputs",
-    // gives a different result with `--force-brillig`
-    "unrolling_regression_8333",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
