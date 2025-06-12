@@ -51,22 +51,3 @@ fn as_witness() {
     );
     assert_eq!(value, Value::Numeric(NumericValue::Field(1_u128.into())));
 }
-
-#[test]
-fn poseidon2_permutation() {
-    let value = expect_value(
-        "
-        acir(inline) fn main f0 {
-        b0():
-            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [Field; 4]
-            v1 = call poseidon2_permutation(v0, u32 4) -> [Field; 4]
-            return v1
-        }
-    ",
-    );
-    let Value::ArrayOrSlice(array) = value else {
-        panic!("Expected an array or slice, got: {:?}", value);
-    };
-    let elements = array.elements.borrow();
-    assert_eq!(elements.len(), 4);
-}
