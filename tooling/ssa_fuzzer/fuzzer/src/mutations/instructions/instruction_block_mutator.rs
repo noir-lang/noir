@@ -67,8 +67,10 @@ struct InstructionBlockInstructionMutation;
 impl InstructionBlockMutator for InstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
         let mut instructions = value.instructions;
-        let instruction_idx = rng.gen_range(0..instructions.len());
-        instructions[instruction_idx] = instruction_mutator(instructions[instruction_idx], rng);
+        if instructions.len() > 0 {
+            let instruction_idx = rng.gen_range(0..instructions.len());
+            instructions[instruction_idx] = instruction_mutator(instructions[instruction_idx], rng);
+        }
         InstructionBlock { instructions }
     }
 }

@@ -68,8 +68,10 @@ struct MutateInstructionBlockInstructionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
         let mut blocks = value;
-        let block_idx = if blocks.len() == 0 { 0 } else { rng.gen_range(0..blocks.len()) };
-        blocks[block_idx] = instruction_block_mutator(blocks[block_idx].clone(), rng);
+        if blocks.len() > 0 {
+            let block_idx = rng.gen_range(0..blocks.len());
+            blocks[block_idx] = instruction_block_mutator(blocks[block_idx].clone(), rng);
+        }
         blocks
     }
 }

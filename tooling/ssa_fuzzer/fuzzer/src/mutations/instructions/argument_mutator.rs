@@ -38,7 +38,7 @@ impl ArgumentsMutatorFactory for IncrementArgumentIndexMutation {
 struct DecrementArgumentIndexMutation;
 impl ArgumentsMutator for DecrementArgumentIndexMutation {
     fn mutate(&self, rng: &mut StdRng, value: Argument) -> Argument {
-        Argument { index: value.index - 1, value_type: value.value_type }
+        Argument { index: value.index.saturating_sub(1), value_type: value.value_type }
     }
 }
 impl ArgumentsMutatorFactory for DecrementArgumentIndexMutation {

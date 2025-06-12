@@ -3,11 +3,13 @@ use noir_ssa_executor::compiler::{
 };
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram};
+use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
-    errors::RuntimeError,
+    errors::{InternalError, RuntimeError},
     ssa::{ArtifactsAndWarnings, SsaEvaluatorOptions, function_builder::FunctionBuilder},
 };
 use std::collections::BTreeMap;
+use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
@@ -16,9 +18,37 @@ fn optimize_into_acir(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
-    let ssa = builder.finish();
-    log::debug!("SSA: {:}", ssa);
-    optimize_ssa_into_acir(ssa, options)
+    let previous_hook = std::panic::take_hook();
+    let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
+    let hook_message = panic_message.clone();
+
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+            format!("Panic: {}", s)
+        } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+            format!("Panic: {}", s)
+        } else {
+            format!("Unknown panic: {:?}", panic_info)
+        };
+
+        if let Some(location) = panic_info.location() {
+            let loc_info = format!(" at {}:{}", location.file(), location.line());
+            *hook_message.lock().unwrap() = message + &loc_info;
+        } else {
+            *hook_message.lock().unwrap() = message;
+        }
+    }));
+    let ssa = std::panic::catch_unwind(AssertUnwindSafe(|| builder.finish()));
+    std::panic::set_hook(previous_hook);
+    let error_msg = panic_message.lock().unwrap();
+
+    match ssa {
+        Ok(ssa) => optimize_ssa_into_acir(ssa, options),
+        Err(_) => Err(RuntimeError::InternalError(InternalError::General {
+            message: format!("Panic occurred: {}", error_msg),
+            call_stack: CallStack::default(),
+        })),
+    }
 }
 
 /// Compiles the given FunctionBuilder into a CompiledProgram
