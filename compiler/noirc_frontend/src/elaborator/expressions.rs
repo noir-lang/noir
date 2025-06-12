@@ -55,6 +55,8 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(_)));
+
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
@@ -108,6 +110,11 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
+
+        if is_integer_literal {
+            self.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
     }
 

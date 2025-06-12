@@ -38,7 +38,12 @@ pub enum TypeCheckError {
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: SignedField, ty: Type, range: String, location: Location },
+    IntegerLiteralDoesNotFitItsType {
+        expr: SignedField,
+        ty: Type,
+        range: String,
+        location: Location,
+    },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
@@ -110,8 +115,8 @@ pub enum TypeCheckError {
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
     IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
-    #[error("{kind} cannot be used in a unary operation")]
-    InvalidUnaryOp { kind: String, location: Location },
+    #[error("Cannot apply unary operator `{operator}` to type `{typ}`")]
+    InvalidUnaryOp { operator: &'static str, typ: String, location: Location },
     #[error(
         "Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
     )]
@@ -261,7 +266,7 @@ impl TypeCheckError {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
@@ -493,7 +498,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }

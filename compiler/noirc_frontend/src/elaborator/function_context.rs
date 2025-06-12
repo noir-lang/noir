@@ -2,6 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     Kind, Type,
+    elaborator::lints::check_integer_literal_fits_its_type,
     hir::{comptime::Value, type_check::TypeCheckError},
     hir_def::traits::TraitConstraint,
     node_interner::{DefinitionKind, ExprId, GlobalValue, TypeId},
@@ -29,6 +30,10 @@ pub(super) struct FunctionContext {
     /// constraints are verified but there's no call associated with them, like in the
     /// case of checking generic arguments)
     trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
+
+    /// All ExprId in a function that correspond to integer literals.
+    /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
+    integer_literal_expr_ids: Vec<ExprId>,
 }
 
 /// A type variable that is required to be bound after type-checking a function.
@@ -81,6 +86,12 @@ impl Elaborator<'_> {
         self.get_function_context_mut().trait_constraints.push((constraint, expr_id, select_impl));
     }
 
+    /// Push an `ExprId` that corresponds to an integer literal.
+    /// At the end of the current function we'll check that they fit in their type's range.
+    pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
+        self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
+    }
+
     fn get_function_context_mut(&mut self) -> &mut FunctionContext {
         let context = self.function_context.last_mut();
         context.expect("The function_context stack should always be non-empty")
@@ -95,6 +106,7 @@ impl Elaborator<'_> {
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.check_defaultable_type_variables(context.defaultable_type_variables);
+        self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);
         self.check_trait_constraints(context.trait_constraints);
         self.check_required_type_variables(context.required_type_variables);
     }
@@ -104,6 +116,14 @@ impl Elaborator<'_> {
             if let Type::TypeVariable(variable) = typ.follow_bindings() {
                 let msg = "TypeChecker should only track defaultable type vars";
                 variable.bind(variable.kind().default_type().expect(msg));
+            }
+        }
+    }
+
+    fn check_integer_literal_fit_their_type(&mut self, expr_ids: Vec<ExprId>) {
+        for expr_id in expr_ids {
+            if let Some(error) = check_integer_literal_fits_its_type(self.interner, &expr_id) {
+                self.push_err(error);
             }
         }
     }

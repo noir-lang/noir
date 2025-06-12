@@ -155,6 +155,7 @@
         "kosaraju",
         "krate",
         "libc",
+        "LICM",
         "Linea",
         "lookback",
         "losslessly",
