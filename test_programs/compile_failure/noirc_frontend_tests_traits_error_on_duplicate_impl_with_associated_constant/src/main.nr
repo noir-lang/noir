@@ -4,11 +4,11 @@
         }
 
         impl Foo for i32 {
-            let Bar = 5;
+            let Bar: u32 = 5;
         }
 
         impl Foo for i32 {
-            let Bar = 6;
+            let Bar: u32 = 6;
         }
 
         fn main() {}

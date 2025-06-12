@@ -14,7 +14,7 @@ impl<A> Serialize for (A,)
 where
     A: Serialize,
 {
-    let Size = <A as Serialize>::Size;
+    let Size: u32 = <A as Serialize>::Size;
 
     fn serialize(self: Self) {
         self.0.serialize();

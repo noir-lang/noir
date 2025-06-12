@@ -7,7 +7,7 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-use noirc_evaluator::ssa::{self, ir::types::NumericType, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{self, interpreter::value::Value, ir::types::NumericType, ssa_gen::Ssa};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 use regex::Regex;
 
@@ -27,12 +27,11 @@ pub struct ComparePass {
     pub ssa: Ssa,
 }
 
-type InterpretResult =
-    Result<Vec<ssa::interpreter::value::Value>, ssa::interpreter::errors::InterpreterError>;
+type InterpretResult = Result<Vec<Value>, ssa::interpreter::errors::InterpreterError>;
 
 /// The result of the SSA interpreter execution.
 pub type CompareInterpretedResult =
-    CompareResult<Vec<ssa::interpreter::value::Value>, ssa::interpreter::errors::InterpreterError>;
+    CompareResult<Vec<Value>, ssa::interpreter::errors::InterpreterError>;
 
 /// Inputs for comparing the interpretation of two SSA states of an arbitrary program.
 pub struct CompareInterpreted {
@@ -42,8 +41,10 @@ pub struct CompareInterpreted {
     /// We could generate random input for the SSA directly, but it would
     /// make it more difficult to use it with `nargo` if we find a failure.
     pub input_map: InputMap,
-    /// Inputs for the `main` function in the SSA.
-    pub input_values: Vec<ssa::interpreter::value::Value>,
+
+    /// Inputs for the `main` function in the SSA, mapped from the ABI input.
+    pub ssa_args: Vec<Value>,
+
     /// Options that influence the pipeline, common to both passes.
     pub options: CompareOptions,
     pub ssa1: ComparePass,
@@ -67,21 +68,21 @@ impl CompareInterpreted {
         let (options, ssa1, ssa2) = f(u, program.clone())?;
 
         let input_map = arb_inputs_from_ssa(u, &ssa1.ssa, &abi)?;
-        let input_values = input_values_to_ssa(&abi, &input_map);
+        let ssa_args = input_values_to_ssa(&abi, &input_map);
 
-        Ok(Self { program, abi, input_map, input_values, options, ssa1, ssa2 })
+        Ok(Self { program, abi, input_map, ssa_args, options, ssa1, ssa2 })
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
         // Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
-        log::debug!("program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
+        log::debug!("Program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
         log::debug!(
-            "input map: \n{}\n",
+            "ABI inputs: \n{}\n",
             noirc_abi::input_parser::Format::Toml.serialize(&self.input_map, &self.abi).unwrap()
         );
         log::debug!(
-            "input values:\n{}\n",
-            self.input_values
+            "SSA inputs:\n{}\n",
+            self.ssa_args
                 .iter()
                 .enumerate()
                 .map(|(i, v)| format!("{i}: {v}"))
@@ -89,8 +90,12 @@ impl CompareInterpreted {
                 .join("\n")
         );
         log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
-        let res1 = self.ssa1.ssa.interpret(self.input_values.clone());
-        let res2 = self.ssa2.ssa.interpret(self.input_values.clone());
+
+        // Interpret an SSA with a fresh copy of the input values.
+        let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));
+
+        let res1 = interpret(&self.ssa1.ssa);
+        let res2 = interpret(&self.ssa2.ssa);
         Ok(CompareInterpretedResult::new(res1, res2))
     }
 }
@@ -129,6 +134,21 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
+            (
+                ConstrainEqFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
+                ConstrainEqFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+            )
+            | (
+                ConstrainNeFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
+                ConstrainNeFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+            ) => {
+                // The sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`.
+                // Unfortunately we often see the type change as well, which makes it more difficult to compare,
+                // for example `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`,
+                // or `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
+                // (lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2) && msg1 == msg2
+                msg1 == msg2
+            }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
                 // where the only difference might be the value ID.
@@ -140,9 +160,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
     }
 }
 
-impl Comparable for ssa::interpreter::value::Value {
+impl Comparable for Value {
     fn equivalent(a: &Self, b: &Self) -> bool {
-        use ssa::interpreter::value::Value;
         match (a, b) {
             (Value::ArrayOrSlice(a), Value::ArrayOrSlice(b)) => {
                 // Ignore the RC
@@ -160,7 +179,7 @@ impl Comparable for ssa::interpreter::value::Value {
 }
 
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpreter::value::Value> {
+pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
@@ -175,7 +194,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<ssa::interpre
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<ssa::interpreter::value::Value> {
+pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
@@ -217,15 +236,12 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<ssa::interpreter
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                let elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                    input_value_to_ssa(typ, input)
-                })
-                .into_iter()
-                .flatten()
-                .collect();
-
                 // Tuples are not wrapped into arrays, they are returned as a vector.
-                elements
+                fields
+                    .iter()
+                    .zip(input_values)
+                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
+                    .collect()
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")

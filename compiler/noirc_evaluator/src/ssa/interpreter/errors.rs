@@ -14,10 +14,10 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
-    #[error("constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
+    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
+    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
+    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
@@ -71,6 +71,10 @@ pub enum InternalError {
         "Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
     )]
     IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
+    #[error(
+        "Argument count {arguments} to `{intrinsic}` does not match the expected minimum parameter count {parameters}"
+    )]
+    IntrinsicMinArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     #[error("Block {block} is missing the terminator instruction")]
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]

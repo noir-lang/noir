@@ -189,6 +189,7 @@ fn read_workspace(
 }
 
 /// "with_workspace", but use a dummy workspace when 'debug_compile_stdin' is enabled
+#[allow(clippy::field_reassign_with_default)]
 fn compile_with_maybe_dummy_workspace(
     cmd: compile_cmd::CompileCommand,
     config: NargoConfig,
@@ -198,6 +199,8 @@ fn compile_with_maybe_dummy_workspace(
 
         // dummy root dir
         let root_dir = PathBuf::new();
+        // This `PackageMetadata::default()` is leading to a clippy error but the suggested solution
+        // is invalid because the fields are private
         let mut package = PackageMetadata::default();
         package.name = Some(package_name.clone());
         package.package_type = Some("bin".into());

@@ -126,7 +126,8 @@ impl FunctionBuilder {
         let call_stack = self.current_function.dfg.get_call_stack(self.call_stack);
         let mut new_function = Function::new(name, function_id);
         new_function.set_runtime(runtime_type);
-        self.current_block = new_function.entry_block();
+        self.switch_to_block(new_function.entry_block());
+
         let old_function = std::mem::replace(&mut self.current_function, new_function);
         // Copy the call stack to the new function
         self.call_stack =
@@ -155,8 +156,6 @@ impl FunctionBuilder {
     /// Consume the FunctionBuilder returning all the functions it has generated.
     pub fn finish(mut self) -> Ssa {
         self.finished_functions.push(self.current_function);
-
-        Self::validate_ssa(&self.finished_functions);
 
         Ssa::new(self.finished_functions, self.error_types)
     }
@@ -218,6 +217,7 @@ impl FunctionBuilder {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InsertInstructionResult {
         let block = self.current_block();
+
         if self.simplify {
             self.current_function.dfg.insert_instruction_and_results(
                 instruction,
@@ -520,12 +520,6 @@ impl FunctionBuilder {
 
     pub fn record_error_type(&mut self, selector: ErrorSelector, typ: HirType) {
         self.error_types.insert(selector, typ);
-    }
-
-    fn validate_ssa(functions: &[Function]) {
-        for function in functions {
-            function.assert_valid();
-        }
     }
 }
 

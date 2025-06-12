@@ -23,7 +23,7 @@ expression: artifact
         "type": {
           "kind": "integer",
           "sign": "unsigned",
-          "width": 8
+          "width": 32
         },
         "visibility": "private"
       }
@@ -90,10 +90,10 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "jZBNCsMgEIXvMmsXSZof8CqlBGMmQRAVo4UScvdOJLbJotDNG2een4NvhRGHOPfKTHYBfl9h8EprNffaShGUNTRdNwa57YNHpBGcfKKc8GgCcBO1ZvAUOqZLixMm1SA8uQUDNCNVenBSGvfTxr508RvtmoPt2g/c/E23daarC/2gTkjlL7+FEnjJoEp6S1onbYBXDFrSbV/llRg0HvlM0chTXOHlspMDdd5KHKPHfVnyaP0b",
+  "debug_symbols": "jZBNCsMgEIXvMmsX+WkS8CqlBGMmQRAVo4UScvdOJLbJotDNG2een4NvhRGHOPfKTHYBfl9h8EprNffaShGUNTRdNwa57YNHpBGcfKKc8GgCcBO1ZvAUOqZLixMm1SA8uQUDNCNVenBSGvfTxr508Rvt2oPtug/c/E23TabrC/2gTkjlL7+FEnjJoEpaJ70lbYBXDFrSbV/llRg0HvlM0chTXOHlspMDdd5KHKPHfVnyaP0b",
   "file_map": {
     "50": {
-      "source": "fn main(mut x: [Field; 10], index: u8) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
+      "source": "fn main(mut x: [Field; 10], index: u32) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
       "path": ""
     }
   },
