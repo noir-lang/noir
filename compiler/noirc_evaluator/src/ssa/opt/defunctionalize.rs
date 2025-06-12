@@ -154,15 +154,16 @@ impl DefunctionalizationContext {
                 let mut replacement_instruction = None;
 
                 // In order to select the correct apply function, we need to get the called function signature
-                // *before* we replace the function with a field value so that we can distinguish between parameter
-                // which is a function which has been replaced with a `Field` value and a parameter which was always a `Field`.
-                let params = match &instruction {
-                    Instruction::Call { func: _, arguments } => {
-                        vecmap(arguments, |param| func.dfg.type_of_value(*param))
-                    }
-                    _ => {
-                        continue;
-                    }
+                // *before* we replace any functions with `Field` values so that we can distinguish between
+                // a parameter / return value which is a function and a parameter which was always a `Field`.
+                let signature = if let Instruction::Call { func: _, arguments } = &instruction {
+                    let params = vecmap(arguments, |param| func.dfg.type_of_value(*param));
+
+                    let results = func.dfg.instruction_results(instruction_id);
+                    let returns = vecmap(results, |result| func.dfg.type_of_value(*result));
+                    Some(Signature { params, returns })
+                } else {
+                    None
                 };
 
                 if remove_first_class_functions_in_instruction(func, &mut instruction) {
@@ -190,26 +191,21 @@ impl DefunctionalizationContext {
                 match func.dfg[target_func_id] {
                     // If the target is a function used as value
                     Value::Param { .. } | Value::Instruction { .. } => {
-                        let mut arguments = arguments.clone();
-                        let results = func.dfg.instruction_results(instruction_id);
-
-                        // Do we need to pull out the return values earlier as well?
-                        let signature = Signature {
-                            params,
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
-                        };
-
                         // Find the correct apply function
-                        let Some(apply_function) =
-                            self.get_apply_function(signature, func.runtime())
-                        else {
+                        let Some(apply_function) = self.get_apply_function(
+                            signature.expect("Call instruction should have a signature"),
+                            func.runtime(),
+                        ) else {
                             // If there is no apply function then this should be a parameter in a function
                             // that will never actually be called, and the DIE pass will eventually remove it.
                             continue;
                         };
 
+                        let mut arguments = arguments.clone();
+
                         // Replace the instruction with a call to apply
                         let apply_function_value_id = func.dfg.import_function(apply_function.id);
+
                         if apply_function.dispatches_to_multiple_functions {
                             arguments.insert(0, target_func_id);
                         }
@@ -632,6 +628,19 @@ fn defunctionalize_post_check(func: &Function) {
                 func.name(),
                 func.id()
             );
+        }
+
+        for instruction_id in func.dfg[block_id].instructions() {
+            if let Instruction::Call { func: target_func, .. } = &func.dfg[*instruction_id] {
+                let function = &func.dfg[*target_func];
+
+                assert!(
+                    matches!(function, Value::Function(_)),
+                    "Call instructions should only call functions, not function values. Got '{function:?}' in instruction {instruction_id} of block {block_id} in function {} {}",
+                    func.name(),
+                    func.id()
+                );
+            }
         }
     }
 }
@@ -1490,10 +1499,10 @@ mod tests {
           b2():
             jmp b3(Field 3)
           b3(v1: Field):
-            v9 = call v1(v0) -> Field
-            v11 = call f6(v9) -> Field
-            v12 = add v4, v11
-            return v12
+            v10 = call f7(v1, v0) -> Field
+            v12 = call f6(v10) -> Field
+            v13 = add v4, v12
+            return v13
         }
         acir(inline) fn dispatch1 f1 {
           b0(v0: Field):
