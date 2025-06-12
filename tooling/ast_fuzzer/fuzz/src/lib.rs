@@ -70,7 +70,8 @@ where
     // and print the AST, then resume the panic, because
     // `Program` has a `RefCell` in it, which is not unwind safe.
     if show_ast() {
-        eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
+        //eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
+        eprintln!("---\n{}\n---", (&program));
     }
 
     ssa::create_program_with_passes(program, options, primary, secondary).unwrap_or_else(|e| {

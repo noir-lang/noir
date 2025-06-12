@@ -5,11 +5,11 @@ use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
-use noir_ast_fuzzer::visitor;
 use noir_ast_fuzzer::{Config, visitor::visit_expr_mut};
+use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
-    Call, Definition, Expression, Function, Ident, Program, Unary,
+    Call, Definition, Expression, Function, Ident, IdentId, LocalId, Program, Unary,
 };
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
@@ -61,9 +61,42 @@ fn rewrite_function(
     let ctx = rules::Context { unconstrained: func.unconstrained, ..Default::default() };
 
     let estimate = estimate_applicable_rules(&ctx, &func.body, rules);
-    let mut morph = MorphContext { target: max_rewrites.min(estimate), estimate, count: 0, rules };
+    let mut morph = MorphContext {
+        target: max_rewrites.min(estimate),
+        estimate,
+        count: 0,
+        rules,
+        locals: LocalContext::new(func),
+    };
 
     morph.rewrite_expr(&ctx, u, &mut func.body);
+}
+
+/// Context necessary to generate new local IDs during rewrites.
+///
+/// Potentially a place to reconstruct local variable scopes.
+struct LocalContext {
+    next_local_id: u32,
+    next_ident_id: u32,
+}
+
+impl LocalContext {
+    fn new(func: &Function) -> Self {
+        let (next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
+        Self { next_local_id, next_ident_id }
+    }
+
+    fn next_local_id(&mut self) -> LocalId {
+        let id = self.next_local_id;
+        self.next_local_id += 1;
+        LocalId(id)
+    }
+
+    fn next_ident_id(&mut self) -> IdentId {
+        let id = self.next_ident_id;
+        self.next_ident_id += 1;
+        IdentId(id)
+    }
 }
 
 /// Recursively apply rules while keeping a tally on how many we have done.
@@ -76,6 +109,8 @@ struct MorphContext<'a> {
     count: usize,
     /// Rules to apply.
     rules: &'a [rules::Rule],
+    /// Book keeping for local variables.
+    locals: LocalContext,
 }
 
 impl MorphContext<'_> {
@@ -148,14 +183,14 @@ impl MorphContext<'_> {
     /// Check if a rule can be applied on an expression. If it can, apply it based on some arbitrary
     /// criteria, returning a flag showing whether it was applied.
     fn try_apply_rule(
-        &self,
+        &mut self,
         ctx: &rules::Context,
         u: &mut Unstructured,
         expr: &mut Expression,
         rule: &rules::Rule,
     ) -> arbitrary::Result<bool> {
         if rule.matches(ctx, expr) && u.ratio(self.target, self.estimate)? {
-            rule.rewrite(u, expr)?;
+            rule.rewrite(u, &mut self.locals, expr)?;
             Ok(true)
         } else {
             Ok(false)
@@ -196,6 +231,8 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
+    use crate::targets::orig_vs_morph::{LocalContext, helpers::reassign_ids};
+
     use super::helpers::{gen_expr, has_side_effect};
     use arbitrary::{Arbitrary, Unstructured};
     use noir_ast_fuzzer::expr;
@@ -219,7 +256,8 @@ mod rules {
     /// Check if the rule can be applied on an expression.
     type MatchFn = dyn Fn(&Context, &Expression) -> bool;
     /// Apply the rule on an expression, mutating/replacing it in-place.
-    type RewriteFn = dyn Fn(&mut Unstructured, &mut Expression) -> arbitrary::Result<()>;
+    type RewriteFn =
+        dyn Fn(&mut Unstructured, &mut LocalContext, &mut Expression) -> arbitrary::Result<()>;
 
     /// Metamorphic transformation rule.
     pub struct Rule {
@@ -230,7 +268,12 @@ mod rules {
     impl Rule {
         pub fn new(
             matches: impl Fn(&Context, &Expression) -> bool + 'static,
-            rewrite: impl Fn(&mut Unstructured, &mut Expression) -> arbitrary::Result<()> + 'static,
+            rewrite: impl Fn(
+                &mut Unstructured,
+                &mut LocalContext,
+                &mut Expression,
+            ) -> arbitrary::Result<()>
+            + 'static,
         ) -> Self {
             Self { matches: Box::new(matches), rewrite: Box::new(rewrite) }
         }
@@ -244,9 +287,10 @@ mod rules {
         pub fn rewrite(
             &self,
             u: &mut Unstructured,
+            locals: &mut LocalContext,
             expr: &mut Expression,
         ) -> arbitrary::Result<()> {
-            (self.rewrite)(u, expr)
+            (self.rewrite)(u, locals, expr)
         }
     }
 
@@ -257,11 +301,12 @@ mod rules {
             bool_or_self(),
             bool_xor_self(),
             bool_xor_rand(),
-            commutative_arithmetic(),
-            inevitable(),
+            num_commute(),
+            any_inevitable(),
         ]
     }
 
+    // TODO: any numeric value `x` into `x * 1` or `x / 1`.
     /// Transform any numeric value `x` into `x +/- 0`.
     pub fn num_plus_minus_zero() -> Rule {
         Rule::new(
@@ -285,7 +330,7 @@ mod rules {
                     false
                 }
             },
-            |u, expr| {
+            |u, _locals, expr| {
                 let typ = expr.return_type().expect("only called on matching type").into_owned();
 
                 let op =
@@ -302,7 +347,7 @@ mod rules {
 
     /// Transform boolean value `x` into `x | x`.
     pub fn bool_or_self() -> Rule {
-        Rule::new(bool_rule_matches, |_u, expr| {
+        Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
             Ok(())
         })
@@ -310,7 +355,7 @@ mod rules {
 
     /// Transform boolean value `x` into `x ^ x ^ x`.
     pub fn bool_xor_self() -> Rule {
-        Rule::new(bool_rule_matches, |_u, expr| {
+        Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| {
                 let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
                 expr::binary(expr, BinaryOpKind::Xor, rhs)
@@ -321,7 +366,7 @@ mod rules {
 
     /// Transform boolean value `x` into `rnd ^ x ^ rnd`.
     pub fn bool_xor_rand() -> Rule {
-        Rule::new(bool_rule_matches, |u, expr| {
+        Rule::new(bool_rule_matches, |u, _locals, expr| {
             // This is where we could access the scope to look for a random bool variable.
             let rnd = expr::gen_literal(u, &Type::Bool)?;
             expr::replace(expr, |expr| {
@@ -335,7 +380,7 @@ mod rules {
     /// Transform commutative arithmetic operations:
     /// * `a + b` into `b + a`
     /// * `a * b` into `b * a`
-    pub fn commutative_arithmetic() -> Rule {
+    pub fn num_commute() -> Rule {
         Rule::new(
             |_ctx, expr| {
                 matches!(
@@ -346,7 +391,7 @@ mod rules {
                     })
                 ) && !has_side_effect(expr)
             },
-            |_u, expr| {
+            |_u, _locals, expr| {
                 let Expression::Binary(binary) = expr else {
                     unreachable!("the rule only matches Binary expressions");
                 };
@@ -358,26 +403,28 @@ mod rules {
         )
     }
 
-    /// Transform an expression into an if-then-else with the expression
+    /// Transform any expression into an if-then-else with the itself
     /// repeated in the _then_ and _else_ branch:
     /// * `x` into `if c { x } else { x }`
-    pub fn inevitable() -> Rule {
+    pub fn any_inevitable() -> Rule {
         Rule::new(
             |ctx, expr| {
                 !ctx.is_in_special_call
                     && !ctx.is_in_ref_mut
-                    // If we're in ACIR then don't turn loop ranges into expressions.
+                    // If we're in ACIR then don't turn loop ranges into non-constant expressions.
                     && (ctx.unconstrained || !ctx.is_in_range)
-                    // Avoid creating new variables because:
-                    // * `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
-                    // * Creating variables in blocks would need to be assigned new IDs, and subsequent expressions would need to be rewritten,
-                    //   for which we currently lack the context. `for` introduces the index variable.
-                    && !expr::exists(expr, |expr| matches!(expr, Expression::Let(_) | Expression::For(_)))
+                    // `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
+                    && !matches!(expr, Expression::Let(_))
             },
-            |u, expr| {
+            |u, locals, expr| {
                 let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
                 let cond = gen_expr(u, &Type::Bool, 2)?;
-                *expr = expr::if_else(cond, expr.clone(), expr.clone(), typ);
+
+                // Duplicate the expression, then assign new IDs to all variables created in it.
+                let mut alt = expr.clone();
+                reassign_ids(locals, &mut alt);
+
+                expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
                 Ok(())
             },
         )
@@ -413,16 +460,18 @@ mod rules {
 }
 
 mod helpers {
-    use std::sync::OnceLock;
+    use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{expr, types};
+    use noir_ast_fuzzer::{expr, types, visitor::visit_expr_be_mut};
     use noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
-        monomorphization::ast::{BinaryOp, Expression, Type},
+        monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
         shared::Signedness,
     };
     use strum::IntoEnumIterator;
+
+    use crate::targets::orig_vs_morph::LocalContext;
 
     /// Check if an expression can have a side effect, in which case duplicating or reordering it could
     /// change the behavior of the program.
@@ -558,6 +607,50 @@ mod helpers {
 
     /// Types we can consider using in this context.
     static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
+
+    pub(super) fn reassign_ids(locals: &mut LocalContext, expr: &mut Expression) {
+        fn replace_local_id(
+            locals: &mut LocalContext,
+            replacements: &mut HashMap<LocalId, LocalId>,
+            id: &mut LocalId,
+        ) {
+            let curr = *id;
+            let next = locals.next_local_id();
+            replacements.insert(curr, next);
+            *id = next;
+        }
+
+        let replacements = RefCell::new(HashMap::new());
+
+        visit_expr_be_mut(
+            expr,
+            &mut |expr| {
+                match expr {
+                    Expression::Let(let_) => {
+                        replace_local_id(locals, &mut replacements.borrow_mut(), &mut let_.id)
+                    }
+                    Expression::For(for_) => replace_local_id(
+                        locals,
+                        &mut replacements.borrow_mut(),
+                        &mut for_.index_variable,
+                    ),
+                    Expression::Ident(ident) => {
+                        ident.id = locals.next_ident_id();
+                    }
+                    _ => (),
+                }
+                (true, ())
+            },
+            &mut |_, _| {},
+            &mut |ident| {
+                if let Definition::Local(id) = &mut ident.definition {
+                    if let Some(replacement) = replacements.borrow().get(id) {
+                        *id = *replacement;
+                    }
+                }
+            },
+        );
+    }
 }
 
 #[cfg(test)]
