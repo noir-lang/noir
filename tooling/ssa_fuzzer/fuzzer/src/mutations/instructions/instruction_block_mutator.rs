@@ -29,7 +29,7 @@ struct InstructionBlockDeletionMutation;
 impl InstructionBlockMutator for InstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
         let mut blocks = value.instructions;
-        let block_idx = rng.gen_range(0..blocks.len());
+        let block_idx = if blocks.len() == 0 { 0 } else { rng.gen_range(0..blocks.len()) };
         blocks.remove(block_idx);
         InstructionBlock { instructions: blocks }
     }
@@ -48,7 +48,10 @@ impl InstructionBlockMutator for InstructionBlockInsertionMutation {
         let mut unstructured = Unstructured::new(&bytes);
         let instruction = unstructured.arbitrary().unwrap();
         let mut blocks = value.instructions;
-        blocks.insert(rng.gen_range(0..blocks.len()), instruction);
+        blocks.insert(
+            if blocks.len() == 0 { 0 } else { rng.gen_range(0..blocks.len()) },
+            instruction,
+        );
         InstructionBlock { instructions: blocks }
     }
 }

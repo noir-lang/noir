@@ -43,8 +43,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], size: usize, max_size: usize, seed: u32| {
     let mut rng = StdRng::seed_from_u64(seed as u64);
-    let data = deserialize(data).unwrap_or_default();
-    let data = mutate(data, &mut rng);
-    let data = serialize(&data).unwrap();
-    data.len()
+    let mut new_fuzzer_data: FuzzerData = deserialize(data).unwrap_or_default();
+    new_fuzzer_data = mutate(new_fuzzer_data, &mut rng);
+    let new_bytes = serialize(&new_fuzzer_data).unwrap();
+    data[..new_bytes.len()].copy_from_slice(&new_bytes);
+    new_bytes.len()
 });
