@@ -253,7 +253,14 @@ impl<'ssa> Interpreter<'ssa> {
                     arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
-                    break self.lookup_all(return_values)?;
+                    let return_values = self.lookup_all(return_values)?;
+                    if self.options.trace && !return_values.is_empty() {
+                        let return_values =
+                            return_values.iter().map(ToString::to_string).collect::<Vec<_>>();
+                        println!("return {}", return_values.join(", "));
+                    }
+
+                    break return_values;
                 }
             }
         };
