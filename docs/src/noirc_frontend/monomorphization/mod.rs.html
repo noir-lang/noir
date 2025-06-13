@@ -2595,7 +2595,9 @@
 <a href="#2594" id="2594">2594</a>
 <a href="#2595" id="2595">2595</a>
 <a href="#2596" id="2596">2596</a>
-<a href="#2597" id="2597">2597</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3788,12 +3790,14 @@
             };
             ast::Expression::Ident(ident)
         } <span class="kw">else </span>{
-            <span class="kw">let </span>(expr, is_closure) = <span class="kw">if let </span>GlobalValue::Resolved(value) = global.value.clone() {
-                <span class="kw">let </span>is_closure = value.is_closure();
+            <span class="kw">let </span>(expr, contains_function) = <span class="kw">if let </span>GlobalValue::Resolved(value) =
+                global.value.clone()
+            {
+                <span class="kw">let </span>contains_function = value.contains_function_or_closure();
                 <span class="kw">let </span>expr = value
                     .into_hir_expression(<span class="self">self</span>.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)<span class="question-mark">?</span>;
-                (expr, is_closure)
+                (expr, contains_function)
             } <span class="kw">else </span>{
                 <span class="macro">unreachable!</span>(
                     <span class="string">"All global values should be resolved at compile time and before monomorphization"
@@ -3809,7 +3813,7 @@
             // just with an extra step of indirection through a global variable.
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
-            </span><span class="kw">if </span>!is_closure {
+            </span><span class="kw">if </span>!contains_function {
                 <span class="kw">let </span>new_id = <span class="self">self</span>.next_global_id();
                 <span class="self">self</span>.globals.insert(id, new_id);
                 <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, location)<span class="question-mark">?</span>;
