@@ -1026,7 +1026,7 @@ impl<'ssa> Interpreter<'ssa> {
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: element_types,
+            element_types,
             is_slice,
         });
         self.define(result, array)

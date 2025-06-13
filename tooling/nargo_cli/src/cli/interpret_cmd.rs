@@ -310,7 +310,7 @@ fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
             }
         }
         Value::Numeric(value) => {
-            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())))
+            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
         }
         Value::Reference(..)
         | Value::Function(..)
