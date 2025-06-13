@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749819135685,
+  "lastUpdate": 1749824692669,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18521,48 +18521,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "57d7b12523d24e260b62e709dbf804b11860625a",
-          "message": "chore: only follow bindings on interface to `arithmetic` module (#8822)",
-          "timestamp": "2025-06-06T16:59:12Z",
-          "tree_id": "10ca1ff4ef9c5ff227e8d74edd964742e954de7c",
-          "url": "https://github.com/noir-lang/noir/commit/57d7b12523d24e260b62e709dbf804b11860625a"
-        },
-        "date": 1749231305578,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249160,
-            "range": "± 672",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218379,
-            "range": "± 4129",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777474,
-            "range": "± 3558",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -20614,6 +20572,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787230,
             "range": "± 1616",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "abef727248de29793020d2cc4483ddbeee89b95c",
+          "message": "fix: more SSA interpreter fixes (#8904)",
+          "timestamp": "2025-06-13T13:56:30Z",
+          "tree_id": "ef989acc802d710ced429a44f948a75c394732ec",
+          "url": "https://github.com/noir-lang/noir/commit/abef727248de29793020d2cc4483ddbeee89b95c"
+        },
+        "date": 1749824679879,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249174,
+            "range": "± 785",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221437,
+            "range": "± 4382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789982,
+            "range": "± 8621",
             "unit": "ns/iter"
           }
         ]
