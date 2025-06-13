@@ -20,8 +20,8 @@ pub mod expr;
 pub(crate) mod freq;
 mod func;
 pub mod rewrite;
-mod scope;
-mod types;
+pub mod scope;
+pub mod types;
 pub mod visitor;
 
 #[cfg(test)]
@@ -550,7 +550,8 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_type_in_let = true;
         // Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        // It is quite noisy, so keep it off by default.
+        // Using it also inserts an extra `cast` in the SSA,
+        // which at the moment for example defeats loop unrolling.
         printer.show_type_of_int_literal = false;
         printer.print_program(self.0, f)
     }
