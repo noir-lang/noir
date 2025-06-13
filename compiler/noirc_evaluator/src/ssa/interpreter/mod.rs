@@ -144,6 +144,7 @@ impl<'ssa> Interpreter<'ssa> {
         if let Some(func) = self.try_current_function() {
             let expected_type = func.dfg.type_of_value(id);
             let actual_type = value.get_type();
+
             if expected_type != actual_type {
                 return Err(InterpreterError::Internal(
                     InternalError::ValueTypeDoesNotMatchReturnType {
@@ -190,6 +191,11 @@ impl<'ssa> Interpreter<'ssa> {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.ssa.functions[&function_id];
+        if self.options.print_definitions {
+            println!();
+            println!("enter function {} ({})", function_id, function.name());
+        }
+
         let mut block_id = function.entry_block();
         let dfg = self.dfg();
 
@@ -225,6 +231,9 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
+                    if self.options.print_definitions {
+                        println!("jump to {}", block_id);
+                    }
                     arguments = self.lookup_all(jump_args)?;
                 }
                 Some(TerminatorInstruction::JmpIf {
@@ -238,6 +247,9 @@ impl<'ssa> Interpreter<'ssa> {
                     } else {
                         *else_destination
                     };
+                    if self.options.print_definitions {
+                        println!("jump to {}", block_id);
+                    }
                     arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
@@ -246,7 +258,22 @@ impl<'ssa> Interpreter<'ssa> {
             }
         };
 
+        if self.options.print_definitions {
+            println!("exit function {} ({})", function_id, function.name());
+            println!();
+        }
+
         self.call_stack.pop();
+
+        if self.options.print_definitions {
+            if let Some(context) = self.call_stack.last() {
+                if let Some(function_id) = context.called_function {
+                    let function = &self.ssa.functions[&function_id];
+                    println!("back in function {} ({})", function_id, function.name());
+                }
+            }
+        }
+
         Ok(return_values)
     }
 

@@ -374,7 +374,7 @@ impl Interpreter<'_> {
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result = state.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(32))?;
                     Ok(vec![result])
                 }
             },
