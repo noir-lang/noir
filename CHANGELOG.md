@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.0-beta.8](https://github.com/noir-lang/noir/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-06-13)
+
+
+### Features
+
+* **fuzz:** Generate references in the AST fuzzer ([#8728](https://github.com/noir-lang/noir/issues/8728)) ([071c897](https://github.com/noir-lang/noir/commit/071c897fa37987b61d2e87b506fa4bc3566c13d9))
+* Simplify apply function cfg immediately ([#8895](https://github.com/noir-lang/noir/issues/8895)) ([b09073a](https://github.com/noir-lang/noir/commit/b09073a7ec8b5a56a4b7a95847654d6311681721))
+
+
+### Bug Fixes
+
+* Assorted SSA interpreter fixes ([#8893](https://github.com/noir-lang/noir/issues/8893)) ([ca3238c](https://github.com/noir-lang/noir/commit/ca3238ce58970f5dad96e9794690a5534cf5c693))
+* Catch unbound type variables during frontend compilation ([#8686](https://github.com/noir-lang/noir/issues/8686)) ([53bd661](https://github.com/noir-lang/noir/commit/53bd661af5be4bdf683225f2ec6cb8798a722415))
+* Create calls to `apply` before function values are changed to fields in defunctionalize ([#8916](https://github.com/noir-lang/noir/issues/8916)) ([3546f47](https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31))
+* Do not hoist control dependent cast ([#8886](https://github.com/noir-lang/noir/issues/8886)) ([98d19fb](https://github.com/noir-lang/noir/commit/98d19fb4d61fd3b4f6420862af2d5f7af8a30f0f))
+* **fuzz:** Use an inline block to circumvent negation with overflow ([#8911](https://github.com/noir-lang/noir/issues/8911)) ([753ad6f](https://github.com/noir-lang/noir/commit/753ad6fb530beb01f94ebf75946050627ede2c11))
+* Handle return_data in the interpreter SSA CLI ([#8914](https://github.com/noir-lang/noir/issues/8914)) ([237876e](https://github.com/noir-lang/noir/commit/237876ef9e918d6b7df511aa46f257e18ca04d71))
+* Inline global arrays with functions at their call site ([#8905](https://github.com/noir-lang/noir/issues/8905)) ([202130c](https://github.com/noir-lang/noir/commit/202130c2cd178fef812c6f6afb82b575a8d95352))
+* **licm:** Account for negative bounds when checking whether a loop executes  ([#8889](https://github.com/noir-lang/noir/issues/8889)) ([d49ec03](https://github.com/noir-lang/noir/commit/d49ec03978679de9d325c56077cacc4a86931e08))
+* **mem2reg:** Keep last store for a used nested array  ([#8917](https://github.com/noir-lang/noir/issues/8917)) ([2e36b30](https://github.com/noir-lang/noir/commit/2e36b3098e765809227ac9685eded019674bf203))
+* **mem2reg:** Keep last store for reference in array used only in an array get ([#8877](https://github.com/noir-lang/noir/issues/8877)) ([b6ad823](https://github.com/noir-lang/noir/commit/b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26))
+* More SSA interpreter fixes ([#8904](https://github.com/noir-lang/noir/issues/8904)) ([abef727](https://github.com/noir-lang/noir/commit/abef727248de29793020d2cc4483ddbeee89b95c))
+* Preserve functions which are used in `array_set` instructions ([#8891](https://github.com/noir-lang/noir/issues/8891)) ([945ea6e](https://github.com/noir-lang/noir/commit/945ea6e11d5ca89cfb62bc8e7dc5dda16fefd512))
+* **ssa:** Signed cast simplification ([#8862](https://github.com/noir-lang/noir/issues/8862)) ([bcfb293](https://github.com/noir-lang/noir/commit/bcfb293510273b3019ab36c02db4284a5eac99e2))
+
 ## [1.0.0-beta.7](https://github.com/noir-lang/noir/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-06-12)
 
 
