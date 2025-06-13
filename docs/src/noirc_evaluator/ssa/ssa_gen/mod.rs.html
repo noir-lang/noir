@@ -1192,7 +1192,9 @@
 <a href="#1191" id="1191">1191</a>
 <a href="#1192" id="1192">1192</a>
 <a href="#1193" id="1193">1193</a>
-<a href="#1194" id="1194">1194</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1470,7 +1472,9 @@
                 <span class="comment">// A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 </span><span class="kw">let </span>string = <span class="self">self</span>.codegen_string(<span class="kw-2">&amp;</span>string);
-                <span class="kw">let </span>field_count = <span class="self">self</span>.builder.length_constant(<span class="kw-2">*</span>number_of_fields <span class="kw">as </span>u128);
+                <span class="kw">let </span>field_count = <span class="self">self
+                    </span>.builder
+                    .numeric_constant(<span class="kw-2">*</span>number_of_fields <span class="kw">as </span>u128, NumericType::NativeField);
                 <span class="kw">let </span>fields = <span class="self">self</span>.codegen_expression(fields)<span class="question-mark">?</span>;
 
                 <span class="prelude-val">Ok</span>(Tree::Branch(<span class="macro">vec!</span>[string, field_count.into(), fields]))

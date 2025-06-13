@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["input_type_to_ssa","input_value_to_ssa","input_values_to_ssa","sanitize_ssa"],"struct":["CompareInterpreted","ComparePass"],"type":["CompareInterpretedResult","InterpretResult"]};
+window.SIDEBAR_ITEMS = {"fn":["append_input_type_to_ssa","append_input_value_to_ssa","input_type_to_ssa","input_value_to_ssa","input_values_to_ssa","sanitize_ssa"],"struct":["CompareInterpreted","ComparePass"],"type":["CompareInterpretedResult","InterpretResult"]};

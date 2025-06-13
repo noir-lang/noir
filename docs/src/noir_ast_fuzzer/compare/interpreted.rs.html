@@ -337,7 +337,26 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a>
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a>
+<a href="#350" id="350">350</a>
+<a href="#351" id="351">351</a>
+<a href="#352" id="352">352</a>
+<a href="#353" id="353">353</a>
+<a href="#354" id="354">354</a>
+<a href="#355" id="355">355</a>
+<a href="#356" id="356">356</a>
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -532,19 +551,23 @@
 
 <span class="doccomment">/// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
-/// Tuple types are returned flattened.
+/// Tuple types and structs are flattened.
 </span><span class="kw">pub fn </span>input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue) -&gt; Vec&lt;Value&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
+    append_input_value_to_ssa(typ, input, <span class="kw-2">&amp;mut </span>values);
+    values
+}
+
+<span class="kw">fn </span>append_input_value_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, input: <span class="kw-2">&amp;</span>InputValue, values: <span class="kw-2">&amp;mut </span>Vec&lt;Value&gt;) {
     <span class="kw">use </span>ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     <span class="kw">use </span>ssa::ir::types::Type;
-    <span class="kw">let </span>array_value = |elements: Vec&lt;Vec&lt;Value&gt;&gt;, types: Vec&lt;Type&gt;| {
-        <span class="kw">let </span>elements = elements.into_iter().flatten().collect();
-        <span class="kw">let </span>arr = Value::ArrayOrSlice(ArrayValue {
+    <span class="kw">let </span>array_value = |elements: Vec&lt;Value&gt;, types: Vec&lt;Type&gt;| {
+        Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),
             element_types: Arc::new(types),
             is_slice: <span class="bool-val">false</span>,
-        });
-        <span class="macro">vec!</span>[arr]
+        })
     };
     <span class="kw">match </span>input {
         InputValue::Field(f) =&gt; {
@@ -560,27 +583,28 @@
                 other =&gt; <span class="macro">panic!</span>(<span class="string">"unexpected ABY type for Field input: {other:?}"</span>),
             };
             <span class="kw">let </span>num_val = NumericValue::from_constant(<span class="kw-2">*</span>f, num_typ).expect(<span class="string">"cannot create constant"</span>);
-            <span class="macro">vec!</span>[Value::Numeric(num_val)]
+            values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) =&gt; array_value(
-            <span class="macro">vec!</span>[vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(<span class="kw-2">*</span>b)))],
+        InputValue::String(s) =&gt; values.push(array_value(
+            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(<span class="kw-2">*</span>b))),
             <span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)],
-        ),
+        )),
         InputValue::Vec(input_values) =&gt; <span class="kw">match </span>typ {
             AbiType::Array { length, typ } =&gt; {
                 <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>length <span class="kw">as </span>usize, input_values.len(), <span class="string">"array length != input length"</span>);
-                <span class="kw">let </span>elements = vecmap(input_values, |input| input_value_to_ssa(typ, input));
-                array_value(elements, <span class="macro">vec!</span>[input_type_to_ssa(typ)])
+                <span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::with_capacity(<span class="kw-2">*</span>length <span class="kw">as </span>usize);
+                <span class="kw">for </span>input <span class="kw">in </span>input_values {
+                    append_input_value_to_ssa(typ, input, <span class="kw-2">&amp;mut </span>elements);
+                }
+                values.push(array_value(elements, input_type_to_ssa(typ)));
             }
             AbiType::Tuple { fields } =&gt; {
                 <span class="macro">assert_eq!</span>(fields.len(), input_values.len(), <span class="string">"tuple size != input length"</span>);
 
-                <span class="comment">// Tuples are not wrapped into arrays, they are returned as a vector.
-                </span>fields
-                    .iter()
-                    .zip(input_values)
-                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
-                    .collect()
+                <span class="comment">// Tuples are flattened
+                </span><span class="kw">for </span>(typ, input) <span class="kw">in </span>fields.iter().zip(input_values) {
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other =&gt; {
                 <span class="macro">panic!</span>(<span class="string">"unexpected ABI type for vector input: {other:?}"</span>)
@@ -589,11 +613,12 @@
         InputValue::Struct(field_values) =&gt; <span class="kw">match </span>typ {
             AbiType::Struct { path: <span class="kw">_</span>, fields } =&gt; {
                 <span class="macro">assert_eq!</span>(fields.len(), field_values.len(), <span class="string">"struct size != input length"</span>);
-                <span class="kw">let </span>elements = vecmap(fields, |(name, typ)| {
+
+                <span class="comment">// Structs are flattened
+                </span><span class="kw">for </span>(name, typ) <span class="kw">in </span>fields {
                     <span class="kw">let </span>input = <span class="kw-2">&amp;</span>field_values[name];
-                    input_value_to_ssa(typ, input)
-                });
-                array_value(elements, vecmap(fields.iter().map(|(<span class="kw">_</span>, typ)| typ), input_type_to_ssa))
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other =&gt; {
                 <span class="macro">panic!</span>(<span class="string">"unexpected ABI type for map input: {other:?}"</span>)
@@ -603,24 +628,37 @@
 }
 
 <span class="doccomment">/// Convert an ABI type into SSA.
-</span><span class="kw">fn </span>input_type_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType) -&gt; ssa::ir::types::Type {
+</span><span class="kw">fn </span>input_type_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType) -&gt; Vec&lt;ssa::ir::types::Type&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>types = Vec::new();
+    append_input_type_to_ssa(typ, <span class="kw-2">&amp;mut </span>types);
+    types
+}
+
+<span class="kw">fn </span>append_input_type_to_ssa(typ: <span class="kw-2">&amp;</span>AbiType, types: <span class="kw-2">&amp;mut </span>Vec&lt;ssa::ir::types::Type&gt;) {
     <span class="kw">use </span>ssa::ir::types::Type;
     <span class="kw">match </span>typ {
-        AbiType::Field =&gt; Type::field(),
+        AbiType::Field =&gt; types.push(Type::field()),
         AbiType::Array { length, typ } =&gt; {
-            Type::Array(Arc::new(<span class="macro">vec!</span>[input_type_to_ssa(typ)]), <span class="kw-2">*</span>length)
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), <span class="kw-2">*</span>length));
         }
-        AbiType::Integer { sign: Sign::Signed, width } =&gt; Type::signed(<span class="kw-2">*</span>width),
-        AbiType::Integer { sign: Sign::Unsigned, width } =&gt; Type::unsigned(<span class="kw-2">*</span>width),
-        AbiType::Boolean =&gt; Type::bool(),
-        AbiType::Struct { path: <span class="kw">_</span>, fields } =&gt; Type::Array(
-            Arc::new(vecmap(fields, |(<span class="kw">_</span>, typ)| input_type_to_ssa(typ))),
-            fields.len() <span class="kw">as </span>u32,
-        ),
+        AbiType::Integer { sign: Sign::Signed, width } =&gt; types.push(Type::signed(<span class="kw-2">*</span>width)),
+        AbiType::Integer { sign: Sign::Unsigned, width } =&gt; types.push(Type::unsigned(<span class="kw-2">*</span>width)),
+        AbiType::Boolean =&gt; types.push(Type::bool()),
+        AbiType::Struct { path: <span class="kw">_</span>, fields } =&gt; {
+            <span class="comment">// Structs are flattend
+            </span><span class="kw">for </span>(<span class="kw">_</span>, typ) <span class="kw">in </span>fields {
+                append_input_type_to_ssa(typ, types);
+            }
+        }
         AbiType::Tuple { fields } =&gt; {
-            Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() <span class="kw">as </span>u32)
+            <span class="comment">// Tuples are flattened
+            </span><span class="kw">for </span>typ <span class="kw">in </span>fields {
+                append_input_type_to_ssa(typ, types);
+            }
         }
-        AbiType::String { length } =&gt; Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)]), <span class="kw-2">*</span>length),
+        AbiType::String { length } =&gt; {
+            types.push(Type::Array(Arc::new(<span class="macro">vec!</span>[Type::unsigned(<span class="number">8</span>)]), <span class="kw-2">*</span>length));
+        }
     }
 }
 

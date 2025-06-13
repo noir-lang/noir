@@ -1433,7 +1433,61 @@
 <a href="#1432" id="1432">1432</a>
 <a href="#1433" id="1433">1433</a>
 <a href="#1434" id="1434">1434</a>
-<a href="#1435" id="1435">1435</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1480,8 +1534,8 @@
 
 <span class="attr">#[derive(Copy, Clone, Default)]
 </span><span class="kw">pub struct </span>InterpreterOptions {
-    <span class="doccomment">/// If true, the interpreter will print each value definition to stdout.
-    </span><span class="kw">pub </span>print_definitions: bool,
+    <span class="doccomment">/// If true, the interpreter will trace its execution.
+    </span><span class="kw">pub </span>trace: bool,
 }
 
 <span class="kw">struct </span>CallContext {
@@ -1571,11 +1625,29 @@
 
     <span class="doccomment">/// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
-    </span><span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, value: Value) {
-        <span class="kw">if </span><span class="self">self</span>.options.print_definitions {
+    </span><span class="kw">fn </span>define(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ValueId, value: Value) -&gt; IResult&lt;()&gt; {
+        <span class="kw">if </span><span class="self">self</span>.options.trace {
             <span class="macro">println!</span>(<span class="string">"{id} = {value}"</span>);
         }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(func) = <span class="self">self</span>.try_current_function() {
+            <span class="kw">let </span>expected_type = func.dfg.type_of_value(id);
+            <span class="kw">let </span>actual_type = value.get_type();
+
+            <span class="kw">if </span>expected_type != actual_type {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::Internal(
+                    InternalError::ValueTypeDoesNotMatchReturnType {
+                        value_id: id,
+                        expected_type: expected_type.to_string(),
+                        actual_type: actual_type.to_string(),
+                    },
+                ));
+            }
+        }
+
         <span class="self">self</span>.call_context_mut().scope.insert(id, value);
+
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
@@ -1599,7 +1671,7 @@
                     <span class="macro">unreachable!</span>()
                 }
             };
-            <span class="self">self</span>.define(global_id, value);
+            <span class="self">self</span>.define(global_id, value)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -1608,6 +1680,11 @@
         <span class="self">self</span>.call_stack.push(CallContext::new(function_id));
 
         <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>function_id];
+        <span class="kw">if </span><span class="self">self</span>.options.trace {
+            <span class="macro">println!</span>();
+            <span class="macro">println!</span>(<span class="string">"enter function {} ({})"</span>, function_id, function.name());
+        }
+
         <span class="kw">let </span><span class="kw-2">mut </span>block_id = function.entry_block();
         <span class="kw">let </span>dfg = <span class="self">self</span>.dfg();
 
@@ -1627,7 +1704,7 @@
             }
 
             <span class="kw">for </span>(parameter, argument) <span class="kw">in </span>block.parameters().iter().zip(arguments) {
-                <span class="self">self</span>.define(<span class="kw-2">*</span>parameter, argument);
+                <span class="self">self</span>.define(<span class="kw-2">*</span>parameter, argument)<span class="question-mark">?</span>;
             }
 
             <span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions() {
@@ -1643,6 +1720,9 @@
                 }
                 <span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) =&gt; {
                     block_id = <span class="kw-2">*</span>destination;
+                    <span class="kw">if </span><span class="self">self</span>.options.trace {
+                        <span class="macro">println!</span>(<span class="string">"jump to {}"</span>, block_id);
+                    }
                     arguments = <span class="self">self</span>.lookup_all(jump_args)<span class="question-mark">?</span>;
                 }
                 <span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
@@ -1656,15 +1736,40 @@
                     } <span class="kw">else </span>{
                         <span class="kw-2">*</span>else_destination
                     };
+                    <span class="kw">if </span><span class="self">self</span>.options.trace {
+                        <span class="macro">println!</span>(<span class="string">"jump to {}"</span>, block_id);
+                    }
                     arguments = Vec::new();
                 }
                 <span class="prelude-val">Some</span>(TerminatorInstruction::Return { return_values, call_stack: <span class="kw">_ </span>}) =&gt; {
-                    <span class="kw">break </span><span class="self">self</span>.lookup_all(return_values)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>return_values = <span class="self">self</span>.lookup_all(return_values)<span class="question-mark">?</span>;
+                    <span class="kw">if </span><span class="self">self</span>.options.trace &amp;&amp; !return_values.is_empty() {
+                        <span class="kw">let </span>return_values =
+                            return_values.iter().map(ToString::to_string).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+                        <span class="macro">println!</span>(<span class="string">"return {}"</span>, return_values.join(<span class="string">", "</span>));
+                    }
+
+                    <span class="kw">break </span>return_values;
                 }
             }
         };
 
+        <span class="kw">if </span><span class="self">self</span>.options.trace {
+            <span class="macro">println!</span>(<span class="string">"exit function {} ({})"</span>, function_id, function.name());
+            <span class="macro">println!</span>();
+        }
+
         <span class="self">self</span>.call_stack.pop();
+
+        <span class="kw">if </span><span class="self">self</span>.options.trace {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.call_stack.last() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(function_id) = context.called_function {
+                    <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>function_id];
+                    <span class="macro">println!</span>(<span class="string">"back in function {} ({})"</span>, function_id, function.name());
+                }
+            }
+        }
+
         <span class="prelude-val">Ok</span>(return_values)
     }
 
@@ -1864,7 +1969,7 @@
         <span class="kw">match </span>instruction {
             Instruction::Binary(binary) =&gt; {
                 <span class="kw">let </span>result = <span class="self">self</span>.interpret_binary(binary, side_effects_enabled)<span class="question-mark">?</span>;
-                <span class="self">self</span>.define(results[<span class="number">0</span>], result);
+                <span class="self">self</span>.define(results[<span class="number">0</span>], result)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
             }
             <span class="comment">// Cast in SSA changes the type without altering the value
@@ -1872,7 +1977,7 @@
                 <span class="kw">let </span>value = <span class="self">self</span>.lookup_numeric(<span class="kw-2">*</span>value, <span class="string">"cast"</span>)<span class="question-mark">?</span>;
                 <span class="kw">let </span>field = value.convert_to_field();
                 <span class="kw">let </span>result = Value::from_constant(field, <span class="kw-2">*</span>numeric_type)<span class="question-mark">?</span>;
-                <span class="self">self</span>.define(results[<span class="number">0</span>], result);
+                <span class="self">self</span>.define(results[<span class="number">0</span>], result)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(())
             }
             Instruction::Not(id) =&gt; <span class="self">self</span>.interpret_not(<span class="kw-2">*</span>id, results[<span class="number">0</span>]),
@@ -1994,8 +2099,7 @@
             NumericValue::I32(value) =&gt; NumericValue::I32(!value),
             NumericValue::I64(value) =&gt; NumericValue::I64(!value),
         };
-        <span class="self">self</span>.define(result, Value::Numeric(new_result));
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.define(result, Value::Numeric(new_result))
     }
 
     <span class="kw">fn </span>interpret_truncate(
@@ -2032,8 +2136,7 @@
             }
         };
 
-        <span class="self">self</span>.define(result, Value::Numeric(truncated));
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.define(result, Value::Numeric(truncated))
     }
 
     <span class="kw">fn </span>interpret_range_check(
@@ -2166,7 +2269,7 @@
         }
 
         <span class="kw">for </span>(result, new_result) <span class="kw">in </span>results.iter().zip(new_results) {
-            <span class="self">self</span>.define(<span class="kw-2">*</span>result, new_result);
+            <span class="self">self</span>.define(<span class="kw-2">*</span>result, new_result)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -2212,7 +2315,7 @@
         }
     }
 
-    <span class="kw">fn </span>interpret_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: ValueId) {
+    <span class="kw">fn </span>interpret_allocate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>result_type = <span class="self">self</span>.dfg().type_of_value(result);
         <span class="kw">let </span>element_type = <span class="kw">match </span>result_type {
             Type::Reference(element_type) =&gt; element_type,
@@ -2220,7 +2323,7 @@
                 <span class="string">"Result of allocate should always be a reference type, but found {other}"
             </span>),
         };
-        <span class="self">self</span>.define(result, Value::reference(result, element_type));
+        <span class="self">self</span>.define(result, Value::reference(result, element_type))
     }
 
     <span class="kw">fn </span>interpret_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
@@ -2232,14 +2335,21 @@
             <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
-        <span class="self">self</span>.define(result, value.clone());
+        <span class="self">self</span>.define(result, value.clone())<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>interpret_store(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>address = <span class="self">self</span>.lookup_reference(address, <span class="string">"store"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>reference_address = <span class="self">self</span>.lookup_reference(address, <span class="string">"store"</span>)<span class="question-mark">?</span>;
+
         <span class="kw">let </span>value = <span class="self">self</span>.lookup(value)<span class="question-mark">?</span>;
-        <span class="kw-2">*</span>address.element.borrow_mut() = <span class="prelude-val">Some</span>(value);
+
+        <span class="kw">if </span><span class="self">self</span>.options.trace {
+            <span class="macro">println!</span>(<span class="string">"store {value} at {address}"</span>);
+        }
+
+        <span class="kw-2">*</span>reference_address.element.borrow_mut() = <span class="prelude-val">Some</span>(value);
+
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -2260,7 +2370,7 @@
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
             Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
         };
-        <span class="self">self</span>.define(result, element);
+        <span class="self">self</span>.define(result, element)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -2301,7 +2411,7 @@
             <span class="comment">// Side effects are disabled, return the original array
             </span>Value::ArrayOrSlice(array)
         };
-        <span class="self">self</span>.define(result, result_array);
+        <span class="self">self</span>.define(result, result_array)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -2367,8 +2477,7 @@
             else_value
         };
 
-        <span class="self">self</span>.define(result, new_result);
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.define(result, new_result)
     }
 
     <span class="kw">fn </span>interpret_make_array(
@@ -2386,8 +2495,7 @@
             element_types: result_type.clone().element_types(),
             is_slice,
         });
-        <span class="self">self</span>.define(result, array);
-        <span class="prelude-val">Ok</span>(())
+        <span class="self">self</span>.define(result, array)
     }
 }
 

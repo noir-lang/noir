@@ -327,9 +327,9 @@
     </span><span class="attr">#[clap(long)]
     </span>ssa_pass: Vec&lt;String&gt;,
 
-    <span class="doccomment">/// If true, the interpreter will print each value definition to stdout.
+    <span class="doccomment">/// If true, the interpreter will trace its execution.
     </span><span class="attr">#[clap(long)]
-    </span>print_definitions: bool,
+    </span>trace: bool,
 }
 
 <span class="kw">impl </span>WorkspaceCommand <span class="kw">for </span>InterpretCommand {
@@ -386,7 +386,7 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(<span class="macro">format!</span>(<span class="string">"failed to generate SSA: {e}"</span>)))<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>interpreter_options = InterpreterOptions { print_definitions: args.print_definitions };
+        <span class="kw">let </span>interpreter_options = InterpreterOptions { trace: args.trace };
 
         print_and_interpret_ssa(
             <span class="kw-2">&amp;</span>ssa_options,
