@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749828015883,
+  "lastUpdate": 1749828047990,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "851cfd208d8fadd69dfc74324405c6d72d286651",
-          "message": "fix(interpreter): Do not overflow on signed checked ops (#8806)",
-          "timestamp": "2025-06-06T19:30:12Z",
-          "tree_id": "48071e03dc896099c71d637e14e3d047b7ca5792",
-          "url": "https://github.com/noir-lang/noir/commit/851cfd208d8fadd69dfc74324405c6d72d286651"
-        },
-        "date": 1749240464287,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.87,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3d3f74d6da291ec70b428bf1d2f644ea848e9077"
         },
         "date": 1749826519177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.76,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "202130c2cd178fef812c6f6afb82b575a8d95352",
+          "message": "fix: Inline global arrays with functions at their call site (#8905)",
+          "timestamp": "2025-06-13T14:38:07Z",
+          "tree_id": "0882193116613b1efc22864fcf0d2c7060aaa95e",
+          "url": "https://github.com/noir-lang/noir/commit/202130c2cd178fef812c6f6afb82b575a8d95352"
+        },
+        "date": 1749828034964,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
