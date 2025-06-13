@@ -194,6 +194,8 @@ pub(super) struct FunctionContext<'a> {
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
+    /// Indicator of computing an expression that should not contain dynamic input.
+    in_no_dynamic: bool,
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
     call_targets: BTreeMap<CallableId, HashSet<Type>>,
@@ -258,6 +260,7 @@ impl<'a> FunctionContext<'a> {
             locals,
             dynamics,
             in_loop: false,
+            in_no_dynamic: false,
             call_targets,
             next_ident_id: 0,
             has_call: false,
@@ -330,11 +333,8 @@ impl<'a> FunctionContext<'a> {
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
-    fn is_dynamic(&self, id: &VariableId) -> bool {
-        match id {
-            VariableId::Local(id) => self.dynamics.contains(id),
-            VariableId::Global(_) => false,
-        }
+    fn is_dynamic(&self, id: &LocalId) -> bool {
+        self.dynamics.contains(id)
     }
 
     /// Choose a producer for a type, preferring local variables over global ones.
@@ -343,9 +343,17 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Option<VariableId>> {
+        // Check if we can use a particular ID depending on the dynamic context.
+        let can_use_dyn = |id: LocalId| !self.in_no_dynamic || !self.is_dynamic(&id);
+
         // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
-            if let Some(id) = self.locals.current().choose_producer(u, typ)? {
+            let producer = if self.in_no_dynamic {
+                self.locals.current().choose_producer_filtered(u, typ, |id, _| can_use_dyn(*id))?
+            } else {
+                self.locals.current().choose_producer(u, typ)?
+            };
+            if let Some(id) = producer {
                 return Ok(Some(VariableId::Local(id)));
             }
         }
@@ -358,8 +366,10 @@ impl<'a> FunctionContext<'a> {
             return self
                 .locals
                 .current()
-                .choose_producer_filtered(u, typ.as_ref(), |_, (mutable, _, prod)| {
-                    *mutable && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, prod)| {
+                    *mutable
+                        && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                        && can_use_dyn(*id)
                 })
                 .map(|id| id.map(VariableId::Local));
         }
@@ -496,7 +506,10 @@ impl<'a> FunctionContext<'a> {
             let (mutable, src_name, src_type) = self.get_variable(&id).clone();
             let ident_id = self.next_ident_id();
             let src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
-            let src_dyn = self.is_dynamic(&id);
+            let src_dyn = match id {
+                VariableId::Global(_) => false,
+                VariableId::Local(id) => self.is_dynamic(&id),
+            };
             if let Some(expr) =
                 self.gen_expr_from_source(u, (src_expr, src_dyn), &src_type, typ, max_depth)?
             {
@@ -582,8 +595,26 @@ impl<'a> FunctionContext<'a> {
                 Ok(Some((expr, src_dyn)))
             }
             (Type::Array(len, item_typ), _) if *len > 0 => {
+                // Indexing arrays that contains references with dynamic indexes was banned in #8888
+                // If we are already looking for an index where we can't use dynamic inputs,
+                // don't switch to using them again, as the result can indirectly poison the outer array.
+                // For example this would be wrong:
+                //
+                // fn main(i: u32) -> pub u32 {
+                //     let a = [&mut 0, &mut 1];
+                //     let b = [0, 1];
+                //     *a[b[i]]
+                // }
+                let no_dynamic = self.in_no_dynamic
+                    || !self.unconstrained() && types::contains_reference(item_typ);
+                let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
                 // Choose a random index.
                 let (idx_expr, idx_dyn) = self.gen_index(u, *len, max_depth)?;
+                assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
+
+                self.in_no_dynamic = was_in_no_dynamic;
+
                 // Access the item.
                 let item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
