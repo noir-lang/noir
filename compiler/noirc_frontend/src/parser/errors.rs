@@ -111,6 +111,8 @@ pub enum ParserErrorReason {
     TraitBoundsNotAllowedHere,
     #[error("Missing type for associated constant")]
     MissingTypeForAssociatedConstant,
+    #[error("Match guards are not yet supported")]
+    MatchGuardNotSupported,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -301,6 +303,13 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     "Provide a type for the associated constant: `: u32`".to_string(),
                     error.location,
                 ),
+                ParserErrorReason::MatchGuardNotSupported => {
+                    let primary = "Match guards are not yet supported".to_string();
+                    let secondary =
+                        "Consider using if-else statements inside the match block instead"
+                            .to_string();
+                    Diagnostic::simple_error(primary, secondary, error.location())
+                }
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
                 }

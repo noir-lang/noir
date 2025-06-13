@@ -594,9 +594,31 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
+    /// Parses a match pattern, optionally followed by a guard condition.
+    /// Returns a tuple of (pattern, guard_condition), where guard_condition is an Option<Expression>.
+    fn parse_match_pattern(&mut self) -> Option<(Expression, Option<Expression>)> {
+        let pattern = self.parse_expression()?;
+
+        let start_location = self.current_token_location;
+        // Check for a match guard: if <condition>
+        let guard = if self.eat_keyword(Keyword::If) {
+            let guard_condition = self.parse_expression_or_error();
+            // TODO: ensure the guard is a boolean expression in the type checker once we support guards
+            // add an error here for now because we don't support guards yet
+            let guard_location = self.location_since(start_location);
+            self.push_error(ParserErrorReason::MatchGuardNotSupported, guard_location);
+            Some(guard_condition)
+        } else {
+            None
+        };
+
+        Some((pattern, guard))
+    }
+
     /// MatchRule = Expression '->' (Block ','?) | (Expression ',')
     fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
-        let pattern = self.parse_expression()?;
+        let (pattern, _) = self.parse_match_pattern()?;
+
         self.eat_or_error(Token::FatArrow);
 
         let start_location = self.current_token_location;
@@ -613,6 +635,7 @@ impl Parser<'_> {
                 branch
             }
         };
+
         Some((pattern, branch))
     }
 
