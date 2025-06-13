@@ -368,7 +368,7 @@ impl<'a> FunctionContext<'a> {
                 .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, prod)| {
                     *mutable
                         && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
-                        && (!self.in_no_dynamic || !self.is_dynamic(&id))
+                        && (!self.in_no_dynamic || !self.is_dynamic(id))
                 })
                 .map(|id| id.map(VariableId::Local));
         }
