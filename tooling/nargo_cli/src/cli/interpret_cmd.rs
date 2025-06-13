@@ -17,6 +17,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::Value;
+use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 use noirc_frontend::debug::DebugInstrumenter;
@@ -108,6 +109,21 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         // Generate the initial SSA.
         let mut ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
+
+        // If the main function returns `return_data`, the values are returned in a flattened array.
+        // So, we change the expected return value by flattening it as well.
+        // Ideally we'd have the interpreter return the data in the correct shape. However, doing
+        // that would be replicating some logic which is unrelated to SSA. For the purpose of SSA
+        // correctness, it's enough if we make sure the flattened values match.
+        let ssa_return = ssa_return.map(|ssa_return| {
+            let main_function = &ssa.functions[&ssa.main_id];
+            if main_function.has_data_bus_return_data() {
+                let values = flatten_values(ssa_return);
+                vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
+            } else {
+                ssa_return
+            }
+        });
 
         let interpreter_options = InterpreterOptions { trace: args.trace };
 
@@ -276,4 +292,27 @@ fn print_and_interpret_ssa(
 ) -> Result<(), CliError> {
     print_ssa(options, ssa, msg);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
+}
+
+fn flatten_values(values: Vec<Value>) -> Vec<Value> {
+    let mut flattened_values = Vec::new();
+    for value in values {
+        flatten_value(value, &mut flattened_values);
+    }
+    flattened_values
+}
+
+fn flatten_value(value: Value, flattened_values: &mut Vec<Value>) {
+    match value {
+        Value::ArrayOrSlice(array_value) => {
+            for value in array_value.elements.borrow().iter() {
+                flatten_value(value.clone(), flattened_values);
+            }
+        }
+        Value::Numeric(..)
+        | Value::Reference(..)
+        | Value::Function(..)
+        | Value::Intrinsic(..)
+        | Value::ForeignFunction(..) => flattened_values.push(value),
+    }
 }
