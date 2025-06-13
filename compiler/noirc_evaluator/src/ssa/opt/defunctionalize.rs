@@ -135,6 +135,7 @@ impl DefunctionalizationContext {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
 
+            #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
             for instruction_id in block.instructions().to_vec() {
                 let instruction = &func.dfg[instruction_id];
 
@@ -204,6 +205,7 @@ impl DefunctionalizationContext {
 
             // Now we can finally change each instruction, replacing
             // each first class function with a field value.
+            #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
             for instruction_id in block.instructions().to_vec() {
                 let mut instruction = func.dfg[instruction_id].clone();
 
@@ -211,6 +213,7 @@ impl DefunctionalizationContext {
                     func.dfg[instruction_id] = instruction;
                 }
 
+                #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
                     let typ = &func.dfg.type_of_value(result);
                     if let Some(rep) = replacement_type(typ) {
@@ -464,8 +467,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 ///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
-/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced
-/// with a field type.
+/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
 /// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.

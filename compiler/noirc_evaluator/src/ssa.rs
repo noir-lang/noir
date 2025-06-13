@@ -719,7 +719,7 @@ impl SsaBuilder {
 
     fn print(mut self, msg: &str) -> Self {
         // Always normalize if we are going to print at least one of the passes
-        if false && !matches!(self.ssa_logging, SsaLogging::None) {
+        if !matches!(self.ssa_logging, SsaLogging::None) {
             self.ssa.normalize_ids();
         }
 
