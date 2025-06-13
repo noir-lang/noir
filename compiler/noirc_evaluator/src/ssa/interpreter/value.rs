@@ -351,7 +351,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub fn convert_to_field(&self) -> FieldElement {
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
