@@ -421,7 +421,11 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
 
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
-        for typ in defunctionalized_signature.params.iter_mut().chain(&mut defunctionalized_signature.returns) {
+        for typ in defunctionalized_signature
+            .params
+            .iter_mut()
+            .chain(&mut defunctionalized_signature.returns)
+        {
             if let Some(rep) = replacement_type(typ) {
                 *typ = rep;
             }
@@ -671,9 +675,12 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{ir::function::FunctionId, opt::defunctionalize::create_apply_functions},
+    };
 
-    use super::Ssa;
+    use super::{Ssa, find_variants};
 
     #[test]
     fn apply_inherits_caller_runtime() {
@@ -1319,5 +1326,184 @@ mod tests {
         assert_eq!(functions.len(), 2);
         assert!(functions.contains(&FunctionId::test_new(1))); // foo
         assert!(functions.contains(&FunctionId::test_new(2))); // bar
+    }
+
+    /// Ensure apply function are cached with the signature of the function before any mutations occur
+    #[test]
+    fn regression_8896() {
+        let src = r#"
+            acir(inline) fn main f0 {
+            b0(v0: Field):
+                v3 = call f1(f2) -> Field
+                v5 = call f1(f3) -> Field
+                v7 = eq v0, Field 0
+                jmpif v7 then: b1, else: b2
+            b1():
+                jmp b3(f4)
+            b2():
+                jmp b3(f5)
+            b3(v10: function):
+                v11 = add v3, v5
+                v12 = call v10(v0) -> Field
+                v13 = add v11, v12
+                return v13
+            }
+            acir(inline) fn dispatch1 f1 {
+            b0(v0: function):
+                v2 = call v0(f6) -> Field
+                v4 = mul v2, Field 3
+                return v4
+            }
+            acir(inline) fn lambda f2 {
+            b0(v0: function):
+                return Field 1
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function):
+                return Field 2
+            }
+            acir(inline) fn fn1 f4 {
+            b0(v0: Field):
+                v2 = add v0, Field 1
+                return v2
+            }
+            acir(inline) fn fn2 f5 {
+            b0(v0: Field):
+                v2 = mul v0, Field 5
+                return v2
+            }
+            acir(inline) fn lambda f6 {
+            b0():
+                return Field 0
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 2) -> Field
+            v6 = call f1(Field 3) -> Field
+            v8 = eq v0, Field 0
+            jmpif v8 then: b1, else: b2
+          b1():
+            jmp b3(Field 4)
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            v11 = add v4, v6
+            v13 = call f7(v1, v0) -> Field
+            v14 = add v11, v13
+            return v14
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v3 = call f8(v0, Field 6) -> Field
+            v5 = mul v3, Field 3
+            return v5
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: Field):
+            return Field 1
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: Field):
+            return Field 2
+        }
+        acir(inline) fn fn1 f4 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        acir(inline) fn fn2 f5 {
+          b0(v0: Field):
+            v2 = mul v0, Field 5
+            return v2
+        }
+        acir(inline) fn lambda f6 {
+          b0():
+            return Field 0
+        }
+        acir(inline_always) fn apply f7 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 4
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 5
+            v9 = call f5(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f4(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        acir(inline_always) fn apply f8 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 3
+            v9 = call f3(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f2(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    /// Ensure the correct type signature is used for recursive calls. We should expect 2 apply
+    /// functions generated, not one.
+    #[test]
+    fn regression_8897() {
+        let src = r#"
+            acir(inline) fn main f0 {
+            b0():
+                v3 = call f1(f2, Field 0) -> Field
+                return v3
+            }
+            acir(inline) fn simple_recur f1 {
+            b0(v0: function, v1: Field):
+                v3 = eq v1, Field 0
+                jmpif v3 then: b1, else: b2
+            b1():
+                jmp b3(f1)
+            b2():
+                jmp b3(f3)
+            b3(v6: function):
+                v9 = add v1, Field 1
+                v10 = call v6(f4, v9) -> Field
+                v11 = call v0(v10, Field 0) -> Field
+                return v11
+            }
+            acir(inline) fn fn1 f2 {
+            b0(v0: Field, v1: Field):
+                v3 = add v0, Field 1
+                return v3
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function, v1: Field):
+                v4 = call f2(Field 0, Field 0) -> Field
+                return v4
+            }
+            acir(inline) fn fn2 f4 {
+            b0(v0: Field, v1: Field):
+                v3 = mul v1, Field 5
+                return v3
+            }
+        "#;
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let variants = find_variants(&ssa);
+        assert_eq!(variants.len(), 2);
+
+        let apply_functions = create_apply_functions(&mut ssa, variants);
+        // This was 1 before this bug was fixed.
+        assert_eq!(apply_functions.len(), 2);
     }
 }
