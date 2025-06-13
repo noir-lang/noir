@@ -45,8 +45,8 @@ struct Interpreter<'ssa> {
 
 #[derive(Copy, Clone, Default)]
 pub struct InterpreterOptions {
-    /// If true, the interpreter will print each value definition to stdout.
-    pub print_definitions: bool,
+    /// If true, the interpreter will trace its execution.
+    pub trace: bool,
 }
 
 struct CallContext {
@@ -137,7 +137,7 @@ impl<'ssa> Interpreter<'ssa> {
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
     fn define(&mut self, id: ValueId, value: Value) -> IResult<()> {
-        if self.options.print_definitions {
+        if self.options.trace {
             println!("{id} = {value}");
         }
 
@@ -191,7 +191,7 @@ impl<'ssa> Interpreter<'ssa> {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.ssa.functions[&function_id];
-        if self.options.print_definitions {
+        if self.options.trace {
             println!();
             println!("enter function {} ({})", function_id, function.name());
         }
@@ -231,7 +231,7 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
-                    if self.options.print_definitions {
+                    if self.options.trace {
                         println!("jump to {}", block_id);
                     }
                     arguments = self.lookup_all(jump_args)?;
@@ -247,7 +247,7 @@ impl<'ssa> Interpreter<'ssa> {
                     } else {
                         *else_destination
                     };
-                    if self.options.print_definitions {
+                    if self.options.trace {
                         println!("jump to {}", block_id);
                     }
                     arguments = Vec::new();
@@ -258,14 +258,14 @@ impl<'ssa> Interpreter<'ssa> {
             }
         };
 
-        if self.options.print_definitions {
+        if self.options.trace {
             println!("exit function {} ({})", function_id, function.name());
             println!();
         }
 
         self.call_stack.pop();
 
-        if self.options.print_definitions {
+        if self.options.trace {
             if let Some(context) = self.call_stack.last() {
                 if let Some(function_id) = context.called_function {
                     let function = &self.ssa.functions[&function_id];
@@ -848,7 +848,7 @@ impl<'ssa> Interpreter<'ssa> {
 
         let value = self.lookup(value)?;
 
-        if self.options.print_definitions {
+        if self.options.trace {
             println!("store {value} at {address}");
         }
 
