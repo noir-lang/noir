@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749840702437,
+  "lastUpdate": 1749840708723,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,75 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "522d4c185601ae2b9f5b677cb95df7a7644cfd26",
-          "message": "fix(interpreter): Return -1 for negative shr signed overflow or 0 for positive shr signed overflow (#8828)",
-          "timestamp": "2025-06-07T20:41:36Z",
-          "tree_id": "07343d422145cbcf3f36144be8550b30b06c0705",
-          "url": "https://github.com/noir-lang/noir/commit/522d4c185601ae2b9f5b677cb95df7a7644cfd26"
-        },
-        "date": 1749330792789,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.98,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.87,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "57ec192fdd2c21fa11d1b66a74f586ac43b936d0",
           "message": "fix(comptime): Overflow on shl  (#8829)",
           "timestamp": "2025-06-07T22:21:09Z",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/237876ef9e918d6b7df511aa46f257e18ca04d71"
         },
         "date": 1749834537852,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.76,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9071a7b4d89bc9343e6cbcbe3f824819fe7a6a51",
+          "message": "chore: Add various regression tests for mutable references (#8915)",
+          "timestamp": "2025-06-13T18:19:24Z",
+          "tree_id": "c3a4c7bb1c96e4d8ab599a3302c1d6790b29bb90",
+          "url": "https://github.com/noir-lang/noir/commit/9071a7b4d89bc9343e6cbcbe3f824819fe7a6a51"
+        },
+        "date": 1749840695249,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
