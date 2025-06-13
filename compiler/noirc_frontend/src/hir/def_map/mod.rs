@@ -145,7 +145,7 @@ impl CrateDefMap {
             options,
         ));
 
-        errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
+        errors.extend(parsing_errors.iter().map(|e| e.clone().into()));
 
         errors
     }
