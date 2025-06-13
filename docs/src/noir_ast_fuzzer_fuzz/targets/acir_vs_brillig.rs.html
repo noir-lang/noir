@@ -55,8 +55,7 @@
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
 <a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
-<a href="#58" id="58">58</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
+<a href="#57" id="57">57</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
 </span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Arbitrary;
@@ -110,8 +109,7 @@
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="comment">// TODO: Allow more tests when the 1510th case is fixed.
-        </span><span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">1509</span>);
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">2000</span>);
     }
 }
 </code></pre></div></section></main></body></html>
