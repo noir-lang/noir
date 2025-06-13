@@ -1959,7 +1959,10 @@ impl NodeInterner {
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
     pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
-        let trait_id = self.infix_operator_traits[&operator];
+        let trait_id = *self
+            .infix_operator_traits
+            .get(&operator)
+            .unwrap_or_else(|| panic!("cannot find trait for operator {operator}"));
 
         // Assume that the operator's method to be overloaded is the first method of the trait.
         TraitMethodId { trait_id, method_index: 0 }
