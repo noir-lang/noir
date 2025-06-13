@@ -343,13 +343,12 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         typ: &Type,
     ) -> arbitrary::Result<Option<VariableId>> {
-        // Check if we can use a particular ID depending on the dynamic context.
-        let can_use_dyn = |id: LocalId| !self.in_no_dynamic || !self.is_dynamic(&id);
-
         // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
             let producer = if self.in_no_dynamic {
-                self.locals.current().choose_producer_filtered(u, typ, |id, _| can_use_dyn(*id))?
+                self.locals
+                    .current()
+                    .choose_producer_filtered(u, typ, |id, _| !self.is_dynamic(id))?
             } else {
                 self.locals.current().choose_producer(u, typ)?
             };
@@ -369,7 +368,7 @@ impl<'a> FunctionContext<'a> {
                 .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, prod)| {
                     *mutable
                         && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
-                        && can_use_dyn(*id)
+                        && (!self.in_no_dynamic || !self.is_dynamic(&id))
                 })
                 .map(|id| id.map(VariableId::Local));
         }
