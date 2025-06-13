@@ -210,7 +210,7 @@ pub(crate) fn unref_mut(typ: &mut Type) -> &mut Type {
 }
 
 /// Check if the type contains any references.
-pub(crate) fn contains_reference(typ: &Type) -> bool {
+pub fn contains_reference(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => true,
         Type::Field
