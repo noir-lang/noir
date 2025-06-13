@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749846925948,
+  "lastUpdate": 1749847166659,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "95c9d28416e005ea675fb864a58f769d37e1a06c",
-          "message": "fix: bind self generic type in trait calls via a concrete type in more cases (#8827)",
-          "timestamp": "2025-06-08T11:17:59Z",
-          "tree_id": "3824f7b07f1427357b56a0c1e238c04cee39e1a2",
-          "url": "https://github.com/noir-lang/noir/commit/95c9d28416e005ea675fb864a58f769d37e1a06c"
-        },
-        "date": 1749383101673,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.302,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.088,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.342,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.102,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.546,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.749,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.783,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e2a378d1c414ea36984c76dd6b9c4190eb9a4763",
+          "message": "chore(fuzz): Increase the number of deterministic test cases (#8872)",
+          "timestamp": "2025-06-13T20:08:31Z",
+          "tree_id": "481b9f96fcf6fdc6c06f4b5ba8a0e26df800ca8e",
+          "url": "https://github.com/noir-lang/noir/commit/e2a378d1c414ea36984c76dd6b9c4190eb9a4763"
+        },
+        "date": 1749847154822,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.296,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.728,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.096,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.25,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 131,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.058,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.546,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.751,
             "unit": "s"
           }
         ]
