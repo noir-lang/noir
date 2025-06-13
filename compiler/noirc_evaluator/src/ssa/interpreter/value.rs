@@ -79,9 +79,10 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
-            }
+            Value::ArrayOrSlice(array) => Type::Array(
+                array.element_types.clone(),
+                (array.elements.borrow().len() / array.element_types.len()) as u32,
+            ),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
