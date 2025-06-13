@@ -78,6 +78,8 @@ impl CompareComptime {
     /// Execute the Noir code and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
+
+        // These comptime programs have no inputs.
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
 
         // Execute a compiled Program.

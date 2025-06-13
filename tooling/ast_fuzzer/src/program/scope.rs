@@ -86,6 +86,32 @@ where
         u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 
+    /// Choose a random producer of a type matching some criteria.
+    pub(super) fn choose_producer_filtered(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+        pred: impl Fn(&K, &Variable) -> bool,
+    ) -> arbitrary::Result<Option<K>> {
+        let Some(vs) = self.producers.get(typ) else {
+            return Ok(None);
+        };
+
+        let candidates = vs
+            .iter()
+            .filter(|id| {
+                let v = self.get_variable(id);
+                pred(id, v)
+            })
+            .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+
+        u.choose_iter(candidates).map(Some).map(|v| v.cloned())
+    }
+
     /// Get a variable in scope.
     pub fn get_variable(&self, id: &K) -> &Variable {
         self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))

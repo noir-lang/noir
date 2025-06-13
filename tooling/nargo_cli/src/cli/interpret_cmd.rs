@@ -95,7 +95,8 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
-        let ssa_input = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
+        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
 
         let ssa_return =
             if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
@@ -115,7 +116,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &args.ssa_pass,
             &mut ssa,
             "Initial SSA",
-            &ssa_input,
+            &ssa_args,
             &ssa_return,
             interpreter_options,
         )?;
@@ -137,7 +138,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 &args.ssa_pass,
                 &mut ssa,
                 &msg,
-                &ssa_input,
+                &ssa_args,
                 &ssa_return,
                 interpreter_options,
             )?;
