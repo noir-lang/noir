@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749845511143,
+  "lastUpdate": 1749845523129,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "57ec192fdd2c21fa11d1b66a74f586ac43b936d0",
-          "message": "fix(comptime): Overflow on shl  (#8829)",
-          "timestamp": "2025-06-07T22:21:09Z",
-          "tree_id": "aa4d2abd305a3472afdbc040a7e8ca5b9e285565",
-          "url": "https://github.com/noir-lang/noir/commit/57ec192fdd2c21fa11d1b66a74f586ac43b936d0"
-        },
-        "date": 1749336431411,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.38,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.594,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.042,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.068,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.558,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.749,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.749,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3546f4780efda452eee310a137ee69a49f334d31",
+          "message": "fix: Create calls to `apply` before function values are changed to fields in defunctionalize (#8916)",
+          "timestamp": "2025-06-13T19:34:41Z",
+          "tree_id": "090f7ad2471fa2b7b944ef2a2a52a0c9ccf28606",
+          "url": "https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31"
+        },
+        "date": 1749845508809,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.368,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.636,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.086,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1.238,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 128,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.068,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.536,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.783,
             "unit": "s"
           }
         ]
