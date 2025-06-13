@@ -146,13 +146,11 @@ impl<'ssa> Interpreter<'ssa> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(InterpreterError::Internal(
-                    InternalError::ValueTypeDoesNotMatchReturnType {
-                        value_id: id,
-                        expected_type: expected_type.to_string(),
-                        actual_type: actual_type.to_string(),
-                    },
-                ));
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
             }
         }
 
