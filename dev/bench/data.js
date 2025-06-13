@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749825290886,
+  "lastUpdate": 1749825437780,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18526,48 +18526,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "michaeljklein@users.noreply.github.com",
-            "name": "Michael J Klein",
-            "username": "michaeljklein"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "28a57a2ae2de8077e0ca6165fac01c7d72aefa7c",
-          "message": "chore(ci): `cargo clippy` CI script to save time (#8787)",
-          "timestamp": "2025-06-06T17:07:17Z",
-          "tree_id": "a493ce338ddd6a731ae3e60260cb9a2a45818ced",
-          "url": "https://github.com/noir-lang/noir/commit/28a57a2ae2de8077e0ca6165fac01c7d72aefa7c"
-        },
-        "date": 1749231968664,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249205,
-            "range": "± 1062",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218566,
-            "range": "± 3090",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799294,
-            "range": "± 5327",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20619,6 +20577,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789982,
             "range": "± 8621",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26",
+          "message": "fix(mem2reg): Keep last store for reference in array used only in an array get (#8877)",
+          "timestamp": "2025-06-13T14:13:34Z",
+          "tree_id": "1b79a1e85cb9db1452262ab05ff37ee5d1f5a1d6",
+          "url": "https://github.com/noir-lang/noir/commit/b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26"
+        },
+        "date": 1749825425848,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249897,
+            "range": "± 857",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222273,
+            "range": "± 7816",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2822662,
+            "range": "± 3307",
             "unit": "ns/iter"
           }
         ]
