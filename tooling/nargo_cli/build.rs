@@ -119,15 +119,9 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
 /// becuase they are too slow to run.
-const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 5] = [
     // slow
     "regression_4709",
-    // panic: index out of bounds
-    "array_dynamic_nested_blackbox_input",
-    // wrong result
-    "brillig_block_parameter_liveness",
-    // panic: BlockArgumentCountMismatch
-    "brillig_cow_regression",
     // wrong result
     "databus",
     // panic: index out of bounds
@@ -136,32 +130,6 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
     "databus_two_calldata",
     // wrong result
     "databus_two_calldata_simple",
-    // panic: Internal(TypeError)
-    "inline_decompose_hint_brillig_call",
-    // panic: Internal(TypeError)
-    "multi_scalar_mul",
-    // panic: index out of bounds
-    "regression_11294",
-    // panic: Internal(TypeError)
-    "regression_3889",
-    // panic: index out of bounds
-    "regression_7612",
-    // gives a wrong result
-    "regression_7744",
-    // gives a wrong result
-    "regression_8174",
-    // panic: index out of bounds
-    "regression_struct_array_conditional",
-    // panic Internal(TypeError)
-    "simple_shield",
-    // panic: index out of bounds
-    "slice_loop",
-    // panic: index out of bounds
-    "struct_array_inputs",
-    // panic: BlockArgumentCountMismatch
-    "struct_inputs",
-    // panic: BlockArgumentCountMismatch
-    "tuple_inputs",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that

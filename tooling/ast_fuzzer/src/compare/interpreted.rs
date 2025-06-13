@@ -193,19 +193,23 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
-/// Tuple types are returned flattened.
+/// Tuple types and structs are flattened.
 pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+    let mut values = Vec::new();
+    append_input_value_to_ssa(typ, input, &mut values);
+    values
+}
+
+fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
-        let elements = elements.into_iter().flatten().collect();
-        let arr = Value::ArrayOrSlice(ArrayValue {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
+        Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
             is_slice: false,
-        });
-        vec![arr]
+        })
     };
     match input {
         InputValue::Field(f) => {
@@ -221,27 +225,28 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
-            vec![Value::Numeric(num_val)]
+            values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => array_value(
-            vec![vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b)))],
+        InputValue::String(s) => values.push(array_value(
+            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
             vec![Type::unsigned(8)],
-        ),
+        )),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
-                let elements = vecmap(input_values, |input| input_value_to_ssa(typ, input));
-                array_value(elements, vec![input_type_to_ssa(typ)])
+                let mut elements = Vec::with_capacity(*length as usize);
+                for input in input_values {
+                    append_input_value_to_ssa(typ, input, &mut elements);
+                }
+                values.push(array_value(elements, input_type_to_ssa(typ)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                // Tuples are not wrapped into arrays, they are returned as a vector.
-                fields
-                    .iter()
-                    .zip(input_values)
-                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
-                    .collect()
+                // Tuples are flattened
+                for (typ, input) in fields.iter().zip(input_values) {
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")
@@ -250,11 +255,12 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
         InputValue::Struct(field_values) => match typ {
             AbiType::Struct { path: _, fields } => {
                 assert_eq!(fields.len(), field_values.len(), "struct size != input length");
-                let elements = vecmap(fields, |(name, typ)| {
+
+                // Structs are flattened
+                for (name, typ) in fields {
                     let input = &field_values[name];
-                    input_value_to_ssa(typ, input)
-                });
-                array_value(elements, vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa))
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for map input: {other:?}")
@@ -264,24 +270,37 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 }
 
 /// Convert an ABI type into SSA.
-fn input_type_to_ssa(typ: &AbiType) -> ssa::ir::types::Type {
+fn input_type_to_ssa(typ: &AbiType) -> Vec<ssa::ir::types::Type> {
+    let mut types = Vec::new();
+    append_input_type_to_ssa(typ, &mut types);
+    types
+}
+
+fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>) {
     use ssa::ir::types::Type;
     match typ {
-        AbiType::Field => Type::field(),
+        AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            Type::Array(Arc::new(vec![input_type_to_ssa(typ)]), *length)
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length));
         }
-        AbiType::Integer { sign: Sign::Signed, width } => Type::signed(*width),
-        AbiType::Integer { sign: Sign::Unsigned, width } => Type::unsigned(*width),
-        AbiType::Boolean => Type::bool(),
-        AbiType::Struct { path: _, fields } => Type::Array(
-            Arc::new(vecmap(fields, |(_, typ)| input_type_to_ssa(typ))),
-            fields.len() as u32,
-        ),
+        AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
+        AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
+        AbiType::Boolean => types.push(Type::bool()),
+        AbiType::Struct { path: _, fields } => {
+            // Structs are flattend
+            for (_, typ) in fields {
+                append_input_type_to_ssa(typ, types);
+            }
+        }
         AbiType::Tuple { fields } => {
-            Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() as u32)
+            // Tuples are flattened
+            for typ in fields {
+                append_input_type_to_ssa(typ, types);
+            }
         }
-        AbiType::String { length } => Type::Array(Arc::new(vec![Type::unsigned(8)]), *length),
+        AbiType::String { length } => {
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length));
+        }
     }
 }
 
