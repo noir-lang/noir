@@ -83,7 +83,6 @@ impl Default for Config {
             ("call", 15),
         ]);
         let stmt_freqs_acir = Freqs::new(&[
-            ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
             ("for", 22),
@@ -92,7 +91,6 @@ impl Default for Config {
             ("constrain", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("drop", 0),
             ("break", 20),
             ("continue", 20),
             ("assign", 30),
