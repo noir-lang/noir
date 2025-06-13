@@ -555,7 +555,7 @@ impl<'f> PerFunctionContext<'f> {
         for &element in elements {
             if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
                 self.add_array_aliases(&elements, aliases);
-            } else {
+            } else if self.inserter.function.dfg.value_is_reference(element) {
                 aliases.insert(element);
             }
         }
