@@ -3,10 +3,7 @@ use std::collections::{BTreeSet, VecDeque};
 use im::HashMap;
 use noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Ident, Program};
 
-use crate::{
-    program::Context,
-    visitor::{visit_expr, visit_expr_mut},
-};
+use crate::{expr, program::Context, visitor::visit_expr_mut};
 
 /// Remove functions that are unreachable from main.
 pub(crate) fn remove_unreachable_functions(ctx: &mut Context) {
@@ -69,14 +66,9 @@ fn find_reachable_functions(ctx: &Context) -> BTreeSet<FuncId> {
         }
         let func = &ctx.functions[&id];
 
-        visit_expr(&func.body, &mut |expr| {
-            // Regardless of whether it's in a `Call` or stored in a reference,
-            // it will appear in an identifier at some point.
-            if let Expression::Ident(Ident { definition: Definition::Function(id), .. }) = expr {
-                queue.push_back(*id);
-            }
-            true
-        });
+        for id in expr::reachable_functions(&func.body) {
+            queue.push_back(id);
+        }
     }
 
     reachable
