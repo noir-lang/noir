@@ -87,8 +87,6 @@ type ApplyFunctions = HashMap<(Signature, RuntimeType), ApplyFunction>;
 #[derive(Debug, Clone)]
 struct DefunctionalizationContext {
     apply_functions: ApplyFunctions,
-
-    function_types: HashMap<FunctionId, (Signature, RuntimeType)>,
 }
 
 impl Ssa {
@@ -97,13 +95,12 @@ impl Ssa {
     pub(crate) fn defunctionalize(mut self) -> Ssa {
         // Find all functions used as value that share the same signature and runtime type
         let variants = find_variants(&self);
-        let function_types = collect_function_types(&self);
 
         // Generate the apply functions for the provided variants
         let apply_functions = create_apply_functions(&mut self, variants);
 
         // Setup the pass context
-        let context = DefunctionalizationContext { apply_functions, function_types };
+        let context = DefunctionalizationContext { apply_functions };
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
@@ -120,7 +117,64 @@ impl DefunctionalizationContext {
     /// Defunctionalize all functions in the SSA
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
+            // We mutate value types in `defunctionalize`, so to prevent that from affecting which
+            // apply functions are chosen we replace all first-class function calls with calls to
+            // the appropriate apply function beforehand.
+            self.replace_fist_class_calls_with_apply_function(function);
+
+            // Replace any first-class function values with field values. This will also mutate the
+            // type of some values, such as block arguments
             self.defunctionalize(function);
+        }
+    }
+
+    /// Replaces any function calls using first-class function values with calls to the
+    /// appropriate `apply` function. Note that this must be done before types are mutated
+    /// in `defunctionalize` since this uses the unmutated types to query apply functions.
+    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+        for block_id in func.reachable_blocks() {
+            let block = &mut func.dfg[block_id];
+
+            for instruction_id in block.instructions().to_vec() {
+                let instruction = &func.dfg[instruction_id];
+
+                // Operate on call instructions
+                let (target_func_id, arguments) = match &instruction {
+                    Instruction::Call { func: target_func_id, arguments } => {
+                        (*target_func_id, arguments)
+                    }
+                    _ => continue,
+                };
+
+                // If the target is a function used as value
+                use Value::Param;
+                if matches!(&func.dfg[target_func_id], Param { .. } | Value::Instruction { .. }) {
+                    let mut arguments = arguments.clone();
+                    let results = func.dfg.instruction_results(instruction_id);
+                    let signature = Signature {
+                        params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
+                        returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                    };
+
+                    // Find the correct apply function
+                    let Some(apply_function) =
+                        self.get_apply_function(signature.clone(), func.runtime())
+                    else {
+                        // If there is no apply function then this should be a parameter in a function
+                        // that will never actually be called, and the DIE pass will eventually remove it.
+                        continue;
+                    };
+
+                    // Replace the instruction with a call to apply
+                    let apply_function_value_id = func.dfg.import_function(apply_function.id);
+                    if apply_function.dispatches_to_multiple_functions {
+                        arguments.insert(0, target_func_id);
+                    }
+                    let func_id = apply_function_value_id;
+                    let replacement_instruction = Instruction::Call { func: func_id, arguments };
+                    func.dfg[instruction_id] = replacement_instruction;
+                }
+            }
         }
     }
 
@@ -149,66 +203,19 @@ impl DefunctionalizationContext {
             block.set_terminator(terminator);
 
             // Now we can finally change each instruction, replacing
-            // each first class function with a field value and replacing calls
-            // to a first class function to a call to the relevant `apply` function.
-            #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
+            // each first class function with a field value.
             for instruction_id in block.instructions().to_vec() {
                 let mut instruction = func.dfg[instruction_id].clone();
-                let mut replacement_instruction = None;
 
                 if remove_first_class_functions_in_instruction(func, &mut instruction) {
-                    func.dfg[instruction_id] = instruction.clone();
+                    func.dfg[instruction_id] = instruction;
                 }
 
-                #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
                     let typ = &func.dfg.type_of_value(result);
                     if let Some(rep) = replacement_type(typ) {
                         func.dfg.set_type_of_value(result, rep);
                     }
-                }
-
-                // Operate on call instructions
-                let (target_func_id, arguments) = match &instruction {
-                    Instruction::Call { func: target_func_id, arguments } => {
-                        (*target_func_id, arguments)
-                    }
-                    _ => {
-                        continue;
-                    }
-                };
-
-                match func.dfg[target_func_id] {
-                    // If the target is a function used as value
-                    Value::Param { .. } | Value::Instruction { .. } => {
-                        let mut arguments = arguments.clone();
-                        let results = func.dfg.instruction_results(instruction_id);
-                        let signature = Signature {
-                            params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
-                        };
-
-                        // Find the correct apply function
-                        let Some(apply_function) =
-                            self.get_apply_function(signature, func.runtime())
-                        else {
-                            // If there is no apply function then this should be a parameter in a function
-                            // that will never actually be called, and the DIE pass will eventually remove it.
-                            continue;
-                        };
-
-                        // Replace the instruction with a call to apply
-                        let apply_function_value_id = func.dfg.import_function(apply_function.id);
-                        if apply_function.dispatches_to_multiple_functions {
-                            arguments.insert(0, target_func_id);
-                        }
-                        let func = apply_function_value_id;
-                        replacement_instruction = Some(Instruction::Call { func, arguments });
-                    }
-                    _ => {}
-                }
-                if let Some(new_instruction) = replacement_instruction {
-                    func.dfg[instruction_id] = new_instruction;
                 }
             }
         }
@@ -352,7 +359,8 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     functions_as_values
 }
 
-/// Finds all dynamic dispatch signatures in the given function
+/// Finds all dynamic dispatch signatures in the given function.
+/// Note that these are the signatures before function types are mutated to turn into field types.
 ///
 /// A dynamic dispatch is defined as a call into a function value where that
 /// value comes from a parameter (i.e., calling a function passed as a function parameter
@@ -381,15 +389,6 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
     dispatches
 }
 
-/// Collects the type of all functions used in Ssa.
-/// This is necessary to do before any modifications to these function types are made
-/// later to e.g. remove higher-order functions from their signatures.
-fn collect_function_types(ssa: &Ssa) -> HashMap<FunctionId, (Signature, RuntimeType)> {
-    ssa.functions.iter().map(|(id, function)| {
-        (*id, (function.signature(), function.runtime()))
-    }).collect()
-}
-
 /// Creates all apply functions needed for dispatch of function values.
 ///
 /// This function maintains the grouping set in [Variants], meaning an apply
@@ -403,36 +402,35 @@ fn collect_function_types(ssa: &Ssa) -> HashMap<FunctionId, (Signature, RuntimeT
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// [ApplyFunctions]
+/// [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+/// into field types. The inner apply function itself will have its defunctionalized type,
+/// with function values represented as field values.
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
 
-    for ((mut signature, runtime), variants) in variants_map.into_iter() {
+    for ((signature, runtime), variants) in variants_map.into_iter() {
         if variants.is_empty() {
             // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
             continue;
         }
         let dispatches_to_multiple_functions = variants.len() > 1;
 
+        // This will be the same signature but with each function type replaced with
+        // a Field type.
+        let mut defunctionalized_signature = signature.clone();
+
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
-        for param in &mut signature.params {
-            if let Some(rep) = replacement_type(param) {
-                *param = rep;
-            }
-        }
-
-        // Update the return value types as we did for the signature parameters above.
-        for ret in &mut signature.returns {
-            if let Some(rep) = replacement_type(ret) {
-                *ret = rep;
+        for typ in defunctionalized_signature.params.iter_mut().chain(&mut defunctionalized_signature.returns) {
+            if let Some(rep) = replacement_type(typ) {
+                *typ = rep;
             }
         }
 
         let id = if dispatches_to_multiple_functions {
             // If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            create_apply_function(ssa, signature.clone(), runtime, variants)
+            create_apply_function(ssa, defunctionalized_signature, runtime, variants)
         } else {
             // If there is only variant, we can use it directly rather than creating a new apply function.
             variants[0]
@@ -462,7 +460,8 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 ///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
-/// - `signature`: The shared [Signature] of all variants.
+/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced
+/// with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
 /// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.
