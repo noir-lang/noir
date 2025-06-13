@@ -137,7 +137,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     Ok(ssa)
 }
 
-pub(crate) fn validate_ssa(ssa: &Ssa) {
+pub fn validate_ssa(ssa: &Ssa) {
     for function in ssa.functions.values() {
         validate_function(function);
     }

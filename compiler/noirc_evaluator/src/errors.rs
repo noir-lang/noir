@@ -78,6 +78,11 @@ pub enum RuntimeError {
     /// code when a break or continue is generated.
     #[error("Break or continue")]
     BreakOrContinue { call_stack: CallStack },
+
+    #[error(
+        "Only constant indices are supported when indexing an array containing reference values"
+    )]
+    DynamicIndexingWithReference { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -187,10 +192,11 @@ impl RuntimeError {
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
+            | RuntimeError::BreakOrContinue { call_stack }
+            | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
-            RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } => call_stack,
-            RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } => call_stack,
-            RuntimeError::BreakOrContinue { call_stack } => call_stack,
         }
     }
 }
