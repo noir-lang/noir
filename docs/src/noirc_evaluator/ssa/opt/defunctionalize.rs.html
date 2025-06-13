@@ -1308,7 +1308,208 @@
 <a href="#1307" id="1307">1307</a>
 <a href="#1308" id="1308">1308</a>
 <a href="#1309" id="1309">1309</a>
-<a href="#1310" id="1310">1310</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1427,7 +1628,65 @@
     <span class="doccomment">/// Defunctionalize all functions in the SSA
     </span><span class="kw">fn </span>defunctionalize_all(<span class="kw-2">mut </span><span class="self">self</span>, ssa: <span class="kw-2">&amp;mut </span>Ssa) {
         <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values_mut() {
-            <span class="self">self</span>.defunctionalize(function);
+            <span class="comment">// We mutate value types in `defunctionalize`, so to prevent that from affecting which
+            // apply functions are chosen we replace all first-class function calls with calls to
+            // the appropriate apply function beforehand.
+            </span><span class="self">self</span>.replace_fist_class_calls_with_apply_function(function);
+
+            <span class="comment">// Replace any first-class function values with field values. This will also mutate the
+            // type of some values, such as block arguments
+            </span><span class="self">self</span>.defunctionalize(function);
+        }
+    }
+
+    <span class="doccomment">/// Replaces any function calls using first-class function values with calls to the
+    /// appropriate `apply` function. Note that this must be done before types are mutated
+    /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
+    </span><span class="kw">fn </span>replace_fist_class_calls_with_apply_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;mut </span>Function) {
+        <span class="kw">for </span>block_id <span class="kw">in </span>func.reachable_blocks() {
+            <span class="kw">let </span>block = <span class="kw-2">&amp;mut </span>func.dfg[block_id];
+
+            <span class="attr">#[allow(clippy::unnecessary_to_owned)] </span><span class="comment">// clippy is wrong here
+            </span><span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions().to_vec() {
+                <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>func.dfg[instruction_id];
+
+                <span class="comment">// Operate on call instructions
+                </span><span class="kw">let </span>(target_func_id, arguments) = <span class="kw">match </span><span class="kw-2">&amp;</span>instruction {
+                    Instruction::Call { func: target_func_id, arguments } =&gt; {
+                        (<span class="kw-2">*</span>target_func_id, arguments)
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
+                };
+
+                <span class="comment">// If the target is a function used as value
+                </span><span class="kw">use </span>Value::Param;
+                <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>func.dfg[target_func_id], Param { .. } | Value::Instruction { .. }) {
+                    <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.clone();
+                    <span class="kw">let </span>results = func.dfg.instruction_results(instruction_id);
+                    <span class="kw">let </span>signature = Signature {
+                        params: vecmap(<span class="kw-2">&amp;</span>arguments, |param| func.dfg.type_of_value(<span class="kw-2">*</span>param)),
+                        returns: vecmap(results, |result| func.dfg.type_of_value(<span class="kw-2">*</span>result)),
+                    };
+
+                    <span class="comment">// Find the correct apply function
+                    </span><span class="kw">let </span><span class="prelude-val">Some</span>(apply_function) =
+                        <span class="self">self</span>.get_apply_function(signature.clone(), func.runtime())
+                    <span class="kw">else </span>{
+                        <span class="comment">// If there is no apply function then this should be a parameter in a function
+                        // that will never actually be called, and the DIE pass will eventually remove it.
+                        </span><span class="kw">continue</span>;
+                    };
+
+                    <span class="comment">// Replace the instruction with a call to apply
+                    </span><span class="kw">let </span>apply_function_value_id = func.dfg.import_function(apply_function.id);
+                    <span class="kw">if </span>apply_function.dispatches_to_multiple_functions {
+                        arguments.insert(<span class="number">0</span>, target_func_id);
+                    }
+                    <span class="kw">let </span>func_id = apply_function_value_id;
+                    <span class="kw">let </span>replacement_instruction = Instruction::Call { func: func_id, arguments };
+                    func.dfg[instruction_id] = replacement_instruction;
+                }
+            }
         }
     }
 
@@ -1456,15 +1715,13 @@
             block.set_terminator(terminator);
 
             <span class="comment">// Now we can finally change each instruction, replacing
-            // each first class function with a field value and replacing calls
-            // to a first class function to a call to the relevant `apply` function.
+            // each first class function with a field value.
             </span><span class="attr">#[allow(clippy::unnecessary_to_owned)] </span><span class="comment">// clippy is wrong here
             </span><span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions().to_vec() {
                 <span class="kw">let </span><span class="kw-2">mut </span>instruction = func.dfg[instruction_id].clone();
-                <span class="kw">let </span><span class="kw-2">mut </span>replacement_instruction = <span class="prelude-val">None</span>;
 
                 <span class="kw">if </span>remove_first_class_functions_in_instruction(func, <span class="kw-2">&amp;mut </span>instruction) {
-                    func.dfg[instruction_id] = instruction.clone();
+                    func.dfg[instruction_id] = instruction;
                 }
 
                 <span class="attr">#[allow(clippy::unnecessary_to_owned)] </span><span class="comment">// clippy is wrong here
@@ -1473,49 +1730,6 @@
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
                         func.dfg.set_type_of_value(result, rep);
                     }
-                }
-
-                <span class="comment">// Operate on call instructions
-                </span><span class="kw">let </span>(target_func_id, arguments) = <span class="kw">match </span><span class="kw-2">&amp;</span>instruction {
-                    Instruction::Call { func: target_func_id, arguments } =&gt; {
-                        (<span class="kw-2">*</span>target_func_id, arguments)
-                    }
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">continue</span>;
-                    }
-                };
-
-                <span class="kw">match </span>func.dfg[target_func_id] {
-                    <span class="comment">// If the target is a function used as value
-                    </span>Value::Param { .. } | Value::Instruction { .. } =&gt; {
-                        <span class="kw">let </span><span class="kw-2">mut </span>arguments = arguments.clone();
-                        <span class="kw">let </span>results = func.dfg.instruction_results(instruction_id);
-                        <span class="kw">let </span>signature = Signature {
-                            params: vecmap(<span class="kw-2">&amp;</span>arguments, |param| func.dfg.type_of_value(<span class="kw-2">*</span>param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(<span class="kw-2">*</span>result)),
-                        };
-
-                        <span class="comment">// Find the correct apply function
-                        </span><span class="kw">let </span><span class="prelude-val">Some</span>(apply_function) =
-                            <span class="self">self</span>.get_apply_function(signature, func.runtime())
-                        <span class="kw">else </span>{
-                            <span class="comment">// If there is no apply function then this should be a parameter in a function
-                            // that will never actually be called, and the DIE pass will eventually remove it.
-                            </span><span class="kw">continue</span>;
-                        };
-
-                        <span class="comment">// Replace the instruction with a call to apply
-                        </span><span class="kw">let </span>apply_function_value_id = func.dfg.import_function(apply_function.id);
-                        <span class="kw">if </span>apply_function.dispatches_to_multiple_functions {
-                            arguments.insert(<span class="number">0</span>, target_func_id);
-                        }
-                        <span class="kw">let </span>func = apply_function_value_id;
-                        replacement_instruction = <span class="prelude-val">Some</span>(Instruction::Call { func, arguments });
-                    }
-                    <span class="kw">_ </span>=&gt; {}
-                }
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(new_instruction) = replacement_instruction {
-                    func.dfg[instruction_id] = new_instruction;
                 }
             }
         }
@@ -1659,7 +1873,8 @@
     functions_as_values
 }
 
-<span class="doccomment">/// Finds all dynamic dispatch signatures in the given function
+<span class="doccomment">/// Finds all dynamic dispatch signatures in the given function.
+/// Note that these are the signatures before function types are mutated to turn into field types.
 ///
 /// A dynamic dispatch is defined as a call into a function value where that
 /// value comes from a parameter (i.e., calling a function passed as a function parameter
@@ -1701,35 +1916,39 @@
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// [ApplyFunctions]
+/// [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+/// into field types. The inner apply function itself will have its defunctionalized type,
+/// with function values represented as field values.
 </span><span class="kw">fn </span>create_apply_functions(ssa: <span class="kw-2">&amp;mut </span>Ssa, variants_map: Variants) -&gt; ApplyFunctions {
     <span class="kw">let </span><span class="kw-2">mut </span>apply_functions = HashMap::default();
-    <span class="kw">for </span>((<span class="kw-2">mut </span>signature, runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
+
+    <span class="kw">for </span>((signature, runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
         <span class="kw">if </span>variants.is_empty() {
             <span class="comment">// If no variants exist for a dynamic call we leave removing those dead parameters to DIE
             </span><span class="kw">continue</span>;
         }
         <span class="kw">let </span>dispatches_to_multiple_functions = variants.len() &gt; <span class="number">1</span>;
 
+        <span class="comment">// This will be the same signature but with each function type replaced with
+        // a Field type.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>defunctionalized_signature = signature.clone();
+
         <span class="comment">// Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
-        </span><span class="kw">for </span>param <span class="kw">in </span><span class="kw-2">&amp;mut </span>signature.params {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(param) {
-                <span class="kw-2">*</span>param = rep;
-            }
-        }
-
-        <span class="comment">// Update the return value types as we did for the signature parameters above.
-        </span><span class="kw">for </span>ret <span class="kw">in </span><span class="kw-2">&amp;mut </span>signature.returns {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(ret) {
-                <span class="kw-2">*</span>ret = rep;
+        </span><span class="kw">for </span>typ <span class="kw">in </span>defunctionalized_signature
+            .params
+            .iter_mut()
+            .chain(<span class="kw-2">&amp;mut </span>defunctionalized_signature.returns)
+        {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
+                <span class="kw-2">*</span>typ = rep;
             }
         }
 
         <span class="kw">let </span>id = <span class="kw">if </span>dispatches_to_multiple_functions {
             <span class="comment">// If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            </span>create_apply_function(ssa, signature.clone(), runtime, variants)
+            </span>create_apply_function(ssa, defunctionalized_signature, runtime, variants)
         } <span class="kw">else </span>{
             <span class="comment">// If there is only variant, we can use it directly rather than creating a new apply function.
             </span>variants[<span class="number">0</span>]
@@ -1737,6 +1956,7 @@
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
     }
+
     apply_functions
 }
 
@@ -1758,7 +1978,7 @@
 ///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
-/// - `signature`: The shared [Signature] of all variants.
+/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
 /// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.
@@ -1968,9 +2188,12 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
+    <span class="kw">use crate</span>::{
+        assert_ssa_snapshot,
+        ssa::{ir::function::FunctionId, opt::defunctionalize::create_apply_functions},
+    };
 
-    <span class="kw">use </span><span class="kw">super</span>::Ssa;
+    <span class="kw">use super</span>::{Ssa, find_variants};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>apply_inherits_caller_runtime() {
@@ -2617,5 +2840,184 @@
         <span class="macro">assert!</span>(functions.contains(<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>))); <span class="comment">// foo
         </span><span class="macro">assert!</span>(functions.contains(<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>))); <span class="comment">// bar
     </span>}
+
+    <span class="doccomment">/// Ensure apply function are cached with the signature of the function before any mutations occur
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>regression_8896() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            acir(inline) fn main f0 {
+            b0(v0: Field):
+                v3 = call f1(f2) -&gt; Field
+                v5 = call f1(f3) -&gt; Field
+                v7 = eq v0, Field 0
+                jmpif v7 then: b1, else: b2
+            b1():
+                jmp b3(f4)
+            b2():
+                jmp b3(f5)
+            b3(v10: function):
+                v11 = add v3, v5
+                v12 = call v10(v0) -&gt; Field
+                v13 = add v11, v12
+                return v13
+            }
+            acir(inline) fn dispatch1 f1 {
+            b0(v0: function):
+                v2 = call v0(f6) -&gt; Field
+                v4 = mul v2, Field 3
+                return v4
+            }
+            acir(inline) fn lambda f2 {
+            b0(v0: function):
+                return Field 1
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function):
+                return Field 2
+            }
+            acir(inline) fn fn1 f4 {
+            b0(v0: Field):
+                v2 = add v0, Field 1
+                return v2
+            }
+            acir(inline) fn fn2 f5 {
+            b0(v0: Field):
+                v2 = mul v0, Field 5
+                return v2
+            }
+            acir(inline) fn lambda f6 {
+            b0():
+                return Field 0
+            }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 2) -&gt; Field
+            v6 = call f1(Field 3) -&gt; Field
+            v8 = eq v0, Field 0
+            jmpif v8 then: b1, else: b2
+          b1():
+            jmp b3(Field 4)
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            v11 = add v4, v6
+            v13 = call f7(v1, v0) -&gt; Field
+            v14 = add v11, v13
+            return v14
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v3 = call f8(v0, Field 6) -&gt; Field
+            v5 = mul v3, Field 3
+            return v5
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: Field):
+            return Field 1
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: Field):
+            return Field 2
+        }
+        acir(inline) fn fn1 f4 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        acir(inline) fn fn2 f5 {
+          b0(v0: Field):
+            v2 = mul v0, Field 5
+            return v2
+        }
+        acir(inline) fn lambda f6 {
+          b0():
+            return Field 0
+        }
+        acir(inline_always) fn apply f7 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 4
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 5
+            v9 = call f5(v1) -&gt; Field
+            jmp b3(v9)
+          b2():
+            v6 = call f4(v1) -&gt; Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        acir(inline_always) fn apply f8 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 3
+            v9 = call f3(v1) -&gt; Field
+            jmp b3(v9)
+          b2():
+            v6 = call f2(v1) -&gt; Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        "</span>);
+    }
+
+    <span class="doccomment">/// Ensure the correct type signature is used for recursive calls. We should expect 2 apply
+    /// functions generated, not one.
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>regression_8897() {
+        <span class="kw">let </span>src = <span class="string">r#"
+            acir(inline) fn main f0 {
+            b0():
+                v3 = call f1(f2, Field 0) -&gt; Field
+                return v3
+            }
+            acir(inline) fn simple_recur f1 {
+            b0(v0: function, v1: Field):
+                v3 = eq v1, Field 0
+                jmpif v3 then: b1, else: b2
+            b1():
+                jmp b3(f1)
+            b2():
+                jmp b3(f3)
+            b3(v6: function):
+                v9 = add v1, Field 1
+                v10 = call v6(f4, v9) -&gt; Field
+                v11 = call v0(v10, Field 0) -&gt; Field
+                return v11
+            }
+            acir(inline) fn fn1 f2 {
+            b0(v0: Field, v1: Field):
+                v3 = add v0, Field 1
+                return v3
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function, v1: Field):
+                v4 = call f2(Field 0, Field 0) -&gt; Field
+                return v4
+            }
+            acir(inline) fn fn2 f4 {
+            b0(v0: Field, v1: Field):
+                v3 = mul v1, Field 5
+                return v3
+            }
+        "#</span>;
+
+        <span class="kw">let </span><span class="kw-2">mut </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>variants = find_variants(<span class="kw-2">&amp;</span>ssa);
+        <span class="macro">assert_eq!</span>(variants.len(), <span class="number">2</span>);
+
+        <span class="kw">let </span>apply_functions = create_apply_functions(<span class="kw-2">&amp;mut </span>ssa, variants);
+        <span class="comment">// This was 1 before this bug was fixed.
+        </span><span class="macro">assert_eq!</span>(apply_functions.len(), <span class="number">2</span>);
+    }
 }
 </code></pre></div></section></main></body></html>
