@@ -276,7 +276,8 @@
 <a href="#275" id="275">275</a>
 <a href="#276" id="276">276</a>
 <a href="#277" id="277">277</a>
-<a href="#278" id="278">278</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
@@ -373,7 +374,8 @@
         <span class="kw">let </span>(prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(<span class="kw-2">&amp;</span>prover_file, <span class="kw-2">&amp;</span>abi)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>ssa_input = noir_ast_fuzzer::input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>prover_input);
+        <span class="comment">// We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        </span><span class="kw">let </span>ssa_args = noir_ast_fuzzer::input_values_to_ssa(<span class="kw-2">&amp;</span>abi, <span class="kw-2">&amp;</span>prover_input);
 
         <span class="kw">let </span>ssa_return =
             <span class="kw">if let </span>(<span class="prelude-val">Some</span>(return_type), <span class="prelude-val">Some</span>(return_value)) = (<span class="kw-2">&amp;</span>abi.return_type, return_value) {
@@ -393,7 +395,7 @@
             <span class="kw-2">&amp;</span>args.ssa_pass,
             <span class="kw-2">&amp;mut </span>ssa,
             <span class="string">"Initial SSA"</span>,
-            <span class="kw-2">&amp;</span>ssa_input,
+            <span class="kw-2">&amp;</span>ssa_args,
             <span class="kw-2">&amp;</span>ssa_return,
             interpreter_options,
         )<span class="question-mark">?</span>;
@@ -415,7 +417,7 @@
                 <span class="kw-2">&amp;</span>args.ssa_pass,
                 <span class="kw-2">&amp;mut </span>ssa,
                 <span class="kw-2">&amp;</span>msg,
-                <span class="kw-2">&amp;</span>ssa_input,
+                <span class="kw-2">&amp;</span>ssa_args,
                 <span class="kw-2">&amp;</span>ssa_return,
                 interpreter_options,
             )<span class="question-mark">?</span>;

@@ -1404,7 +1404,186 @@
 <a href="#1403" id="1403">1403</a>
 <a href="#1404" id="1404">1404</a>
 <a href="#1405" id="1405">1405</a>
-<a href="#1406" id="1406">1406</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1439,6 +1618,9 @@
 <span class="doccomment">/// Use random strings to identify constraints.
 </span><span class="kw">const </span>CONSTRAIN_MSG_TYPE: Type = Type::String(<span class="number">3</span>);
 
+<span class="doccomment">/// We need to track whether expressions are coming from dynamic program inputs.
+</span><span class="kw">type </span>TrackedExpression = (Expression, bool);
+
 <span class="doccomment">/// Something akin to a forward declaration of a function, capturing the details required to:
 /// 1. call the function from the other function bodies
 /// 2. generate the final HIR function signature
@@ -1465,6 +1647,19 @@
             (!types::is_unit(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)).then(|| types::to_hir_type(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type));
 
         (param_types, return_type)
+    }
+
+    <span class="doccomment">/// Check if any of the parameters or return value contain a reference.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>has_refs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.takes_refs() || <span class="self">self</span>.returns_refs()
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>takes_refs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.params.iter().any(|(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>)| types::contains_reference(typ))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>returns_refs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        types::contains_reference(<span class="kw-2">&amp;</span><span class="self">self</span>.return_type)
     }
 }
 
@@ -1494,22 +1689,21 @@
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>can_call(
     caller_id: FuncId,
     caller_unconstrained: bool,
+    caller_returns_ref: bool,
     callee_id: FuncId,
     callee_unconstrained: bool,
+    callee_has_refs: bool,
 ) -&gt; bool {
     <span class="comment">// Nobody should call `main`.
     </span><span class="kw">if </span>callee_id == Program::main_id() {
         <span class="kw">return </span><span class="bool-val">false</span>;
     }
 
-    <span class="comment">// From an ACIR function we can call any Brillig function,
-    // but we avoid creating infinite recursive ACIR calls by
-    // only calling functions with lower IDs than ours,
-    // otherwise the inliner could get stuck.
-    </span><span class="kw">if </span>!caller_unconstrained &amp;&amp; !callee_unconstrained {
-        <span class="comment">// Higher calls lower, so we can use this rule to pick function parameters
-        // as we create the declarations: we can pass functions already declared.
-        </span><span class="kw">return </span>callee_id &lt; caller_id;
+    <span class="comment">// The compiler cannot handle returning references from `if-then-else`;
+    // since the `limit` module currently inserts an `if ctx_limit == 0`,
+    // returning a literal, it would violate this if the return has `&amp;mut`.
+    </span><span class="kw">if </span>caller_returns_ref {
+        <span class="kw">return </span><span class="bool-val">false</span>;
     }
 
     <span class="comment">// From a Brillig function we restrict ourselves to only call
@@ -1524,8 +1718,19 @@
         <span class="kw">return </span>callee_unconstrained;
     }
 
-    <span class="bool-val">true
-</span>}
+    <span class="comment">// When calling ACIR from ACIR, we avoid creating infinite
+    // recursion by only calling functions with lower IDs,
+    // otherwise the inliner could get stuck.
+    </span><span class="kw">if </span>!callee_unconstrained {
+        <span class="comment">// Higher calls lower, so we can use this rule to pick function parameters
+        // as we create the declarations: we can pass functions already declared.
+        </span><span class="kw">return </span>callee_id &lt; caller_id;
+    }
+
+    <span class="comment">// When calling Brillig from ACIR, we avoid calling functions that take or return
+    // references, which cannot be passed between the two.
+    </span>!callee_has_refs
+}
 
 <span class="doccomment">/// Control what kind of expressions we can generate, depending on the surrounding context.
 </span><span class="attr">#[derive(Debug, Clone, Copy)]
@@ -1569,9 +1774,13 @@
     /// initially consisting of the function parameters, then extended
     /// by locally defined variables. Block scopes add and remove layers.
     </span>locals: ScopeStack&lt;LocalId&gt;,
+    <span class="doccomment">/// Indicate which local variables are derived from function inputs.
+    </span>dynamics: BTreeSet&lt;LocalId&gt;,
     <span class="doccomment">/// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     </span>in_loop: bool,
+    <span class="doccomment">/// Indicator of computing an expression that should not contain dynamic input.
+    </span>in_no_dynamic: bool,
     <span class="doccomment">/// All the functions callable from this one, with the types we can
     /// produce from their return value.
     </span>call_targets: BTreeMap&lt;CallableId, HashSet&lt;Type&gt;&gt;,
@@ -1597,12 +1806,21 @@
                 .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
         );
 
+        <span class="kw">let </span>dynamics = locals.current().variable_ids().cloned().collect();
+
         <span class="comment">// Collect all the functions we can call from this one.
         </span><span class="kw">let </span><span class="kw-2">mut </span>call_targets = BTreeMap::new();
 
         <span class="comment">// Consider calling any allowed global function.
         </span><span class="kw">for </span>(callee_id, callee_decl) <span class="kw">in </span><span class="kw-2">&amp;</span>ctx.function_declarations {
-            <span class="kw">if </span>!can_call(id, decl.unconstrained, <span class="kw-2">*</span>callee_id, callee_decl.unconstrained) {
+            <span class="kw">if </span>!can_call(
+                id,
+                decl.unconstrained,
+                decl.returns_refs(),
+                <span class="kw-2">*</span>callee_id,
+                callee_decl.unconstrained,
+                callee_decl.has_refs(),
+            ) {
                 <span class="kw">continue</span>;
             }
             <span class="kw">let </span>produces = types::types_produced(<span class="kw-2">&amp;</span>callee_decl.return_type);
@@ -1611,7 +1829,7 @@
 
         <span class="comment">// Consider function pointers as callable; they are already filtered during construction.
         </span><span class="kw">for </span>(callee_id, <span class="kw">_</span>, <span class="kw">_</span>, typ, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>decl.params {
-            <span class="kw">let </span>Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+            <span class="kw">let </span>Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = types::unref(typ) <span class="kw">else </span>{
                 <span class="kw">continue</span>;
             };
             <span class="kw">let </span>produces = types::types_produced(return_type);
@@ -1625,7 +1843,9 @@
             budget,
             globals,
             locals,
+            dynamics,
             in_loop: <span class="bool-val">false</span>,
+            in_no_dynamic: <span class="bool-val">false</span>,
             call_targets,
             next_ident_id: <span class="number">0</span>,
             has_call: <span class="bool-val">false</span>,
@@ -1638,7 +1858,7 @@
         // it gives us a lot of `false` and 0 and we end up with deep `!(!false)` if expressions.
         </span><span class="self">self</span>.budget = <span class="self">self</span>.budget.min(u.len());
         <span class="kw">let </span>ret = <span class="self">self</span>.decl().return_type.clone();
-        <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>ret, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(<span class="kw-2">mut </span>body, <span class="kw">_</span>) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>ret, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(call) = <span class="self">self</span>.gen_guaranteed_call_from_main(u)<span class="question-mark">? </span>{
             expr::prepend(<span class="kw-2">&amp;mut </span>body, call);
         }
@@ -1695,16 +1915,47 @@
         id
     }
 
+    <span class="doccomment">/// Check if a variable is derived from dynamic input.
+    ///
+    /// A variable can become statically known after re-assignment.
+    </span><span class="kw">fn </span>is_dynamic(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>LocalId) -&gt; bool {
+        <span class="self">self</span>.dynamics.contains(id)
+    }
+
     <span class="doccomment">/// Choose a producer for a type, preferring local variables over global ones.
     </span><span class="kw">fn </span>choose_producer(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;VariableId&gt;&gt; {
-        <span class="kw">if </span>u.ratio(<span class="number">7</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.locals.current().choose_producer(u, typ)<span class="question-mark">? </span>{
+        <span class="comment">// Check if we have something that produces this exact type.
+        </span><span class="kw">if </span>u.ratio(<span class="number">7</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
+            <span class="kw">let </span>producer = <span class="kw">if </span><span class="self">self</span>.in_no_dynamic {
+                <span class="self">self</span>.locals
+                    .current()
+                    .choose_producer_filtered(u, typ, |id, <span class="kw">_</span>| !<span class="self">self</span>.is_dynamic(id))<span class="question-mark">?
+            </span>} <span class="kw">else </span>{
+                <span class="self">self</span>.locals.current().choose_producer(u, typ)<span class="question-mark">?
+            </span>};
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = producer {
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(VariableId::Local(id)));
             }
+        }
+        <span class="comment">// If we're looking for a mutable reference, we have to choose some
+        // mutable local variable and take a reference over it.
+        // We can't use a global for this, because they are immutable.
+        </span><span class="kw">if let </span>Type::Reference(typ, <span class="bool-val">true</span>) = typ {
+            <span class="comment">// Find an underlying mutable variable we can take a reference over.
+            // We cannot have mutable references to array elements.
+            </span><span class="kw">return </span><span class="self">self
+                </span>.locals
+                .current()
+                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, <span class="kw">_</span>, prod)| {
+                    <span class="kw-2">*</span>mutable
+                        &amp;&amp; (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                        &amp;&amp; (!<span class="self">self</span>.in_no_dynamic || !<span class="self">self</span>.is_dynamic(id))
+                })
+                .map(|id| id.map(VariableId::Local));
         }
         <span class="self">self</span>.globals.choose_producer(u, typ).map(|id| id.map(VariableId::Global))
     }
@@ -1736,7 +1987,7 @@
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
         flags: Flags,
-    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+    ) -&gt; arbitrary::Result&lt;TrackedExpression&gt; {
         <span class="comment">// For now if we need a function, return one without further nesting, e.g. avoid `if &lt;cond&gt; { func_1 } else { func_2 }`,
         // because it makes it harder to rewrite functions to add recursion limit: we would need to replace functions in the
         // expressions to proxy version if we call Brillig from ACIR, but we would also need to keep track whether we are calling a function,
@@ -1745,13 +1996,29 @@
         // We could replace `brillig_func_2` with `brillig_func_2_proxy`, but we wouldn't replace `brillig_func_4` with `brillig_func_4_proxy`
         // because that is a parameter of another call. But we would have to deal with the return value.
         // For this reason we handle function parameters directly here.
-        </span><span class="kw">if </span><span class="macro">matches!</span>(typ, Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>)) {
-            <span class="comment">// Prefer functions in variables over globals.
-            </span><span class="kw">return match </span><span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">? </span>{
-                <span class="prelude-val">Some</span>(expr) =&gt; <span class="prelude-val">Ok</span>(expr),
-                <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.find_global_function_with_signature(u, typ),
-            };
-        }
+        </span><span class="kw">if </span>types::is_function(types::unref(typ)) {
+            <span class="kw">if let </span>Type::Reference(typ, <span class="kw">_</span>) = typ {
+                <span class="comment">// We might have an `&amp;mut &amp;mut fn(...) -&gt; ...`; we recursively peel
+                // off layers of references until we can generate an expression that
+                // returns an `fn`, and then take a reference over it to restore.
+                </span><span class="kw">let </span>(expr, is_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, flags)<span class="question-mark">?</span>;
+                <span class="comment">// If the expression is a read-only global ident, then assign a variable first.
+                </span><span class="kw">let </span>expr = <span class="kw">if </span>expr::is_immutable_ident(<span class="kw-2">&amp;</span>expr) {
+                    <span class="self">self</span>.indirect_ref_mut((expr, is_dyn), typ.as_ref().clone())
+                } <span class="kw">else </span>{
+                    expr::ref_mut(expr, typ.as_ref().clone())
+                };
+                <span class="kw">return </span><span class="prelude-val">Ok</span>((expr, is_dyn));
+            } <span class="kw">else </span>{
+                <span class="comment">// Prefer functions in variables over globals.
+                </span><span class="kw">return match </span><span class="self">self</span>.gen_expr_from_vars(u, typ, max_depth)<span class="question-mark">? </span>{
+                    <span class="prelude-val">Some</span>(expr) =&gt; <span class="prelude-val">Ok</span>(expr),
+                    <span class="prelude-val">None </span>=&gt; {
+                        <span class="self">self</span>.find_global_function_with_signature(u, typ).map(|expr| (expr, <span class="bool-val">false</span>))
+                    }
+                };
+            }
+        };
 
         <span class="kw">let </span><span class="kw-2">mut </span>freq = Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.expr_freqs)<span class="question-mark">?</span>;
 
@@ -1763,7 +2030,10 @@
             &amp;&amp; max_depth == <span class="self">self</span>.ctx.config.max_depth
             &amp;&amp; <span class="self">self</span>.budget &gt; <span class="number">0</span>;
 
-        <span class="kw">let </span>allow_if_then = flags.allow_if_then &amp;&amp; allow_nested &amp;&amp; <span class="self">self</span>.budget &gt; <span class="number">0</span>;
+        <span class="kw">let </span>allow_if_then = flags.allow_if_then
+            &amp;&amp; allow_nested
+            &amp;&amp; <span class="self">self</span>.budget &gt; <span class="number">0
+            </span>&amp;&amp; !types::contains_reference(typ);
 
         <span class="kw">if </span>freq.enabled_when(<span class="string">"unary"</span>, allow_nested &amp;&amp; types::can_unary_return(typ)) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_unary(u, typ, max_depth)<span class="question-mark">? </span>{
@@ -1806,7 +2076,7 @@
         <span class="comment">// TODO(#7926): Match
 
         // If nothing else worked out we can always produce a random literal.
-        </span>expr::gen_literal(u, typ)
+        </span>expr::gen_literal(u, typ).map(|expr| (expr, <span class="bool-val">false</span>))
     }
 
     <span class="doccomment">/// Try to generate an expression with a certain type out of the variables in scope.
@@ -1815,12 +2085,18 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.choose_producer(u, typ)<span class="question-mark">? </span>{
             <span class="kw">let </span>(mutable, src_name, src_type) = <span class="self">self</span>.get_variable(<span class="kw-2">&amp;</span>id).clone();
             <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
             <span class="kw">let </span>src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_source(u, src_expr, <span class="kw-2">&amp;</span>src_type, typ, max_depth)<span class="question-mark">? </span>{
+            <span class="kw">let </span>src_dyn = <span class="kw">match </span>id {
+                VariableId::Global(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                VariableId::Local(id) =&gt; <span class="self">self</span>.is_dynamic(<span class="kw-2">&amp;</span>id),
+            };
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) =
+                <span class="self">self</span>.gen_expr_from_source(u, (src_expr, src_dyn), <span class="kw-2">&amp;</span>src_type, typ, max_depth)<span class="question-mark">?
+            </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr));
             }
         } <span class="kw">else </span>{
@@ -1831,19 +2107,25 @@
                         contents: Vec::with_capacity(<span class="kw-2">*</span>len <span class="kw">as </span>usize),
                         typ: typ.clone(),
                     };
+                    <span class="kw">let </span><span class="kw-2">mut </span>arr_dyn = <span class="bool-val">false</span>;
                     <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
-                        <span class="kw">let </span>item = <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::NESTED)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>(item, item_dyn) =
+                            <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::NESTED)<span class="question-mark">?</span>;
+                        arr_dyn |= item_dyn;
                         arr.contents.push(item);
                     }
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Literal(Literal::Array(arr))));
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((Expression::Literal(Literal::Array(arr)), arr_dyn)));
                 }
                 Type::Tuple(items) =&gt; {
                     <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::with_capacity(items.len());
+                    <span class="kw">let </span><span class="kw-2">mut </span>tup_dyn = <span class="bool-val">false</span>;
                     <span class="kw">for </span>item_type <span class="kw">in </span>items {
-                        <span class="kw">let </span>item = <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::NESTED)<span class="question-mark">?</span>;
+                        <span class="kw">let </span>(item, item_dyn) =
+                            <span class="self">self</span>.gen_expr(u, item_type, max_depth, Flags::NESTED)<span class="question-mark">?</span>;
+                        tup_dyn |= item_dyn;
                         values.push(item);
                     }
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Tuple(values)));
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((Expression::Tuple(values), tup_dyn)));
                 }
                 <span class="kw">_ </span>=&gt; {}
             }
@@ -1859,18 +2141,21 @@
     </span><span class="kw">fn </span>gen_expr_from_source(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
-        src_expr: Expression,
+        (src_expr, src_dyn): TrackedExpression,
         src_type: <span class="kw-2">&amp;</span>Type,
         tgt_type: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// If we found our type, return it without further ado.
         </span><span class="kw">if </span>src_type == tgt_type {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(src_expr));
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((src_expr, src_dyn)));
         }
 
         <span class="comment">// Cast the source into the target type.
-        </span><span class="kw">let </span>src_as_tgt = || <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr::cast(src_expr.clone(), tgt_type.clone())));
+        </span><span class="kw">let </span>src_as_tgt = || {
+            <span class="kw">let </span>expr = expr::cast(src_expr.clone(), tgt_type.clone());
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
+        };
 
         <span class="comment">// See how we can produce tgt from src.
         </span><span class="kw">match </span>(src_type, tgt_type) {
@@ -1886,16 +2171,34 @@
                 src_as_tgt()
             }
             (Type::Reference(typ, <span class="kw">_</span>), <span class="kw">_</span>) <span class="kw">if </span>typ.as_ref() == tgt_type =&gt; {
-                <span class="kw">let </span>e = <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>{
-                    Expression::Clone(Box::new(src_expr))
-                } <span class="kw">else </span>{
-                    expr::deref(src_expr, tgt_type.clone())
-                };
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(e))
+                <span class="kw">let </span>expr = expr::deref(src_expr, tgt_type.clone());
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
+            }
+            (<span class="kw">_</span>, Type::Reference(typ, <span class="bool-val">true</span>)) <span class="kw">if </span>typ.as_ref() == src_type =&gt; {
+                <span class="kw">let </span>expr = expr::ref_mut(src_expr, typ.as_ref().clone());
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
             }
             (Type::Array(len, item_typ), <span class="kw">_</span>) <span class="kw">if </span><span class="kw-2">*</span>len &gt; <span class="number">0 </span>=&gt; {
+                <span class="comment">// Indexing arrays that contains references with dynamic indexes was banned in #8888
+                // If we are already looking for an index where we can't use dynamic inputs,
+                // don't switch to using them again, as the result can indirectly poison the outer array.
+                // For example this would be wrong:
+                //
+                // fn main(i: u32) -&gt; pub u32 {
+                //     let a = [&amp;mut 0, &amp;mut 1];
+                //     let b = [0, 1];
+                //     *a[b[i]]
+                // }
+                </span><span class="kw">let </span>no_dynamic = <span class="self">self</span>.in_no_dynamic
+                    || !<span class="self">self</span>.unconstrained() &amp;&amp; types::contains_reference(item_typ);
+                <span class="kw">let </span>was_in_no_dynamic = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_no_dynamic, no_dynamic);
+
                 <span class="comment">// Choose a random index.
-                </span><span class="kw">let </span>idx_expr = <span class="self">self</span>.gen_index(u, <span class="kw-2">*</span>len, max_depth)<span class="question-mark">?</span>;
+                </span><span class="kw">let </span>(idx_expr, idx_dyn) = <span class="self">self</span>.gen_index(u, <span class="kw-2">*</span>len, max_depth)<span class="question-mark">?</span>;
+                <span class="macro">assert!</span>(!(no_dynamic &amp;&amp; idx_dyn), <span class="string">"non-dynamic index expected"</span>);
+
+                <span class="self">self</span>.in_no_dynamic = was_in_no_dynamic;
+
                 <span class="comment">// Access the item.
                 </span><span class="kw">let </span>item_expr = Expression::Index(Index {
                     collection: Box::new(src_expr),
@@ -1904,16 +2207,26 @@
                     location: Location::dummy(),
                 });
                 <span class="comment">// Produce the target type from the item.
-                </span><span class="self">self</span>.gen_expr_from_source(u, item_expr, item_typ, tgt_type, max_depth)
+                </span><span class="self">self</span>.gen_expr_from_source(
+                    u,
+                    (item_expr, src_dyn || idx_dyn),
+                    item_typ,
+                    tgt_type,
+                    max_depth,
+                )
             }
             (Type::Tuple(items), <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Any of the items might be able to produce the target type.
                 </span><span class="kw">let </span><span class="kw-2">mut </span>opts = Vec::new();
                 <span class="kw">for </span>(i, item_type) <span class="kw">in </span>items.iter().enumerate() {
                     <span class="kw">let </span>item_expr = Expression::ExtractTupleField(Box::new(src_expr.clone()), i);
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) =
-                        <span class="self">self</span>.gen_expr_from_source(u, item_expr, item_type, tgt_type, max_depth)<span class="question-mark">?
-                    </span>{
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_source(
+                        u,
+                        (item_expr, src_dyn),
+                        item_type,
+                        tgt_type,
+                        max_depth,
+                    )<span class="question-mark">? </span>{
                         opts.push(expr);
                     }
                 }
@@ -1949,14 +2262,15 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         len: u32,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+    ) -&gt; arbitrary::Result&lt;TrackedExpression&gt; {
         <span class="macro">assert!</span>(len &gt; <span class="number">0</span>, <span class="string">"cannot index empty array"</span>);
         <span class="kw">if </span>max_depth &gt; <span class="number">0 </span>&amp;&amp; u.ratio(<span class="number">1</span>, <span class="number">3</span>)<span class="question-mark">? </span>{
-            <span class="kw">let </span>idx = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>types::U32, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(expr::index_modulo(idx, len))
+            <span class="kw">let </span>(idx, idx_dyn) =
+                <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>types::U32, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>((expr::index_modulo(idx, len), idx_dyn))
         } <span class="kw">else </span>{
             <span class="kw">let </span>idx = u.choose_index(len <span class="kw">as </span>usize)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(expr::u32_literal(idx <span class="kw">as </span>u32))
+            <span class="prelude-val">Ok</span>((expr::u32_literal(idx <span class="kw">as </span>u32), <span class="bool-val">false</span>))
         }
     }
 
@@ -1966,10 +2280,10 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>make_unary = |op| {
             <span class="self">self</span>.gen_expr(u, typ, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)
-                .map(|rhs| <span class="prelude-val">Some</span>(expr::unary(op, rhs, typ.clone())))
+                .map(|(rhs, is_dyn)| <span class="prelude-val">Some</span>((expr::unary(op, rhs, typ.clone()), is_dyn)))
         };
         <span class="kw">if </span>types::is_numeric(typ) {
             <span class="comment">// Assume we already checked with `can_unary_return` that it's signed.
@@ -1987,7 +2301,7 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// Collect the operations can return the expected type.
         </span><span class="kw">let </span>ops = BinaryOp::iter()
             .filter(|op| {
@@ -2042,8 +2356,10 @@
         };
 
         <span class="comment">// Generate expressions for LHS and RHS.
-        </span><span class="kw">let </span>lhs_expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
-        <span class="kw">let </span>rhs_expr = <span class="self">self</span>.gen_expr(u, rhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>(lhs_expr, lhs_dyn) =
+            <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(rhs_expr, rhs_dyn) =
+            <span class="self">self</span>.gen_expr(u, rhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
 
@@ -2052,13 +2368,28 @@
             expr = expr::cast(expr, typ.clone());
         }
 
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr))
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, lhs_dyn || rhs_dyn)))
     }
 
     <span class="doccomment">/// Generate a block of statements, finally returning a target type.
     ///
     /// This should always succeed, as we can always create a literal in the end.
-    </span><span class="kw">fn </span>gen_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
+    ///
+    /// We might use dynamic input in the block and _not_ return a dynamic result from it. For example:
+    /// ```ignore
+    /// fn main(a: u32) -&gt; u32 {
+    ///     let b: u32 = {
+    ///         let c = a + 1;
+    ///         2
+    ///     };
+    ///     b
+    /// }
+    /// ```
+    </span><span class="kw">fn </span>gen_block(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+    ) -&gt; arbitrary::Result&lt;TrackedExpression&gt; {
         <span class="comment">// The `max_depth` resets here, because that's only relevant in complex expressions.
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
         <span class="kw">let </span>max_size = <span class="self">self</span>.ctx.config.max_block_size.min(<span class="self">self</span>.budget);
@@ -2071,6 +2402,8 @@
         <span class="comment">// Choose a positive number of statements.
         </span><span class="kw">let </span>size = u.int_in_range(<span class="number">1</span>..=max_size)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>stmts = Vec::with_capacity(size);
+        <span class="comment">// Only the last statement counts into whether the block is dynamic.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>is_dyn = <span class="bool-val">false</span>;
 
         <span class="self">self</span>.locals.enter();
         <span class="self">self</span>.decrease_budget(<span class="number">1</span>);
@@ -2086,15 +2419,20 @@
             // NB the AST printer puts a `;` between all statements, including after `if` and `for`.
             </span>stmts.push(Expression::Semi(Box::new(<span class="self">self</span>.gen_stmt(u)<span class="question-mark">?</span>)));
         } <span class="kw">else </span>{
-            stmts.push(<span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>);
+            <span class="kw">let </span>(expr, expr_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+            is_dyn = expr_dyn;
+            stmts.push(expr);
         }
         <span class="self">self</span>.locals.exit();
 
-        <span class="prelude-val">Ok</span>(Expression::Block(stmts))
+        <span class="prelude-val">Ok</span>((Expression::Block(stmts), is_dyn))
     }
 
     <span class="doccomment">/// Generate a statement, which is an expression that doesn't return anything,
     /// for example loops, variable declarations, etc.
+    ///
+    /// Because the statement doesn't return anything (return unit) we don't track
+    /// whether it used dynamic inputs; there is nothing to propagate.
     </span><span class="kw">fn </span>gen_stmt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>freq = <span class="kw">if </span><span class="self">self</span>.unconstrained() {
             Freq::new(u, <span class="kw-2">&amp;</span><span class="self">self</span>.ctx.config.stmt_freqs_brillig)<span class="question-mark">?
@@ -2103,14 +2441,7 @@
         </span>};
         <span class="comment">// TODO(#7926): Match
 
-        // Start with `drop`, it doesn't need to be frequent even if others are disabled.
-        </span><span class="kw">if </span>freq.enabled(<span class="string">"drop"</span>) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_drop(u)<span class="question-mark">? </span>{
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
-            }
-        }
-
-        <span class="comment">// We don't want constraints to get too frequent, as it could dominate all outcome.
+        // We don't want constraints to get too frequent, as it could dominate all outcome.
         </span><span class="kw">if </span>freq.enabled_when(<span class="string">"constrain"</span>, !<span class="self">self</span>.ctx.config.avoid_constrain) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_constrain(u)<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
@@ -2119,7 +2450,7 @@
 
         <span class="comment">// Require a positive budget, so that we have some for the block itself and its contents.
         </span><span class="kw">if </span>freq.enabled_when(<span class="string">"if"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
-            <span class="kw">return </span><span class="self">self</span>.gen_if(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth(), Flags::TOP);
+            <span class="kw">return </span><span class="self">self</span>.gen_if(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth(), Flags::TOP).map(|(e, <span class="kw">_</span>)| e);
         }
 
         <span class="kw">if </span>freq.enabled_when(<span class="string">"for"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
@@ -2127,7 +2458,7 @@
         }
 
         <span class="kw">if </span>freq.enabled_when(<span class="string">"call"</span>, <span class="self">self</span>.budget &gt; <span class="number">0</span>) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
             }
         }
@@ -2173,16 +2504,9 @@
         </span><span class="kw">let </span>max_depth = <span class="self">self</span>.max_depth();
         <span class="kw">let </span>comptime_friendly = <span class="self">self</span>.is_comptime_friendly();
         <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, comptime_friendly)<span class="question-mark">?</span>;
-
-        <span class="comment">// Temporarily set in_loop to false to disallow breaking/continuing out
-        // of the let blocks (which would lead to frontend errors when reversing
-        // the AST into Noir)
-        </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">false</span>);
-        <span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
-        <span class="self">self</span>.in_loop = was_in_loop;
-
+        <span class="kw">let </span>(expr, is_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
         <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>))
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>, is_dyn))
     }
 
     <span class="doccomment">/// Add a new local variable and return a `Let` expression.
@@ -2194,6 +2518,7 @@
         typ: Type,
         expr: Expression,
         add_to_scope: bool,
+        is_dynamic: bool,
     ) -&gt; Expression {
         <span class="kw">let </span>id = <span class="self">self</span>.next_local_id();
         <span class="kw">let </span>name = make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>);
@@ -2203,36 +2528,26 @@
             <span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
+        <span class="kw">if </span>is_dynamic {
+            <span class="self">self</span>.dynamics.insert(id);
+        }
+
         expr::let_var(id, mutable, name, expr)
     }
 
-    <span class="doccomment">/// Drop a local variable, if we have anything to drop.
-    ///
-    /// The `ownership` module has a comment saying it will be the only one inserting `Clone` and `Drop`,
-    /// so this shouldn't be needed unless a user can do it via a `drop`-like method.
-    ///
-    /// Leaving it here for reference, but its frequency is adjusted to be 0.
-    </span><span class="kw">fn </span>gen_drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
-        <span class="kw">if </span><span class="self">self</span>.locals.current().is_empty() {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
-        }
-        <span class="kw">let </span>id = <span class="kw-2">*</span>u.choose_iter(<span class="self">self</span>.locals.current().variable_ids())<span class="question-mark">?</span>;
-
-        <span class="comment">// Remove variable so we stop using it.
-        </span><span class="self">self</span>.locals.remove(<span class="kw-2">&amp;</span>id);
-
-        <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
-
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Drop(Box::new(Expression::Ident(ident)))))
-    }
-
     <span class="doccomment">/// Assign to a mutable variable, if we have one in scope.
+    ///
+    /// It resets the dynamic flag of the assigned variable.
     </span><span class="kw">fn </span>gen_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
         <span class="kw">let </span>opts = <span class="self">self
             </span>.locals
             .current()
             .variables()
-            .filter_map(|(id, (mutable, <span class="kw">_</span>, <span class="kw">_</span>))| mutable.then_some(id))
+            .filter(|(<span class="kw">_</span>, (mutable, <span class="kw">_</span>, typ))| {
+                <span class="comment">// We banned reassigning variables which contain mutable references in ACIR (#8790)
+                </span><span class="kw-2">*</span>mutable &amp;&amp; (<span class="self">self</span>.unconstrained() || !types::contains_reference(typ))
+            })
+            .map(|(id, <span class="kw">_</span>)| id)
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="kw">if </span>opts.is_empty() {
@@ -2244,28 +2559,34 @@
         <span class="kw">let </span>ident = LValue::Ident(ident);
 
         <span class="comment">// For arrays and tuples we can consider assigning to their items.
-        </span><span class="kw">let </span>(lvalue, typ) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
+        </span><span class="kw">let </span>(lvalue, typ, idx_dyn, is_compound) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
             Type::Array(len, typ) <span class="kw">if </span>len &gt; <span class="number">0 </span>&amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
-                <span class="kw">let </span>idx = <span class="self">self</span>.gen_index(u, len, <span class="self">self</span>.max_depth())<span class="question-mark">?</span>;
+                <span class="kw">let </span>(idx, idx_dyn) = <span class="self">self</span>.gen_index(u, len, <span class="self">self</span>.max_depth())<span class="question-mark">?</span>;
                 <span class="kw">let </span>lvalue = LValue::Index {
                     array: Box::new(ident),
                     index: Box::new(idx),
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone())
+                (lvalue, typ.deref().clone(), idx_dyn, <span class="bool-val">true</span>)
             }
             Type::Tuple(items) <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>idx = u.choose_index(items.len())<span class="question-mark">?</span>;
                 <span class="kw">let </span>typ = items[idx].clone();
                 <span class="kw">let </span>lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ)
+                (lvalue, typ, <span class="bool-val">false</span>, <span class="bool-val">true</span>)
             }
-            typ =&gt; (ident, typ),
+            typ =&gt; (ident, typ, <span class="bool-val">false</span>, <span class="bool-val">false</span>),
         };
 
         <span class="comment">// Generate the assigned value.
-        </span><span class="kw">let </span>expr = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>(expr, expr_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>idx_dyn || expr_dyn {
+            <span class="self">self</span>.dynamics.insert(id);
+        } <span class="kw">else if </span>!is_compound &amp;&amp; !idx_dyn &amp;&amp; !expr_dyn {
+            <span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
+        }
 
         <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
     }
@@ -2327,7 +2648,7 @@
     /// otherwise they might mask disagreements in return values.
     </span><span class="kw">fn </span>gen_constrain(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
         <span class="comment">// Generate a condition that evaluates to bool.
-        </span><span class="kw">let </span><span class="prelude-val">Some</span>(cond) = <span class="self">self</span>.gen_binary(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="self">self</span>.max_depth())<span class="question-mark">? </span><span class="kw">else </span>{
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>((cond, <span class="kw">_</span>)) = <span class="self">self</span>.gen_binary(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="self">self</span>.max_depth())<span class="question-mark">? </span><span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
         };
         <span class="comment">// Generate a unique message for the assertion, so it's easy to find which one failed.
@@ -2347,13 +2668,13 @@
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
         flags: Flags,
-    ) -&gt; arbitrary::Result&lt;Expression&gt; {
+    ) -&gt; arbitrary::Result&lt;TrackedExpression&gt; {
         <span class="comment">// Decrease the budget so we avoid a potential infinite nesting of if expressions in the arms.
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
-        <span class="kw">let </span>condition = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, max_depth, Flags::CONDITION)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(cond, cond_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, max_depth, Flags::CONDITION)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>consequence = {
+        <span class="kw">let </span>(cons, cons_dyn) = {
             <span class="kw">if </span>flags.allow_blocks {
                 <span class="self">self</span>.gen_block(u, typ)<span class="question-mark">?
             </span>} <span class="kw">else </span>{
@@ -2361,7 +2682,7 @@
             </span>}
         };
 
-        <span class="kw">let </span>alternative = <span class="kw">if </span>types::is_unit(typ) &amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>{
+        <span class="kw">let </span>alt = <span class="kw">if </span>types::is_unit(typ) &amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>{
             <span class="prelude-val">None
         </span>} <span class="kw">else </span>{
             <span class="self">self</span>.decrease_budget(<span class="number">1</span>);
@@ -2373,7 +2694,10 @@
             <span class="prelude-val">Some</span>(expr)
         };
 
-        <span class="prelude-val">Ok</span>(expr::if_then(condition, consequence, alternative, typ.clone()))
+        <span class="kw">let </span>alt_dyn = alt.as_ref().is_some_and(|(<span class="kw">_</span>, d)| <span class="kw-2">*</span>d);
+        <span class="kw">let </span>is_dyn = cond_dyn || cons_dyn || alt_dyn;
+
+        <span class="prelude-val">Ok</span>((expr::if_then(cond, cons, alt.map(|(a, <span class="kw">_</span>)| a), typ.clone()), is_dyn))
     }
 
     <span class="doccomment">/// Generate a `for` loop.
@@ -2404,8 +2728,8 @@
             <span class="comment">// Choosing a maximum range size because changing it immediately brought out some bug around modulo.
             </span><span class="kw">let </span>max_size = u.int_in_range(<span class="number">1</span>..=<span class="self">self</span>.ctx.config.max_loop_size)<span class="question-mark">?</span>;
             <span class="comment">// Generate random expression.
-            </span><span class="kw">let </span>s = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
-            <span class="kw">let </span>e = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>(s, <span class="kw">_</span>) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
+            <span class="kw">let </span>(e, <span class="kw">_</span>) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>idx_type, <span class="self">self</span>.max_depth(), Flags::RANGE)<span class="question-mark">?</span>;
             <span class="comment">// The random expressions might end up being huge to be practical for execution,
             // so take the modulo maximum range on both ends.
             </span><span class="kw">let </span>s = expr::range_modulo(s, idx_type.clone(), max_size);
@@ -2433,7 +2757,7 @@
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
         <span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
-        <span class="kw">let </span>block = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(block, <span class="kw">_</span>) = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
         <span class="self">self</span>.in_loop = was_in_loop;
 
         <span class="kw">let </span>expr = Expression::For(For {
@@ -2455,12 +2779,14 @@
 
     <span class="doccomment">/// Generate a function call to any function in the global context except `main`,
     /// if the function returns the target type, or something we can use to produce that type.
+    ///
+    /// Whether a call is dynamic depends on whether it has dynamic arguments.
     </span><span class="kw">fn </span>gen_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         typ: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
-    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;Expression&gt;&gt; {
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// Decrease the budget so we avoid a potential infinite nesting of calls.
         </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
 
@@ -2478,24 +2804,27 @@
         </span><span class="self">self</span>.has_call = <span class="bool-val">true</span>;
 
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
-        <span class="kw">let </span>callee_ident = Expression::Ident(<span class="self">self</span>.callable_ident(callee_id));
+        <span class="kw">let </span>callee_expr = <span class="self">self</span>.callable_expr(callee_id);
         <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(callee_id);
 
         <span class="comment">// Generate an expression for each argument.
         </span><span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>call_dyn = <span class="bool-val">false</span>;
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
-            args.push(<span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::CALL)<span class="question-mark">?</span>);
+            <span class="kw">let </span>(arg, arg_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::CALL)<span class="question-mark">?</span>;
+            call_dyn |= arg_dyn;
+            args.push(arg);
         }
 
         <span class="kw">let </span>call_expr = Expression::Call(Call {
-            func: Box::new(callee_ident),
+            func: Box::new(callee_expr),
             arguments: args,
             return_type: return_type.clone(),
             location: Location::dummy(),
         });
 
         <span class="comment">// Derive the final result from the call, e.g. by casting, or accessing a member.
-        </span><span class="self">self</span>.gen_expr_from_source(u, call_expr, <span class="kw-2">&amp;</span>return_type, typ, <span class="self">self</span>.max_depth())
+        </span><span class="self">self</span>.gen_expr_from_source(u, (call_expr, call_dyn), <span class="kw-2">&amp;</span>return_type, typ, <span class="self">self</span>.max_depth())
     }
 
     <span class="doccomment">/// Generate a call to a specific function, with arbitrary literals
@@ -2539,7 +2868,7 @@
 
         <span class="comment">// Get the randomized loop body
         </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(<span class="kw-2">mut </span>loop_body, <span class="kw">_</span>) = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
         <span class="self">self</span>.in_loop = was_in_loop;
 
         <span class="comment">// Increment the index in the beginning of the body.
@@ -2584,7 +2913,7 @@
 
         <span class="comment">// Get the randomized loop body
         </span><span class="kw">let </span>was_in_loop = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_loop, <span class="bool-val">true</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>loop_body = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(<span class="kw-2">mut </span>loop_body, <span class="kw">_</span>) = <span class="self">self</span>.gen_block(u, <span class="kw-2">&amp;</span>Type::Unit)<span class="question-mark">?</span>;
         <span class="self">self</span>.in_loop = was_in_loop;
 
         <span class="comment">// Increment the index in the beginning of the body.
@@ -2606,7 +2935,7 @@
         )]);
 
         <span class="comment">// Generate the `while` condition with depth 1
-        </span><span class="kw">let </span>condition = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="number">1</span>, Flags::CONDITION)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>(condition, <span class="kw">_</span>) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="number">1</span>, Flags::CONDITION)<span class="question-mark">?</span>;
 
         stmts.push(Expression::While(While {
             condition: Box::new(condition),
@@ -2639,8 +2968,8 @@
             });
             <span class="kw">let </span>typ = (<span class="kw-2">*</span>u.choose_iter(opts.iter())<span class="question-mark">?</span>).clone();
             <span class="comment">// Assign the result of the call to a variable we won't use.
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(call) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.let_var(<span class="bool-val">false</span>, typ, call, <span class="bool-val">false</span>)));
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>((call, is_dyn)) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.let_var(<span class="bool-val">false</span>, typ, call, <span class="bool-val">false</span>, is_dyn)));
             }
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
@@ -2660,8 +2989,7 @@
             </span>);
         };
 
-        <span class="comment">// TODO(#8484): Take the callee ID into account, so we don't create a problem inlining ACIR.
-        </span><span class="kw">let </span>candidates = <span class="self">self
+        <span class="kw">let </span>candidates = <span class="self">self
             </span>.ctx
             .function_declarations
             .iter()
@@ -2686,11 +3014,29 @@
         <span class="prelude-val">Ok</span>(Expression::Ident(callee_ident))
     }
 
-    <span class="doccomment">/// Identifier for passing a reference a global function or local function pointer.
-    </span><span class="kw">fn </span>callable_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: CallableId) -&gt; Ident {
+    <span class="doccomment">/// Expression to use in a `Call` for the function (pointer).
+    ///
+    /// If the ID is something like `f: &amp;mut &amp;mut fn(...) -&gt; ...` then it will return `(*(*f))`.
+    </span><span class="kw">fn </span>callable_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, callee_id: CallableId) -&gt; Expression {
         <span class="kw">match </span>callee_id {
-            CallableId::Global(id) =&gt; <span class="self">self</span>.func_ident(id),
-            CallableId::Local(id) =&gt; <span class="self">self</span>.local_ident(id),
+            CallableId::Global(id) =&gt; Expression::Ident(<span class="self">self</span>.func_ident(id)),
+            CallableId::Local(id) =&gt; {
+                <span class="kw">fn </span>deref_function(typ: <span class="kw-2">&amp;</span>Type, ident: Ident) -&gt; Expression {
+                    <span class="kw">match </span>typ {
+                        Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; Expression::Ident(ident),
+                        Type::Reference(typ, <span class="kw">_</span>) =&gt; {
+                            <span class="kw">let </span>inner = deref_function(typ.as_ref(), ident);
+                            expr::deref(inner, typ.as_ref().clone())
+                        }
+                        other =&gt; {
+                            <span class="macro">unreachable!</span>(<span class="string">"expected function or function reference; got {other}"</span>)
+                        }
+                    }
+                }
+                <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
+                <span class="kw">let </span>typ = <span class="self">self</span>.local_type(id);
+                deref_function(typ, ident)
+            }
         }
     }
 
@@ -2750,12 +3096,26 @@
             }
             CallableId::Local(id) =&gt; {
                 <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
-                <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = typ <span class="kw">else </span>{
+                <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = types::unref(typ) <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"function pointers should have function type; got {typ}"</span>)
                 };
                 (param_types.clone(), return_type.as_ref().clone())
             }
         }
+    }
+
+    <span class="doccomment">/// Create a block with a let binding, then return a mutable reference to it.
+    /// This is used as a workaround when we need a mutable reference over an immutable value.
+    </span><span class="kw">fn </span>indirect_ref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, (expr, is_dyn): TrackedExpression, typ: Type) -&gt; Expression {
+        <span class="self">self</span>.locals.enter();
+        <span class="kw">let </span>let_expr = <span class="self">self</span>.let_var(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">true</span>, is_dyn);
+        <span class="kw">let </span>Expression::Let(Let { id, .. }) = <span class="kw-2">&amp;</span>let_expr <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"expected Let; got {let_expr}"</span>);
+        };
+        <span class="kw">let </span>let_ident = <span class="self">self</span>.local_ident(<span class="kw-2">*</span>id);
+        <span class="kw">let </span>ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
+        <span class="self">self</span>.locals.exit();
+        Expression::Block(<span class="macro">vec!</span>[let_expr, ref_expr])
     }
 }
 
@@ -2770,7 +3130,6 @@
     fctx.budget = <span class="number">2</span>;
     <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
 
-    <span class="macro">println!</span>(<span class="string">"{loop_code}"</span>);
     <span class="macro">assert!</span>(
         loop_code.starts_with(
             <span class="kw-2">&amp;</span><span class="string">r#"{
@@ -2796,7 +3155,6 @@
     fctx.budget = <span class="number">2</span>;
     <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
 
-    <span class="macro">println!</span>(<span class="string">"{while_code}"</span>);
     <span class="macro">assert!</span>(
         while_code.starts_with(
             <span class="kw-2">&amp;</span><span class="string">r#"{

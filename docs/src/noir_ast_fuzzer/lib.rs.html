@@ -131,9 +131,7 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -218,8 +216,7 @@
             (<span class="string">"call"</span>, <span class="number">15</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_acir = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"drop"</span>, <span class="number">0</span>), <span class="comment">// The `ownership` module says it will insert `Drop` and `Clone`.
-            </span>(<span class="string">"assign"</span>, <span class="number">30</span>),
+            (<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
             (<span class="string">"for"</span>, <span class="number">22</span>),
             (<span class="string">"let"</span>, <span class="number">25</span>),
@@ -227,7 +224,6 @@
             (<span class="string">"constrain"</span>, <span class="number">5</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_brillig = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"drop"</span>, <span class="number">0</span>),
             (<span class="string">"break"</span>, <span class="number">20</span>),
             (<span class="string">"continue"</span>, <span class="number">20</span>),
             (<span class="string">"assign"</span>, <span class="number">30</span>),

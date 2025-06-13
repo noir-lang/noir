@@ -255,7 +255,9 @@
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -335,7 +337,9 @@
     <span class="doccomment">/// Execute the Noir code and the SSA, then compare the results.
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
-        <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
+
+        <span class="comment">// These comptime programs have no inputs.
+        </span><span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
         <span class="comment">// Execute a compiled Program.
         </span><span class="kw">let </span>do_exec = |program| {

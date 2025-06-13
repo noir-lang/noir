@@ -813,7 +813,9 @@
 <a href="#812" id="812">812</a>
 <a href="#813" id="813">813</a>
 <a href="#814" id="814">814</a>
-<a href="#815" id="815">815</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
@@ -1116,7 +1118,7 @@
 
     <span class="kw">use </span><span class="kw">super</span>::helpers::{gen_expr, has_side_effect};
     <span class="kw">use </span>arbitrary::Unstructured;
-    <span class="kw">use </span>noir_ast_fuzzer::expr;
+    <span class="kw">use </span>noir_ast_fuzzer::{expr, types};
     <span class="kw">use </span>noirc_frontend::{
         ast::BinaryOpKind,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
@@ -1332,6 +1334,8 @@
                     </span>&amp;&amp; (ctx.unconstrained || !ctx.is_in_range)
                     <span class="comment">// `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
                     </span>&amp;&amp; !<span class="macro">matches!</span>(expr, Expression::Let(<span class="kw">_</span>))
+                    <span class="comment">// We can't return references from an `if` statement
+                    </span>&amp;&amp; expr.return_type().map(|typ| !types::contains_reference(typ.as_ref())).unwrap_or(<span class="bool-val">true</span>)
             },
             |u, vars, expr| {
                 <span class="kw">let </span>typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);

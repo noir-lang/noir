@@ -573,7 +573,24 @@
 <a href="#572" id="572">572</a>
 <a href="#573" id="573">573</a>
 <a href="#574" id="574">574</a>
-<a href="#575" id="575">575</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -622,7 +639,7 @@
 
     <span class="kw">let </span><span class="kw-2">mut </span>ctx = Context::new(config);
 
-    <span class="kw">let </span>decl_inner = ctx.gen_function_decl(u, <span class="number">1</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>decl_inner = ctx.gen_function_decl(u, <span class="number">1</span>, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
     ctx.set_function_decl(FuncId(<span class="number">1</span>), decl_inner.clone());
     ctx.gen_function(u, FuncId(<span class="number">1</span>))<span class="question-mark">?</span>;
 
@@ -737,20 +754,23 @@
             u.int_in_range(<span class="self">self</span>.config.min_functions..=<span class="self">self</span>.config.max_functions)<span class="question-mark">?</span>;
 
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..(<span class="number">1 </span>+ num_non_main_fns) {
-            <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, i)<span class="question-mark">?</span>;
+            <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, i, i == <span class="number">0</span>)<span class="question-mark">?</span>;
             <span class="self">self</span>.function_declarations.insert(FuncId(i <span class="kw">as </span>u32), d);
         }
         <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Generate a random function declaration.
+    ///
+    /// The `is_abi` parameter tells the generator to only use parameters which are ABI compatible.
     </span><span class="kw">fn </span>gen_function_decl(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         i: usize,
+        is_abi: bool,
     ) -&gt; arbitrary::Result&lt;FunctionDeclaration&gt; {
         <span class="kw">let </span>id = FuncId(i <span class="kw">as </span>u32);
-        <span class="kw">let </span>is_main = i == <span class="number">0</span>;
+        <span class="kw">let </span>is_main = id == Program::main_id();
         <span class="kw">let </span>num_params = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.config.max_function_args)<span class="question-mark">?</span>;
 
         <span class="comment">// If `main` is unconstrained, it won't call ACIR, so no point generating ACIR functions.
@@ -763,6 +783,16 @@
                     .unwrap_or_default())
             || bool::arbitrary(u)<span class="question-mark">?</span>;
 
+        <span class="comment">// We could return a function as well.
+        </span><span class="kw">let </span>return_type = <span class="self">self</span>.gen_type(
+            u,
+            <span class="self">self</span>.config.max_depth,
+            <span class="bool-val">false</span>,
+            is_main || is_abi,
+            <span class="bool-val">false</span>,
+            <span class="self">self</span>.config.comptime_friendly,
+        )<span class="question-mark">?</span>;
+
         <span class="comment">// Which existing functions we could receive as parameters.
         </span><span class="kw">let </span>func_param_candidates: Vec&lt;FuncId&gt; = <span class="kw">if </span>is_main || <span class="self">self</span>.config.avoid_lambdas {
             <span class="comment">// Main cannot receive function parameters from outside.
@@ -771,8 +801,15 @@
             <span class="self">self</span>.function_declarations
                 .iter()
                 .filter_map(|(callee_id, callee)| {
-                    can_call(id, unconstrained, <span class="kw-2">*</span>callee_id, callee.unconstrained)
-                        .then_some(<span class="kw-2">*</span>callee_id)
+                    can_call(
+                        id,
+                        unconstrained,
+                        types::contains_reference(<span class="kw-2">&amp;</span>return_type),
+                        <span class="kw-2">*</span>callee_id,
+                        callee.unconstrained,
+                        callee.has_refs(),
+                    )
+                    .then_some(<span class="kw-2">*</span>callee_id)
                 })
                 .collect()
         };
@@ -782,7 +819,7 @@
         <span class="kw">for </span>p <span class="kw">in </span><span class="number">0</span>..num_params {
             <span class="kw">let </span>id = LocalId(p <span class="kw">as </span>u32);
             <span class="kw">let </span>name = make_name(p, <span class="bool-val">false</span>);
-            <span class="kw">let </span>is_mutable = !is_main &amp;&amp; bool::arbitrary(u)<span class="question-mark">?</span>;
+            <span class="kw">let </span>is_mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>typ = <span class="kw">if </span>func_param_candidates.is_empty() || u.ratio(<span class="number">7</span>, <span class="number">10</span>)<span class="question-mark">? </span>{
                 <span class="comment">// Take some kind of data type.
@@ -790,7 +827,7 @@
                     u,
                     <span class="self">self</span>.config.max_depth,
                     <span class="bool-val">false</span>,
-                    is_main,
+                    is_main || is_abi,
                     <span class="bool-val">false</span>,
                     <span class="self">self</span>.config.comptime_friendly,
                 )<span class="question-mark">?
@@ -799,12 +836,13 @@
                 </span><span class="kw">let </span>callee_id = u.choose_iter(<span class="kw-2">&amp;</span>func_param_candidates)<span class="question-mark">?</span>;
                 <span class="kw">let </span>callee = <span class="kw-2">&amp;</span><span class="self">self</span>.function_declarations[callee_id];
                 <span class="kw">let </span>param_types = callee.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-                Type::Function(
+                <span class="kw">let </span>typ = Type::Function(
                     param_types,
                     Box::new(callee.return_type.clone()),
                     Box::new(Type::Unit),
                     callee.unconstrained,
-                )
+                );
+                <span class="kw">if </span>u.ratio(<span class="number">2</span>, <span class="number">5</span>)<span class="question-mark">? </span>{ types::ref_mut(typ) } <span class="kw">else </span>{ typ }
             };
 
             <span class="kw">let </span>visibility = <span class="kw">if </span>is_main {
@@ -819,16 +857,6 @@
 
             params.push((id, is_mutable, name, typ, visibility));
         }
-
-        <span class="comment">// We could return a function as well.
-        </span><span class="kw">let </span>return_type = <span class="self">self</span>.gen_type(
-            u,
-            <span class="self">self</span>.config.max_depth,
-            <span class="bool-val">false</span>,
-            is_main,
-            <span class="bool-val">false</span>,
-            <span class="self">self</span>.config.comptime_friendly,
-        )<span class="question-mark">?</span>;
 
         <span class="kw">let </span>return_visibility = <span class="kw">if </span>is_main {
             <span class="kw">if </span>types::is_unit(<span class="kw-2">&amp;</span>return_type) {
@@ -861,7 +889,7 @@
     <span class="doccomment">/// Generate and add main (for testing)
     </span><span class="attr">#[cfg(test)]
     </span><span class="kw">fn </span>gen_main_decl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured) {
-        <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, <span class="number">0</span>).unwrap();
+        <span class="kw">let </span>d = <span class="self">self</span>.gen_function_decl(u, <span class="number">0</span>, <span class="bool-val">true</span>).unwrap();
         <span class="self">self</span>.function_declarations.insert(FuncId(<span class="number">0u32</span>), d);
     }
 
@@ -1052,6 +1080,12 @@
                 <span class="kw">break</span>;
             }
         }
+
+        <span class="kw">if </span>!is_main &amp;&amp; !is_global &amp;&amp; u.ratio(<span class="number">1</span>, <span class="number">5</span>)<span class="question-mark">? </span>{
+            <span class="comment">// Read-only references require the experimental "ownership" feature.
+            </span>typ = types::ref_mut(typ);
+        }
+
         <span class="self">self</span>.types.insert(typ.clone());
 
         <span class="prelude-val">Ok</span>(typ)

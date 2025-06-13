@@ -73,23 +73,12 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, VecDeque};
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, VecDeque};
 
 <span class="kw">use </span>im::HashMap;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::{Definition, Expression, FuncId, Ident, Program};
 
-<span class="kw">use crate</span>::{
-    program::Context,
-    visitor::{visit_expr, visit_expr_mut},
-};
+<span class="kw">use crate</span>::{expr, program::Context, visitor::visit_expr_mut};
 
 <span class="doccomment">/// Remove functions that are unreachable from main.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_unreachable_functions(ctx: <span class="kw-2">&amp;mut </span>Context) {
@@ -152,14 +141,9 @@
         }
         <span class="kw">let </span>func = <span class="kw-2">&amp;</span>ctx.functions[<span class="kw-2">&amp;</span>id];
 
-        visit_expr(<span class="kw-2">&amp;</span>func.body, <span class="kw-2">&amp;mut </span>|expr| {
-            <span class="comment">// Regardless of whether it's in a `Call` or stored in a reference,
-            // it will appear in an identifier at some point.
-            </span><span class="kw">if let </span>Expression::Ident(Ident { definition: Definition::Function(id), .. }) = expr {
-                queue.push_back(<span class="kw-2">*</span>id);
-            }
-            <span class="bool-val">true
-        </span>});
+        <span class="kw">for </span>id <span class="kw">in </span>expr::reachable_functions(<span class="kw-2">&amp;</span>func.body) {
+            queue.push_back(id);
+        }
     }
 
     reachable

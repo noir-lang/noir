@@ -505,7 +505,20 @@
 <a href="#504" id="504">504</a>
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
-<a href="#507" id="507">507</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{HashMap, HashSet};
 
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>nargo::errors::Location;
@@ -538,11 +551,11 @@
     ctx: <span class="kw-2">&amp;mut </span>Context,
     u: <span class="kw-2">&amp;mut </span>Unstructured,
 ) -&gt; arbitrary::Result&lt;()&gt; {
-    <span class="comment">// Collect functions called from ACIR; they will need proxy functions.
+    <span class="comment">// Collect functions potentially called from ACIR; they will need proxy functions.
     </span><span class="kw">let </span>called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::&lt;FuncId&gt;::new(),
         |<span class="kw-2">mut </span>acc, func| {
-            acc.extend(expr::callees(<span class="kw-2">&amp;</span>func.body));
+            acc.extend(expr::reachable_functions(<span class="kw-2">&amp;</span>func.body));
             acc
         },
     );
@@ -829,8 +842,8 @@
         // it into the proxy version if necessary.
         </span>visit_expr_mut(<span class="kw-2">&amp;mut </span>body, <span class="kw-2">&amp;mut </span>|expr: <span class="kw-2">&amp;mut </span>Expression| {
             <span class="kw">if let </span>Expression::Call(call) = expr {
-                <span class="kw">let </span>Expression::Ident(ident) = call.func.as_mut() <span class="kw">else </span>{
-                    <span class="macro">unreachable!</span>(<span class="string">"functions are called by ident"</span>);
+                <span class="kw">let </span>Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) <span class="kw">else </span>{
+                    <span class="macro">unreachable!</span>(<span class="string">"functions are called by ident; got {}"</span>, call.func);
                 };
 
                 <span class="kw">let </span>proxy = <span class="kw">match </span><span class="kw-2">&amp;</span>ident.definition {
@@ -846,7 +859,9 @@
                     other =&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected call target definition: {}"</span>, other),
                 };
 
-                <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, callee_unconstrained) = <span class="kw-2">&amp;mut </span>ident.typ <span class="kw">else </span>{
+                <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, callee_unconstrained) =
+                    types::unref_mut(<span class="kw-2">&amp;mut </span>ident.typ)
+                <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"function type expected"</span>);
                 };
 
@@ -956,7 +971,8 @@
 
 <span class="doccomment">/// Recursively modify function pointers in the param type.
 </span><span class="kw">fn </span>modify_function_pointer_param_type(param_type: <span class="kw-2">&amp;mut </span>Type, callee_unconstrained: bool) {
-    <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = param_type <span class="kw">else </span>{
+    <span class="kw">let </span>Type::Function(param_types, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = types::unref_mut(param_type)
+    <span class="kw">else </span>{
         <span class="kw">return</span>;
     };
 
@@ -978,7 +994,11 @@
     proxy_functions: <span class="kw-2">&amp;</span>HashMap&lt;FuncId, Function&gt;,
 ) {
     <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..param_types.len() {
-        <span class="kw">let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = <span class="kw-2">&amp;</span>param_types[i] <span class="kw">else </span>{
+        <span class="comment">// We only consider parameters that take functions, not function references,
+        // because if something can take a function reference, and we can call it,
+        // then it must be a Brillig to Brillig call, and we don't have to change
+        // it to pass the proxy instead.
+        </span><span class="kw">let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, param_unconstrained) = <span class="kw-2">&amp;</span>param_types[i] <span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
         <span class="kw">let </span>limit_typ = ctx_limit_type_for_func_param(callee_unconstrained, <span class="kw-2">*</span>param_unconstrained);
@@ -989,10 +1009,16 @@
         }
 
         <span class="comment">// If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
-        // happens when it's first passed as a global.
+        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
+        // when it's first passed as a global.
         </span><span class="kw">let </span>arg = <span class="kw-2">&amp;mut </span>args[i];
-        <span class="kw">let </span>Expression::Ident(param_func_ident) = arg <span class="kw">else </span>{
+
+        <span class="comment">// If we are dereferencing a variable, then it's not a global function we are passing.
+        </span><span class="kw">if </span>expr::is_deref(arg) {
+            <span class="kw">continue</span>;
+        }
+        <span class="comment">// Otherwise we should be passing a function by identifier directly.
+        </span><span class="kw">let </span>Expression::Ident(param_func_ident) = arg <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"functions are passed by ident; got {arg}"</span>);
         };
         <span class="kw">let </span>param_func_id = <span class="kw">match </span><span class="kw-2">&amp;</span>param_func_ident.definition {

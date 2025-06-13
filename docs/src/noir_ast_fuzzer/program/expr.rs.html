@@ -451,7 +451,37 @@
 <a href="#450" id="450">450</a>
 <a href="#451" id="451">451</a>
 <a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -460,7 +490,7 @@
 <span class="kw">use </span>noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     monomorphization::ast::{
-        ArrayLiteral, Assign, Binary, BinaryOp, Cast, Definition, Expression, FuncId, Ident,
+        ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId, Ident,
         IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
     },
     signed_field::SignedField,
@@ -546,6 +576,11 @@
                 values.push(gen_literal(u, item_type)<span class="question-mark">?</span>);
             }
             Expression::Tuple(values)
+        }
+        Type::Reference(typ, mutable) =&gt; {
+            <span class="comment">// In Noir we can return a reference for a value created in a function.
+            </span><span class="kw">let </span>value = gen_literal(u, typ.as_ref())<span class="question-mark">?</span>;
+            unary(UnaryOp::Reference { mutable: <span class="kw-2">*</span>mutable }, value, typ.as_ref().clone())
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type to generate a literal for: {typ}"</span>),
     };
@@ -807,9 +842,25 @@
     })
 }
 
-<span class="doccomment">/// Check if an `Expression` contains any `Call` in any of its descendants.
+<span class="doccomment">/// Check if an `Expression` contains any `Call` another function, in any of its descendants.
+/// Calls made to oracles such as `println` don't count.
 </span><span class="kw">pub fn </span>has_call(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
-    exists(expr, |expr| <span class="macro">matches!</span>(expr, Expression::Call(<span class="kw">_</span>)))
+    exists(expr, |expr| {
+        <span class="kw">let </span>Expression::Call(Call { func, .. }) = expr <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        <span class="comment">// Check if we are calling an intrinsic or oracle, which don't count as recursion.
+        // If we are calling a function through a reference and not an ident, then it's
+        // not an oracle, so we can just assume it's recursive call.
+        </span><span class="kw">let </span>Expression::Ident(Ident { definition, .. }) = func.as_ref() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        };
+        <span class="kw">let </span>is_builtin_or_oracle = <span class="macro">matches!</span>(
+            definition,
+            Definition::Builtin(<span class="kw">_</span>) | Definition::Oracle(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>)
+        );
+        !is_builtin_or_oracle
+    })
 }
 
 <span class="doccomment">/// Check if an `Expression` or any of its descendants match a predicate.
@@ -823,28 +874,18 @@
     exists
 }
 
-<span class="doccomment">/// Collect all the functions called in the expression and its descendants.
-</span><span class="kw">pub fn </span>callees(expr: <span class="kw-2">&amp;</span>Expression) -&gt; HashSet&lt;FuncId&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>callees = HashSet::default();
+<span class="doccomment">/// Collect all the functions referred to by their ID in the expression and its descendants.
+</span><span class="kw">pub fn </span>reachable_functions(expr: <span class="kw-2">&amp;</span>Expression) -&gt; HashSet&lt;FuncId&gt; {
+    <span class="kw">let </span><span class="kw-2">mut </span>reachable = HashSet::default();
     visit_expr(expr, <span class="kw-2">&amp;mut </span>|expr| {
-        <span class="kw">if let </span>Expression::Call(call) = expr {
-            <span class="kw">if let </span>Expression::Ident(ident) = call.func.as_ref() {
-                <span class="kw">if let </span>Definition::Function(func_id) = ident.definition {
-                    callees.insert(func_id);
-                }
-            }
-            <span class="comment">// Consider functions passed as arguments as at least callable.
-            </span><span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>call.arguments {
-                <span class="kw">if let </span>Expression::Ident(ident) = arg {
-                    <span class="kw">if let </span>Definition::Function(func_id) = ident.definition {
-                        callees.insert(func_id);
-                    }
-                }
-            }
+        <span class="comment">// Regardless of whether it's in a `Call` or stored in a reference,
+        // it will appear in an identifier at some point.
+        </span><span class="kw">if let </span>Expression::Ident(Ident { definition: Definition::Function(func_id), .. }) = expr {
+            reachable.insert(<span class="kw-2">*</span>func_id);
         }
         <span class="bool-val">true
     </span>});
-    callees
+    reachable
 }
 
 <span class="doccomment">/// Prepend an expression to a destination.
@@ -903,5 +944,24 @@
     result_statements.extend(block_stmts);
 
     Expression::Block(result_statements)
+}
+
+<span class="doccomment">/// Is the expression an identifier of an immutable variable
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_immutable_ident(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    <span class="macro">matches!</span>(expr, Expression::Ident(Ident { mutable: <span class="bool-val">false</span>, .. }))
+}
+
+<span class="doccomment">/// Is the expression dereferencing something.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_deref(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    <span class="macro">matches!</span>(expr, Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, .. }))
+}
+
+<span class="doccomment">/// Peel back any dereference operators until we get to some other kind of expression.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unref_mut(expr: <span class="kw-2">&amp;mut </span>Expression) -&gt; <span class="kw-2">&amp;mut </span>Expression {
+    <span class="kw">if let </span>Expression::Unary(Unary { operator: UnaryOp::Dereference { .. }, rhs, .. }) = expr {
+        unref_mut(rhs.as_mut())
+    } <span class="kw">else </span>{
+        expr
+    }
 }
 </code></pre></div></section></main></body></html>
