@@ -49,13 +49,20 @@ impl Interpreter<'_> {
                 Ok(Vec::new())
             }
             Intrinsic::StaticAssert => {
-                check_argument_count(args, 2, intrinsic)?;
+                check_argument_count_is_at_least(args, 2, intrinsic)?;
 
                 let condition = self.lookup_bool(args[0], "static_assert")?;
                 if condition {
                     Ok(Vec::new())
                 } else {
-                    let message = self.lookup_string(args[1], "static_assert")?;
+                    // Static assert can either have 2 arguments, in which case the second one is a string,
+                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // For simplicity, we won't build the dynamic message here.
+                    let message = if args.len() == 2 {
+                        self.lookup_string(args[1], "static_assert")?
+                    } else {
+                        "static_assert failed".to_string()
+                    };
                     Err(InterpreterError::StaticAssertFailed { condition: args[0], message })
                 }
             }
@@ -70,10 +77,15 @@ impl Interpreter<'_> {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
                 }))
             }
-            // Both of these are no-ops
-            Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
+            Intrinsic::StrAsBytes => {
+                // This one is a no-op
                 check_argument_count(args, 1, intrinsic)?;
                 Ok(vec![self.lookup(args[0])?])
+            }
+            Intrinsic::AsWitness => {
+                // This one is also a no-op, but it doesn't return anything
+                check_argument_count(args, 1, intrinsic)?;
+                Ok(vec![])
             }
             Intrinsic::ToBits(endian) => {
                 check_argument_count(args, 1, intrinsic)?;
@@ -330,12 +342,14 @@ impl Interpreter<'_> {
                     }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 1, intrinsic)?;
-                    let inputs =
-                        self.lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox")?;
+                    check_argument_count(args, 2, intrinsic)?;
+                    let inputs = self
+                        .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
+                    let length =
+                        self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver
-                        .poseidon2_permutation(&inputs, inputs.len() as u32)
+                        .poseidon2_permutation(&inputs, length)
                         .map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
@@ -591,6 +605,22 @@ fn check_argument_count(
 ) -> IResult<()> {
     if args.len() != expected_count {
         Err(InterpreterError::Internal(InternalError::IntrinsicArgumentCountMismatch {
+            intrinsic,
+            arguments: args.len(),
+            parameters: expected_count,
+        }))
+    } else {
+        Ok(())
+    }
+}
+
+fn check_argument_count_is_at_least(
+    args: &[ValueId],
+    expected_count: usize,
+    intrinsic: Intrinsic,
+) -> IResult<()> {
+    if args.len() < expected_count {
+        Err(InterpreterError::Internal(InternalError::IntrinsicMinArgumentCountMismatch {
             intrinsic,
             arguments: args.len(),
             parameters: expected_count,

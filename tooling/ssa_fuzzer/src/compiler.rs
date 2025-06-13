@@ -11,7 +11,8 @@ use std::collections::BTreeMap;
 /// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
 /// and to catch panics... It cannot be caught with just catch_unwind.
-fn optimize_into_acir(
+/// This function will also run Ssa validation to make sure that the hand written Ssa has been well formed.
+fn optimize_into_acir_and_validate(
     builder: FunctionBuilder,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
@@ -24,7 +25,7 @@ pub fn compile_from_builder(
     builder: FunctionBuilder,
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
-    let artifacts = optimize_into_acir(builder, evaluator_options(options))?;
+    let artifacts = optimize_into_acir_and_validate(builder, evaluator_options(options))?;
     compile_from_artifacts(
         artifacts,
         Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },

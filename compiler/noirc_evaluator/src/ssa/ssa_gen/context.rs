@@ -792,11 +792,18 @@ impl<'a> FunctionContext<'a> {
     /// Looks up the value of a given local variable. Expects the variable to have
     /// been previously defined or panics otherwise.
     pub(super) fn lookup(&self, id: LocalId) -> Values {
-        self.definitions.get(&id).expect("lookup: variable not defined").clone()
+        self.definitions
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup: variable {id:?} not defined"))
+            .clone()
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+        self.shared_context
+            .globals
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
+            .clone()
     }
 
     /// Extract the given field of the tuple. Panics if the given Values is not

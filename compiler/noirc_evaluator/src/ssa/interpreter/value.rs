@@ -57,7 +57,7 @@ pub struct ReferenceValue {
     pub element_type: Arc<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
@@ -430,3 +430,14 @@ impl std::fmt::Display for ArrayValue {
         write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
     }
 }
+
+impl PartialEq for ArrayValue {
+    fn eq(&self, other: &Self) -> bool {
+        // Don't compare RC
+        self.elements == other.elements
+            && self.element_types == other.element_types
+            && self.is_slice == other.is_slice
+    }
+}
+
+impl Eq for ArrayValue {}

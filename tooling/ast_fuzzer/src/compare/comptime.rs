@@ -129,6 +129,8 @@ impl CompareComptime {
                     let res1 = Err(NargoError::ExecutionError(err));
                     return CompareCompiledResult::new(
                         &self.abi,
+                        &Default::default(), // We failed to compile the program, so no error types.
+                        &self.ssa.artifact.error_types,
                         (res1, "".to_string()),
                         (res2, print2),
                     );
@@ -143,7 +145,13 @@ impl CompareComptime {
         // Execute the 1st (comptime) program.
         let (res1, print1) = do_exec(&program1.program);
 
-        CompareCompiledResult::new(&self.abi, (res1, comptime_print + &print1), (res2, print2))
+        CompareCompiledResult::new(
+            &self.abi,
+            &Default::default(), // We have a fully compiled program at this point, no access to the SSA error types, just ABI error types.
+            &self.ssa.artifact.error_types,
+            (res1, comptime_print + &print1),
+            (res2, print2),
+        )
     }
 
     /// Generate a random comptime-viable AST, reverse it into

@@ -10,7 +10,7 @@ pub(crate) use unreachable::remove_unreachable_functions;
 
 /// Find the next local ID and ident IDs (in that order) that we can use to add
 /// variables to a [Function] during mutations.
-fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
+pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
     let mut next_local_id = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
     let mut next_ident_id = 0;
 
