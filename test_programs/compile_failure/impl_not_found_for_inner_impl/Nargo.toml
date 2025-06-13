@@ -1,0 +1,7 @@
+[package]
+name = "impl_not_found_for_inner_impl"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

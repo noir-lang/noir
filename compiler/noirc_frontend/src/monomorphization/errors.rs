@@ -7,60 +7,19 @@ use crate::{
 
 #[derive(Debug)]
 pub enum MonomorphizationError {
-    UnknownArrayLength {
-        length: Type,
-        err: TypeCheckError,
-        location: Location,
-    },
-    UnknownConstant {
-        location: Location,
-    },
-    NoDefaultType {
-        location: Location,
-    },
-    NoDefaultTypeInItem {
-        location: Location,
-        generic_name: String,
-        item_kind: &'static str,
-        item_name: String,
-        is_numeric: bool,
-    },
-    InternalError {
-        message: &'static str,
-        location: Location,
-    },
+    UnknownArrayLength { length: Type, err: TypeCheckError, location: Location },
+    UnknownConstant { location: Location },
+    NoDefaultType { location: Location },
+    InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
-    ComptimeFnInRuntimeCode {
-        name: String,
-        location: Location,
-    },
-    ComptimeTypeInRuntimeCode {
-        typ: String,
-        location: Location,
-    },
-    CheckedTransmuteFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    CheckedCastFailed {
-        actual: Type,
-        expected: Type,
-        location: Location,
-    },
-    RecursiveType {
-        typ: Type,
-        location: Location,
-    },
-    CannotComputeAssociatedConstant {
-        name: String,
-        err: TypeCheckError,
-        location: Location,
-    },
-    ReferenceReturnedFromIf {
-        typ: String,
-        location: Location,
-    },
+    ComptimeFnInRuntimeCode { name: String, location: Location },
+    ComptimeTypeInRuntimeCode { typ: String, location: Location },
+    CheckedTransmuteFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    RecursiveType { typ: Type, location: Location },
+    CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
+    ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
+    AssignedToVarContainingReference { typ: String, location: Location },
 }
 
 impl MonomorphizationError {
@@ -75,8 +34,8 @@ impl MonomorphizationError {
             | MonomorphizationError::CheckedCastFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
-            | MonomorphizationError::NoDefaultTypeInItem { location, .. }
-            | MonomorphizationError::ReferenceReturnedFromIf { location, .. }
+            | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
+            | MonomorphizationError::AssignedToVarContainingReference { location, .. }
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
@@ -103,20 +62,6 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let secondary = "Could not determine type of generic argument".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
-            MonomorphizationError::NoDefaultTypeInItem {
-                location,
-                generic_name,
-                item_kind,
-                item_name,
-                is_numeric,
-            } => {
-                let message = "Type annotation needed".into();
-                let type_or_value = if *is_numeric { "value" } else { "type" };
-                let secondary = format!(
-                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
-                );
-                return CustomDiagnostic::simple_error(message, secondary, *location);
-            }
             MonomorphizationError::InterpreterError(error) => return error.into(),
             MonomorphizationError::InternalError { message, .. } => message.to_string(),
             MonomorphizationError::ComptimeFnInRuntimeCode { name, location } => {
@@ -140,12 +85,26 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Could not determine the value of associated constant `{name}`, encountered error: `{err}`"
                 )
             }
-            MonomorphizationError::ReferenceReturnedFromIf { typ, location } => {
-                let message = "Cannot return a reference type from an if expression".to_string();
+            MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location } => {
+                let message =
+                    "Cannot return a reference type from an if or match expression".to_string();
                 let secondary = if typ.starts_with("&") {
                     format!("`{typ}` returned here")
                 } else {
                     format!("`{typ}`, which contains a reference type internally, returned here")
+                };
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::AssignedToVarContainingReference { typ, location } => {
+                let message =
+                    "Cannot assign to a mutable variable which contains a reference internally"
+                        .to_string();
+                let secondary = if typ.starts_with("&") {
+                    format!("Assigned expression has the type `{typ}`")
+                } else {
+                    format!(
+                        "Assigned expression has the type `{typ}`, which contains a reference type internally"
+                    )
                 };
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }

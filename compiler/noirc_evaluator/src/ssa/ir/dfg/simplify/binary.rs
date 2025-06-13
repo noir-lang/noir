@@ -293,9 +293,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             // Bit shifts by constants can be treated as divisions.
             if let Some(rhs_const) = rhs_value {
                 if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                    // Shifting by the full width of the operand type, any `lhs` goes to zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
+                    // Shifting by the full width of the operand type, any unsigned `lhs` goes to zero.
+                    if lhs_type.is_unsigned() {
+                        let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                        return SimplifyResult::SimplifiedTo(zero);
+                    }
                 }
                 return SimplifyResult::SimplifiedToInstruction(simplified);
             }

@@ -115,7 +115,7 @@ impl Context<'_, '_, '_> {
                     return InsertInstructionResult::SimplifiedTo(zero).first();
                 }
             }
-            let pow = self.numeric_constant(FieldElement::from(rhs_bit_size_pow_2), typ);
+            let pow = self.field_constant(FieldElement::from(rhs_bit_size_pow_2));
 
             let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
             let max_bit_size = max_lhs_bits + bit_shift_size;
@@ -128,9 +128,8 @@ impl Context<'_, '_, '_> {
             let u8_type = NumericType::unsigned(8);
             let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), u8_type);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
-            let predicate = self.insert_cast(overflow, typ);
+            let predicate = self.insert_cast(overflow, NumericType::NativeField);
             let pow = self.pow(base, rhs);
-            let pow = self.insert_cast(pow, typ);
 
             // Unchecked mul because `predicate` will be 1 or 0
             (
@@ -140,14 +139,13 @@ impl Context<'_, '_, '_> {
         };
 
         if max_bit <= bit_size {
+            let pow = self.insert_cast(pow, typ);
             // Unchecked mul as it can't overflow
             self.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, pow)
         } else {
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
-            let pow_field = self.insert_cast(pow, NumericType::NativeField);
             // Unchecked mul as this is a wrapping operation that we later truncate
-            let result =
-                self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow_field);
+            let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow);
             let result = self.insert_truncate(result, bit_size, max_bit);
             self.insert_cast(result, typ)
         }
@@ -170,6 +168,8 @@ impl Context<'_, '_, '_> {
         let rhs_is_less_than_bit_size = self.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
         let rhs_is_less_than_bit_size_with_rhs_typ =
             self.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
+        let rhs_is_less_than_bit_size_with_lhs_typ =
+            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
         // Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
         let rhs = self.insert_binary(
             rhs_is_less_than_bit_size_with_rhs_typ,
@@ -178,49 +178,75 @@ impl Context<'_, '_, '_> {
         );
         let pow = self.pow(base, rhs);
         let pow = self.insert_cast(pow, lhs_typ);
-        let result = if lhs_typ.is_unsigned() {
-            // unsigned right bit shift is just a normal division
-            self.insert_binary(lhs, BinaryOp::Div, pow)
-        } else {
-            // Get the sign of the operand; positive signed operand will just do a division as well
-            let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-            let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-            let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-            let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-            // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-            // Unchecked add as these are fields
-            let one_complement = self.insert_binary(
-                lhs_sign_as_field,
-                BinaryOp::Add { unchecked: true },
-                lhs_as_field,
-            );
-            let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-            let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
-            // Performs the division on the 1-complement (or the operand if positive)
-            let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-            // Convert back to 2-complement representation if operand is negative
-            let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
-            // The requirements for this to underflow are all of these:
-            // - lhs < 0
-            // - ones_complement(lhs) / (2^rhs) == 0
-            // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-            // to be larger than the lhs bitsize for this to overflow.
-            let shifted = self.insert_binary(
-                shifted_complement,
-                BinaryOp::Sub { unchecked: true },
-                lhs_sign_as_int,
+        if lhs_typ.is_unsigned() {
+            // unsigned right bit shift is just a normal division
+            let result = self.insert_binary(lhs, BinaryOp::Div, pow);
+            // In case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
+            return self.insert_binary(
+                rhs_is_less_than_bit_size_with_lhs_typ,
+                BinaryOp::Mul { unchecked: true },
+                result,
             );
-            self.insert_truncate(shifted, bit_size, bit_size + 1)
-        };
-        // Returns 0 in case of overflow
-        let rhs_is_less_than_bit_size_with_lhs_typ =
-            self.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
-        self.insert_binary(
+        }
+        // Get the sign of the operand; positive signed operand will just do a division as well
+        let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+        let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
+        let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
+        let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
+        // For negative numbers, convert to 1-complement using wrapping addition of a + 1
+        // Unchecked add as these are fields
+        let one_complement =
+            self.insert_binary(lhs_sign_as_field, BinaryOp::Add { unchecked: true }, lhs_as_field);
+        let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+        let one_complement = self.insert_cast(one_complement, NumericType::signed(bit_size));
+        // Performs the division on the 1-complement (or the operand if positive)
+        let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
+        // Convert back to 2-complement representation if operand is negative
+        let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+
+        // The requirements for this to underflow are all of these:
+        // - lhs < 0
+        // - ones_complement(lhs) / (2^rhs) == 0
+        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+        // to be larger than the lhs bitsize for this to overflow.
+        let shifted = self.insert_binary(
+            shifted_complement,
+            BinaryOp::Sub { unchecked: true },
+            lhs_sign_as_int,
+        );
+        let result = self.insert_truncate(shifted, bit_size, bit_size + 1);
+
+        // Returns 0 or -1 in case of overflow:
+        // In  case of overflow, and because rhs was nullified, we need to
+        // return the correct value, which is 0 or -1 depending on the sign of lhs
+
+        // Computes -1, or 0 if lhs is positive: is the expected result if there is an overflow
+        let minus_one = self.numeric_constant(
+            NumericType::Unsigned { bit_size }.max_value().expect("Invalid bit size"),
+            lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one, BinaryOp::Mul { unchecked: true }, lhs_sign_as_int);
+        // -1, or 0 if lhs is positive or if there is no overflow
+        let one = self.numeric_constant(FieldElement::one(), lhs_typ);
+        let no_overflow = self.insert_binary(
+            one,
+            BinaryOp::Sub { unchecked: true },
+            rhs_is_less_than_bit_size_with_lhs_typ,
+        );
+        let minus_one_or_zero =
+            self.insert_binary(minus_one_or_zero, BinaryOp::Mul { unchecked: true }, no_overflow);
+
+        // predicated result: 0 if overflow, else: result
+        let result = self.insert_binary(
             rhs_is_less_than_bit_size_with_lhs_typ,
             BinaryOp::Mul { unchecked: true },
             result,
-        )
+        );
+
+        // result + minus_one_or_zero gives the expected result in all cases
+        self.insert_binary(result, BinaryOp::Add { unchecked: true }, minus_one_or_zero)
     }
 
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
@@ -234,38 +260,44 @@ impl Context<'_, '_, '_> {
     /// }
     fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(rhs);
-        if let Type::Numeric(NumericType::Unsigned { bit_size }) = typ {
-            let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-            let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
-
-            // A call to ToBits can only be done with a field argument (rhs is always u8 here)
-            let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
-            let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
-
-            let rhs_bits = rhs_bits[0];
-            let one = self.field_constant(FieldElement::one());
-            let mut r = one;
-            // All operations are unchecked as we're acting on Field types (which are always unchecked)
-            for i in 1..bit_size + 1 {
-                let idx = self.numeric_constant(
-                    FieldElement::from((bit_size - i) as i128),
-                    NumericType::length_type(),
-                );
-                let b = self.insert_array_get(rhs_bits, idx, Type::bool());
-                let not_b = self.insert_not(b);
-                let b = self.insert_cast(b, NumericType::NativeField);
-                let not_b = self.insert_cast(not_b, NumericType::NativeField);
-
-                let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
-                let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
-                let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
-                let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
-                r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
-            }
-            r
-        } else {
+        let Type::Numeric(NumericType::Unsigned { bit_size }) = typ else {
             unreachable!("Value must be unsigned in power operation");
+        };
+
+        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
+        let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
+
+        // A call to ToBits can only be done with a field argument (rhs is always u8 here)
+        let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
+        let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
+
+        let rhs_bits = rhs_bits[0];
+        let one = self.field_constant(FieldElement::one());
+        let mut r = one;
+        // All operations are unchecked as we're acting on Field types (which are always unchecked)
+        for i in 1..bit_size + 1 {
+            let idx = self.numeric_constant(
+                FieldElement::from((bit_size - i) as i128),
+                NumericType::length_type(),
+            );
+            let b = self.insert_array_get(rhs_bits, idx, Type::bool());
+            let not_b = self.insert_not(b);
+            let b = self.insert_cast(b, NumericType::NativeField);
+            let not_b = self.insert_cast(not_b, NumericType::NativeField);
+
+            let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
+            let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
+            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
+            let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
+            r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
         }
+
+        assert!(
+            matches!(self.context.dfg.type_of_value(r).unwrap_numeric(), NumericType::NativeField),
+            "ICE: pow is expected to always return a NativeField"
+        );
+
+        r
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -424,11 +456,12 @@ mod tests {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_bit_shifts();
+
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u8):
             v3 = lt v1, u8 32
-            v4 = cast v3 as u32
+            v4 = cast v3 as Field
             v5 = cast v1 as Field
             v7 = call to_le_bits(v5) -> [u1; 8]
             v9 = array_get v7, index u32 7 -> u1
@@ -500,15 +533,13 @@ mod tests {
             v83 = mul v81, Field 2
             v84 = mul v83, v79
             v85 = add v82, v84
-            v86 = cast v85 as u32
-            v87 = unchecked_mul v4, v86
-            v88 = cast v0 as Field
-            v89 = cast v87 as Field
-            v90 = mul v88, v89
-            v91 = truncate v90 to 32 bits, max_bit_size: 254
-            v92 = cast v91 as u32
-            v93 = truncate v92 to 32 bits, max_bit_size: 33
-            return v92
+            v86 = mul v4, v85
+            v87 = cast v0 as Field
+            v88 = mul v87, v86
+            v89 = truncate v88 to 32 bits, max_bit_size: 254
+            v90 = cast v89 as u32
+            v91 = truncate v90 to 32 bits, max_bit_size: 33
+            return v90
         }
         ");
     }

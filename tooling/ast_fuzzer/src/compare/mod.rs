@@ -17,7 +17,8 @@ pub use compiled::{
 };
 pub use comptime::CompareComptime;
 pub use interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_values_to_ssa,
+    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
+    input_values_to_ssa,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -108,7 +109,7 @@ where
                     // Both programs failed the same way.
                     Ok(None)
                 } else {
-                    bail!("both programs failed: {e1} vs {e2}\n{e1:?}\n{e2:?}")
+                    bail!("both programs failed:\n{e1}\n!=\n{e2}\n\n{e1:?}\n{e2:?}")
                 }
             }
             CompareResult::LeftFailed(e, _) => {

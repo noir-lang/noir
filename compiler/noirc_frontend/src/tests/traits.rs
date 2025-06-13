@@ -1,8 +1,7 @@
-use crate::elaborator::FrontendOptions;
-
-use crate::assert_no_errors;
-use crate::tests::Expect;
-use crate::{check_errors, get_program_with_options};
+use crate::{
+    assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
+    get_program_with_options, tests::Expect,
+};
 
 #[named]
 #[test]
@@ -403,61 +402,6 @@ fn trait_alias_polymorphic_inheritance() {
         }"#;
 
     assert_no_errors!(src);
-}
-
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
-// same errors as the desugared version
-#[named]
-#[test]
-fn trait_alias_polymorphic_where_clause() {
-    let src = r#"
-        trait Foo {
-            fn foo(self) -> Self;
-        }
-
-        trait Bar<T> {
-            fn bar(self) -> T;
-        }
-
-        trait Baz {
-            fn baz(self) -> bool;
-        }
-
-        trait Qux<T> = Foo + Bar<T> where T: Baz;
-
-        fn qux<T, U>(x: T) -> bool where T: Qux<U> {
-            x.foo().bar().baz()
-            ^^^^^^^^^^^^^^^^^^^ No method named 'baz' found for type 'U'
-        }
-
-        impl Foo for Field {
-            fn foo(self) -> Self {
-                self + 1
-            }
-        }
-
-        impl Bar<bool> for Field {
-            fn bar(self) -> bool {
-                true
-            }
-        }
-
-        impl Baz for bool {
-            fn baz(self) -> bool {
-                self
-            }
-        }
-
-        fn main() {
-            assert(0.foo().bar().baz() == qux(0));
-                                          ^^^ No matching impl found for `T: Baz`
-                                          ~~~ No impl for `T: Baz`
-        }
-    "#;
-
-    // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors!(src);
-    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
@@ -1239,32 +1183,6 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
 
 #[named]
 #[test]
-fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
-    let src = r#"
-    trait From2<T> {
-        fn from2(input: T) -> Self;
-    }
-    struct U60Repr {}
-    impl From2<[Field; 3]> for U60Repr {
-        fn from2(_: [Field; 3]) -> Self {
-            U60Repr {}
-        }
-    }
-    impl From2<Field> for U60Repr {
-        fn from2(_: Field) -> Self {
-            U60Repr {}
-        }
-    }
-    fn main() {
-        let _ = U60Repr::<Field>::from2([1, 2, 3]);
-                                        ^^^^^^^^^ Expected type Field, found type [Field; 3]
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn as_trait_path_in_expression() {
     let src = r#"
         fn main() {
@@ -1627,4 +1545,71 @@ fn accesses_associated_type_inside_trait_using_self() {
     }
     "#;
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn serialize_test_with_a_previous_unrelated_definition() {
+    let src = r#"
+    // There used to be a bug where this unrelated definition would cause compilation to fail
+    // with a "No impl found" error.
+    pub trait Trait {}
+
+    trait Serialize {
+        let Size: u32;
+
+        fn serialize(self);
+    }
+
+    impl<A, B> Serialize for (A, B)
+    where
+        A: Serialize,
+        B: Serialize,
+    {
+        let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
+
+        fn serialize(self: Self) {
+            self.0.serialize();
+        }
+    }
+
+    impl Serialize for Field {
+        let Size: u32 = 1;
+
+        fn serialize(self) { }
+    }
+
+    fn main() {
+        let x = (((1, 2), 5), 9);
+        x.serialize();
+    }
+    "#;
+    check_monomorphization_error!(&src);
+}
+
+#[named]
+#[test]
+fn errors_on_incorrect_generics_in_type_trait_call() {
+    let src = r#"
+        trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+                       ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+    }
+    "#;
+    check_errors!(src);
 }

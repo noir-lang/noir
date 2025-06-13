@@ -35,12 +35,22 @@ pub(crate) enum PathResolutionItem {
     Trait(TraitId),
 
     // These are values
+    /// A reference to a global value.
     Global(GlobalId),
+    /// A function call on a module, for example `some::module::function()`.
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
+    /// A function call on `Self`, for example `Self::function()`. Turbofish is not allowed here.
     SelfMethod(FuncId),
+    /// A function call on a type alias, for example `TypeAlias::function()`.
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
+    /// A function call on a trait, for example `Trait::function()` or `Trait::<A, B>::function()`.
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
+    /// A function call on a type that resolves to a trait method, for example `SomeType::from(...)`
+    /// or `SomeType::<A, B>::from(..).`. The main difference from `TraitFunction` is that this
+    /// holds the self type, in this case `SomeType`.
+    TypeTraitFunction(Type, TraitId, FuncId),
+    /// A function call on a primitive type, for example `u64::from(...)` or `u64::<A, B>::from(..)`.
     PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
 }
 
@@ -52,6 +62,7 @@ impl PathResolutionItem {
             | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id)
+            | PathResolutionItem::TypeTraitFunction(_, _, func_id)
             | PathResolutionItem::PrimitiveFunction(_, _, func_id) => Some(*func_id),
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
@@ -75,6 +86,7 @@ impl PathResolutionItem {
             | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) => "function",
         }
     }
@@ -388,6 +400,7 @@ impl Elaborator<'_> {
                 | PathResolutionItem::SelfMethod(..)
                 | PathResolutionItem::TypeAliasFunction(..)
                 | PathResolutionItem::TraitFunction(..)
+                | PathResolutionItem::TypeTraitFunction(..)
                 | PathResolutionItem::PrimitiveFunction(..) => (),
             }
             resolution

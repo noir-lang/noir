@@ -134,6 +134,21 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
+            (
+                ConstrainEqFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
+                ConstrainEqFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+            )
+            | (
+                ConstrainNeFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
+                ConstrainNeFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+            ) => {
+                // The sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`.
+                // Unfortunately we often see the type change as well, which makes it more difficult to compare,
+                // for example `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`,
+                // or `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
+                // (lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2) && msg1 == msg2
+                msg1 == msg2
+            }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
                 // where the only difference might be the value ID.
@@ -179,7 +194,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types are returned flattened.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
@@ -221,15 +236,12 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                let elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                    input_value_to_ssa(typ, input)
-                })
-                .into_iter()
-                .flatten()
-                .collect();
-
                 // Tuples are not wrapped into arrays, they are returned as a vector.
-                elements
+                fields
+                    .iter()
+                    .zip(input_values)
+                    .flat_map(|(typ, input)| input_value_to_ssa(typ, input))
+                    .collect()
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")

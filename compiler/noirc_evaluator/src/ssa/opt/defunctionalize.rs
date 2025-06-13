@@ -130,8 +130,8 @@ impl DefunctionalizationContext {
             let parameters = block.take_parameters();
             for parameter in &parameters {
                 let typ = &func.dfg.type_of_value(*parameter);
-                if is_function_type(typ) {
-                    func.dfg.set_type_of_value(*parameter, replacement_type(typ));
+                if let Some(rep) = replacement_type(typ) {
+                    func.dfg.set_type_of_value(*parameter, rep);
                 }
             }
 
@@ -160,8 +160,8 @@ impl DefunctionalizationContext {
                 #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
                 for result in func.dfg.instruction_results(instruction_id).to_vec() {
                     let typ = &func.dfg.type_of_value(result);
-                    if is_function_type(typ) {
-                        func.dfg.set_type_of_value(result, replacement_type(typ));
+                    if let Some(rep) = replacement_type(typ) {
+                        func.dfg.set_type_of_value(result, rep);
                     }
                 }
 
@@ -243,28 +243,8 @@ fn remove_first_class_functions_in_instruction(
             *arg = map_value(*arg);
         }
     } else if let Instruction::MakeArray { typ, .. } = instruction {
-        match typ {
-            Type::Array(element_types, len) => {
-                let new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
-                        })
-                        .collect::<Vec<_>>();
-                *typ = Type::Array(Arc::new(new_element_types), *len);
-            }
-            Type::Slice(element_types) => {
-                let new_element_types =
-                    element_types
-                        .iter()
-                        .map(|typ| {
-                            if matches!(typ, Type::Function) { Type::field() } else { typ.clone() }
-                        })
-                        .collect::<Vec<_>>();
-                *typ = Type::Slice(Arc::new(new_element_types));
-            }
-            _ => {}
+        if let Some(rep) = replacement_type(typ) {
+            *typ = rep;
         }
         instruction.map_values_mut(map_value);
 
@@ -280,7 +260,7 @@ fn remove_first_class_functions_in_instruction(
 /// Returns none if the given value was not a function or doesn't need to be mapped.
 fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId> {
     let typ = func.dfg[value].get_type();
-    if is_function_type(typ.as_ref()) {
+    if let Some(rep) = replacement_type(typ.as_ref()) {
         match &func.dfg[value] {
             // If the value is a static function, transform it to the function id
             Value::Function(id) => {
@@ -289,7 +269,7 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
             }
             // If the value is a function used as value, just change the type of it
             Value::Instruction { .. } | Value::Param { .. } => {
-                func.dfg.set_type_of_value(value, replacement_type(typ.as_ref()));
+                func.dfg.set_type_of_value(value, rep);
             }
             _ => (),
         }
@@ -424,15 +404,15 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
         for param in &mut signature.params {
-            if is_function_type(param) {
-                *param = replacement_type(param);
+            if let Some(rep) = replacement_type(param) {
+                *param = rep;
             }
         }
 
         // Update the return value types as we did for the signature parameters above.
         for ret in &mut signature.returns {
-            if is_function_type(ret) {
-                *ret = replacement_type(ret);
+            if let Some(rep) = replacement_type(ret) {
+                *ret = rep;
             }
         }
 
@@ -604,7 +584,10 @@ fn create_apply_function(
         function_builder.switch_to_block(end_block);
         function_builder.terminate_with_return(end_results);
 
-        function_builder.current_function
+        // The above code can result in a suboptimal CFG so we simplify it here.
+        let mut function = function_builder.current_function;
+        function.simplify_function();
+        function
     })
 }
 
@@ -619,7 +602,7 @@ fn defunctionalize_post_check(func: &Function) {
                 panic!("unexpected parameter value: {value:?}");
             };
             assert!(
-                !is_function_type(typ),
+                replacement_type(typ).is_none(),
                 "Blocks are not expected to take function parameters any more. Got '{typ}' in param {param} of block {block_id} in function {} {}",
                 func.name(),
                 func.id()
@@ -628,19 +611,48 @@ fn defunctionalize_post_check(func: &Function) {
     }
 }
 
-fn is_function_type(typ: &Type) -> bool {
+/// Return what type a function value type should be replaced with:
+/// * Global functions are replaced with a `Field`.
+/// * Function references are replaced with a reference to the replacement type of the underlying type, recursively.
+/// * Array and slices that contain function types are handled recursively.
+///
+/// If the type doesn't need replacement, `None` is returned.
+fn replacement_type(typ: &Type) -> Option<Type> {
     match typ {
-        Type::Function => true,
-        Type::Reference(typ) => is_function_type(typ),
-        _ => false,
+        Type::Function => Some(Type::field()),
+        Type::Reference(typ) => {
+            replacement_type(typ.as_ref()).map(|typ| Type::Reference(Arc::new(typ)))
+        }
+        Type::Numeric(_) => None,
+        Type::Array(items, size) => {
+            replacement_types(items.as_ref()).map(|types| Type::Array(Arc::new(types), *size))
+        }
+        Type::Slice(items) => {
+            replacement_types(items.as_ref()).map(|types| Type::Slice(Arc::new(types)))
+        }
     }
 }
 
-fn replacement_type(typ: &Type) -> Type {
-    if matches!(typ, Type::Reference(_)) {
-        Type::Reference(Arc::new(Type::field()))
+/// Take a list of types that might need replacement.
+/// Replaces the ones that need replacement, leaving all others as-is.
+/// If no type needs replacement, `None` is returned.
+fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
+    let mut reps = Vec::new();
+    let mut has_rep = false;
+    for typ in types {
+        let rep = replacement_type(typ);
+        has_rep |= rep.is_some();
+        reps.push(rep);
+    }
+    if !has_rep {
+        None
     } else {
-        Type::field()
+        Some(
+            reps.into_iter()
+                .zip(types)
+                .map(|(rep, typ)| rep.unwrap_or_else(|| typ.clone()))
+                .collect(),
+        )
     }
 }
 
@@ -733,33 +745,25 @@ mod tests {
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -879,23 +883,17 @@ mod tests {
         }
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
-            v6 = eq v0, Field 1
-            jmpif v6 then: b3, else: b2
-          b1(v1: u32):
-            return v1
-          b2():
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2, else: b1
+          b1():
             constrain v0 == Field 2
-            v11 = call f2() -> u32
-            jmp b5(v11)
-          b3():
-            v8 = call f1() -> u32
-            jmp b4(v8)
-          b4(v2: u32):
-            jmp b6(v2)
-          b5(v3: u32):
-            jmp b6(v3)
-          b6(v4: u32):
-            jmp b1(v4)
+            v8 = call f2() -> u32
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -> u32
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
         }
         "
         );
@@ -1036,33 +1034,25 @@ mod tests {
         }
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -1129,42 +1119,32 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b6, else: b5
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b4()
-          b4():
-            jmp b14()
-          b5():
+            jmp b9()
+          b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b9, else: b8
-          b6():
+            jmpif v8 then: b6, else: b5
+          b4():
             call f2()
-            jmp b7()
-          b7():
-            jmp b13()
-          b8():
+            jmp b8()
+          b5():
             constrain v0 == Field 4
             call f4()
-            jmp b11()
-          b9():
+            jmp b7()
+          b6():
             call f3()
-            jmp b10()
-          b10():
-            jmp b12()
-          b11():
-            jmp b12()
-          b12():
-            jmp b13()
-          b13():
-            jmp b14()
-          b14():
-            jmp b1()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
         }
         "#);
     }
