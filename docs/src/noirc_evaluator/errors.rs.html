@@ -235,7 +235,13 @@
 <a href="#234" id="234">234</a>
 <a href="#235" id="235">235</a>
 <a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -315,6 +321,11 @@
     /// code when a break or continue is generated.
     </span><span class="attr">#[error(<span class="string">"Break or continue"</span>)]
     </span>BreakOrContinue { call_stack: CallStack },
+
+    <span class="attr">#[error(
+        <span class="string">"Only constant indices are supported when indexing an array containing reference values"
+    </span>)]
+    </span>DynamicIndexingWithReference { call_stack: CallStack },
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -424,10 +435,11 @@
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
+            | RuntimeError::BreakOrContinue { call_stack }
+            | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack } =&gt; call_stack,
-            RuntimeError::ReturnedReferenceFromDynamicIf { call_stack } =&gt; call_stack,
-            RuntimeError::ReturnedFunctionFromDynamicIf { call_stack } =&gt; call_stack,
-            RuntimeError::BreakOrContinue { call_stack } =&gt; call_stack,
         }
     }
 }

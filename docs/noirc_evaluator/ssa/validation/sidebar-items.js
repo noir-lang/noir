@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["PendingSignedOverflowOp"],"fn":["validate_function"],"struct":["Validator"]};
+window.SIDEBAR_ITEMS = {"enum":["PendingSignedOverflowOp"],"fn":["validate_function"],"mod":["dynamic_array_indices"],"struct":["Validator"]};
