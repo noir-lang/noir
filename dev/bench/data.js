@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1749826536583,
+  "lastUpdate": 1749827151950,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18531,48 +18531,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "851cfd208d8fadd69dfc74324405c6d72d286651",
-          "message": "fix(interpreter): Do not overflow on signed checked ops (#8806)",
-          "timestamp": "2025-06-06T19:30:12Z",
-          "tree_id": "48071e03dc896099c71d637e14e3d047b7ca5792",
-          "url": "https://github.com/noir-lang/noir/commit/851cfd208d8fadd69dfc74324405c6d72d286651"
-        },
-        "date": 1749239502411,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248363,
-            "range": "± 290",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218398,
-            "range": "± 4572",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2814804,
-            "range": "± 3365",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20624,6 +20582,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784950,
             "range": "± 1473",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "202130c2cd178fef812c6f6afb82b575a8d95352",
+          "message": "fix: Inline global arrays with functions at their call site (#8905)",
+          "timestamp": "2025-06-13T14:38:07Z",
+          "tree_id": "0882193116613b1efc22864fcf0d2c7060aaa95e",
+          "url": "https://github.com/noir-lang/noir/commit/202130c2cd178fef812c6f6afb82b575a8d95352"
+        },
+        "date": 1749827140227,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249314,
+            "range": "± 1140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220669,
+            "range": "± 2273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785918,
+            "range": "± 1444",
             "unit": "ns/iter"
           }
         ]
