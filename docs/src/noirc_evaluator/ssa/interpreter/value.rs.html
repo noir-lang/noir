@@ -602,7 +602,7 @@
         <span class="self">Self</span>::Numeric(NumericValue::U1(value))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array(elements: Vec&lt;Value&gt;, element_types: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>array(elements: Vec&lt;Value&gt;, element_types: Vec&lt;Type&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(<span class="number">1</span>),

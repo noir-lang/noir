@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_into_program","interpret_ssa","msg_matches","print_and_interpret_ssa","print_ssa","run","to_ssa_options"],"struct":["InterpretCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["compile_into_program","flatten_value","flatten_values","interpret_ssa","msg_matches","print_and_interpret_ssa","print_ssa","run","to_ssa_options"],"struct":["InterpretCommand"]};
