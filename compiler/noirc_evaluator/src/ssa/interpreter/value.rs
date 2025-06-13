@@ -158,7 +158,7 @@ impl Value {
         Self::Numeric(NumericValue::U1(value))
     }
 
-    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
