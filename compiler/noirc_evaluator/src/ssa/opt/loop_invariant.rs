@@ -2525,8 +2525,8 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
         let expected = ssa
             .interpret(vec![
-                from_constant(2_u128.into(), NumericType::NativeField),
-                from_constant(3_u128.into(), NumericType::NativeField),
+                from_constant(2_u128.into(), NumericType::unsigned(32)),
+                from_constant(3_u128.into(), NumericType::unsigned(32)),
             ])
             .expect_err("Should have error");
         assert!(matches!(expected, InterpreterError::RangeCheckFailed { .. }));
@@ -2536,8 +2536,8 @@ mod control_dependence {
 
         let got = ssa
             .interpret(vec![
-                from_constant(2_u128.into(), NumericType::NativeField),
-                from_constant(3_u128.into(), NumericType::NativeField),
+                from_constant(2_u128.into(), NumericType::unsigned(32)),
+                from_constant(3_u128.into(), NumericType::unsigned(32)),
             ])
             .expect_err("Should have error");
         assert_eq!(expected, got);

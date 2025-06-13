@@ -49,9 +49,9 @@ pub(super) struct InterpretCommand {
     #[clap(long)]
     ssa_pass: Vec<String>,
 
-    /// If true, the interpreter will print each value definition to stdout.
+    /// If true, the interpreter will trace its execution.
     #[clap(long)]
-    print_definitions: bool,
+    trace: bool,
 }
 
 impl WorkspaceCommand for InterpretCommand {
@@ -109,7 +109,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let mut ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
 
-        let interpreter_options = InterpreterOptions { print_definitions: args.print_definitions };
+        let interpreter_options = InterpreterOptions { trace: args.trace };
 
         print_and_interpret_ssa(
             &ssa_options,

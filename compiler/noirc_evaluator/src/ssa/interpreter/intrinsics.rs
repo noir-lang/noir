@@ -124,7 +124,7 @@ impl Interpreter<'_> {
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
                     let result = result.iter().map(|v| (*v as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
@@ -148,7 +148,7 @@ impl Interpreter<'_> {
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
                     let result = result.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 => {
@@ -157,7 +157,7 @@ impl Interpreter<'_> {
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
                     let results = results.iter().map(|e| (*e as u128).into());
-                    let results = Value::array_from_iter(results, NumericType::NativeField)?;
+                    let results = Value::array_from_iter(results, NumericType::unsigned(8))?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
@@ -286,8 +286,8 @@ impl Interpreter<'_> {
                     }
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
-                    let (a, b, c) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([a, b, c], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -327,8 +327,8 @@ impl Interpreter<'_> {
                     );
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
-                    let (x, y, inf) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([x, y, inf], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -374,7 +374,7 @@ impl Interpreter<'_> {
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result = state.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(32))?;
                     Ok(vec![result])
                 }
             },
@@ -385,32 +385,61 @@ impl Interpreter<'_> {
             }
             Intrinsic::DerivePedersenGenerators => {
                 check_argument_count(args, 2, intrinsic)?;
+
                 let inputs =
                     self.lookup_bytes(args[0], "call DerivePedersenGenerators BlackBox")?;
                 let index = self.lookup_u32(args[1], "call DerivePedersenGenerators BlackBox")?;
-                let generators = derive_generators(&inputs, inputs.len() as u32, index);
+
+                // The definition is:
+                //
+                // ```noir
+                // fn __derive_generators<let N: u32, let M: u32>(
+                //     domain_separator_bytes: [u8; M],
+                //     starting_index: u32,
+                // ) -> [EmbeddedCurvePoint; N] {}
+                // ```
+                //
+                // We need to get N from the return type.
+                if results.len() != 1 {
+                    return Err(InterpreterError::Internal(
+                        InternalError::UnexpectedResultLength {
+                            actual_length: results.len(),
+                            expected_length: 1,
+                            instruction: "call DerivePedersenGenerators BlackBox",
+                        },
+                    ));
+                }
+
+                let result_type = self.dfg().type_of_value(results[0]);
+                let Type::Array(_, n) = result_type else {
+                    return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
+                        actual_type: result_type.to_string(),
+                        expected_type: "array",
+                        instruction: "call DerivePedersenGenerators BlackBox",
+                    }));
+                };
+
+                let generators = derive_generators(&inputs, n, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in generators.iter() {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
-                    let generator_slice = Value::array_from_iter(
-                        [x, y, generator.infinity.into()],
-                        NumericType::NativeField,
-                    )?;
-                    result.push(generator_slice);
+                    result.push(Value::from_constant(x, NumericType::NativeField)?);
+                    result.push(Value::from_constant(y, NumericType::NativeField)?);
+                    result.push(Value::from_constant(
+                        generator.infinity.into(),
+                        NumericType::bool(),
+                    )?);
                 }
                 let results = Value::array(
                     result,
-                    vec![Type::Array(
-                        std::sync::Arc::new(vec![
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                        ]),
-                        3,
-                    )],
+                    vec![
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::bool()),
+                    ],
                 );
                 Ok(vec![results])
             }
@@ -642,4 +671,22 @@ fn check_slice_can_pop_all_element_types(slice_id: ValueId, slice: &ArrayValue) 
             element_types: vecmap(slice.element_types.iter(), ToString::to_string),
         }))
     }
+}
+
+fn new_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: FieldElement,
+) -> IResult<Value> {
+    let x = Value::from_constant(x, NumericType::NativeField)?;
+    let y = Value::from_constant(y, NumericType::NativeField)?;
+    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
+    Ok(Value::array(
+        vec![x, y, is_infinite],
+        vec![
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::bool()),
+        ],
+    ))
 }
