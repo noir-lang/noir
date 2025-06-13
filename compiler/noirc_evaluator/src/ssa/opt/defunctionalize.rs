@@ -130,7 +130,7 @@ impl DefunctionalizationContext {
 
     /// Replaces any function calls using first-class function values with calls to the
     /// appropriate `apply` function. Note that this must be done before types are mutated
-    /// in `defunctionalize` since this uses the unmutated types to query apply functions.
+    /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
     fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
         for block_id in func.reachable_blocks() {
             let block = &mut func.dfg[block_id];
