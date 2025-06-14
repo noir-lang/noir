@@ -91,6 +91,11 @@ impl FuzzerBuilder {
             BinaryOp::Add { unchecked: false },
             rhs.value_id,
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -105,6 +110,11 @@ impl FuzzerBuilder {
             BinaryOp::Sub { unchecked: false },
             rhs.value_id,
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -131,6 +141,11 @@ impl FuzzerBuilder {
             init_bit_length,
             Some("Attempt to multiply with overflow".to_string()),
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size * 2);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -278,6 +293,11 @@ impl FuzzerBuilder {
     /// Inserts a new basic block and returns its index
     pub fn insert_block(&mut self) -> BasicBlockId {
         self.builder.insert_block()
+    }
+
+    pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: ValueType) -> TypedValue {
+        let id = self.builder.add_block_parameter(block, typ.to_ssa_type());
+        TypedValue::new(id, typ.to_ssa_type())
     }
 
     /// Inserts a return instruction with the given value
