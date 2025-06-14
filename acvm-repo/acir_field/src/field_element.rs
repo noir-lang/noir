@@ -69,7 +69,7 @@ impl<T: PrimeField> Serialize for FieldElement<T> {
     where
         S: serde::Serializer,
     {
-        self.to_hex().serialize(serializer)
+        self.to_be_bytes().serialize(serializer)
     }
 }
 
@@ -78,11 +78,8 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
-        match Self::from_hex(&s) {
-            Some(value) => Ok(value),
-            None => Err(serde::de::Error::custom(format!("Invalid hex for FieldElement: {s}",))),
-        }
+        let s: Cow<'de, Vec<u8>> = Deserialize::deserialize(deserializer)?;
+        Ok(Self::from_be_bytes_reduce(&s))
     }
 }
 
