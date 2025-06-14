@@ -170,4 +170,17 @@ pub enum InternalError {
         actual_length: usize,
         instruction: &'static str,
     },
+    #[error(
+        "make_array with {elements_count} elements and {types_count} types but {elements_count} % {types_count} != 0"
+    )]
+    MakeArrayElementCountMismatch { result: ValueId, elements_count: usize, types_count: usize },
+    #[error(
+        "make_array element at index `{index}` has type `{actual_type}` but the expected type is `{expected_type}`"
+    )]
+    MakeArrayElementTypeMismatch {
+        result: ValueId,
+        index: usize,
+        expected_type: String,
+        actual_type: String,
+    },
 }
