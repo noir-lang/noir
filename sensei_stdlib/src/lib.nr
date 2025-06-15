@@ -30,6 +30,18 @@ pub fn tttest() {
     };
 }
 
+#[test]
+fn test_always_fails() {
+    // This test should always fail to validate our test runner works
+    assert(false);
+}
+
+#[test(should_fail)]
+fn test_should_fail_but_doesnt() {
+    // This test is marked as should_fail but has no failing code
+    // It should be reported as a failure because it doesn't fail when it should
+}
+
 // Oracle calls are required to be wrapped in an unconstrained function
 // Thus, the only argument to the `println` oracle is expected to always be an ident
 #[oracle(print)]
