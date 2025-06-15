@@ -1114,10 +1114,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                             definition_to_match.to_signed_field_element() == Some(*signed_field)
                         }
                         Constructor::Tuple(items) => {
-                            return Err(InterpreterError::Unimplemented {
-                                item: "match unimplemented for Tuple patterns".into(),
-                                location,
-                            });
+                            match &definition_to_match {
+                                Value::Tuple(values) => {
+                                    assert_eq!(values.len(), case.arguments.len());
+                                    // Bind the tuple elements to their corresponding variables
+                                    values.iter().zip(case.arguments.iter()).for_each(
+                                        |(value, def_id)| {
+                                            self.define(*def_id, value.clone());
+                                        },
+                                    );
+                                    true
+                                }
+                                _ => false,
+                            }
                         }
                         Constructor::Variant(_, index) => match &definition_to_match {
                             Value::Enum(variant_index, _, _) => variant_index == index,

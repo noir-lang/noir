@@ -69,7 +69,7 @@ enum Pattern {
     Error,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Column {
     variable_to_match: DefinitionId,
     pattern: Pattern,
@@ -81,7 +81,7 @@ impl Column {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(super) struct Row {
     columns: Vec<Column>,
     guard: Option<RowBody>,
@@ -93,8 +93,14 @@ pub(super) struct Row {
 type RowBody = ExprId;
 
 impl Row {
-    fn new(columns: Vec<Column>, guard: Option<RowBody>, body: RowBody, location: Location) -> Row {
-        Row { columns, guard, body, original_body: body, location }
+    fn new(
+        columns: Vec<Column>,
+        guard: Option<RowBody>,
+        body: RowBody,
+        original_body: RowBody,
+        location: Location,
+    ) -> Row {
+        Row { columns, guard, body, original_body, location }
     }
 }
 
@@ -371,7 +377,7 @@ impl Elaborator<'_> {
             });
 
             self.pop_scope();
-            Row::new(columns, guard, body, pattern_location)
+            Row::new(columns, guard, body, body, pattern_location)
         });
         (rows, result_type)
     }
@@ -1099,7 +1105,13 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                         cols.push(Column::new(*var, pat));
                     }
 
-                    cases[idx].2.push(Row::new(cols, row.guard, row.body, row.location));
+                    cases[idx].2.push(Row::new(
+                        cols,
+                        row.guard,
+                        row.body,
+                        row.original_body,
+                        row.location,
+                    ));
                 }
             } else {
                 for (_, _, rows) in &mut cases {
