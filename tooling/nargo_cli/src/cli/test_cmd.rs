@@ -3,7 +3,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     fmt::Display,
     panic::{UnwindSafe, catch_unwind},
-    path::PathBuf,
     sync::{
         Mutex,
         mpsc::{self, Sender},
@@ -12,16 +11,12 @@ use std::{
     time::Duration,
 };
 
-use acvm::{BlackBoxFunctionSolver, FieldElement};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    FuzzExecutionConfig, FuzzFolderConfig,
-    foreign_calls::DefaultForeignCallBuilder,
     insert_all_files_for_workspace_into_file_manager,
-    ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
+    ops::{TestStatus, check_crate_and_report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
@@ -510,11 +505,8 @@ impl<'a> TestRunner<'a> {
                             let Some(package) = iter.lock().unwrap().next() else {
                                 break;
                             };
-                            let tests = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                            let tests = self.collect_package_tests(
                                 package,
-                                self.args.oracle_resolver.as_deref(),
-                                Some(self.workspace.root_dir.clone()),
-                                package.name.to_string(),
                             );
                             if thread_sender.send((package, tests)).is_err() {
                                 break;
@@ -543,12 +535,9 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles a single package and returns all of its tests
-    fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+    fn collect_package_tests(
         &'a self,
         package: &'a Package,
-        foreign_call_resolver_url: Option<&'a str>,
-        root_path: Option<PathBuf>,
-        package_name: String,
     ) -> Result<Vec<Test<'a>>, CliError> {
         let test_functions = self.get_tests_in_package(package)?;
 
@@ -556,22 +545,17 @@ impl<'a> TestRunner<'a> {
             .into_iter()
             .map(|(test_name, test_function)| {
                 let test_name_copy = test_name.clone();
-                let root_path = root_path.clone();
-                let package_name_clone = package_name.clone();
-                let package_name_clone2 = package_name.clone();
+                let package_name = package.name.to_string();
                 let runner = Box::new(move || {
-                    self.run_test::<S>(
+                    self.run_test(
                         package,
                         &test_name,
                         test_function.has_arguments,
-                        foreign_call_resolver_url,
-                        root_path,
-                        package_name_clone.clone(),
                     )
                 });
                 Test {
                     name: test_name_copy,
-                    package_name: package_name_clone2,
+                    package_name,
                     runner,
                     has_arguments: test_function.has_arguments,
                 }
@@ -595,14 +579,11 @@ impl<'a> TestRunner<'a> {
 
     /// Runs a single test and returns its status together with whatever was printed to stdout
     /// during the test.
-    fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+    fn run_test(
         &'a self,
         package: &Package,
         fn_name: &str,
         has_arguments: bool,
-        foreign_call_resolver_url: Option<&str>,
-        root_path: Option<PathBuf>,
-        package_name: String,
     ) -> (TestStatus, String) {
         if (self.args.no_fuzz && has_arguments) || (self.args.only_fuzz && !has_arguments) {
             return (TestStatus::Skipped, String::new());
@@ -618,49 +599,15 @@ impl<'a> TestRunner<'a> {
 
         let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
         let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, &pattern);
-        let (_, test_function) = test_functions.first().expect("Test function should exist");
+        let (_, _test_function) = test_functions.first().expect("Test function should exist");
 
-        let blackbox_solver = S::default();
-        let mut output_buffer = Vec::new();
-
-        let fuzz_config = FuzzConfig {
-            folder_config: FuzzFolderConfig {
-                corpus_dir: self.args.corpus_dir.clone(),
-                minimized_corpus_dir: self.args.minimized_corpus_dir.clone(),
-                fuzzing_failure_dir: self.args.fuzzing_failure_dir.clone(),
-            },
-            execution_config: FuzzExecutionConfig {
-                num_threads: self.num_threads,
-                timeout: self.args.fuzz_timeout,
-                show_progress: self.args.fuzz_show_progress,
-                max_executions: self.args.fuzz_max_executions,
-            },
-        };
-
-        let test_status = nargo::ops::run_or_fuzz_test(
-            &blackbox_solver,
-            &mut context,
-            test_function,
-            &mut output_buffer,
-            package_name.clone(),
-            &self.args.compile_options,
-            fuzz_config,
-            |output, base| {
-                DefaultForeignCallBuilder {
-                    output,
-                    enable_mocks: true,
-                    resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-                    root_path: root_path.clone(),
-                    package_name: Some(package_name.clone()),
-                }
-                .build_with_base(base)
-            },
-        );
-
-        let output_string =
-            String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
-
-        (test_status, output_string)
+        // TODO: ZK backend execution removed - need to implement frontend-only test execution
+        // This would involve:
+        // 1. Compiling the test function to check syntax/types
+        // 2. Running any compile-time evaluations
+        // 3. Simulating test execution without ZK proof generation
+        
+        todo!("ZK backend test execution removed - implement frontend-only test runner for type checking and syntax validation")
     }
 
     /// Display the status of a single test
