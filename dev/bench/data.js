@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750088812719,
+  "lastUpdate": 1750088814832,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b0e05f2eed5950f413d2c6696554f7a9c4baa5a9",
-          "message": "fix: (SSA interpreter) to_le_bits returns [u1; _], not [u8; _] (#8837)",
-          "timestamp": "2025-06-09T14:54:54Z",
-          "tree_id": "86eabff5d6afc53f85a65b7c00c909def71a8824",
-          "url": "https://github.com/noir-lang/noir/commit/b0e05f2eed5950f413d2c6696554f7a9c4baa5a9"
-        },
-        "date": 1749482831347,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e"
         },
         "date": 1750086079823,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.87,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 489.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 423.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 312.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 317.76,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b04a51c190bf277bdd86b5f0255ba410dafcee0d",
+          "message": "fix(fuzz): Consider values returned from Brillig to ACIR as dynamic (#8931)",
+          "timestamp": "2025-06-16T15:12:54Z",
+          "tree_id": "e17dded682f199cf98d56182b98202f4f1157b0f",
+          "url": "https://github.com/noir-lang/noir/commit/b04a51c190bf277bdd86b5f0255ba410dafcee0d"
+        },
+        "date": 1750088800792,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
