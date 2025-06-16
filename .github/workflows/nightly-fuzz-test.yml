@@ -5,6 +5,9 @@ on:
     # Run nightly at 0300
     - cron: "0 3 * * *"
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
