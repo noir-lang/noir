@@ -26,6 +26,14 @@ mod tests {
         Some(seed)
     }
 
+    /// How long to let non-deterministic tests run for.
+    fn budget() -> Duration {
+        std::env::var("NOIR_ARBTEST_BUDGET_MS").ok().map_or(BUDGET, |b| {
+            let secs = b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}"));
+            Duration::from_millis(secs)
+        })
+    }
+
     /// Check if we are running on CI.
     fn is_running_in_ci() -> bool {
         std::env::var("CI").is_ok()
@@ -34,14 +42,6 @@ mod tests {
     /// Check if we explicitly want non-deterministic behavior, even on CI.
     fn force_non_deterministic() -> bool {
         bool_from_env("NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC")
-    }
-
-    /// How long to let non-deterministic tests run for.
-    fn budget() -> Duration {
-        std::env::var("NOIR_AST_FUZZER_BUDGET_SECS").ok().map_or(BUDGET, |b| {
-            let secs = b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}"));
-            Duration::from_secs(secs)
-        })
     }
 
     /// `cargo fuzz` takes a long time to ramp up the complexity.
