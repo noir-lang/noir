@@ -288,7 +288,14 @@
 <a href="#287" id="287">287</a>
 <a href="#288" id="288">288</a>
 <a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -473,6 +480,13 @@
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
+
+        <span class="macro">log::debug!</span>(
+            <span class="string">"ABI input:\n{}"</span>,
+            noirc_abi::input_parser::Format::Toml
+                .serialize(<span class="kw-2">&amp;</span><span class="self">self</span>.input_map, <span class="kw-2">&amp;</span><span class="self">self</span>.abi)
+                .unwrap_or_else(|e| <span class="macro">format!</span>(<span class="string">"failed to serialize inputs: {e}"</span>))
+        );
 
         <span class="kw">let </span>do_exec = |program| {
             <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();

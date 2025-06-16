@@ -122,7 +122,8 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>acir_vs_brillig;
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>acir_vs_brillig;
 <span class="kw">pub mod </span>comptime_vs_brillig;
 <span class="kw">pub mod </span>min_vs_full;
 <span class="kw">pub mod </span>orig_vs_morph;
@@ -144,10 +145,19 @@
     <span class="kw">use </span><span class="kw">crate</span>::bool_from_env;
 
     <span class="kw">fn </span>seed_from_env() -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(seed) = std::env::var(<span class="string">"NOIR_ARBTEST_SEED"</span>) <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">None </span>};
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(seed) = std::env::var(<span class="string">"NOIR_AST_FUZZER_SEED"</span>) <span class="kw">else </span>{ <span class="kw">return </span><span class="prelude-val">None </span>};
         <span class="kw">let </span>seed = u64::from_str_radix(seed.trim_start_matches(<span class="string">"0x"</span>), <span class="number">16</span>)
             .unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"failed to parse seed '{seed}': {e}"</span>));
         <span class="prelude-val">Some</span>(seed)
+    }
+
+    <span class="doccomment">/// How long to let non-deterministic tests run for.
+    </span><span class="kw">fn </span>budget() -&gt; Duration {
+        std::env::var(<span class="string">"NOIR_AST_FUZZER_BUDGET_SECS"</span>).ok().map_or(BUDGET, |b| {
+            Duration::from_secs(
+                b.parse().unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"failed to parse budget; got {b}: {e}"</span>)),
+            )
+        })
     }
 
     <span class="doccomment">/// Check if we are running on CI.
@@ -160,20 +170,12 @@
         bool_from_env(<span class="string">"NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC"</span>)
     }
 
-    <span class="doccomment">/// How long to let non-deterministic tests run for.
-    </span><span class="kw">fn </span>budget() -&gt; Duration {
-        std::env::var(<span class="string">"NOIR_AST_FUZZER_BUDGET_SECS"</span>).ok().map_or(BUDGET, |b| {
-            <span class="kw">let </span>secs = b.parse().unwrap_or_else(|e| <span class="macro">panic!</span>(<span class="string">"failed to parse budget; got {b}: {e}"</span>));
-            Duration::from_secs(secs)
-        })
-    }
-
     <span class="doccomment">/// `cargo fuzz` takes a long time to ramp up the complexity.
     /// This test catches crash bugs much faster.
     ///
     /// Run it with for example:
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
