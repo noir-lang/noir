@@ -169,8 +169,6 @@ impl CompareComptime {
     /// Execute the Noir code passed through the interpreter
     /// and the SSA, then compare the results.
     pub fn exec_direct(&self) -> eyre::Result<CompareCompiledResult> {
-        log::debug!("comptime src:\n{}", self.source);
-
         let comptime_ssa = match &self.comptime_ssa {
             Some(comptime_ssa) => comptime_ssa,
             None => unreachable!("SSA returning the comptime execution result should be available"),
@@ -324,6 +322,8 @@ impl CompareComptime {
         let ssa = CompareArtifact::from(f(program.clone())?);
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
+        // log source code before interpreting
+        log::debug!("comptime src:\n{}", self.source);
 
         let comptime_res = interpret(&format!("comptime {}", source));
 
