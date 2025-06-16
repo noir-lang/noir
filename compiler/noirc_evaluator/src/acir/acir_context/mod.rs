@@ -902,7 +902,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // `rhs` has the correct bit-size because either it is enforced by the overflow checks
         // or `rhs` is zero when the overflow checks are disabled.
         // Indeed, in that case, rhs is replaced with 'predicate * rhs'
-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
+        self.bound_constraint_with_offset(remainder_var, rhs, one, max_rhs_bits, predicate)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -942,7 +942,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 self.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    predicate,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )?;
