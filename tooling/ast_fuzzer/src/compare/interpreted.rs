@@ -13,7 +13,7 @@ use regex::Regex;
 
 use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
-use super::{Comparable, CompareOptions, CompareResult, ExecOutput};
+use super::{Comparable, CompareOptions, CompareResult, FailedOutput, PassedOutput};
 
 /// The state of the SSA after a particular pass in the pipeline.
 pub struct ComparePass {
@@ -74,7 +74,7 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        // Debug prints up frontin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
         log::debug!("Program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
         log::debug!(
             "ABI inputs: \n{}\n",
@@ -102,28 +102,43 @@ impl CompareInterpreted {
 
 impl CompareInterpretedResult {
     pub fn new(res1: InterpretResult, res2: InterpretResult) -> Self {
-        let out = |ret| ExecOutput { return_value: Some(ret), print_output: Default::default() };
+        // Currently the SSA interpreter `call_print` doesn't do anything, so we cannot capture the print output.
+        let failed = |e| FailedOutput { error: e, print_output: Default::default() };
+        let passed =
+            |ret| PassedOutput { return_value: Some(ret), print_output: Default::default() };
+
         match (res1, res2) {
-            (Ok(r1), Ok(e2)) => Self::BothPassed(out(r1), out(e2)),
-            (Ok(r1), Err(e2)) => Self::RightFailed(out(r1), e2),
-            (Err(e1), Ok(r2)) => Self::LeftFailed(e1, out(r2)),
-            (Err(e1), Err(e2)) => Self::BothFailed(e1, e2),
+            (Ok(r1), Ok(r2)) => Self::BothPassed(passed(r1), passed(r2)),
+            (Ok(r1), Err(e2)) => Self::RightFailed(passed(r1), failed(e2)),
+            (Err(e1), Ok(r2)) => Self::LeftFailed(failed(e1), passed(r2)),
+            (Err(e1), Err(e2)) => Self::BothFailed(failed(e1), failed(e2)),
         }
     }
 }
 
 impl Comparable for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
+        use ssa::interpreter::errors::InternalError;
         use ssa::interpreter::errors::InterpreterError::*;
 
         match (e1, e2) {
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c1, typ: t1 }),
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c2, typ: t2 }),
+            ) => {
+                // The interpreter represents values in types where the result of some casts cannot be represented, while the ACIR and
+                // Brillig runtime can fit them into Fields, and defer validation later. We could promote this error to a non-internal one,
+                // but the fact remains that the interpreter would fail earlier than ACIR or Brillig.
+                // To deal with this we ignore these errors as long as both passes fail the same way.
+                c1 == c2 && t1 == t2
+            }
             (Internal(_), _) | (_, Internal(_)) => {
                 // We should not get, or ignore, internal errors.
                 // They mean the interpreter got something unexpected that we need to fix.
                 false
             }
             (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
-                // Overflows can occur or uncomparable instructions, but in a parentheses it contains the values that caused it.
+                // Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 fn details(s: &str) -> Option<&str> {
                     let start = s.find("(")?;
                     let end = s.find(")")?;
