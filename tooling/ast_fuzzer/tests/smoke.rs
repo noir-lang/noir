@@ -17,7 +17,7 @@ use noirc_abi::input_parser::Format;
 use noirc_evaluator::{brillig::BrilligOptions, ssa};
 
 fn seed_from_env() -> Option<u64> {
-    let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
     let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
         .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
     Some(seed)
