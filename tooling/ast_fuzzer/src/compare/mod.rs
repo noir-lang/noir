@@ -127,7 +127,7 @@ where
                     let p2 = &e2.print_output;
                     if p1 != p2 {
                         bail!(
-                            "failed programs disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---",
+                            "both programs failed, but disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---",
                         );
                     } else {
                         Ok(None)
@@ -157,7 +157,7 @@ where
                     let p2 = &o2.print_output;
                     if p1 != p2 {
                         bail!(
-                            "passing programs disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---",
+                            "both programs passed, but disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---",
                         )
                     }
                     Ok(r1.as_ref())
