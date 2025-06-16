@@ -1583,7 +1583,14 @@
 <a href="#1582" id="1582">1582</a>
 <a href="#1583" id="1583">1583</a>
 <a href="#1584" id="1584">1584</a>
-<a href="#1585" id="1585">1585</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2780,7 +2787,8 @@
     <span class="doccomment">/// Generate a function call to any function in the global context except `main`,
     /// if the function returns the target type, or something we can use to produce that type.
     ///
-    /// Whether a call is dynamic depends on whether it has dynamic arguments.
+    /// Whether a call is dynamic depends on whether it has dynamic arguments,
+    /// and whether we are crossing an ACIR-to-Brillig boundary.
     </span><span class="kw">fn </span>gen_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
@@ -2793,7 +2801,12 @@
         <span class="kw">let </span>opts = <span class="self">self
             </span>.call_targets
             .iter()
-            .filter_map(|(id, types)| types.contains(typ).then_some(id))
+            .filter(|(id, types)|
+                <span class="comment">// We need to be able to generate the type from what the function returns.
+                </span>types.contains(typ) &amp;&amp;
+                <span class="comment">// We might not be able to call this function, depending on context.
+                </span>!(<span class="self">self</span>.in_no_dynamic &amp;&amp; !<span class="self">self</span>.unconstrained() &amp;&amp; <span class="self">self</span>.callable_signature(<span class="kw-2">**</span>id).<span class="number">2</span>))
+            .map(|(id, <span class="kw">_</span>)| id)
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
         <span class="kw">if </span>opts.is_empty() {
@@ -2805,11 +2818,11 @@
 
         <span class="kw">let </span>callee_id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
         <span class="kw">let </span>callee_expr = <span class="self">self</span>.callable_expr(callee_id);
-        <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(callee_id);
+        <span class="kw">let </span>(param_types, return_type, callee_unconstrained) = <span class="self">self</span>.callable_signature(callee_id);
 
         <span class="comment">// Generate an expression for each argument.
         </span><span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
-        <span class="kw">let </span><span class="kw-2">mut </span>call_dyn = <span class="bool-val">false</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>call_dyn = !<span class="self">self</span>.unconstrained() &amp;&amp; callee_unconstrained;
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
             <span class="kw">let </span>(arg, arg_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::CALL)<span class="question-mark">?</span>;
             call_dyn |= arg_dyn;
@@ -2835,7 +2848,7 @@
         callee_id: FuncId,
     ) -&gt; arbitrary::Result&lt;Expression&gt; {
         <span class="kw">let </span>callee_ident = <span class="self">self</span>.func_ident(callee_id);
-        <span class="kw">let </span>(param_types, return_type) = <span class="self">self</span>.callable_signature(CallableId::Global(callee_id));
+        <span class="kw">let </span>(param_types, return_type, <span class="kw">_</span>) = <span class="self">self</span>.callable_signature(CallableId::Global(callee_id));
 
         <span class="kw">let </span><span class="kw-2">mut </span>args = Vec::new();
         <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;</span>param_types {
@@ -3086,20 +3099,21 @@
     }
 
     <span class="doccomment">/// Get the parameter types and return type of a callable function.
-    </span><span class="kw">fn </span>callable_signature(<span class="kw-2">&amp;</span><span class="self">self</span>, callee_id: CallableId) -&gt; (Vec&lt;Type&gt;, Type) {
+    </span><span class="kw">fn </span>callable_signature(<span class="kw-2">&amp;</span><span class="self">self</span>, callee_id: CallableId) -&gt; (Vec&lt;Type&gt;, Type, bool) {
         <span class="kw">match </span>callee_id {
             CallableId::Global(id) =&gt; {
                 <span class="kw">let </span>decl = <span class="self">self</span>.ctx.function_decl(id);
                 <span class="kw">let </span>return_type = decl.return_type.clone();
                 <span class="kw">let </span>param_types = decl.params.iter().map(|p| p.<span class="number">3</span>.clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-                (param_types, return_type)
+                (param_types, return_type, decl.unconstrained)
             }
             CallableId::Local(id) =&gt; {
                 <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw">_</span>, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
-                <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, <span class="kw">_</span>) = types::unref(typ) <span class="kw">else </span>{
+                <span class="kw">let </span>Type::Function(param_types, return_type, <span class="kw">_</span>, unconstrained) = types::unref(typ)
+                <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"function pointers should have function type; got {typ}"</span>)
                 };
-                (param_types.clone(), return_type.as_ref().clone())
+                (param_types.clone(), return_type.as_ref().clone(), <span class="kw-2">*</span>unconstrained)
             }
         }
     }
