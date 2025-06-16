@@ -137,7 +137,7 @@ fn interpret(src: &str) -> Expression {
     let mut interpreter = elaborator.setup_interpreter();
 
     // The most straightforward way to convert the interpreter result into
-    // an acceptable monorphized AST expression seems to be converting it
+    // an acceptable monomorphized AST expression seems to be converting it
     // into HIR first and then processing it with the monomorphizer
     let expr_id =
         match interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
