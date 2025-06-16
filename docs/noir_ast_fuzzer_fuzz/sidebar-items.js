@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["compare_results_compiled","compare_results_comptime","compare_results_interpreted","create_ssa_or_die","create_ssa_with_passes_or_die","default_ssa_options","show_ast","show_ssa"],"mod":["targets"]};
+window.SIDEBAR_ITEMS = {"fn":["bool_from_env","compare_results_compiled","compare_results_comptime","compare_results_interpreted","create_ssa_or_die","create_ssa_with_passes_or_die","default_ssa_options","show_ast","show_ssa"],"mod":["targets"]};

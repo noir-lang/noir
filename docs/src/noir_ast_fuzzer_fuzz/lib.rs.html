@@ -202,7 +202,11 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{
@@ -220,13 +224,17 @@
 
 <span class="kw">pub mod </span>targets;
 
+<span class="kw">fn </span>bool_from_env(key: <span class="kw-2">&amp;</span>str) -&gt; bool {
+    std::env::var(key).map(|s| s == <span class="string">"1" </span>|| s == <span class="string">"true"</span>).unwrap_or_default()
+}
+
 <span class="comment">// TODO(#7876): Allow specifying options on the command line.
 </span><span class="kw">fn </span>show_ast() -&gt; bool {
-    std::env::var(<span class="string">"NOIR_AST_FUZZER_SHOW_AST"</span>).map(|s| s == <span class="string">"1" </span>|| s == <span class="string">"true"</span>).unwrap_or_default()
+    bool_from_env(<span class="string">"NOIR_AST_FUZZER_SHOW_AST"</span>)
 }
 
 <span class="kw">fn </span>show_ssa() -&gt; bool {
-    std::env::var(<span class="string">"NOIR_AST_FUZZER_SHOW_SSA"</span>).map(|s| s == <span class="string">"1" </span>|| s == <span class="string">"true"</span>).unwrap_or_default()
+    bool_from_env(<span class="string">"NOIR_AST_FUZZER_SHOW_SSA"</span>)
 }
 
 <span class="kw">pub fn </span>default_ssa_options() -&gt; SsaEvaluatorOptions {
