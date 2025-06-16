@@ -3,6 +3,9 @@
 //! interpreter) vs when everything is forced to be Brillig.
 //! We choose Brillig here because it mostly matches comptime feature set
 //! (e.g. `loop`, `while`, `break` and `continue` are possible)
+//! This variant lets nargo parse the resulting source code which is slow
+//! but at the moment is more feature complete than using the interpreter
+//! directly.
 use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -31,7 +34,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = CompareComptime::arb(u, config, |_, program| {
+    let inputs = CompareComptime::arb(u, config, |program| {
         let options = CompareOptions::default();
         let ssa = create_ssa_or_die(
             change_all_functions_into_unconstrained(program),

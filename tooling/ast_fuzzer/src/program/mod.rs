@@ -70,6 +70,32 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     Ok(program)
 }
 
+/// Build a program with the single `main` function returning
+/// the result of a given expression (used for conversion of the
+/// interpreter execution results for comparison)
+pub fn program_comptime_wrap_expression(
+    u: &mut Unstructured,
+    config: Config,
+    expr: Expression,
+) -> arbitrary::Result<Program> {
+    let mut ctx = Context::new(config);
+
+    let decl_main = FunctionDeclaration {
+        name: "main".into(),
+        params: vec![],
+        return_type: expr.return_type().unwrap().into_owned(),
+        return_visibility: Visibility::Public,
+        inline_type: InlineType::default(),
+        unconstrained: true,
+    };
+
+    ctx.set_function_decl(FuncId(0), decl_main);
+    ctx.gen_function_with_body(u, FuncId(0), |_u, _fctx| Ok(expr.clone()))?;
+
+    let program = ctx.finalize();
+    Ok(program)
+}
+
 /// ID of variables in scope.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum VariableId {

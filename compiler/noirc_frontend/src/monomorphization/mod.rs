@@ -61,7 +61,7 @@ struct LambdaContext {
 ///
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
-pub(super) struct Monomorphizer<'interner> {
+pub struct Monomorphizer<'interner> {
     /// Functions are keyed by their unique ID, whether they're unconstrained, their expected type,
     /// and any generics they have so that we can monomorphize a new version of the function for each type.
     ///
@@ -205,7 +205,10 @@ pub fn monomorphize_debug(
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
+    pub fn new(
+        interner: &'interner mut NodeInterner,
+        debug_type_tracker: DebugTypeTracker,
+    ) -> Self {
         Monomorphizer {
             functions: HashMap::default(),
             locals: HashMap::default(),
@@ -481,7 +484,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn expr(
+    pub fn expr(
         &mut self,
         expr: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {

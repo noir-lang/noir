@@ -89,7 +89,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    pub(crate) fn call_function(
+    pub fn call_function(
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,

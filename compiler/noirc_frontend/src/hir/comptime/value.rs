@@ -174,7 +174,7 @@ impl Value {
         })
     }
 
-    pub(crate) fn into_expression(
+    pub fn into_expression(
         self,
         elaborator: &mut Elaborator,
         location: Location,
@@ -339,7 +339,7 @@ impl Value {
         Ok(Expression::new(kind, location))
     }
 
-    pub(crate) fn into_hir_expression(
+    pub fn into_hir_expression(
         self,
         interner: &mut NodeInterner,
         location: Location,

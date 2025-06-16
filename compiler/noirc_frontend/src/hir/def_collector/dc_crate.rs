@@ -141,9 +141,9 @@ pub struct ModuleAttribute {
 
 /// Given a Crate root, collect all definitions in that crate
 pub struct DefCollector {
-    pub(crate) def_map: CrateDefMap,
-    pub(crate) imports: Vec<ImportDirective>,
-    pub(crate) items: CollectedItems,
+    pub def_map: CrateDefMap,
+    pub imports: Vec<ImportDirective>,
+    pub items: CollectedItems,
 }
 
 #[derive(Default)]
@@ -209,7 +209,7 @@ impl CompilationError {
         }
     }
 
-    pub(crate) fn is_error(&self) -> bool {
+    pub fn is_error(&self) -> bool {
         // This is a bit expensive but not all error types have a `is_warning` method
         // and it'd lead to code duplication to add them. `CompilationError::is_error`
         // also isn't expected to be called too often.

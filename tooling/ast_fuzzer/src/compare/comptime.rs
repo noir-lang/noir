@@ -1,6 +1,6 @@
 //! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -15,11 +15,22 @@ use noirc_driver::{
     CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
     file_manager_with_stdlib, prepare_crate,
 };
+use noirc_errors::Location;
 use noirc_evaluator::ssa::SsaProgramArtifact;
-use noirc_frontend::{hir::Context, monomorphization::ast::Program};
+use noirc_frontend::{
+    hir::Context,
+    monomorphization::{
+        Monomorphizer,
+        ast::{Expression, Program},
+        debug_types::DebugTypeTracker,
+    },
+};
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
-use crate::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
+use crate::{
+    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi,
+    program_comptime_wrap_expression,
+};
 
 /// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -64,6 +75,83 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     Ok(((program, output), warnings))
 }
 
+/// Interpret source code using the elaborator, without
+/// parsing it with nargo.
+fn interpret(src: &str) -> Expression {
+    use fm::{FileId, FileManager};
+    use noirc_frontend::elaborator::{Elaborator, ElaboratorOptions};
+    use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+    use noirc_frontend::hir::def_collector::dc_mod::collect_defs;
+    use noirc_frontend::hir::def_map::{CrateDefMap, ModuleData};
+    use noirc_frontend::hir::{Context, ParsedFiles};
+    use noirc_frontend::parse_program;
+
+    let file = FileId::default();
+
+    let location = Location::new(Default::default(), file);
+    let root_module = ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // is contract
+        false, // is struct
+    );
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    let (module, errors) = parse_program(src, file);
+    // Skip warnings
+    let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).collect();
+    assert_eq!(errors.len(), 0);
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
+    let mut collector = DefCollector::new(def_map);
+
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+    context.def_maps.insert(krate, collector.def_map);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    let mut elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
+    );
+
+    // Skip compiler warnings
+    let errors: Vec<_> = elaborator.errors.iter().filter(|&e| e.is_error()).cloned().collect();
+    if !errors.is_empty() {
+        log::debug!("elaborator errors: {:?}", errors);
+    }
+    assert_eq!(errors.len(), 0);
+
+    let mut interpreter = elaborator.setup_interpreter();
+
+    // The most straightforward way to convert the interpreter result into
+    // an acceptable monorphized AST expression seems to be converting it
+    // into HIR first and then processing it with the monomorphizer
+    let expr_id =
+        match interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
+            Err(e) => panic!("interpreter error: {:?}", e),
+            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
+                Err(e) => panic!("could not convert interpreter result into HIR: {:?}", e),
+                Ok(expr_id) => expr_id,
+            },
+        };
+
+    let mut monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+    monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible")
+}
+
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
 /// vs normal SSA execution.
 pub struct CompareComptime {
@@ -72,10 +160,54 @@ pub struct CompareComptime {
     pub source: String,
     pub ssa: CompareArtifact,
     pub force_brillig: bool,
+    /// If the comptime code is executed directly, its results
+    /// are wrapped in a `main` function returning them, for further comparison.
+    pub comptime_ssa: Option<CompareArtifact>,
 }
 
 impl CompareComptime {
-    /// Execute the Noir code and the SSA, then compare the results.
+    /// Execute the Noir code passed through the interpeter
+    /// and the SSA, then compare the results.
+    pub fn exec_direct(&self) -> eyre::Result<CompareCompiledResult> {
+        log::debug!("comptime src:\n{}", self.source);
+
+        let comptime_ssa = match &self.comptime_ssa {
+            Some(comptime_ssa) => comptime_ssa,
+            None => unreachable!("SSA returning the comptime execution result should be available"),
+        };
+
+        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
+
+        let do_exec = |program| {
+            let mut print = Vec::new();
+
+            let mut foreign_call_executor = DefaultForeignCallBuilder::default()
+                .with_mocks(false)
+                .with_output(&mut print)
+                .build();
+
+            nargo::ops::execute_program(
+                program,
+                initial_witness.clone(),
+                &blackbox_solver,
+                &mut foreign_call_executor,
+            )
+        };
+
+        let res1 = do_exec(&comptime_ssa.artifact.program);
+        let res2 = do_exec(&self.ssa.artifact.program);
+
+        CompareCompiledResult::new(
+            &self.abi,
+            &Default::default(),
+            &self.ssa.artifact.error_types,
+            (res1, "".into()),
+            (res2, "".into()),
+        )
+    }
+
+    /// Execute the Noir code (via nargo) and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
 
@@ -161,20 +293,44 @@ impl CompareComptime {
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl FnOnce(
-            &mut Unstructured,
-            Program,
-        ) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+        f: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
     ) -> arbitrary::Result<Self> {
         let force_brillig = c.force_brillig;
         let program = arb_program_comptime(u, c)?;
         let abi = program_abi(&program);
 
-        let ssa = CompareArtifact::from(f(u, program.clone())?);
+        let ssa = CompareArtifact::from(f(program.clone())?);
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
 
-        Ok(Self { program, abi, source, ssa, force_brillig })
+        Ok(Self { program, abi, source, ssa, force_brillig, comptime_ssa: None })
+    }
+
+    /// Generate a random comptime-viable AST, reverse it into
+    /// Noir code and also compile it into SSA.
+    /// Then, execute the resulting code with the comptime
+    /// interpreter and prepare SSA returning the result
+    /// literal for comparison.
+    pub fn arb_direct(
+        u: &mut Unstructured,
+        c: Config,
+        f: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+        f_comptime: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+    ) -> arbitrary::Result<Self> {
+        let force_brillig = c.force_brillig;
+        let program = arb_program_comptime(u, c.clone())?;
+        let abi = program_abi(&program);
+
+        let ssa = CompareArtifact::from(f(program.clone())?);
+
+        let source = format!("{}", DisplayAstAsNoirComptime(&program));
+
+        let comptime_res = interpret(&format!("comptime {}", source));
+
+        let program_comptime = program_comptime_wrap_expression(u, c, comptime_res)?;
+        let comptime_ssa = Some(CompareArtifact::from(f_comptime(program_comptime)?));
+
+        Ok(Self { program, abi, source, ssa, force_brillig, comptime_ssa })
     }
 }
 

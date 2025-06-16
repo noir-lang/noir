@@ -37,7 +37,7 @@ impl From<(SsaProgramArtifact, CompareOptions)> for CompareArtifact {
 type SsaErrorTypes = BTreeMap<acir::circuit::ErrorSelector, ErrorType>;
 
 /// The execution result is the value returned from the circuit and any output from `println`.
-type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
+pub(crate) type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
 
 pub struct NargoErrorWithTypes(NargoError<FieldElement>, SsaErrorTypes);
 
