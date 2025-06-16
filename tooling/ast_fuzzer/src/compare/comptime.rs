@@ -323,7 +323,7 @@ impl CompareComptime {
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
         // log source code before interpreting
-        log::debug!("comptime src:\n{}", self.source);
+        log::debug!("comptime src:\n{}", source);
 
         let comptime_res = interpret(&format!("comptime {}", source));
 
