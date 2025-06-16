@@ -16,8 +16,8 @@ env:
   # On regular PRs we run deterministic fuzzing to avoid flaky tests on CI.
   # In the nightly tests we want to explore uncharted territory.
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC: 1
-  # Tell arbtest how long it can run the tests for.
-  NOIR_AST_FUZZER_FORCE_BUDGET_SECS: 300
+  # How long should we run the fuzzing for, in seconds.
+  NOIR_AST_FUZZER_BUDGET_SECS: 300
 
 jobs:
   ast-fuzz:
