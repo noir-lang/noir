@@ -20,10 +20,19 @@ mod tests {
     use crate::bool_from_env;
 
     fn seed_from_env() -> Option<u64> {
-        let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+        let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
         let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
             .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
         Some(seed)
+    }
+
+    /// How long to let non-deterministic tests run for.
+    fn budget() -> Duration {
+        std::env::var("NOIR_AST_FUZZER_BUDGET_SECS").ok().map_or(BUDGET, |b| {
+            Duration::from_secs(
+                b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}")),
+            )
+        })
     }
 
     /// Check if we are running on CI.
@@ -36,20 +45,12 @@ mod tests {
         bool_from_env("NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC")
     }
 
-    /// How long to let non-deterministic tests run for.
-    fn budget() -> Duration {
-        std::env::var("NOIR_AST_FUZZER_BUDGET_SECS").ok().map_or(BUDGET, |b| {
-            let secs = b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}"));
-            Duration::from_secs(secs)
-        })
-    }
-
     /// `cargo fuzz` takes a long time to ramp up the complexity.
     /// This test catches crash bugs much faster.
     ///
     /// Run it with for example:
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```

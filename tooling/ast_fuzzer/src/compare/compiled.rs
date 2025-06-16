@@ -184,6 +184,13 @@ impl<P> CompareCompiled<P> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
+        log::debug!(
+            "ABI input:\n{}",
+            noirc_abi::input_parser::Format::Toml
+                .serialize(&self.input_map, &self.abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
+
         let do_exec = |program| {
             let mut print = Vec::new();
 

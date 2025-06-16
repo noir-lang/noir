@@ -46,7 +46,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 mod tests {
 
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
