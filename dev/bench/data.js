@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750081629488,
+  "lastUpdate": 1750085385709,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18576,48 +18576,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "85dba2cbd86e739af88eda138555c6d3b4771c8e",
-          "message": "chore(ssa): Initial validation module (#8765)",
-          "timestamp": "2025-06-09T14:49:59Z",
-          "tree_id": "1db07f239de15c57f60ece37bb91a72b01c69007",
-          "url": "https://github.com/noir-lang/noir/commit/85dba2cbd86e739af88eda138555c6d3b4771c8e"
-        },
-        "date": 1749482026407,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 689392,
-            "range": "± 4427",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 594165,
-            "range": "± 85087",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 4898333,
-            "range": "± 277471",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20669,6 +20627,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786386,
             "range": "± 6080",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e",
+          "message": "fix(fuzz): Fix env var name in fuzzing workflow (#8929)",
+          "timestamp": "2025-06-16T14:26:16Z",
+          "tree_id": "b5af5bc9d5f82ab5f9e08b5900f7219bea3a0bda",
+          "url": "https://github.com/noir-lang/noir/commit/7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e"
+        },
+        "date": 1750085372600,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249182,
+            "range": "± 762",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221800,
+            "range": "± 3521",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785030,
+            "range": "± 6615",
             "unit": "ns/iter"
           }
         ]
