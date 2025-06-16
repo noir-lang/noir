@@ -1,7 +1,0 @@
-/target
-node_modules
-
-# Build outputs
-result
-nodejs
-web
