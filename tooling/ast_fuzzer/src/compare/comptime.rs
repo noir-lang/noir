@@ -166,7 +166,7 @@ pub struct CompareComptime {
 }
 
 impl CompareComptime {
-    /// Execute the Noir code passed through the interpeter
+    /// Execute the Noir code passed through the interpreter
     /// and the SSA, then compare the results.
     pub fn exec_direct(&self) -> eyre::Result<CompareCompiledResult> {
         log::debug!("comptime src:\n{}", self.source);
