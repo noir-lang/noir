@@ -28,9 +28,10 @@ mod tests {
 
     /// How long to let non-deterministic tests run for.
     fn budget() -> Duration {
-        std::env::var("NOIR_AST_FUZZER_BUDGET_MS").ok().map_or(BUDGET, |b| {
-            let secs = b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}"));
-            Duration::from_millis(secs)
+        std::env::var("NOIR_AST_FUZZER_BUDGET_SECS").ok().map_or(BUDGET, |b| {
+            Duration::from_secs(
+                b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}")),
+            )
         })
     }
 
