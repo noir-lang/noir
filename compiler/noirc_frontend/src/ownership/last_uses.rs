@@ -251,7 +251,7 @@ impl LastUseContext {
                 [(if_or_match_id, branch_id), ..],
             ) => {
                 // The branch doesn't exist for this variable; create it
-                reset_branch_and_recur(branch, *if_or_match_id, *branch_id)
+                reset_branch_and_recur(branch, *if_or_match_id, *branch_id);
             }
             (branches @ Branches::IfOrMatch(..), [(new_if_id, branch_id), rest @ ..]) => {
                 if branches.get_if_or_match_id() == Some(*new_if_id) {
@@ -259,7 +259,7 @@ impl LastUseContext {
                     let entry = nested.entry(*branch_id).or_insert(Branches::None);
                     Self::remember_use_of_variable_rec(entry, rest, variable);
                 } else {
-                    reset_branch_and_recur(branches, *new_if_id, *branch_id)
+                    reset_branch_and_recur(branches, *new_if_id, *branch_id);
                 }
             }
         }

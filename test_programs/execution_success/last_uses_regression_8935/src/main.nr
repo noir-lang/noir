@@ -4,8 +4,7 @@ unconstrained fn main(a: [u16; 1], b: [u16; 1]) {
 }
 
 unconstrained fn case1(array: [u16; 1]) {
-    if false {
-    } else {
+    if false {} else {
         let mut d = array;
         if (true) {
             d[0] = 2;
