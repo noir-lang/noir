@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750086092072,
+  "lastUpdate": 1750088198416,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18581,48 +18581,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b0e05f2eed5950f413d2c6696554f7a9c4baa5a9",
-          "message": "fix: (SSA interpreter) to_le_bits returns [u1; _], not [u8; _] (#8837)",
-          "timestamp": "2025-06-09T14:54:54Z",
-          "tree_id": "86eabff5d6afc53f85a65b7c00c909def71a8824",
-          "url": "https://github.com/noir-lang/noir/commit/b0e05f2eed5950f413d2c6696554f7a9c4baa5a9"
-        },
-        "date": 1749482193809,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250491,
-            "range": "± 3826",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220732,
-            "range": "± 6455",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782608,
-            "range": "± 5267",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20674,6 +20632,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785030,
             "range": "± 6615",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b04a51c190bf277bdd86b5f0255ba410dafcee0d",
+          "message": "fix(fuzz): Consider values returned from Brillig to ACIR as dynamic (#8931)",
+          "timestamp": "2025-06-16T15:12:54Z",
+          "tree_id": "e17dded682f199cf98d56182b98202f4f1157b0f",
+          "url": "https://github.com/noir-lang/noir/commit/b04a51c190bf277bdd86b5f0255ba410dafcee0d"
+        },
+        "date": 1750088186036,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253169,
+            "range": "± 606",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227992,
+            "range": "± 5146",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786264,
+            "range": "± 2013",
             "unit": "ns/iter"
           }
         ]
