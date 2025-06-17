@@ -174,7 +174,7 @@ impl LastUseContext {
     }
 
     fn pop_loop_scope(&mut self) {
-        self.current_loop_and_branch.pop();
+        self.current_loop_and_branch.pop().expect("No loop to pop");
     }
 
     fn branch(&mut self, id: IfOrMatchId, branch_id: u32) {
@@ -193,7 +193,7 @@ impl LastUseContext {
     fn unbranch(&mut self) {
         let path =
             self.current_loop_and_branch.last_mut().expect("We should always have at least 1 path");
-        path.pop();
+        path.pop().expect("No branch to unbranch");
     }
 
     fn loop_index(&self) -> usize {
