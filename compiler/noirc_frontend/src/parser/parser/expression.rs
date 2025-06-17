@@ -70,13 +70,40 @@ impl Parser<'_> {
     }
 
     /// Term
-    ///    = UnaryOp Term
-    ///    | AtomOrUnaryRightExpression
+    ///    = UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
+    ///    | CatExpression
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
+        let mut term = self.parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+            allow_constructors,
+        )?;
+        let mut parsed;
+
+        loop {
+            (term, parsed) = self.parse_cast(term, start_location);
+            if !parsed {
+                break;
+            }
+        }
+
+        Some(term)
+    }
+
+    /// UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
+    ///    = UnaryOp* AtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
+    fn parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+        &mut self,
+        allow_constructors: bool,
+    ) -> Option<Expression> {
+        let start_location = self.current_token_location;
+
         if let Some(operator) = self.parse_unary_op() {
-            let Some(rhs) = self.parse_term(allow_constructors) else {
+            let Some(rhs) = self
+                .parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+                    allow_constructors,
+                )
+            else {
                 self.expected_label(ParsingRuleLabel::Expression);
                 return None;
             };
@@ -85,7 +112,7 @@ impl Parser<'_> {
             return Some(Expression { kind, location });
         }
 
-        self.parse_atom_or_unary_right(allow_constructors)
+        self.parse_atom_or_member_access_or_call_or_method_call_or_index(allow_constructors)
     }
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
@@ -109,15 +136,19 @@ impl Parser<'_> {
         }
     }
 
-    /// AtomOrUnaryRightExpression
-    ///     = Atom UnaryRightExpression*
-    fn parse_atom_or_unary_right(&mut self, allow_constructors: bool) -> Option<Expression> {
+    /// AtomOrMemberAccessOrCallOrMethodCallOrIndexExpressoin
+    ///     = Atom MemberAccessOrCallOrMethodCallOrIndexExpression*
+    fn parse_atom_or_member_access_or_call_or_method_call_or_index(
+        &mut self,
+        allow_constructors: bool,
+    ) -> Option<Expression> {
         let start_location = self.current_token_location;
         let mut atom = self.parse_atom(allow_constructors)?;
         let mut parsed;
 
         loop {
-            (atom, parsed) = self.parse_unary_right(atom, start_location);
+            (atom, parsed) =
+                self.parse_member_access_or_call_or_method_call_or_index(atom, start_location);
             if parsed {
                 continue;
             } else {
@@ -128,12 +159,12 @@ impl Parser<'_> {
         Some(atom)
     }
 
-    /// UnaryRightExpression
+    /// MemberAccessOrCallOrMethodCallOrIndexExpression
     ///     = CallExpression
     ///     | MemberAccessOrMethodCallExpression
     ///     | CastExpression
     ///     | IndexExpression
-    fn parse_unary_right(
+    fn parse_member_access_or_call_or_method_call_or_index(
         &mut self,
         mut atom: Expression,
         start_location: Location,
@@ -146,11 +177,6 @@ impl Parser<'_> {
         }
 
         (atom, parsed) = self.parse_member_access_or_method_call(atom, start_location);
-        if parsed {
-            return (atom, parsed);
-        }
-
-        (atom, parsed) = self.parse_cast(atom, start_location);
         if parsed {
             return (atom, parsed);
         }
@@ -247,7 +273,7 @@ impl Parser<'_> {
         }
     }
 
-    /// CastExpression = Atom 'as' Type
+    /// CastExpression = UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression 'as' Type
     fn parse_cast(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_keyword(Keyword::As) {
             return (atom, false);
@@ -1469,6 +1495,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_not_call() {
+        let src = "!foo()";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Prefix(prefix) = expr.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert!(matches!(prefix.operator, UnaryOp::Not));
+
+        let ExpressionKind::Call(_) = prefix.rhs.kind else {
+            panic!("Expected call");
+        };
+    }
+
+    #[test]
     fn parses_dereference() {
         let src = "*foo";
         let expr = parse_expression_no_errors(src);
@@ -1816,6 +1856,47 @@ mod tests {
         };
         assert_eq!(cast_expr.lhs.to_string(), "1");
         assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_cast_of_negated_literal_once() {
+        let src = "-1 as u8";
+        let expr = parse_expression_no_errors(src);
+        // dbg!(&expr);
+
+        let ExpressionKind::Cast(cast_expr) = expr.kind else {
+            panic!("Expected cast");
+        };
+        assert_eq!(cast_expr.lhs.to_string(), "-1");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_cast_of_negated_var_twice() {
+        let src = "--x as u8";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Cast(cast_expr) = expr.kind else {
+            panic!("Expected cast");
+        };
+        let ExpressionKind::Prefix(prefix1) = cast_expr.lhs.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert_eq!(prefix1.operator, UnaryOp::Minus);
+        let ExpressionKind::Prefix(prefix2) = prefix1.rhs.kind else {
+            panic!("Expected prefix expression");
+        };
+        assert_eq!(prefix2.operator, UnaryOp::Minus);
+        assert_eq!(prefix2.rhs.to_string(), "x");
+        assert_eq!(cast_expr.r#type.to_string(), "u8");
+    }
+
+    #[test]
+    fn parses_sum_then_cast() {
+        let src = "1 + 2 as u8";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(_) = expr.kind else {
+            panic!("Expected infix");
+        };
     }
 
     #[test]
