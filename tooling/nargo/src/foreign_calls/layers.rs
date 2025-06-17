@@ -1,36 +1,28 @@
-use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
-
 use super::{ForeignCallError, ForeignCallExecutor};
 
 /// Returns an empty result when called.
-///
-/// If all executors have no handler for the given foreign call then we cannot
-/// return a correct response to the ACVM. The best we can do is to return an empty response,
-/// this allows us to ignore any foreign calls which exist solely to pass information from inside
-/// the circuit to the environment (e.g. custom logging) as the execution will still be able to progress.
-///
-/// We optimistically return an empty response for all oracle calls as the ACVM will error
-/// should a response have been required.
 pub struct Empty;
 
-impl<F: AcirField> ForeignCallExecutor<F> for Empty {
+impl<F> ForeignCallExecutor<F> for Empty {
     fn execute(
         &mut self,
-        _foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        Ok(ForeignCallResult::default())
+        _foreign_call: &str,
+        _inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError> {
+        Ok(Vec::new())
     }
 }
 
 /// Returns `NoHandler` for every call.
 pub struct Unhandled;
 
-impl<F: AcirField> ForeignCallExecutor<F> for Unhandled {
+impl<F> ForeignCallExecutor<F> for Unhandled {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
+        foreign_call: &str,
+        _inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError> {
+        Err(ForeignCallError::NoHandler(foreign_call.to_string()))
     }
 }
 
@@ -47,10 +39,11 @@ where
 {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
-        match self.handler.execute(foreign_call) {
-            Err(ForeignCallError::NoHandler(_)) => self.inner.execute(foreign_call),
+        foreign_call: &str,
+        inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError> {
+        match self.handler.execute(foreign_call, inputs) {
+            Err(ForeignCallError::NoHandler(_)) => self.inner.execute(foreign_call, inputs),
             handled => handled,
         }
     }
@@ -134,29 +127,29 @@ where
 {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        foreign_call: &str,
+        inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError> {
         match self {
-            Either::Left(left) => left.execute(foreign_call),
-            Either::Right(right) => right.execute(foreign_call),
+            Either::Left(left) => left.execute(foreign_call, inputs),
+            Either::Right(right) => right.execute(foreign_call, inputs),
         }
     }
 }
 
 /// Support disabling a layer by making it optional.
-/// This way we can still have a known static type for a composition,
-/// because layers are always added, potentially wrapped in an `Option`.
 impl<H, F> ForeignCallExecutor<F> for Option<H>
 where
     H: ForeignCallExecutor<F>,
 {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError> {
+        foreign_call: &str,
+        inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError> {
         match self {
-            Some(handler) => handler.execute(foreign_call),
-            None => Err(ForeignCallError::NoHandler(foreign_call.function.clone())),
+            Some(handler) => handler.execute(foreign_call, inputs),
+            None => Err(ForeignCallError::NoHandler(foreign_call.to_string())),
         }
     }
 }

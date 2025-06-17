@@ -1,6 +1,13 @@
-use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
-use noirc_printable_type::TryFromParamsError;
 use thiserror::Error;
+
+/// Error when trying to convert foreign call parameters
+#[derive(Debug, Error)]
+pub enum TryFromParamsError {
+    #[error("Foreign call inputs needed for execution are missing")]
+    MissingForeignCallInputs,
+    #[error("Could not parse parameters: {0}")]
+    ParsingError(#[from] serde_json::Error),
+}
 
 pub mod layers;
 pub mod mocker;
@@ -14,16 +21,16 @@ pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
 
-/// Interface for executing foreign calls
+/// Interface for executing foreign calls (stubbed without ACVM)
 pub trait ForeignCallExecutor<F> {
     fn execute(
         &mut self,
-        foreign_call: &ForeignCallWaitInfo<F>,
-    ) -> Result<ForeignCallResult<F>, ForeignCallError>;
+        foreign_call: &str,
+        inputs: &[F],
+    ) -> Result<Vec<F>, ForeignCallError>;
 }
 
 /// This enumeration represents the Brillig foreign calls that are natively supported by nargo.
-/// After resolution of a foreign call, nargo will restart execution of the ACVM
 pub enum ForeignCall {
     /// Reference [mod@print] for more info regarding this call's inputs
     Print,
@@ -93,6 +100,9 @@ pub enum ForeignCallError {
 
     #[error("Failed to replay oracle transcript: {0}")]
     TranscriptError(String),
+
+    #[error("Other error: {0}")]
+    Other(String),
 }
 
 impl From<TryFromParamsError> for ForeignCallError {
