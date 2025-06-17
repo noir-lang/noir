@@ -257,7 +257,10 @@
 <a href="#256" id="256">256</a>
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -306,7 +309,7 @@
     source: String,
     force_brillig: bool,
     output: W,
-) -&gt; CompilationResult&lt;(CompiledProgram, W)&gt; {
+) -&gt; (CompilationResult&lt;CompiledProgram&gt;, W) {
     <span class="kw">let </span>output = Rc::new(RefCell::new(output));
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, root_crate_id) = prepare_snippet(source);
     context.set_comptime_printing(output.clone());
@@ -317,10 +320,10 @@
         skip_brillig_constraints_check: <span class="bool-val">true</span>,
         ..Default::default()
     };
-    <span class="kw">let </span>(program, warnings) = compile_main(<span class="kw-2">&amp;mut </span>context, root_crate_id, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>)<span class="question-mark">?</span>;
+    <span class="kw">let </span>res = compile_main(<span class="kw-2">&amp;mut </span>context, root_crate_id, <span class="kw-2">&amp;</span>options, <span class="prelude-val">None</span>);
     drop(context);
     <span class="kw">let </span>output = Rc::into_inner(output).expect(<span class="string">"context is gone"</span>).into_inner();
-    <span class="prelude-val">Ok</span>(((program, output), warnings))
+    (res, output)
 }
 
 <span class="doccomment">/// Compare the execution of a Noir program in pure comptime (via interpreter)
@@ -341,13 +344,15 @@
         <span class="comment">// These comptime programs have no inputs.
         </span><span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
 
+        <span class="kw">let </span>decode_print = |print| String::from_utf8(print).expect(<span class="string">"should be valid utf8 string"</span>);
+
         <span class="comment">// Execute a compiled Program.
         </span><span class="kw">let </span>do_exec = |program| {
-            <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
 
             <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(<span class="bool-val">false</span>)
-                .with_output(<span class="kw-2">&amp;mut </span>print)
+                .with_output(<span class="kw-2">&amp;mut </span>output)
                 .build();
 
             <span class="kw">let </span>res = nargo::ops::execute_program(
@@ -356,8 +361,8 @@
                 <span class="kw-2">&amp;</span>blackbox_solver,
                 <span class="kw-2">&amp;mut </span>foreign_call_executor,
             );
+            <span class="kw">let </span>print = decode_print(output);
 
-            <span class="kw">let </span>print = String::from_utf8(print).expect(<span class="string">"should be valid utf8 string"</span>);
             (res, print)
         };
 
@@ -371,8 +376,8 @@
             <span class="self">self</span>.force_brillig,
             Vec::new(),
         ) {
-            <span class="prelude-val">Ok</span>(((program, output), <span class="kw">_</span>)) =&gt; (program, output),
-            <span class="prelude-val">Err</span>(e) =&gt; {
+            (<span class="prelude-val">Ok</span>((program, <span class="kw">_</span>)), output) =&gt; (program, output),
+            (<span class="prelude-val">Err</span>(e), output) =&gt; {
                 <span class="comment">// If the comptime code failed to compile, it could be because it executed the code
                 // and encountered an overflow, which would be a runtime error in Brillig.
                 </span><span class="kw">let </span>is_assertion = e.iter().any(|e| {
@@ -388,11 +393,12 @@
                         <span class="prelude-val">None</span>,
                     );
                     <span class="kw">let </span>res1 = <span class="prelude-val">Err</span>(NargoError::ExecutionError(err));
+                    <span class="kw">let </span>print1 = decode_print(output);
                     <span class="kw">return </span>CompareCompiledResult::new(
                         <span class="kw-2">&amp;</span><span class="self">self</span>.abi,
                         <span class="kw-2">&amp;</span>Default::default(), <span class="comment">// We failed to compile the program, so no error types.
                         </span><span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.error_types,
-                        (res1, <span class="string">""</span>.to_string()),
+                        (res1, print1),
                         (res2, print2),
                     );
                 } <span class="kw">else </span>{

@@ -356,7 +356,22 @@
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
 <a href="#357" id="357">357</a>
-<a href="#358" id="358">358</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -371,7 +386,7 @@
 
 <span class="kw">use crate</span>::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
-<span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, ExecOutput};
+<span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, FailedOutput, PassedOutput};
 
 <span class="doccomment">/// The state of the SSA after a particular pass in the pipeline.
 </span><span class="kw">pub struct </span>ComparePass {
@@ -432,7 +447,7 @@
     }
 
     <span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareInterpretedResult&gt; {
-        <span class="comment">// Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        <span class="comment">// Debug prints up frontin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
         </span><span class="macro">log::debug!</span>(<span class="string">"Program: \n{}\n"</span>, <span class="kw">crate</span>::DisplayAstAsNoir(<span class="kw-2">&amp;</span><span class="self">self</span>.program));
         <span class="macro">log::debug!</span>(
             <span class="string">"ABI inputs: \n{}\n"</span>,
@@ -460,28 +475,43 @@
 
 <span class="kw">impl </span>CompareInterpretedResult {
     <span class="kw">pub fn </span>new(res1: InterpretResult, res2: InterpretResult) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>out = |ret| ExecOutput { return_value: <span class="prelude-val">Some</span>(ret), print_output: Default::default() };
+        <span class="comment">// Currently the SSA interpreter `call_print` doesn't do anything, so we cannot capture the print output.
+        </span><span class="kw">let </span>failed = |e| FailedOutput { error: e, print_output: Default::default() };
+        <span class="kw">let </span>passed =
+            |ret| PassedOutput { return_value: <span class="prelude-val">Some</span>(ret), print_output: Default::default() };
+
         <span class="kw">match </span>(res1, res2) {
-            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Ok</span>(e2)) =&gt; <span class="self">Self</span>::BothPassed(out(r1), out(e2)),
-            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::RightFailed(out(r1), e2),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::LeftFailed(e1, out(r2)),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::BothFailed(e1, e2),
+            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::BothPassed(passed(r1), passed(r2)),
+            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::RightFailed(passed(r1), failed(e2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::LeftFailed(failed(e1), passed(r2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::BothFailed(failed(e1), failed(e2)),
         }
     }
 }
 
 <span class="kw">impl </span>Comparable <span class="kw">for </span>ssa::interpreter::errors::InterpreterError {
     <span class="kw">fn </span>equivalent(e1: <span class="kw-2">&amp;</span><span class="self">Self</span>, e2: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+        <span class="kw">use </span>ssa::interpreter::errors::InternalError;
         <span class="kw">use </span>ssa::interpreter::errors::InterpreterError::<span class="kw-2">*</span>;
 
         <span class="kw">match </span>(e1, e2) {
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c1, typ: t1 }),
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c2, typ: t2 }),
+            ) =&gt; {
+                <span class="comment">// The interpreter represents values in types where the result of some casts cannot be represented, while the ACIR and
+                // Brillig runtime can fit them into Fields, and defer validation later. We could promote this error to a non-internal one,
+                // but the fact remains that the interpreter would fail earlier than ACIR or Brillig.
+                // To deal with this we ignore these errors as long as both passes fail the same way.
+                </span>c1 == c2 &amp;&amp; t1 == t2
+            }
             (Internal(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Internal(<span class="kw">_</span>)) =&gt; {
                 <span class="comment">// We should not get, or ignore, internal errors.
                 // They mean the interpreter got something unexpected that we need to fix.
                 </span><span class="bool-val">false
             </span>}
             (Overflow { instruction: i1 }, Overflow { instruction: i2 }) =&gt; {
-                <span class="comment">// Overflows can occur or uncomparable instructions, but in a parentheses it contains the values that caused it.
+                <span class="comment">// Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 </span><span class="kw">fn </span>details(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt; {
                     <span class="kw">let </span>start = s.find(<span class="string">"("</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>end = s.find(<span class="string">")"</span>)<span class="question-mark">?</span>;

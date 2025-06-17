@@ -295,7 +295,13 @@
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
 <a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -310,7 +316,7 @@
 
 <span class="kw">use crate</span>::{Config, arb_inputs, arb_program, program_abi};
 
-<span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, ExecOutput, HasPrograms};
+<span class="kw">use super</span>::{Comparable, CompareOptions, CompareResult, FailedOutput, HasPrograms, PassedOutput};
 
 <span class="kw">pub struct </span>CompareArtifact {
     <span class="kw">pub </span>options: CompareOptions,
@@ -336,7 +342,8 @@
 <span class="doccomment">/// The execution result is the value returned from the circuit and any output from `println`.
 </span><span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
 
-<span class="kw">pub struct </span>NargoErrorWithTypes(NargoError&lt;FieldElement&gt;, SsaErrorTypes);
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub struct </span>NargoErrorWithTypes(NargoError&lt;FieldElement&gt;, SsaErrorTypes);
 
 <span class="kw">impl </span>NargoErrorWithTypes {
     <span class="doccomment">/// Copy of `NargoError::user_defined_failure_message` accepting `SsaErrorTypes` instead of ABI errors.
@@ -388,23 +395,25 @@
             <span class="prelude-val">Ok</span>(r)
         };
 
+        <span class="kw">let </span>failed = |e, ets: <span class="kw-2">&amp;</span>SsaErrorTypes, p: String| FailedOutput {
+            error: NargoErrorWithTypes(e, ets.clone()),
+            print_output: p,
+        };
+
+        <span class="kw">let </span>passed = |ws, p| decode(ws).map(|r| PassedOutput { return_value: r, print_output: p });
+
         <span class="kw">match </span>(res1, res2) {
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::BothFailed(
-                NargoErrorWithTypes(e1, ets1.clone()),
-                NargoErrorWithTypes(e2, ets2.clone()),
-            )),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(ws2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::LeftFailed(
-                NargoErrorWithTypes(e1, ets1.clone()),
-                ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 },
-            )),
-            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="prelude-val">Ok</span>(CompareResult::RightFailed(
-                ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 },
-                NargoErrorWithTypes(e2, ets2.clone()),
-            )),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; {
+                <span class="prelude-val">Ok</span>(CompareResult::BothFailed(failed(e1, ets1, print1), failed(e2, ets2, print2)))
+            }
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(ws2)) =&gt; {
+                <span class="prelude-val">Ok</span>(CompareResult::LeftFailed(failed(e1, ets1, print1), passed(ws2, print2)<span class="question-mark">?</span>))
+            }
+            (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Err</span>(e2)) =&gt; {
+                <span class="prelude-val">Ok</span>(CompareResult::RightFailed(passed(ws1, print1)<span class="question-mark">?</span>, failed(e2, ets2, print2)))
+            }
             (<span class="prelude-val">Ok</span>(ws1), <span class="prelude-val">Ok</span>(ws2)) =&gt; {
-                <span class="kw">let </span>o1 = ExecOutput { return_value: decode(ws1)<span class="question-mark">?</span>, print_output: print1 };
-                <span class="kw">let </span>o2 = ExecOutput { return_value: decode(ws2)<span class="question-mark">?</span>, print_output: print2 };
-                <span class="prelude-val">Ok</span>(CompareResult::BothPassed(o1, o2))
+                <span class="prelude-val">Ok</span>(CompareResult::BothPassed(passed(ws1, print1)<span class="question-mark">?</span>, passed(ws2, print2)<span class="question-mark">?</span>))
             }
         }
     }
@@ -422,10 +431,19 @@
             <span class="kw">return </span><span class="bool-val">false</span>;
         };
 
-        <span class="kw">let </span>msg1 = e1.user_defined_failure_message();
-        <span class="kw">let </span>msg2 = e2.user_defined_failure_message();
-        <span class="kw">let </span>is_same_msg = msg1.is_some() &amp;&amp; msg2.is_some() &amp;&amp; msg1 == msg2;
+        <span class="comment">// We have a notion of treating errors as equivalents as long as the side effects
+        // of the failed program are otherwise the same. For this reason we compare the
+        // prints in `return_value_or_err`. Here we have the option to tweak which errors
+        // we consider equivalents, but that's really just to stay on the conservative
+        // side and give us a chance to inspect new kinds of test failures.
 
+        </span><span class="kw">let </span>msg1 = e1.user_defined_failure_message();
+        <span class="kw">let </span>msg2 = e2.user_defined_failure_message();
+        <span class="kw">let </span>equiv_msgs = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(msg1), <span class="prelude-val">Some</span>(msg2)) = (msg1, msg2) {
+            msg1 == msg2 || msg1.contains(<span class="string">"overflow"</span>) &amp;&amp; msg2.contains(<span class="string">"overflow"</span>)
+        } <span class="kw">else </span>{
+            <span class="bool-val">false
+        </span>};
         <span class="kw">match </span>(ee1, ee2) {
             (
                 AssertionFailed(ResolvedAssertionPayload::String(c), <span class="kw">_</span>, <span class="kw">_</span>),
@@ -434,7 +452,7 @@
                 <span class="comment">// Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 </span><span class="bool-val">true
             </span>}
-            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2 || is_same_msg,
+            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2 || equiv_msgs,
             (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
             (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
             | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
@@ -442,7 +460,7 @@
                     OpcodeResolutionError::UnsatisfiedConstrain { .. },
                     ResolvedAssertionPayload::String(s),
                 ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
-                <span class="kw">_ </span>=&gt; is_same_msg,
+                <span class="kw">_ </span>=&gt; equiv_msgs,
             },
         }
     }
@@ -457,12 +475,6 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>NargoErrorWithTypes {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         std::fmt::Display::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
-    }
-}
-
-<span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>NargoErrorWithTypes {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        std::fmt::Debug::fmt(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
 
