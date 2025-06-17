@@ -227,7 +227,7 @@ mod tests {
     fn reports_true_for_empty_circuit() {
         let empty_circuit = test_circuit(vec![], BTreeSet::default(), PublicInputs::default());
 
-        assert!(CircuitSimulator::default().check_circuit(&empty_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&empty_circuit).is_none());
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&disconnected_circuit));
+        assert!(!CircuitSimulator::default().check_circuit(&disconnected_circuit).is_none());
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit));
+        assert!(!CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 
     #[test]
@@ -335,6 +335,6 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit));
+        assert!(!CircuitSimulator::default().check_circuit(&circuit).is_none());
     }
 }
