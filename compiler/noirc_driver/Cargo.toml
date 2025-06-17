@@ -18,9 +18,7 @@ build-data.workspace = true
 clap.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true
-noirc_evaluator.workspace = true
 noirc_abi.workspace = true
-acvm.workspace = true
 iter-extended.workspace = true
 fm.workspace = true
 serde.workspace = true
@@ -29,5 +27,5 @@ rust-embed.workspace = true
 tracing.workspace = true
 
 [features]
-bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]
-bls12_381 = ["noirc_frontend/bls12_381", "noirc_evaluator/bls12_381"]
+bn254 = ["noirc_frontend/bn254"]
+bls12_381 = ["noirc_frontend/bls12_381"]

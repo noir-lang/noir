@@ -1,8 +1,3 @@
-use acvm::acir::circuit::AcirOpcodeLocation;
-use acvm::acir::circuit::BrilligOpcodeLocation;
-use acvm::acir::circuit::OpcodeLocation;
-use acvm::acir::circuit::brillig::BrilligFunctionId;
-use acvm::compiler::AcirTransformationMap;
 
 use base64::Engine;
 use flate2::Compression;

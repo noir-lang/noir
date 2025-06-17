@@ -144,6 +144,19 @@ Sensei maintains sophisticated error reporting:
 4. **Use `cargo check` when verifying whether the code compiles** - Faster feedback during development
 5. **Tools**: Look under `.claude-tools/` - You will find prepared scripts for common actions; these are usually just aliases - prefer these over running commands directly
 
+## Task Completion Requirements
+
+**Before considering any task done, you MUST:**
+
+1. **Verify Rust compilation**: Run `cargo check` in the root folder and ensure it completes successfully without errors
+2. **Verify Sensei stdlib**: Use the newly compiled nargo from `nargo_cli` to check that `sensei_stdlib` still works:
+   ```bash
+   cd sensei_stdlib
+   cargo run -p nargo_cli -- check -Z enums
+   ```
+3. **Preserve existing functionality**: Tasks must be completed without undoing or breaking what has already been done
+4. **Report when stuck**: If stuck, don't go in circles - clearly report the specific reason for being stuck rather than attempting the same approach repeatedly
+
 ## Minimum Requirements
 
 - Rust 1.85.0 or later

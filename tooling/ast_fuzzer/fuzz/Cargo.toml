@@ -16,9 +16,7 @@ arbitrary.workspace = true
 color-eyre.workspace = true
 libfuzzer-sys.workspace = true
 
-acir.workspace = true
 noirc_abi.workspace = true
-noirc_evaluator.workspace = true
 noirc_frontend.workspace = true
 
 noir_ast_fuzzer = { path = ".." }
