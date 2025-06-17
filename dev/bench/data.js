@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750162718083,
+  "lastUpdate": 1750172560063,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18616,48 +18616,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bc60e6a4e2a80697baaf5564041d18af91b171f6",
-          "message": "chore(fuzz): Handle overflows in comptime fuzzing (#8847)",
-          "timestamp": "2025-06-10T08:11:27Z",
-          "tree_id": "c4e3953c7f3dc0ab3fe7c3a885e9b30f9c53e3ba",
-          "url": "https://github.com/noir-lang/noir/commit/bc60e6a4e2a80697baaf5564041d18af91b171f6"
-        },
-        "date": 1749544382509,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267023,
-            "range": "± 2305",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235527,
-            "range": "± 4222",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2924973,
-            "range": "± 18640",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20709,6 +20667,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2807225,
             "range": "± 1649",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3838c690e9af668d052629c5fa90deadb9bbcd77",
+          "message": "chore(test): Add `--minimal-ssa` to integration tests (#8938)",
+          "timestamp": "2025-06-17T14:38:27Z",
+          "tree_id": "91af770408b91be856bd8f9e2049773817d5810b",
+          "url": "https://github.com/noir-lang/noir/commit/3838c690e9af668d052629c5fa90deadb9bbcd77"
+        },
+        "date": 1750172547148,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254117,
+            "range": "± 662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226240,
+            "range": "± 3431",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787898,
+            "range": "± 2885",
             "unit": "ns/iter"
           }
         ]
