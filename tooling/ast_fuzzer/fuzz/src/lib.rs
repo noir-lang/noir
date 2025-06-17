@@ -16,13 +16,17 @@ use noirc_frontend::monomorphization::ast::Program;
 
 pub mod targets;
 
+fn bool_from_env(key: &str) -> bool {
+    std::env::var(key).map(|s| s == "1" || s == "true").unwrap_or_default()
+}
+
 // TODO(#7876): Allow specifying options on the command line.
 fn show_ast() -> bool {
-    std::env::var("NOIR_AST_FUZZER_SHOW_AST").map(|s| s == "1" || s == "true").unwrap_or_default()
+    bool_from_env("NOIR_AST_FUZZER_SHOW_AST")
 }
 
 fn show_ssa() -> bool {
-    std::env::var("NOIR_AST_FUZZER_SHOW_SSA").map(|s| s == "1" || s == "true").unwrap_or_default()
+    bool_from_env("NOIR_AST_FUZZER_SHOW_SSA")
 }
 
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
@@ -176,7 +180,7 @@ pub fn compare_results_interpreted(
         eprintln!(
             "---\nSSA Inputs:\n{}",
             inputs
-                .input_values
+                .ssa_args
                 .iter()
                 .enumerate()
                 .map(|(i, v)| format!("{i}: {v}"))

@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 829b919289cc8461cf7a24a3e5fe0861c61d0322
+define: &AZ_COMMIT b80949775e5c27908a6055ad24592f7d98bdc45a
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 300
+    timeout: 350
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -48,10 +48,6 @@ libraries:
     repo: noir-lang/sparse_array
     timeout: 3
     critical: true
-  noir_rsa:
-    repo: noir-lang/noir_rsa
-    timeout: 4
-    critical: true
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
@@ -63,7 +59,6 @@ libraries:
   sha512:
     repo: noir-lang/sha512
     timeout: 40
-    critical: true
   keccak256:
     repo: noir-lang/keccak256
     timeout: 3
@@ -76,19 +71,19 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/aztec-nr
-    timeout: 70
+    timeout: 100
     critical: false
   noir_contracts:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-contracts
-    timeout: 120
+    timeout: 150
     critical: false
   blob:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/blob
-    timeout: 70
+    timeout: 200
     critical: false
   protocol_circuits_parity_lib:
     repo: AztecProtocol/aztec-packages
@@ -112,13 +107,13 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/types
-    timeout: 75
+    timeout: 100
     critical: false
   protocol_circuits_rollup_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-lib
-    timeout: 300
+    timeout: 625
     critical: false
     # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
     nargo_args: "--test-threads 1"
@@ -146,11 +141,16 @@ libraries:
     critical: false
   tdd:
     repo: teddav/tdd.nr
-    ref: 4bebfb361f2e5175d23376645310eecca96749a5
+    ref: c5c2d8ed9d9c7dc73346bb0bd7884f871bd16236
     timeout: 20
     critical: false
   zkpassport_rsa:
     repo: zkpassport/noir_rsa
     ref: acb50389b79dbf38b1828f4fa82c28d742b140fc
     timeout: 30
+    critical: false
+  zkpassport_ecdsa:
+    repo: zkpassport/noir-ecdsa
+    ref: e59343bd34510595fb2f8a012f9b9de92482a375
+    timeout: 175
     critical: false

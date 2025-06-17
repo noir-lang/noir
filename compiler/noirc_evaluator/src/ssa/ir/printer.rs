@@ -264,8 +264,10 @@ fn display_instruction_inner(
         Instruction::DecrementRc { value } => {
             writeln!(f, "dec_rc {}", show(*value))
         }
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
-            writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+            let message =
+                assert_message.as_ref().map(|message| format!(", {message:?}")).unwrap_or_default();
+            writeln!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);

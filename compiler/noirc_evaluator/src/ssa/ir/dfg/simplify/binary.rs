@@ -234,10 +234,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                     (Some(bitmask), None) | (None, Some(bitmask)) => {
                         // This substitution requires the bitmask to retain all of the lower bits.
                         // The bitmask must then be one less than a power of 2.
-                        let bitmask_plus_one = bitmask.to_u128() + 1;
-                        if bitmask_plus_one.is_power_of_two() {
+                        let bitmask = bitmask.to_u128();
+                        if bitmask == u128::MAX || (bitmask + 1).is_power_of_two() {
                             let value = if lhs_value.is_some() { rhs } else { lhs };
-                            let bit_size = bitmask_plus_one.ilog2();
+                            let bit_size =
+                                if bitmask == u128::MAX { 128 } else { (bitmask + 1).ilog2() };
                             let max_bit_size = lhs_type.bit_size();
 
                             if bit_size == max_bit_size {
@@ -293,9 +294,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             // Bit shifts by constants can be treated as divisions.
             if let Some(rhs_const) = rhs_value {
                 if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                    // Shifting by the full width of the operand type, any `lhs` goes to zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
+                    // Shifting by the full width of the operand type, any unsigned `lhs` goes to zero.
+                    if lhs_type.is_unsigned() {
+                        let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
+                        return SimplifyResult::SimplifiedTo(zero);
+                    }
                 }
                 return SimplifyResult::SimplifiedToInstruction(simplified);
             }

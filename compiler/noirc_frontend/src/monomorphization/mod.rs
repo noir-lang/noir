@@ -8,14 +8,14 @@
 //!
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
+use crate::NamedGeneric;
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
-use crate::hir::comptime::{InterpreterError, Value};
+use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
-use crate::{DataType, NamedGeneric, Shared, TypeVariableId};
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
     debug::DebugInstrumenter,
@@ -606,7 +606,17 @@ impl<'interner> Monomorphizer<'interner> {
                     if_expr.alternative.map(|alt| self.expr(alt)).transpose()?.map(Box::new);
 
                 let location = self.interner.expr_location(&expr);
-                let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
+                let frontend_type = self.interner.id_type(expr);
+                let typ = Self::convert_type(&frontend_type, location)?;
+
+                if !self.in_unconstrained_function && Self::contains_reference(&frontend_type) {
+                    let typ = frontend_type.to_string();
+                    return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
+                        typ,
+                        location,
+                    });
+                }
+
                 ast::Expression::If(ast::If { condition, consequence, alternative: else_, typ })
             }
 
@@ -631,6 +641,59 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         Ok(expr)
+    }
+
+    fn contains_reference(typ: &types::Type) -> bool {
+        match typ {
+            Type::FieldElement
+            | Type::Bool
+            | Type::String(_)
+            | Type::Integer(..)
+            | Type::Unit
+            | Type::TraitAsType(..)
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::InfixExpr(..)
+            | Type::Error => false,
+
+            Type::Reference(_, _) => true,
+
+            Type::Array(_len, element) => Self::contains_reference(element),
+            Type::Slice(element) => Self::contains_reference(element),
+            Type::FmtString(_, environment) => Self::contains_reference(environment),
+            Type::Tuple(fields) => fields.iter().any(Self::contains_reference),
+            Type::DataType(datatype, generics) => {
+                let datatype = datatype.borrow();
+                if let Some(fields) = datatype.get_fields(generics) {
+                    fields.iter().any(|(_, field, _)| Self::contains_reference(field))
+                } else if let Some(variants) = datatype.get_variants(generics) {
+                    variants
+                        .iter()
+                        .any(|(_, variant_args)| variant_args.iter().any(Self::contains_reference))
+                } else {
+                    false
+                }
+            }
+            Type::Alias(alias, generics) => {
+                Self::contains_reference(&alias.borrow().get_type(generics))
+            }
+            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+                TypeBinding::Bound(binding) => Self::contains_reference(binding),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::NamedGeneric(named_generic) => match &*named_generic.type_var.borrow() {
+                TypeBinding::Bound(binding) => Self::contains_reference(binding),
+                TypeBinding::Unbound(..) => false,
+            },
+            Type::CheckedCast { to, .. } => Self::contains_reference(to),
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                // Only the environment of a function is counted as an actual reference value.
+                // Otherwise we can't return functions accepting references as arguments from if
+                // expressions.
+                Self::contains_reference(env)
+            }
+            Type::Forall(_, typ) => Self::contains_reference(typ),
+        }
     }
 
     fn standard_array(
@@ -988,20 +1051,15 @@ impl<'interner> Monomorphizer<'interner> {
         // Ensure all instantiation bindings are bound.
         // This ensures even unused type variables like `fn foo<T>() {}` have concrete types
         if let Some(bindings) = self.interner.try_get_instantiation_bindings(expr_id) {
-            for (var, kind, binding) in bindings.values() {
+            for (_, kind, binding) in bindings.values() {
                 match kind {
                     Kind::Any => (),
                     Kind::Normal => (),
                     Kind::Integer => (),
                     Kind::IntegerOrField => (),
-                    Kind::Numeric(typ) => self.check_hir_ident_type_variable_type(
-                        typ,
-                        ident.location,
-                        var.id(),
-                        &ident,
-                    )?,
+                    Kind::Numeric(typ) => Self::check_type(typ, ident.location)?,
                 }
-                self.check_hir_ident_type_variable_type(binding, ident.location, var.id(), &ident)?;
+                Self::check_type(binding, ident.location)?;
             }
         }
 
@@ -1079,6 +1137,34 @@ impl<'interner> Monomorphizer<'interner> {
                 let value = SignedField::positive(value);
                 ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
             }
+            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
+                let location = ident.location;
+                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
+                let associated_type = associated_types
+                    .iter()
+                    .find(|typ| typ.name.as_str() == name)
+                    .expect("Expected to find associated type");
+                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+                    unreachable!("Expected associated type to be numeric");
+                };
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => {
+                        let typ = Self::convert_type(&numeric_type, location)?;
+                        let value = SignedField::positive(value);
+                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                    }
+                    Err(err) => {
+                        return Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                            name: name.clone(),
+                            err,
+                            location,
+                        });
+                    }
+                }
+            }
         };
 
         Ok(ident)
@@ -1105,12 +1191,14 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
-            let (expr, is_closure) = if let GlobalValue::Resolved(value) = global.value.clone() {
-                let is_closure = value.is_closure();
+            let (expr, contains_function) = if let GlobalValue::Resolved(value) =
+                global.value.clone()
+            {
+                let contains_function = value.contains_function_or_closure();
                 let expr = value
                     .into_hir_expression(self.interner, global.location)
                     .map_err(MonomorphizationError::InterpreterError)?;
-                (expr, is_closure)
+                (expr, contains_function)
             } else {
                 unreachable!(
                     "All global values should be resolved at compile time and before monomorphization"
@@ -1126,7 +1214,7 @@ impl<'interner> Monomorphizer<'interner> {
             // just with an extra step of indirection through a global variable.
             // For simplicity, we chose to instead inline closures at their callsite as we do not expect
             // placing a closure in the global context to change the final result of the program.
-            if !is_closure {
+            if !contains_function {
                 let new_id = self.next_global_id();
                 self.globals.insert(id, new_id);
                 let typ = Self::convert_type(typ, location)?;
@@ -1362,93 +1450,6 @@ impl<'interner> Monomorphizer<'interner> {
                 return Err(MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location });
             }
         })
-    }
-
-    /// Similar to `check_type` but knowing that this is checking the type of a type variable,
-    /// while also checking a HirIdent. If this fails with `NoDefaultType` we try to find out
-    /// the name of the unbound generic argument.
-    fn check_hir_ident_type_variable_type(
-        &self,
-        typ: &HirType,
-        location: Location,
-        id: TypeVariableId,
-        ident: &HirIdent,
-    ) -> Result<(), MonomorphizationError> {
-        let result = Self::check_type(typ, location);
-        let Err(MonomorphizationError::NoDefaultType { location, .. }) = result else {
-            return result;
-        };
-
-        let definition = self.interner.definition(ident.id);
-        match &definition.kind {
-            DefinitionKind::Function(func_id) => {
-                // Try to find the type variable in the function's generic arguments
-                let meta = self.interner.function_meta(func_id);
-                for generic in &meta.direct_generics {
-                    if generic.type_var.id() == id {
-                        let item_name = self.interner.definition_name(ident.id).to_string();
-                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
-                        return Err(MonomorphizationError::NoDefaultTypeInItem {
-                            location,
-                            generic_name: generic.name.to_string(),
-                            item_kind: "function",
-                            item_name,
-                            is_numeric,
-                        });
-                    }
-                }
-                // If we find one in `all_generics` it means it's a generic on the type
-                // the function is in.
-                if let Some(Type::DataType(typ, ..)) = &meta.self_type {
-                    for generic in &meta.all_generics {
-                        if generic.type_var.id() == id {
-                            let typ = typ.borrow();
-                            let item_name = typ.name.to_string();
-                            let item_kind = if typ.is_struct() { "struct" } else { "enum" };
-                            let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
-                            return Err(MonomorphizationError::NoDefaultTypeInItem {
-                                location,
-                                generic_name: generic.name.to_string(),
-                                item_kind,
-                                item_name,
-                                is_numeric,
-                            });
-                        }
-                    }
-                }
-            }
-            DefinitionKind::Global(global_id) => {
-                // Check if this global points to an enum variant, then get the enum's generics
-                // and find the type variable there.
-                let global = self.interner.get_global(*global_id);
-                let GlobalValue::Resolved(Value::Enum(_, _, Type::Forall(_, typ))) = &global.value
-                else {
-                    return result;
-                };
-
-                let typ: &Type = typ;
-                let Type::DataType(def, _) = typ else {
-                    return result;
-                };
-
-                let def = def.borrow();
-                for generic in &def.generics {
-                    if generic.type_var.id() == id {
-                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
-                        return Err(MonomorphizationError::NoDefaultTypeInItem {
-                            location,
-                            generic_name: generic.name.to_string(),
-                            item_kind: "enum",
-                            item_name: def.name.to_string(),
-                            is_numeric,
-                        });
-                    }
-                }
-            }
-            _ => (),
-        }
-
-        result
     }
 
     // Similar to `convert_type` but returns an error if any type variable can't be defaulted.
@@ -1883,6 +1884,13 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         assign: HirAssignStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let expression_type = self.interner.id_type(assign.expression);
+        let location = self.interner.expr_location(&assign.expression);
+        if !self.in_unconstrained_function && Self::contains_reference(&expression_type) {
+            let typ = expression_type.to_string();
+            return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
+        }
+
         let expression = Box::new(self.expr(assign.expression)?);
         let lvalue = self.lvalue(assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
@@ -2128,6 +2136,14 @@ impl<'interner> Monomorphizer<'interner> {
         match_expr: HirMatch,
         expr_id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let result_type = self.interner.id_type(expr_id);
+        let location = self.interner.expr_location(&expr_id);
+
+        if !self.in_unconstrained_function && Self::contains_reference(&result_type) {
+            let typ = result_type.to_string();
+            return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
+        }
+
         match match_expr {
             HirMatch::Success(id) => self.expr(id),
             HirMatch::Failure { .. } => {
@@ -2141,15 +2157,13 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg_type = HirType::String(Box::new(length));
 
                 let msg = Some(Box::new((msg_expr, msg_type)));
-                let location = self.interner.expr_location(&expr_id);
                 Ok(ast::Expression::Constrain(false_, location, msg))
             }
             HirMatch::Guard { cond, body, otherwise } => {
                 let condition = Box::new(self.expr(cond)?);
                 let consequence = Box::new(self.expr(body)?);
                 let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
-                let location = self.interner.expr_location(&expr_id);
-                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) => {
@@ -2173,8 +2187,7 @@ impl<'interner> Monomorphizer<'interner> {
                     None => None,
                 };
 
-                let location = self.interner.expr_location(&expr_id);
-                let typ = Self::convert_type(&self.interner.id_type(expr_id), location)?;
+                let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::Match(ast::Match {
                     variable_to_match,
                     cases,
@@ -2404,8 +2417,8 @@ fn unwrap_struct_type(
     match typ.follow_bindings() {
         HirType::DataType(def, args) => {
             // Some of args might not be mentioned in fields, so we need to check that they aren't unbound.
-            for (index, arg) in args.iter().enumerate() {
-                check_struct_generic_type(arg, location, &def, index)?;
+            for arg in &args {
+                Monomorphizer::check_type(arg, location)?;
             }
 
             Ok(def.borrow().get_fields(&args).unwrap())
@@ -2429,32 +2442,6 @@ fn unwrap_enum_type(
         }
         other => unreachable!("unwrap_enum_type: expected enum, found {:?}", other),
     }
-}
-
-fn check_struct_generic_type(
-    typ: &HirType,
-    location: Location,
-    def: &Shared<DataType>,
-    index: usize,
-) -> Result<(), MonomorphizationError> {
-    let result = Monomorphizer::check_type(typ, location);
-    let Err(MonomorphizationError::NoDefaultType { location, .. }) = result else {
-        return result;
-    };
-
-    let def = def.borrow();
-    if let Some(generic) = def.generics.get(index) {
-        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
-        return Err(MonomorphizationError::NoDefaultTypeInItem {
-            location,
-            generic_name: generic.name.to_string(),
-            item_kind: "struct",
-            item_name: def.name.to_string(),
-            is_numeric,
-        });
-    }
-
-    result
 }
 
 pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
@@ -2511,7 +2498,7 @@ pub fn perform_impl_bindings(
 }
 
 pub fn resolve_trait_method(
-    interner: &NodeInterner,
+    interner: &mut NodeInterner,
     method: TraitMethodId,
     expr_id: ExprId,
 ) -> Result<node_interner::FuncId, InterpreterError> {
@@ -2531,7 +2518,14 @@ pub fn resolve_trait_method(
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), _instantiation_bindings)) => impl_id,
+                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                    // Insert any additional instantiation bindings into this expression's instantiation bindings.
+                    // This is similar to what's done in `verify_trait_constraint` in the frontend.
+                    let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
+                    bindings.extend(instantiation_bindings);
+                    interner.store_instantiation_bindings(expr_id, bindings);
+                    impl_id
+                }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
                     return Err(InterpreterError::NoImpl { location });
                 }

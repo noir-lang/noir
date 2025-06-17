@@ -31,18 +31,18 @@ pub(crate) fn add_recursion_limit(
     ctx: &mut Context,
     u: &mut Unstructured,
 ) -> arbitrary::Result<()> {
-    // Collect functions called from ACIR; they will need proxy functions.
+    // Collect functions potentially called from ACIR; they will need proxy functions.
     let called_from_acir = ctx.functions.values().filter(|func| !func.unconstrained).fold(
         HashSet::<FuncId>::new(),
         |mut acc, func| {
-            acc.extend(expr::callees(&func.body));
+            acc.extend(expr::reachable_functions(&func.body));
             acc
         },
     );
 
     // Create proxies for unconstrained functions called from ACIR.
     let mut proxy_functions = HashMap::new();
-    let mut next_func_id = FuncId(ctx.functions.len() as u32);
+    let mut next_func_id = ctx.functions.len() as u32;
 
     for (func_id, func) in &ctx.functions {
         if !func.unconstrained
@@ -52,11 +52,11 @@ pub(crate) fn add_recursion_limit(
             continue;
         }
         let mut proxy = func.clone();
-        proxy.id = next_func_id;
+        proxy.id = FuncId(next_func_id);
         proxy.name = format!("{}_proxy", proxy.name);
         // We will replace the body, update the params, and append the function later.
         proxy_functions.insert(*func_id, proxy);
-        next_func_id = FuncId(next_func_id.0 + 1);
+        next_func_id += 1;
     }
 
     // Rewrite functions.
@@ -322,8 +322,8 @@ impl<'a> LimitContext<'a> {
         // it into the proxy version if necessary.
         visit_expr_mut(&mut body, &mut |expr: &mut Expression| {
             if let Expression::Call(call) = expr {
-                let Expression::Ident(ident) = call.func.as_mut() else {
-                    unreachable!("functions are called by ident");
+                let Expression::Ident(ident) = expr::unref_mut(call.func.as_mut()) else {
+                    unreachable!("functions are called by ident; got {}", call.func);
                 };
 
                 let proxy = match &ident.definition {
@@ -339,7 +339,9 @@ impl<'a> LimitContext<'a> {
                     other => unreachable!("unexpected call target definition: {}", other),
                 };
 
-                let Type::Function(param_types, _, _, callee_unconstrained) = &mut ident.typ else {
+                let Type::Function(param_types, _, _, callee_unconstrained) =
+                    types::unref_mut(&mut ident.typ)
+                else {
                     unreachable!("function type expected");
                 };
 
@@ -449,7 +451,8 @@ fn modify_function_pointer_param_types(param_types: &mut [Type], callee_unconstr
 
 /// Recursively modify function pointers in the param type.
 fn modify_function_pointer_param_type(param_type: &mut Type, callee_unconstrained: bool) {
-    let Type::Function(param_types, _, _, param_unconstrained) = param_type else {
+    let Type::Function(param_types, _, _, param_unconstrained) = types::unref_mut(param_type)
+    else {
         return;
     };
 
@@ -471,6 +474,10 @@ fn modify_function_pointer_param_values(
     proxy_functions: &HashMap<FuncId, Function>,
 ) {
     for i in 0..param_types.len() {
+        // We only consider parameters that take functions, not function references,
+        // because if something can take a function reference, and we can call it,
+        // then it must be a Brillig to Brillig call, and we don't have to change
+        // it to pass the proxy instead.
         let Type::Function(_, _, _, param_unconstrained) = &param_types[i] else {
             continue;
         };
@@ -482,9 +489,15 @@ fn modify_function_pointer_param_values(
         }
 
         // If we need to pass by value, then it's going to the proxy, but only if it's a global function,
-        // and not a function parameter, which is we wouldn't know what to change to, and doing so is the
-        // happens when it's first passed as a global.
+        // and not a function parameter, which we wouldn't know what to change to, and doing so happens
+        // when it's first passed as a global.
         let arg = &mut args[i];
+
+        // If we are dereferencing a variable, then it's not a global function we are passing.
+        if expr::is_deref(arg) {
+            continue;
+        }
+        // Otherwise we should be passing a function by identifier directly.
         let Expression::Ident(param_func_ident) = arg else {
             unreachable!("functions are passed by ident; got {arg}");
         };

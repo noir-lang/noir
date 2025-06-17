@@ -109,6 +109,8 @@ pub enum ParserErrorReason {
     LogicalAnd,
     #[error("Trait bounds are not allowed here")]
     TraitBoundsNotAllowedHere,
+    #[error("Missing type for associated constant")]
+    MissingTypeForAssociatedConstant,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -294,6 +296,11 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                             .to_string();
                     Diagnostic::simple_error(primary, secondary, error.location)
                 }
+                ParserErrorReason::MissingTypeForAssociatedConstant => Diagnostic::simple_error(
+                    "Missing type for associated constant".to_string(),
+                    "Provide a type for the associated constant: `: u32`".to_string(),
+                    error.location,
+                ),
                 other => {
                     Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
                 }

@@ -182,6 +182,13 @@ impl StatementKind {
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
 
+impl Ident {
+    /// Gets the underlying identifier without its location.
+    pub fn identifier(&self) -> &str {
+        &self.0.contents
+    }
+}
+
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.as_str() == other.as_str()
@@ -718,7 +725,7 @@ pub struct ForBounds {
 }
 
 impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
     /// desugaring `start..=end` into `start..end+1` if necessary.
     ///
     /// Returns the `start` and `end` expressions.
@@ -978,7 +985,11 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));

@@ -5,7 +5,9 @@ use super::{
     ir::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId, RuntimeType},
-        instruction::{ArrayOffset, Binary, BinaryOp, Instruction, TerminatorInstruction},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+        },
         types::Type,
         value::ValueId,
     },
@@ -20,7 +22,7 @@ use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
 mod intrinsics;
-mod tests;
+pub(crate) mod tests;
 pub mod value;
 
 use value::Value;
@@ -37,6 +39,14 @@ struct Interpreter<'ssa> {
     /// expected to have no effect if there are no such instructions or if the code
     /// being executed is an unconstrained function.
     side_effects_enabled: bool,
+
+    options: InterpreterOptions,
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct InterpreterOptions {
+    /// If true, the interpreter will trace its execution.
+    pub trace: bool,
 }
 
 struct CallContext {
@@ -64,20 +74,33 @@ type IResults = IResult<Vec<Value>>;
 #[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
-        self.interpret_function(self.main_id, args)
+        self.interpret_with_options(args, InterpreterOptions::default())
     }
 
-    pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {
-        let mut interpreter = Interpreter::new(self);
+    pub fn interpret_with_options(
+        &self,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+    ) -> IResults {
+        self.interpret_function(self.main_id, args, options)
+    }
+
+    fn interpret_function(
+        &self,
+        function: FunctionId,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+    ) -> IResults {
+        let mut interpreter = Interpreter::new(self, options);
         interpreter.interpret_globals()?;
         interpreter.call_function(function, args)
     }
 }
 
 impl<'ssa> Interpreter<'ssa> {
-    fn new(ssa: &'ssa Ssa) -> Self {
+    fn new(ssa: &'ssa Ssa, options: InterpreterOptions) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true }
+        Self { ssa, call_stack, side_effects_enabled: true, options }
     }
 
     fn call_context(&self) -> &CallContext {
@@ -92,12 +115,15 @@ impl<'ssa> Interpreter<'ssa> {
         &self.call_stack.first().expect("call_stack should always be non-empty").scope
     }
 
-    fn current_function(&self) -> &'ssa Function {
+    fn try_current_function(&self) -> Option<&'ssa Function> {
         let current_function_id = self.call_context().called_function;
-        let current_function_id = current_function_id.expect(
+        current_function_id.map(|current_function_id| &self.ssa.functions[&current_function_id])
+    }
+
+    fn current_function(&self) -> &'ssa Function {
+        self.try_current_function().expect(
             "Tried calling `Interpreter::current_function` while evaluating global instructions",
-        );
-        &self.ssa.functions[&current_function_id]
+        )
     }
 
     fn dfg(&self) -> &'ssa DataFlowGraph {
@@ -110,8 +136,29 @@ impl<'ssa> Interpreter<'ssa> {
 
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
-    fn define(&mut self, id: ValueId, value: Value) {
+    fn define(&mut self, id: ValueId, value: Value) -> IResult<()> {
+        if self.options.trace {
+            println!("{id} = {value}");
+        }
+
+        if let Some(func) = self.try_current_function() {
+            let expected_type = func.dfg.type_of_value(id);
+            let actual_type = value.get_type();
+
+            if expected_type != actual_type {
+                return Err(InterpreterError::Internal(
+                    InternalError::ValueTypeDoesNotMatchReturnType {
+                        value_id: id,
+                        expected_type: expected_type.to_string(),
+                        actual_type: actual_type.to_string(),
+                    },
+                ));
+            }
+        }
+
         self.call_context_mut().scope.insert(id, value);
+
+        Ok(())
     }
 
     fn interpret_globals(&mut self) -> IResult<()> {
@@ -135,7 +182,7 @@ impl<'ssa> Interpreter<'ssa> {
                     unreachable!()
                 }
             };
-            self.define(global_id, value);
+            self.define(global_id, value)?;
         }
         Ok(())
     }
@@ -144,6 +191,11 @@ impl<'ssa> Interpreter<'ssa> {
         self.call_stack.push(CallContext::new(function_id));
 
         let function = &self.ssa.functions[&function_id];
+        if self.options.trace {
+            println!();
+            println!("enter function {} ({})", function_id, function.name());
+        }
+
         let mut block_id = function.entry_block();
         let dfg = self.dfg();
 
@@ -163,7 +215,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
-                self.define(*parameter, argument);
+                self.define(*parameter, argument)?;
             }
 
             for instruction_id in block.instructions() {
@@ -179,6 +231,9 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
+                    if self.options.trace {
+                        println!("jump to {}", block_id);
+                    }
                     arguments = self.lookup_all(jump_args)?;
                 }
                 Some(TerminatorInstruction::JmpIf {
@@ -192,15 +247,40 @@ impl<'ssa> Interpreter<'ssa> {
                     } else {
                         *else_destination
                     };
+                    if self.options.trace {
+                        println!("jump to {}", block_id);
+                    }
                     arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
-                    break self.lookup_all(return_values)?;
+                    let return_values = self.lookup_all(return_values)?;
+                    if self.options.trace && !return_values.is_empty() {
+                        let return_values =
+                            return_values.iter().map(ToString::to_string).collect::<Vec<_>>();
+                        println!("return {}", return_values.join(", "));
+                    }
+
+                    break return_values;
                 }
             }
         };
 
+        if self.options.trace {
+            println!("exit function {} ({})", function_id, function.name());
+            println!();
+        }
+
         self.call_stack.pop();
+
+        if self.options.trace {
+            if let Some(context) = self.call_stack.last() {
+                if let Some(function_id) = context.called_function {
+                    let function = &self.ssa.functions[&function_id];
+                    println!("back in function {} ({})", function_id, function.name());
+                }
+            }
+        }
+
         Ok(return_values)
     }
 
@@ -374,9 +454,17 @@ impl<'ssa> Interpreter<'ssa> {
         try_vecmap(ids, |id| self.lookup(*id))
     }
 
-    fn side_effects_enabled(&self) -> bool {
-        match self.current_function().runtime() {
-            RuntimeType::Acir(_) => self.side_effects_enabled,
+    fn side_effects_enabled(&self, instruction: &Instruction) -> bool {
+        let Some(current_function) = self.try_current_function() else {
+            // If there's no current function it means we are evaluating global instructions
+            return true;
+        };
+
+        match current_function.runtime() {
+            RuntimeType::Acir(_) => {
+                self.side_effects_enabled
+                    || !instruction.requires_acir_gen_predicate(&current_function.dfg)
+            }
             RuntimeType::Brillig(_) => true,
         }
     }
@@ -387,10 +475,12 @@ impl<'ssa> Interpreter<'ssa> {
         instruction: &Instruction,
         results: &[ValueId],
     ) -> IResult<()> {
+        let side_effects_enabled = self.side_effects_enabled(instruction);
+
         match instruction {
             Instruction::Binary(binary) => {
-                let result = self.interpret_binary(binary)?;
-                self.define(results[0], result);
+                let result = self.interpret_binary(binary, side_effects_enabled)?;
+                self.define(results[0], result)?;
                 Ok(())
             }
             // Cast in SSA changes the type without altering the value
@@ -398,7 +488,7 @@ impl<'ssa> Interpreter<'ssa> {
                 let value = self.lookup_numeric(*value, "cast")?;
                 let field = value.convert_to_field();
                 let result = Value::from_constant(field, *numeric_type)?;
-                self.define(results[0], result);
+                self.define(results[0], result)?;
                 Ok(())
             }
             Instruction::Not(id) => self.interpret_not(*id, results[0]),
@@ -408,31 +498,59 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs != rhs {
+                if side_effects_enabled && lhs != rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainEqFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainEqFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
             Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs == rhs {
+                if side_effects_enabled && lhs == rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
-                    return Err(InterpreterError::ConstrainNeFailed { lhs, lhs_id, rhs, rhs_id });
+                    let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
+                        format!(", \"{msg}\"")
+                    } else {
+                        "".to_string()
+                    };
+                    return Err(InterpreterError::ConstrainNeFailed {
+                        lhs,
+                        lhs_id,
+                        rhs,
+                        rhs_id,
+                        msg,
+                    });
                 }
                 Ok(())
             }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref())
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => self
+                .interpret_range_check(
+                    *value,
+                    *max_bit_size,
+                    assert_message.as_ref(),
+                    side_effects_enabled,
+                ),
+            Instruction::Call { func, arguments } => {
+                self.interpret_call(*func, arguments, results, side_effects_enabled)
             }
-            Instruction::Call { func, arguments } => self.interpret_call(*func, arguments, results),
             Instruction::Allocate => {
                 self.interpret_allocate(results[0]);
                 Ok(())
@@ -444,11 +562,18 @@ impl<'ssa> Interpreter<'ssa> {
                 Ok(())
             }
             Instruction::ArrayGet { array, index, offset } => {
-                self.interpret_array_get(*array, *index, *offset, results[0])
+                self.interpret_array_get(*array, *index, *offset, results[0], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, *offset, results[0])
-            }
+            Instruction::ArraySet { array, index, value, mutable, offset } => self
+                .interpret_array_set(
+                    *array,
+                    *index,
+                    *value,
+                    *mutable,
+                    *offset,
+                    results[0],
+                    side_effects_enabled,
+                ),
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
@@ -485,8 +610,7 @@ impl<'ssa> Interpreter<'ssa> {
             NumericValue::I32(value) => NumericValue::I32(!value),
             NumericValue::I64(value) => NumericValue::I64(!value),
         };
-        self.define(result, Value::Numeric(new_result));
-        Ok(())
+        self.define(result, Value::Numeric(new_result))
     }
 
     fn interpret_truncate(
@@ -523,8 +647,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
         };
 
-        self.define(result, Value::Numeric(truncated));
-        Ok(())
+        self.define(result, Value::Numeric(truncated))
     }
 
     fn interpret_range_check(
@@ -532,8 +655,9 @@ impl<'ssa> Interpreter<'ssa> {
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        if !self.side_effects_enabled() {
+        if !side_effects_enabled {
             return Ok(());
         }
 
@@ -604,11 +728,12 @@ impl<'ssa> Interpreter<'ssa> {
         function_id: ValueId,
         argument_ids: &[ValueId],
         results: &[ValueId],
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let function = self.lookup(function_id)?;
         let mut arguments = try_vecmap(argument_ids, |argument| self.lookup(*argument))?;
 
-        let new_results = if self.side_effects_enabled() {
+        let new_results = if side_effects_enabled {
             match function {
                 Value::Function(id) => {
                     // If we're crossing a constrained -> unconstrained boundary we have to wipe
@@ -655,7 +780,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
 
         for (result, new_result) in results.iter().zip(new_results) {
-            self.define(*result, new_result);
+            self.define(*result, new_result)?;
         }
         Ok(())
     }
@@ -701,7 +826,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
     }
 
-    fn interpret_allocate(&mut self, result: ValueId) {
+    fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
         let result_type = self.dfg().type_of_value(result);
         let element_type = match result_type {
             Type::Reference(element_type) => element_type,
@@ -709,7 +834,7 @@ impl<'ssa> Interpreter<'ssa> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type));
+        self.define(result, Value::reference(result, element_type))
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
@@ -721,14 +846,21 @@ impl<'ssa> Interpreter<'ssa> {
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
-        self.define(result, value.clone());
+        self.define(result, value.clone())?;
         Ok(())
     }
 
     fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
-        let address = self.lookup_reference(address, "store")?;
+        let reference_address = self.lookup_reference(address, "store")?;
+
         let value = self.lookup(value)?;
-        *address.element.borrow_mut() = Some(value);
+
+        if self.options.trace {
+            println!("store {value} at {address}");
+        }
+
+        *reference_address.element.borrow_mut() = Some(value);
+
         Ok(())
     }
 
@@ -738,8 +870,9 @@ impl<'ssa> Interpreter<'ssa> {
         index: ValueId,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if self.side_effects_enabled() {
+        let element = if side_effects_enabled {
             let array = self.lookup_array_or_slice(array, "array get")?;
             let index = self.lookup_u32(index, "array get index")?;
             let index = index - offset.to_u32();
@@ -748,10 +881,11 @@ impl<'ssa> Interpreter<'ssa> {
             let typ = self.dfg().type_of_value(result);
             Value::uninitialized(&typ, result)
         };
-        self.define(result, element);
+        self.define(result, element)?;
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn interpret_array_set(
         &mut self,
         array: ValueId,
@@ -760,10 +894,11 @@ impl<'ssa> Interpreter<'ssa> {
         mutable: bool,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
-        let result_array = if self.side_effects_enabled() {
+        let result_array = if side_effects_enabled {
             let index = self.lookup_u32(index, "array set index")?;
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
@@ -787,7 +922,7 @@ impl<'ssa> Interpreter<'ssa> {
             // Side effects are disabled, return the original array
             Value::ArrayOrSlice(array)
         };
-        self.define(result, result_array);
+        self.define(result, result_array)?;
         Ok(())
     }
 
@@ -853,8 +988,7 @@ impl<'ssa> Interpreter<'ssa> {
             else_value
         };
 
-        self.define(result, new_result);
-        Ok(())
+        self.define(result, new_result)
     }
 
     fn interpret_make_array(
@@ -872,11 +1006,25 @@ impl<'ssa> Interpreter<'ssa> {
             element_types: result_type.clone().element_types(),
             is_slice,
         });
-        self.define(result, array);
-        Ok(())
+        self.define(result, array)
     }
 }
 
+/// Applies an infallible integer binary operation to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$lhs`, `$rhs`: The left hand side and right hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for error handling if types mismatch.
+/// - `$f`: A function (e.g., `wrapping_add`) that applies the operation on the raw numeric types.
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field] or [NumericValue::U1] variant, this macro will panic with unreachable.
+///
+/// # Errors
+/// - If the operand types don't match, returns an [InternalError::MismatchedTypesInBinaryOperator].
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, matching the original type.
 macro_rules! apply_int_binop {
     ($lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
@@ -908,6 +1056,24 @@ macro_rules! apply_int_binop {
     }};
 }
 
+/// Applies a fallible integer binary operation (e.g., checked arithmetic) to two `NumericValue`s.
+///
+/// # Parameters
+/// - `$dfg`: The data flow graph, used for formatting diagnostic error messages.
+/// - `$lhs`, `$rhs`: The left-hand side and right-hand side operands (must be the same variant).
+/// - `$binary`: The binary instruction, used for diagnostics and overflow reporting.
+/// - `$f`: A fallible operation function that returns an `Option<_>` (e.g., `checked_add`).
+///
+/// # Panics
+/// - If either operand is a [NumericValue::Field]or [NumericValue::U1], this macro panics as those types are not supported.
+///
+/// # Errors
+/// - Returns [InterpreterError::Overflow] if the checked operation returns `None`.
+/// - Returns [InterpreterError::DivisionByZero] for `Div` and `Mod` on zero.
+/// - Returns [InternalError::MismatchedTypesInBinaryOperator] if the operand types don't match.
+///
+/// # Returns
+/// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 macro_rules! apply_int_binop_opt {
     ($dfg:expr, $lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
         use value::NumericValue::*;
@@ -990,7 +1156,7 @@ macro_rules! apply_int_comparison_op {
 }
 
 impl Interpreter<'_> {
-    fn interpret_binary(&mut self, binary: &Binary) -> IResult<Value> {
+    fn interpret_binary(&mut self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
         let lhs_id = binary.lhs;
         let rhs_id = binary.rhs;
         let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
@@ -1009,7 +1175,7 @@ impl Interpreter<'_> {
         }
 
         // Disable this instruction if it is side-effectful and side effects are disabled.
-        if !self.side_effects_enabled() && binary.requires_acir_gen_predicate(self.dfg()) {
+        if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
         }
@@ -1025,19 +1191,32 @@ impl Interpreter<'_> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
+                }
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
+                }
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                // Only unsigned multiplication has side effects
+                if lhs.get_type().is_unsigned() {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
+                } else {
+                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+                }
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1091,7 +1270,14 @@ impl Interpreter<'_> {
                 }
             }
             BinaryOp::Shr => {
-                let zero = || NumericValue::zero(lhs.get_type());
+                let fallback = || {
+                    if lhs.is_negative() {
+                        NumericValue::neg_one(lhs.get_type())
+                    } else {
+                        NumericValue::zero(lhs.get_type())
+                    }
+                };
+
                 let Some(rhs) = rhs.as_u8() else {
                     let rhs = rhs.to_string();
                     return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
@@ -1111,15 +1297,15 @@ impl Interpreter<'_> {
                         }));
                     }
                     U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(zero),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(zero),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(zero),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(zero),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(zero),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(zero),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(zero),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(zero),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(zero),
+                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
+                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
+                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
+                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
+                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
+                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
+                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
+                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
+                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
                 }
             }
         };

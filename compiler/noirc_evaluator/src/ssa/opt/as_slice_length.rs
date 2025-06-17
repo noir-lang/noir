@@ -16,6 +16,7 @@ impl Ssa {
     /// necessary when the value of the array is unknown.
     ///
     /// Note that this pass must be placed before loop unrolling to be useful.
+    #[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_slice_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {

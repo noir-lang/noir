@@ -7,7 +7,7 @@ use noirc_errors::{
 };
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize},
+    ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
@@ -81,7 +81,13 @@ impl Expression {
                 }),
             },
             Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
-            Expression::Unary(unary) => borrowed(&unary.result_type),
+            Expression::Unary(unary) => {
+                if let UnaryOp::Reference { mutable } = unary.operator {
+                    owned(Type::Reference(Box::new(unary.result_type.clone()), mutable))
+                } else {
+                    borrowed(&unary.result_type)
+                }
+            }
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {
                     borrowed(&Type::Bool)
@@ -635,7 +641,11 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

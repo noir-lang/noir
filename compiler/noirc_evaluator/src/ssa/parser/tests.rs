@@ -272,12 +272,25 @@ fn test_call_intrinsic() {
 }
 
 #[test]
+fn test_recursive_call_to_main_function() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call f0(v0)
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_cast() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v1 = cast v0 as i32
-            return v1
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = cast v1 as i32
+            return v2
         }
         ";
     assert_ssa_roundtrip(src);
@@ -454,8 +467,6 @@ fn test_binary() {
         "and",
         "or",
         "xor",
-        "shl",
-        "shr",
         "unchecked_add",
         "unchecked_sub",
         "unchecked_mul",
@@ -464,6 +475,19 @@ fn test_binary() {
             "
             acir(inline) fn main f0 {{
               b0(v0: u32, v1: u32):
+                v2 = {op} v0, v1
+                return
+            }}
+            "
+        );
+        assert_ssa_roundtrip(&src);
+    }
+
+    for op in ["shl", "shr"] {
+        let src = format!(
+            "
+            acir(inline) fn main f0 {{
+              b0(v0: u32, v1: u8):
                 v2 = {op} v0, v1
                 return
             }}
@@ -506,6 +530,18 @@ fn test_range_check() {
             return
         }
         ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_range_check_with_message() {
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits, "overflow error\n\t"
+            return
+        }
+        "#;
     assert_ssa_roundtrip(src);
 }
 
@@ -745,6 +781,44 @@ fn test_parses_print() {
           b0():
             call print()
             return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmp() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            jmp b2()
+          b1():
+            v5 = add v2, v4
+            return
+          b2():
+            v2 = add Field 1, Field 2
+            v4 = add v2, Field 3
+            jmp b1()
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmpif() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b3
+          b1():
+            v6 = add v3, v5
+            return
+          b2():
+            jmp b3()
+          b3():
+            v3 = add Field 1, Field 2
+            v5 = add v3, Field 3
+            jmp b1()
         }
         ";
     assert_ssa_roundtrip(src);

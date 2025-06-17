@@ -232,26 +232,8 @@ impl Function {
         })
     }
 
-    /// Asserts that the [`Function`] is well formed.
-    ///
-    /// Panics on malformed functions.
-    pub(crate) fn assert_valid(&self) {
-        let reachable_blocks = self.reachable_blocks();
-
-        // We assume that all functions have a single block which terminates with a `return` instruction.
-        let return_blocks: BTreeSet<_> = reachable_blocks
-            .iter()
-            .filter(|block| {
-                // All blocks must have a terminator instruction of some sort.
-                let terminator = self.dfg[**block].terminator().unwrap_or_else(|| {
-                    panic!("Function {} has no terminator in block {block}", self.id())
-                });
-                matches!(terminator, TerminatorInstruction::Return { .. })
-            })
-            .collect();
-        if return_blocks.len() > 1 {
-            panic!("Function {} has multiple return blocks {return_blocks:?}", self.id())
-        }
+    pub fn has_data_bus_return_data(&self) -> bool {
+        self.dfg.data_bus.return_data.is_some()
     }
 }
 
@@ -268,6 +250,12 @@ impl std::fmt::Display for RuntimeType {
             RuntimeType::Brillig(inline_type) => write!(f, "brillig({inline_type})"),
         }
     }
+}
+
+/// Iterate over every Value in this DFG in no particular order, including unused Values,
+/// for testing purposes.
+pub fn function_values_iter(func: &Function) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
+    func.dfg.values_iter()
 }
 
 /// FunctionId is a reference for a function

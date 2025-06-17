@@ -14,10 +14,10 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
-    #[error("constrain {lhs_id} != {rhs_id} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId },
+    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
+    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
+    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
@@ -71,6 +71,10 @@ pub enum InternalError {
         "Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
     )]
     IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
+    #[error(
+        "Argument count {arguments} to `{intrinsic}` does not match the expected minimum parameter count {parameters}"
+    )]
+    IntrinsicMinArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     #[error("Block {block} is missing the terminator instruction")]
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
@@ -142,4 +146,28 @@ pub enum InternalError {
     InvalidInputSize { expected_size: usize, size: usize },
     #[error("Constant `{constant}` does not fit in type `{typ}`")]
     ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
+    #[error(
+        "The value assigned to `{value_id}` expects a type `{expected_type}` but it got assigned a value with type `{actual_type}` "
+    )]
+    ValueTypeDoesNotMatchReturnType {
+        value_id: ValueId,
+        expected_type: String,
+        actual_type: String,
+    },
+    #[error(
+        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+    )]
+    UnexpectedResultType {
+        expected_type: &'static str,
+        actual_type: String,
+        instruction: &'static str,
+    },
+    #[error(
+        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+    )]
+    UnexpectedResultLength {
+        expected_length: usize,
+        actual_length: usize,
+        instruction: &'static str,
+    },
 }
