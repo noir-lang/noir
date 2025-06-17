@@ -163,6 +163,20 @@ impl AcirValue {
             _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
         }
     }
+
+    /// Generates an uninitialized `AcirValue` of the given type.
+    pub(super) fn uninitialized(typ: AcirType) -> Self {
+        match typ {
+            AcirType::NumericType(_) => AcirValue::Var(AcirVar::uninitialized(), typ),
+            AcirType::Array(acir_types, len) => {
+                let values: im::Vector<AcirValue> =
+                    acir_types.iter().map(|t| AcirValue::uninitialized(t.clone())).collect();
+                let values =
+                    if values.len() == 1 { values[0].clone() } else { AcirValue::Array(values) };
+                AcirValue::Array(im::Vector::from(vec![values; len]))
+            }
+        }
+    }
 }
 
 /// A Reference to an `AcirVarData`
@@ -172,5 +186,10 @@ pub(super) struct AcirVar(usize);
 impl AcirVar {
     pub(super) fn new(var: usize) -> Self {
         AcirVar(var)
+    }
+
+    /// Returns the uninitialized `AcirVar`, corresponding to an unsolvable witness in ACIR.
+    pub(super) fn uninitialized() -> Self {
+        AcirVar(0)
     }
 }

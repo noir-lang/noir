@@ -74,7 +74,7 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
-        AcirContext {
+        let mut context = AcirContext {
             brillig_stdlib,
             blackbox_solver,
             vars: Default::default(),
@@ -83,7 +83,11 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             big_int_ctx: Default::default(),
             expression_width: Default::default(),
             warnings: Default::default(),
-        }
+        };
+
+        let uninitialized_var = context.add_data(AcirVarData::Witness(Witness(u32::MAX)));
+        assert_eq!(uninitialized_var, AcirVar::uninitialized());
+        context
     }
 
     pub(crate) fn set_expression_width(&mut self, expression_width: ExpressionWidth) {
@@ -1567,7 +1571,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 for value in dynamic_array_values {
                     self.initialize_array_inner(witnesses, value)?;
                 }
-            }
+            } // AcirValue::UninitializedVar(_) => {
+              //     // Uninitialized variables are not initialized, so we do nothing.
+              // }
         }
         Ok(())
     }
