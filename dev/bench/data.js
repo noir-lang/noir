@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750183368130,
+  "lastUpdate": 1750183793050,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9de75cdedce10c68f5eed44925701ea3a75f940e",
-          "message": "chore(fuzz): Enable SSA Interpreter fuzzing on all passes (#8610)",
-          "timestamp": "2025-06-10T13:42:31Z",
-          "tree_id": "7e9728b3d0f25208f6be7bf4f5486bc977de473c",
-          "url": "https://github.com/noir-lang/noir/commit/9de75cdedce10c68f5eed44925701ea3a75f940e"
-        },
-        "date": 1749564968753,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 292.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 534.02,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 339.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 7830,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 7830,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 327.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 381.47,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.39,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3939,6 +3860,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 344.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 354.6,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.45,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "670063c66c5327685def09bfc2563fccc9e7b267",
+          "message": "fix: Fix if/match tracking in last uses pass (#8935)",
+          "timestamp": "2025-06-17T17:32:29Z",
+          "tree_id": "06e1708119d5679ee281ccabae1e4d85ac31abab",
+          "url": "https://github.com/noir-lang/noir/commit/670063c66c5327685def09bfc2563fccc9e7b267"
+        },
+        "date": 1750183780582,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 293.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9410,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 344.6,
             "unit": "MB"
           },
           {
