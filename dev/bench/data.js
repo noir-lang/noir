@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750173966440,
+  "lastUpdate": 1750175894105,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8a46cb653dfb658104f84df37da9a1bffa97d0ff",
-          "message": "chore(docs): Add links to awesome-noir in sidebar (#8854)",
-          "timestamp": "2025-06-10T12:52:05Z",
-          "tree_id": "353a21396c00699b9acaa454530d6699f637b68e",
-          "url": "https://github.com/noir-lang/noir/commit/8a46cb653dfb658104f84df37da9a1bffa97d0ff"
-        },
-        "date": 1749561293003,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248742,
-            "range": "± 5774",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218054,
-            "range": "± 3090",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778374,
-            "range": "± 1477",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "james.zaki@proton.me",
             "name": "James Zaki",
             "username": "jzaki"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786073,
             "range": "± 2335",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d1e55d93e31cefc8331d8f1174f56db87a995374",
+          "message": "fix: when macro parse error happens, discard warnings; also preserve unquoted token locations (#8944)",
+          "timestamp": "2025-06-17T15:34:03Z",
+          "tree_id": "b6efae8e9e8015972df3f684e9da3cd206af16af",
+          "url": "https://github.com/noir-lang/noir/commit/d1e55d93e31cefc8331d8f1174f56db87a995374"
+        },
+        "date": 1750175865862,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250403,
+            "range": "± 1031",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222785,
+            "range": "± 1991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791842,
+            "range": "± 1473",
             "unit": "ns/iter"
           }
         ]
