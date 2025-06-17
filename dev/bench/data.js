@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750176930017,
+  "lastUpdate": 1750180938331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "james.zaki@proton.me",
-            "name": "James Zaki",
-            "username": "jzaki"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6343a3029f4671c8e5f21afe4014ec9a50c05966",
-          "message": "chore: Prune changelog older than ~1 year (<0.32.0) (#8856)",
-          "timestamp": "2025-06-10T13:18:06Z",
-          "tree_id": "7bcd47ad2723275a790c9380683e61b70c6abdbe",
-          "url": "https://github.com/noir-lang/noir/commit/6343a3029f4671c8e5f21afe4014ec9a50c05966"
-        },
-        "date": 1749562794715,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247123,
-            "range": "± 718",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217957,
-            "range": "± 2586",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780285,
-            "range": "± 3353",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791842,
             "range": "± 1473",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b891901edd36574c6e6817d1f6ca182a93830739",
+          "message": "fix(ssa): Swap Brillig index shift and DIE in minimal pipeline (#8946)",
+          "timestamp": "2025-06-17T16:51:44Z",
+          "tree_id": "0f92687a21d5543608397ac764a444a551f557e8",
+          "url": "https://github.com/noir-lang/noir/commit/b891901edd36574c6e6817d1f6ca182a93830739"
+        },
+        "date": 1750180903741,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251035,
+            "range": "± 2098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223413,
+            "range": "± 5481",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787761,
+            "range": "± 5322",
             "unit": "ns/iter"
           }
         ]
