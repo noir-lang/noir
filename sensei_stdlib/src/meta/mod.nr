@@ -138,8 +138,8 @@ mod tests {
             // let _a: Quoted = quote { 1 };
             let _a: Quoted = quote_one();
 
-            // let _b: Field = 1;
-            let _b: Field = quote_one!();
+            // let _b: u256 = 1;
+            let _b: u256 = quote_one!();
 
             // Since integers default to fields, if we
             // want a different type we have to explicitly cast
@@ -156,8 +156,8 @@ mod tests {
 
     #[derive_field_count]
     struct Bar {
-        x: Field,
-        y: [Field; 2],
+        x: u256,
+        y: [u256; 2],
     }
 
     comptime fn derive_field_count(s: TypeDefinition) -> Quoted {
@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[varargs]
-    comptime fn assert_three_args(_s: TypeDefinition, args: [Field]) {
+    comptime fn assert_three_args(_s: TypeDefinition, args: [u256]) {
         assert_eq(args.len(), 3);
     }
     // docs:end:annotation-varargs-example

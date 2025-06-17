@@ -86,4 +86,4 @@ impl crate::cmp::Eq for TypeDefinition {
 comptime fn type_def_eq(_first: TypeDefinition, _second: TypeDefinition) -> bool {}
 
 #[builtin(type_def_hash)]
-comptime fn type_def_hash(_type: TypeDefinition) -> Field {}
+comptime fn type_def_hash(_type: TypeDefinition) -> u256 {}

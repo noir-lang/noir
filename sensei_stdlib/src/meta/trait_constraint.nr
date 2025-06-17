@@ -20,4 +20,4 @@ impl Hash for TraitConstraint {
 comptime fn constraint_eq(_first: TraitConstraint, _second: TraitConstraint) -> bool {}
 
 #[builtin(trait_constraint_hash)]
-comptime fn constraint_hash(_constraint: TraitConstraint) -> Field {}
+comptime fn constraint_hash(_constraint: TraitConstraint) -> u256 {}

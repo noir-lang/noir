@@ -23,7 +23,7 @@ use crate::option::Option;
 /// ```noir
 /// trait Serialize<let N: u32> {}
 ///
-/// impl Serialize<1> for Field {}
+/// impl Serialize<1> for u256 {}
 ///
 /// impl<T, let N: u32, let M: u32> Serialize<N * M> for [T; N]
 ///     where T: Serialize<M> {}
@@ -34,7 +34,7 @@ use crate::option::Option;
 /// fn fresh_variable_example() {
 ///     let typevar1 = std::meta::typ::fresh_type_variable();
 ///     let constraint = quote { Serialize<$typevar1> }.as_trait_constraint();
-///     let field_type = quote { Field }.as_type();
+///     let field_type = quote { u256 }.as_type();
 ///
 ///     // Search for a trait impl (binding typevar1 to 1 when the impl is found):
 ///     assert(field_type.implements(constraint));
@@ -46,7 +46,7 @@ use crate::option::Option;
 ///     // create a new type variable now that `typevar1` is bound
 ///     let typevar2 = std::meta::typ::fresh_type_variable();
 ///     let constraint = quote { Serialize<$typevar2> }.as_trait_constraint();
-///     let array_type = quote { [(Field, Field); 5] }.as_type();
+///     let array_type = quote { [(u256, u256); 5] }.as_type();
 ///     assert(array_type.implements(constraint));
 ///
 ///     // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
@@ -65,7 +65,7 @@ impl Type {
     ///
     /// ```noir
     /// comptime {
-    ///     let array_type = quote { [Field; 3] }.as_type();
+    ///     let array_type = quote { [u256; 3] }.as_type();
     ///     let (field_type, three_type) = array_type.as_array().unwrap();
     ///
     ///     assert(field_type.is_field());
@@ -77,7 +77,7 @@ impl Type {
     pub comptime fn as_array(self) -> Option<(Type, Type)> {}
     // docs:end:as_array
 
-    /// If this type is a constant integer (such as the `3` in the array type `[Field; 3]`),
+    /// If this type is a constant integer (such as the `3` in the array type `[u256; 3]`),
     /// return the numeric constant.
     #[builtin(type_as_constant)]
     // docs:start:as_constant
@@ -137,7 +137,7 @@ impl Type {
     ///
     /// ```rust
     /// comptime {
-    ///     let field_type = quote { Field }.as_type();
+    ///     let field_type = quote { u256 }.as_type();
     ///     let default = quote { Default }.as_trait_constraint();
     ///
     ///     let the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
@@ -158,7 +158,7 @@ impl Type {
     /// ```rust
     /// fn foo<T>() where T: Default {
     ///     comptime {
-    ///         let field_type = quote { Field }.as_type();
+    ///         let field_type = quote { u256 }.as_type();
     ///         let default = quote { Default }.as_trait_constraint();
     ///         assert(field_type.implements(default));
     ///
@@ -178,7 +178,7 @@ impl Type {
     pub comptime fn is_bool(self) -> bool {}
     // docs:end:is_bool
 
-    /// Returns `true` if this type is `Field`.
+    /// Returns `true` if this type is `u256`.
     #[builtin(type_is_field)]
     // docs:start:is_field
     pub comptime fn is_field(self) -> bool {}
@@ -213,4 +213,4 @@ impl crate::hash::Hash for Type {
 comptime fn type_eq(_first: Type, _second: Type) -> bool {}
 
 #[builtin(type_hash)]
-comptime fn type_hash(_typ: Type) -> Field {}
+comptime fn type_hash(_typ: Type) -> u256 {}

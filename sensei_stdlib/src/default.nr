@@ -15,8 +15,8 @@ comptime fn derive_default(s: TypeDefinition) -> Quoted {
     crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
 }
 
-impl Default for Field {
-    fn default() -> Field {
+impl Default for u256 {
+    fn default() -> u256 {
         0
     }
 }

@@ -47,4 +47,4 @@ impl crate::hash::Hash for Quoted {
 comptime fn quoted_eq(_first: Quoted, _second: Quoted) -> bool {}
 
 #[builtin(quoted_hash)]
-comptime fn quoted_hash(_quoted: Quoted) -> Field {}
+comptime fn quoted_hash(_quoted: Quoted) -> u256 {}

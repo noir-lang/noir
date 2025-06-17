@@ -84,7 +84,7 @@ comptime fn fmtstr_as_ctstring<let N: u32, T>(_s: fmtstr<N, T>) -> CtString {}
 comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 
 #[builtin(ctstring_hash)]
-comptime fn ctstring_hash(_string: CtString) -> Field {}
+comptime fn ctstring_hash(_string: CtString) -> u256 {}
 
 mod test {
     use super::AsCtString;

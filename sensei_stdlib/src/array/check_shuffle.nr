@@ -66,7 +66,7 @@ mod test {
 
     struct CompoundStruct {
         a: bool,
-        b: Field,
+        b: u256,
         c: u64,
     }
     impl Eq for CompoundStruct {
@@ -77,29 +77,29 @@ mod test {
 
     #[test]
     fn test_shuffle() {
-        let lhs: [Field; 5] = [0, 1, 2, 3, 4];
-        let rhs: [Field; 5] = [2, 0, 3, 1, 4];
+        let lhs: [u256; 5] = [0, 1, 2, 3, 4];
+        let rhs: [u256; 5] = [2, 0, 3, 1, 4];
         check_shuffle(lhs, rhs);
     }
 
     #[test]
     fn test_shuffle_identity() {
-        let lhs: [Field; 5] = [0, 1, 2, 3, 4];
-        let rhs: [Field; 5] = [0, 1, 2, 3, 4];
+        let lhs: [u256; 5] = [0, 1, 2, 3, 4];
+        let rhs: [u256; 5] = [0, 1, 2, 3, 4];
         check_shuffle(lhs, rhs);
     }
 
     #[test(should_fail_with = "check_shuffle, lhs and rhs arrays do not contain equivalent values")]
     fn test_shuffle_fail() {
-        let lhs: [Field; 5] = [0, 1, 2, 3, 4];
-        let rhs: [Field; 5] = [0, 1, 2, 3, 5];
+        let lhs: [u256; 5] = [0, 1, 2, 3, 4];
+        let rhs: [u256; 5] = [0, 1, 2, 3, 5];
         check_shuffle(lhs, rhs);
     }
 
     #[test(should_fail_with = "check_shuffle, lhs and rhs arrays do not contain equivalent values")]
     fn test_shuffle_duplicates() {
-        let lhs: [Field; 5] = [0, 1, 2, 3, 4];
-        let rhs: [Field; 5] = [0, 1, 2, 3, 3];
+        let lhs: [u256; 5] = [0, 1, 2, 3, 4];
+        let rhs: [u256; 5] = [0, 1, 2, 3, 3];
         check_shuffle(lhs, rhs);
     }
 

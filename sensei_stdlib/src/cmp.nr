@@ -29,8 +29,8 @@ comptime fn derive_eq(s: TypeDefinition) -> Quoted {
 }
 // docs:end:derive_eq
 
-impl Eq for Field {
-    fn eq(self, other: Field) -> bool {
+impl Eq for u256 {
+    fn eq(self, other: u256) -> bool {
         self == other
     }
 }
@@ -224,7 +224,7 @@ comptime fn derive_ord(s: TypeDefinition) -> Quoted {
 }
 // docs:end:derive_ord
 
-// Note: Field deliberately does not implement Ord
+// Note: u256 deliberately does not implement Ord
 
 impl Ord for u128 {
     fn cmp(self, other: u128) -> Ordering {

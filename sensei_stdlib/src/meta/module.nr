@@ -49,4 +49,4 @@ impl crate::cmp::Eq for Module {
 comptime fn module_eq(_first: Module, _second: Module) -> bool {}
 
 #[builtin(module_hash)]
-comptime fn module_hash(_module: Module) -> Field {}
+comptime fn module_hash(_module: Module) -> u256 {}

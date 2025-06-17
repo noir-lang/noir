@@ -32,11 +32,11 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
 // docs:end:derive_hash
 
 // Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
-// TODO: consider making the types generic here ([u8], [Field], etc.)
+// TODO: consider making the types generic here ([u8], [u256], etc.)
 pub trait Hasher {
-    fn finish(self) -> Field;
+    fn finish(self) -> u256;
 
-    fn write(&mut self, input: Field);
+    fn write(&mut self, input: u256);
 }
 
 // BuildHasher is a factory trait, responsible for production of specific Hasher.
@@ -50,11 +50,11 @@ pub struct PlaceholderHasher {}
 
 // TODO
 impl Hasher for PlaceholderHasher {
-    fn finish(self) -> Field {
+    fn finish(self) -> u256 {
         0
     }
 
-    fn write(&mut self, _input: Field) {}
+    fn write(&mut self, _input: u256) {}
 }
 
 impl Default for PlaceholderHasher {
@@ -85,7 +85,7 @@ where
     }
 }
 
-impl Hash for Field {
+impl Hash for u256 {
     fn hash<H>(self, state: &mut H)
     where
         H: Hasher,
@@ -99,7 +99,7 @@ impl Hash for u1 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -108,7 +108,7 @@ impl Hash for u8 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -117,7 +117,7 @@ impl Hash for u16 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -126,7 +126,7 @@ impl Hash for u32 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -135,7 +135,7 @@ impl Hash for u64 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -144,7 +144,7 @@ impl Hash for u128 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -153,7 +153,7 @@ impl Hash for i8 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -162,7 +162,7 @@ impl Hash for i16 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -171,7 +171,7 @@ impl Hash for i32 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -180,7 +180,7 @@ impl Hash for i64 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 
@@ -189,7 +189,7 @@ impl Hash for bool {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u256);
     }
 }
 

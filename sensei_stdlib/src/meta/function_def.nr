@@ -92,4 +92,4 @@ impl crate::cmp::Eq for FunctionDefinition {
 comptime fn function_def_eq(_first: FunctionDefinition, _second: FunctionDefinition) -> bool {}
 
 #[builtin(function_def_hash)]
-comptime fn function_def_hash(_function: FunctionDefinition) -> Field {}
+comptime fn function_def_hash(_function: FunctionDefinition) -> u256 {}

@@ -27,4 +27,4 @@ impl Hash for TraitDefinition {
 comptime fn trait_def_eq(_first: TraitDefinition, _second: TraitDefinition) -> bool {}
 
 #[builtin(trait_def_hash)]
-comptime fn trait_def_hash(_def: TraitDefinition) -> Field {}
+comptime fn trait_def_hash(_def: TraitDefinition) -> u256 {}

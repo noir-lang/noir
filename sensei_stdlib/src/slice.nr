@@ -178,13 +178,13 @@ mod test {
 
     #[test]
     fn for_each_empty() {
-        let empty_slice: [Field] = &[];
+        let empty_slice: [u256] = &[];
         empty_slice.for_each(|_x| assert(false));
     }
 
     #[test]
     fn for_eachi_empty() {
-        let empty_slice: [Field] = &[];
+        let empty_slice: [u256] = &[];
         empty_slice.for_eachi(|_i, _x| assert(false));
     }
 

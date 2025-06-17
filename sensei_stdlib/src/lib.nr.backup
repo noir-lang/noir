@@ -4,7 +4,7 @@ use crate::meta::ctstring::AsCtString;
 #[builtin(dynamic_alloc_zeroed)]
 pub fn raw_malloc_zeroed(size: u256) -> u256 {}
 
-pub type u256 = Field;
+pub type u256 = u256;
 
 pub struct u8 {
     v: u256

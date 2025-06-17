@@ -1,11 +1,11 @@
 enum EnumTest {
     A,
-    B(Field),
-    C(Field, AlsoEnumTest)
+    B(u256),
+    C(u256, AlsoEnumTest)
 }
 
 enum AlsoEnumTest {
-    Alpha(Field),
+    Alpha(u256),
     Beta
 }
 

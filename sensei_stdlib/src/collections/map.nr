@@ -23,7 +23,7 @@ global MAX_LOAD_FACTOR_DEN0MINATOR: u32 = 4;
 /// // Create a mapping from Fields to u32s with a maximum length of 12
 /// // using a poseidon2 hasher
 /// use std::hash::poseidon2::Poseidon2Hasher;
-/// let mut map: HashMap<Field, u32, 12, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+/// let mut map: HashMap<u256, u32, 12, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
 ///
 /// map.insert(1, 2);
 /// map.insert(3, 4);
@@ -443,7 +443,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// Example:
     ///
     /// ```noir
-    /// let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    /// let empty_map: HashMap<u256, u256, 42, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     /// assert(empty_map.len() == 0);
     /// assert(empty_map.capacity() == 42);
     /// ```
@@ -458,7 +458,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// Example:
     ///
     /// ```noir
-    /// fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
+    /// fn get_example(map: HashMap<u256, u256, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     ///     let x = map.get(12);
     ///
     ///     if x.is_some() {
@@ -503,7 +503,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// Example:
     ///
     /// ```noir
-    /// let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    /// let mut map: HashMap<u256, u256, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     /// map.insert(12, 42);
     /// assert(map.len() == 1);
     /// ```
@@ -551,7 +551,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// Example:
     ///
     /// ```noir
-    /// let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    /// let mut map: HashMap<u256, u256, 5, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     /// map.insert(12, 42);
     /// assert(!map.is_empty());
     ///
@@ -638,8 +638,8 @@ where
     /// Example:
     ///
     /// ```noir
-    /// let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
-    /// let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    /// let mut map1: HashMap<u256, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+    /// let mut map2: HashMap<u256, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
     ///
     /// map1.insert(1, 2);
     /// map1.insert(3, 4);

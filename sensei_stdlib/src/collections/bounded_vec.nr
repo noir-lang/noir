@@ -15,7 +15,7 @@ use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 /// Example:
 ///
 /// ```noir
-/// let mut vector: BoundedVec<Field, 10> = BoundedVec::new();
+/// let mut vector: BoundedVec<u256, 10> = BoundedVec::new();
 /// for i in 0..5 {
 ///     vector.push(i);
 /// }
@@ -37,7 +37,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let empty_vector: BoundedVec<Field, 10> = BoundedVec::new();
+    /// let empty_vector: BoundedVec<u256, 10> = BoundedVec::new();
     /// assert(empty_vector.len() == 0);
     /// ```
     ///
@@ -45,9 +45,9 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// via a type signature:
     ///
     /// ```noir
-    /// fn good() -> BoundedVec<Field, 10> {
+    /// fn good() -> BoundedVec<u256, 10> {
     ///     // Ok! MaxLen is specified with a type annotation
-    ///     let v1: BoundedVec<Field, 3> = BoundedVec::new();
+    ///     let v1: BoundedVec<u256, 3> = BoundedVec::new();
     ///     let v2 = BoundedVec::new();
     ///
     ///     // Ok! MaxLen is known from the type of `good`'s return value
@@ -175,7 +175,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    /// let mut v: BoundedVec<u256, 2> = BoundedVec::new();
     ///
     /// v.push(1);
     /// v.push(2);
@@ -195,7 +195,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut v: BoundedVec<Field, 4> = BoundedVec::new();
+    /// let mut v: BoundedVec<u256, 4> = BoundedVec::new();
     /// assert(v.len() == 0);
     ///
     /// v.push(100);
@@ -220,7 +220,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+    /// let mut v: BoundedVec<u256, 5> = BoundedVec::new();
     ///
     /// assert(v.max_len() == 5);
     /// v.push(10);
@@ -240,7 +240,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut v: BoundedVec<Field, 5> = BoundedVec::new();
+    /// let mut v: BoundedVec<u256, 5> = BoundedVec::new();
     ///
     /// assert(v.storage() == [0, 0, 0, 0, 0]);
     ///
@@ -259,7 +259,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    /// let mut vec: BoundedVec<u256, 3> = BoundedVec::new();
     /// vec.extend_from_array([2, 4]);
     ///
     /// assert(vec.len == 2);
@@ -283,7 +283,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
+    /// let mut vec: BoundedVec<u256, 3> = BoundedVec::new();
     /// vec.extend_from_slice(&[2, 4]);
     ///
     /// assert(vec.len == 2);
@@ -306,8 +306,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// to exceed the maximum length.
     ///
     /// ```noir
-    /// let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
-    /// let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
+    /// let mut v1: BoundedVec<u256, 5> = BoundedVec::new();
+    /// let mut v2: BoundedVec<u256, 7> = BoundedVec::new();
     ///
     /// v2.extend_from_array([1, 2, 3]);
     /// v1.extend_from_bounded_vec(v2);
@@ -342,7 +342,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
+    /// let bounded_vec: BoundedVec<u256, 10> = BoundedVec::from_array([1, 2, 3])
     /// ```
     pub fn from_array<let Len: u32>(array: [T; Len]) -> Self {
         static_assert(Len <= MaxLen, "from array out of bounds");
@@ -359,7 +359,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
+    /// let mut v: BoundedVec<u256, 2> = BoundedVec::new();
     /// v.push(1);
     /// v.push(2);
     ///
@@ -616,7 +616,7 @@ mod bounded_vec_tests {
 
         #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
         fn panics_when_reading_elements_past_end_of_vec() {
-            let vec: BoundedVec<Field, 5> = BoundedVec::new();
+            let vec: BoundedVec<u256, 5> = BoundedVec::new();
 
             crate::println(vec.get(0));
         }
@@ -647,7 +647,7 @@ mod bounded_vec_tests {
 
         #[test(should_fail_with = "Attempted to write past end of BoundedVec")]
         fn panics_when_writing_elements_past_end_of_vec() {
-            let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
+            let mut vec: BoundedVec<u256, 5> = BoundedVec::new();
             vec.set(0, 42);
 
             // Need to use println to avoid DIE removing the write operation.
@@ -672,8 +672,8 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = vec.map(|value| (value * 2) as Field);
-            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
+            let result = vec.map(|value| (value * 2) as u256);
+            let expected: BoundedVec<u256, 4> = BoundedVec::from_array([2, 4, 6, 8]);
 
             assert_eq(result, expected);
         }
@@ -706,8 +706,8 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = vec.mapi(|i, value| (i + value * 2) as Field);
-            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+            let result = vec.mapi(|i, value| (i + value * 2) as u256);
+            let expected: BoundedVec<u256, 4> = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
         }
@@ -760,8 +760,8 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = for_each_map(vec, |value| (value * 2) as Field);
-            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
+            let result = for_each_map(vec, |value| (value * 2) as u256);
+            let expected: BoundedVec<u256, 4> = BoundedVec::from_array([2, 4, 6, 8]);
 
             assert_eq(result, expected);
         }
@@ -816,8 +816,8 @@ mod bounded_vec_tests {
         #[test]
         fn applies_function_that_changes_return_type() {
             let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
-            let result = for_eachi_mapi(vec, |i, value| (i + value * 2) as Field);
-            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+            let result = for_eachi_mapi(vec, |i, value| (i + value * 2) as u256);
+            let expected: BoundedVec<u256, 4> = BoundedVec::from_array([2, 5, 8, 11]);
 
             assert_eq(result, expected);
         }
@@ -838,7 +838,7 @@ mod bounded_vec_tests {
 
         #[test]
         fn empty() {
-            let empty_array: [Field; 0] = [];
+            let empty_array: [u256; 0] = [];
             let bounded_vec = BoundedVec::from_array([]);
 
             assert_eq(bounded_vec.max_len(), 0);
@@ -859,7 +859,7 @@ mod bounded_vec_tests {
         #[test]
         fn max_len_greater_then_array_len() {
             let array = [1, 2, 3];
-            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array(array);
+            let bounded_vec: BoundedVec<u256, 10> = BoundedVec::from_array(array);
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 3);
@@ -870,7 +870,7 @@ mod bounded_vec_tests {
 
         #[test(should_fail_with = "from array out of bounds")]
         fn max_len_lower_then_array_len() {
-            let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
+            let _: BoundedVec<u256, 2> = BoundedVec::from_array([0; 3]);
         }
     }
 
@@ -881,7 +881,7 @@ mod bounded_vec_tests {
         #[test]
         fn simple() {
             let array = [1, 2];
-            let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from(array);
+            let bounded_vec: BoundedVec<u256, 10> = BoundedVec::from(array);
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 2);
@@ -895,16 +895,16 @@ mod bounded_vec_tests {
 
         #[test]
         fn empty_equality() {
-            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec1: BoundedVec<u256, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<u256, 3> = BoundedVec::new();
 
             assert_eq(bounded_vec1, bounded_vec2);
         }
 
         #[test]
         fn inequality() {
-            let mut bounded_vec1: BoundedVec<Field, 3> = BoundedVec::new();
-            let mut bounded_vec2: BoundedVec<Field, 3> = BoundedVec::new();
+            let mut bounded_vec1: BoundedVec<u256, 3> = BoundedVec::new();
+            let mut bounded_vec2: BoundedVec<u256, 3> = BoundedVec::new();
             bounded_vec1.push(1);
             bounded_vec2.push(2);
 

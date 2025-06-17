@@ -21,7 +21,7 @@ impl UnresolvedType {
     pub comptime fn is_bool(self) -> bool {}
     // docs:end:is_bool
 
-    /// Returns true if this type refers to the `Field` type.
+    /// Returns true if this type refers to the `u256` type.
     #[builtin(unresolved_type_is_field)]
     // docs:start:is_field
     pub comptime fn is_field(self) -> bool {}

@@ -112,7 +112,7 @@ impl Expr {
     /// as well as whether the integer is negative (true) or not (false).
     #[builtin(expr_as_integer)]
     // docs:start:as_integer
-    pub comptime fn as_integer(self) -> Option<(Field, bool)> {}
+    pub comptime fn as_integer(self) -> Option<(u256, bool)> {}
     // docs:end:as_integer
 
     /// If this expression is a lambda, returns the parameters, return type and body.

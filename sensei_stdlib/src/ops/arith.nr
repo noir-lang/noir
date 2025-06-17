@@ -6,8 +6,8 @@ pub trait Add {
 }
 // docs:end:add-trait
 
-impl Add for Field {
-    fn add(self, other: Field) -> Field {
+impl Add for u256 {
+    fn add(self, other: u256) -> u256 {
         self + other
     }
 }
@@ -70,8 +70,8 @@ pub trait Sub {
 }
 // docs:end:sub-trait
 
-impl Sub for Field {
-    fn sub(self, other: Field) -> Field {
+impl Sub for u256 {
+    fn sub(self, other: u256) -> u256 {
         self - other
     }
 }
@@ -134,8 +134,8 @@ pub trait Mul {
 }
 // docs:end:mul-trait
 
-impl Mul for Field {
-    fn mul(self, other: Field) -> Field {
+impl Mul for u256 {
+    fn mul(self, other: u256) -> u256 {
         self * other
     }
 }
@@ -198,8 +198,8 @@ pub trait Div {
 }
 // docs:end:div-trait
 
-impl Div for Field {
-    fn div(self, other: Field) -> Field {
+impl Div for u256 {
+    fn div(self, other: u256) -> u256 {
         self / other
     }
 }
@@ -321,8 +321,8 @@ pub trait Neg {
 // docs:end:neg-trait
 
 // docs:start:neg-trait-impls
-impl Neg for Field {
-    fn neg(self) -> Field {
+impl Neg for u256 {
+    fn neg(self) -> u256 {
         -self
     }
 }
@@ -414,8 +414,8 @@ impl WrappingAdd for i64 {
         wrapping_add_hlp(self, y)
     }
 }
-impl WrappingAdd for Field {
-    fn wrapping_add(self: Field, y: Field) -> Field {
+impl WrappingAdd for u256 {
+    fn wrapping_add(self: u256, y: u256) -> u256 {
         self + y
     }
 }
@@ -482,8 +482,8 @@ impl WrappingSub for i64 {
         wrapping_sub_hlp(self, y) as i64
     }
 }
-impl WrappingSub for Field {
-    fn wrapping_sub(self: Field, y: Field) -> Field {
+impl WrappingSub for u256 {
+    fn wrapping_sub(self: u256, y: u256) -> u256 {
         self - y
     }
 }
@@ -549,26 +549,26 @@ impl WrappingMul for i64 {
 
 impl WrappingMul for u128 {
     fn wrapping_mul(self: u128, y: u128) -> u128 {
-        (self as Field * y as Field) as u128
+        (self as u256 * y as u256) as u128
     }
 }
-impl WrappingMul for Field {
-    fn wrapping_mul(self: Field, y: Field) -> Field {
+impl WrappingMul for u256 {
+    fn wrapping_mul(self: u256, y: u256) -> u256 {
         self * y
     }
 }
 
 fn wrapping_add_hlp<T>(x: T, y: T) -> T
 where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
+    T: AsPrimitive<u256>,
+    u256: AsPrimitive<T>,
 {
     AsPrimitive::as_(x.as_() + y.as_())
 }
 
-fn wrapping_sub_hlp<T>(x: T, y: T) -> Field
+fn wrapping_sub_hlp<T>(x: T, y: T) -> u256
 where
-    T: AsPrimitive<Field>,
+    T: AsPrimitive<u256>,
 {
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
     x.as_() + 340282366920938463463374607431768211456 - y.as_()
@@ -576,8 +576,8 @@ where
 
 fn wrapping_mul_hlp<T>(x: T, y: T) -> T
 where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
+    T: AsPrimitive<u256>,
+    u256: AsPrimitive<T>,
 {
     AsPrimitive::as_(x.as_() * y.as_())
 }

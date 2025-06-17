@@ -1,7 +1,7 @@
 use crate::hash::Hash;
 
 pub struct UnaryOp {
-    op: Field,
+    op: u256,
 }
 
 // Cannot derive Eq or Hash since they internally use paths
@@ -66,7 +66,7 @@ impl UnaryOp {
 }
 
 pub struct BinaryOp {
-    op: Field,
+    op: u256,
 }
 
 impl crate::cmp::Eq for BinaryOp {

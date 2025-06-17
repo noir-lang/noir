@@ -61,25 +61,25 @@ impl From<u64> for u128 {
     }
 }
 
-impl From<u8> for Field {
-    fn from(value: u8) -> Field {
-        value as Field
+impl From<u8> for u256 {
+    fn from(value: u8) -> u256 {
+        value as u256
     }
 }
-impl From<u32> for Field {
-    fn from(value: u32) -> Field {
-        value as Field
+impl From<u32> for u256 {
+    fn from(value: u32) -> u256 {
+        value as u256
     }
 }
-impl From<u64> for Field {
-    fn from(value: u64) -> Field {
-        value as Field
+impl From<u64> for u256 {
+    fn from(value: u64) -> u256 {
+        value as u256
     }
 }
 
-impl From<u128> for Field {
-    fn from(value: u128) -> Field {
-        value as Field
+impl From<u128> for u256 {
+    fn from(value: u128) -> u256 {
+        value as u256
     }
 }
 
@@ -133,9 +133,9 @@ impl From<bool> for i64 {
         value as i64
     }
 }
-impl From<bool> for Field {
-    fn from(value: bool) -> Field {
-        value as Field
+impl From<bool> for u256 {
+    fn from(value: bool) -> u256 {
+        value as u256
     }
 }
 // docs:end:from-impls
@@ -146,7 +146,7 @@ impl From<bool> for Field {
 /// # Example
 ///
 /// ```
-/// let x: Field = 1234567890;
+/// let x: u256 = 1234567890;
 /// let y: u8 = x as u8;
 /// let z: u8 = x.as_();
 /// assert_eq(y, z);
@@ -169,7 +169,7 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
         quote { i16 },
         quote { i32 },
         quote { i64 },
-        quote { Field },
+        quote { u256 },
     ];
 
     let mut impls = &[];

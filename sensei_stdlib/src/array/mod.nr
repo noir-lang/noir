@@ -9,7 +9,7 @@ impl<T, let N: u32> [T; N] {
     /// Returns the length of this array.
     ///
     /// ```noir
-    /// fn len(self) -> Field
+    /// fn len(self) -> u256
     /// ```
     ///
     /// example
@@ -408,13 +408,13 @@ mod test {
 
     #[test]
     fn for_each_empty() {
-        let empty_array: [Field; 0] = [];
+        let empty_array: [u256; 0] = [];
         empty_array.for_each(|_x| assert(false));
     }
 
     #[test]
     fn for_eachi_empty() {
-        let empty_array: [Field; 0] = [];
+        let empty_array: [u256; 0] = [];
         empty_array.for_eachi(|_i, _x| assert(false));
     }
 
@@ -482,8 +482,8 @@ mod test {
 
     #[test]
     fn concat_zero_lengths() {
-        let arr1: [Field; 0] = [];
-        let arr2: [Field; 0] = [];
+        let arr1: [u256; 0] = [];
+        let arr2: [u256; 0] = [];
         let concatenated_arr = arr1.concat(arr2);
         assert_eq(concatenated_arr, []);
     }
