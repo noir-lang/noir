@@ -466,11 +466,11 @@ impl<'a> FunctionContext<'a> {
         // See how we can produce tgt from src.
         match (src_type, tgt_type) {
             (
-                Type::Field,
+                Type::U256,
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
             ) => src_as_tgt(),
-            (Type::Bool, Type::Field) => src_as_tgt(),
-            (Type::Integer(Signedness::Unsigned, _), Type::Field) => src_as_tgt(),
+            (Type::Bool, Type::U256) => src_as_tgt(),
+            (Type::Integer(Signedness::Unsigned, _), Type::U256) => src_as_tgt(),
             (Type::Integer(sign_from, ibs_from), Type::Integer(sign_to, ibs_to))
                 if sign_from == sign_to && ibs_from.bit_size() < ibs_to.bit_size() =>
             {

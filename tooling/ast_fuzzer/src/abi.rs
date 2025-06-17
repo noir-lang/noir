@@ -40,7 +40,7 @@ fn is_valid_in_abi(typ: &Type) -> bool {
         | Type::Reference(_, _)
         | Type::Function(_, _, _, _) => false,
 
-        Type::Field | Type::Bool | Type::String(_) | Type::Integer(_, _) => true,
+        Type::U256 | Type::Bool | Type::String(_) | Type::Integer(_, _) => true,
 
         Type::Array(_, typ) => is_valid_in_abi(typ),
         Type::Tuple(items) => items.iter().all(is_valid_in_abi),
@@ -52,7 +52,7 @@ fn is_valid_in_abi(typ: &Type) -> bool {
 /// Panics if it's called on a type which should not appear in the ABI.
 fn to_abi_type(typ: &Type) -> AbiType {
     match typ {
-        Type::Field => AbiType::Field,
+        Type::U256 => AbiType::Field,
         Type::Array(len, typ) => AbiType::Array { length: *len, typ: Box::new(to_abi_type(typ)) },
         Type::Integer(signedness, integer_bit_size) => AbiType::Integer {
             sign: if signedness.is_signed() { Sign::Signed } else { Sign::Unsigned },

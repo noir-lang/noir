@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
+use noirc_frontend::field_element::FieldElement;
 use nargo::errors::Location;
 
 use arbitrary::{Arbitrary, Unstructured};
@@ -28,9 +28,9 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
     let expr = match typ {
         Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => lit_bool(bool::arbitrary(u)?),
-        Type::Field => {
-            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
-            Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
+        Type::U256 => {
+            let field = SignedField::new(FieldElement::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
+            Expression::Literal(Literal::Integer(field, Type::U256, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
             let (field, is_negative) =

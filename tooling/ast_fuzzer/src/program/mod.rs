@@ -415,7 +415,7 @@ impl Context {
             typ = match u.choose_index(max_index)? {
                 // 4 leaf types
                 0 => Type::Bool,
-                1 => Type::Field,
+                1 => Type::U256,
                 2 => {
                     // i1 is deprecated, and i128 does not exist yet
                     let sign = if is_frontend_friendly {

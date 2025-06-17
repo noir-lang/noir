@@ -156,7 +156,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
     fn append_type(&mut self, typ: &Type) {
         match typ {
-            Type::FieldElement => self.string.push_str("Field"),
+            Type::U256 => self.string.push_str("u256"),
             Type::Array(n, e) => {
                 self.string.push('[');
                 self.append_type(e);

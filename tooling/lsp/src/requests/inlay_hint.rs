@@ -537,7 +537,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
         },
         Type::CheckedCast { to, .. } => push_type_parts(to, parts, files),
 
-        Type::FieldElement
+        Type::U256
         | Type::Integer(..)
         | Type::Bool
         | Type::String(..)

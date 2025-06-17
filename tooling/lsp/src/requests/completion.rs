@@ -638,7 +638,7 @@ impl<'a> NodeFinder<'a> {
                     );
                 }
             }
-            Type::FieldElement
+            Type::U256
             | Type::Array(_, _)
             | Type::Slice(_)
             | Type::Integer(_, _)

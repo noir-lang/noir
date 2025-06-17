@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
+    field_element::FieldElement,
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
@@ -18,7 +18,7 @@ pub(crate) const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize:
 /// Leaf types have a depth of 0.
 pub(crate) fn type_depth(typ: &Type) -> usize {
     match typ {
-        Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
+        Type::U256 | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
         Type::Array(_, typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         _ => unreachable!("unexpected type: {typ}"),
@@ -46,7 +46,7 @@ pub(crate) fn can_be_main(typ: &Type) -> bool {
         Type::String(size) => *size > 0,
         Type::Array(size, typ) => *size > 0 && can_be_main(typ),
         Type::Tuple(types) => types.iter().all(can_be_main),
-        Type::Bool | Type::Field | Type::Integer(_, _) => true,
+        Type::Bool | Type::U256 | Type::Integer(_, _) => true,
         _ => false,
     }
 }
@@ -85,7 +85,7 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
             Type::String(_) => {
                 // Maybe it could produce substrings, but it would be an overkill to enumerate.
             }
-            Type::Field => {
+            Type::U256 => {
                 // There are `try_to_*` methods, but let's consider only what is safe.
                 acc.insert(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight));
             }
@@ -106,12 +106,12 @@ pub(crate) fn types_produced(typ: &Type) -> HashSet<Type> {
                 }
                 // There are `From<u*>` for Field
                 if !sign.is_signed() {
-                    acc.insert(Type::Field);
+                    acc.insert(Type::U256);
                 }
             }
             Type::Bool => {
                 // Maybe we can also cast to u1 or u8 etc?
-                acc.insert(Type::Field);
+                acc.insert(Type::U256);
             }
             Type::Slice(typ) => {
                 visit(acc, typ);
@@ -148,7 +148,7 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     match typ {
         Type::Unit => HirType::Unit,
         Type::Bool => HirType::Bool,
-        Type::Field => HirType::FieldElement,
+        Type::U256 => HirType::U256,
         Type::Integer(signedness, integer_bit_size) => {
             HirType::Integer(*signedness, *integer_bit_size)
         }
@@ -170,7 +170,7 @@ pub(crate) fn to_hir_type(typ: &Type) -> hir_def::types::Type {
 
 /// Check if the type is a number.
 pub(crate) fn is_numeric(typ: &Type) -> bool {
-    matches!(typ, Type::Field | Type::Integer(_, _))
+    matches!(typ, Type::U256 | Type::Integer(_, _))
 }
 
 /// Check if a type is `Unit`.
@@ -192,7 +192,7 @@ pub(crate) fn is_reference(typ: &Type) -> bool {
 pub(crate) fn is_printable(typ: &Type) -> bool {
     match typ {
         Type::Reference(_, _) => false,
-        Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
+        Type::U256 | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
         Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
         Type::Tuple(typs) => typs.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
@@ -203,7 +203,7 @@ pub(crate) fn is_printable(typ: &Type) -> bool {
 /// Can the type be returned by some `UnaryOp`.
 pub(crate) fn can_unary_return(typ: &Type) -> bool {
     match typ {
-        Type::Field => true,
+        Type::U256 => true,
         Type::Bool => true,
         Type::Integer(sign, size) => {
             // What can we apply `UnaryOp::Minus` to.
@@ -230,7 +230,7 @@ pub(crate) fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
     use BinaryOpKind::*;
     match typ {
         Type::Bool => op.is_comparator(),
-        Type::Field => {
+        Type::U256 => {
             matches!(op, Add | Subtract | Multiply | Divide)
         }
         Type::Integer(_, _) => {
@@ -259,8 +259,8 @@ pub(crate) fn can_binary_op_err_by_zero(op: &BinaryOp) -> bool {
 /// Check if a certain binary operation can take a type as input and produce the target output.
 pub(crate) fn can_binary_op_return_from_input(op: &BinaryOp, input: &Type, output: &Type) -> bool {
     match (input, output) {
-        (Type::Field, Type::Field) => op.is_valid_for_field_type() && !op.is_equality(),
-        (Type::Field, Type::Bool) => op.is_equality(),
+        (Type::U256, Type::U256) => op.is_valid_for_field_type() && !op.is_equality(),
+        (Type::U256, Type::Bool) => op.is_equality(),
         (Type::Bool, Type::Bool) => op.is_comparator() || op.is_bitwise(),
         (Type::Integer(sign, size), Type::Bool) => {
             // Avoid comparing 128 bit numbers:

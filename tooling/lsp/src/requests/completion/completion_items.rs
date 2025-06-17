@@ -215,7 +215,7 @@ impl NodeFinder<'_> {
             FunctionKind::SelfType(mut self_type) => {
                 if let Some(func_self_type) = func_self_type {
                     if matches!(self_type, Type::Integer(..))
-                        || matches!(self_type, Type::FieldElement)
+                        || matches!(self_type, Type::U256)
                     {
                         // Check that the pattern type is the same as self type.
                         // We do this because some types (only Field and integer types)

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre;
-use noir_artifact_cli::Artifact;
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct PrintAcirCommand {
@@ -14,26 +13,7 @@ pub(crate) struct PrintAcirCommand {
     contract_fn: Option<String>,
 }
 
-pub(crate) fn run(args: PrintAcirCommand) -> eyre::Result<()> {
-    let artifact = Artifact::read_from_file(&args.artifact)?;
-
-    match artifact {
-        Artifact::Program(program) => {
-            println!("Compiled ACIR for main:");
-            println!("{}", program.bytecode);
-        }
-        Artifact::Contract(contract) => {
-            println!("Compiled circuits for contract '{}':", contract.name);
-            for function in contract
-                .functions
-                .into_iter()
-                .filter(|f| args.contract_fn.as_ref().map(|n| *n == f.name).unwrap_or(true))
-            {
-                println!("Compiled ACIR for function '{}':", function.name);
-                println!("{}", function.bytecode);
-            }
-        }
-    }
-
-    Ok(())
+pub(crate) fn run(_args: PrintAcirCommand) -> eyre::Result<()> {
+    eprintln!("Print ACIR command is not available in Sensei (requires ZK backend)");
+    Err(eyre::eyre!("ACIR inspection is not available without ACVM backend"))
 }
