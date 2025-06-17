@@ -207,7 +207,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // We can safely place the pass before DIE as that pass only removes instructions.
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
+        // This pass might result in otherwise unused global constant becoming used,
+        // because the creation of shifted index constants can reuse their IDs.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
+        // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
