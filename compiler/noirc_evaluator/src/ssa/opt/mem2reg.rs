@@ -456,8 +456,10 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
+                if !self.aliased_references.contains_key(&address) {
+                    if let Some(last_store) = references.last_stores.get(&address) {
+                        self.instructions_to_remove.insert(*last_store);
+                    }
                 }
 
                 references.for_each_alias_of(value, |_, alias| {
@@ -1511,6 +1513,40 @@ mod tests {
           b6(v1: u1):
             return v1
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_stores_with_aliased_references() {
+        // Ensure `store v8 at v1` is not removed from the program
+        // just because there is a subsequent `store v10 at v1`.
+        // In this case `v1` is aliased to `*v3` so the store is significant.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                v3 = allocate -> &mut &mut Field
+                store v1 at v3
+                jmp b1(u32 10)
+              b1(v0: u32):
+                v6 = lt v0, u32 11
+                jmpif v6 then: b2, else: b3
+              b2():
+                v8 = cast v0 as Field
+                store v8 at v1
+                v9 = load v3 -> &mut Field
+                v10 = load v9 -> Field
+                store v10 at v1
+                v12 = unchecked_add v0, u32 1
+                jmp b1(v12)
+              b3():
+                v7 = load v1 -> Field
+                return v7
+            }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
