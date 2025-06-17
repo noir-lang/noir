@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750150774815,
+  "lastUpdate": 1750151025837,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8945a4c89f8748de5ce383efd2c023169cdf38e0",
-          "message": "chore: redo typo PR by osrm (#8840)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
-          "timestamp": "2025-06-09T15:02:21Z",
-          "tree_id": "a2d27d443434531fd1c5b720959f09d873f0c506",
-          "url": "https://github.com/noir-lang/noir/commit/8945a4c89f8748de5ce383efd2c023169cdf38e0"
-        },
-        "date": 1749483179390,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.159,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.289,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.186,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "62fa1aefac139a83b86fa4f0a57b4e279aa79576",
+          "message": "chore(fuzz): Display nightly fuzz status badge (#8932)",
+          "timestamp": "2025-06-17T08:35:51Z",
+          "tree_id": "5936a0ab018b58de9fef44e9a0f4d036caf00857",
+          "url": "https://github.com/noir-lang/noir/commit/62fa1aefac139a83b86fa4f0a57b4e279aa79576"
+        },
+        "date": 1750151013818,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.154,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.291,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.009,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
             "unit": "s"
           }
         ]
