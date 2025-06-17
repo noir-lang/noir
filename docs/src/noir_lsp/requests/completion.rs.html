@@ -2053,7 +2053,13 @@
 <a href="#2052" id="2052">2052</a>
 <a href="#2053" id="2053">2053</a>
 <a href="#2054" id="2054">2054</a>
-<a href="#2055" id="2055">2055</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2069,6 +2075,7 @@
 };
 <span class="kw">use </span>convert_case::{Case, Casing};
 <span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
@@ -2399,9 +2406,14 @@
                 ModuleDefId::ModuleId(id) =&gt; module_id = id,
                 ModuleDefId::TypeId(type_id) =&gt; {
                     <span class="kw">let </span>data_type = <span class="self">self</span>.interner.get_type(type_id);
+                    <span class="comment">// Use `Type::Error` for the generics since they unify with anything, to get methods from all impls.
+                    // We could use fresh type variables instead, but we have a non-mutable NodeInterner here.
+                    // Note: ideally we'd also use any turbofish for `generics`, but at least Rust Analyzer seems
+                    // to ignore them and offers all methods from all impls, so for now we do the same.
+                    </span><span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span>data_type.borrow().generics, |<span class="kw">_</span>| Type::Error);
                     <span class="self">self</span>.complete_enum_variants_without_parameters(<span class="kw-2">&amp;</span>data_type.borrow(), <span class="kw-2">&amp;</span>prefix);
                     <span class="self">self</span>.complete_type_methods(
-                        <span class="kw-2">&amp;</span>Type::DataType(data_type, <span class="macro">vec!</span>[]),
+                        <span class="kw-2">&amp;</span>Type::DataType(data_type, generics),
                         <span class="kw-2">&amp;</span>prefix,
                         FunctionKind::Any,
                         function_completion_kind,
