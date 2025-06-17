@@ -1,9 +1,9 @@
-use acvm::FieldElement;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
 use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
+    field_element::FieldElement,
     graph::CrateId,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,

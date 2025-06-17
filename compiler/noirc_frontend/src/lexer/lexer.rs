@@ -4,11 +4,11 @@ use super::{
     errors::LexerErrorKind,
     token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
 };
-use acvm::{AcirField, FieldElement};
+use crate::field_element::FieldElement;
 use fm::FileId;
 use noirc_errors::{Location, Position, Span};
 use num_bigint::BigInt;
-use num_traits::{Num, One};
+use num_traits::Num;
 use std::str::{CharIndices, FromStr};
 
 /// The job of the lexer is to transform an iterator of characters (`char_iter`)
@@ -52,8 +52,8 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
-                - BigInt::one(),
+            // U256::MAX is 2^256 - 1
+            max_integer: BigInt::from_str(&FieldElement::MAX.to_string()).expect("U256::MAX should be valid"),
         }
     }
 
@@ -444,7 +444,16 @@ impl<'a> Lexer<'a> {
                     });
                 }
                 let big_uint = bigint.magnitude();
-                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+                // Convert BigUint to U256
+                let bytes = big_uint.to_bytes_be();
+                if bytes.len() > 32 {
+                    // This should never happen as we checked against max_integer
+                    FieldElement::ZERO
+                } else {
+                    let mut padded = [0u8; 32];
+                    padded[32 - bytes.len()..].copy_from_slice(&bytes);
+                    FieldElement::from_be_bytes(padded)
+                }
             }
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
@@ -991,8 +1000,8 @@ mod tests {
 
     #[test]
     fn test_int_too_large() {
-        let modulus = FieldElement::modulus();
-        let input = modulus.to_string();
+        // Test with a value larger than U256::MAX
+        let input = format!("{}0", FieldElement::MAX);
 
         let mut lexer = Lexer::new_with_dummy_file(&input);
         let token = lexer.next_token();
@@ -1046,7 +1055,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(field_helpers::field_from_u32(5)),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1068,7 +1077,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(field_helpers::field_from_u32(5)),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1116,7 +1125,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(field_helpers::field_from_u32(5)),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);

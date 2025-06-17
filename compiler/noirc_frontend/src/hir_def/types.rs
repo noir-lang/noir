@@ -5,14 +5,14 @@ use fxhash::FxHashMap as HashMap;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::{AcirField, FieldElement};
+use crate::field_element::{FieldElement, FieldElementExt, field_helpers};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::types,
     node_interner::{ExprId, NodeInterner, TraitId, TypeAliasId},
-    signed_field::{AbsU128, SignedField},
+    signed_field::SignedField,
 };
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -30,8 +30,8 @@ mod arithmetic;
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
 pub enum Type {
-    /// A primitive Field type
-    FieldElement,
+    /// A primitive U256 type (256-bit unsigned integer)
+    U256,
 
     /// Array(N, E) is an array of N elements of type E. It is expected that N
     /// is either a type variable of some kind or a Type::Constant.
@@ -197,7 +197,7 @@ impl Kind {
         self.is_field_element(type_level)
     }
 
-    /// If value_level, only check for Type::FieldElement,
+    /// If value_level, only check for Type::U256,
     /// else only check for a type-level FieldElement
     fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
@@ -946,7 +946,7 @@ impl TypeVariable {
     pub fn is_integer_or_field(&self) -> bool {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
+                matches!(binding.follow_bindings(), Type::Integer(..) | Type::U256)
             }
             TypeBinding::Unbound(_, type_var_kind) => {
                 matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
@@ -954,7 +954,7 @@ impl TypeVariable {
         }
     }
 
-    /// If value_level, only check for Type::FieldElement,
+    /// If value_level, only check for Type::U256,
     /// else only check for a type-level FieldElement
     fn is_field_element(&self, value_level: bool) -> bool {
         match &*self.borrow() {
@@ -985,8 +985,8 @@ pub struct TypeVariableId(pub usize);
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement => {
-                write!(f, "Field")
+            Type::U256 => {
+                write!(f, "u256")
             }
             Type::Array(len, typ) => {
                 write!(f, "[{typ}; {len}]")
@@ -1004,7 +1004,7 @@ impl std::fmt::Display for Type {
                     TypeBinding::Unbound(_, type_var_kind) => match type_var_kind {
                         Kind::Any | Kind::Normal => write!(f, "{}", var.borrow()),
                         Kind::Integer => write!(f, "{}", Type::default_int_type()),
-                        Kind::IntegerOrField => write!(f, "Field"),
+                        Kind::IntegerOrField => write!(f, "u256"),
                         Kind::Numeric(_typ) => write!(f, "_"),
                     },
                     TypeBinding::Bound(binding) => {
@@ -1139,7 +1139,7 @@ pub struct UnificationError;
 
 impl Type {
     pub fn default_int_or_field_type() -> Type {
-        Type::FieldElement
+        Type::U256
     }
 
     pub fn default_int_type() -> Type {
@@ -1183,7 +1183,7 @@ impl Type {
     }
 
     pub fn is_field(&self) -> bool {
-        matches!(self.follow_bindings_shallow().as_ref(), Type::FieldElement)
+        matches!(self.follow_bindings_shallow().as_ref(), Type::U256)
     }
 
     pub fn is_bool(&self) -> bool {
@@ -1194,11 +1194,11 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Integer(_, _))
     }
 
-    /// If value_level, only check for Type::FieldElement,
+    /// If value_level, only check for Type::U256,
     /// else only check for a type-level FieldElement
     fn is_field_element(&self, value_level: bool) -> bool {
         match self.follow_bindings() {
-            Type::FieldElement => value_level,
+            Type::U256 => value_level,
             Type::TypeVariable(var) => var.is_field_element(value_level),
             Type::Constant(_, kind) => !value_level && kind.is_field_element(true),
             _ => false,
@@ -1219,7 +1219,7 @@ impl Type {
         use Kind as K;
         use Type::*;
         match self.follow_bindings() {
-            FieldElement => true,
+            U256 => true,
             Integer(..) => true,
             Bool => true,
             TypeVariable(var) => match &*var.borrow() {
@@ -1234,7 +1234,7 @@ impl Type {
 
     pub fn is_primitive(&self) -> bool {
         match self.follow_bindings() {
-            Type::FieldElement
+            Type::U256
             | Type::Array(_, _)
             | Type::Slice(_)
             | Type::Integer(..)
@@ -1286,7 +1286,7 @@ impl Type {
             // we don't need to issue further errors about this likely unresolved type
             // TypeVariable and Generic are allowed here too as they can only result from
             // generics being declared on the function itself, but we produce a different error in that case.
-            Type::FieldElement
+            Type::U256
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_, _)
@@ -1360,7 +1360,7 @@ impl Type {
         match self {
             // Type::Error is allowed as usual since it indicates an error was already issued and
             // we don't need to issue further errors about this likely unresolved type
-            Type::FieldElement
+            Type::U256
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -1408,7 +1408,7 @@ impl Type {
     /// unconstrained functions (and vice-versa).
     pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
         match self {
-            Type::FieldElement
+            Type::U256
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Unit
@@ -1516,7 +1516,7 @@ impl Type {
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs),
             Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
             // This is a concrete FieldElement, not an IntegerOrField
-            Type::FieldElement
+            Type::U256
             | Type::Integer(..)
             | Type::Array(..)
             | Type::Slice(..)
@@ -1587,7 +1587,7 @@ impl Type {
     /// Returns the number of field elements required to represent the type once encoded.
     pub fn field_count(&self, location: &Location) -> u32 {
         match self {
-            Type::FieldElement | Type::Integer { .. } | Type::Bool => 1,
+            Type::U256 | Type::Integer { .. } | Type::Bool => 1,
             Type::Array(size, typ) => {
                 let length = size
                     .evaluate_to_u32(*location)
@@ -1696,7 +1696,7 @@ impl Type {
                 bindings.insert(target_id, (var.clone(), Kind::Integer, this));
                 Ok(())
             }
-            Type::FieldElement if !only_integer => {
+            Type::U256 if !only_integer => {
                 bindings.insert(target_id, (var.clone(), Kind::IntegerOrField, this));
                 Ok(())
             }
@@ -2191,8 +2191,9 @@ impl Type {
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
         self.evaluate_to_field_element(&Kind::u32(), location).map(|field_element| {
             field_element
-                .try_to_u32()
+                .try_into_u128()
                 .expect("ICE: size should have already been checked by evaluate_to_field_element")
+                as u32
         })
     }
 
@@ -2202,7 +2203,7 @@ impl Type {
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<FieldElement, TypeCheckError> {
         let run_simplifications = true;
         self.evaluate_to_field_element_helper(kind, location, run_simplifications)
     }
@@ -2213,7 +2214,7 @@ impl Type {
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
@@ -2560,7 +2561,7 @@ impl Type {
                 Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
             }
 
-            Type::FieldElement
+            Type::U256
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_, _)
@@ -2609,7 +2610,7 @@ impl Type {
             Type::Reference(element, _) => element.occurs(target_id),
             Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
 
-            Type::FieldElement
+            Type::U256
             | Type::Integer(_, _)
             | Type::Bool
             | Type::Constant(_, _)
@@ -2684,9 +2685,7 @@ impl Type {
 
             // Expect that this function should only be called on instantiated types
             Forall(..) => unreachable!(),
-            FieldElement | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => {
-                self.clone()
-            }
+            U256 | Integer(_, _) | Bool | Constant(_, _) | Unit | Quoted(_) | Error => self.clone(),
         }
     }
 
@@ -2718,7 +2717,7 @@ impl Type {
     /// to bind to named generics since they are unbindable during type checking.
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
-            Type::FieldElement
+            Type::U256
             | Type::Constant(_, _)
             | Type::Integer(_, _)
             | Type::Bool
@@ -2809,14 +2808,14 @@ impl Type {
 
     pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
         match self {
-            Type::FieldElement => None,
+            Type::U256 => None,
             Type::Integer(sign, num_bits) => {
                 let mut max_bit_size = num_bits.bit_size();
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
+                Some(field_helpers::field_from_u128(max))
             }
             Type::Bool => Some(FieldElement::one()),
             Type::TypeVariable(var) => {
@@ -2856,7 +2855,7 @@ impl Type {
 
     pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
         match self.follow_bindings_shallow().as_ref() {
-            Type::FieldElement => None,
+            Type::U256 => None,
             Type::Integer(sign, num_bits) => {
                 if *sign == Signedness::Unsigned {
                     return Some(SignedField::zero());
@@ -2864,9 +2863,9 @@ impl Type {
 
                 let max_bit_size = num_bits.bit_size() - 1;
                 Some(if max_bit_size == 128 {
-                    SignedField::negative(i128::MIN.abs_u128())
+                    SignedField::negative(field_helpers::field_from_u128(i128::MIN.unsigned_abs()))
                 } else {
-                    SignedField::negative(1u128 << max_bit_size)
+                    SignedField::negative(field_helpers::field_from_u128(1u128 << max_bit_size))
                 })
             }
             Type::Bool => Some(SignedField::zero()),
@@ -2902,7 +2901,7 @@ impl Type {
                 Box::new(rhs.substitute_kind_any_with_kind(kind)),
                 inverse,
             ),
-            Type::FieldElement
+            Type::U256
             | Type::Array(..)
             | Type::Slice(..)
             | Type::Integer(..)
@@ -2980,8 +2979,8 @@ impl BinaryTypeOperator {
                 }
             },
             Some(_maximum_size) => {
-                let a = a.to_i128();
-                let b = b.to_i128();
+                let a = a.try_into_u128().unwrap_or(0) as i128;
+                let b = b.try_into_u128().unwrap_or(0) as i128;
 
                 let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
                 let result = match self {
@@ -2992,7 +2991,7 @@ impl BinaryTypeOperator {
                     BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                 };
 
-                Ok(result.into())
+                Ok(field_helpers::field_from_u128(result as u128))
             }
         }
     }
@@ -3035,7 +3034,7 @@ impl From<&Type> for PrintableType {
         // Note; use strict_eq instead of partial_eq when comparing field types
         // in this method, you most likely want to distinguish between public and private
         match value {
-            Type::FieldElement => PrintableType::Field,
+            Type::U256 => PrintableType::Field,
             Type::Array(size, typ) => {
                 let dummy_location = Location::dummy();
                 let length = size
@@ -3083,8 +3082,16 @@ impl From<&Type> for PrintableType {
                     let fields = vecmap(fields, |(name, typ, _)| (name, typ.into()));
                     PrintableType::Struct { fields, name }
                 } else if let Some(variants) = data_type.get_variants(args) {
-                    let variants =
-                        vecmap(variants, |(name, args)| (name, vecmap(args, Into::into)));
+                    let variants = vecmap(variants, |(name, args)| {
+                        let typ = if args.is_empty() {
+                            None
+                        } else if args.len() == 1 {
+                            Some(args[0].clone().into())
+                        } else {
+                            Some(PrintableType::Tuple { types: vecmap(args, Into::into) })
+                        };
+                        (name, typ)
+                    });
                     PrintableType::Enum { name, variants }
                 } else {
                     unreachable!()
@@ -3114,8 +3121,8 @@ impl From<&Type> for PrintableType {
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::FieldElement => {
-                write!(f, "Field")
+            Type::U256 => {
+                write!(f, "u256")
             }
             Type::Array(len, typ) => {
                 write!(f, "[{typ:?}; {len:?}]")
@@ -3250,7 +3257,7 @@ impl std::hash::Hash for Type {
         }
 
         match self {
-            Type::FieldElement | Type::Bool | Type::Unit | Type::Error => (),
+            Type::U256 | Type::Bool | Type::Unit | Type::Error => (),
             Type::Array(len, elem) => {
                 len.hash(state);
                 elem.hash(state);
@@ -3336,7 +3343,7 @@ impl PartialEq for Type {
 
         use Type::*;
         match (self, other) {
-            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) => true,
+            (U256, U256) | (Bool, Bool) | (Unit, Unit) | (Error, Error) => true,
             (Array(lhs_len, lhs_elem), Array(rhs_len, rhs_elem)) => {
                 lhs_len == rhs_len && lhs_elem == rhs_elem
             }
