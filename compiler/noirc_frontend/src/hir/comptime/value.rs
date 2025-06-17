@@ -583,10 +583,10 @@ impl Value {
 
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
-            Value::Array(values, _) => {
-                values.iter().any(|value| value.contains_function_or_closure())
-            }
-            Value::Function(..) => true,
+            // Value::Array(values, _) => {
+            // values.iter().any(|value| value.contains_function_or_closure())
+            // }
+            // Value::Function(..) => true,
             Value::Closure(..) => true,
             _ => false,
         }
