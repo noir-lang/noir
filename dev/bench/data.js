@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750183795315,
+  "lastUpdate": 1750184849355,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "94db39a1606129b1e4e220eb6e380b064d460af2",
-          "message": "chore: bump dependencies (#8838)",
-          "timestamp": "2025-06-10T14:08:44Z",
-          "tree_id": "0f6239e9bddcf226881a61d676c319d91ba50496",
-          "url": "https://github.com/noir-lang/noir/commit/94db39a1606129b1e4e220eb6e380b064d460af2"
-        },
-        "date": 1749566372400,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255754,
-            "range": "± 861",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227876,
-            "range": "± 2734",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2799843,
-            "range": "± 16332",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "teddav@users.noreply.github.com",
             "name": "teddav",
             "username": "teddav"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2819295,
             "range": "± 5512",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c0d47a5a9c1e931b26e3ad2e911bed4845ddc9a2",
+          "message": "fix(LSP): suggest generic type methods (#8948)",
+          "timestamp": "2025-06-17T18:04:32Z",
+          "tree_id": "f59a482462b2985f2dc4e838681077a6c80ee6a4",
+          "url": "https://github.com/noir-lang/noir/commit/c0d47a5a9c1e931b26e3ad2e911bed4845ddc9a2"
+        },
+        "date": 1750184836681,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249817,
+            "range": "± 733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221329,
+            "range": "± 5559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2823281,
+            "range": "± 6232",
             "unit": "ns/iter"
           }
         ]
