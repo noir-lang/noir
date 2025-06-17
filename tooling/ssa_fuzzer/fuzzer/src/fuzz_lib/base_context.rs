@@ -512,7 +512,7 @@ impl FuzzerContext {
     /// 2) Every block should have not more than two predecessors;
     /// 3) Every block must be terminated with return/jmp/jmp_if;
     /// 4) Blocks from different branches should not be merged, e.g.
-    ///    ```
+    ///    ```text
     ///          b0
     ///         ↙  ↘
     ///        b1   b2
