@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Branches","BranchesPath"],"struct":["LastUseContext"]};
+window.SIDEBAR_ITEMS = {"enum":["Branches"],"struct":["BranchId","IfOrMatchId","LastUseContext"],"type":["BranchesPath"]};
