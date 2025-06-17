@@ -1,14 +1,10 @@
 use std::collections::BTreeMap;
 
-use acvm::AcirField;
-use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_abi::{
     Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
 };
 use noirc_errors::Location;
-use noirc_evaluator::ErrorType;
-use noirc_frontend::TypeBinding;
 use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
     hir::Context,

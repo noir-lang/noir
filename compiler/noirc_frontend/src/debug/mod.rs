@@ -1,4 +1,5 @@
 use crate::ast::PathSegment;
+use crate::field_element::field_helpers;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
 use crate::signed_field::SignedField;
@@ -102,7 +103,7 @@ impl DebugInstrumenter {
     fn insert_function(&mut self, fn_name: String, arguments: Vec<String>) -> DebugFnId {
         let fn_id = DebugFnId(self.next_fn_id);
         self.next_fn_id += 1;
-        self.functions.insert(fn_id, DebugFunction { name: fn_name, arg_names: arguments });
+        self.functions.insert(fn_id, DebugFunction { name: fn_name, arg_names: arguments, location: None });
         fn_id
     }
 
@@ -782,7 +783,7 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let value = SignedField::positive(x);
+    let value = SignedField::positive(field_helpers::field_from_u128(x));
     let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
     ast::Expression { kind, location }
 }

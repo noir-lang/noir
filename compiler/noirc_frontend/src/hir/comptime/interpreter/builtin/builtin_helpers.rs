@@ -6,6 +6,7 @@ use noirc_errors::Location;
 
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
+use crate::field_element::field_helpers;
 use crate::hir::comptime::display::tokens_to_string;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -203,7 +204,7 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
         let Type::Array(_, ref elem) = typ else {
             unreachable!("get_array_map checked it was an array")
         };
-        let expected = Type::Array(Box::new(Type::Constant(N.into(), Kind::u32())), elem.clone());
+        let expected = Type::Array(Box::new(Type::Constant(field_helpers::field_from_u128(N as u128), Kind::u32())), elem.clone());
         InterpreterError::TypeMismatch { expected, actual: typ, location }
     })
 }
@@ -245,7 +246,7 @@ pub(crate) fn get_tuple(
 pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
-        value => type_mismatch(value, Type::FieldElement, location),
+        value => type_mismatch(value, Type::U256, location),
     }
 }
 
@@ -638,7 +639,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(hash as u128)))
+    Ok(Value::Field(SignedField::positive(field_helpers::field_from_u128(hash as u128))))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -655,7 +656,7 @@ pub(super) fn eq_item<T: Eq>(
 /// Type to be used in `Value::Array(<values>, <array-type>)`.
 pub(crate) fn byte_array_type(len: usize) -> Type {
     Type::Array(
-        Box::new(Type::Constant(len.into(), Kind::u32())),
+        Box::new(Type::Constant(field_helpers::field_from_u128(len as u128), Kind::u32())),
         Box::new(Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)),
     )
 }
@@ -698,7 +699,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(unary_op_value)));
+    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(field_helpers::field_from_u128(unary_op_value))));
 
     Some(Value::Struct(fields, typ))
 }
@@ -708,7 +709,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(binary_op_value)));
+    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(field_helpers::field_from_u128(binary_op_value))));
 
     Value::Struct(fields, typ)
 }

@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use acvm::{AcirField, FieldElement};
+use crate::field_element::{FieldElement, FieldElementExt, field_helpers};
 use builtin_helpers::{
     block_expression_to_value, byte_array_type, check_argument_count,
     check_function_not_yet_resolved, check_one_argument, check_three_arguments,
@@ -66,7 +66,8 @@ impl Interpreter<'_, '_> {
         let call_stack = &self.elaborator.interpreter_call_stack;
         match name {
             "apply_range_constraint" => {
-                self.call_foreign("range", arguments, return_type, location)
+                // Range constraints are not relevant without ZK backend
+                Ok(Value::Unit)
             }
             "array_as_str_unchecked" => array_as_str_unchecked(interner, arguments, location),
             "array_len" => array_len(interner, arguments, location),
@@ -974,7 +975,7 @@ fn to_le_radix(
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+    let decomposed_integer = vecmap(0..limb_count.try_into_u128().unwrap_or(0) as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
@@ -984,7 +985,7 @@ fn to_le_radix(
     });
 
     let result_type = Type::Array(
-        Box::new(Type::Constant(decomposed_integer.len().into(), Kind::u32())),
+        Box::new(Type::Constant(field_helpers::field_from_u128(decomposed_integer.len() as u128), Kind::u32())),
         element_type,
     );
 
@@ -995,7 +996,8 @@ fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+    let bytes: [u8; 32] = field.to_be_bytes();
+    let big_integer = BigUint::from_bytes_be(&bytes);
 
     // Decompose the integer into its radix digits in little endian form.
     big_integer.to_radix_le(radix)
@@ -1226,7 +1228,7 @@ fn type_is_field(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     let value = check_one_argument(arguments, location)?;
     let typ = get_type(value)?;
 
-    Ok(Value::Bool(matches!(typ, Type::FieldElement)))
+    Ok(Value::Bool(matches!(typ, Type::U256)))
 }
 
 // fn is_unit(self) -> bool
@@ -1416,7 +1418,7 @@ fn unresolved_type_is_field(
     let Some(primitive_type) = PrimitiveType::lookup_by_name(ident.as_str()) else {
         return Ok(Value::Bool(false));
     };
-    Ok(Value::Bool(primitive_type == PrimitiveType::Field))
+    Ok(Value::Bool(primitive_type == PrimitiveType::U256))
 }
 
 // fn is_unit(self) -> bool
@@ -1451,7 +1453,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::U256 => Value::Field(SignedField::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -2941,8 +2943,8 @@ fn module_name(
 fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
 
-    let bits = FieldElement::modulus().to_radix_be(2);
-    let bits_vector = bits.into_iter().map(|bit| Value::U1(bit != 0)).collect();
+    // For U256, we have 256 bits all set to 1 (representing 2^256 - 1 as the max value)
+    let bits_vector: Vector<Value> = (0..256).map(|_| Value::U1(true)).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
     let typ = Type::Slice(Box::new(int_type));
@@ -2952,8 +2954,8 @@ fn modulus_be_bits(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 fn modulus_be_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
 
-    let bytes = FieldElement::modulus().to_bytes_be();
-    let bytes_vector = bytes.into_iter().map(Value::U8).collect();
+    // For U256, the max value is 2^256 - 1, which is 32 bytes of 0xFF
+    let bytes_vector: Vector<Value> = (0..32).map(|_| Value::U8(0xFF)).collect();
 
     let int_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight);
     let typ = Type::Slice(Box::new(int_type));
@@ -2978,8 +2980,8 @@ fn modulus_le_bytes(arguments: Vec<(Value, Location)>, location: Location) -> IR
 
 fn modulus_num_bits(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
     check_argument_count(0, &arguments, location)?;
-    let bits = FieldElement::max_num_bits().into();
-    Ok(Value::U64(bits))
+    // U256 has 256 bits
+    Ok(Value::U64(256))
 }
 
 // fn quoted_eq(_first: Quoted, _second: Quoted) -> bool
@@ -3064,50 +3066,24 @@ fn derive_generators(
 
     let domain_separator_location = domain_separator_string.1;
     let (domain_separator_string, _) = get_array(interner, domain_separator_string)?;
-    let starting_index = get_u32(starting_index)?;
+    let _starting_index = get_u32(starting_index)?;
 
-    let domain_separator_string =
+    let _domain_separator_string =
         try_vecmap(domain_separator_string, |byte| get_u8((byte, domain_separator_location)))?;
 
-    let (size, elements) = match return_type.clone() {
+    let (size, _elements) = match return_type.clone() {
         Type::Array(size, elements) => (size, elements),
         _ => panic!("ICE: Should only have an array return type"),
     };
 
-    let num_generators = size.evaluate_to_u32(location).map_err(|err| {
+    let _num_generators = size.evaluate_to_u32(location).map_err(|err| {
         let err = Box::new(err);
         InterpreterError::UnknownArrayLength { length: *size, err, location }
     })?;
 
-    let generators = bn254_blackbox_solver::derive_generators(
-        &domain_separator_string,
-        num_generators,
-        starting_index,
-    );
-
-    let is_infinite = FieldElement::zero();
-    let x_field_name: Rc<String> = Rc::new("x".to_owned());
-    let y_field_name: Rc<String> = Rc::new("y".to_owned());
-    let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
-    let mut results = Vector::new();
-    for generator in generators {
-        let x_big: BigUint = generator.x.into();
-        let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-        let y_big: BigUint = generator.y.into();
-        let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
-        let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
-        embedded_curve_point_fields.insert(
-            is_infinite_field_name.clone(),
-            Value::Field(SignedField::positive(is_infinite)),
-        );
-        let embedded_curve_point_struct =
-            Value::Struct(embedded_curve_point_fields, *elements.clone());
-        results.push_back(embedded_curve_point_struct);
-    }
+    // Pedersen generators are not available without ZK backend
+    // Return an empty array for now
+    let results = Vector::new();
 
     Ok(Value::Array(results, return_type))
 }

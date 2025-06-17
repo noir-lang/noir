@@ -13,7 +13,7 @@ use crate::shared::Visibility;
 use crate::signed_field::SignedField;
 use crate::token::{Attributes, FmtStrFragment, Token, Tokens};
 use crate::{Kind, Type};
-use acvm::FieldElement;
+use crate::field_element::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 

@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -10,6 +9,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator};
+use crate::field_element::field_helpers;
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
@@ -46,7 +46,6 @@ use super::value::{Closure, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
-mod foreign;
 mod infix;
 mod unquote;
 
@@ -66,9 +65,6 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
-
-    /// Stateful bigint calculator.
-    bigint_solver: BigIntSolverWithId,
 }
 
 #[allow(unused)]
@@ -79,14 +75,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
     ) -> Self {
         let pedantic_solving = elaborator.pedantic_solving();
-        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
         Self {
             elaborator,
             crate_id,
             current_function,
             bound_generics: Vec::new(),
             in_loop: false,
-            bigint_solver,
         }
     }
 
@@ -254,7 +248,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Some(builtin) = func_attrs.builtin() {
             self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
         } else if let Some(foreign) = func_attrs.foreign() {
-            self.call_foreign(foreign.clone().as_str(), arguments, return_type, location)
+            Err(InterpreterError::Unimplemented {
+                item: "Foreign functions are not supported in Sensei".to_string(),
+                location,
+            })
         } else if let Some(oracle) = func_attrs.oracle() {
             if oracle == "print" {
                 self.print_oracle(arguments)
@@ -907,7 +904,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let less_or_greater = if matches!(operator, Less | GreaterEqual) {
             SignedField::zero() // Ordering::Less
         } else {
-            SignedField::positive(2u128) // Ordering::Greater
+            SignedField::positive(field_helpers::field_from_u128(2u128)) // Ordering::Greater
         };
 
         if matches!(operator, Less | Greater) {
@@ -1552,7 +1549,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 }
 
 fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
-    if let Type::FieldElement = &typ {
+    if let Type::U256 = &typ {
         Ok(Value::Field(value))
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
@@ -1653,7 +1650,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
             let u64: Option<u64> = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
-                let value = SignedField::positive(value);
+                let value = SignedField::positive(value.to_field_element());
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?
         }

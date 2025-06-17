@@ -11,7 +11,6 @@ use crate::{
     parser::ParserError,
     signed_field::SignedField,
 };
-use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
 
 /// The possible errors that can halt the interpreter.
@@ -189,7 +188,6 @@ pub enum InterpreterError {
     ContinueNotInLoop {
         location: Location,
     },
-    BlackBoxError(BlackBoxResolutionError, Location),
     FailedToResolveTraitBound {
         trait_bound: TraitBound,
         location: Location,
@@ -319,7 +317,6 @@ impl InterpreterError {
             | InterpreterError::NoImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
-            | InterpreterError::BlackBoxError(_, location)
             | InterpreterError::BreakNotInLoop { location, .. }
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
@@ -434,7 +431,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
-                let secondary = if matches!(typ, Type::FieldElement) {
+                let secondary = if matches!(typ, Type::U256) {
                     "`field` is not an integer type, try `u32` instead".to_string()
                 } else {
                     String::new()
@@ -614,9 +611,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Impl method type {actual} does not unify with trait method type {expected}"
                 );
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::BlackBoxError(error, location) => {
-                CustomDiagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             InterpreterError::FailedToResolveTraitBound { trait_bound, location } => {
                 let msg = format!("Failed to resolve trait bound `{trait_bound}`");

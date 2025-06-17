@@ -3,7 +3,6 @@ use std::path::Path;
 use std::rc::Rc;
 use std::vec;
 
-use acvm::{AcirField, FieldElement};
 use fm::{FILE_EXTENSION, FileId, FileManager};
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
@@ -1010,12 +1009,6 @@ pub fn collect_function(
     doc_comments: Vec<String>,
     errors: &mut Vec<CompilationError>,
 ) -> Option<crate::node_interner::FuncId> {
-    if let Some(field) = function.attributes().get_field_attribute() {
-        if !is_native_field(&field) {
-            return None;
-        }
-    }
-
     let module_data = &mut def_map[module.local_id];
 
     let test_attribute = function.def.attributes.as_test_function();
@@ -1411,15 +1404,6 @@ cfg_if::cfg_if! {
     } else {
         pub const CHOSEN_FIELD: &str = "bn254";
     }
-}
-
-fn is_native_field(str: &str) -> bool {
-    let big_num = if let Some(hex) = str.strip_prefix("0x") {
-        BigUint::from_str_radix(hex, 16)
-    } else {
-        BigUint::from_str_radix(str, 10)
-    };
-    if let Ok(big_num) = big_num { big_num == FieldElement::modulus() } else { CHOSEN_FIELD == str }
 }
 
 type AssociatedTypes = Vec<(Ident, UnresolvedType)>;

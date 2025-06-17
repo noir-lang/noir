@@ -24,7 +24,7 @@ pub use function::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::FieldElement;
+use crate::field_element::{FieldElement, field_helpers};
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
@@ -41,7 +41,6 @@ use crate::{
     shared::Signedness,
 };
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 use strum::IntoEnumIterator;
@@ -398,8 +397,8 @@ impl UnresolvedTypeData {
         Self::named(name.to_string(), location)
     }
 
-    pub fn field(location: Location) -> Self {
-        Self::named("Field".to_string(), location)
+    pub fn u256(location: Location) -> Self {
+        Self::named("u256".to_string(), location)
     }
 
     pub fn quoted(quoted: QuotedType, location: Location) -> Self {
@@ -523,15 +522,16 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_unsigned::<u32>() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
+                Some(int) => Ok(UnresolvedTypeExpression::Constant(
+                    field_helpers::field_from_u32(int),
+                    expr.location,
+                )),
                 None => Err(expr),
             },
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
-                let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
-                    expr.location,
-                ));
+                let lhs =
+                    Box::new(UnresolvedTypeExpression::Constant(FieldElement::ZERO, expr.location));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
                 let op = BinaryTypeOperator::Subtraction;
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))

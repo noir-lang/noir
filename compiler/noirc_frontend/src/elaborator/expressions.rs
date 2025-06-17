@@ -1,4 +1,4 @@
-use acvm::{AcirField, FieldElement};
+use crate::field_element::{FieldElement, FieldElementExt, field_helpers};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
@@ -249,7 +249,7 @@ impl Elaborator<'_> {
                 (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
-                let len = Type::Constant(str.len().into(), Kind::u32());
+                let len = Type::Constant(field_helpers::field_from_u64(str.len() as u64), Kind::u32());
                 (Lit(HirLiteral::Str(str)), Type::String(Box::new(len)))
             }
             Literal::FmtStr(fragments, length) => self.elaborate_fmt_string(fragments, length),
@@ -291,7 +291,7 @@ impl Elaborator<'_> {
                     elem_id
                 });
 
-                let length = Type::Constant(elements.len().into(), Kind::u32());
+                let length = Type::Constant(field_helpers::field_from_u64(elements.len() as u64), Kind::u32());
                 (HirArrayLiteral::Standard(elements), first_elem_type, length)
             }
             ArrayLiteral::Repeated { repeated_element, length } => {
@@ -360,7 +360,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let len = Type::Constant(length.into(), Kind::u32());
+        let len = Type::Constant(field_helpers::field_from_u32(length), Kind::u32());
         let typ = Type::FmtString(Box::new(len), Box::new(Type::Tuple(capture_types)));
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }

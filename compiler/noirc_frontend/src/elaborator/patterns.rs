@@ -814,7 +814,7 @@ impl Elaborator<'_> {
                     PrimitiveType::Bool
                     | PrimitiveType::CtString
                     | PrimitiveType::Expr
-                    | PrimitiveType::Field
+                    | PrimitiveType::U256
                     | PrimitiveType::FunctionDefinition
                     | PrimitiveType::I8
                     | PrimitiveType::I16

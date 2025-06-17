@@ -765,7 +765,7 @@ impl<'context> Elaborator<'context> {
             } else {
                 self.resolve_type(unresolved_typ.clone())
             };
-            if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
+            if !matches!(typ, Type::U256 | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
                         ident: ident.clone(),
@@ -1186,7 +1186,7 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(left);
                 self.mark_type_as_used(right);
             }
-            Type::FieldElement
+            Type::U256
             | Type::Integer(..)
             | Type::Bool
             | Type::String(_)
@@ -1912,7 +1912,7 @@ impl<'context> Elaborator<'context> {
                 self.check_type_is_not_more_private_then_item(name, visibility, left, location);
                 self.check_type_is_not_more_private_then_item(name, visibility, right, location);
             }
-            Type::FieldElement
+            Type::U256
             | Type::Integer(..)
             | Type::Bool
             | Type::String(..)

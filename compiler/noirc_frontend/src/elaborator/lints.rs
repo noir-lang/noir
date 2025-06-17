@@ -1,6 +1,7 @@
 use crate::{
     Type,
     ast::{Ident, NoirFunction, UnaryOp},
+    field_element::field_helpers,
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -222,7 +223,7 @@ pub(crate) fn overflowing_int(
             Type::Integer(Signedness::Unsigned, bit_size) => {
                 let bit_size: u32 = (*bit_size).into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.absolute_value() > max.into() || value.is_negative() {
+                if value.absolute_value() > field_helpers::field_from_u128(max) || value.is_negative() {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),
@@ -239,7 +240,7 @@ pub(crate) fn overflowing_int(
                 let is_negative = value.is_negative();
                 let abs = value.absolute_value();
 
-                if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
+                if (is_negative && abs > field_helpers::field_from_u128(min)) || (!is_negative && abs > field_helpers::field_from_u128(max)) {
                     errors.push(TypeCheckError::OverflowingAssignment {
                         expr: value,
                         ty: annotated_type.clone(),

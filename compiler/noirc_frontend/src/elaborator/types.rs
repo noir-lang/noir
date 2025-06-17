@@ -358,7 +358,7 @@ impl Elaborator<'_> {
             PrimitiveType::Bool
             | PrimitiveType::CtString
             | PrimitiveType::Expr
-            | PrimitiveType::Field
+            | PrimitiveType::U256
             | PrimitiveType::FunctionDefinition
             | PrimitiveType::I8
             | PrimitiveType::I16
@@ -1150,7 +1150,7 @@ impl Elaborator<'_> {
         };
 
         let from_is_polymorphic = match from_follow_bindings {
-            Type::Integer(..) | Type::FieldElement | Type::Bool => false,
+            Type::Integer(..) | Type::U256 | Type::Bool => false,
 
             Type::TypeVariable(ref var) if var.is_integer() || var.is_integer_or_field() => true,
             Type::TypeVariable(_) => {
@@ -1192,7 +1192,7 @@ impl Elaborator<'_> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(*sign, *bits),
-            Type::FieldElement => Type::FieldElement,
+            Type::U256 => Type::U256,
             Type::Bool => Type::Bool,
             Type::Error => Type::Error,
             _ => {
@@ -1250,7 +1250,7 @@ impl Elaborator<'_> {
                 }
                 Ok((Bool, false))
             }
-            (FieldElement, FieldElement) => {
+            (Type::U256, Type::U256) => {
                 if op.kind.is_valid_for_field_type() {
                     Ok((Bool, false))
                 } else {
@@ -1383,7 +1383,7 @@ impl Elaborator<'_> {
                 Ok((Integer(*sign_x, *bit_width_x), false))
             }
             // The result of two Fields is always a witness
-            (FieldElement, FieldElement) => {
+            (Type::U256, Type::U256) => {
                 if !op.kind.is_valid_for_field_type() {
                     if op.kind == BinaryOpKind::Modulo {
                         return Err(TypeCheckError::FieldModulo { location });
@@ -1391,7 +1391,7 @@ impl Elaborator<'_> {
                         return Err(TypeCheckError::FieldBitwiseOp { location });
                     }
                 }
-                Ok((FieldElement, false))
+                Ok((Type::U256, false))
             }
 
             (Bool, Bool) => match op.kind {
@@ -1443,21 +1443,19 @@ impl Elaborator<'_> {
         rhs_type: &Type,
         location: Location,
     ) -> Result<(Type, bool), TypeCheckError> {
-        use Type::*;
-
         match op {
             crate::ast::UnaryOp::Minus | crate::ast::UnaryOp::Not => {
                 match rhs_type {
                     // An error type will always return an error
-                    Error => Ok((Error, false)),
-                    Alias(alias, args) => {
+                    Type::Error => Ok((Type::Error, false)),
+                    Type::Alias(alias, args) => {
                         let alias = alias.borrow().get_type(args);
                         self.prefix_operand_type_rules(op, &alias, location)
                     }
 
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
-                    TypeVariable(int) => {
+                    Type::TypeVariable(int) => {
                         if let TypeBinding::Bound(binding) = &*int.borrow() {
                             return self.prefix_operand_type_rules(op, binding, location);
                         }
@@ -1476,24 +1474,24 @@ impl Elaborator<'_> {
 
                         Ok((rhs_type.clone(), !rhs_type.is_numeric_value()))
                     }
-                    Integer(sign_x, bit_width_x) => {
+                    Type::Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
                             return Err(TypeCheckError::InvalidUnaryOp {
                                 kind: rhs_type.to_string(),
                                 location,
                             });
                         }
-                        Ok((Integer(*sign_x, *bit_width_x), false))
+                        Ok((Type::Integer(*sign_x, *bit_width_x), false))
                     }
-                    // The result of a Field is always a witness
-                    FieldElement => {
+                    // The result of a U256 is always a witness
+                    Type::U256 => {
                         if *op == UnaryOp::Not {
                             return Err(TypeCheckError::FieldNot { location });
                         }
-                        Ok((FieldElement, false))
+                        Ok((Type::U256, false))
                     }
 
-                    Bool => Ok((Bool, false)),
+                    Type::Bool => Ok((Type::Bool, false)),
 
                     _ => Ok((rhs_type.clone(), true)),
                 }

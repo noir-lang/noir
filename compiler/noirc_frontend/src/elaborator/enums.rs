@@ -12,6 +12,7 @@ use crate::{
         ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
+    field_element::field_helpers,
     hir::{
         comptime::Value,
         resolution::{errors::ResolverError, import::PathResolutionError},
@@ -789,24 +790,24 @@ impl Elaborator<'_> {
                 if negative {
                     widened = -widened;
                 }
-                SignedField::new(widened.into(), negative)
+                SignedField::new(field_helpers::field_from_i128(widened), negative)
             }};
         }
 
         let value = match constant {
-            Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
+            Value::Bool(value) => SignedField::positive(field_helpers::field_from_u32(value as u32)),
+            Value::Field(value) => value,
             Value::I8(value) => signed_to_signed_field!(value),
             Value::I16(value) => signed_to_signed_field!(value),
             Value::I32(value) => signed_to_signed_field!(value),
             Value::I64(value) => signed_to_signed_field!(value),
-            Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(value as u128),
-            Value::U16(value) => SignedField::positive(value as u128),
-            Value::U32(value) => SignedField::positive(value),
-            Value::U64(value) => SignedField::positive(value),
-            Value::U128(value) => SignedField::positive(value),
-            Value::Zeroed(_) => SignedField::positive(0u32),
+            Value::U1(value) => SignedField::positive(field_helpers::field_from_u32(value as u32)),
+            Value::U8(value) => SignedField::positive(field_helpers::field_from_u128(value as u128)),
+            Value::U16(value) => SignedField::positive(field_helpers::field_from_u128(value as u128)),
+            Value::U32(value) => SignedField::positive(field_helpers::field_from_u32(value)),
+            Value::U64(value) => SignedField::positive(field_helpers::field_from_u64(value)),
+            Value::U128(value) => SignedField::positive(field_helpers::field_from_u128(value)),
+            Value::Zeroed(_) => SignedField::positive(field_helpers::field_from_u32(0)),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;
@@ -905,7 +906,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let definition_type = self.elaborator.interner.definition_type(branch_var);
         match definition_type.follow_bindings_shallow().into_owned() {
-            Type::FieldElement | Type::Integer(_, _) => {
+            Type::U256 | Type::Integer(_, _) => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }

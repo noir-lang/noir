@@ -5,7 +5,7 @@ pub enum PrimitiveType {
     Bool,
     CtString,
     Expr,
-    Field,
+    U256,
     Fmtstr,
     FunctionDefinition,
     I8,
@@ -38,7 +38,7 @@ impl PrimitiveType {
             "CtString" => Some(Self::CtString),
             "Expr" => Some(Self::Expr),
             "fmtstr" => Some(Self::Fmtstr),
-            "Field" => Some(Self::Field),
+            "u256" => Some(Self::U256),
             "FunctionDefinition" => Some(Self::FunctionDefinition),
             "i8" => Some(Self::I8),
             "i16" => Some(Self::I16),
@@ -71,7 +71,7 @@ impl PrimitiveType {
             Self::CtString => Type::Quoted(QuotedType::CtString),
             Self::Expr => Type::Quoted(QuotedType::Expr),
             Self::Fmtstr => Type::FmtString(Box::new(Type::Error), Box::new(Type::Error)),
-            Self::Field => Type::FieldElement,
+            Self::U256 => Type::U256,
             Self::FunctionDefinition => Type::Quoted(QuotedType::FunctionDefinition),
             Self::I8 => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
             Self::I16 => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
@@ -112,7 +112,7 @@ impl PrimitiveType {
             Self::U128 => {
                 Some(Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight))
             }
-            Self::Field => Some(Type::FieldElement),
+            Self::U256 => Some(Type::U256),
             Self::Bool
             | Self::CtString
             | Self::Expr
@@ -137,7 +137,7 @@ impl PrimitiveType {
             Self::Bool => "bool",
             Self::CtString => "CtString",
             Self::Expr => "Expr",
-            Self::Field => "Field",
+            Self::U256 => "u256",
             Self::Fmtstr => "fmtstr",
             Self::FunctionDefinition => "FunctionDefinition",
             Self::I8 => "i8",

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::FieldElement;
+use crate::field_element::{FieldElement, SignedFieldElementExt, field_helpers};
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -123,7 +123,7 @@ impl Value {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
             Value::Bool(_) => Type::Bool,
-            Value::Field(_) => Type::FieldElement,
+            Value::Field(_) => Type::U256,
             Value::I8(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Eight),
             Value::I16(_) => Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen),
             Value::I32(_) => Type::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo),
@@ -137,7 +137,7 @@ impl Value {
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight)
             }
             Value::String(value) => {
-                let length = Type::Constant(value.len().into(), Kind::u32());
+                let length = Type::Constant(field_helpers::field_from_u128(value.len() as u128), Kind::u32());
                 Type::String(Box::new(length))
             }
             Value::FormatString(_, typ) => return Cow::Borrowed(typ),
@@ -196,22 +196,22 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u32(value as u32))))
             }
             Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u128(value as u128))))
             }
             Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u128(value as u128))))
             }
             Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u32(value))))
             }
             Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u64(value))))
             }
             Value::U128(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                ExpressionKind::Literal(Literal::Integer(SignedField::positive(field_helpers::field_from_u128(value))))
             }
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
@@ -363,22 +363,22 @@ impl Value {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
             Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u32(value as u32))))
             }
             Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u128(value as u128))))
             }
             Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u128(value as u128))))
             }
             Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u32(value))))
             }
             Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u64(value))))
             }
             Value::U128(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(field_helpers::field_from_u128(value))))
             }
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
@@ -517,44 +517,44 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::U1(bool) => vec![Token::Bool(bool)],
-            Value::U8(value) => vec![Token::Int((value as u128).into())],
-            Value::U16(value) => vec![Token::Int((value as u128).into())],
-            Value::U32(value) => vec![Token::Int((value as u128).into())],
-            Value::U64(value) => vec![Token::Int((value as u128).into())],
-            Value::U128(value) => vec![Token::Int(value.into())],
+            Value::U8(value) => vec![Token::Int(field_helpers::field_from_u128(value as u128))],
+            Value::U16(value) => vec![Token::Int(field_helpers::field_from_u128(value as u128))],
+            Value::U32(value) => vec![Token::Int(field_helpers::field_from_u32(value))],
+            Value::U64(value) => vec![Token::Int(field_helpers::field_from_u64(value))],
+            Value::U128(value) => vec![Token::Int(field_helpers::field_from_u128(value))],
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int(field_helpers::field_from_u128(-value as u128))]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int(field_helpers::field_from_u128(value as u128))]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int(field_helpers::field_from_u128(-value as u128))]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int(field_helpers::field_from_u128(value as u128))]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int(field_helpers::field_from_u128(-value as u128))]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int(field_helpers::field_from_u128(value as u128))]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int(field_helpers::field_from_u128(-value as u128))]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int(field_helpers::field_from_u128(value as u128))]
                 }
             }
             Value::Field(value) => {
                 if value.is_negative() {
-                    vec![Token::Minus, Token::Int(value.absolute_value())]
+                    vec![Token::Minus, Token::Int(value.abs())]
                 } else {
-                    vec![Token::Int(value.absolute_value())]
+                    vec![Token::Int(value.abs())]
                 }
             }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
@@ -597,15 +597,15 @@ impl Value {
                 }
             }
 
-            Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U8(value) => Some((*value as u128).into()),
-            Self::U16(value) => Some((*value as u128).into()),
-            Self::U32(value) => Some((*value as u128).into()),
-            Self::U64(value) => Some((*value as u128).into()),
-            Self::U128(value) => Some((*value).into()),
+            Self::I8(value) => (*value >= 0).then_some(field_helpers::field_from_u128(*value as u128)),
+            Self::I16(value) => (*value >= 0).then_some(field_helpers::field_from_u128(*value as u128)),
+            Self::I32(value) => (*value >= 0).then_some(field_helpers::field_from_u128(*value as u128)),
+            Self::I64(value) => (*value >= 0).then_some(field_helpers::field_from_u128(*value as u128)),
+            Self::U8(value) => Some(field_helpers::field_from_u128(*value as u128)),
+            Self::U16(value) => Some(field_helpers::field_from_u128(*value as u128)),
+            Self::U32(value) => Some(field_helpers::field_from_u32(*value)),
+            Self::U64(value) => Some(field_helpers::field_from_u64(*value)),
+            Self::U128(value) => Some(field_helpers::field_from_u128(*value)),
             _ => None,
         }
     }
@@ -617,12 +617,12 @@ impl Value {
             Value::I16(value) => SignedField::from_signed(*value),
             Value::I32(value) => SignedField::from_signed(*value),
             Value::I64(value) => SignedField::from_signed(*value),
-            Value::U1(value) => SignedField::positive(*value),
-            Value::U8(value) => SignedField::positive(*value as u128),
-            Value::U16(value) => SignedField::positive(*value as u128),
-            Value::U32(value) => SignedField::positive(*value),
-            Value::U64(value) => SignedField::positive(*value),
-            Value::U128(value) => SignedField::positive(*value),
+            Value::U1(value) => SignedField::positive(field_helpers::field_from_u32(*value as u32)),
+            Value::U8(value) => SignedField::positive(field_helpers::field_from_u128(*value as u128)),
+            Value::U16(value) => SignedField::positive(field_helpers::field_from_u128(*value as u128)),
+            Value::U32(value) => SignedField::positive(field_helpers::field_from_u32(*value)),
+            Value::U64(value) => SignedField::positive(field_helpers::field_from_u64(*value)),
+            Value::U128(value) => SignedField::positive(field_helpers::field_from_u128(*value)),
             _ => return None,
         };
         Some(value)

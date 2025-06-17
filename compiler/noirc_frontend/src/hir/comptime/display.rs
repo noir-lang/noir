@@ -2,10 +2,10 @@ use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use noirc_printable_type::format_field_string;
 
 use crate::{
     Type,
+    field_element::FieldElementExt,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -367,7 +367,20 @@ impl Display for ValuePrinter<'_, '_> {
             }
             Value::Field(value) => {
                 // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
-                write!(f, "{}", format_field_string(value.to_field_element()))
+                // Format field as hex string
+                let field_value = value.to_field_element();
+                if field_value.is_zero() {
+                    write!(f, "0x00")
+                } else {
+                    let hex = format!("{:x}", field_value);
+                    let trimmed = hex.trim_start_matches('0');
+                    let padded = if trimmed.len() % 2 != 0 {
+                        format!("0{}", trimmed)
+                    } else {
+                        trimmed.to_string()
+                    };
+                    write!(f, "0x{}", padded)
+                }
             }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),

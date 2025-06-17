@@ -1,4 +1,4 @@
-use acvm::FieldElement;
+use crate::field_element::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
