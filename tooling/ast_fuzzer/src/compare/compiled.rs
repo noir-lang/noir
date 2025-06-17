@@ -13,7 +13,7 @@ use noirc_frontend::monomorphization::ast::Program;
 
 use crate::{Config, arb_inputs, arb_program, program_abi};
 
-use super::{Comparable, CompareOptions, CompareResult, ExecOutput, HasPrograms};
+use super::{Comparable, CompareOptions, CompareResult, FailedOutput, HasPrograms, PassedOutput};
 
 pub struct CompareArtifact {
     pub options: CompareOptions,
@@ -39,6 +39,7 @@ type SsaErrorTypes = BTreeMap<acir::circuit::ErrorSelector, ErrorType>;
 /// The execution result is the value returned from the circuit and any output from `println`.
 type ExecResult = (Result<WitnessStack<FieldElement>, NargoError<FieldElement>>, String);
 
+#[derive(Debug)]
 pub struct NargoErrorWithTypes(NargoError<FieldElement>, SsaErrorTypes);
 
 impl NargoErrorWithTypes {
@@ -91,23 +92,25 @@ impl CompareCompiledResult {
             Ok(r)
         };
 
+        let failed = |e, ets: &SsaErrorTypes, p: String| FailedOutput {
+            error: NargoErrorWithTypes(e, ets.clone()),
+            print_output: p,
+        };
+
+        let passed = |ws, p| decode(ws).map(|r| PassedOutput { return_value: r, print_output: p });
+
         match (res1, res2) {
-            (Err(e1), Err(e2)) => Ok(CompareResult::BothFailed(
-                NargoErrorWithTypes(e1, ets1.clone()),
-                NargoErrorWithTypes(e2, ets2.clone()),
-            )),
-            (Err(e1), Ok(ws2)) => Ok(CompareResult::LeftFailed(
-                NargoErrorWithTypes(e1, ets1.clone()),
-                ExecOutput { return_value: decode(ws2)?, print_output: print2 },
-            )),
-            (Ok(ws1), Err(e2)) => Ok(CompareResult::RightFailed(
-                ExecOutput { return_value: decode(ws1)?, print_output: print1 },
-                NargoErrorWithTypes(e2, ets2.clone()),
-            )),
+            (Err(e1), Err(e2)) => {
+                Ok(CompareResult::BothFailed(failed(e1, ets1, print1), failed(e2, ets2, print2)))
+            }
+            (Err(e1), Ok(ws2)) => {
+                Ok(CompareResult::LeftFailed(failed(e1, ets1, print1), passed(ws2, print2)?))
+            }
+            (Ok(ws1), Err(e2)) => {
+                Ok(CompareResult::RightFailed(passed(ws1, print1)?, failed(e2, ets2, print2)))
+            }
             (Ok(ws1), Ok(ws2)) => {
-                let o1 = ExecOutput { return_value: decode(ws1)?, print_output: print1 };
-                let o2 = ExecOutput { return_value: decode(ws2)?, print_output: print2 };
-                Ok(CompareResult::BothPassed(o1, o2))
+                Ok(CompareResult::BothPassed(passed(ws1, print1)?, passed(ws2, print2)?))
             }
         }
     }
@@ -125,10 +128,19 @@ impl Comparable for NargoErrorWithTypes {
             return false;
         };
 
+        // We have a notion of treating errors as equivalents as long as the side effects
+        // of the failed program are otherwise the same. For this reason we compare the
+        // prints in `return_value_or_err`. Here we have the option to tweak which errors
+        // we consider equivalents, but that's really just to stay on the conservative
+        // side and give us a chance to inspect new kinds of test failures.
+
         let msg1 = e1.user_defined_failure_message();
         let msg2 = e2.user_defined_failure_message();
-        let is_same_msg = msg1.is_some() && msg2.is_some() && msg1 == msg2;
-
+        let equiv_msgs = if let (Some(msg1), Some(msg2)) = (msg1, msg2) {
+            msg1 == msg2 || msg1.contains("overflow") && msg2.contains("overflow")
+        } else {
+            false
+        };
         match (ee1, ee2) {
             (
                 AssertionFailed(ResolvedAssertionPayload::String(c), _, _),
@@ -137,7 +149,7 @@ impl Comparable for NargoErrorWithTypes {
                 // Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 true
             }
-            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2 || is_same_msg,
+            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2 || equiv_msgs,
             (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (SolvingError(s, _), AssertionFailed(p, _, _))
             | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
@@ -145,7 +157,7 @@ impl Comparable for NargoErrorWithTypes {
                     OpcodeResolutionError::UnsatisfiedConstrain { .. },
                     ResolvedAssertionPayload::String(s),
                 ) => s == "Attempted to divide by zero",
-                _ => is_same_msg,
+                _ => equiv_msgs,
             },
         }
     }
@@ -163,12 +175,6 @@ impl std::fmt::Display for NargoErrorWithTypes {
     }
 }
 
-impl std::fmt::Debug for NargoErrorWithTypes {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Debug::fmt(&self.0, f)
-    }
-}
-
 /// Compare the execution of equivalent programs, compiled in different ways.
 pub struct CompareCompiled<P> {
     pub program: P,
@@ -183,6 +189,13 @@ impl<P> CompareCompiled<P> {
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
+
+        log::debug!(
+            "ABI input:\n{}",
+            noirc_abi::input_parser::Format::Toml
+                .serialize(&self.input_map, &self.abi)
+                .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
+        );
 
         let do_exec = |program| {
             let mut print = Vec::new();

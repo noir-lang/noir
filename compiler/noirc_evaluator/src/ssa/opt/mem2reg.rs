@@ -478,13 +478,14 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                if self.inserter.function.dfg.value_is_reference(result) {
-                    references.for_each_alias_of(*array, |_, alias| {
+                let array = *array;
+                let array_typ = self.inserter.function.dfg.type_of_value(array);
+                if Self::contains_references(&array_typ) {
+                    references.for_each_alias_of(array, |_, alias| {
                         self.instruction_input_references.insert(alias);
                     });
-                    references.mark_value_used(*array, self.inserter.function);
+                    references.mark_value_used(array, self.inserter.function);
 
-                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -541,12 +542,22 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    for element in elements {
-                        aliases.insert(*element);
-                    }
+                    self.add_array_aliases(elements, aliases);
                 }
             }
             _ => (),
+        }
+    }
+
+    /// In order to handle nested arrays we need to recursively search whether there are any references
+    /// contained within an array's elements.
+    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+        for &element in elements {
+            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
+                self.add_array_aliases(&elements, aliases);
+            } else if self.inserter.function.dfg.value_is_reference(element) {
+                aliases.insert(element);
+            }
         }
     }
 
@@ -1462,6 +1473,43 @@ mod tests {
             v0 = allocate -> &mut u1
             store u1 1 at v0
             return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_nested_array_used_in_array_get_in_separate_block() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 1 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v6 = make_array [v5] : [&mut u1; 1]
+            v7 = make_array [v4, v6] : [[&mut u1; 1]; 2]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 1)
+          b3(v0: u32):
+            v11 = lt v0, u32 2
+            constrain v11 == u1 1
+            v12 = array_get v7, index v0 -> [&mut u1; 1]
+            v13 = array_get v12, index u32 0 -> &mut u1
+            v14 = load v13 -> u1
+            jmpif v14 then: b4, else: b5
+          b4():
+            jmp b6(u1 1)
+          b5():
+            jmp b6(u1 0)
+          b6(v1: u1):
+            return v1
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

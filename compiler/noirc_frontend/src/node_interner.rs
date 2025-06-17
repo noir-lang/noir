@@ -2427,6 +2427,16 @@ impl NodeInterner {
             }
         }
     }
+
+    /// Gets the dependency graph from the node interner.
+    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
+        &self.dependency_graph
+    }
+
+    /// Gets the trait implementations from the node interner.
+    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
+        &self.trait_implementations
+    }
 }
 
 impl Methods {
