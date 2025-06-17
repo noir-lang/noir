@@ -286,8 +286,9 @@ impl Value {
 
                         Ok(expr)
                     }
-                    Err(mut errors) => {
-                        let error = Box::new(errors.swap_remove(0));
+                    Err(errors) => {
+                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
@@ -670,8 +671,9 @@ where
             }
             Ok(expr)
         }
-        Err(mut errors) => {
-            let error = Box::new(errors.swap_remove(0));
+        Err(errors) => {
+            let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+            let error = Box::new(error);
             let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

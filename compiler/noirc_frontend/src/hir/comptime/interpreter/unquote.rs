@@ -1,5 +1,3 @@
-use noirc_errors::Location;
-
 use crate::{
     hir::comptime::errors::IResult,
     token::{LocatedToken, Token, Tokens},
@@ -14,7 +12,6 @@ impl Interpreter<'_, '_> {
     pub(super) fn substitute_unquoted_values_into_tokens(
         &mut self,
         tokens: Tokens,
-        location: Location,
     ) -> IResult<Vec<LocatedToken>> {
         let mut new_tokens = Vec::with_capacity(tokens.0.len());
 
@@ -22,7 +19,7 @@ impl Interpreter<'_, '_> {
             match token.token() {
                 Token::UnquoteMarker(id) => {
                     let value = self.evaluate(*id)?;
-                    let tokens = value.into_tokens(self.elaborator.interner, location)?;
+                    let tokens = value.into_tokens(self.elaborator.interner, token.location())?;
                     new_tokens.extend(tokens);
                 }
                 _ => new_tokens.push(token),
