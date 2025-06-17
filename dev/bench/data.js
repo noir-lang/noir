@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750173415193,
+  "lastUpdate": 1750173423474,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "bc60e6a4e2a80697baaf5564041d18af91b171f6",
-          "message": "chore(fuzz): Handle overflows in comptime fuzzing (#8847)",
-          "timestamp": "2025-06-10T08:11:27Z",
-          "tree_id": "c4e3953c7f3dc0ab3fe7c3a885e9b30f9c53e3ba",
-          "url": "https://github.com/noir-lang/noir/commit/bc60e6a4e2a80697baaf5564041d18af91b171f6"
-        },
-        "date": 1749545067001,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5071093f9b51e111a49a5f78d827774ef8e80c74"
         },
         "date": 1750162705047,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3838c690e9af668d052629c5fa90deadb9bbcd77",
+          "message": "chore(test): Add `--minimal-ssa` to integration tests (#8938)",
+          "timestamp": "2025-06-17T14:38:27Z",
+          "tree_id": "91af770408b91be856bd8f9e2049773817d5810b",
+          "url": "https://github.com/noir-lang/noir/commit/3838c690e9af668d052629c5fa90deadb9bbcd77"
+        },
+        "date": 1750173410236,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
