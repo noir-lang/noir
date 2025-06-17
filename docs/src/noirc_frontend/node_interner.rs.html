@@ -2600,7 +2600,17 @@
 <a href="#2599" id="2599">2599</a>
 <a href="#2600" id="2600">2600</a>
 <a href="#2601" id="2601">2601</a>
-<a href="#2602" id="2602">2602</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -5028,6 +5038,16 @@
                 <span class="self">self</span>.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
+    }
+
+    <span class="doccomment">/// Gets the dependency graph from the node interner.
+    </span><span class="kw">pub fn </span>dependency_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DiGraph&lt;DependencyId, ()&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.dependency_graph
+    }
+
+    <span class="doccomment">/// Gets the trait implementations from the node interner.
+    </span><span class="kw">pub fn </span>trait_implementations(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HashMap&lt;TraitImplId, Shared&lt;TraitImpl&gt;&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.trait_implementations
     }
 }
 

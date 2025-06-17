@@ -440,7 +440,12 @@
 <a href="#439" id="439">439</a>
 <a href="#440" id="440">440</a>
 <a href="#441" id="441">441</a>
-<a href="#442" id="442">442</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationError, DefCollector};
@@ -478,6 +483,11 @@
     <span class="kw">pub fn </span>dummy_id() -&gt; LocalModuleId {
         LocalModuleId(Index::dummy())
     }
+
+    <span class="doccomment">/// Gets the index that underlies this local module ID.
+    </span><span class="kw">pub fn </span>as_index(<span class="self">self</span>) -&gt; Index {
+        <span class="self">self</span>.<span class="number">0
+    </span>}
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]

@@ -745,7 +745,17 @@
 <a href="#744" id="744">744</a>
 <a href="#745" id="745">745</a>
 <a href="#746" id="746">746</a>
-<a href="#747" id="747">747</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unreachable_pub)]
 #![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
@@ -1045,29 +1055,29 @@
 #[serde(rename_all = <span class="string">"kebab-case"</span>)]
 </span><span class="kw">pub struct </span>WorkspaceConfig {
     <span class="doccomment">/// List of members in this workspace.
-    </span>members: Vec&lt;PathBuf&gt;,
+    </span><span class="kw">pub </span>members: Vec&lt;PathBuf&gt;,
     <span class="doccomment">/// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
-    </span>default_member: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    </span><span class="kw">pub </span>default_member: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
 }
 
 <span class="attr">#[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 </span><span class="kw">pub struct </span>PackageMetadata {
     <span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>version: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="attr">#[serde(alias = <span class="string">"type"</span>)]
     </span><span class="kw">pub </span>package_type: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    entry: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
-    description: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    authors: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
+    <span class="kw">pub </span>entry: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    <span class="kw">pub </span>description: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>authors: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
     <span class="comment">// If no compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
-    </span>compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    license: <span class="prelude-ty">Option</span>&lt;String&gt;,
-    expression_width: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    </span><span class="kw">pub </span>compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>license: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }
 
 <span class="attr">#[derive(Debug, Deserialize, Clone)]
@@ -1206,7 +1216,17 @@
     <span class="prelude-val">Ok</span>(workspace)
 }
 
-<span class="kw">fn </span>read_toml(toml_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;NargoToml, ManifestError&gt; {
+<span class="doccomment">/// Attempts to read the file at the provided `toml_path` as a `Nargo.toml`
+/// file, returning it if the read was successful.
+///
+/// # Errors
+///
+/// - [`ManifestError::ReadFailed`] if the file could not be read.
+/// - [`ManifestError::MissingParent`] if the Nargo.toml file did not have a
+///   parent directory.
+/// - [`toml::de::Error`] if the Nargo.toml file could not be converted to a
+///   valid [`Config`].
+</span><span class="kw">pub fn </span>read_toml(toml_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;NargoToml, ManifestError&gt; {
     <span class="kw">let </span>toml_path = toml_path.normalize();
     <span class="kw">let </span>toml_as_string = std::fs::read_to_string(<span class="kw-2">&amp;</span>toml_path)
         .map_err(|<span class="kw">_</span>| ManifestError::ReadFailed(toml_path.to_path_buf()))<span class="question-mark">?</span>;
