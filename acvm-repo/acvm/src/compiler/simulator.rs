@@ -23,15 +23,15 @@ impl CircuitSimulator {
     /// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
     /// Returns false if the circuit cannot be solved
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> bool {
+    pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
         let circuit_inputs = circuit.circuit_arguments();
         self.solvable_witness.extend(circuit_inputs.iter());
-        for op in &circuit.opcodes {
+        for (i, op) in circuit.opcodes.iter().enumerate() {
             if !self.try_solve(op) {
-                return false;
+                return Some(i);
             }
         }
-        true
+        None
     }
 
     /// Check if the Opcode can be solved, and if yes, add the solved witness to set of solvable witness
