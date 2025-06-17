@@ -586,7 +586,7 @@ impl Value {
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Function(..) => true,
+            Value::Function(..) | Value::Closure(..) => true,
             _ => false,
         }
     }
