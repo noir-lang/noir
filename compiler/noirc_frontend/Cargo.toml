@@ -9,8 +9,6 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm.workspace = true
-bn254_blackbox_solver.workspace = true
 noirc_arena.workspace = true
 noirc_errors.workspace = true
 noirc_printable_type.workspace = true
@@ -32,6 +30,7 @@ rangemap = "1.4.0"
 strum.workspace = true
 strum_macros.workspace = true
 fxhash.workspace = true
+alloy-primitives.workspace = true
 
 [dev-dependencies]
 base64.workspace = true

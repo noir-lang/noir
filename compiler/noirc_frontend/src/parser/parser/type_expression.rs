@@ -1,11 +1,10 @@
 use crate::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    field_element::{FieldElement, FieldElementExt},
     parser::{ParserError, labels::ParsingRuleLabel},
     token::Token,
 };
-
-use acvm::acir::{AcirField, FieldElement};
 use noirc_errors::Location;
 
 use super::{Parser, parse_many::separated_by_comma_until_right_paren};
@@ -117,7 +116,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                        UnresolvedTypeExpression::Constant(<FieldElement as FieldElementExt>::zero(), start_location);
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     Some(UnresolvedTypeExpression::BinaryOperation(
@@ -249,7 +248,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                        UnresolvedTypeExpression::Constant(<FieldElement as FieldElementExt>::zero(), start_location);
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(

@@ -27,7 +27,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
 };
-use acvm::{FieldElement, acir::AcirField};
+use crate::field_element::{FieldElement, FieldElementExt, field_helpers};
 use ast::{GlobalId, IdentId, While};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -642,7 +642,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn contains_reference(typ: &types::Type) -> bool {
         match typ {
-            Type::FieldElement
+            Type::U256
             | Type::Bool
             | Type::String(_)
             | Type::Integer(..)
@@ -899,9 +899,9 @@ impl<'interner> Monomorphizer<'interner> {
             Ok(ast::Expression::Tuple(fields))
         })?;
 
-        let tag_value = FieldElement::from(constructor.variant_index);
+        let tag_value = field_helpers::field_from_u64(constructor.variant_index as u64);
         let tag_value = SignedField::positive(tag_value);
-        let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
+        let tag = ast::Literal::Integer(tag_value, ast::Type::U256, location);
         fields.insert(0, ast::Expression::Literal(tag));
 
         Ok(ast::Expression::Tuple(fields))
@@ -1247,7 +1247,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Type, MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         Ok(match typ.as_ref() {
-            HirType::FieldElement => ast::Type::Field,
+            HirType::U256 => ast::Type::U256,
             HirType::Integer(sign, bits) => ast::Type::Integer(*sign, *bits),
             HirType::Bool => ast::Type::Bool,
             HirType::String(size) => {
@@ -1318,7 +1318,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
                 type_var.bind(HirType::default_int_or_field_type());
-                ast::Type::Field
+                ast::Type::U256
             }
 
             HirType::CheckedCast { from, to } => {
@@ -1381,7 +1381,7 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Type::Tuple(fields)
                 } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
-                    let mut fields = vec![ast::Type::Field];
+                    let mut fields = vec![ast::Type::U256];
                     for (_, variant_fields) in variants {
                         let variant_fields = try_vecmap(variant_fields, |typ| {
                             Self::convert_type_helper(&typ, location, seen_types)
@@ -1543,7 +1543,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn check_type(typ: &HirType, location: Location) -> Result<(), MonomorphizationError> {
         let typ = typ.follow_bindings_shallow();
         match typ.as_ref() {
-            HirType::FieldElement
+            HirType::U256
             | HirType::Integer(..)
             | HirType::Bool
             | HirType::String(..)
@@ -1848,10 +1848,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let location = self.interner.expr_location(expr_id);
                 return Ok(match opcode.as_str() {
                     "modulus_num_bits" => {
-                        let bits = FieldElement::max_num_bits();
+                        let bits = 256u32; // U256 has 256 bits
                         let typ =
                             ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        let bits = SignedField::positive(bits);
+                        let bits = SignedField::positive(field_helpers::field_from_u32(bits));
                         Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
                     }
                     "zeroed" => {
@@ -1859,19 +1859,23 @@ impl<'interner> Monomorphizer<'interner> {
                         Some(self.zeroed_value_of_type(result_type, location))
                     }
                     "modulus_le_bits" => {
-                        let bits = FieldElement::modulus().to_radix_le(2);
+                        // For U256, we have 256 bits all set to 1 (representing 2^256 - 1)
+                        let bits = vec![1u8; 256];
                         Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bits" => {
-                        let bits = FieldElement::modulus().to_radix_be(2);
+                        // For U256, we have 256 bits all set to 1 (representing 2^256 - 1)
+                        let bits = vec![1u8; 256];
                         Some(self.modulus_slice_literal(bits, IntegerBitSize::One, location))
                     }
                     "modulus_be_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_be();
+                        // For U256, the max value is 2^256 - 1, which is 32 bytes of 0xFF
+                        let bytes = vec![0xFFu8; 32];
                         Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "modulus_le_bytes" => {
-                        let bytes = FieldElement::modulus().to_bytes_le();
+                        // For U256, the max value is 2^256 - 1, which is 32 bytes of 0xFF
+                        let bytes = vec![0xFFu8; 32];
                         Some(self.modulus_slice_literal(bytes, IntegerBitSize::Eight, location))
                     }
                     "checked_transmute" => {
@@ -1916,7 +1920,7 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(byte as u32);
+            let value = SignedField::positive(field_helpers::field_from_u32(byte as u32));
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
@@ -2224,7 +2228,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let msg_expr = ast::Expression::Literal(ast::Literal::Str(msg.to_string()));
 
                 let u32_type = HirType::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-                let length = (msg.len() as u128).into();
+                let length = field_helpers::field_from_u128(msg.len() as u128);
                 let length = HirType::Constant(length, Kind::Numeric(Box::new(u32_type)));
                 let msg_type = HirType::String(Box::new(length));
 
@@ -2282,9 +2286,9 @@ impl<'interner> Monomorphizer<'interner> {
         location: noirc_errors::Location,
     ) -> ast::Expression {
         match typ {
-            ast::Type::Field | ast::Type::Integer(..) => {
+            ast::Type::U256 | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                let zero = SignedField::positive(0u32);
+                let zero = SignedField::positive(field_helpers::field_from_u32(0u32));
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
@@ -2438,14 +2442,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
                     FieldElement::zero() // Ordering::Less
                 } else {
-                    2u128.into() // Ordering::Greater
+                    field_helpers::field_from_u128(2u128) // Ordering::Greater
                 };
 
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
                 let ordering_value = SignedField::positive(ordering_value);
-                let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
+                let int_value = ast::Literal::Integer(ordering_value, ast::Type::U256, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));
 

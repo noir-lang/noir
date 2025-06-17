@@ -1,4 +1,4 @@
-use acvm::{AcirField, FieldElement};
+use crate::field_element::{FieldElement, FieldElementExt, field_helpers};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SignedField {
@@ -14,12 +14,12 @@ impl SignedField {
         Self { field, is_negative }
     }
 
-    pub fn positive(field: impl Into<FieldElement>) -> Self {
-        Self { field: field.into(), is_negative: false }
+    pub fn positive(field: FieldElement) -> Self {
+        Self { field, is_negative: false }
     }
 
-    pub fn negative(field: impl Into<FieldElement>) -> Self {
-        Self::new(field.into(), true)
+    pub fn negative(field: FieldElement) -> Self {
+        Self::new(field, true)
     }
 
     pub fn zero() -> SignedField {
@@ -32,6 +32,11 @@ impl SignedField {
 
     /// Returns the inner FieldElement which will always be positive
     pub fn absolute_value(&self) -> FieldElement {
+        self.field
+    }
+    
+    /// Alias for absolute_value to match new I256 interface
+    pub fn abs(&self) -> FieldElement {
         self.field
     }
 
@@ -49,7 +54,7 @@ impl SignedField {
     {
         let negative = value.is_negative();
         let value = value.abs_u128();
-        SignedField::new(value.into(), negative)
+        SignedField::new(field_helpers::field_from_u128(value), negative)
     }
 
     /// Convert a SignedField into an unsigned integer type (up to u128),

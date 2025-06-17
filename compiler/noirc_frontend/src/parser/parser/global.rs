@@ -68,7 +68,7 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
+    use crate::field_element::{FieldElement, FieldElementExt};
     use insta::assert_snapshot;
 
     use crate::{

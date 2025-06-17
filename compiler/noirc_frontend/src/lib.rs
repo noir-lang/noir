@@ -33,6 +33,7 @@ pub mod resolve_locations;
 pub mod shared;
 pub mod signed_field;
 pub mod usage_tracker;
+pub mod field_element;
 
 pub mod hir;
 pub mod hir_def;

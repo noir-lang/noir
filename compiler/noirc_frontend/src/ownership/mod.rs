@@ -377,7 +377,7 @@ fn clone_expr(expr: &mut Expression) {
 
 fn contains_array_or_str_type(typ: &Type) -> bool {
     match typ {
-        Type::Field
+        Type::U256
         | Type::Integer(..)
         | Type::Bool
         | Type::Unit

@@ -479,7 +479,7 @@ pub struct Function {
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
-    Field,
+    U256,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
@@ -621,7 +621,7 @@ impl std::fmt::Display for Expression {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Field => write!(f, "Field"),
+            Type::U256 => write!(f, "u256"),
             Type::Array(len, elements) => write!(f, "[{elements}; {len}]"),
             Type::Integer(sign, bits) => match sign {
                 Signedness::Unsigned => write!(f, "u{bits}"),

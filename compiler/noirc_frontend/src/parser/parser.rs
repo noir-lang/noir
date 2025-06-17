@@ -1,10 +1,10 @@
-use acvm::FieldElement;
 use fm::FileId;
 use modifiers::Modifiers;
 use noirc_errors::{Location, Span};
 
 use crate::{
     ast::{Ident, ItemVisibility},
+    field_element::FieldElement,
     lexer::{Lexer, lexer::LocatedTokenResult},
     node_interner::ExprId,
     token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},

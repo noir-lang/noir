@@ -2572,7 +2572,7 @@ fn get_type_method_key(typ: &Type) -> Option<TypeMethodKey> {
     use TypeMethodKey::*;
     let typ = typ.follow_bindings();
     match &typ {
-        Type::FieldElement => Some(FieldOrInt),
+        Type::U256 => Some(FieldOrInt),
         Type::Array(_, _) => Some(Array),
         Type::Slice(_) => Some(Slice),
         Type::Integer(_, _) => Some(FieldOrInt),

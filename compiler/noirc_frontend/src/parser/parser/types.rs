@@ -364,7 +364,7 @@ mod tests {
         assert_eq!(types.len(), 2);
 
         let typ = types.remove(0);
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
 
         let typ = types.remove(0);
         assert_eq!(typ.typ.to_string(), "bool");
@@ -378,7 +378,7 @@ mod tests {
         assert_eq!(types.len(), 1);
 
         let typ = types.remove(0);
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -388,7 +388,7 @@ mod tests {
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -400,7 +400,7 @@ mod tests {
         let UnresolvedTypeData::Parenthesized(typ) = typ.typ else {
             panic!("Expected a parenthesized type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -410,7 +410,7 @@ mod tests {
         let UnresolvedTypeData::Reference(typ, false) = typ.typ else {
             panic!("Expected a reference type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -420,7 +420,7 @@ mod tests {
         let UnresolvedTypeData::Reference(typ, true) = typ.typ else {
             panic!("Expected a mutable reference type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -459,7 +459,7 @@ mod tests {
         let src = "[Field]";
         let typ = parse_type_no_errors(src);
         let UnresolvedTypeData::Slice(typ) = typ.typ else { panic!("Expected a slice type") };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
     }
 
     #[test]
@@ -482,7 +482,7 @@ mod tests {
         let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
             panic!("Expected an array type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
         assert_eq!(expr.to_string(), "10");
     }
 
@@ -496,7 +496,7 @@ mod tests {
         let UnresolvedTypeData::Array(expr, typ) = typ.typ else {
             panic!("Expected an array type")
         };
-        assert_eq!(typ.typ.to_string(), "Field");
+        assert_eq!(typ.typ.to_string(), "u256");
         assert_eq!(expr.to_string(), "10");
     }
 
@@ -508,7 +508,7 @@ mod tests {
             panic!("Expected a function type")
         };
         assert!(args.is_empty());
-        assert_eq!(ret.typ.to_string(), "Field");
+        assert_eq!(ret.typ.to_string(), "u256");
         assert!(matches!(env.typ, UnresolvedTypeData::Unit));
         assert!(!unconstrained);
     }
@@ -521,7 +521,7 @@ mod tests {
             panic!("Expected a function type")
         };
         assert_eq!(args.len(), 2);
-        assert_eq!(args[0].typ.to_string(), "Field");
+        assert_eq!(args[0].typ.to_string(), "u256");
         assert_eq!(args[1].typ.to_string(), "bool");
     }
 
@@ -532,7 +532,7 @@ mod tests {
         let UnresolvedTypeData::Function(_args, ret, _env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
-        assert_eq!(ret.typ.to_string(), "Field");
+        assert_eq!(ret.typ.to_string(), "u256");
     }
 
     #[test]
@@ -552,7 +552,7 @@ mod tests {
         let UnresolvedTypeData::Function(_args, _ret, env, _unconstrained) = typ.typ else {
             panic!("Expected a function type")
         };
-        assert_eq!(env.typ.to_string(), "Field");
+        assert_eq!(env.typ.to_string(), "u256");
     }
 
     #[test]
@@ -591,7 +591,7 @@ mod tests {
         let UnresolvedTypeData::AsTraitPath(as_trait_path) = typ.typ else {
             panic!("Expected as_trait_path")
         };
-        assert_eq!(as_trait_path.typ.typ.to_string(), "Field");
+        assert_eq!(as_trait_path.typ.typ.to_string(), "u256");
         assert_eq!(as_trait_path.trait_path.to_string(), "foo::Bar");
         assert!(as_trait_path.trait_generics.is_empty());
         assert_eq!(as_trait_path.impl_item.to_string(), "baz");

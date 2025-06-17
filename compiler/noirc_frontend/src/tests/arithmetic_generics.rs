@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use acvm::{AcirField, FieldElement};
+use crate::field_element::{FieldElement, FieldElementExt};
 
 use crate::assert_no_errors;
 use crate::get_monomorphized;
