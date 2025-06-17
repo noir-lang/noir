@@ -48,19 +48,13 @@ error: Types in a binary operation should match, but found Field and str<1>
 
 error: Expected value, found built-in type `(resolved type)`
    ┌─ src/main.nr:23:1
-   │  
-23 │   #[derive_bn254_impl]
-   │   -------------------- Failed to parse macro's token stream into top-level item
-   ·  
-28 │ ╭     quote {
-29 │ │         impl BN254 {
-30 │ │             fn one() {}
-31 │ │ 
-   · │
-36 │ │         }
-37 │ │     }
-   │ ╰─────'
-   │  
+   │
+23 │ #[derive_bn254_impl]
+   │ -------------------- Failed to parse macro's token stream into top-level item
+   ·
+34 │                 crate::mul_with_hint($typ, scalar, transcript)
+   │                                       ---
+   │
    = The resulting token stream was: (stream starts on next line)
        impl BN254 {
          fn one() {
