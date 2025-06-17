@@ -1,3 +1,8 @@
+#![forbid(unsafe_code)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+#![expect(unreachable_pub)] // This crate is full of issues related to this lint
+
 mod context;
 mod dap;
 pub mod errors;
