@@ -135,6 +135,7 @@ mod tests {
         mut nargo: Command,
         test_program_dir: PathBuf,
         check_stdout: bool,
+        check_artifact: bool,
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
@@ -182,13 +183,15 @@ mod tests {
             }
         }
 
-        check_program_artifact(
-            "execution_success",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
+        if check_artifact {
+            check_program_artifact(
+                "execution_success",
+                &test_program_dir,
+                &target_dir,
+                force_brillig,
+                inliner,
+            );
+        }
     }
 
     fn execution_failure(mut nargo: Command) {
