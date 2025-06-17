@@ -305,7 +305,8 @@
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
@@ -541,10 +542,11 @@
                     (<span class="prelude-val">Some</span>(bitmask), <span class="prelude-val">None</span>) | (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(bitmask)) =&gt; {
                         <span class="comment">// This substitution requires the bitmask to retain all of the lower bits.
                         // The bitmask must then be one less than a power of 2.
-                        </span><span class="kw">let </span>bitmask_plus_one = bitmask.to_u128() + <span class="number">1</span>;
-                        <span class="kw">if </span>bitmask_plus_one.is_power_of_two() {
+                        </span><span class="kw">let </span>bitmask = bitmask.to_u128();
+                        <span class="kw">if </span>bitmask == u128::MAX || (bitmask + <span class="number">1</span>).is_power_of_two() {
                             <span class="kw">let </span>value = <span class="kw">if </span>lhs_value.is_some() { rhs } <span class="kw">else </span>{ lhs };
-                            <span class="kw">let </span>bit_size = bitmask_plus_one.ilog2();
+                            <span class="kw">let </span>bit_size =
+                                <span class="kw">if </span>bitmask == u128::MAX { <span class="number">128 </span>} <span class="kw">else </span>{ (bitmask + <span class="number">1</span>).ilog2() };
                             <span class="kw">let </span>max_bit_size = lhs_type.bit_size();
 
                             <span class="kw">if </span>bit_size == max_bit_size {
