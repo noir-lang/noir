@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750181899918,
+  "lastUpdate": 1750182959512,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9de75cdedce10c68f5eed44925701ea3a75f940e",
-          "message": "chore(fuzz): Enable SSA Interpreter fuzzing on all passes (#8610)",
-          "timestamp": "2025-06-10T13:42:31Z",
-          "tree_id": "7e9728b3d0f25208f6be7bf4f5486bc977de473c",
-          "url": "https://github.com/noir-lang/noir/commit/9de75cdedce10c68f5eed44925701ea3a75f940e"
-        },
-        "date": 1749564325317,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249440,
-            "range": "± 408",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219211,
-            "range": "± 7305",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779032,
-            "range": "± 1454",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787761,
             "range": "± 5322",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "670063c66c5327685def09bfc2563fccc9e7b267",
+          "message": "fix: Fix if/match tracking in last uses pass (#8935)",
+          "timestamp": "2025-06-17T17:32:29Z",
+          "tree_id": "06e1708119d5679ee281ccabae1e4d85ac31abab",
+          "url": "https://github.com/noir-lang/noir/commit/670063c66c5327685def09bfc2563fccc9e7b267"
+        },
+        "date": 1750182947460,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249420,
+            "range": "± 484",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221922,
+            "range": "± 4520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2819295,
+            "range": "± 5512",
             "unit": "ns/iter"
           }
         ]
