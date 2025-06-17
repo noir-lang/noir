@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750173015881,
+  "lastUpdate": 1750173137541,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a367f8536fc07d5f6f508555279e56d60bd1e88c",
-          "message": "chore: add a regression test for #8727 (#8851)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-10T10:16:35Z",
-          "tree_id": "be6f5487dea71a39c21bfc2f7254f9f6606d3cf2",
-          "url": "https://github.com/noir-lang/noir/commit/a367f8536fc07d5f6f508555279e56d60bd1e88c"
-        },
-        "date": 1749552168534,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248791,
-            "range": "± 652",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218250,
-            "range": "± 2014",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777783,
-            "range": "± 20543",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787898,
             "range": "± 2885",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "51f6b7cc830c683846011c328239e4f14a7f5e32",
+          "message": "chore: disable noncritical workflow steps which fail on external prs (#8939)",
+          "timestamp": "2025-06-17T14:46:59Z",
+          "tree_id": "6fb79112bc289cb85ca25c7790b4d2659e5c15a1",
+          "url": "https://github.com/noir-lang/noir/commit/51f6b7cc830c683846011c328239e4f14a7f5e32"
+        },
+        "date": 1750173124719,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249503,
+            "range": "± 667",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221895,
+            "range": "± 1263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786073,
+            "range": "± 2335",
             "unit": "ns/iter"
           }
         ]
