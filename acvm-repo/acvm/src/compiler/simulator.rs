@@ -273,7 +273,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&disconnected_circuit).is_none());
+        assert!(CircuitSimulator::default().check_circuit(&disconnected_circuit).is_some());
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
     }
 
     #[test]
@@ -335,6 +335,6 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit).is_none());
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
     }
 }
