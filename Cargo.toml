@@ -72,6 +72,7 @@ trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_qualifications = "warn"
 unreachable_pub = "warn"
+unsafe_code = "deny"
 
 [workspace.lints.clippy]
 semicolon_if_nothing_returned = "warn"

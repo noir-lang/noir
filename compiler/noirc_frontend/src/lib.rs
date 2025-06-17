@@ -9,10 +9,8 @@
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 // Temporary allows.
-#![allow(clippy::mutable_key_type, clippy::result_large_err)]
+#![allow(clippy::mutable_key_type)]
 
 #[cfg(test)]
 #[macro_use]
