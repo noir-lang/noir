@@ -249,8 +249,8 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         // We need to add an offset to constant array indices in Brillig.
-        // This can change which globals are used, because it shifts index constants,
-        // which might result in the (re)use of global constants.
+        // This can change which globals are used, because constant creation might result
+        // in the (re)use of otherwise unused global values.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
