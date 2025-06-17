@@ -80,7 +80,7 @@ let slice : [[Field]] = &[];
 ## Dynamic Indexing
 
 Using constant indices of arrays will often be more efficient at runtime in constrained code.
-Indexing an array with non-constant indices (indices derived from the inputs to the program) is also
+Indexing an array with non-constant indices (indices derived from the inputs to the program, or returned from unconstrained functions) is also
 called "dynamic indexing" and incurs a slight runtime cost:
 
 ```rust
