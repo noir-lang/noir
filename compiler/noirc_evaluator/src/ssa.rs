@@ -228,7 +228,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
         // It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
     ]
 }
 
