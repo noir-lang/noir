@@ -764,7 +764,12 @@
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -973,8 +978,11 @@
         // We can safely place the pass before DIE as that pass only removes instructions.
         // We also need DIE's tracking of used globals in case the array get transformations
         // end up using an existing constant from the globals space.
+        // This pass might result in otherwise unused global constant becoming used,
+        // because the creation of shifted index constants can reuse their IDs.
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
-        SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
+        <span class="comment">// Perform another DIE pass to update the used globals after offsetting Brillig indexes.
+        </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
         <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
@@ -994,7 +1002,7 @@
         <span class="comment">// It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, <span class="string">"Dead Instruction Elimination"</span>),
+        SsaPass::new(Ssa::dead_instruction_elimination_acir, <span class="string">"Dead Instruction Elimination - ACIR"</span>),
     ]
 }
 
@@ -1014,10 +1022,12 @@
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        <span class="comment">// We need to add an offset to constant array indices in Brillig.
+        // This can change which globals are used, because constant creation might result
+        // in the (re)use of otherwise unused global values.
+        </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
         <span class="comment">// We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
-        <span class="comment">// We need to add an offset to constant array indices in Brillig.
-        </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
     ]
 }
 
