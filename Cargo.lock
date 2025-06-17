@@ -3549,15 +3549,12 @@ version = "1.0.0-beta.7"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
- "log",
  "nargo",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
- "noirc_frontend",
  "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]

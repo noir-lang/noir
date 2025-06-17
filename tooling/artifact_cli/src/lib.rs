@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![warn(unreachable_pub)]
+#![warn(clippy::semicolon_if_nothing_returned)]
+
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 
 pub mod commands;

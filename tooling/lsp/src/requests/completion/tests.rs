@@ -34,7 +34,7 @@ mod completion_tests {
 
         let (line, column, src) = get_cursor_line_and_column(src);
 
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {

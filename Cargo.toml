@@ -72,6 +72,10 @@ trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_qualifications = "warn"
 
+[workspace.lints.clippy]
+semicolon_if_nothing_returned = "warn"
+result_large_err = "allow"
+
 [workspace.dependencies]
 
 # ACVM workspace dependencies
