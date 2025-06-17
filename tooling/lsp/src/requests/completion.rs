@@ -344,9 +344,10 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(id) => module_id = id,
                 ModuleDefId::TypeId(type_id) => {
                     let data_type = self.interner.get_type(type_id);
+                    let generics = data_type.borrow().generic_types();
                     self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(data_type, vec![]),
+                        &Type::DataType(data_type, generics),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
