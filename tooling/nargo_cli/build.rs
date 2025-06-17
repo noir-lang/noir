@@ -125,6 +125,30 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
     "regression_4709",
 ];
 
+/// `nargo execute --minimal-ssa` ignored tests
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
+    // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
+    // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
+    // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
+    // we don't have the other passes that would turn expressions into constants.
+    "array_to_slice_constant_length",
+    "brillig_cow_regression",
+    "brillig_pedersen",
+    "import",
+    "merkle_insert",
+    "pedersen_check",
+    "pedersen_hash",
+    "pedersen_commitment",
+    "simple_shield",
+    "strings",
+    // ICE: Global value not found in cache v0
+    "integer_array_indexing",
+    // The minimum SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "lambda_from_dynamic_if",
+    // This relies on maximum inliner setting
+    "reference_counts_inliner_max",
+];
+
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
@@ -759,6 +783,9 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
     )
     .unwrap();
     for (test_name, test_dir) in test_cases {
+        if IGNORED_MINIMAL_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
         let test_dir = test_dir.display();
 
         let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
