@@ -1571,9 +1571,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 for value in dynamic_array_values {
                     self.initialize_array_inner(witnesses, value)?;
                 }
-            } // AcirValue::UninitializedVar(_) => {
-              //     // Uninitialized variables are not initialized, so we do nothing.
-              // }
+            }
         }
         Ok(())
     }
