@@ -42,6 +42,7 @@ fn main() {
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 
+    generate_minimal_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
@@ -300,10 +301,7 @@ impl Inliner {
 }
 
 /// Generate all test cases for a given test name (expected to be unique for the test directory),
-/// based on the matrix configuration. These will be executed serially, but concurrently with
-/// other test directories. Running multiple tests on the same directory would risk overriding
-/// each others compilation artifacts, which is why this method injects a mutex shared by
-/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
+/// based on the matrix configuration.
 fn generate_test_cases(
     test_file: &mut File,
     test_name: &str,
@@ -350,7 +348,8 @@ fn generate_test_cases(
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
+    #[allow(unused_mut)]
+    let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
 
     {test_content}
 }}
@@ -405,14 +404,16 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
+        let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
+        let check_artifact = true;
+
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "execute",
             &format!(
-                "execution_success(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
-                !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str())
+                "execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);",
             ),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
@@ -736,6 +737,47 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
+            },
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Run integration tests with the `--minimal-ssa` option and check that the return
+/// value matches the expectations.
+fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod minimal_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
+        let check_artifact = false;
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "execute",
+            &format!(
+                r#"
+                nargo.arg("--minimal-ssa");
+                execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);
+                "#,
+            ),
+            &MatrixConfig {
+                vary_brillig: false,
+                vary_inliner: false,
                 min_inliner: min_inliner(&test_name),
                 max_inliner: max_inliner(&test_name),
             },
