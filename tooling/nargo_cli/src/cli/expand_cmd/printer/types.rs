@@ -134,7 +134,7 @@ impl ItemPrinter<'_, '_> {
             Type::Unit
             | Type::Bool
             | Type::Integer(..)
-            | Type::FieldElement
+            | Type::U256
             | Type::String(_)
             | Type::Quoted(..)
             | Type::Error => self.push_str(&typ.to_string()),
@@ -160,7 +160,7 @@ fn type_needs_parentheses(typ: &Type) -> bool {
             TypeBinding::Unbound(..) => false,
         },
         Type::CheckedCast { from: _, to } => type_needs_parentheses(to),
-        Type::FieldElement
+        Type::U256
         | Type::Array(..)
         | Type::Slice(..)
         | Type::Integer(..)

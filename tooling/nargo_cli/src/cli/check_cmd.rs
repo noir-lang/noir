@@ -9,7 +9,6 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
 use noirc_frontend::{hir::ParsedFiles, monomorphization::monomorphize};
@@ -101,7 +100,7 @@ fn check_package(
 
             if should_write_prover {
                 let prover_toml = create_input_toml_template(parameters.clone(), None);
-                write_to_file(prover_toml.as_bytes(), &path_to_prover_input)
+                std::fs::write(&path_to_prover_input, prover_toml.as_bytes())
                     .expect("failed to write template");
             } else {
                 eprintln!("Note: Prover.toml already exists. Use --overwrite to force overwrite.");

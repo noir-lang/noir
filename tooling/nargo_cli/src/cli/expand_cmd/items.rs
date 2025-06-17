@@ -405,7 +405,7 @@ impl<'context> ItemBuilder<'context> {
             Type::Unit
             | Type::Bool
             | Type::Integer(..)
-            | Type::FieldElement
+            | Type::U256
             | Type::String(_)
             | Type::Quoted(_)
             | Type::Constant(..)
@@ -474,7 +474,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) 
             gather_named_type_vars(typ, type_vars);
         }
         Type::Unit
-        | Type::FieldElement
+        | Type::U256
         | Type::Integer(..)
         | Type::Bool
         | Type::Quoted(_)
@@ -523,7 +523,7 @@ fn type_mentions_data_type(typ: &Type, data_type: &noirc_frontend::DataType) -> 
         Type::Unit
         | Type::Bool
         | Type::Integer(..)
-        | Type::FieldElement
+        | Type::U256
         | Type::String(_)
         | Type::Quoted(_)
         | Type::Constant(..)
