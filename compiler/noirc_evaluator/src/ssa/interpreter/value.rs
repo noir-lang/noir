@@ -57,7 +57,7 @@ pub struct ReferenceValue {
     pub element_type: Arc<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
@@ -79,9 +79,10 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
-            }
+            Value::ArrayOrSlice(array) => Type::Array(
+                array.element_types.clone(),
+                (array.elements.borrow().len() / array.element_types.len()) as u32,
+            ),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
@@ -157,7 +158,7 @@ impl Value {
         Self::Numeric(NumericValue::U1(value))
     }
 
-    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
@@ -430,3 +431,14 @@ impl std::fmt::Display for ArrayValue {
         write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
     }
 }
+
+impl PartialEq for ArrayValue {
+    fn eq(&self, other: &Self) -> bool {
+        // Don't compare RC
+        self.elements == other.elements
+            && self.element_types == other.element_types
+            && self.is_slice == other.is_slice
+    }
+}
+
+impl Eq for ArrayValue {}

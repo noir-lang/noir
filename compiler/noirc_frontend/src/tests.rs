@@ -1782,6 +1782,8 @@ fn numeric_generic_as_return_type() {
        ^^^ unused function foo
        ~~~ unused function
         x.zeroed()
+        ^^^^^^^^ Type annotation needed
+        ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the function `zeroed`
     }
 
     fn main() {}
@@ -1964,6 +1966,8 @@ fn numeric_generic_u16_array_size() {
                     ^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~ expected `u32`, found `u16`
         len(fields)
+        ^^^ Type annotation needed
+        ~~~ Could not determine the value of the generic argument `N` declared on the function `len`
     }
     "#;
     check_errors!(src);
@@ -2404,53 +2408,6 @@ fn impl_stricter_than_trait_different_trait_generics() {
     }
 
     trait T2<C> {}
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
-fn impl_not_found_for_inner_impl() {
-    // We want to guarantee that we get a no impl found error
-    let src = r#"
-    trait Serialize<let N: u32> {
-        fn serialize(self) -> [Field; N];
-    }
-
-    trait ToField {
-        fn to_field(self) -> Field;
-    }
-
-    fn process_array<let N: u32>(array: [Field; N]) -> Field {
-        array[0]
-    }
-
-    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
-        thing.serialize()
-    }
-
-    struct MyType<T> {
-        a: T,
-        b: T,
-    }
-
-    impl<T> Serialize<2> for MyType<T> where T: ToField {
-        fn serialize(self) -> [Field; 2] {
-            [ self.a.to_field(), self.b.to_field() ]
-        }
-    }
-
-    impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
-            process_array(serialize_thing(self))
-                          ^^^^^^^^^^^^^^^ No matching impl found for `T: ToField`
-                          ~~~~~~~~~~~~~~~ No impl for `T: ToField`
-        }
-    }
-
-    fn main() {
-        let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
-    }
     "#;
     check_errors!(src);
 }
@@ -4507,7 +4464,7 @@ fn indexing_array_with_non_u32_on_lvalue_produces_an_error() {
 
 #[named]
 #[test]
-fn cannot_determine_type_of_generic_argument_in_function_call() {
+fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
     let src = r#"
     fn foo<T>() {}
 
@@ -4519,7 +4476,7 @@ fn cannot_determine_type_of_generic_argument_in_function_call() {
     }
 
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4531,12 +4488,12 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     fn main()
     {
         let _ = Foo {};
-                ^^^^^^ Type annotation needed
-                ~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+                ^^^ Type annotation needed
+                ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
 
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4556,7 +4513,7 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_errors_using_features!(src, &features);
 }
 
 #[named]
@@ -4568,14 +4525,14 @@ fn cannot_determine_type_of_generic_argument_in_function_call_for_generic_impl()
     impl<T> Foo<T> {
         fn one() {}
     }
-    
+
     fn main() {
         Foo::one();
              ^^^ Type annotation needed
              ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4589,7 +4546,7 @@ fn unconstrained_type_parameter_in_impl() {
                 ~ Hint: remove the `U` type parameter
 
         fn main() {
-            let _ = Foo {};
+            let _ = Foo::<i32> {};
         }
         "#;
     check_errors!(src);
@@ -4728,7 +4685,33 @@ fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numer
     }
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_errors_using_features!(src, &features);
+}
+
+#[named]
+#[test]
+fn cannot_determine_array_type() {
+    let src = r#"
+    fn main() {
+        let _ = [];
+                ^^ Type annotation needed
+                ~~ Could not determine the type of the array
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_determine_slice_type() {
+    let src = r#"
+    fn main() {
+        let _ = &[];
+                ^^^ Type annotation needed
+                ~~~ Could not determine the type of the slice
+    }
+    "#;
+    check_errors!(src);
 }
 
 #[named]

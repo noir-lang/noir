@@ -87,6 +87,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
                 Instruction::Store { .. }
                     | Instruction::Call { .. }
                     | Instruction::MakeArray { .. }
+                    | Instruction::ArraySet { .. }
             ) {
                 instruction.for_each_value(&mut find_functions);
             }
@@ -205,6 +206,40 @@ mod tests {
             return
         }
         "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_functions();
+
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_functions_used_in_array_set() {
+        // Regression test for issue "V-NSCA-VUL-003: Missing ArraySet case in Removing Unreachable Functions pass"
+        // found in Veridise Audit. https://github.com/noir-lang/noir/issues/8890
+
+        // f2 is written to an array using an `array_set` instruction. Thus, we do not want to remove it.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = make_array [f1] : [function; 1]
+            v3 = array_set v2, index u32 0, value f2
+            v4 = array_get v3, index u32 0 -> function
+            v5 = call v4(v0) -> Field
+            return
+          }
+          
+          acir(inline) fn my_fun f1 {
+            b0(v0: Field):
+              v2 = add v0, Field 1
+              return v2
+          }
+          
+          acir(inline) fn my_fun2 f2 {
+            b0(v0: Field):
+              v2 = add v0, Field 2
+              return v2
+          }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_functions();
