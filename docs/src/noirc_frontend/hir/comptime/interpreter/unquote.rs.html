@@ -29,12 +29,7 @@
 <a href="#28" id="28">28</a>
 <a href="#29" id="29">29</a>
 <a href="#30" id="30">30</a>
-<a href="#31" id="31">31</a>
-<a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a>
-<a href="#34" id="34">34</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
-
-<span class="kw">use crate</span>::{
+<a href="#31" id="31">31</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     hir::comptime::errors::IResult,
     token::{LocatedToken, Token, Tokens},
 };
@@ -48,7 +43,6 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>substitute_unquoted_values_into_tokens(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         tokens: Tokens,
-        location: Location,
     ) -&gt; IResult&lt;Vec&lt;LocatedToken&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>new_tokens = Vec::with_capacity(tokens.<span class="number">0</span>.len());
 
@@ -56,7 +50,7 @@
             <span class="kw">match </span>token.token() {
                 Token::UnquoteMarker(id) =&gt; {
                     <span class="kw">let </span>value = <span class="self">self</span>.evaluate(<span class="kw-2">*</span>id)<span class="question-mark">?</span>;
-                    <span class="kw">let </span>tokens = value.into_tokens(<span class="self">self</span>.elaborator.interner, location)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>tokens = value.into_tokens(<span class="self">self</span>.elaborator.interner, token.location())<span class="question-mark">?</span>;
                     new_tokens.extend(tokens);
                 }
                 <span class="kw">_ </span>=&gt; new_tokens.push(token),

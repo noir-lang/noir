@@ -677,7 +677,9 @@
 <a href="#676" id="676">676</a>
 <a href="#677" id="677">677</a>
 <a href="#678" id="678">678</a>
-<a href="#679" id="679">679</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -965,8 +967,9 @@
 
                         <span class="prelude-val">Ok</span>(expr)
                     }
-                    <span class="prelude-val">Err</span>(<span class="kw-2">mut </span>errors) =&gt; {
-                        <span class="kw">let </span>error = Box::new(errors.swap_remove(<span class="number">0</span>));
+                    <span class="prelude-val">Err</span>(errors) =&gt; {
+                        <span class="kw">let </span>error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        <span class="kw">let </span>error = Box::new(error);
                         <span class="kw">let </span>rule = <span class="string">"an expression"</span>;
                         <span class="kw">let </span>tokens = tokens_to_string(<span class="kw-2">&amp;</span>tokens, elaborator.interner);
                         <span class="prelude-val">Err</span>(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
@@ -1349,8 +1352,9 @@
             }
             <span class="prelude-val">Ok</span>(expr)
         }
-        <span class="prelude-val">Err</span>(<span class="kw-2">mut </span>errors) =&gt; {
-            <span class="kw">let </span>error = Box::new(errors.swap_remove(<span class="number">0</span>));
+        <span class="prelude-val">Err</span>(errors) =&gt; {
+            <span class="kw">let </span>error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+            <span class="kw">let </span>error = Box::new(error);
             <span class="kw">let </span>tokens = tokens_to_string(<span class="kw-2">&amp;</span>tokens, elaborator.interner);
             <span class="prelude-val">Err</span>(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

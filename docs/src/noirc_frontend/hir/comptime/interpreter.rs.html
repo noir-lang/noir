@@ -1665,8 +1665,7 @@
 <a href="#1664" id="1664">1664</a>
 <a href="#1665" id="1665">1665</a>
 <a href="#1666" id="1666">1666</a>
-<a href="#1667" id="1667">1667</a>
-<a href="#1668" id="1668">1668</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1667" id="1667">1667</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
@@ -2222,7 +2221,7 @@
             HirExpression::Match(match_) =&gt; <span class="macro">todo!</span>(<span class="string">"Evaluate match in comptime code"</span>),
             HirExpression::Tuple(tuple) =&gt; <span class="self">self</span>.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) =&gt; <span class="self">self</span>.evaluate_lambda(lambda, id),
-            HirExpression::Quote(tokens) =&gt; <span class="self">self</span>.evaluate_quote(tokens, id),
+            HirExpression::Quote(tokens) =&gt; <span class="self">self</span>.evaluate_quote(tokens),
             HirExpression::Unsafe(block) =&gt; <span class="self">self</span>.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) =&gt; {
                 <span class="self">self</span>.evaluate_enum_constructor(constructor, id)
@@ -2765,9 +2764,8 @@
         <span class="prelude-val">Ok</span>(Value::Closure(Box::new(closure)))
     }
 
-    <span class="kw">fn </span>evaluate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens, expr_id: ExprId) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-        <span class="kw">let </span>tokens = <span class="self">self</span>.substitute_unquoted_values_into_tokens(tokens, location)<span class="question-mark">?</span>;
+    <span class="kw">fn </span>evaluate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>tokens: Tokens) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>tokens = <span class="self">self</span>.substitute_unquoted_values_into_tokens(tokens)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(tokens)))
     }
 
