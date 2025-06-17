@@ -284,7 +284,7 @@ impl<'a> Lexer<'a> {
 
 type SpannedTokenResult = Result<SpannedToken, LexerError>;
 
-#[derive(Debug, Error, Clone)]
+#[derive(Debug, Error)]
 pub(crate) enum LexerError {
     #[error("Unexpected character: {char:?}")]
     UnexpectedCharacter { char: char, span: Span },
