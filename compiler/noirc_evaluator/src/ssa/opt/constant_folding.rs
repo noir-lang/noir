@@ -2310,4 +2310,5 @@ mod test {
             Value::Numeric(NumericValue::Field(3u32.into())),
         ]);
         assert_eq!(result_before, result_after);
+    }
 }
