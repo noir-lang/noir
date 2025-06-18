@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750258816801,
+  "lastUpdate": 1750258827911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,75 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "954954d5eb3086eb721e7ec4752de4e431932903",
-          "message": "feat: allow printing each SSA interpreter definition (#8865)",
-          "timestamp": "2025-06-10T19:14:45Z",
-          "tree_id": "863ec3094588361241c3f21781085fd287d3104b",
-          "url": "https://github.com/noir-lang/noir/commit/954954d5eb3086eb721e7ec4752de4e431932903"
-        },
-        "date": 1749584867272,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "fa9f7373814e626ba6c9dcb416821cf9290c3ae9",
           "message": "fix: (SSA interpreter) check requires_acir_gen_predicate for enable_side_effects (#8869)",
           "timestamp": "2025-06-10T19:59:30Z",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/46abffdff8e42af7ae1e2477ff7493031739cc31"
         },
         "date": 1750255626853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "afb46c9143626900f6733fb00d3f7aa7f1b56a5c",
+          "message": "chore: address various clippy issues (#8942)",
+          "timestamp": "2025-06-18T14:22:33Z",
+          "tree_id": "93d66510192de402050cb98f0a034c91b902b067",
+          "url": "https://github.com/noir-lang/noir/commit/afb46c9143626900f6733fb00d3f7aa7f1b56a5c"
+        },
+        "date": 1750258814568,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
