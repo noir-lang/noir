@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750185646224,
+  "lastUpdate": 1750253975243,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "teddav@users.noreply.github.com",
-            "name": "teddav",
-            "username": "teddav"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6f1b46f33e965b1eaec6ad7d430b5d2beb427f70",
-          "message": "fix: update external lib commit tdd.nr (#8823)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-10T14:22:18Z",
-          "tree_id": "08c1fd0d2dab4ffc2d104ba54b44ca0b0ec03fea",
-          "url": "https://github.com/noir-lang/noir/commit/6f1b46f33e965b1eaec6ad7d430b5d2beb427f70"
-        },
-        "date": 1749567108156,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255092,
-            "range": "± 2296",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227886,
-            "range": "± 2370",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2809673,
-            "range": "± 1726",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2823281,
             "range": "± 6232",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6b983cba60805222ffb7e61e333078c5312c89fa",
+          "message": "chore(fuzz): Use `nextest` to run nightly fuzz test (#8962)",
+          "timestamp": "2025-06-18T13:14:18Z",
+          "tree_id": "8ad9a3cd7a7bd8619be83914a78faf22246c4cd2",
+          "url": "https://github.com/noir-lang/noir/commit/6b983cba60805222ffb7e61e333078c5312c89fa"
+        },
+        "date": 1750253962660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252080,
+            "range": "± 994",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223309,
+            "range": "± 1712",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790963,
+            "range": "± 3101",
             "unit": "ns/iter"
           }
         ]
