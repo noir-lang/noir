@@ -9,10 +9,11 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{generics::TraitGenerics, TypeCheckError},
+    hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitId, TypeAliasId},
-    signed_field::{AbsU128, SignedField}, token::IntegerTypeSuffix,
+    signed_field::{AbsU128, SignedField},
+    token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -2515,7 +2516,7 @@ impl Type {
     }
 
     pub(crate) fn as_integer_type_suffix(&self) -> Option<IntegerTypeSuffix> {
-        use { Signedness::*, IntegerBitSize::* };
+        use {IntegerBitSize::*, Signedness::*};
         match self.follow_bindings_shallow().as_ref() {
             Type::FieldElement => Some(IntegerTypeSuffix::Field),
             Type::Integer(Signed, Eight) => Some(IntegerTypeSuffix::I8),

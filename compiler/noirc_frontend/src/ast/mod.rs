@@ -33,8 +33,8 @@ pub use structure::*;
 pub use traits::*;
 pub use type_alias::*;
 
-use crate::token::IntegerTypeSuffix;
 use crate::QuotedType;
+use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -524,10 +524,14 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int, suffix)) => match int.try_to_unsigned::<u32>() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
+                match int.try_to_unsigned::<u32>() {
+                    Some(int) => {
+                        Ok(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location))
+                    }
+                    None => Err(expr),
+                }
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(

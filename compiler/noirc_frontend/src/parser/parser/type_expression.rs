@@ -116,8 +116,11 @@ impl Parser<'_> {
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, start_location);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        None,
+                        start_location,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     Some(UnresolvedTypeExpression::BinaryOperation(
@@ -248,8 +251,11 @@ impl Parser<'_> {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, start_location);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        None,
+                        start_location,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(

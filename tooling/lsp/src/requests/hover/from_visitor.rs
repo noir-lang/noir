@@ -4,7 +4,8 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField, token::IntegerTypeSuffix, Type
+    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    token::IntegerTypeSuffix,
 };
 use num_bigint::BigInt;
 
@@ -52,7 +53,12 @@ impl<'a> HoverFinder<'a> {
 }
 
 impl Visitor for HoverFinder<'_> {
-    fn visit_literal_integer(&mut self, value: SignedField, _suffix: Option<IntegerTypeSuffix>, span: Span) {
+    fn visit_literal_integer(
+        &mut self,
+        value: SignedField,
+        _suffix: Option<IntegerTypeSuffix>,
+        span: Span,
+    ) {
         if !self.intersects_span(span) {
             return;
         }

@@ -2,6 +2,7 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
+    BinaryTypeOperator, ParsedModule,
     ast::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -10,12 +11,17 @@ use crate::{
         ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
         PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree,
         UseTreeKind,
-    }, node_interner::{
+    },
+    node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
-    }, parser::{Item, ItemKind, ParsedSubModule}, signed_field::SignedField, token::{
-        FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind, Tokens
-    }, BinaryTypeOperator, ParsedModule
+    },
+    parser::{Item, ItemKind, ParsedSubModule},
+    signed_field::SignedField,
+    token::{
+        FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
+        SecondaryAttributeKind, Tokens,
+    },
 };
 
 use super::{
@@ -172,7 +178,13 @@ pub trait Visitor {
 
     fn visit_literal_bool(&mut self, _: bool, _: Span) {}
 
-    fn visit_literal_integer(&mut self, _value: SignedField, _suffix: Option<IntegerTypeSuffix>, _: Span) {}
+    fn visit_literal_integer(
+        &mut self,
+        _value: SignedField,
+        _suffix: Option<IntegerTypeSuffix>,
+        _: Span,
+    ) {
+    }
 
     fn visit_literal_str(&mut self, _: &str, _: Span) {}
 
@@ -460,7 +472,13 @@ pub trait Visitor {
         true
     }
 
-    fn visit_constant_type_expression(&mut self, _value: FieldElement, _suffix: Option<IntegerTypeSuffix>, _span: Span) {}
+    fn visit_constant_type_expression(
+        &mut self,
+        _value: FieldElement,
+        _suffix: Option<IntegerTypeSuffix>,
+        _span: Span,
+    ) {
+    }
 
     fn visit_binary_type_expression(
         &mut self,

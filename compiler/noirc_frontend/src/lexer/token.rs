@@ -148,7 +148,7 @@ pub enum IntegerTypeSuffix {
 
 impl IntegerTypeSuffix {
     pub(crate) fn as_type(&self) -> crate::Type {
-        use crate::{ Type::Integer, shared::Signedness::*, ast::IntegerBitSize::* };
+        use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
             IntegerTypeSuffix::I8 => Integer(Signed, Eight),
             IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
