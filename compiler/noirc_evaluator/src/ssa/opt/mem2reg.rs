@@ -252,6 +252,8 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
+                // Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
                 let has_alias_not_marked_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
                         !alias_instructions.is_subset(&self.instructions_to_remove)
