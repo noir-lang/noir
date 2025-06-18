@@ -763,7 +763,7 @@ mod tests {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
-            v1 = call to_le_bytes(v0, u32 256) -> [u8; 1]
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 1]
             return
         }
         ";
