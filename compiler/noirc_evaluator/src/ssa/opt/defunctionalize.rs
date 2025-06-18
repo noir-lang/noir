@@ -693,12 +693,7 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             // Thus, we return an empty slice here.
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Reference(element_type) => {
-            let value = make_dummy_return_data(function_builder, element_type);
-            let alloc = function_builder.insert_allocate((**element_type).clone());
-            function_builder.insert_store(alloc, value);
-            alloc
-        }
+        Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
         Type::Function => {
             unreachable!(
                 "ICE: Any function passed as a value should have already been converted to a field type"
