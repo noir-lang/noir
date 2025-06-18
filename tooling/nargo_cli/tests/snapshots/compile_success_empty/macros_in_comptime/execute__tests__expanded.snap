@@ -15,9 +15,9 @@ comptime fn foo<let N: Field>(x: Field) {
     let cond: Quoted = quote { modulus_num_bits() != 0 };
     assert(unquote!(cond));
     assert(5 == x);
-    assert(5 == unquote!(quote { x }));
+    assert((5 as Field) == unquote!(quote { x }));
     assert(3 == N);
-    assert(3 == unquote!(quote { N }));
+    assert((3 as Field) == unquote!(quote { N }));
     for _ in 0..0 {
         break;
     }

@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [i32; 3] = [1, 2, 3];
     assert(array.my_eq(array));
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [i32; 3] = [1, 2, 3];
     assert(array.my_eq(array));
 }
 
@@ -29,7 +29,7 @@ where
     }
 }
 
-impl MyEq for Field {
+impl MyEq for i32 {
     fn my_eq(self, other: Self) -> bool {
         self == other
     }

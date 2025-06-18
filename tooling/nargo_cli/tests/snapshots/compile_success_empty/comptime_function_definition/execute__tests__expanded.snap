@@ -39,9 +39,10 @@ comptime fn function_attr(f: FunctionDefinition) {
     );
     assert(parameters[3].0 == quote { mut a });
     assert(parameters[4].0 == quote { (b, c) });
+    let a_field: Field = 0;
     let an_i32: i32 = 0;
     assert(parameters[0].1 == type_of(an_i32));
-    assert(parameters[1].1 == type_of(0));
+    assert(parameters[1].1 == type_of(a_field));
     assert(parameters[2].1 == type_of(Foo { x: 0, field: 1 }));
     assert(parameters[3].1 == type_of(true));
     assert(parameters[4].1 == type_of((an_i32, an_i32)));
@@ -55,7 +56,7 @@ comptime fn check_named_attribute(f: FunctionDefinition) {
     assert(f.has_named_attribute("deprecated"));
 }
 
-fn add_one(x: Field) -> Field {
+fn add_one(x: i32) -> i32 {
     x + 1
 }
 

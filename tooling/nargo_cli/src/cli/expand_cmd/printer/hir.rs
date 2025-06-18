@@ -5,7 +5,7 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
+            HirIdent, HirLambda, HirLiteral, HirMatch, HirPrefixExpression, ImplKind,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
@@ -207,7 +207,17 @@ impl ItemPrinter<'_, '_> {
                 self.push(')');
             }
             HirExpression::Cast(hir_cast_expression) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_cast_expression.lhs);
+                let expr_id = hir_cast_expression.lhs;
+                let hir_expr = self.interner.expression(&expr_id);
+                let parens = hir_expression_needs_parentheses_for_cast(&hir_expr);
+                if parens {
+                    self.push('(');
+                }
+                self.show_hir_expression(hir_expr);
+                if parens {
+                    self.push(')');
+                }
+
                 self.push_str(" as ");
                 self.show_type(&hir_cast_expression.r#type);
             }
@@ -888,6 +898,31 @@ impl ItemPrinter<'_, '_> {
 fn hir_expression_needs_parentheses(hir_expr: &HirExpression) -> bool {
     match hir_expr {
         HirExpression::Infix(..) | HirExpression::Cast(..) | HirExpression::Lambda(..) => true,
+        HirExpression::Ident(..)
+        | HirExpression::Literal(..)
+        | HirExpression::Block(..)
+        | HirExpression::Prefix(..)
+        | HirExpression::Index(..)
+        | HirExpression::Constructor(..)
+        | HirExpression::EnumConstructor(..)
+        | HirExpression::MemberAccess(..)
+        | HirExpression::Call(..)
+        | HirExpression::Constrain(..)
+        | HirExpression::If(..)
+        | HirExpression::Match(..)
+        | HirExpression::Tuple(..)
+        | HirExpression::Quote(..)
+        | HirExpression::Unquote(..)
+        | HirExpression::Unsafe(..)
+        | HirExpression::Error => false,
+    }
+}
+
+fn hir_expression_needs_parentheses_for_cast(hir_expr: &HirExpression) -> bool {
+    match hir_expr {
+        HirExpression::Infix(..) | HirExpression::Cast(..) | HirExpression::Lambda(..) => true,
+        HirExpression::Literal(HirLiteral::Integer(value)) if value.is_negative() => true,
+        HirExpression::Prefix(HirPrefixExpression { operator: UnaryOp::Minus, .. }) => true,
         HirExpression::Ident(..)
         | HirExpression::Literal(..)
         | HirExpression::Block(..)

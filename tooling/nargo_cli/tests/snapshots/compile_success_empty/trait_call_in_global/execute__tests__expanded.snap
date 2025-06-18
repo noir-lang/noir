@@ -2,8 +2,8 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global s: BoundedVec<Field, 2> = BoundedVec::<Field, 2> { len: 1, storage: [0, 0] };
+global s: BoundedVec<i32, 2> = BoundedVec::<i32, 2> { len: 1, storage: [0, 0] };
 
 fn main() {
-    let _: BoundedVec<Field, 2> = s;
+    let _: BoundedVec<i32, 2> = s;
 }

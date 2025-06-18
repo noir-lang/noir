@@ -33,10 +33,11 @@ comptime fn function_attr(f: FunctionDefinition) {
     assert_eq(parameters[3].0, quote { mut a });
     assert_eq(parameters[4].0, quote { (b, c) });
 
+    let a_field: Field = 0;
     let an_i32: i32 = 0;
 
     assert_eq(parameters[0].1, type_of(an_i32));
-    assert_eq(parameters[1].1, type_of(0));
+    assert_eq(parameters[1].1, type_of(a_field));
     assert_eq(parameters[2].1, type_of(Foo { x: 0, field: 1 }));
     assert_eq(parameters[3].1, type_of(true));
     assert_eq(parameters[4].1, type_of((an_i32, an_i32)));

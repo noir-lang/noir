@@ -1,5 +1,5 @@
 fn main() {
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [i32; 3] = [1, 2, 3];
     assert(array.my_eq(array));
     // Ensure this still works if we have to infer the type of the integer literals
     let array = [1, 2, 3];
@@ -23,8 +23,8 @@ where
     }
 }
 
-impl MyEq for Field {
-    fn my_eq(self, other: Field) -> bool {
+impl MyEq for i32 {
+    fn my_eq(self, other: i32) -> bool {
         self == other
     }
 }

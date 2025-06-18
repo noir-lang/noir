@@ -31,8 +31,8 @@ where
 fn main() {
     comptime {
         // Check type_of works correctly (relies on Eq for Type)
-        let a_field = 0;
-        let another_field = 1;
+        let a_field: Field = 0;
+        let another_field: Field = 1;
         let an_i32: i32 = 0;
         let field_type_1 = type_of(a_field);
         let field_type_2 = type_of(another_field);
@@ -70,7 +70,7 @@ fn main() {
         // Check Type::as_slice
         assert(u8_type.as_slice().is_none());
 
-        let slice = &[1];
+        let slice: [Field] = &[1];
         let slice_type = type_of(slice);
         let slice_type_element_type = slice_type.as_slice().unwrap();
         assert_eq(slice_type_element_type, field_type_1);
@@ -78,7 +78,7 @@ fn main() {
         // Check Type::as_array
         assert(u8_type.as_array().is_none());
 
-        let array = [1, 2, 3];
+        let array: [Field; 3] = [1, 2, 3];
         let array_type = type_of(array);
         let (array_type_element_type, array_length) = array_type.as_array().unwrap();
         assert_eq(array_type_element_type, field_type_1);
@@ -97,7 +97,7 @@ fn main() {
         // Check Type::as_data_type
         assert(u8_type.as_data_type().is_none());
 
-        let foo = Foo { x: 0 };
+        let foo = Foo { x: 0 as Field };
         let foo_type = type_of(foo);
         let (struct_definition, generics) = foo_type.as_data_type().unwrap();
         let fields = struct_definition.fields(generics);

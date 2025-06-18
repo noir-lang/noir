@@ -59,6 +59,7 @@ impl Serialize for Field {
 }
 
 fn main() {
-    let x = (1, [2, 3, 4]);
+    let f: Field = 1;
+    let x = (f, [f, f, f]);
     assert_eq(x.serialize().len(), 4);
 }

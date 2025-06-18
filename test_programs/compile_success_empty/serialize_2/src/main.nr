@@ -22,6 +22,7 @@ where
 }
 
 fn main() {
-    let x = ((1,),);
+    let f: Field = 1;
+    let x = ((f,),);
     x.serialize();
 }

@@ -33,7 +33,7 @@ fn test_should_fail_with_struct() {
     assert_eq(hash.x, 0, InvalidPointError { point: hash });
 }
 
-#[test(should_fail_with = "A: 0x00 is not 1!")]
+#[test(should_fail_with = "A: 0 is not 1!")]
 fn test_should_fail_with_basic_type_fmt_string() {
     let a = 0;
     let b = 1;
@@ -79,7 +79,7 @@ unconstrained fn unconstrained_test_should_fail_with_struct() {
     assert_eq(hash.x, 0, InvalidPointError { point: hash });
 }
 
-#[test(should_fail_with = "A: 0x00 is not 1!")]
+#[test(should_fail_with = "A: 0 is not 1!")]
 unconstrained fn unconstrained_test_should_fail_with_basic_type_fmt_string() {
     let a = 0;
     let b = 1;

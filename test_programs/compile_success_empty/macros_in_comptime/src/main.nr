@@ -21,11 +21,11 @@ comptime fn foo<let N: Field>(x: Field) {
 
     // Use a comptime parameter in scope
     assert_eq(5, x);
-    assert_eq(5, unquote!(quote { x }));
+    assert_eq(5 as Field, unquote!(quote { x }));
 
     // Use a generic in scope
     assert_eq(3, N);
-    assert_eq(3, unquote!(quote { N }));
+    assert_eq(3 as Field, unquote!(quote { N }));
 
     // Use `break` which only unconstrained functions can do.
     // This ensures the elaborator knows we're switching from `main` to `foo`
