@@ -201,10 +201,12 @@ fn test_recursion_limit_rewrite() {
     let code = format!("{}", DisplayAstAsNoir(&program));
 
     insta::assert_snapshot!(code, @r"
+    #[inline_always]
     fn main() -> () {
         let mut ctx_limit: u32 = 25;
         foo((&mut ctx_limit))
     }
+    #[inline_always]
     fn foo(ctx_limit: &mut u32) -> () {
         if ((*ctx_limit) == 0) {
             ()
@@ -213,6 +215,7 @@ fn test_recursion_limit_rewrite() {
             unsafe { bar_proxy((*ctx_limit)) }
         }
     }
+    #[inline_always]
     unconstrained fn bar(ctx_limit: &mut u32) -> () {
         if ((*ctx_limit) == 0) {
             ()
@@ -222,6 +225,7 @@ fn test_recursion_limit_rewrite() {
             qux(ctx_limit)
         }
     }
+    #[inline_always]
     unconstrained fn baz(ctx_limit: &mut u32) -> () {
         if ((*ctx_limit) == 0) {
             ()
@@ -230,8 +234,10 @@ fn test_recursion_limit_rewrite() {
             baz(ctx_limit)
         }
     }
+    #[inline_always]
     unconstrained fn qux(_ctx_limit: &mut u32) -> () {
     }
+    #[inline_always]
     unconstrained fn bar_proxy(mut ctx_limit: u32) -> () {
         bar((&mut ctx_limit))
     }

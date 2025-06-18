@@ -231,6 +231,10 @@ impl Function {
             }
         })
     }
+
+    pub fn has_data_bus_return_data(&self) -> bool {
+        self.dfg.data_bus.return_data.is_some()
+    }
 }
 
 impl Clone for Function {

@@ -3415,6 +3415,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
+ "strum",
 ]
 
 [[package]]

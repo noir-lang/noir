@@ -137,7 +137,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     Ok(ssa)
 }
 
-pub(crate) fn validate_ssa(ssa: &Ssa) {
+pub fn validate_ssa(ssa: &Ssa) {
     for function in ssa.functions.values() {
         validate_function(function);
     }
@@ -276,7 +276,9 @@ impl FunctionContext<'_> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
-                let field_count = self.builder.length_constant(*number_of_fields as u128);
+                let field_count = self
+                    .builder
+                    .numeric_constant(*number_of_fields as u128, NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
