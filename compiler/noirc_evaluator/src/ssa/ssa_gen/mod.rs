@@ -31,6 +31,7 @@ use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
 use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
+use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -131,7 +132,15 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
+    validate_ssa(&ssa);
+
     Ok(ssa)
+}
+
+pub fn validate_ssa(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        validate_function(function);
+    }
 }
 
 impl FunctionContext<'_> {
@@ -270,7 +279,9 @@ impl FunctionContext<'_> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
-                let field_count = self.builder.length_constant(*number_of_fields as u128);
+                let field_count = self
+                    .builder
+                    .numeric_constant(*number_of_fields as u128, NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))

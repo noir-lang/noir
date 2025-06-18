@@ -333,6 +333,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Brillig Array Get and Set Optimizations",
         vec![All, Debug],
     );
+    // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
     ssa_pass_builder.add_pass(
         Ssa::dead_instruction_elimination,
         "Dead Instruction Elimination",
@@ -345,6 +346,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
+    ssa_pass_builder.add_try_pass(Ssa::verify_no_dynamic_indices_to_references, "Verifying no dynamic array indices to reference value elements", vec![All, Debug]);
 
     ssa_pass_builder.finish()
 }
@@ -358,7 +360,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
         // It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
     ]
 }
 
@@ -378,10 +380,12 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        // We need to add an offset to constant array indices in Brillig.
+        // This can change which globals are used, because constant creation might result
+        // in the (re)use of otherwise unused global values.
+        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // We need to add an offset to constant array indices in Brillig.
-        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
 

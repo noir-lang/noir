@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 497
 expression: artifact
 ---
 {
@@ -48,7 +49,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pdNBboQgFAbgu7B2IQgqXqVpDCpOSAgaBpo0xrv3+Uba6YJk4mx+BPzkqbCRSQ/x1hs3L3fSfWxk8MZac+vtMqpgFgej216Q1O2D1xqGyNM8qFV57QLpXLS2IF/KRrzpviqHbVAeZsuCaDdBCw+cjdXH1V786TJP22Tb9heLlzVl4uSUZT3Ley6r04uSX1m/kml9zi7Vz9/zokm+LnO+znsh0+cX8tL7Nyyt31zyos74T+ip0fh/+5WUpIMfRjEZZoXJMQVmjdlgtpjyoU780BQ47B0KXu5Hgd6owerzVMzRjU+HJHyvaSYdo9Uvo56i10eBOAcl/wA=",
+  "debug_symbols": "ndPNjoMgEAfwd5mzB6Hg16tsNgYVGxKChkKTjem77ziV3fZA0nj5I4w/IQgbTHqI1964eblB97XB4I215trbZVTBLA5Ht0cBqdsHrzUOwUsd1aq8dgE6F60t4K5spJduq3LUBuWxWhag3YQtfnA2Vu9Pj+Jfl3naJNs0f1h+rBmXB2c863nei/ZyeFmKU/OLNL/gZ7ysk6/KnJd5L9u0fbI9tf6ap/nrU15WGf+NPTUa/3beoIQON5xRcsoLpaCUlBVlTdlQtk914KdmyHHvGfr9x9+VN2qw+jjVc3TjyyEPP2uqpGuw+mXUU/R6XyDVcMm/",
   "file_map": {
     "50": {
       "source": "use std::ops::{Neg, Not};\n\n// x = 3\nfn main(x: u32) {\n    let wx = Wrapper::new(x as i32);\n    let ex: i32 = 3;\n\n    assert((-wx).inner == -ex);\n    assert((!wx).inner == !ex);\n\n    // Check that it works with type variables (x's type isn't immediately known)\n    let x = 3;\n    assert(-3 == -x);\n}\n\nstruct Wrapper {\n    inner: i32,\n}\n\nimpl Wrapper {\n    fn new(inner: i32) -> Self {\n        Wrapper { inner }\n    }\n}\n\nimpl Neg for Wrapper {\n    fn neg(self) -> Wrapper {\n        Wrapper::new(-self.inner)\n    }\n}\n\nimpl Not for Wrapper {\n    fn not(self) -> Wrapper {\n        Wrapper::new(!self.inner)\n    }\n}\n",

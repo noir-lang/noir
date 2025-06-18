@@ -50,13 +50,12 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 mod tests {
 
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        // TODO(#8870): Allow more tests when the bug is fixed (fails in the 128th case).
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 127);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 200);
     }
 }

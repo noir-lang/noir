@@ -36,3 +36,18 @@ fn to_le_radix() {
     );
     assert_eq!(value, Value::Numeric(NumericValue::U8(255)));
 }
+
+#[test]
+fn as_witness() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+        b0():
+            v0 = add Field 0, Field 1
+            call as_witness(v0)
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, Value::Numeric(NumericValue::Field(1_u128.into())));
+}

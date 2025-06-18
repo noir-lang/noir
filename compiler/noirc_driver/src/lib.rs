@@ -39,6 +39,7 @@ mod stdlib;
 
 use debug::filter_relevant_files;
 
+pub use abi_gen::gen_abi;
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
@@ -741,6 +742,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
+        || options.count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
@@ -800,7 +802,7 @@ pub fn compile_no_check(
             create_program(program, &ssa_evaluator_options)?
         };
 
-    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
+    let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

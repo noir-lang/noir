@@ -16,8 +16,10 @@ use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact, ir::instruction::ErrorType, optimize_ssa_builder_into_acir,
-        primary_passes, secondary_passes, ssa_gen::Ssa,
+        SsaProgramArtifact,
+        ir::instruction::ErrorType,
+        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
+        ssa_gen::{Ssa, validate_ssa},
     },
 };
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -28,13 +30,6 @@ pub fn optimize_ssa_into_acir(
     ssa: Ssa,
     options: SsaEvaluatorOptions,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
-    let builder = SsaBuilder {
-        ssa,
-        ssa_logging: options.ssa_logging.clone(),
-        print_codegen_timings: options.print_codegen_timings,
-        passed: HashMap::new(),
-        skip_passes: vec![],
-    };
     let previous_hook = std::panic::take_hook();
     let panic_message = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
     let hook_message = panic_message.clone();
@@ -56,6 +51,14 @@ pub fn optimize_ssa_into_acir(
         }
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
+        validate_ssa(&ssa);
+        let builder = SsaBuilder {
+            ssa,
+            ssa_logging: options.ssa_logging.clone(),
+            print_codegen_timings: options.print_codegen_timings,
+            passed: HashMap::new(),
+            skip_passes: vec![],
+        };
         optimize_ssa_builder_into_acir(
             builder,
             &options,
