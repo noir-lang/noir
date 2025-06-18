@@ -371,7 +371,19 @@
 <a href="#370" id="370">370</a>
 <a href="#371" id="371">371</a>
 <a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -504,6 +516,18 @@
                 // but the fact remains that the interpreter would fail earlier than ACIR or Brillig.
                 // To deal with this we ignore these errors as long as both passes fail the same way.
                 </span>c1 == c2 &amp;&amp; t1 == t2
+            }
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+            )
+            | (
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+            ) =&gt; {
+                <span class="comment">// The value should be a `NumericValue` display format, which is `&lt;type&gt; &lt;value&gt;`.
+                </span><span class="kw">let </span>value = value.split_once(<span class="string">' '</span>).map(|(<span class="kw">_</span>, value)| value).unwrap_or(value);
+                value == constant.to_string()
             }
             (Internal(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Internal(<span class="kw">_</span>)) =&gt; {
                 <span class="comment">// We should not get, or ignore, internal errors.
