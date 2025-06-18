@@ -1611,6 +1611,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::I64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::U1(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" }),
             Value::U8(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" }),
             Value::U16(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u16" }),
             Value::U32(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u32" }),
@@ -1630,6 +1631,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::I16(value) => Ok(Value::I16(!value)),
             Value::I32(value) => Ok(Value::I32(!value)),
             Value::I64(value) => Ok(Value::I64(!value)),
+            Value::U1(value) => Ok(Value::U1(!value)),
             Value::U8(value) => Ok(Value::U8(!value)),
             Value::U16(value) => Ok(Value::U16(!value)),
             Value::U32(value) => Ok(Value::U32(!value)),
