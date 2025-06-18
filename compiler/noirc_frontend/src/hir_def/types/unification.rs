@@ -41,7 +41,10 @@ impl Kind {
             | (Kind::Integer | Kind::SignedIntegerOrField, Kind::Normal) => true,
 
             // Kind::Integer unifies with Kind::IntegerOrField
-            (Kind::Integer | Kind::SignedIntegerOrField, Kind::Integer | Kind::SignedIntegerOrField) => true,
+            (
+                Kind::Integer | Kind::SignedIntegerOrField,
+                Kind::Integer | Kind::SignedIntegerOrField,
+            ) => true,
 
             // Kind::IntegerOrField unifies with Kind::Numeric(_)
             (Kind::SignedIntegerOrField, Kind::Numeric(_typ))
@@ -140,12 +143,11 @@ impl Type {
                         })
                     }
                 }
-                TypeBinding::Unbound(_id, Kind::SignedIntegerOrField) => {
-                    other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
+                TypeBinding::Unbound(_id, Kind::SignedIntegerOrField) => other
+                    .try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = false;
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
-                    })
-                }
+                    }),
                 TypeBinding::Unbound(_id, Kind::Integer) => {
                     other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = true;
