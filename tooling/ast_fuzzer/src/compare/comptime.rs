@@ -75,7 +75,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
 }
 
 /// Interpret source code using the elaborator, without
-/// parsing it with nargo.
+/// parsing and compiling it with nargo.
 fn interpret(src: &str) -> Expression {
     use fm::{FileId, FileManager};
     use noirc_frontend::elaborator::{Elaborator, ElaboratorOptions};
