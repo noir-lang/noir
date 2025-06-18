@@ -32,6 +32,7 @@ rangemap = "1.4.0"
 strum.workspace = true
 strum_macros.workspace = true
 fxhash.workspace = true
+log.workspace = true
 
 [dev-dependencies]
 base64.workspace = true

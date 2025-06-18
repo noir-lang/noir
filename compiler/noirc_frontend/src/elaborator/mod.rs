@@ -2408,3 +2408,82 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
         }
     }
 }
+
+/// Interpret source code using the elaborator, without
+/// parsing and compiling it with nargo, converting
+/// the result into a monomorphized AST expression.
+pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
+    use std::path::PathBuf;
+    use fm::{FileId, FileManager};
+    use crate::hir::{def_collector::{dc_crate::DefCollector, dc_mod::collect_defs}, def_map::{CrateDefMap, ModuleData}, Context, ParsedFiles};
+    use crate::parse_program;
+    use crate::monomorphization::{
+        Monomorphizer,
+        debug_types::DebugTypeTracker,
+    };
+
+    let file = FileId::default();
+
+    let location = Location::new(Default::default(), file);
+    let root_module = ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // is contract
+        false, // is struct
+    );
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    let (module, errors) = parse_program(src, file);
+    // Skip warnings
+    let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).collect();
+    assert_eq!(errors.len(), 0);
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
+    let mut collector = DefCollector::new(def_map);
+
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+    context.def_maps.insert(krate, collector.def_map);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    let mut elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
+    );
+
+    // Skip compiler warnings
+    let errors: Vec<_> = elaborator.errors.iter().filter(|&e| e.is_error()).cloned().collect();
+    if !errors.is_empty() {
+        log::debug!("elaborator errors: {:?}", errors);
+    }
+    assert_eq!(errors.len(), 0);
+
+    let mut interpreter = elaborator.setup_interpreter();
+
+    // The most straightforward way to convert the interpreter result into
+    // an acceptable monomorphized AST expression seems to be converting it
+    // into HIR first and then processing it with the monomorphizer
+    let expr_id =
+        match interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
+            Err(e) => panic!("interpreter error: {:?}", e),
+            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
+                Err(e) => panic!("could not convert interpreter result into HIR: {:?}", e),
+                Ok(expr_id) => expr_id,
+            },
+        };
+
+    let mut monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+    monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible")
+}
