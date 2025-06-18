@@ -16,11 +16,7 @@ use noirc_driver::{
     file_manager_with_stdlib, prepare_crate,
 };
 use noirc_evaluator::ssa::SsaProgramArtifact;
-use noirc_frontend::{
-    hir::Context,
-    monomorphization::ast::Program,
-    elaborator::interpret,
-};
+use noirc_frontend::{elaborator::interpret, hir::Context, monomorphization::ast::Program};
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
 use crate::{

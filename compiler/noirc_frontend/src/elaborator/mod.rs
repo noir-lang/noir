@@ -2414,14 +2414,15 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
 /// parsing and compiling it with nargo, converting
 /// the result into a monomorphized AST expression.
 pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
-    use std::path::PathBuf;
-    use fm::{FileId, FileManager};
-    use crate::hir::{def_collector::{dc_crate::DefCollector, dc_mod::collect_defs}, def_map::{CrateDefMap, ModuleData}, Context, ParsedFiles};
-    use crate::parse_program;
-    use crate::monomorphization::{
-        Monomorphizer,
-        debug_types::DebugTypeTracker,
+    use crate::hir::{
+        Context, ParsedFiles,
+        def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
+        def_map::{CrateDefMap, ModuleData},
     };
+    use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+    use crate::parse_program;
+    use fm::{FileId, FileManager};
+    use std::path::PathBuf;
 
     let file = FileId::default();
 

@@ -63,7 +63,9 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(Some(u), FuncId(0), |u, fctx| fctx.gen_body_with_lit_call(u.unwrap(), FuncId(1)))?;
+    ctx.gen_function_with_body(Some(u), FuncId(0), |u, fctx| {
+        fctx.gen_body_with_lit_call(u.unwrap(), FuncId(1))
+    })?;
     ctx.rewrite_functions(u)?;
 
     let program = ctx.finalize();
