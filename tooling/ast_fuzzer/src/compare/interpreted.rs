@@ -132,6 +132,18 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // To deal with this we ignore these errors as long as both passes fail the same way.
                 c1 == c2 && t1 == t2
             }
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+            )
+            | (
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+            ) => {
+                // The value should be a `NumericValue` display format, which is `<type> <value>`.
+                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                value == constant.to_string()
+            }
             (Internal(_), _) | (_, Internal(_)) => {
                 // We should not get, or ignore, internal errors.
                 // They mean the interpreter got something unexpected that we need to fix.
