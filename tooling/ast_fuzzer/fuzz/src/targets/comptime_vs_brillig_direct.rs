@@ -77,7 +77,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        // TODO(#8870): Allow more tests when the bug is fixed (fails in the 128th case).
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 127);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 500);
     }
 }
