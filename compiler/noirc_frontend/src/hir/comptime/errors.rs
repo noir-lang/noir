@@ -126,11 +126,11 @@ pub enum InterpreterError {
         operator: &'static str,
         location: Location,
     },
-    InfixMathError {
+    BinaryOperationOverflow {
         operator: &'static str,
         location: Location,
     },
-    PrefixMathError {
+    NegateWithOverflow {
         location: Location,
     },
     CastToNonNumericType {
@@ -304,8 +304,8 @@ impl InterpreterError {
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
-            | InterpreterError::InfixMathError { location, .. }
-            | InterpreterError::PrefixMathError { location, .. }
+            | InterpreterError::BinaryOperationOverflow { location, .. }
+            | InterpreterError::NegateWithOverflow { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
@@ -508,7 +508,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
-            InterpreterError::InfixMathError { operator, location } => {
+            InterpreterError::BinaryOperationOverflow { operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
                 } else {
@@ -524,7 +524,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
-            InterpreterError::PrefixMathError { location } => {
+            InterpreterError::NegateWithOverflow { location } => {
                 let msg = "Attempt to negate with overflow".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
