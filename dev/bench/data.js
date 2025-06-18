@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750265186680,
+  "lastUpdate": 1750269854759,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18616,48 +18616,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "945885889ac24e450ca427cbb4efa78b40c35854",
-          "message": "chore: add return value to every execution_success program that produces an output (#8882)",
-          "timestamp": "2025-06-11T15:22:50Z",
-          "tree_id": "7fda5c59e77146cdb150ee105308f10c35c0b65c",
-          "url": "https://github.com/noir-lang/noir/commit/945885889ac24e450ca427cbb4efa78b40c35854"
-        },
-        "date": 1749656699244,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249240,
-            "range": "± 1310",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221479,
-            "range": "± 6763",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786188,
-            "range": "± 1756",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "12bf0dbfeae032cd4d09622259a99abbcff950ce",
           "message": "feat: SSA interpreter checks return value (#8883)",
           "timestamp": "2025-06-11T15:46:03Z",
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786036,
             "range": "± 1771",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e43a7f4e8fd784aa75e1fd525f582d1373db6bb2",
+          "message": "fix: Match against all Value recursive types when checking for a function/closure in a global (#8967)",
+          "timestamp": "2025-06-18T17:40:32Z",
+          "tree_id": "dfc70d12634dee2d94f2e43cc015856983f255f4",
+          "url": "https://github.com/noir-lang/noir/commit/e43a7f4e8fd784aa75e1fd525f582d1373db6bb2"
+        },
+        "date": 1750269842417,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251000,
+            "range": "± 350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224960,
+            "range": "± 10309",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791301,
+            "range": "± 20235",
             "unit": "ns/iter"
           }
         ]
