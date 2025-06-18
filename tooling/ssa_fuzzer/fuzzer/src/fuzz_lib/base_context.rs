@@ -511,8 +511,8 @@ impl FuzzerContext {
     /// 1) We can only have one return block;
     /// 2) Every block should have not more than two predecessors;
     /// 3) Every block must be terminated with return/jmp/jmp_if;
-    /// 4) Blocks from different branches should not be merged.
-    ///     e.g.
+    /// 4) Blocks from different branches should not be merged, e.g.
+    ///    ```text
     ///          b0
     ///         ↙  ↘
     ///        b1   b2
@@ -520,8 +520,9 @@ impl FuzzerContext {
     ///      b3   b4  |
     ///             ↘ ↙
     ///              b5
-    ///     is incorrect, because b2 and b4 are from different branches, so we cannot merge them.
-    ///
+    ///   ```  
+    ///   is incorrect, because b2 and b4 are from different branches, so we cannot merge them.
+    ///   
     /// so to merge blocks we need to merge every branch separately
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];

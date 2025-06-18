@@ -89,6 +89,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
