@@ -1509,7 +1509,13 @@
 <a href="#1508" id="1508">1508</a>
 <a href="#1509" id="1509">1509</a>
 <a href="#1510" id="1510">1510</a>
-<a href="#1511" id="1511">1511</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1767,12 +1773,17 @@
             <span class="kw-2">*</span>arg = map_value(<span class="kw-2">*</span>arg);
         }
     } <span class="kw">else if let </span>Instruction::MakeArray { typ, .. } = instruction {
+        <span class="kw">let </span><span class="kw-2">mut </span>modified_type = <span class="bool-val">false</span>;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(rep) = replacement_type(typ) {
             <span class="kw-2">*</span>typ = rep;
+            modified_type = <span class="bool-val">true</span>;
         }
+
         instruction.map_values_mut(map_value);
 
-        modified = <span class="bool-val">true</span>;
+        <span class="kw">if </span>modified_type {
+            modified = <span class="bool-val">true</span>;
+        }
     } <span class="kw">else </span>{
         instruction.map_values_mut(map_value);
     }
@@ -2089,7 +2100,8 @@
         // local_end_block3--/
         //
         // This is necessary since SSA panics during flattening if we immediately
-        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        // try to jump directly to end block instead
+        // (see https://github.com/noir-lang/noir/issues/7323 for a case where this happens).
         //
         // It'd also be more efficient to merge them tournament-bracket style but that
         // also leads to panics during flattening for similar reasons.

@@ -434,7 +434,7 @@
                 <span class="kw">return </span><span class="bool-val">true</span>;
             }
 
-            <span class="comment">// Check whether the only instruction is a recursive call, which prevents inlining the callee.
+            <span class="comment">// Don't inline recursive functions
             </span><span class="kw">if </span>recursive_functions.contains(<span class="kw-2">&amp;</span>callee.id()) {
                 <span class="kw">return </span><span class="bool-val">false</span>;
             }
