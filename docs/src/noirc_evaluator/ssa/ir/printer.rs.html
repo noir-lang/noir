@@ -395,7 +395,10 @@
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
 <a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -433,6 +436,9 @@
                 }
                 Value::Global(<span class="kw">_</span>) =&gt; {
                     <span class="macro">panic!</span>(<span class="string">"Value::Global should only be in the function dfg"</span>);
+                }
+                Value::Function(id) =&gt; {
+                    <span class="macro">writeln!</span>(f, <span class="string">"{}"</span>, id)<span class="question-mark">?</span>;
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected only numeric constant or instruction"</span>),
             };

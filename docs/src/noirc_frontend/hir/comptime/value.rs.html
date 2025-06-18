@@ -679,8 +679,7 @@
 <a href="#678" id="678">678</a>
 <a href="#679" id="679">679</a>
 <a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a>
-<a href="#682" id="682">682</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#681" id="681">681</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -1270,8 +1269,7 @@
             Value::Array(values, <span class="kw">_</span>) =&gt; {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Function(..) =&gt; <span class="bool-val">true</span>,
-            Value::Closure(..) =&gt; <span class="bool-val">true</span>,
+            Value::Function(..) | Value::Closure(..) =&gt; <span class="bool-val">true</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
