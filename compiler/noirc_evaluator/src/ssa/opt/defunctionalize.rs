@@ -52,8 +52,6 @@ use crate::ssa::{
 };
 use fxhash::FxHashMap as HashMap;
 
-use super::pure::Purity;
-
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
 /// ```text
@@ -655,7 +653,7 @@ fn create_dummy_function(
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
         let mut purities = HashMap::default();
-        purities.insert(id, Purity::Pure);
+        purities.insert(id, super::pure::Purity::Pure);
         function_builder.set_purities(Arc::new(purities));
 
         let results =
