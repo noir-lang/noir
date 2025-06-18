@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750255097538,
+  "lastUpdate": 1750255100933,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "b69b0d054fe7ab1512ba9e5897bd4583dfd0f11d",
-          "message": "fix: handle unconditional break during SSA codegen in all cases (#8855)",
-          "timestamp": "2025-06-10T18:02:26Z",
-          "tree_id": "c3215c3ddc9adad27e056fbb3bbcd0a4f22f0876",
-          "url": "https://github.com/noir-lang/noir/commit/b69b0d054fe7ab1512ba9e5897bd4583dfd0f11d"
-        },
-        "date": 1749580168661,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.404,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.614,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.166,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 121,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.066,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.504,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.772,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "954954d5eb3086eb721e7ec4752de4e431932903",
           "message": "feat: allow printing each SSA interpreter definition (#8865)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.791,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "46abffdff8e42af7ae1e2477ff7493031739cc31",
+          "message": "chore(fuzz): Consider `RangeCheckFailed` equivalent to `ConstantDoesNotFitType` if the value matches (#8958)",
+          "timestamp": "2025-06-18T13:29:12Z",
+          "tree_id": "45b8e9ed61d8a205268f559bc9443275fb3e3cd3",
+          "url": "https://github.com/noir-lang/noir/commit/46abffdff8e42af7ae1e2477ff7493031739cc31"
+        },
+        "date": 1750255087265,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.482,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.286,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.126,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 189,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 190,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.186,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.27,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.796,
             "unit": "s"
           }
         ]
