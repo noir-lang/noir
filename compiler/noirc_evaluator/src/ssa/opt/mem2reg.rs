@@ -940,9 +940,7 @@ mod tests {
         // The first store is not removed as it is used as a nested reference in another store.
         // We would need to track whether the store where `v0` is the store value gets removed to know whether
         // to remove it.
-        // The first store in b1 is removed since there is another store to the same reference
-        // in the same block, and the store is not needed before the later store.
-        // The rest of the stores are also removed as no loads are done within any blocks
+        // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
         let expected = "
         acir(inline) fn main f0 {
@@ -952,6 +950,7 @@ mod tests {
             v2 = allocate -> &mut &mut Field
             jmp b1()
           b1():
+            store Field 1 at v0
             return
         }
         ";
