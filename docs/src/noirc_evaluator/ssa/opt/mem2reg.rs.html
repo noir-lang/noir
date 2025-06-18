@@ -1517,7 +1517,9 @@
 <a href="#1516" id="1516">1516</a>
 <a href="#1517" id="1517">1517</a>
 <a href="#1518" id="1518">1518</a>
-<a href="#1519" id="1519">1519</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1551,7 +1553,7 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
-//!     
+//!
 //!     This removal requires a couple conditions:
 //!       - No store occurs to that address before the next load,
 //!       - The address is not used as an argument to a call
@@ -1771,15 +1773,17 @@
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>all_aliases_set_for_removal = aliases.any(|alias| {
+                <span class="comment">// Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
+                </span><span class="kw">let </span>has_alias_not_marked_for_removal = aliases.any(|alias| {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(alias_instructions) = <span class="self">self</span>.aliased_references.get(<span class="kw-2">&amp;</span>alias) {
-                        <span class="self">self</span>.instructions_to_remove.is_disjoint(alias_instructions)
+                        !alias_instructions.is_subset(<span class="kw-2">&amp;</span><span class="self">self</span>.instructions_to_remove)
                     } <span class="kw">else </span>{
                         <span class="bool-val">false
                     </span>}
                 });
 
-                <span class="kw">if </span>all_aliases_set_for_removal == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+                <span class="kw">if </span>has_alias_not_marked_for_removal == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
             }
@@ -2716,7 +2720,7 @@
         acir(inline) fn foo f1 {
           b0(v0: &amp;mut Field):
             return
-        }  
+        }
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();

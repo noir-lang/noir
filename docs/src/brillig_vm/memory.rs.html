@@ -379,7 +379,7 @@
     </span>NotAnInteger,
 }
 
-<span class="kw">impl</span>&lt;F&gt; MemoryValue&lt;F&gt; {
+<span class="kw">impl</span>&lt;F: std::fmt::Display&gt; MemoryValue&lt;F&gt; {
     <span class="doccomment">/// Builds a field-typed memory value.
     </span><span class="kw">pub fn </span>new_field(value: F) -&gt; <span class="self">Self </span>{
         MemoryValue::Field(value)
@@ -412,7 +412,7 @@
     <span class="kw">pub fn </span>to_usize(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="kw">match </span><span class="self">self </span>{
             MemoryValue::U32(value) =&gt; (<span class="kw-2">*</span>value).try_into().unwrap(),
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"value is not typed as brillig usize"</span>),
+            other =&gt; <span class="macro">panic!</span>(<span class="string">"value is not typed as brillig usize: {other}"</span>),
         }
     }
 }
