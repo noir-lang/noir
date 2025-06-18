@@ -16,7 +16,7 @@ impl Foo for Field {
     }
 
     fn bar() -> Self {
-        1
+        1_Field
     }
 }
 
