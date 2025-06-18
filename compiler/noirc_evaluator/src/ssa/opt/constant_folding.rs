@@ -1974,131 +1974,50 @@ mod test {
 
         brillig(inline) impure fn constructor f0 {
           b0(v4: Field, v5: Field, v6: Field):
-            v12 = allocate -> &mut u1
-            store u1 0 at v12
-            v14 = allocate -> &mut Field
-            store Field 0 at v14
-            v16 = allocate -> &mut Field
-            store Field 2 at v16
-            v18 = allocate -> &mut Field
-            store Field 2 at v18
-            v19 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            inc_rc v19
-            v21 = make_array [Field 44, Field 44, Field 44, Field 44] : [Field; 4]
-            v22 = allocate -> &mut [Field; 4]
-            store v21 at v22
-            jmp b1(u32 0)
-          b1(v7: u32):
-            v24 = lt v7, u32 3
-            jmpif v24 then: b2, else: b3
-          b2():
-            v89 = unchecked_add v7, u32 1
-            v90 = array_get v19, index v7 -> Field
-            v91 = load v22 -> [Field; 4]
-            v92 = lt v89, u32 4
-            constrain v92 == u1 1, "Index out of bounds"
-            v94 = array_set v91, index v89, value v90
-            store v94 at v22
-            jmp b1(v89)
-          b3():
-            v25 = load v22 -> [Field; 4]
-            v28, v29, v30, v31 = call f1(Field 73786976294838206464) -> ([Field; 3], [Field; 4], u32, u1)
-            v32 = allocate -> &mut [Field; 3]
-            store v28 at v32
-            v33 = allocate -> &mut [Field; 4]
-            store v29 at v33
-            v34 = allocate -> &mut u32
-            store v30 at v34
-            v35 = allocate -> &mut u1
+            v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v9 = make_array [Field 0, Field 0, Field 0, v4] : [Field; 4]
+            v10 = allocate -> &mut [Field; 3]
+            store v8 at v10
+            v11 = allocate -> &mut [Field; 4]
+            store v9 at v11
+            v12 = allocate -> &mut u32
+            store u32 0 at v12
+            v14 = allocate -> &mut u1
+            store u1 0 at v14
+            call f2(v10, v11, v12, v14, Field 44)
+            call f2(v10, v11, v12, v14, Field 0)
+            call f2(v10, v11, v12, v14, Field 0)
+            call f2(v10, v11, v12, v14, Field 0)
+            v19 = call f3(v10, v11, v12, v14) -> Field
+            v23 = call f1() -> [Field; 4]
+            v26 = allocate -> &mut [Field; 3]
+            store v8 at v26
+            v27 = allocate -> &mut [Field; 4]
+            store v23 at v27
+            v28 = allocate -> &mut u32
+            store u32 0 at v28
+            v29 = allocate -> &mut u1
+            store u1 0 at v29
+            v31 = call f1() -> [Field; 4]
+            v34 = allocate -> &mut [Field; 3]
+            store v8 at v34
+            v35 = allocate -> &mut [Field; 4]
             store v31 at v35
-            inc_rc v25
-            jmp b4(u32 0)
-          b4(v8: u32):
-            v37 = lt v8, u32 4
-            jmpif v37 then: b5, else: b6
-          b5():
-            v87 = array_get v25, index v8 -> Field
-            call f2(v32, v33, v34, v35, v87)
-            v88 = unchecked_add v8, u32 1
-            jmp b4(v88)
-          b6():
-            v39 = call f3(v32, v33, v34, v35) -> Field
-            v40 = load v18 -> Field
-            store v40 at v18
-            v42 = make_array [Field 13, Field 0, v39] : [Field; 3]
-            v44, v45, v46, v47 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
-            v48 = allocate -> &mut [Field; 3]
-            store v44 at v48
-            v49 = allocate -> &mut [Field; 4]
-            store v45 at v49
-            v50 = allocate -> &mut u32
-            store v46 at v50
-            v51 = allocate -> &mut u1
-            store v47 at v51
-            inc_rc v42
-            jmp b7(u32 0)
-          b7(v9: u32):
-            v52 = lt v9, u32 3
-            jmpif v52 then: b8, else: b9
-          b8():
-            v85 = array_get v42, index v9 -> Field
-            call f2(v48, v49, v50, v51, v85)
-            v86 = unchecked_add v9, u32 1
-            jmp b7(v86)
-          b9():
-            v53 = call f3(v48, v49, v50, v51) -> Field
-            constrain Field 2450013262318458645908142292135068279375397881270145071669041706508163653904 == v53, "Initialization hash does not match"
-            v56, v57, v58, v59 = call f1(Field 36893488147419103232) -> ([Field; 3], [Field; 4], u32, u1)
-            v60 = allocate -> &mut [Field; 3]
-            store v56 at v60
-            v61 = allocate -> &mut [Field; 4]
-            store v57 at v61
-            v62 = allocate -> &mut u32
-            store v58 at v62
-            v63 = allocate -> &mut u1
-            store v59 at v63
-            call f2(v60, v61, v62, v63, Field 6)
-            call f2(v60, v61, v62, v63, Field 1)
-            v67 = call f3(v60, v61, v62, v63) -> Field
-            v68 = make_array [v4, v5, v6] : [Field; 3]
-            inc_rc v68
-            v69, v70, v71, v72 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
-            v73 = allocate -> &mut [Field; 3]
-            store v69 at v73
-            v74 = allocate -> &mut [Field; 4]
-            store v70 at v74
-            v75 = allocate -> &mut u32
-            store v71 at v75
-            v76 = allocate -> &mut u1
-            store v72 at v76
-            inc_rc v68
-            jmp b10(u32 0)
-          b10(v10: u32):
-            v77 = lt v10, u32 3
-            jmpif v77 then: b11, else: b12
-          b11():
-            v83 = array_get v68, index v10 -> Field
-            call f2(v73, v74, v75, v76, v83)
-            v84 = unchecked_add v10, u32 1
-            jmp b10(v84)
-          b12():
-            v78 = call f3(v73, v74, v75, v76) -> Field
-            v79 = make_array [v4, v5, v6, v78] : [Field; 4]
-            jmp b13(u32 0)
-          b13(v11: u32):
-            v80 = lt v11, u32 4
-            jmpif v80 then: b14, else: b15
-          b14():
-            v82 = unchecked_add v11, u32 1
-            jmp b13(v82)
-          b15():
-            return v79
+            v36 = allocate -> &mut u32
+            store u32 0 at v36
+            v37 = allocate -> &mut u1
+            store u1 0 at v37
+            call f2(v26, v27, v28, v29, Field 13)
+            call f2(v26, v27, v28, v29, Field 0)
+            call f2(v26, v27, v28, v29, v19)
+            v39 = call f3(v26, v27, v28, v29) -> Field
+            v40 = call f3(v34, v35, v36, v37) -> Field
+            return v40
         }
         brillig(inline) predicate_pure fn new f1 {
-          b0(v4: Field):
-            v6 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            v7 = make_array [Field 0, Field 0, Field 0, v4] : [Field; 4]
-            return v6, v7, u32 0, u1 0
+          b0():
+            v7 = make_array [Field 0, Field 0, Field 0, Field 55340232221128654848] : [Field; 4]
+            return v7
         }
         brillig(inline) impure fn absorb f2 {
           b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1, v8: Field):
@@ -2192,7 +2111,7 @@ mod test {
         }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap().dead_instruction_elimination_pre_flattening();
+        let ssa = Ssa::from_str(src).unwrap();
 
         let result_before = ssa.interpret(vec![
             Value::Numeric(NumericValue::Field(1u32.into())),
