@@ -529,7 +529,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
                     push_type_variable_parts(binding, parts, files);
                 }
                 Kind::Integer => {
-                    push_type_parts(&Type::default_unsigned_integer_type(), parts, files)
+                    push_type_parts(&Type::default_unsigned_integer_type(), parts, files);
                 }
                 Kind::SignedIntegerOrField => parts.push(string_part("Field")),
             },
