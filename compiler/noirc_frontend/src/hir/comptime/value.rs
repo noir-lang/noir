@@ -585,11 +585,50 @@ impl Value {
 
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
+            Value::Function(..) => true,
+            Value::Closure(..) => true,
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Function(..) | Value::Closure(..) => true,
-            _ => false,
+            Value::Slice(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Tuple(values) => values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Struct(fields, _) => {
+                fields.values().any(|value| value.contains_function_or_closure())
+            }
+            Value::Enum(_, values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Field(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U1(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::U128(_)
+            | Value::String(_)
+            | Value::FormatString(_, _)
+            | Value::CtString(_)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitConstraint(_, _)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Zeroed(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_) => false,
         }
     }
 
