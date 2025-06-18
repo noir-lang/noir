@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750263834237,
+  "lastUpdate": 1750264388994,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9580a12c1184435af460a768d40a09f0f4b9df63",
-          "message": "chore(fuzz): Run fuzzing deterministically on CI (#8868)",
-          "timestamp": "2025-06-10T20:07:15Z",
-          "tree_id": "f50abbb6cce985b4fd7d2171658421b0114483fd",
-          "url": "https://github.com/noir-lang/noir/commit/9580a12c1184435af460a768d40a09f0f4b9df63"
-        },
-        "date": 1749587786888,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251134,
-            "range": "± 954",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227157,
-            "range": "± 1555",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2818033,
-            "range": "± 3596",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787551,
             "range": "± 1199",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39cec14be0a4dae7aff54a8b579535b27d58728b",
+          "message": "fix(formatter): reset indetnation after group changed it (#8966)",
+          "timestamp": "2025-06-18T16:10:12Z",
+          "tree_id": "9e9eb9a04f6dac4abf990464f7da84b28189c81c",
+          "url": "https://github.com/noir-lang/noir/commit/39cec14be0a4dae7aff54a8b579535b27d58728b"
+        },
+        "date": 1750264376467,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251203,
+            "range": "± 782",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223671,
+            "range": "± 2382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786036,
+            "range": "± 1771",
             "unit": "ns/iter"
           }
         ]
