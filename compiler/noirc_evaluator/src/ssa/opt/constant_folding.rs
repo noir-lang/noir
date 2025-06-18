@@ -1975,20 +1975,6 @@ mod test {
         brillig(inline) impure fn constructor f0 {
           b0(v4: Field, v5: Field, v6: Field):
             v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            v9 = make_array [Field 0, Field 0, Field 0, v4] : [Field; 4]
-            v10 = allocate -> &mut [Field; 3]
-            store v8 at v10
-            v11 = allocate -> &mut [Field; 4]
-            store v9 at v11
-            v12 = allocate -> &mut u32
-            store u32 0 at v12
-            v14 = allocate -> &mut u1
-            store u1 0 at v14
-            call f2(v10, v11, v12, v14, Field 44)
-            call f2(v10, v11, v12, v14, Field 0)
-            call f2(v10, v11, v12, v14, Field 0)
-            call f2(v10, v11, v12, v14, Field 0)
-            v19 = call f3(v10, v11, v12, v14) -> Field
             v23 = call f1() -> [Field; 4]
             v26 = allocate -> &mut [Field; 3]
             store v8 at v26
@@ -2009,7 +1995,7 @@ mod test {
             store u1 0 at v37
             call f2(v26, v27, v28, v29, Field 13)
             call f2(v26, v27, v28, v29, Field 0)
-            call f2(v26, v27, v28, v29, v19)
+            call f2(v26, v27, v28, v29, Field -4087343307756338700403239372564812286096576384563180486175056629770704656221)
             v39 = call f3(v26, v27, v28, v29) -> Field
             v40 = call f3(v34, v35, v36, v37) -> Field
             return v40
