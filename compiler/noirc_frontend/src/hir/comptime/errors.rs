@@ -133,6 +133,10 @@ pub enum InterpreterError {
     NegateWithOverflow {
         location: Location,
     },
+    CannotApplyMinusToType {
+        location: Location,
+        typ: &'static str,
+    },
     CastToNonNumericType {
         typ: Type,
         location: Location,
@@ -306,6 +310,7 @@ impl InterpreterError {
             | InterpreterError::InvalidValuesForBinary { location, .. }
             | InterpreterError::BinaryOperationOverflow { location, .. }
             | InterpreterError::NegateWithOverflow { location, .. }
+            | InterpreterError::CannotApplyMinusToType { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
@@ -526,6 +531,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::NegateWithOverflow { location } => {
                 let msg = "Attempt to negate with overflow".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::CannotApplyMinusToType { location, typ } => {
+                let msg = format!("Cannot apply unary operator `-` to type `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CastToNonNumericType { typ, location } => {

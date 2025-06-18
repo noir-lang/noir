@@ -1611,11 +1611,13 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
                 .checked_neg()
                 .map(Value::I64)
                 .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
-            Value::U8(value) => Ok(Value::U8(0 - value)),
-            Value::U16(value) => Ok(Value::U16(0 - value)),
-            Value::U32(value) => Ok(Value::U32(0 - value)),
-            Value::U64(value) => Ok(Value::U64(0 - value)),
-            Value::U128(value) => Ok(Value::U128(0 - value)),
+            Value::U8(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" }),
+            Value::U16(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u16" }),
+            Value::U32(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u32" }),
+            Value::U64(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u64" }),
+            Value::U128(_) => {
+                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u128" })
+            }
             value => {
                 let operator = "minus";
                 let typ = value.get_type().into_owned();
