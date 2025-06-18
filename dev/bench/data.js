@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750270826796,
+  "lastUpdate": 1750271007156,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "12bf0dbfeae032cd4d09622259a99abbcff950ce",
-          "message": "feat: SSA interpreter checks return value (#8883)",
-          "timestamp": "2025-06-11T15:46:03Z",
-          "tree_id": "740ee69ffc9b148113d901b927b5bb2d84a928e5",
-          "url": "https://github.com/noir-lang/noir/commit/12bf0dbfeae032cd4d09622259a99abbcff950ce"
-        },
-        "date": 1749658359162,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.293,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.191,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11343,6 +11274,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "71ab596c0f6ef955994d0af1c47f8e340a24898c",
+          "message": "fix(parser): let `as` have a lower precedence (#8956)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-18T17:45:35Z",
+          "tree_id": "3e685cf0f006ff188aa1bf0d08ef1ce5c155a158",
+          "url": "https://github.com/noir-lang/noir/commit/71ab596c0f6ef955994d0af1c47f8e340a24898c"
+        },
+        "date": 1750270994989,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.154,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.29,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.187,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 11.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
             "unit": "s"
           },
           {
