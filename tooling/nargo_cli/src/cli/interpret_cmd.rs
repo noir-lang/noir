@@ -19,7 +19,7 @@ use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
-use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
+use noirc_evaluator::ssa::{primary_passes, OptimizationLevel, SsaEvaluatorOptions, SsaLogging};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 use noirc_frontend::monomorphization::ast::Program;
@@ -235,6 +235,7 @@ fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
         inliner_aggressiveness: options.inliner_aggressiveness,
         max_bytecode_increase_percent: options.max_bytecode_increase_percent,
         skip_passes: options.skip_ssa_pass.clone(),
+        optimization_level: OptimizationLevel::All,
     }
 }
 
