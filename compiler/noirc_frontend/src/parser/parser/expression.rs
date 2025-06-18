@@ -70,14 +70,12 @@ impl Parser<'_> {
     }
 
     /// Term
-    ///    = UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
+    ///    = UnaryExpression
     ///    | CastExpression
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
-        let mut term = self.parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
-            allow_constructors,
-        )?;
+        let mut term = self.parse_unary(allow_constructors)?;
         let mut parsed;
 
         loop {
@@ -90,20 +88,13 @@ impl Parser<'_> {
         Some(term)
     }
 
-    /// UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
-    ///    = UnaryOp* AtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
-    fn parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
-        &mut self,
-        allow_constructors: bool,
-    ) -> Option<Expression> {
+    /// UnaryExpression
+    ///    = UnaryOp* Atom
+    fn parse_unary(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
         if let Some(operator) = self.parse_unary_op() {
-            let Some(rhs) = self
-                .parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
-                    allow_constructors,
-                )
-            else {
+            let Some(rhs) = self.parse_unary(allow_constructors) else {
                 self.expected_label(ParsingRuleLabel::Expression);
                 return None;
             };
@@ -112,7 +103,7 @@ impl Parser<'_> {
             return Some(Expression { kind, location });
         }
 
-        self.parse_atom_or_member_access_or_call_or_method_call_or_index(allow_constructors)
+        self.parse_atom(allow_constructors)
     }
 
     /// UnaryOp = '&' 'mut' | '-' | '!' | '*'
@@ -136,19 +127,15 @@ impl Parser<'_> {
         }
     }
 
-    /// AtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
-    ///     = Atom MemberAccessOrCallOrMethodCallOrIndexExpression*
-    fn parse_atom_or_member_access_or_call_or_method_call_or_index(
-        &mut self,
-        allow_constructors: bool,
-    ) -> Option<Expression> {
+    /// Atom
+    ///     = Quark AtomRhs*
+    fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
-        let mut atom = self.parse_atom(allow_constructors)?;
+        let mut atom = self.parse_quark(allow_constructors)?;
         let mut parsed;
 
         loop {
-            (atom, parsed) =
-                self.parse_member_access_or_call_or_method_call_or_index(atom, start_location);
+            (atom, parsed) = self.parse_atom_rhs(atom, start_location);
             if parsed {
                 continue;
             } else {
@@ -159,11 +146,11 @@ impl Parser<'_> {
         Some(atom)
     }
 
-    /// MemberAccessOrCallOrMethodCallOrIndexExpression
+    /// AtomRhs
     ///     = CallExpression
     ///     | MemberAccessOrMethodCallExpression
     ///     | IndexExpression
-    fn parse_member_access_or_call_or_method_call_or_index(
+    fn parse_atom_rhs(
         &mut self,
         mut atom: Expression,
         start_location: Location,
@@ -202,7 +189,7 @@ impl Parser<'_> {
         atom
     }
 
-    /// CallExpression = Atom CallArguments
+    /// CallExpression = Quark CallArguments
     fn parse_call(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if let Some(call_arguments) = self.parse_call_arguments() {
             let kind = ExpressionKind::Call(Box::new(CallExpression {
@@ -222,9 +209,9 @@ impl Parser<'_> {
     ///     = MemberAccessExpression
     ///     | MethodCallExpression
     ///
-    /// MemberAccessExpression = Atom '.' identifier
+    /// MemberAccessExpression = Quark '.' identifier
     ///
-    /// MethodCallExpression = Atom '.' identifier CallArguments
+    /// MethodCallExpression = Quark '.' identifier CallArguments
     fn parse_member_access_or_method_call(
         &mut self,
         atom: Expression,
@@ -272,7 +259,7 @@ impl Parser<'_> {
         }
     }
 
-    /// CastExpression = UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression 'as' Type
+    /// CastExpression = UnaryExpression 'as' Type
     fn parse_cast(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_keyword(Keyword::As) {
             return (atom, false);
@@ -289,7 +276,7 @@ impl Parser<'_> {
         (atom, true)
     }
 
-    /// IndexExpression = Atom '[' Expression ']'
+    /// IndexExpression = Quark '[' Expression ']'
     fn parse_index(&mut self, atom: Expression, start_location: Location) -> (Expression, bool) {
         if !self.eat_left_bracket() {
             return (atom, false);
@@ -316,7 +303,7 @@ impl Parser<'_> {
         }
     }
 
-    /// Atom
+    /// Quark
     ///     = Literal
     ///     | ParenthesesExpression
     ///     | UnsafeExpression
@@ -331,13 +318,13 @@ impl Parser<'_> {
     ///     | ResolvedExpression
     ///     | InternedExpression
     ///     | InternedStatementExpression
-    fn parse_atom(&mut self, allow_constructors: bool) -> Option<Expression> {
+    fn parse_quark(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
-        let kind = self.parse_atom_kind(allow_constructors)?;
+        let kind = self.parse_quark_kind(allow_constructors)?;
         Some(Expression { kind, location: self.location_since(start_location) })
     }
 
-    fn parse_atom_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
+    fn parse_quark_kind(&mut self, allow_constructors: bool) -> Option<ExpressionKind> {
         // Like in Rust, we allow parsing doc comments on top of an expression but they always produce a warning.
         self.warn_on_outer_doc_comments();
 
