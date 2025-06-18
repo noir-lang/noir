@@ -160,12 +160,13 @@ impl DefunctionalizationContext {
                     };
 
                     // Find the correct apply function
-                    let Some(apply_function) =
-                        self.get_apply_function(signature.clone(), func.runtime())
+                    let Some(apply_function) = self.get_apply_function(signature, func.runtime())
                     else {
-                        // If there is no apply function then this should be a parameter in a function
-                        // that will never actually be called, and the DIE pass will eventually remove it.
-                        continue;
+                        // We should have generated an apply function for all function's used as a value,
+                        // even if there are no variants for that function call.
+                        panic!(
+                            "ICE: It is expected to have an apply function for every function used as a value"
+                        );
                     };
 
                     // Replace the instruction with a call to apply
@@ -418,16 +419,6 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
     let mut apply_functions = HashMap::default();
 
     for ((signature, runtime), variants) in variants_map.into_iter() {
-        if variants.is_empty() {
-            // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
-            // However, we have to construct a dummy function for these dead calls as to not break the semantics
-            // of other SSA passes before DIE is reached.
-            apply_functions.entry((signature.clone(), runtime)).or_insert_with(|| {
-                let id = create_dummy_function(ssa, signature, runtime);
-                ApplyFunction { id, dispatches_to_multiple_functions: false }
-            });
-            continue;
-        }
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // This will be the same signature but with each function type replaced with
@@ -450,9 +441,14 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
             // If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
             create_apply_function(ssa, defunctionalized_signature, runtime, variants)
-        } else {
+        } else if !variants.is_empty() {
             // If there is only variant, we can use it directly rather than creating a new apply function.
             variants[0]
+        } else {
+            // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
+            // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
+            // and to not break the semantics of other SSA passes before DIE is reached.
+            create_dummy_function(ssa, defunctionalized_signature, runtime)
         };
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
@@ -626,7 +622,8 @@ fn create_apply_function(
 /// An example of a possible invalid function reference is an out-of-bounds access on a zero-length function array.
 ///
 /// This prevents the compiler from crashing by ensuring that the IR always has a valid function to call.
-/// The dummy function is pure, contains no logic, and just returns immediately.
+/// The dummy function is created using the supplied function's signature as to maintain a well formed SSA IR.
+/// The dummy function is pure, contains no logic, and just returns zeroed out values for its return types.
 ///
 /// This is especially useful in cases where we cannot statically resolve the function reference,
 /// but want to continue compiling the rest of the program safely.
@@ -661,10 +658,51 @@ fn create_dummy_function(
         purities.insert(id, Purity::Pure);
         function_builder.set_purities(Arc::new(purities));
 
-        function_builder.terminate_with_return(vec![]);
+        let results =
+            vecmap(signature.returns, |typ| make_dummy_return_data(&mut function_builder, &typ));
+
+        function_builder.terminate_with_return(results);
 
         function_builder.current_function
     })
+}
+
+/// Construct a dummy value to be returned from the placeholder function for calls to invalid lambda references.
+/// We need to construct the appropriate value so that our SSA is well formed even if the function
+/// pointer has no variants.
+fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) -> ValueId {
+    match typ {
+        Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
+        Type::Array(element_types, len) => {
+            let mut array = im::Vector::new();
+            for _ in 0..*len {
+                for typ in element_types.iter() {
+                    array.push_back(make_dummy_return_data(function_builder, typ));
+                }
+            }
+            function_builder.insert_make_array(array, typ.clone())
+        }
+        Type::Slice(element_types) => {
+            let mut array = im::Vector::new();
+            // The length of the slice does not matter for a dummy function, we simply
+            // desire to have a well formed SSA by returning the correct value for a type.
+            for typ in element_types.iter() {
+                array.push_back(make_dummy_return_data(function_builder, typ));
+            }
+            function_builder.insert_make_array(array, typ.clone())
+        }
+        Type::Reference(element_type) => {
+            let value = make_dummy_return_data(function_builder, element_type);
+            let alloc = function_builder.insert_allocate((**element_type).clone());
+            function_builder.insert_store(alloc, value);
+            alloc
+        }
+        Type::Function => {
+            unreachable!(
+                "ICE: Any function passed as a value should have already been converted to a field type"
+            )
+        }
+    }
 }
 
 /// Check post-execution properties:
@@ -1020,7 +1058,7 @@ mod tests {
         }
         brillig(inline_always) pure fn apply_dummy f3 {
           b0(v0: u128):
-            return
+            return u1 0
         }
         ");
     }
@@ -1236,11 +1274,11 @@ mod tests {
     fn empty_make_array_with_functions() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = make_array [] : [function; 0]
+          b0():
+            v0 = make_array [] : [function; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = array_get v1, index u32 0 -> function
-            call v5()
+            v4 = array_get v0, index u32 0 -> function
+            v6, v7 = call v4(u32 5) -> (u32, [u32; 2])
             return
         }
         "#;
@@ -1253,18 +1291,52 @@ mod tests {
         // 2. We generate a dummy function which is used to modify function calls when there are no variants
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = make_array [] : [Field; 0]
+          b0():
+            v0 = make_array [] : [Field; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = array_get v1, index u32 0 -> Field
-            call f1()
+            v4 = array_get v0, index u32 0 -> Field
+            v7, v8 = call f1(u32 5) -> (u32, [u32; 2])
             return
         }
         acir(inline_always) pure fn apply_dummy f1 {
-          b0():
-            return
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            return u32 0, v2
         }
         "#);
+    }
+
+    #[test]
+    fn empty_make_array_with_functions_returning_functions() {
+        let src = "
+      acir(inline) fn main f0 {
+        b0():
+          v0 = make_array [] : [function; 0]
+          constrain u1 0 == u1 1
+          v4 = array_get v0, index u32 0 -> function
+          v6 = call v4(u32 2) -> function
+          return
+      }
+      ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+        println!("{}", ssa);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            constrain u1 0 == u1 1
+            v4 = array_get v0, index u32 0 -> Field
+            v7 = call f1(u32 2) -> Field
+            return
+        }
+        acir(inline_always) pure fn apply_dummy f1 {
+          b0(v0: u32):
+            return Field 0
+        }
+        ");
     }
 
     #[test]
