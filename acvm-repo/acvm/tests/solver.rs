@@ -1640,7 +1640,7 @@ proptest! {
     #[test]
     fn poseidon2_permutation_matches_external_impl(inputs in proptest::collection::vec(field_element(), 4)) {
         let (result, expected_result) = run_both_poseidon2_permutations(inputs).unwrap();
-        prop_assert_eq!(result, expected_result)
+        prop_assert_eq!(result, expected_result);
     }
 
 
@@ -1701,7 +1701,7 @@ proptest! {
         let expected_results = drop_use_constant(&zero_or_ones);
         let pedantic_solving = true;
         let results = bigint_solve_from_to_le_bytes(modulus.clone(), zero_or_ones, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1709,7 +1709,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&input);
         let pedantic_solving = true;
         let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1724,7 +1724,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&input);
         let pedantic_solving = false;
         let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1739,7 +1739,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&input);
         let pedantic_solving = true;
         let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1753,7 +1753,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&input);
         let pedantic_solving = true;
         let results = bigint_solve_from_to_le_bytes(modulus.clone(), input, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1769,7 +1769,7 @@ proptest! {
             use_constant,
             pedantic_solving,
         );
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1784,7 +1784,7 @@ proptest! {
             use_constant,
             pedantic_solving,
         );
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1793,7 +1793,7 @@ proptest! {
         let lhs_results = bigint_solve_binary_op(bigint_add_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
         let rhs_results = bigint_solve_binary_op(bigint_add_op(), modulus, ys, xs, pedantic_solving);
 
-        prop_assert_eq!(lhs_results, rhs_results)
+        prop_assert_eq!(lhs_results, rhs_results);
     }
 
     #[test]
@@ -1802,7 +1802,7 @@ proptest! {
         let lhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus.clone(), xs.clone(), ys.clone(), pedantic_solving);
         let rhs_results = bigint_solve_binary_op(bigint_mul_op(), modulus, ys, xs, pedantic_solving);
 
-        prop_assert_eq!(lhs_results, rhs_results)
+        prop_assert_eq!(lhs_results, rhs_results);
     }
 
     #[test]
@@ -1819,7 +1819,7 @@ proptest! {
         let ys_zs = use_witnesses(op_ys_zs);
         let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_add_op(), modulus, xs, ys_zs, pedantic_solving);
 
-        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
+        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs);
     }
 
     #[test]
@@ -1836,7 +1836,7 @@ proptest! {
         let ys_zs = use_witnesses(op_ys_zs);
         let op_xs_op_ys_zs = bigint_solve_binary_op(bigint_mul_op(), modulus, xs, ys_zs, pedantic_solving);
 
-        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs)
+        prop_assert_eq!(op_xs_ys_op_zs, op_xs_op_ys_zs);
     }
 
     #[test]
@@ -1855,7 +1855,7 @@ proptest! {
         let mul_xs_zs = use_witnesses(mul_xs_zs);
         let add_mul_xs_ys_mul_xs_zs = bigint_solve_binary_op(bigint_add_op(), modulus, mul_xs_ys, mul_xs_zs, pedantic_solving);
 
-        prop_assert_eq!(mul_xs_add_ys_zs, add_mul_xs_ys_mul_xs_zs)
+        prop_assert_eq!(mul_xs_add_ys_zs, add_mul_xs_ys_mul_xs_zs);
     }
 
 
@@ -1866,7 +1866,7 @@ proptest! {
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_add_op(), modulus, zero, xs, pedantic_solving);
 
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1875,7 +1875,7 @@ proptest! {
         let expected_results = drop_use_constant(&zero);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, zero, xs, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1884,7 +1884,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, one, xs, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1892,7 +1892,7 @@ proptest! {
         let expected_results = drop_use_constant(&bigint_zeroed(&xs));
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs.clone(), xs, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1901,7 +1901,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, zero, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1910,7 +1910,7 @@ proptest! {
         let expected_results: Vec<_> = drop_use_constant(&xs);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, xs, one, pedantic_solving);
-        prop_assert!(results != expected_results, "{:?} == {:?}", results, expected_results)
+        prop_assert!(results != expected_results, "{:?} == {:?}", results, expected_results);
     }
 
     #[test]
@@ -1918,7 +1918,7 @@ proptest! {
         let one = drop_use_constant(&bigint_to_one(&xs));
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs.clone(), xs, pedantic_solving);
-        prop_assert_eq!(results, one)
+        prop_assert_eq!(results, one);
     }
 
     #[test]
@@ -1928,7 +1928,7 @@ proptest! {
         let expected_results = drop_use_constant(&zero);
         let pedantic_solving = false;
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, zero, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1938,7 +1938,7 @@ proptest! {
         let expected_results = drop_use_constant(&zero);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, zero, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1947,7 +1947,7 @@ proptest! {
         let expected_results = drop_use_constant(&xs);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, xs, one, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1956,7 +1956,7 @@ proptest! {
         let expected_results = drop_use_constant(&zero);
         let pedantic_solving = true;
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, zero, xs, pedantic_solving);
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1967,7 +1967,7 @@ proptest! {
         let add_bigint = use_witnesses(add_results);
         let results = bigint_solve_binary_op(bigint_sub_op(), modulus, add_bigint, ys, pedantic_solving);
 
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1978,7 +1978,7 @@ proptest! {
         let add_bigint = use_witnesses(sub_results);
         let results = bigint_solve_binary_op(bigint_add_op(), modulus, add_bigint, ys, pedantic_solving);
 
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -1989,7 +1989,7 @@ proptest! {
         let div_bigint = use_witnesses(div_results);
         let results = bigint_solve_binary_op(bigint_mul_op(), modulus, div_bigint, ys, pedantic_solving);
 
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 
     #[test]
@@ -2000,6 +2000,6 @@ proptest! {
         let mul_bigint = use_witnesses(mul_results);
         let results = bigint_solve_binary_op(bigint_div_op(), modulus, mul_bigint, ys, pedantic_solving);
 
-        prop_assert_eq!(results, expected_results)
+        prop_assert_eq!(results, expected_results);
     }
 }

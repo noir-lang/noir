@@ -13,7 +13,6 @@ cargo-fuzz = true
 workspace = true
 
 [dependencies]
-noirc_frontend.workspace = true
 noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
@@ -21,11 +20,8 @@ noirc_abi.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 thiserror.workspace = true
-tracing.workspace = true
 nargo.workspace = true
-log = "0.4"
 
 [features]
-bn254 = ["noirc_frontend/bn254"]
 nargo = ["nargo/rpc"]
 bls12_381 = []

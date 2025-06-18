@@ -31,7 +31,13 @@ jobs:
         with:
           targets: x86_64-unknown-linux-gnu
 
+      - name: Install nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest@0.9.88
+
       - name: Run tests
-        run: cargo test -p noir_ast_fuzzer_fuzz
+        run: cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUST_MIN_STACK: 8388608

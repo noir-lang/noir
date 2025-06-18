@@ -104,7 +104,7 @@ impl<'a> AsyncReplDebugger<'a> {
     }
 
     fn send_status(&mut self, status: DebuggerStatus) {
-        self.status_sender.send(status).expect("Downstream channel closed")
+        self.status_sender.send(status).expect("Downstream channel closed");
     }
 
     pub(super) fn start_debugging(
@@ -125,7 +125,7 @@ impl<'a> AsyncReplDebugger<'a> {
 
         if context.get_current_debug_location().is_none() {
             // handle circuit with no opcodes
-            self.last_result = DebugCommandResult::Done
+            self.last_result = DebugCommandResult::Done;
         }
 
         println!("Debugger ready to receive messages..");
@@ -153,16 +153,16 @@ impl<'a> AsyncReplDebugger<'a> {
                         self.handle_step(&mut context, |context| context.step_acir_opcode());
                     }
                     DebugCommandAPI::StepIntoOpcode => {
-                        self.handle_step(&mut context, |context| context.step_into_opcode())
+                        self.handle_step(&mut context, |context| context.step_into_opcode());
                     }
                     DebugCommandAPI::NextInto => {
-                        self.handle_step(&mut context, |context| context.next_into())
+                        self.handle_step(&mut context, |context| context.next_into());
                     }
                     DebugCommandAPI::NextOver => {
-                        self.handle_step(&mut context, |context| context.next_over())
+                        self.handle_step(&mut context, |context| context.next_over());
                     }
                     DebugCommandAPI::NextOut => {
-                        self.handle_step(&mut context, |context| context.next_out())
+                        self.handle_step(&mut context, |context| context.next_out());
                     }
                     DebugCommandAPI::Cont => self.handle_step(&mut context, |context| {
                         println!("(Continuing execution...)");
@@ -254,7 +254,7 @@ impl<'a> AsyncReplDebugger<'a> {
                 println!(
                     "Frame #{index}, opcode {} :: {}",
                     debug_location, opcodes[*instruction_pointer]
-                )
+                );
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
@@ -535,7 +535,7 @@ impl<'a> AsyncReplDebugger<'a> {
                 _ => DebugExecutionResult::Incomplete,
             }
         };
-        self.status_sender.send(DebuggerStatus::Final(result)).expect("Downstream channel closed")
+        self.status_sender.send(DebuggerStatus::Final(result)).expect("Downstream channel closed");
     }
 }
 
