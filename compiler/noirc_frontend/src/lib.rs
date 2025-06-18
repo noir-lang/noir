@@ -10,7 +10,7 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 // Temporary allows.
-#![allow(clippy::mutable_key_type)]
+#![allow(clippy::mutable_key_type, clippy::result_large_err)]
 
 #[cfg(test)]
 #[macro_use]
