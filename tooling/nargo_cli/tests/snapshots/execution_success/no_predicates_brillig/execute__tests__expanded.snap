@@ -13,8 +13,8 @@ fn intermediate_function(x: u32, y: u32) {
 #[no_predicates]
 fn basic_checks(x: u32, y: u32) {
     if x > y {
-        assert(x == 10);
+        assert(x == 10_u32);
     } else {
-        assert(y == 20);
+        assert(y == 20_u32);
     }
 }

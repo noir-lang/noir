@@ -557,12 +557,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             let hir_expr = self.interner.expression(&expr);
             if let HirExpression::Block(_) = &hir_expr {
                 self.push(' ');
-                self.show_hir_expression(hir_expr);
+                self.show_hir_expression(hir_expr, expr);
             } else {
                 self.push_str(" {\n");
                 self.increase_indent();
                 self.write_indent();
-                self.show_hir_expression(hir_expr);
+                self.show_hir_expression(hir_expr, expr);
                 self.push('\n');
                 self.decrease_indent();
                 self.write_indent();

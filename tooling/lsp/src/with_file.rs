@@ -519,8 +519,8 @@ fn unresolved_type_expression_with_file(
         UnresolvedTypeExpression::Variable(path) => {
             UnresolvedTypeExpression::Variable(path_with_file(path, file))
         }
-        UnresolvedTypeExpression::Constant(field_element, location) => {
-            UnresolvedTypeExpression::Constant(field_element, location_with_file(location, file))
+        UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
+            UnresolvedTypeExpression::Constant(field_element, suffix, location_with_file(location, file))
         }
         UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
             UnresolvedTypeExpression::BinaryOperation(

@@ -4,14 +4,14 @@ expression: expanded_code
 ---
 fn main(x: Field, y: Field) {
     let mut z: Field = x + y;
-    assert(z == 3);
+    assert(z == 3_Field);
     z = x * y;
-    assert(z == 2);
+    assert(z == 2_Field);
     regression_3057();
 }
 
 fn regression_3057() {
-    let mut array: [[Field; 2]; 2] = [[0, 1], [2, 3]];
-    array[0][1] = 2;
-    assert(array[0][1] == 2);
+    let mut array: [[Field; 2]; 2] = [[0_Field, 1_Field], [2_Field, 3_Field]];
+    array[0_u32][1_u32] = 2_Field;
+    assert(array[0_u32][1_u32] == 2_Field);
 }

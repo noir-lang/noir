@@ -236,7 +236,8 @@ impl Parser<'_> {
     fn parse_member_access_field_name(&mut self) -> Option<Ident> {
         if let Some(ident) = self.eat_ident() {
             Some(ident)
-        } else if let Some(int) = self.eat_int() {
+        // Using `None` because we don't want to allow integer type suffixes on tuple field names
+        } else if let Some((int, None)) = self.eat_int() {
             Some(Ident::new(int.to_string(), self.previous_token_location))
         } else {
             self.push_error(
@@ -728,8 +729,8 @@ impl Parser<'_> {
             return Some(ExpressionKind::boolean(bool));
         }
 
-        if let Some(int) = self.eat_int() {
-            return Some(ExpressionKind::integer(int));
+        if let Some((int, suffix)) = self.eat_int() {
+            return Some(ExpressionKind::integer(int, suffix));
         }
 
         if let Some(string) = self.eat_str() {
@@ -1061,9 +1062,10 @@ mod tests {
 
     #[test]
     fn parses_integer_literal() {
-        let src = "42";
+        let src = "42u32";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        use crate::token::IntegerTypeSuffix::U32;
+        let ExpressionKind::Literal(Literal::Integer(value, Some(U32))) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::positive(42_u128));
@@ -1073,7 +1075,7 @@ mod tests {
     fn parses_negative_integer_literal() {
         let src = "-42";
         let expr = parse_expression_no_errors(src);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::negative(42_u128));
@@ -1086,7 +1088,7 @@ mod tests {
         let ExpressionKind::Parenthesized(expr) = expr.kind else {
             panic!("Expected parenthesized expression");
         };
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::positive(42_u128));
@@ -1141,13 +1143,13 @@ mod tests {
         assert_eq!(exprs.len(), 2);
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::positive(1_u128));
 
         let expr = exprs.remove(0);
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::positive(2_u128));
@@ -1167,7 +1169,7 @@ mod tests {
             panic!("Expected expression statement");
         };
 
-        let ExpressionKind::Literal(Literal::Integer(value)) = expr.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, None)) = expr.kind else {
             panic!("Expected integer literal");
         };
         assert_eq!(value, SignedField::positive(1_u128));

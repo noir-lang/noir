@@ -9,10 +9,10 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::type_check::{generics::TraitGenerics, TypeCheckError},
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitId, TypeAliasId},
-    signed_field::{AbsU128, SignedField},
+    signed_field::{AbsU128, SignedField}, token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -261,6 +261,15 @@ impl Kind {
                     location,
                 }
             }),
+        }
+    }
+
+    /// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
+    /// Note that `Kind::IntegerOrField` and `Kind::Integer` resolve to types and are thus not numeric.
+    pub(crate) fn as_integer_type_suffix(&self) -> Option<IntegerTypeSuffix> {
+        match self {
+            Kind::Numeric(typ) => typ.as_integer_type_suffix(),
+            _ => None,
         }
     }
 }
@@ -2502,6 +2511,24 @@ impl Type {
             | Type::Quoted(..)
             | Type::Forall(..)
             | Type::Error => self,
+        }
+    }
+
+    pub(crate) fn as_integer_type_suffix(&self) -> Option<IntegerTypeSuffix> {
+        use { Signedness::*, IntegerBitSize::* };
+        match self.follow_bindings_shallow().as_ref() {
+            Type::FieldElement => Some(IntegerTypeSuffix::Field),
+            Type::Integer(Signed, Eight) => Some(IntegerTypeSuffix::I8),
+            Type::Integer(Signed, Sixteen) => Some(IntegerTypeSuffix::I16),
+            Type::Integer(Signed, ThirtyTwo) => Some(IntegerTypeSuffix::I32),
+            Type::Integer(Signed, SixtyFour) => Some(IntegerTypeSuffix::I64),
+            Type::Integer(Unsigned, One) => Some(IntegerTypeSuffix::U1),
+            Type::Integer(Unsigned, Eight) => Some(IntegerTypeSuffix::U8),
+            Type::Integer(Unsigned, Sixteen) => Some(IntegerTypeSuffix::U16),
+            Type::Integer(Unsigned, ThirtyTwo) => Some(IntegerTypeSuffix::U32),
+            Type::Integer(Unsigned, SixtyFour) => Some(IntegerTypeSuffix::U64),
+            Type::Integer(Unsigned, HundredTwentyEight) => Some(IntegerTypeSuffix::U128),
+            _ => None,
         }
     }
 }

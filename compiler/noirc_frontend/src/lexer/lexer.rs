@@ -2,7 +2,9 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{
+        FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, SpannedToken, Token, Tokens,
+    },
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
@@ -333,7 +335,7 @@ impl<'a> Lexer<'a> {
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            '0'..='9' => self.eat_digit(initial_char),
+            '0'..='9' => self.eat_digits(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
@@ -403,32 +405,22 @@ impl<'a> Lexer<'a> {
         Ok(ident_token.into_span(start, end))
     }
 
-    fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
+    fn eat_digits(&mut self, initial_char: char) -> SpannedTokenResult {
         let start = self.position;
 
         let integer_str = self.eat_while(Some(initial_char), |ch| {
-            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x') | (ch == '_')
+            // We eat any alphanumeric character. Even though we're only expecting
+            // integers, we don't want to allow things like `1234abc` to be lexed
+            // as an integer followed by an ident. We'd rather an invalid integer error here.
+            // This also lets us parse integer type suffixes more easily.
+            ch.is_ascii_alphanumeric() | (ch == '_')
         });
 
         let end = self.position;
 
-        // We want to enforce some simple rules about usage of underscores:
-        // 1. Underscores cannot appear at the end of a integer literal. e.g. 0x123_.
-        // 2. There cannot be more than one underscore consecutively, e.g. 0x5__5, 5__5.
-        //
-        // We're not concerned with an underscore at the beginning of a decimal literal
-        // such as `_5` as this would be lexed into an ident rather than an integer literal.
-        let invalid_underscore_location = integer_str.ends_with('_');
-        let consecutive_underscores = integer_str.contains("__");
-        if invalid_underscore_location || consecutive_underscores {
-            return Err(LexerErrorKind::InvalidIntegerLiteral {
-                location: self.location(Span::inclusive(start, end)),
-                found: integer_str,
-            });
-        }
-
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
-        let integer_str = integer_str.replace('_', "");
+        let mut integer_str = integer_str.replace('_', "");
+        let type_suffix = Self::check_for_integer_type_suffix(&mut integer_str);
 
         let bigint_result = match integer_str.strip_prefix("0x") {
             Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
@@ -454,8 +446,36 @@ impl<'a> Lexer<'a> {
             }
         };
 
-        let integer_token = Token::Int(integer);
+        let integer_token = Token::Int(integer, type_suffix);
         Ok(integer_token.into_span(start, end))
+    }
+
+    /// Check for and return the type suffix on the integer string if it exists.
+    /// If there is a type suffix, it is also stripped from the string
+    fn check_for_integer_type_suffix(integer_string: &mut String) -> Option<IntegerTypeSuffix> {
+        let cases = [
+            ("i8", IntegerTypeSuffix::I8),
+            ("i16", IntegerTypeSuffix::I16),
+            ("i32", IntegerTypeSuffix::I32),
+            ("i64", IntegerTypeSuffix::I64),
+            ("u1", IntegerTypeSuffix::U1),
+            ("u8", IntegerTypeSuffix::U8),
+            ("u16", IntegerTypeSuffix::U16),
+            ("u32", IntegerTypeSuffix::U32),
+            ("u64", IntegerTypeSuffix::U64),
+            ("u128", IntegerTypeSuffix::U128),
+            ("Field", IntegerTypeSuffix::Field),
+        ];
+
+        let len = integer_string.len();
+        for (suffix_string, suffix_value) in cases {
+            if integer_string.ends_with(suffix_string) {
+                integer_string.truncate(len - suffix_string.len());
+                return Some(suffix_value);
+            }
+        }
+
+        None
     }
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
@@ -1046,7 +1066,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1068,7 +1088,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1116,7 +1136,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1305,11 +1325,15 @@ mod tests {
     #[test]
     fn test_eat_integer_literals() {
         let test_cases: Vec<(&str, Token)> = vec![
-            ("0x05", Token::Int(5_i128.into())),
-            ("5", Token::Int(5_i128.into())),
-            ("0x1234_5678", Token::Int(0x1234_5678_u128.into())),
-            ("0x_01", Token::Int(0x1_u128.into())),
-            ("1_000_000", Token::Int(1_000_000_u128.into())),
+            ("0x05", Token::Int(5_i128.into(), None)),
+            ("5", Token::Int(5_i128.into(), None)),
+            ("0x1234_5678", Token::Int(0x1234_5678_u128.into(), None)),
+            ("0x_01", Token::Int(0x1_u128.into(), None)),
+            ("1_000_000", Token::Int(1_000_000_u128.into(), None)),
+            ("1__0___Field", Token::Int(10_u32.into(), Some(IntegerTypeSuffix::Field))),
+            ("0x1u1", Token::Int(1_u32.into(), Some(IntegerTypeSuffix::U1))),
+            ("97_i64", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::I64))),
+            ("97_u128", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::U128))),
         ];
 
         for (input, expected_token) in test_cases {
@@ -1361,7 +1385,7 @@ mod tests {
 
         // Int position
         let int_position = whitespace_position + 1;
-        let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
+        let int_token = Token::Int(5_i128.into(), None).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1389,14 +1413,14 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("five".to_string()),
             Token::Assign,
-            Token::Int(5_i128.into()),
+            Token::Int(5_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
             Token::Ident("Field".to_string()),
             Token::Assign,
-            Token::Int(10_i128.into()),
+            Token::Int(10_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("mul".to_string()),
@@ -1422,7 +1446,7 @@ mod tests {
             Token::Ident("ten".to_string()),
             Token::RightParen,
             Token::Equal,
-            Token::Int(50_i128.into()),
+            Token::Int(50_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Assert),
             Token::LeftParen,
@@ -1430,7 +1454,7 @@ mod tests {
             Token::Plus,
             Token::Ident("five".to_string()),
             Token::Equal,
-            Token::Int(15_i128.into()),
+            Token::Int(15_i128.into(), None),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,

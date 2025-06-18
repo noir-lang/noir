@@ -36,7 +36,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     shared::Signedness,
-    token::{FmtStrFragment, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
 use super::{
@@ -55,7 +55,7 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(_)));
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
@@ -254,8 +254,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer) => {
-                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
+            Literal::Integer(integer, suffix) => {
+                (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -268,6 +268,24 @@ impl Elaborator<'_> {
             Literal::Slice(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, false)
             }
+        }
+    }
+
+    fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
+        use {Signedness::*, Type::Integer};
+        match suffix {
+            Some(IntegerTypeSuffix::I8) => Integer(Signed, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
+            Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::U64) => Integer(Unsigned, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U128) => Integer(Unsigned, IntegerBitSize::HundredTwentyEight),
+            Some(IntegerTypeSuffix::Field) => Type::FieldElement,
+            None => self.polymorphic_integer_or_field(),
         }
     }
 
@@ -317,7 +335,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
