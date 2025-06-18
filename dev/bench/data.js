@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750280310380,
+  "lastUpdate": 1750283554187,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5a0182fa5c9371ceb91c1f216526812344f6054a",
-          "message": "chore(ssa): Simplify truncate when the bit size we are truncating to is greater than the value's max bit size (#8875)",
-          "timestamp": "2025-06-11T17:26:17Z",
-          "tree_id": "cedeee43177c8ffb6a4b5505fe134e3a145418ca",
-          "url": "https://github.com/noir-lang/noir/commit/5a0182fa5c9371ceb91c1f216526812344f6054a"
-        },
-        "date": 1749664118201,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248757,
-            "range": "± 748",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221347,
-            "range": "± 5684",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782968,
-            "range": "± 2666",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777239,
             "range": "± 2030",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e96b40c4214967f14da5beabf2570a2b082940e7",
+          "message": "fix(defunctionalize): Create a placeholder function for first-class function calls with no variants (#8697)",
+          "timestamp": "2025-06-18T21:28:15Z",
+          "tree_id": "ab98ee361855f63c5af3b8ba3fef5c62c6c23764",
+          "url": "https://github.com/noir-lang/noir/commit/e96b40c4214967f14da5beabf2570a2b082940e7"
+        },
+        "date": 1750283540901,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257594,
+            "range": "± 3914",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224825,
+            "range": "± 4039",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783372,
+            "range": "± 3568",
             "unit": "ns/iter"
           }
         ]
