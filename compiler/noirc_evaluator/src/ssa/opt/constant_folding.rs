@@ -1992,14 +1992,14 @@ mod test {
             v24 = lt v7, u32 3
             jmpif v24 then: b2, else: b3
           b2():
-            v94 = unchecked_add v7, u32 1
-            v95 = array_get v19, index v7 -> Field
-            v96 = load v22 -> [Field; 4]
-            v97 = lt v94, u32 4
-            constrain v97 == u1 1, "Index out of bounds"
-            v99 = array_set v96, index v94, value v95
-            store v99 at v22
-            jmp b1(v94)
+            v89 = unchecked_add v7, u32 1
+            v90 = array_get v19, index v7 -> Field
+            v91 = load v22 -> [Field; 4]
+            v92 = lt v89, u32 4
+            constrain v92 == u1 1, "Index out of bounds"
+            v94 = array_set v91, index v89, value v90
+            store v94 at v22
+            jmp b1(v89)
           b3():
             v25 = load v22 -> [Field; 4]
             v28, v29, v30, v31 = call f1(Field 73786976294838206464) -> ([Field; 3], [Field; 4], u32, u1)
@@ -2017,10 +2017,10 @@ mod test {
             v37 = lt v8, u32 4
             jmpif v37 then: b5, else: b6
           b5():
-            v92 = array_get v25, index v8 -> Field
-            call f2(v32, v33, v34, v35, v92)
-            v93 = unchecked_add v8, u32 1
-            jmp b4(v93)
+            v87 = array_get v25, index v8 -> Field
+            call f2(v32, v33, v34, v35, v87)
+            v88 = unchecked_add v8, u32 1
+            jmp b4(v88)
           b6():
             v39 = call f3(v32, v33, v34, v35) -> Field
             v40 = load v18 -> Field
@@ -2041,10 +2041,10 @@ mod test {
             v52 = lt v9, u32 3
             jmpif v52 then: b8, else: b9
           b8():
-            v90 = array_get v42, index v9 -> Field
-            call f2(v48, v49, v50, v51, v90)
-            v91 = unchecked_add v9, u32 1
-            jmp b7(v91)
+            v85 = array_get v42, index v9 -> Field
+            call f2(v48, v49, v50, v51, v85)
+            v86 = unchecked_add v9, u32 1
+            jmp b7(v86)
           b9():
             v53 = call f3(v48, v49, v50, v51) -> Field
             constrain Field 2450013262318458645908142292135068279375397881270145071669041706508163653904 == v53, "Initialization hash does not match"
@@ -2060,45 +2060,39 @@ mod test {
             call f2(v60, v61, v62, v63, Field 6)
             call f2(v60, v61, v62, v63, Field 1)
             v67 = call f3(v60, v61, v62, v63) -> Field
-            call f5(v67)
-            v69 = make_array [v4, v5, v6] : [Field; 3]
-            inc_rc v69
-            v70, v71, v72, v73 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
-            v74 = allocate -> &mut [Field; 3]
+            v68 = make_array [v4, v5, v6] : [Field; 3]
+            inc_rc v68
+            v69, v70, v71, v72 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
+            v73 = allocate -> &mut [Field; 3]
+            store v69 at v73
+            v74 = allocate -> &mut [Field; 4]
             store v70 at v74
-            v75 = allocate -> &mut [Field; 4]
+            v75 = allocate -> &mut u32
             store v71 at v75
-            v76 = allocate -> &mut u32
+            v76 = allocate -> &mut u1
             store v72 at v76
-            v77 = allocate -> &mut u1
-            store v73 at v77
-            inc_rc v69
+            inc_rc v68
             jmp b10(u32 0)
           b10(v10: u32):
-            v78 = lt v10, u32 3
-            jmpif v78 then: b11, else: b12
+            v77 = lt v10, u32 3
+            jmpif v77 then: b11, else: b12
           b11():
-            v88 = array_get v69, index v10 -> Field
-            call f2(v74, v75, v76, v77, v88)
-            v89 = unchecked_add v10, u32 1
-            jmp b10(v89)
+            v83 = array_get v68, index v10 -> Field
+            call f2(v73, v74, v75, v76, v83)
+            v84 = unchecked_add v10, u32 1
+            jmp b10(v84)
           b12():
-            v79 = call f3(v74, v75, v76, v77) -> Field
-            v80 = make_array [v4, v5, v6, v79] : [Field; 4]
+            v78 = call f3(v73, v74, v75, v76) -> Field
+            v79 = make_array [v4, v5, v6, v78] : [Field; 4]
             jmp b13(u32 0)
           b13(v11: u32):
-            v81 = lt v11, u32 4
-            jmpif v81 then: b14, else: b15
+            v80 = lt v11, u32 4
+            jmpif v80 then: b14, else: b15
           b14():
-            v82 = cast v11 as Field
-            v83 = add Field 1, v82
-            v84 = array_get v80, index v11 -> Field
-            call f6(v83, v84)
-            v87 = unchecked_add v11, u32 1
-            jmp b13(v87)
+            v82 = unchecked_add v11, u32 1
+            jmp b13(v82)
           b15():
-            call f5(Field 0)
-            return v80
+            return v79
         }
         brillig(inline) predicate_pure fn new f1 {
           b0(v4: Field):
@@ -2196,17 +2190,9 @@ mod test {
             v29 = unchecked_add v8, u32 1
             jmp b1(v29)
         }
-        brillig(inline) impure fn avmOpcodeEmitNullifier f5 {
-          b0(v4: Field):
-            return
-        }
-        brillig(inline) impure fn avmOpcodeStorageWrite f6 {
-          b0(v4: Field, v5: Field):
-            return
-        }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap().dead_instruction_elimination_pre_flattening();
 
         let result_before = ssa.interpret(vec![
             Value::Numeric(NumericValue::Field(1u32.into())),
