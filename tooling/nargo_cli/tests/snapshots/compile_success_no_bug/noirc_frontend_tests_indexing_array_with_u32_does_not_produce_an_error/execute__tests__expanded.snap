@@ -4,6 +4,6 @@ expression: expanded_code
 ---
 fn main() {
     let index: u32 = 0;
-    let array: [Field; 3] = [1, 2, 3];
-    let _: Field = array[index];
+    let array: [i32; 3] = [1, 2, 3];
+    let _: i32 = array[index];
 }

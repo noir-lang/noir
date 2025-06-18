@@ -9,7 +9,7 @@ warning: struct `FooParent` is never constructed
   │        --------- struct is never constructed
   │
 
-error: No method named 'push_back' found for type '[Foo<[Field]>; 2]'
+error: No method named 'push_back' found for type '[Foo<[i32]>; 2]'
    ┌─ src/main.nr:21:13
    │
 21 │     slice = slice.push_back(foo);

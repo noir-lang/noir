@@ -24,7 +24,7 @@ warning: Unused expression result of type str<1>
    │ ------ While running this function attribute
    │
 
-error: Types in a binary operation should match, but found Field and str<1>
+error: Types in a binary operation should match, but found i32 and str<1>
   ┌─ src/main.nr:4:1
   │
 4 │ #[foo]
@@ -34,7 +34,7 @@ error: Types in a binary operation should match, but found Field and str<1>
   │             -------
   │
 
-error: Types in a binary operation should match, but found Field and str<1>
+error: Types in a binary operation should match, but found i32 and str<1>
    ┌─ src/other.nr:2:13
    │
  2 │     quote { 1 + "a" }

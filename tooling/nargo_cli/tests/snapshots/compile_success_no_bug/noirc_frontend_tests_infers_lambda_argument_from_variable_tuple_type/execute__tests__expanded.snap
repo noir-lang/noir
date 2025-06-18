@@ -7,5 +7,5 @@ pub struct Foo {
 }
 
 fn main() {
-    let _: (fn(Foo) -> Field, Field) = (|foo: Foo| -> Field foo.value, 1);
+    let _: (fn(Foo) -> Field, i32) = (|foo: Foo| -> Field foo.value, 1);
 }

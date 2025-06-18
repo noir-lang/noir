@@ -12,7 +12,7 @@ fn main(x: [Field; 3]) {
 
 unconstrained fn read_array(x: [Field; 3]) {
     assert(x[0] == 1);
-    let y: [Field; 3] = [1, 5, 27];
+    let y: [i32; 3] = [1, 5, 27];
     assert(y[x[0] as u32] == 5);
 }
 

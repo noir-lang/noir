@@ -9,8 +9,8 @@ fn main() {
 }
 
 unconstrained fn check_loop() {
-    let mut i: Field = 0;
-    let mut sum: Field = 0;
+    let mut i: i32 = 0;
+    let mut sum: i32 = 0;
     loop {
         if i == 4 { break; };
         if i == 2 {

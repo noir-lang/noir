@@ -29,12 +29,12 @@ error: No matching impl found for `Field: Eq`
   │
   = Required by `[Field; 3]: Eq`
 
-error: No matching impl found for `Field: Eq`
+error: No matching impl found for `i32: Eq`
   ┌─ src/main.nr:7:12
   │
 7 │     assert(foo(array));
-  │            --- No impl for `Field: Eq`
+  │            --- No impl for `i32: Eq`
   │
-  = Required by `[Field; 3]: Eq`
+  = Required by `[i32; 3]: Eq`
 
 Aborting due to 4 previous errors

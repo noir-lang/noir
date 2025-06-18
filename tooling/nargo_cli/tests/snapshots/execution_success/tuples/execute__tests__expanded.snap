@@ -6,7 +6,7 @@ fn main(x: Field, y: Field) {
     let pair: (Field, Field) = (x, y);
     assert(pair.0 == 1);
     assert(pair.1 == 0);
-    let (a, b): (Field, Field) = if true { (0, 1) } else { (2, 3) };
+    let (a, b): (i32, i32) = if true { (0, 1) } else { (2, 3) };
     assert(a == 0);
     assert(b == 1);
     let (u, v): (Field, Field) = if (x as u32) < 1 {
@@ -16,7 +16,7 @@ fn main(x: Field, y: Field) {
     };
     assert(u == (x + 1));
     assert(v == x);
-    let mut mutable: ((Field, Field), Field, Field, Field) = ((0, 0), 1, 2, 3);
+    let mut mutable: ((Field, Field), i32, i32, i32) = ((0, 0), 1, 2, 3);
     mutable.0 = (x, y);
     mutable.2 = 7;
     assert(mutable.0.0 == 1);

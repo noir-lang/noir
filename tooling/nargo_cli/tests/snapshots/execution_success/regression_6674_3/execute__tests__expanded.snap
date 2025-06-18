@@ -173,7 +173,7 @@ pub unconstrained fn sort_by<T, let N: u32>(array: [T; N]) -> [T; N] {
 }
 
 unconstrained fn get_sorting_index<T, let N: u32>(array: [T; N]) {
-    let _: [Field; 4] = [0; 4];
+    let _: [i32; 4] = [0; 4];
     let mut a: [T; N] = array;
     for i in 1..4 {
         for j in 0..i {

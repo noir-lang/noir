@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let (first, rest): (Field, [Field; 4 - 1]) = split_first([1, 2, 3, 4]);
+    let (first, rest): (i32, [i32; 4 - 1]) = split_first([1, 2, 3, 4]);
     assert(first == 1);
     assert(rest == [2, 3, 4]);
-    let _: (Field, [Field; 3 - 1]) = split_first([1, 2, 3]);
+    let _: (i32, [i32; 3 - 1]) = split_first([1, 2, 3]);
     let _: [Field; 3 + 2] = push_multiple([1, 2, 3]);
     test_constant_folding::<10>();
     test_non_constant_folding::<10, 20>();

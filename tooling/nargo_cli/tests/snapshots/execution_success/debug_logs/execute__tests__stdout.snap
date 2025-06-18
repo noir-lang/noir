@@ -16,24 +16,24 @@ x: 0, y: 1
 s1: myStruct { y: 0x05, x: 0x0a }, s2: myStruct { y: 0x1e, x: 0x14 }
 foo1: fooStruct { my_struct: myStruct { y: 0x05, x: 0x0a }, foo: 0x0f }, foo2: fooStruct { my_struct: myStruct { y: 0x1e, x: 0x14 }, foo: 0x14 }
 fooStruct { my_struct: myStruct { y: 0x1e, x: 0x14 }, foo: 0x14 }
-one_tuple: (0x01, 0x02, 0x03), another_tuple: (0x04, 0x05, 0x06)
-(0x01, 0x02, 0x03)
-tuples_nested: ((0x01, 0x02, 0x03), (0x04, 0x05, 0x06))
-((0x01, 0x02, 0x03), (0x04, 0x05, 0x06))
+one_tuple: (1, 2, 3), another_tuple: (4, 5, 6)
+(1, 2, 3)
+tuples_nested: ((1, 2, 3), (4, 5, 6))
+((1, 2, 3), (4, 5, 6))
 [1]
 1
 [aaa, bbb, ccc]
-array_two_vals: [0x01, 0x02]
+array_two_vals: [1, 2]
 label_two_vals: 12
-array_five_vals: [0x01, 0x02, 0x03, 0x04, 0x05]
+array_five_vals: [1, 2, 3, 4, 5]
 label_five_vals: 12345
-array_five_vals: [0x01, 0x02, 0x03, 0x04, 0x05], label_five_vals: 12345
-first_array: [0x01, 0x02, 0x03], second_array: [0x04, 0x05, 0x06]
-arrays_nested: [[0x01, 0x02, 0x03], [0x04, 0x05, 0x06]]
-free_lambda: <<fn([Field]) -> Field>>, sentinel: 8888
-<<fn([Field]) -> Field>>
-closured_lambda: <<fn([Field]) -> Field>>, sentinel: 8888
-<<fn([Field]) -> Field>>
+array_five_vals: [1, 2, 3, 4, 5], label_five_vals: 12345
+first_array: [1, 2, 3], second_array: [4, 5, 6]
+arrays_nested: [[1, 2, 3], [4, 5, 6]]
+free_lambda: <<fn([SignedInteger { width: 32 }]) -> SignedInteger { width: 32 }>>, sentinel: 8888
+<<fn([SignedInteger { width: 32 }]) -> SignedInteger { width: 32 }>>
+closured_lambda: <<fn([SignedInteger { width: 32 }]) -> SignedInteger { width: 32 }>>, sentinel: 8888
+<<fn([SignedInteger { width: 32 }]) -> SignedInteger { width: 32 }>>
 slice_of_tuples: &[(11, 22), (33, 44)], sentinel: 8888
 &[(11, 22), (33, 44)]
 slice_of_tuples: &[(11, 22), (33, 44)], sentinel: 8888

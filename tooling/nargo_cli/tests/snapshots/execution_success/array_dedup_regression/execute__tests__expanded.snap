@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(x: u32) {
-    let a1: [Field; 5] = [1, 2, 3, 4, 5];
+    let a1: [i32; 5] = [1, 2, 3, 4, 5];
     for i in 0..5 {
-        let mut a2: [Field; 5] = [1, 2, 3, 4, 5];
+        let mut a2: [i32; 5] = [1, 2, 3, 4, 5];
         {
             let i_3777: u32 = x + i;
             a2[i_3777] = 128;

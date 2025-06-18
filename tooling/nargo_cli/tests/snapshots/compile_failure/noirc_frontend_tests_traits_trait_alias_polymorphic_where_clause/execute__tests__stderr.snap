@@ -15,7 +15,7 @@ error: No matching impl found for `T: Baz`
 39 │             assert(0.foo().bar().baz() == qux(0));
    │                                           --- No impl for `T: Baz`
    │
-   = Required by `Field: Qux<_>`
+   = Required by `i32: Qux<_>`
 
 error: Type annotation needed
    ┌─ src/main.nr:39:43

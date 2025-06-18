@@ -8,7 +8,7 @@ fn main() {
 }
 
 fn bug() {
-    let mut a: ([Field; 2], Field) = ([1, 2], 3);
+    let mut a: ([i32; 2], i32) = ([1, 2], 3);
     {
         let i_3775: u32 = {
             a = ([4, 5], 6);

@@ -4,9 +4,9 @@ expression: expanded_code
 ---
 fn main() {
     {
-        let internal___variable: Field = 3;
+        let internal___variable: i32 = 3;
         {
-            let _: Field = internal___variable;
+            let _: i32 = internal___variable;
             ()
         }
     }

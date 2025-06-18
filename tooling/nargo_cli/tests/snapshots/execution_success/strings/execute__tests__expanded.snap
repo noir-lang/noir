@@ -16,7 +16,7 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
     print(z);
     println(x);
     print(x);
-    let array: [Field; 5] = [1, 2, 3, 5, 8];
+    let array: [i32; 5] = [1, 2, 3, 5, 8];
     assert(y == 5);
     println(array);
     print(array);

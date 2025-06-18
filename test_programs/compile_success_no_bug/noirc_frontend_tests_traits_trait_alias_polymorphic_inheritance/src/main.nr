@@ -13,13 +13,13 @@
             x.foo().bar()
         }
 
-        impl Foo for Field {
+        impl Foo for i32 {
             fn foo(self) -> Self {
                 self + 1
             }
         }
 
-        impl Bar<bool> for Field {
+        impl Bar<bool> for i32 {
             fn bar(self) -> bool {
                 true
             }

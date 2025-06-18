@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Cannot cast `Field` as `bool`
+error: Cannot cast `i32` as `bool`
   ┌─ src/main.nr:3:13
   │
 3 │     let _ = x as bool;

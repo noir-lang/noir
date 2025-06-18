@@ -11,7 +11,7 @@ fn main(x: Field, y: Field) {
 }
 
 fn regression_3057() {
-    let mut array: [[Field; 2]; 2] = [[0, 1], [2, 3]];
+    let mut array: [[i32; 2]; 2] = [[0, 1], [2, 3]];
     array[0][1] = 2;
     assert(array[0][1] == 2);
 }

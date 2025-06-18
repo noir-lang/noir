@@ -8,7 +8,7 @@ fn main() {
 }
 
 unconstrained fn loophole() {
-    let mut i: Field = 0;
+    let mut i: i32 = 0;
     loop {
         println(i);
         i = i + 1;

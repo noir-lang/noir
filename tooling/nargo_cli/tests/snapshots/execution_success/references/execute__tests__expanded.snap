@@ -89,16 +89,16 @@ impl Bar {
 }
 
 fn regression_2054() {
-    let mut x: Field = 2;
-    let z: Field = x;
+    let mut x: i32 = 2;
+    let z: i32 = x;
     x = x + 1;
     assert(z == 2);
 }
 
 fn regression_2030() {
-    let ref: &mut Field = &mut 0;
-    let mut array: [&mut Field; 2] = [ref, ref];
-    let _: Field = *array[0];
+    let ref: &mut i32 = &mut 0;
+    let mut array: [&mut i32; 2] = [ref, ref];
+    let _: i32 = *array[0];
     *(array[0]) = 1;
 }
 
@@ -160,9 +160,9 @@ fn regression_2218_else(x: Field, y: Field) {
 }
 
 fn regression_2218_loop(x: Field, y: Field) {
-    let q: &mut &mut Field = &mut &mut 0;
-    let q1: &mut Field = *q;
-    let q2: &mut Field = *q;
+    let q: &mut &mut i32 = &mut &mut 0;
+    let q1: &mut i32 = *q;
+    let q2: &mut i32 = *q;
     for _ in 0..1 {
         if x != y {
             *(q1) = 10;

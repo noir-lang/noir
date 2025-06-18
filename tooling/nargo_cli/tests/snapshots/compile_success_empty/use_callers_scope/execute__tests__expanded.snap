@@ -18,7 +18,7 @@ mod bar {
     pub comptime fn fn_attr(_: FunctionDefinition) {
         let _: Type = quote { Bar }.as_type();
         let _: Type = nested();
-        let _: [Type] = &[1, 2, 3].map(|_: Field| -> Type quote { Bar }.as_type());
+        let _: [Type] = &[1, 2, 3].map(|_: i32| -> Type quote { Bar }.as_type());
     }
 
     #[use_callers_scope]

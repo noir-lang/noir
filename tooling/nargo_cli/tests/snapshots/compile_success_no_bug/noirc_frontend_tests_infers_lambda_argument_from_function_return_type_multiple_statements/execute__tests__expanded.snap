@@ -7,7 +7,7 @@ pub struct Foo {
 }
 
 pub fn func() -> fn(Foo) -> Field {
-    let _: Field = 1;
+    let _: i32 = 1;
     |foo: Foo| -> Field foo.value
 }
 

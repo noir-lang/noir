@@ -32,6 +32,6 @@ comptime fn foo(_s: TypeDefinition) -> Quoted {
 }
 
 fn main() {
-    let x: MyOtherStruct<Field, Field> = MyOtherStruct::<Field, Field> { field1: 1, field2: 2 };
+    let x: MyOtherStruct<i32, i32> = MyOtherStruct::<i32, i32> { field1: 1, field2: 2 };
     assert(x == x);
 }

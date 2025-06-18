@@ -4,6 +4,6 @@ expression: expanded_code
 ---
 fn main() {
     let one: u8 = 1;
-    let p: ((u8, Field), (Field, Field)) = ((one, 2), (3, 4));
+    let p: ((u8, i32), (i32, i32)) = ((one, 2), (3, 4));
     assert(p == p);
 }

@@ -9,7 +9,7 @@ fn main() {
 }
 
 unconstrained fn foo() -> bool {
-    let mut i: Field = 0;
+    let mut i: i32 = 0;
     let mut bug: bool = false;
     loop {
         if i == 3 {

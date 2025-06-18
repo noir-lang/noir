@@ -9,7 +9,7 @@ fn main(x: u32) {
     let ex: i32 = 3;
     assert(-wx.inner == -ex);
     assert(!wx.inner == !ex);
-    let x: Field = 3;
+    let x: i32 = 3;
     assert(-3 == -x);
 }
 

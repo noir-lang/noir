@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(sorted_index: [u32; 2]) {
-    let original: [Field; 2] = [55, 11];
-    let mut sorted: [Field; 2] = original;
+    let original: [i32; 2] = [55, 11];
+    let mut sorted: [i32; 2] = original;
     for i in 0..2 {
         let index: u32 = sorted_index[i];
-        let value: Field = original[index];
+        let value: i32 = original[index];
         sorted[i] = value;
     }
     assert(sorted[1] == 55);

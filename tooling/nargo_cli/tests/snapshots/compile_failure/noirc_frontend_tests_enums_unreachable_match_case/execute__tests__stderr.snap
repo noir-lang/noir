@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Type `Opt<Field>` is recursive
+error: Type `Opt<i32>` is recursive
   ┌─ src/main.nr:3:19
   │
 3 │             match Opt::Some(Opt::Some(3)) {

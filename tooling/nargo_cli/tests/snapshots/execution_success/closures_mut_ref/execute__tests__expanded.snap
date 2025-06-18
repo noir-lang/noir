@@ -15,8 +15,8 @@ fn main(mut x: Field) {
 }
 
 fn issue_2120() {
-    let x1: &mut Field = &mut 42;
-    let set_x1: fn[(&mut Field,)](Field) = |y: Field| { *(x1) = y; };
+    let x1: &mut i32 = &mut 42;
+    let set_x1: fn[(&mut i32,)](i32) = |y: i32| { *(x1) = y; };
     assert(*x1 == 42);
     set_x1(44);
     assert(*x1 == 44);

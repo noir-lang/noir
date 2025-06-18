@@ -13,8 +13,8 @@ fn main(
 ) {
     let idx: u32 = (z - (5 * t)) - 5;
     dyn_array(x, idx, idx - 3);
-    let mut s: Field = 0;
-    let x3: [Field; 5] = [246, 159, 32, 176, 8];
+    let mut s: i32 = 0;
+    let x3: [i32; 5] = [246, 159, 32, 176, 8];
     for i in 0..5 {
         s = s + x3[index[i]];
     }

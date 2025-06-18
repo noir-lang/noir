@@ -9,7 +9,7 @@ warning: Unused expression result of type fmtstr<14, ()>
   │             ---------------
   │
 
-warning: Unused expression result of type fmtstr<31, (Field, Field)>
+warning: Unused expression result of type fmtstr<31, (i32, i32)>
   ┌─ src/main.nr:7:13
   │
 7 │             println(f"random_string{new_val}{new_val}");

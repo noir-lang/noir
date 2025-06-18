@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let x: &mut Field = &mut 3;
-    let f: fn[(&mut Field,)]() = || { *(x) = *x + 2; };
+    let x: &mut i32 = &mut 3;
+    let f: fn[(&mut i32,)]() = || { *(x) = *x + 2; };
     f();
     assert(*x == 5);
 }

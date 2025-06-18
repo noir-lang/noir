@@ -4,9 +4,9 @@ expression: expanded_code
 ---
 fn main() {
     {
-        let internal___variable: Field = 2;
+        let internal___variable: i32 = 2;
         {
-            let foo: Field = internal___variable;
+            let foo: i32 = internal___variable;
             assert(foo == 2)
         }
     }

@@ -21,7 +21,7 @@
         }
     }
 
-    impl Serialize for Field {
+    impl Serialize for i32 {
         let Size: u32 = 1;
 
         fn serialize(self) { }

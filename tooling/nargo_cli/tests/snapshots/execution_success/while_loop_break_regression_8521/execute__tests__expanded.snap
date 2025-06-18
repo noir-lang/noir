@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(x: u32) -> pub str<3> {
-    let mut idx_b: Field = 0;
+    let mut idx_b: i32 = 0;
     while true {
         if idx_b == 0 {
             break;

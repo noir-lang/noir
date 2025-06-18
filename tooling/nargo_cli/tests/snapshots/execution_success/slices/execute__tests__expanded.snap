@@ -36,14 +36,14 @@ fn main(x: Field, y: pub Field) {
     assert(removed_elem == 2);
     assert(remove_slice[3] == 3);
     assert(remove_slice.len() == 4);
-    let append: [Field] = &[1, 2].append(&[3, 4, 5]);
+    let append: [i32] = &[1, 2].append(&[3, 4, 5]);
     assert(append.len() == 5);
     assert(append[0] == 1);
     assert(append[4] == 5);
-    let mapped: [Field] = &[1, 2].map(|x: Field| -> Field { x + 1 });
+    let mapped: [i32] = &[1, 2].map(|x: i32| -> i32 { x + 1 });
     assert(mapped == &[2, 3]);
-    assert(&[1, 2, 3].fold(0, |acc: Field, x: Field| -> Field { acc + x }) == 6);
-    assert(&[1, 2, 3].reduce(|acc: Field, x: Field| -> Field { acc + x }) == 6);
+    assert(&[1, 2, 3].fold(0, |acc: i32, x: i32| -> i32 { acc + x }) == 6);
+    assert(&[1, 2, 3].reduce(|acc: i32, x: i32| -> i32 { acc + x }) == 6);
     assert(&[2, 4, 6].all(|x: u32| -> bool { x > 0 }));
     assert(&[2, 4, 6].any(|x: u32| -> bool { x > 5 }));
     regression_2083();
@@ -55,26 +55,26 @@ fn main(x: Field, y: pub Field) {
 }
 
 fn regression_2083() {
-    let y: [(Field, Field)] = &[(1, 2)];
-    let y: [(Field, Field)] = y.push_back((3, 4));
-    let y: [(Field, Field)] = y.push_back((5, 6));
+    let y: [(i32, i32)] = &[(1, 2)];
+    let y: [(i32, i32)] = y.push_back((3, 4));
+    let y: [(i32, i32)] = y.push_back((5, 6));
     assert(y[2].1 == 6);
-    let y: [(Field, Field)] = y.push_front((10, 11));
-    let y: [(Field, Field)] = y.push_front((12, 13));
+    let y: [(i32, i32)] = y.push_front((10, 11));
+    let y: [(i32, i32)] = y.push_front((12, 13));
     assert(y[1].0 == 10);
-    let y: [(Field, Field)] = y.insert(1, (55, 56));
+    let y: [(i32, i32)] = y.insert(1, (55, 56));
     assert(y[0].1 == 13);
     assert(y[1].1 == 56);
     assert(y[2].0 == 10);
-    let (y, x): ([(Field, Field)], (Field, Field)) = y.remove(2);
+    let (y, x): ([(i32, i32)], (i32, i32)) = y.remove(2);
     assert(y[2].0 == 1);
     assert(x.0 == 10);
     assert(x.1 == 11);
-    let (x, y): ((Field, Field), [(Field, Field)]) = y.pop_front();
+    let (x, y): ((i32, i32), [(i32, i32)]) = y.pop_front();
     assert(y[0].0 == 55);
     assert(x.0 == 12);
     assert(x.1 == 13);
-    let (y, x): ([(Field, Field)], (Field, Field)) = y.pop_back();
+    let (y, x): ([(i32, i32)], (i32, i32)) = y.pop_back();
     assert(y.len() == 3);
     assert(x.0 == 5);
     assert(x.1 == 6);
@@ -250,7 +250,7 @@ fn merge_slices_remove_between_ifs(x: Field, y: Field) -> [Field] {
 }
 
 fn regression_2370() {
-    let mut slice: [Field] = &[];
+    let mut slice: [i32] = &[];
     slice = &[1, 2, 3];
 }
 

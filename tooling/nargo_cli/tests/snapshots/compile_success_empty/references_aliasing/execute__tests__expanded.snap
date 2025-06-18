@@ -17,9 +17,9 @@ fn increment(mut r: &mut Field) {
 }
 
 fn regression_2445() {
-    let mut var: Field = 0;
-    let ref: &mut &mut Field = &mut &mut var;
-    let mut array: [&mut &mut Field; 2] = [ref, ref];
+    let mut var: i32 = 0;
+    let ref: &mut &mut i32 = &mut &mut var;
+    let mut array: [&mut &mut i32; 2] = [ref, ref];
     *(*(array[0])) = 1;
     *(*(array[1])) = 2;
     assert(var == 2);
@@ -29,8 +29,8 @@ fn regression_2445() {
 }
 
 fn single_alias_inside_loop() {
-    let mut var: Field = 0;
-    let ref: &mut &mut Field = &mut &mut var;
+    let mut var: i32 = 0;
+    let ref: &mut &mut i32 = &mut &mut var;
     for _ in 0..1 {
         *(*(ref)) = 2;
     }

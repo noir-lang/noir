@@ -9,7 +9,7 @@ error: break is only allowed within loops
   │                   ------
   │
 
-error: Types in a binary operation should match, but found Field and ()
+error: Types in a binary operation should match, but found i32 and ()
   ┌─ src/main.nr:2:13
   │
 2 │     let _ = 1 + { break; };

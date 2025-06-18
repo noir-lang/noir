@@ -23,7 +23,7 @@ fn fibonacci_generator() -> fn[(&mut Field, &mut Field)]() -> Field {
 }
 
 fn get_some<Env>(generator: fn[Env]() -> Field) -> [Field; 5] {
-    [0, 0, 0, 0, 0].map(|_: Field| -> Field generator())
+    [0, 0, 0, 0, 0].map(|_: i32| -> Field generator())
 }
 
 fn test_fib() {

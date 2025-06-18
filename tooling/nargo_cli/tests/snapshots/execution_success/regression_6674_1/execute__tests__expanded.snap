@@ -67,7 +67,7 @@ pub unconstrained fn sort_by(array: [Field; 4]) -> [Field; 4] {
 }
 
 unconstrained fn get_sorting_index(array: [Field; 4]) {
-    let _: [Field; 4] = [0; 4];
+    let _: [i32; 4] = [0; 4];
     let mut a: [Field; 4] = array;
     for i in 1..4 {
         for j in 0..i {
