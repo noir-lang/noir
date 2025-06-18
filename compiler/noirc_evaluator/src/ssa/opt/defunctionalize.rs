@@ -257,12 +257,17 @@ fn remove_first_class_functions_in_instruction(
             *arg = map_value(*arg);
         }
     } else if let Instruction::MakeArray { typ, .. } = instruction {
+        let mut modified_type = false;
         if let Some(rep) = replacement_type(typ) {
             *typ = rep;
+            modified_type = true;
         }
+
         instruction.map_values_mut(map_value);
 
-        modified = true;
+        if modified_type {
+            modified = true;
+        }
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -584,7 +589,8 @@ fn create_apply_function(
         // local_end_block3--/
         //
         // This is necessary since SSA panics during flattening if we immediately
-        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        // try to jump directly to end block instead
+        // (see https://github.com/noir-lang/noir/issues/7323 for a case where this happens).
         //
         // It'd also be more efficient to merge them tournament-bracket style but that
         // also leads to panics during flattening for similar reasons.
