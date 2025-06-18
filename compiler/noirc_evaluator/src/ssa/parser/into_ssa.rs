@@ -454,7 +454,14 @@ impl Translator {
                             .globals_function
                             .dfg
                             .make_constant(constant.value, constant.typ.unwrap_numeric()),
-                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                        ParsedValue::Variable(identifier) => {
+                            match self.lookup_global(identifier.clone()) {
+                                Ok(global) => global,
+                                Err(lookup_global_err) => self
+                                    .lookup_call_function(identifier)
+                                    .map_err(|_| lookup_global_err)?,
+                            }
+                        }
                     };
                     elements.push_back(element_id);
                 }
