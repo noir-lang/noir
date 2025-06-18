@@ -686,8 +686,8 @@ fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) ->
             }
             function_builder.insert_make_array(array, typ.clone())
         }
-        Type::Slice(element_types) => {
-            let mut array = im::Vector::new();
+        Type::Slice(_) => {
+            let array = im::Vector::new();
             // The contents of a slice do not matter for a dummy function, we simply
             // desire to have a well formed SSA by returning the correct value for a type.
             // Thus, we return an empty slice here.
