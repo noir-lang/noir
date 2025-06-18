@@ -93,6 +93,8 @@ pub enum TypeCheckError {
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { location: Location },
+    #[error("Only unsigned integer types may be casted to Field")]
+    UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
@@ -285,6 +287,7 @@ impl TypeCheckError {
             | TypeCheckError::GenericCountMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
@@ -489,6 +492,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
