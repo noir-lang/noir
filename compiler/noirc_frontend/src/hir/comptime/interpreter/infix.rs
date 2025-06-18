@@ -21,7 +21,7 @@ pub(super) fn evaluate_infix(
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
 
-    let math_error = |operator| InterpreterError::MathError { location, operator };
+    let math_error = |operator| InterpreterError::InfixMathError { location, operator };
 
     /// Generate matches that can promote the type of one side to the other if they are compatible.
     macro_rules! match_values {
@@ -280,7 +280,7 @@ mod test {
         "#;
 
         let err = interpret_expect_error(src);
-        let InterpreterError::MathError { operator, .. } = err else {
+        let InterpreterError::InfixMathError { operator, .. } = err else {
             panic!("Expected overflow error");
         };
         assert_eq!(operator, "<<");
@@ -295,7 +295,7 @@ mod test {
         "#;
 
         let err = interpret_expect_error(src);
-        let InterpreterError::MathError { operator, .. } = err else {
+        let InterpreterError::InfixMathError { operator, .. } = err else {
             panic!("Expected overflow error");
         };
         assert_eq!(operator, "<<");
@@ -414,7 +414,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+        assert!(matches!(result, InterpreterError::InfixMathError { operator: "/", location: _ }));
     }
 
     #[test]
@@ -425,7 +425,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+        assert!(matches!(result, InterpreterError::InfixMathError { operator: "/", location: _ }));
     }
 
     #[test]

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Casting value of type Field to a smaller type (i8)
+  ┌─ src/main.nr:3:23
+  │
+3 │         let i: i8 = -(128 as i8);
+  │                       --------- casting untyped value (128) to a type with a maximum size (127) that's smaller than it
+  │
+
+error: Attempt to negate with overflow
+  ┌─ src/main.nr:3:21
+  │
+3 │         let i: i8 = -(128 as i8);
+  │                     ------------
+  │
+
+Aborting due to 1 previous error

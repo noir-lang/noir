@@ -1595,10 +1595,22 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
     match operator {
         UnaryOp::Minus => match rhs {
             Value::Field(value) => Ok(Value::Field(-value)),
-            Value::I8(value) => Ok(Value::I8(-value)),
-            Value::I16(value) => Ok(Value::I16(-value)),
-            Value::I32(value) => Ok(Value::I32(-value)),
-            Value::I64(value) => Ok(Value::I64(-value)),
+            Value::I8(value) => value
+                .checked_neg()
+                .map(Value::I8)
+                .ok_or_else(|| InterpreterError::PrefixMathError { location }),
+            Value::I16(value) => value
+                .checked_neg()
+                .map(Value::I16)
+                .ok_or_else(|| InterpreterError::PrefixMathError { location }),
+            Value::I32(value) => value
+                .checked_neg()
+                .map(Value::I32)
+                .ok_or_else(|| InterpreterError::PrefixMathError { location }),
+            Value::I64(value) => value
+                .checked_neg()
+                .map(Value::I64)
+                .ok_or_else(|| InterpreterError::PrefixMathError { location }),
             Value::U8(value) => Ok(Value::U8(0 - value)),
             Value::U16(value) => Ok(Value::U16(0 - value)),
             Value::U32(value) => Ok(Value::U32(0 - value)),
