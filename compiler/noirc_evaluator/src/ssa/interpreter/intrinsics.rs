@@ -328,7 +328,7 @@ impl Interpreter<'_> {
                     }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 1, intrinsic)?;
+                    check_argument_count(args, 2, intrinsic)?;
                     let inputs =
                         self.lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);

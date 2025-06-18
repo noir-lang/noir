@@ -910,6 +910,7 @@ mod test {
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
+            interpreter::value::{NumericValue, Value},
             ir::{
                 function::RuntimeType,
                 map::Id,
@@ -2145,7 +2146,7 @@ mod test {
           b15():
             v131 = call f5() -> Field
             call f10(v131)
-            return
+            return v129
         }
         brillig(inline) predicate_pure fn new f1 {
           b0(v4: Field):
@@ -2257,13 +2258,13 @@ mod test {
 
         brillig(inline) impure fn avmOpcodeGetContractInstanceDeployer f6 {
           b0(v0: Field):
-            v1 = make_array [u1 0, Field 0] : [(u1, Field); 1]
+            v1 = make_array [u1 1, Field 0] : [(u1, Field); 1]
             return v1
         }
 
         brillig(inline) impure fn avmOpcodeGetContractInstanceInitializationHash f7 {
           b0(v0: Field):
-            v1 = make_array [u1 0, Field 0] : [(u1, Field); 1]
+            v1 = make_array [u1 1, Field 2450013262318458645908142292135068279375397881270145071669041706508163653904] : [(u1, Field); 1]
             return v1
         }
 
@@ -2275,7 +2276,7 @@ mod test {
         
         brillig(inline) impure fn avmOpcodeCalldataCopy f9 {
           b0(v0: u32, v1: u32):
-            v2 = make_array [Field 0] : [Field; 3]
+            v2 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
             return v2
         }
 
@@ -2286,7 +2287,7 @@ mod test {
 
         brillig(inline) impure fn avmOpcodeSender f11 {
           b0():
-            return
+            return Field 0
         }
 
         brillig(inline) impure fn avmOpcodeStorageWrite f12 {
@@ -2296,328 +2297,17 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
+
+        let result_before = ssa.interpret(vec![
+            Value::Numeric(NumericValue::Field(1u32.into())),
+            Value::Numeric(NumericValue::Field(2u32.into())),
+            Value::Numeric(NumericValue::Field(3u32.into())),
+        ]);
         let ssa = ssa.fold_constants_using_constraints();
-
-        assert_ssa_snapshot!(ssa, @r#"
-        g0 = u32 44
-        g1 = u32 13
-        g2 = u32 6
-        g3 = u32 3
-
-        brillig(inline) impure fn constructor f0 {
-          b0(v4: Field, v5: Field, v6: Field):
-            v12 = allocate -> &mut u1
-            store u1 0 at v12
-            v14 = allocate -> &mut Field
-            store Field 0 at v14
-            v16 = allocate -> &mut Field
-            store Field 2 at v16
-            v19 = call f5() -> Field
-            v21 = call f6(v19) -> [(u1, Field); 1]
-            v23 = array_get v21, index u32 0 -> u1
-            v25 = array_get v21, index u32 1 -> Field
-            v26 = not v23
-            v27 = cast v23 as Field
-            v28 = cast v26 as Field
-            v29 = mul v27, v25
-            constrain v23 == u1 1
-            v32 = call f7(v19) -> [(u1, Field); 1]
-            v33 = array_get v32, index u32 0 -> u1
-            v34 = array_get v32, index u32 1 -> Field
-            v35 = not v33
-            v36 = cast v33 as Field
-            v37 = cast v35 as Field
-            v38 = mul v36, v34
-            constrain v33 == u1 1
-            v40 = call f8(u32 0, u32 1) -> [Field; 1]
-            v41 = array_get v40, index u32 0 -> Field
-            v42 = truncate v41 to 32 bits, max_bit_size: 254
-            v43 = allocate -> &mut u1
-            v44 = allocate -> &mut Field
-            v45 = allocate -> &mut Field
-            store Field 2 at v45
-            v47 = call f9(u32 1, u32 3) -> [Field; 3]
-            inc_rc v47
-            v49 = make_array [Field 44] : [Field; 1]
-            v50 = make_array [Field 44, Field 44, Field 44, Field 44] : [Field; 4]
-            v51 = allocate -> &mut [Field; 4]
-            store v50 at v51
-            jmp b1(u32 0)
-          b1(v7: u32):
-            v52 = lt v7, u32 3
-            jmpif v52 then: b2, else: b3
-          b2():
-            v144 = unchecked_add v7, u32 1
-            v145 = array_get v47, index v7 -> Field
-            v146 = load v51 -> [Field; 4]
-            v147 = lt v144, u32 4
-            constrain v147 == u1 1, "Index out of bounds"
-            v148 = array_set v146, index v144, value v145
-            store v148 at v51
-            jmp b1(v144)
-          b3():
-            v53 = load v51 -> [Field; 4]
-            v56, v57, v58, v59 = call f1(Field 73786976294838206464) -> ([Field; 3], [Field; 4], u32, u1)
-            v60 = allocate -> &mut [Field; 3]
-            store v56 at v60
-            v61 = allocate -> &mut [Field; 4]
-            store v57 at v61
-            v62 = allocate -> &mut u32
-            store v58 at v62
-            v63 = allocate -> &mut u1
-            store v59 at v63
-            inc_rc v53
-            jmp b4(u32 0)
-          b4(v8: u32):
-            v65 = lt v8, u32 4
-            jmpif v65 then: b5, else: b6
-          b5():
-            v142 = array_get v53, index v8 -> Field
-            call f2(v60, v61, v62, v63, v142)
-            v143 = unchecked_add v8, u32 1
-            jmp b4(v143)
-          b6():
-            v67 = call f3(v60, v61, v62, v63) -> Field
-            v68 = load v45 -> Field
-            store v68 at v45
-            v69 = make_array [v42, v67] : [Field; 2]
-            v71 = make_array [Field 13] : [Field; 1]
-            v72 = make_array [Field 13, Field 13, Field 13] : [Field; 3]
-            v73 = allocate -> &mut [Field; 3]
-            v74 = make_array [Field 13, v42, Field 13] : [Field; 3]
-            v75 = make_array [Field 13, v42, v67] : [Field; 3]
-            v77, v78, v79, v80 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
-            v81 = allocate -> &mut [Field; 3]
-            store v77 at v81
-            v82 = allocate -> &mut [Field; 4]
-            store v78 at v82
-            v83 = allocate -> &mut u32
-            store v79 at v83
-            v84 = allocate -> &mut u1
-            store v80 at v84
-            inc_rc v75
-            jmp b7(u32 0)
-          b7(v9: u32):
-            v85 = lt v9, u32 3
-            jmpif v85 then: b8, else: b9
-          b8():
-            v140 = array_get v75, index v9 -> Field
-            call f2(v81, v82, v83, v84, v140)
-            v141 = unchecked_add v9, u32 1
-            jmp b7(v141)
-          b9():
-            v86 = call f3(v81, v82, v83, v84) -> Field
-            constrain v38 == v86, "Initialization hash does not match"
-            v87 = eq v29, Field 0
-            v89 = call f11() -> Field
-            v90 = eq v29, v89
-            v91 = or v87, v90
-            constrain v91 == u1 1, "Initializer address is not the contract deployer"
-            v93 = make_array [Field 1] : [Field; 1]
-            v95 = make_array [Field 6] : [Field; 1]
-            v96 = make_array [Field 6, Field 6] : [Field; 2]
-            v97 = allocate -> &mut [Field; 2]
-            v98 = make_array [Field 6, Field 1] : [Field; 2]
-            v100, v101, v102, v103 = call f1(Field 36893488147419103232) -> ([Field; 3], [Field; 4], u32, u1)
-            v104 = allocate -> &mut [Field; 3]
-            store v100 at v104
-            v105 = allocate -> &mut [Field; 4]
-            store v101 at v105
-            v106 = allocate -> &mut u32
-            store v102 at v106
-            v107 = allocate -> &mut u1
-            store v103 at v107
-            inc_rc v98
-            call f2(v104, v105, v106, v107, Field 6)
-            call f2(v104, v105, v106, v107, Field 1)
-            v109 = call f3(v104, v105, v106, v107) -> Field
-            call f10(v109)
-            v111 = load v12 -> u1
-            v112 = load v14 -> Field
-            v113 = load v16 -> Field
-            v114 = make_array [v4, v5, v6] : [Field; 3]
-            inc_rc v114
-            v115, v116, v117, v118 = call f1(Field 55340232221128654848) -> ([Field; 3], [Field; 4], u32, u1)
-            v119 = allocate -> &mut [Field; 3]
-            store v115 at v119
-            v120 = allocate -> &mut [Field; 4]
-            store v116 at v120
-            v121 = allocate -> &mut u32
-            store v117 at v121
-            v122 = allocate -> &mut u1
-            store v118 at v122
-            inc_rc v114
-            jmp b10(u32 0)
-          b10(v10: u32):
-            v123 = lt v10, u32 3
-            jmpif v123 then: b11, else: b12
-          b11():
-            v138 = array_get v114, index v10 -> Field
-            call f2(v119, v120, v121, v122, v138)
-            v139 = unchecked_add v10, u32 1
-            jmp b10(v139)
-          b12():
-            v124 = call f3(v119, v120, v121, v122) -> Field
-            v125 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v126 = allocate -> &mut [Field; 4]
-            v127 = make_array [v4, Field 0, Field 0, Field 0] : [Field; 4]
-            v128 = make_array [v4, v5, Field 0, Field 0] : [Field; 4]
-            v129 = make_array [v4, v5, v6, Field 0] : [Field; 4]
-            v130 = make_array [v4, v5, v6, v124] : [Field; 4]
-            jmp b13(u32 0)
-          b13(v11: u32):
-            v131 = lt v11, u32 4
-            jmpif v131 then: b14, else: b15
-          b14():
-            v133 = cast v11 as Field
-            v134 = add Field 1, v133
-            v135 = array_get v130, index v11 -> Field
-            call f12(v134, v135)
-            v137 = unchecked_add v11, u32 1
-            jmp b13(v137)
-          b15():
-            v132 = call f5() -> Field
-            call f10(v132)
-            return
-        }
-        brillig(inline) impure fn new f1 {
-          b0(v4: Field):
-            v6 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            v7 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v8 = allocate -> &mut [Field; 3]
-            v9 = allocate -> &mut [Field; 4]
-            v10 = allocate -> &mut u32
-            v11 = allocate -> &mut u1
-            v12 = make_array [Field 0, Field 0, Field 0, v4] : [Field; 4]
-            return v6, v12, u32 0, u1 0
-        }
-        brillig(inline) impure fn absorb f2 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1, v8: Field):
-            v9 = load v7 -> u1
-            constrain v9 == u1 0
-            v11 = load v6 -> u32
-            v12 = eq v11, u32 3
-            jmpif v12 then: b1, else: b2
-          b1():
-            call f4(v4, v5, v6, v7)
-            v23 = load v4 -> [Field; 3]
-            v24 = load v5 -> [Field; 4]
-            v25 = load v6 -> u32
-            v26 = load v7 -> u1
-            v28 = array_set v23, index u32 0, value v8
-            store v28 at v4
-            store v24 at v5
-            store u32 1 at v6
-            store v26 at v7
-            jmp b3()
-          b2():
-            v13 = load v6 -> u32
-            v14 = load v4 -> [Field; 3]
-            v15 = load v5 -> [Field; 4]
-            v16 = load v7 -> u1
-            v17 = lt v13, u32 3
-            constrain v17 == u1 1, "Index out of bounds"
-            v19 = array_set v14, index v13, value v8
-            v21 = add v13, u32 1
-            store v19 at v4
-            store v15 at v5
-            store v21 at v6
-            store v16 at v7
-            jmp b3()
-          b3():
-            return
-        }
-        brillig(inline) impure fn squeeze f3 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1):
-            v8 = load v7 -> u1
-            constrain v8 == u1 0
-            call f4(v4, v5, v6, v7)
-            v11 = load v4 -> [Field; 3]
-            v12 = load v5 -> [Field; 4]
-            v13 = load v6 -> u32
-            store v11 at v4
-            store v12 at v5
-            store v13 at v6
-            store u1 1 at v7
-            v16 = array_get v12, index u32 0 -> Field
-            return v16
-        }
-        brillig(inline) impure fn perform_duplex f4 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1):
-            jmp b1(u32 0)
-          b1(v8: u32):
-            v10 = lt v8, u32 3
-            jmpif v10 then: b2, else: b3
-          b2():
-            v18 = load v6 -> u32
-            v19 = lt v8, v18
-            jmpif v19 then: b4, else: b5
-          b3():
-            v11 = load v5 -> [Field; 4]
-            inc_rc v11
-            v14 = call poseidon2_permutation(v11, u32 4) -> [Field; 4]
-            v15 = load v4 -> [Field; 3]
-            v16 = load v6 -> u32
-            v17 = load v7 -> u1
-            store v15 at v4
-            store v14 at v5
-            store v16 at v6
-            store v17 at v7
-            return
-          b4():
-            v20 = load v5 -> [Field; 4]
-            v21 = array_get v20, index v8 -> Field
-            v22 = load v4 -> [Field; 3]
-            v23 = array_get v22, index v8 -> Field
-            v24 = add v21, v23
-            v25 = load v6 -> u32
-            v26 = load v7 -> u1
-            v27 = array_set v20, index v8, value v24
-            store v22 at v4
-            store v27 at v5
-            store v25 at v6
-            store v26 at v7
-            jmp b5()
-          b5():
-            v29 = unchecked_add v8, u32 1
-            jmp b1(v29)
-        }
-        brillig(inline) impure fn avmOpcodeAddress f5 {
-          b0():
-            return Field 0
-        }
-        brillig(inline) impure fn avmOpcodeGetContractInstanceDeployer f6 {
-          b0(v4: Field):
-            v7 = make_array [u1 0, Field 0] : [(u1, Field); 1]
-            return v7
-        }
-        brillig(inline) impure fn avmOpcodeGetContractInstanceInitializationHash f7 {
-          b0(v4: Field):
-            v7 = make_array [u1 0, Field 0] : [(u1, Field); 1]
-            return v7
-        }
-        brillig(inline) impure fn avmOpcodeCalldataCopy f8 {
-          b0(v4: u32, v5: u32):
-            v7 = make_array [Field 0] : [Field; 1]
-            return v7
-        }
-        brillig(inline) impure fn avmOpcodeCalldataCopy f9 {
-          b0(v4: u32, v5: u32):
-            v7 = make_array [Field 0] : [Field; 3]
-            return v7
-        }
-        brillig(inline) impure fn avmOpcodeEmitNullifier f10 {
-          b0(v4: Field):
-            return
-        }
-        brillig(inline) impure fn avmOpcodeSender f11 {
-          b0():
-            return
-        }
-        brillig(inline) impure fn avmOpcodeStorageWrite f12 {
-          b0(v4: Field, v5: Field):
-            return
-        }
-        "#);
-    }
+        let result_after = ssa.interpret(vec![
+            Value::Numeric(NumericValue::Field(1u32.into())),
+            Value::Numeric(NumericValue::Field(2u32.into())),
+            Value::Numeric(NumericValue::Field(3u32.into())),
+        ]);
+        assert_eq!(result_before, result_after);
 }
