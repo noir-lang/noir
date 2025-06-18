@@ -71,11 +71,11 @@ impl Parser<'_> {
 
     /// Term
     ///    = UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
-    ///    | CatExpression
+    ///    | CastExpression
     pub(super) fn parse_term(&mut self, allow_constructors: bool) -> Option<Expression> {
         let start_location = self.current_token_location;
 
-        let mut term = self.parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+        let mut term = self.parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
             allow_constructors,
         )?;
         let mut parsed;
@@ -92,7 +92,7 @@ impl Parser<'_> {
 
     /// UnaryOrAtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
     ///    = UnaryOp* AtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
-    fn parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+    fn parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
         &mut self,
         allow_constructors: bool,
     ) -> Option<Expression> {
@@ -100,7 +100,7 @@ impl Parser<'_> {
 
         if let Some(operator) = self.parse_unary_op() {
             let Some(rhs) = self
-                .parse_unary_or_atom_or_memeber_access_or_call_or_method_call_or_index(
+                .parse_unary_or_atom_or_member_access_or_call_or_method_call_or_index(
                     allow_constructors,
                 )
             else {
@@ -136,7 +136,7 @@ impl Parser<'_> {
         }
     }
 
-    /// AtomOrMemberAccessOrCallOrMethodCallOrIndexExpressoin
+    /// AtomOrMemberAccessOrCallOrMethodCallOrIndexExpression
     ///     = Atom MemberAccessOrCallOrMethodCallOrIndexExpression*
     fn parse_atom_or_member_access_or_call_or_method_call_or_index(
         &mut self,
@@ -162,7 +162,6 @@ impl Parser<'_> {
     /// MemberAccessOrCallOrMethodCallOrIndexExpression
     ///     = CallExpression
     ///     | MemberAccessOrMethodCallExpression
-    ///     | CastExpression
     ///     | IndexExpression
     fn parse_member_access_or_call_or_method_call_or_index(
         &mut self,
