@@ -910,7 +910,6 @@ mod test {
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
-            interpreter::value::{NumericValue, Value},
             ir::{
                 function::RuntimeType,
                 map::Id,
@@ -1968,7 +1967,7 @@ mod test {
         // Marking `f1` as `predicate_pure` instead of `impure` results in an invalid storage write.
         let src = r#"
         brillig(inline) impure fn constructor f0 {
-          b0(v4: Field, v5: Field, v6: Field):
+          b0():
             v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
             v23 = call f1() -> [Field; 4]
             v26 = allocate -> &mut [Field; 3]
@@ -1982,14 +1981,12 @@ mod test {
             store v31 at v35
             call f2(v26, v27, v28, Field 13)
             call f2(v26, v27, v28, Field 0)
-            call f2(v26, v27, v28, Field -4087343307756338700403239372564812286096576384563180486175056629770704656221)
+            call f2(v26, v27, v28, Field 1)
             v42 = load v26 -> [Field; 3]
             v36 = load v28 -> u32
             call f4(v42, v27, v36)
             call f4(v8, v35, u32 0)
-            v37 = load v35 -> [Field; 4]
-            v38 = array_get v37, index u32 0 -> Field
-            return v38
+            return v35
         }
         brillig(inline) predicate_pure fn new f1 {
           b0():
@@ -2041,17 +2038,9 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
-        let result_before = ssa.interpret(vec![
-            Value::Numeric(NumericValue::Field(1u32.into())),
-            Value::Numeric(NumericValue::Field(2u32.into())),
-            Value::Numeric(NumericValue::Field(3u32.into())),
-        ]);
+        let result_before = ssa.interpret(vec![]);
         let ssa = ssa.fold_constants_using_constraints();
-        let result_after = ssa.interpret(vec![
-            Value::Numeric(NumericValue::Field(1u32.into())),
-            Value::Numeric(NumericValue::Field(2u32.into())),
-            Value::Numeric(NumericValue::Field(3u32.into())),
-        ]);
+        let result_after = ssa.interpret(vec![]);
         assert_eq!(result_before, result_after);
     }
 }
