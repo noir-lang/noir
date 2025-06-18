@@ -1967,11 +1967,6 @@ mod test {
         // Regression test for an issue discovered in https://github.com/AztecProtocol/aztec-packages/pull/14492
         // Marking `f1` as `predicate_pure` instead of `impure` results in an invalid storage write.
         let src = r#"
-        g0 = u32 44
-        g1 = u32 13
-        g2 = u32 6
-        g3 = u32 3
-
         brillig(inline) impure fn constructor f0 {
           b0(v4: Field, v5: Field, v6: Field):
             v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
@@ -1982,23 +1977,19 @@ mod test {
             store v23 at v27
             v28 = allocate -> &mut u32
             store u32 0 at v28
-            v29 = allocate -> &mut u1
-            store u1 0 at v29
             v31 = call f1() -> [Field; 4]
-            v34 = allocate -> &mut [Field; 3]
-            store v8 at v34
             v35 = allocate -> &mut [Field; 4]
             store v31 at v35
-            v36 = allocate -> &mut u32
-            store u32 0 at v36
-            v37 = allocate -> &mut u1
-            store u1 0 at v37
-            call f2(v26, v27, v28, v29, Field 13)
-            call f2(v26, v27, v28, v29, Field 0)
-            call f2(v26, v27, v28, v29, Field -4087343307756338700403239372564812286096576384563180486175056629770704656221)
-            v39 = call f3(v26, v27, v28, v29) -> Field
-            v40 = call f3(v34, v35, v36, v37) -> Field
-            return v40
+            call f2(v26, v27, v28, Field 13)
+            call f2(v26, v27, v28, Field 0)
+            call f2(v26, v27, v28, Field -4087343307756338700403239372564812286096576384563180486175056629770704656221)
+            v42 = load v26 -> [Field; 3]
+            v36 = load v28 -> u32
+            call f4(v42, v27, v36)
+            call f4(v8, v35, u32 0)
+            v37 = load v35 -> [Field; 4]
+            v38 = array_get v37, index u32 0 -> Field
+            return v38
         }
         brillig(inline) predicate_pure fn new f1 {
           b0():
@@ -2006,28 +1997,10 @@ mod test {
             return v7
         }
         brillig(inline) impure fn absorb f2 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1, v8: Field):
-            v9 = load v7 -> u1
-            constrain v9 == u1 0
-            v11 = load v6 -> u32
-            v12 = eq v11, u32 3
-            jmpif v12 then: b1, else: b2
-          b1():
-            call f4(v4, v5, v6, v7)
-            v23 = load v4 -> [Field; 3]
-            v24 = load v5 -> [Field; 4]
-            v25 = load v7 -> u1
-            v27 = array_set v23, index u32 0, value v8
-            store v27 at v4
-            store v24 at v5
-            store u32 1 at v6
-            store v25 at v7
-            jmp b3()
-          b2():
+          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v8: Field):
             v13 = load v6 -> u32
             v14 = load v4 -> [Field; 3]
             v15 = load v5 -> [Field; 4]
-            v16 = load v7 -> u1
             v17 = lt v13, u32 3
             constrain v17 == u1 1, "Index out of bounds"
             v19 = array_set v14, index v13, value v8
@@ -2035,61 +2008,30 @@ mod test {
             store v19 at v4
             store v15 at v5
             store v21 at v6
-            store v16 at v7
-            jmp b3()
-          b3():
             return
         }
-        brillig(inline) impure fn squeeze f3 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1):
-            v8 = load v7 -> u1
-            constrain v8 == u1 0
-            call f4(v4, v5, v6, v7)
-            v11 = load v4 -> [Field; 3]
-            v12 = load v5 -> [Field; 4]
-            v13 = load v6 -> u32
-            store v11 at v4
-            store v12 at v5
-            store v13 at v6
-            store u1 1 at v7
-            v16 = array_get v12, index u32 0 -> Field
-            return v16
-        }
         brillig(inline) impure fn perform_duplex f4 {
-          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v7: &mut u1):
+          b0(v4: [Field; 3], v5: &mut [Field; 4], v18: u32):
             jmp b1(u32 0)
           b1(v8: u32):
             v10 = lt v8, u32 3
             jmpif v10 then: b2, else: b3
           b2():
-            v18 = load v6 -> u32
             v19 = lt v8, v18
             jmpif v19 then: b4, else: b5
           b3():
             v11 = load v5 -> [Field; 4]
             inc_rc v11
             v14 = call poseidon2_permutation(v11, u32 4) -> [Field; 4]
-            v15 = load v4 -> [Field; 3]
-            v16 = load v6 -> u32
-            v17 = load v7 -> u1
-            store v15 at v4
             store v14 at v5
-            store v16 at v6
-            store v17 at v7
             return
           b4():
             v20 = load v5 -> [Field; 4]
             v21 = array_get v20, index v8 -> Field
-            v22 = load v4 -> [Field; 3]
-            v23 = array_get v22, index v8 -> Field
+            v23 = array_get v4, index v8 -> Field
             v24 = add v21, v23
-            v25 = load v6 -> u32
-            v26 = load v7 -> u1
             v27 = array_set v20, index v8, value v24
-            store v22 at v4
             store v27 at v5
-            store v25 at v6
-            store v26 at v7
             jmp b5()
           b5():
             v29 = unchecked_add v8, u32 1
