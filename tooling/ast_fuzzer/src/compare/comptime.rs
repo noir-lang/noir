@@ -57,7 +57,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     source: String,
     force_brillig: bool,
     output: W,
-) -> CompilationResult<(CompiledProgram, W)> {
+) -> (CompilationResult<CompiledProgram>, W) {
     let output = Rc::new(RefCell::new(output));
     let (mut context, root_crate_id) = prepare_snippet(source);
     context.set_comptime_printing(output.clone());
@@ -68,10 +68,10 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         skip_brillig_constraints_check: true,
         ..Default::default()
     };
-    let (program, warnings) = compile_main(&mut context, root_crate_id, &options, None)?;
+    let res = compile_main(&mut context, root_crate_id, &options, None);
     drop(context);
     let output = Rc::into_inner(output).expect("context is gone").into_inner();
-    Ok(((program, output), warnings))
+    (res, output)
 }
 
 /// Interpret source code using the elaborator, without
@@ -211,13 +211,15 @@ impl CompareComptime {
         // These comptime programs have no inputs.
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
 
+        let decode_print = |print| String::from_utf8(print).expect("should be valid utf8 string");
+
         // Execute a compiled Program.
         let do_exec = |program| {
-            let mut print = Vec::new();
+            let mut output = Vec::new();
 
             let mut foreign_call_executor = DefaultForeignCallBuilder::default()
                 .with_mocks(false)
-                .with_output(&mut print)
+                .with_output(&mut output)
                 .build();
 
             let res = nargo::ops::execute_program(
@@ -226,8 +228,8 @@ impl CompareComptime {
                 &blackbox_solver,
                 &mut foreign_call_executor,
             );
+            let print = decode_print(output);
 
-            let print = String::from_utf8(print).expect("should be valid utf8 string");
             (res, print)
         };
 
@@ -241,8 +243,8 @@ impl CompareComptime {
             self.force_brillig,
             Vec::new(),
         ) {
-            Ok(((program, output), _)) => (program, output),
-            Err(e) => {
+            (Ok((program, _)), output) => (program, output),
+            (Err(e), output) => {
                 // If the comptime code failed to compile, it could be because it executed the code
                 // and encountered an overflow, which would be a runtime error in Brillig.
                 let is_assertion = e.iter().any(|e| {
@@ -258,11 +260,12 @@ impl CompareComptime {
                         None,
                     );
                     let res1 = Err(NargoError::ExecutionError(err));
+                    let print1 = decode_print(output);
                     return CompareCompiledResult::new(
                         &self.abi,
                         &Default::default(), // We failed to compile the program, so no error types.
                         &self.ssa.artifact.error_types,
-                        (res1, "".to_string()),
+                        (res1, print1),
                         (res2, print2),
                     );
                 } else {

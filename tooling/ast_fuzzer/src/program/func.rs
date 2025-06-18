@@ -1195,7 +1195,8 @@ impl<'a> FunctionContext<'a> {
     /// Generate a function call to any function in the global context except `main`,
     /// if the function returns the target type, or something we can use to produce that type.
     ///
-    /// Whether a call is dynamic depends on whether it has dynamic arguments.
+    /// Whether a call is dynamic depends on whether it has dynamic arguments,
+    /// and whether we are crossing an ACIR-to-Brillig boundary.
     fn gen_call(
         &mut self,
         u: &mut Unstructured,
@@ -1208,7 +1209,12 @@ impl<'a> FunctionContext<'a> {
         let opts = self
             .call_targets
             .iter()
-            .filter_map(|(id, types)| types.contains(typ).then_some(id))
+            .filter(|(id, types)|
+                // We need to be able to generate the type from what the function returns.
+                types.contains(typ) &&
+                // We might not be able to call this function, depending on context.
+                !(self.in_no_dynamic && !self.unconstrained() && self.callable_signature(**id).2))
+            .map(|(id, _)| id)
             .collect::<Vec<_>>();
 
         if opts.is_empty() {
@@ -1220,11 +1226,11 @@ impl<'a> FunctionContext<'a> {
 
         let callee_id = *u.choose_iter(opts)?;
         let callee_expr = self.callable_expr(callee_id);
-        let (param_types, return_type) = self.callable_signature(callee_id);
+        let (param_types, return_type, callee_unconstrained) = self.callable_signature(callee_id);
 
         // Generate an expression for each argument.
         let mut args = Vec::new();
-        let mut call_dyn = false;
+        let mut call_dyn = !self.unconstrained() && callee_unconstrained;
         for typ in &param_types {
             let (arg, arg_dyn) = self.gen_expr(u, typ, max_depth, Flags::CALL)?;
             call_dyn |= arg_dyn;
@@ -1250,7 +1256,7 @@ impl<'a> FunctionContext<'a> {
         callee_id: FuncId,
     ) -> arbitrary::Result<Expression> {
         let callee_ident = self.func_ident(callee_id);
-        let (param_types, return_type) = self.callable_signature(CallableId::Global(callee_id));
+        let (param_types, return_type, _) = self.callable_signature(CallableId::Global(callee_id));
 
         let mut args = Vec::new();
         for typ in &param_types {
@@ -1501,20 +1507,21 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Get the parameter types and return type of a callable function.
-    fn callable_signature(&self, callee_id: CallableId) -> (Vec<Type>, Type) {
+    fn callable_signature(&self, callee_id: CallableId) -> (Vec<Type>, Type, bool) {
         match callee_id {
             CallableId::Global(id) => {
                 let decl = self.ctx.function_decl(id);
                 let return_type = decl.return_type.clone();
                 let param_types = decl.params.iter().map(|p| p.3.clone()).collect::<Vec<_>>();
-                (param_types, return_type)
+                (param_types, return_type, decl.unconstrained)
             }
             CallableId::Local(id) => {
                 let (_, _, typ) = self.locals.current().get_variable(&id);
-                let Type::Function(param_types, return_type, _, _) = types::unref(typ) else {
+                let Type::Function(param_types, return_type, _, unconstrained) = types::unref(typ)
+                else {
                     unreachable!("function pointers should have function type; got {typ}")
                 };
-                (param_types.clone(), return_type.as_ref().clone())
+                (param_types.clone(), return_type.as_ref().clone(), *unconstrained)
             }
         }
     }

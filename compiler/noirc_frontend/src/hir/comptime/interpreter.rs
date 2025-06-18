@@ -554,7 +554,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
+            HirExpression::Quote(tokens) => self.evaluate_quote(tokens),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -1097,9 +1097,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Closure(Box::new(closure)))
     }
 
-    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
-        let location = self.elaborator.interner.expr_location(&expr_id);
-        let tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+    fn evaluate_quote(&mut self, mut tokens: Tokens) -> IResult<Value> {
+        let tokens = self.substitute_unquoted_values_into_tokens(tokens)?;
         Ok(Value::Quoted(Rc::new(tokens)))
     }
 

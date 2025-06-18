@@ -3436,11 +3436,9 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
- "noirc_frontend",
  "noirc_printable_type",
  "owo-colors 3.5.0",
  "rexpect",
- "serde_json",
  "tempfile",
  "thiserror 1.0.69",
 ]
@@ -3551,15 +3549,12 @@ version = "1.0.0-beta.7"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
- "log",
  "nargo",
  "noirc_abi",
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
- "noirc_frontend",
  "thiserror 1.0.69",
- "tracing",
 ]
 
 [[package]]
