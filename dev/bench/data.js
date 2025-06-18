@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750263342961,
+  "lastUpdate": 1750263832420,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fa9f7373814e626ba6c9dcb416821cf9290c3ae9",
-          "message": "fix: (SSA interpreter) check requires_acir_gen_predicate for enable_side_effects (#8869)",
-          "timestamp": "2025-06-10T19:59:30Z",
-          "tree_id": "777bf0b0168f9296582b6787cb15606bbf0f4bfc",
-          "url": "https://github.com/noir-lang/noir/commit/fa9f7373814e626ba6c9dcb416821cf9290c3ae9"
-        },
-        "date": 1749588160933,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.81,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.35,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/afb46c9143626900f6733fb00d3f7aa7f1b56a5c"
         },
         "date": 1750258814568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.45,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.64,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dfb244e69d19d9e5595368933dbc52e4d7f5f56a",
+          "message": "chore(validation): Ban function pointers in SSA globals  (#8947)",
+          "timestamp": "2025-06-18T15:46:13Z",
+          "tree_id": "41e46ba08f97d78cf3bc57e3e1d6ee332883dbc8",
+          "url": "https://github.com/noir-lang/noir/commit/dfb244e69d19d9e5595368933dbc52e4d7f5f56a"
+        },
+        "date": 1750263819448,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
