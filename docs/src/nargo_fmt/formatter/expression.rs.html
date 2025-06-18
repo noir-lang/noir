@@ -2606,7 +2606,23 @@
 <a href="#2605" id="2605">2605</a>
 <a href="#2606" id="2606">2606</a>
 <a href="#2607" id="2607">2607</a>
-<a href="#2608" id="2608">2608</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -5212,6 +5228,22 @@ global y = 1;
 }
 "#</span>;
         assert_format_with_max_width(src, src, <span class="number">28</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>cast_broken_to_two_lines_inside_array() {
+        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+    bar(
+        "",
+        [
+            (private_call_timestamp)
+                 as i32,
+            2,
+        ],
+    );
+}
+"#</span>;
+        assert_format_with_max_width(src, src, <span class="number">40</span>);
     }
 }
 </code></pre></div></section></main></body></html>
