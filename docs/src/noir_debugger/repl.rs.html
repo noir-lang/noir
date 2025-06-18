@@ -970,7 +970,7 @@
     }
 
     <span class="kw">fn </span>send_status(<span class="kw-2">&amp;mut </span><span class="self">self</span>, status: DebuggerStatus) {
-        <span class="self">self</span>.status_sender.send(status).expect(<span class="string">"Downstream channel closed"</span>)
+        <span class="self">self</span>.status_sender.send(status).expect(<span class="string">"Downstream channel closed"</span>);
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>start_debugging(
@@ -991,7 +991,7 @@
 
         <span class="kw">if </span>context.get_current_debug_location().is_none() {
             <span class="comment">// handle circuit with no opcodes
-            </span><span class="self">self</span>.last_result = DebugCommandResult::Done
+            </span><span class="self">self</span>.last_result = DebugCommandResult::Done;
         }
 
         <span class="macro">println!</span>(<span class="string">"Debugger ready to receive messages.."</span>);
@@ -1019,16 +1019,16 @@
                         <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.step_acir_opcode());
                     }
                     DebugCommandAPI::StepIntoOpcode =&gt; {
-                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.step_into_opcode())
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.step_into_opcode());
                     }
                     DebugCommandAPI::NextInto =&gt; {
-                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_into())
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_into());
                     }
                     DebugCommandAPI::NextOver =&gt; {
-                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_over())
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_over());
                     }
                     DebugCommandAPI::NextOut =&gt; {
-                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_out())
+                        <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| context.next_out());
                     }
                     DebugCommandAPI::Cont =&gt; <span class="self">self</span>.handle_step(<span class="kw-2">&amp;mut </span>context, |context| {
                         <span class="macro">println!</span>(<span class="string">"(Continuing execution...)"</span>);
@@ -1120,7 +1120,7 @@
                 <span class="macro">println!</span>(
                     <span class="string">"Frame #{index}, opcode {} :: {}"</span>,
                     debug_location, opcodes[<span class="kw-2">*</span>instruction_pointer]
-                )
+                );
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } =&gt; {
                 <span class="kw">let </span>brillig_bytecode = <span class="kw">if let </span>Opcode::BrilligCall { id, .. } = opcodes[<span class="kw-2">*</span>acir_index]
@@ -1401,7 +1401,7 @@
                 <span class="kw">_ </span>=&gt; DebugExecutionResult::Incomplete,
             }
         };
-        <span class="self">self</span>.status_sender.send(DebuggerStatus::Final(result)).expect(<span class="string">"Downstream channel closed"</span>)
+        <span class="self">self</span>.status_sender.send(DebuggerStatus::Final(result)).expect(<span class="string">"Downstream channel closed"</span>);
     }
 }
 

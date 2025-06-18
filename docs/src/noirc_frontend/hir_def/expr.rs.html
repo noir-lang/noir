@@ -498,7 +498,8 @@
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -564,6 +565,7 @@
 }
 
 <span class="attr">#[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 </span><span class="kw">pub enum </span>ImplKind {
     <span class="doccomment">/// This ident is not a trait method
     </span>NotATraitMethod,

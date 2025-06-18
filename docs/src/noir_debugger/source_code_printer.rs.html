@@ -347,8 +347,7 @@
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
 <a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a>
-<a href="#350" id="350">350</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::Files;
+<a href="#349" id="349">349</a></pre></div><pre class="rust"><code><span class="kw">use </span>codespan_reporting::files::Files;
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>owo_colors::OwoColorize;
@@ -396,10 +395,10 @@
             <span class="kw">match </span>line {
                 PrintedLine::Skip =&gt; {}
                 PrintedLine::Ellipsis { line_number } =&gt; {
-                    print_ellipsis(line_number, raw_source_printing)
+                    print_ellipsis(line_number, raw_source_printing);
                 }
                 PrintedLine::Content { line_number, cursor, content, highlight } =&gt; {
-                    print_content(line_number, cursor, content, highlight, raw_source_printing)
+                    print_content(line_number, cursor, content, highlight, raw_source_printing);
                 }
             }
         }
@@ -568,8 +567,7 @@
     </span><span class="kw">let </span>context_lines = <span class="number">5</span>;
 
     <span class="comment">// Sub-range of lines that we'll print, which includes location + context lines
-    </span><span class="kw">let </span>first_line_to_print =
-        <span class="kw">if </span>location_lines.start &lt; context_lines { <span class="number">0 </span>} <span class="kw">else </span>{ location_lines.start - context_lines };
+    </span><span class="kw">let </span>first_line_to_print = location_lines.start.saturating_sub(context_lines);
     <span class="kw">let </span>last_line_to_print = std::cmp::min(location_lines.end + context_lines, file_lines.end);
     <span class="kw">let </span>printed_lines = Range { start: first_line_to_print, end: last_line_to_print };
 

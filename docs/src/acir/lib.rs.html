@@ -618,18 +618,14 @@
 <a href="#617" id="617">617</a>
 <a href="#618" id="618">618</a>
 <a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a>
-<a href="#621" id="621">621</a>
-<a href="#622" id="622">622</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#620" id="620">620</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
 //! NOIR_CODEGEN_OVERWRITE=1 cargo test -p acir cpp_codegen
 //! ```
 </span><span class="attr">#![cfg_attr(not(test), forbid(unsafe_code))] </span><span class="comment">// `std::env::set_var` is used in tests.
-</span><span class="attr">#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
-#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+</span><span class="attr">#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 #[doc = <span class="macro">include_str!</span>(<span class="string">"../README.md"</span>)]
 </span><span class="kw">pub mod </span>circuit;

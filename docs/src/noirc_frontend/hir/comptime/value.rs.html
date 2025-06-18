@@ -679,7 +679,8 @@
 <a href="#678" id="678">678</a>
 <a href="#679" id="679">679</a>
 <a href="#680" id="680">680</a>
-<a href="#681" id="681">681</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -770,6 +771,7 @@
 }
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] </span><span class="comment">// Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 </span><span class="kw">pub enum </span>ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),

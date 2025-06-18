@@ -1484,8 +1484,8 @@
 <a href="#1483" id="1483">1483</a>
 <a href="#1484" id="1484">1484</a>
 <a href="#1485" id="1485">1485</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+#![expect(unreachable_pub)] </span><span class="comment">// This crate is full of issues related to this lint
 
 </span><span class="kw">use </span>core::panic;
 <span class="kw">use </span>std::{
@@ -1564,7 +1564,7 @@
 
 <span class="kw">impl </span>FuzzTask {
     <span class="doccomment">/// Create a new FuzzTask where everything is given
-    </span><span class="kw">pub fn </span>new(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         main_testcase_id: TestCaseId,
         additional_testcase_id: <span class="prelude-ty">Option</span>&lt;TestCaseId&gt;,
         seed: SimpleXorShiftRNGSeed,
@@ -1573,7 +1573,7 @@
     }
 
     <span class="doccomment">/// Create a task for executing a testcase without mutation
-    </span><span class="kw">pub fn </span>mutationless(main_testcase_id: TestCaseId) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mutationless(main_testcase_id: TestCaseId) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             main_testcase_id,
             additional_testcase_id: <span class="prelude-val">None</span>,
@@ -1581,13 +1581,13 @@
         }
     }
 
-    <span class="kw">pub fn </span>prng_seed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SimpleXorShiftRNGSeed {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>prng_seed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; SimpleXorShiftRNGSeed {
         <span class="self">self</span>.seed
     }
-    <span class="kw">pub fn </span>main_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TestCaseId {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>main_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TestCaseId {
         <span class="self">self</span>.main_testcase_id
     }
-    <span class="kw">pub fn </span>additional_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TestCaseId&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>additional_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TestCaseId&gt; {
         <span class="self">self</span>.additional_testcase_id
     }
 }
@@ -1611,7 +1611,7 @@
 }
 
 <span class="kw">impl </span>FastParallelFuzzResult {
-    <span class="kw">pub fn </span>new(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         outcome: HarnessExecutionOutcome,
         new_coverage_detected: bool,
         failure_detected: bool,
@@ -1630,30 +1630,30 @@
     }
 
     <span class="doccomment">/// True if there is no need to perform the merge check
-    </span><span class="kw">pub fn </span>skip_check(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>skip_check(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         !<span class="self">self</span>.new_coverage_detected
     }
 
     <span class="doccomment">/// Executing the testcase resulted in failure
-    </span><span class="kw">pub fn </span>failed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>failed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.failure_detected
     }
 
     <span class="doccomment">/// Get the outcome of the execution
-    </span><span class="kw">pub fn </span>outcome(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HarnessExecutionOutcome {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>outcome(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>HarnessExecutionOutcome {
         <span class="kw-2">&amp;</span><span class="self">self</span>.outcome
     }
 
     <span class="doccomment">/// Get mutation time
-    </span><span class="kw">pub fn </span>mutation_time(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mutation_time(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
         <span class="self">self</span>.mutation_time
     }
     <span class="doccomment">/// Get acir execution time
-    </span><span class="kw">pub fn </span>acir_duration_micros(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>acir_duration_micros(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
         <span class="self">self</span>.acir_duration_micros
     }
     <span class="doccomment">/// Get brillig execution time
-    </span><span class="kw">pub fn </span>brillig_duration_micros(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brillig_duration_micros(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u128 {
         <span class="self">self</span>.brillig_duration_micros
     }
 }
@@ -1695,56 +1695,56 @@
 }
 
 <span class="kw">impl </span>Metrics {
-    <span class="kw">pub fn </span>increase_total_acir_duration_micros(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_total_acir_duration_micros(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
         <span class="self">self</span>.total_acir_execution_time += update;
     }
-    <span class="kw">pub fn </span>increase_total_brillig_duration_micros(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_total_brillig_duration_micros(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
         <span class="self">self</span>.total_brillig_execution_time += update;
     }
-    <span class="kw">pub fn </span>increase_total_mutation_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_total_mutation_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>u128) {
         <span class="self">self</span>.total_mutation_time += update;
     }
     <span class="doccomment">/// Tells if more time has been spent in brillig execution than in ACIR execution
-    </span><span class="kw">pub fn </span>is_brillig_dominating(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_brillig_dominating(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.total_brillig_execution_time &gt; <span class="self">self</span>.total_acir_execution_time
     }
 
-    <span class="kw">pub fn </span>increase_processed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>usize) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increase_processed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>, update: <span class="kw-2">&amp;</span>usize) {
         <span class="self">self</span>.processed_testcase_count += update;
     }
     <span class="kw">fn </span>increment_removed_testcase_count(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.removed_testcase_count += <span class="number">1</span>;
         <span class="self">self</span>.removed_testcase_last_round = <span class="bool-val">true</span>;
     }
-    <span class="kw">pub fn </span>set_active_corpus_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_size: usize) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_active_corpus_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_size: usize) {
         <span class="self">self</span>.active_corpus_size = new_size;
     }
-    <span class="kw">pub fn </span>set_last_round_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_size: usize) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_last_round_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_size: usize) {
         <span class="self">self</span>.last_round_size = new_size;
     }
-    <span class="kw">pub fn </span>set_last_round_execution_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_time: u128) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_last_round_execution_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_time: u128) {
         <span class="self">self</span>.last_round_execution_time = new_time;
     }
-    <span class="kw">pub fn </span>set_last_round_update_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_time: u128) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_last_round_update_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_time: u128) {
         <span class="self">self</span>.last_round_update_time = new_time;
     }
-    <span class="kw">pub fn </span>set_num_threads(<span class="kw-2">&amp;mut </span><span class="self">self</span>, count: usize) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_num_threads(<span class="kw-2">&amp;mut </span><span class="self">self</span>, count: usize) {
         <span class="self">self</span>.num_threads = count;
     }
 
-    <span class="kw">pub fn </span>increment_acir_brillig_discoveries(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_acir_brillig_discoveries(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.acir_brillig_discoveries += <span class="number">1</span>;
         <span class="self">self</span>.found_new_with_acir_brillig = <span class="bool-val">true</span>;
         <span class="comment">// Set pulse interval to zero so that metrics are printed immediately
         </span><span class="self">self</span>.pulse_interval_millis = <span class="number">0</span>;
     }
-    <span class="kw">pub fn </span>increment_brillig_discoveries(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>increment_brillig_discoveries(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.brillig_discoveries += <span class="number">1</span>;
         <span class="self">self</span>.found_new_with_brillig = <span class="bool-val">true</span>;
         <span class="comment">// Set pulse interval to zero so that metrics are printed immediately
         </span><span class="self">self</span>.pulse_interval_millis = <span class="number">0</span>;
     }
-    <span class="kw">pub fn </span>refresh_round(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>refresh_round(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.found_new_with_acir_brillig = <span class="bool-val">false</span>;
         <span class="self">self</span>.found_new_with_brillig = <span class="bool-val">false</span>;
         <span class="self">self</span>.removed_testcase_last_round = <span class="bool-val">false</span>;

@@ -53,7 +53,8 @@
 <a href="#52" id="52">52</a>
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
-<a href="#55" id="55">55</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#55" id="55">55</a>
+<a href="#56" id="56">56</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{AssignStatement, Expression, LValue, Statement, StatementKind},
     token::{Token, TokenKind},
 };
@@ -61,6 +62,7 @@
 <span class="kw">use </span><span class="kw">super</span>::Parser;
 
 <span class="attr">#[derive(Debug)]
+#[allow(clippy::large_enum_variant)] </span><span class="comment">// Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 </span><span class="kw">pub enum </span>StatementOrExpressionOrLValue {
     Statement(Statement),
     Expression(Expression),

@@ -838,8 +838,6 @@
 <a href="#837" id="837">837</a>
 <a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 </span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
@@ -1074,6 +1072,7 @@
 }
 
 <span class="attr">#[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 </span><span class="kw">pub enum </span>CompileError {
     MonomorphizationError(MonomorphizationError),
     RuntimeError(RuntimeError),
@@ -1548,6 +1547,7 @@
 /// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 /// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all, fields(function_name = context.function_name(<span class="kw-2">&amp;</span>main_function)))]
+#[allow(clippy::result_large_err)]
 </span><span class="kw">pub fn </span>compile_no_check(
     context: <span class="kw-2">&amp;mut </span>Context,
     options: <span class="kw-2">&amp;</span>CompileOptions,

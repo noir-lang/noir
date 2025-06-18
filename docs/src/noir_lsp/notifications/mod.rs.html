@@ -747,7 +747,7 @@
         <span class="kw">let </span>(<span class="kw-2">mut </span>state, noir_text_document) = test_utils::init_lsp_server(<span class="string">"inlay_hints"</span>).<span class="kw">await</span>;
 
         <span class="comment">// Open the document, fake the text to be empty
-        </span>on_did_open_text_document(
+        </span><span class="kw">let _ </span>= on_did_open_text_document(
             <span class="kw-2">&amp;mut </span>state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
@@ -760,7 +760,7 @@
         );
 
         <span class="comment">// Fake the text to change to "global a = 1;"
-        </span>on_did_change_text_document(
+        </span><span class="kw">let _ </span>= on_did_change_text_document(
             <span class="kw-2">&amp;mut </span>state,
             DidChangeTextDocumentParams {
                 text_document: VersionedTextDocumentIdentifier {

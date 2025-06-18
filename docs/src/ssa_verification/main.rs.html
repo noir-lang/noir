@@ -140,7 +140,13 @@
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">mod </span>acir_instruction_builder;
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+</span><span class="kw">mod </span>acir_instruction_builder;
 <span class="kw">use </span><span class="kw">crate</span>::acir_instruction_builder::{InstructionArtifacts, Variable, VariableType};
 <span class="kw">use </span>clap::Parser;
 <span class="kw">use </span>flate2::read::GzDecoder;
