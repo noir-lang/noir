@@ -72,7 +72,8 @@ use fxhash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
-pub use options::{ElaboratorOptions, FrontendOptions, UnstableFeature};
+pub(crate) use options::ElaboratorOptions;
+pub use options::{FrontendOptions, UnstableFeature};
 pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
@@ -118,9 +119,9 @@ pub struct Loop {
 pub struct Elaborator<'context> {
     scopes: ScopeForest,
 
-    pub errors: Vec<CompilationError>,
+    pub(crate) errors: Vec<CompilationError>,
 
-    pub interner: &'context mut NodeInterner,
+    pub(crate) interner: &'context mut NodeInterner,
     pub(crate) def_maps: &'context mut DefMaps,
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
