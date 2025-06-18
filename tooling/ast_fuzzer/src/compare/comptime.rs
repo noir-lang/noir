@@ -28,8 +28,7 @@ use noirc_frontend::{
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
 use crate::{
-    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi,
-    program_comptime_wrap_expression,
+    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
 };
 
 /// Prepare a code snippet.
@@ -327,7 +326,7 @@ impl CompareComptime {
 
         let comptime_res = interpret(&format!("comptime {}", source));
 
-        let program_comptime = program_comptime_wrap_expression(u, c, comptime_res)?;
+        let program_comptime = program_wrap_expression(c, comptime_res)?;
         let comptime_ssa = Some(CompareArtifact::from(f_comptime(program_comptime)?));
 
         Ok(Self { program, abi, source, ssa, force_brillig, comptime_ssa })

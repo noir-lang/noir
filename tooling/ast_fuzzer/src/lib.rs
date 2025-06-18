@@ -16,7 +16,7 @@ pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{
     DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
-    program_comptime_wrap_expression,
+    program_wrap_expression,
 };
 pub use program::{expr, rewrite, scope, types, visitor};
 

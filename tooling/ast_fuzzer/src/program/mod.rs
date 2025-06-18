@@ -72,12 +72,8 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
 
 /// Build a program with the single `main` function returning
 /// the result of a given expression (used for conversion of the
-/// interpreter execution results for comparison)
-pub fn program_comptime_wrap_expression(
-    u: &mut Unstructured,
-    config: Config,
-    expr: Expression,
-) -> arbitrary::Result<Program> {
+/// comptime interpreter execution results for comparison)
+pub fn program_wrap_expression(config: Config, expr: Expression) -> arbitrary::Result<Program> {
     let mut ctx = Context::new(config);
 
     let decl_main = FunctionDeclaration {
