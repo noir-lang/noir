@@ -14,6 +14,7 @@ use completion_items::{
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
+use iter_extended::vecmap;
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
@@ -344,9 +345,14 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(id) => module_id = id,
                 ModuleDefId::TypeId(type_id) => {
                     let data_type = self.interner.get_type(type_id);
+                    // Use `Type::Error` for the generics since they unify with anything, to get methods from all impls.
+                    // We could use fresh type variables instead, but we have a non-mutable NodeInterner here.
+                    // Note: ideally we'd also use any turbofish for `generics`, but at least Rust Analyzer seems
+                    // to ignore them and offers all methods from all impls, so for now we do the same.
+                    let generics = vecmap(&data_type.borrow().generics, |_| Type::Error);
                     self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(data_type, vec![]),
+                        &Type::DataType(data_type, generics),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,

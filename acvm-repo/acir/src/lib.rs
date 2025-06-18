@@ -5,8 +5,6 @@
 //! NOIR_CODEGEN_OVERWRITE=1 cargo test -p acir cpp_codegen
 //! ```
 #![cfg_attr(not(test), forbid(unsafe_code))] // `std::env::set_var` is used in tests.
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 #[doc = include_str!("../README.md")]

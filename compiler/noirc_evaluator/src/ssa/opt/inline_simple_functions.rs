@@ -59,7 +59,7 @@ impl Ssa {
                 return true;
             }
 
-            // Check whether the only instruction is a recursive call, which prevents inlining the callee.
+            // Don't inline recursive functions
             if recursive_functions.contains(&callee.id()) {
                 return false;
             }

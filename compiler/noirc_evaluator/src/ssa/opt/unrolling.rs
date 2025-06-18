@@ -1083,7 +1083,7 @@ mod tests {
                 b5():
                     v4 = add v0, v2
                     v5 = lt u32 10, v4
-                    constrain v5 == u32 1
+                    constrain v5 == u1 1
                     v6 = add v2, u32 1
                     jmp b4(v6)
                 b6(): // end of inner loop
@@ -1104,24 +1104,24 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b2()
           b1():
             return u32 0
           b2():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b3()
           b3():
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
-            constrain u1 0 == u32 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b4()
           b4():
             jmp b1()
@@ -1490,9 +1490,9 @@ mod tests {
             v11 = array_get v0, index v10 -> u64
             v12 = add v11, u64 1
             v13 = array_set v9, index v10, value v12
-            v15 = add v1, {idx_type} 1
+            v15 = unchecked_add v1, {idx_type} 1
             store v13 at v4
-            v16 = add v1, {idx_type} 1 // duplicate
+            v16 = unchecked_add v1, {idx_type} 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]

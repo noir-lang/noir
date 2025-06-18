@@ -89,6 +89,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
@@ -286,8 +287,9 @@ impl Value {
 
                         Ok(expr)
                     }
-                    Err(mut errors) => {
-                        let error = Box::new(errors.swap_remove(0));
+                    Err(errors) => {
+                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
@@ -581,8 +583,14 @@ impl Value {
         )
     }
 
-    pub(crate) fn is_closure(&self) -> bool {
-        matches!(self, Value::Closure(..))
+    pub(crate) fn contains_function_or_closure(&self) -> bool {
+        match self {
+            Value::Array(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Function(..) | Value::Closure(..) => true,
+            _ => false,
+        }
     }
 
     /// Converts any non-negative `Value` into a `FieldElement`.
@@ -627,6 +635,16 @@ impl Value {
             }
         }
     }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            Value::I8(x) => *x < 0,
+            Value::I16(x) => *x < 0,
+            Value::I32(x) => *x < 0,
+            Value::I64(x) => *x < 0,
+            _ => false, // Unsigned or Field types are never negative
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
@@ -653,8 +671,9 @@ where
             }
             Ok(expr)
         }
-        Err(mut errors) => {
-            let error = Box::new(errors.swap_remove(0));
+        Err(errors) => {
+            let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+            let error = Box::new(error);
             let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

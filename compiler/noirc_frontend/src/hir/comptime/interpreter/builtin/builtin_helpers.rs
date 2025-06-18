@@ -529,8 +529,9 @@ pub(super) fn parse_tokens<'a, T, F>(
 where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
-    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
-        let error = Box::new(errors.swap_remove(0));
+    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
+        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })

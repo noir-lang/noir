@@ -2605,4 +2605,20 @@ global y = 1;
 "#;
         assert_format_with_max_width(src, src, 28);
     }
+
+    #[test]
+    fn cast_broken_to_two_lines_inside_array() {
+        let src = r#"fn foo() {
+    bar(
+        "",
+        [
+            (private_call_timestamp)
+                 as i32,
+            2,
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, src, 40);
+    }
 }
