@@ -256,12 +256,17 @@ fn remove_first_class_functions_in_instruction(
             *arg = map_value(*arg);
         }
     } else if let Instruction::MakeArray { typ, .. } = instruction {
+        let mut modified_type = false;
         if let Some(rep) = replacement_type(typ) {
             *typ = rep;
+            modified_type = true;
         }
+
         instruction.map_values_mut(map_value);
 
-        modified = true;
+        if modified_type {
+            modified = true;
+        }
     } else {
         instruction.map_values_mut(map_value);
     }
