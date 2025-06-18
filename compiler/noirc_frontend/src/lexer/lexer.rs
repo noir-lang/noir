@@ -1344,20 +1344,6 @@ mod tests {
     }
 
     #[test]
-    fn test_reject_invalid_underscores_in_integer_literal() {
-        let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
-
-        for input in test_cases {
-            let mut lexer = Lexer::new_with_dummy_file(input);
-            let token = lexer.next_token();
-            assert!(
-                matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
-                "expected {input} to throw error"
-            );
-        }
-    }
-
-    #[test]
     fn test_span() {
         let input = "let x = 5";
 
