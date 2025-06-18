@@ -81,7 +81,7 @@ fn does_not_move_into_loop() {
     }
     unconstrained fn use_var$f1(_x$l3: [Field; 2]) -> () {
     }
-    unconstrained fn use_var$f2(_x$l4: [Field; 1]) -> () {
+    unconstrained fn use_var$f2(_x$l4: [i32; 1]) -> () {
     }
     ");
 }
@@ -109,7 +109,7 @@ fn can_move_within_loop() {
             use_var$f1(x$l1);
         }
     }
-    unconstrained fn use_var$f1(_x$l2: [Field; 2]) -> () {
+    unconstrained fn use_var$f1(_x$l2: [i32; 2]) -> () {
     }
     ");
 }

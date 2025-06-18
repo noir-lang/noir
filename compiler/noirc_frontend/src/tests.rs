@@ -1242,7 +1242,7 @@ fn resolve_fmt_strings() {
 
             let new_val = 10;
             println(f"random_string{new_val}{new_val}");
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<31, (Field, Field)>
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Unused expression result of type fmtstr<31, (i32, i32)>
         }
         fn println<T>(x : T) -> T {
             x
@@ -2018,7 +2018,7 @@ fn cast_256_to_u8_size_checks() {
     let src = r#"
         fn main() {
             assert(256 as u8 == 0);
-                   ^^^^^^^^^ Casting value of type Field to a smaller type (u8)
+                   ^^^^^^^^^ Casting value of type i32 to a smaller type (u8)
                    ~~~~~~~~~ casting untyped value (256) to a type with a maximum size (255) that's smaller than it
         }
     "#;
@@ -2941,24 +2941,24 @@ fn do_not_infer_globals_to_u32_from_type_use() {
     let src = r#"
         global ARRAY_LEN = 3;
                ^^^^^^^^^ Globals must have a specified type
-                           ~ Inferred type is `Field`
+                           ~ Inferred type is `i32`
         global STR_LEN: _ = 2;
                ^^^^^^^ Globals must have a specified type
-                            ~ Inferred type is `Field`
+                            ~ Inferred type is `i32`
         global FMT_STR_LEN = 2;
                ^^^^^^^^^^^ Globals must have a specified type
-                             ~ Inferred type is `Field`
+                             ~ Inferred type is `i32`
 
         fn main() {
             let _a: [u32; ARRAY_LEN] = [1, 2, 3];
                     ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
+                    ~~~~~~~~~~~~~~~~ expected `u32`, found `i32`
             let _b: str<STR_LEN> = "hi";
                         ^^^^^^^ The numeric generic is not of type `u32`
-                        ~~~~~~~ expected `u32`, found `Field`
+                        ~~~~~~~ expected `u32`, found `i32`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
                            ^^^^^^^^^^^ The numeric generic is not of type `u32`
-                           ~~~~~~~~~~~ expected `u32`, found `Field`
+                           ~~~~~~~~~~~ expected `u32`, found `i32`
         }
     "#;
     check_errors!(src);

@@ -443,7 +443,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
 
     fn append_resolved_generic(&mut self, generic: &ResolvedGeneric) {
         match &generic.kind() {
-            Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
+            Kind::Any | Kind::Normal | Kind::Integer | Kind::SignedIntegerOrField => {
                 self.string.push_str(&generic.name);
             }
             Kind::Numeric(typ) => {

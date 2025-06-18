@@ -1564,7 +1564,7 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
         Value::Field(value) => {
             let u64: Option<u64> = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
-                let typ = Type::default_int_type();
+                let typ = Type::default_unsigned_integer_type();
                 let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?

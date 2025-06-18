@@ -93,9 +93,10 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             if binding.is_integer() || binding.is_integer_or_field() {
                 match &*binding.borrow() {
                     TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
-                    TypeBinding::Unbound(_id, _kind) => {
-                        abi_type_from_hir_type(context, &Type::default_int_or_field_type())
-                    }
+                    TypeBinding::Unbound(_id, _kind) => abi_type_from_hir_type(
+                        context,
+                        &Type::default_signed_integer_or_field_type(),
+                    ),
                 }
             } else {
                 unreachable!("{typ} cannot be used in the abi")

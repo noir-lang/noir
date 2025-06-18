@@ -385,13 +385,13 @@ fn trait_alias_polymorphic_inheritance() {
             x.foo().bar()
         }
 
-        impl Foo for Field {
+        impl Foo for i32 {
             fn foo(self) -> Self {
                 self + 1
             }
         }
 
-        impl Bar<bool> for Field {
+        impl Bar<bool> for i32 {
             fn bar(self) -> bool {
                 true
             }
@@ -1163,18 +1163,19 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
         fn from2(input: T) -> Self;
     }
     struct U60Repr {}
-    impl From2<[Field; 3]> for U60Repr {
-        fn from2(_: [Field; 3]) -> Self {
+    impl From2<[i32; 3]> for U60Repr {
+        fn from2(_: [i32; 3]) -> Self {
             U60Repr {}
         }
     }
-    impl From2<Field> for U60Repr {
-        fn from2(_: Field) -> Self {
+    impl From2<i32> for U60Repr {
+        fn from2(_: i32) -> Self {
             U60Repr {}
         }
     }
     fn main() {
-        let _ = U60Repr::from2([1, 2, 3]);
+        let a: [i32; 3] = [1, 2, 3];
+        let _ = U60Repr::from2(a);
         let _ = U60Repr::from2(1);
     }
     "#;
@@ -1573,7 +1574,7 @@ fn serialize_test_with_a_previous_unrelated_definition() {
         }
     }
 
-    impl Serialize for Field {
+    impl Serialize for i32 {
         let Size: u32 = 1;
 
         fn serialize(self) { }
@@ -1595,20 +1596,20 @@ fn errors_on_incorrect_generics_in_type_trait_call() {
         fn from2(input: T) -> Self;
     }
     struct U60Repr {}
-    impl From2<[Field; 3]> for U60Repr {
-        fn from2(_: [Field; 3]) -> Self {
+    impl From2<[i32; 3]> for U60Repr {
+        fn from2(_: [i32; 3]) -> Self {
             U60Repr {}
         }
     }
-    impl From2<Field> for U60Repr {
-        fn from2(_: Field) -> Self {
+    impl From2<i32> for U60Repr {
+        fn from2(_: i32) -> Self {
             U60Repr {}
         }
     }
 
     fn main() {
-        let _ = U60Repr::<Field>::from2([1, 2, 3]);
-                       ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+        let _ = U60Repr::<i32>::from2([1, 2, 3]);
+                       ^^^^^^^ struct U60Repr expects 0 generics but 1 was given
     }
     "#;
     check_errors!(src);

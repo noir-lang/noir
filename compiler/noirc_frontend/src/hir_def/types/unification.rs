@@ -37,15 +37,15 @@ impl Kind {
             (Kind::Any, _) | (_, Kind::Any) => true,
 
             // Kind::Normal unifies with Kind::Integer and Kind::IntegerOrField
-            (Kind::Normal, Kind::Integer | Kind::IntegerOrField)
-            | (Kind::Integer | Kind::IntegerOrField, Kind::Normal) => true,
+            (Kind::Normal, Kind::Integer | Kind::SignedIntegerOrField)
+            | (Kind::Integer | Kind::SignedIntegerOrField, Kind::Normal) => true,
 
             // Kind::Integer unifies with Kind::IntegerOrField
-            (Kind::Integer | Kind::IntegerOrField, Kind::Integer | Kind::IntegerOrField) => true,
+            (Kind::Integer | Kind::SignedIntegerOrField, Kind::Integer | Kind::SignedIntegerOrField) => true,
 
             // Kind::IntegerOrField unifies with Kind::Numeric(_)
-            (Kind::IntegerOrField, Kind::Numeric(_typ))
-            | (Kind::Numeric(_typ), Kind::IntegerOrField) => true,
+            (Kind::SignedIntegerOrField, Kind::Numeric(_typ))
+            | (Kind::Numeric(_typ), Kind::SignedIntegerOrField) => true,
 
             // Kind::Numeric unifies along its Type argument
             (Kind::Numeric(lhs), Kind::Numeric(rhs)) => {
@@ -140,11 +140,12 @@ impl Type {
                         })
                     }
                 }
-                TypeBinding::Unbound(_id, Kind::IntegerOrField) => other
-                    .try_unify_to_type_variable(var, flags, bindings, |bindings| {
+                TypeBinding::Unbound(_id, Kind::SignedIntegerOrField) => {
+                    other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = false;
                         other.try_bind_to_polymorphic_int(var, bindings, only_integer)
-                    }),
+                    })
+                }
                 TypeBinding::Unbound(_id, Kind::Integer) => {
                     other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
                         let only_integer = true;

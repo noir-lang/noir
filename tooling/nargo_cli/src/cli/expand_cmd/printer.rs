@@ -623,7 +623,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Kind::Any | Kind::Normal => {
                 self.push_str(name);
             }
-            Kind::IntegerOrField | Kind::Integer => {
+            Kind::SignedIntegerOrField | Kind::Integer => {
                 self.push_str("let ");
                 self.push_str(name);
                 self.push_str(": u32");

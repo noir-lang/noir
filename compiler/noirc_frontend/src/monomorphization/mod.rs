@@ -1056,7 +1056,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Kind::Any => (),
                     Kind::Normal => (),
                     Kind::Integer => (),
-                    Kind::IntegerOrField => (),
+                    Kind::SignedIntegerOrField => (),
                     Kind::Numeric(typ) => Self::check_type(typ, ident.location)?,
                 }
                 Self::check_type(binding, ident.location)?;
@@ -1317,7 +1317,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Default any remaining unbound type variables.
                 // This should only happen if the variable in question is unused
                 // and within a larger generic type.
-                type_var.bind(HirType::default_int_or_field_type());
+                type_var.bind(HirType::default_signed_integer_or_field_type());
                 ast::Type::Field
             }
 
