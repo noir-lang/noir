@@ -2412,6 +2412,7 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
 
 /// The possible errors of interpreting given code
 /// into a monomorphized AST expression.
+#[cfg(feature = "test_utils")]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ElaboratorError {
     Parse(Vec<ParserError>),
@@ -2423,6 +2424,7 @@ pub enum ElaboratorError {
 /// Interpret source code using the elaborator, without
 /// parsing and compiling it with nargo, converting
 /// the result into a monomorphized AST expression.
+#[cfg(feature = "test_utils")]
 pub fn interpret(src: &str) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
     use crate::hir::{
         Context, ParsedFiles,
