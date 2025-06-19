@@ -1958,15 +1958,15 @@ mod test {
             store v23 at v27
             v28 = allocate -> &mut u32
             store u32 0 at v28
-            v31 = call f1() -> [Field; 4]
-            v35 = allocate -> &mut [Field; 4]
-            store v31 at v35
             call f2(v26, v27, v28, Field 13)
             call f2(v26, v27, v28, Field 0)
             call f2(v26, v27, v28, Field 1)
             v42 = load v26 -> [Field; 3]
             v36 = load v28 -> u32
             call f4(v42, v27, v36)
+            v31 = call f1() -> [Field; 4]
+            v35 = allocate -> &mut [Field; 4]
+            store v31 at v35
             call f4(v8, v35, u32 0)
             return v35
         }
@@ -2020,77 +2020,9 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
 
+        let result_before = ssa.interpret(vec![]);
         let ssa = ssa.fold_constants_using_constraints();
-
-        assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) impure fn constructor f0 {
-          b0():
-            v1 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            v3 = call f1() -> [Field; 4]
-            v4 = allocate -> &mut [Field; 3]
-            store v1 at v4
-            v5 = allocate -> &mut [Field; 4]
-            store v3 at v5
-            v6 = allocate -> &mut u32
-            store u32 0 at v6
-            inc_rc v3
-            v8 = allocate -> &mut [Field; 4]
-            store v3 at v8
-            call f2(v4, v5, v6, Field 13)
-            call f2(v4, v5, v6, Field 0)
-            call f2(v4, v5, v6, Field 1)
-            v12 = load v4 -> [Field; 3]
-            v13 = load v6 -> u32
-            call f3(v12, v5, v13)
-            call f3(v1, v8, u32 0)
-            return v8
-        }
-        brillig(inline) predicate_pure fn new f1 {
-          b0():
-            v2 = make_array [Field 0, Field 0, Field 0, Field 55340232221128654848] : [Field; 4]
-            return v2
-        }
-        brillig(inline) impure fn absorb f2 {
-          b0(v0: &mut [Field; 3], v1: &mut [Field; 4], v2: &mut u32, v3: Field):
-            v4 = load v2 -> u32
-            v5 = load v0 -> [Field; 3]
-            v6 = load v1 -> [Field; 4]
-            v8 = lt v4, u32 3
-            constrain v8 == u1 1, "Index out of bounds"
-            v10 = array_set v5, index v4, value v3
-            v12 = add v4, u32 1
-            store v10 at v0
-            store v6 at v1
-            store v12 at v2
-            return
-        }
-        brillig(inline) impure fn perform_duplex f3 {
-          b0(v0: [Field; 3], v1: &mut [Field; 4], v2: u32):
-            jmp b1(u32 0)
-          b1(v3: u32):
-            v6 = lt v3, u32 3
-            jmpif v6 then: b2, else: b3
-          b2():
-            v11 = lt v3, v2
-            jmpif v11 then: b4, else: b5
-          b3():
-            v7 = load v1 -> [Field; 4]
-            inc_rc v7
-            v10 = call poseidon2_permutation(v7, u32 4) -> [Field; 4]
-            store v10 at v1
-            return
-          b4():
-            v12 = load v1 -> [Field; 4]
-            v13 = array_get v12, index v3 -> Field
-            v14 = array_get v0, index v3 -> Field
-            v15 = add v13, v14
-            v16 = array_set v12, index v3, value v15
-            store v16 at v1
-            jmp b5()
-          b5():
-            v18 = unchecked_add v3, u32 1
-            jmp b1(v18)
-        }
-        "#);
+        let result_after = ssa.interpret(vec![]);
+        assert_eq!(result_before, result_after);
     }
 }
