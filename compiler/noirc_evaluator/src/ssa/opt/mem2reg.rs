@@ -409,7 +409,7 @@ impl<'f> PerFunctionContext<'f> {
         // call that used to hold references but has since been optimized out to a known result.
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
-        let (instruction, _simplified) = {
+        let (instruction, simplified) = {
             let (ins, loc) = self.inserter.map_instruction(instruction);
             match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
                 InsertInstructionResult::Results(id, _) => (id, false),
@@ -425,7 +425,7 @@ impl<'f> PerFunctionContext<'f> {
         };
 
         match &self.inserter.function.dfg[instruction] {
-            Instruction::Load { address } => {
+            Instruction::Load { address } if !simplified => {
                 let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -464,7 +464,7 @@ impl<'f> PerFunctionContext<'f> {
                 // result to the previous load, which if it was removed should already have a mapping to the known value.
                 references.set_last_load(address, instruction);
             }
-            Instruction::Store { address, value } => {
+            Instruction::Store { address, value } if !simplified => {
                 let address = *address;
                 let value = *value;
 
@@ -485,13 +485,13 @@ impl<'f> PerFunctionContext<'f> {
                 references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
-            Instruction::Allocate => {
+            Instruction::Allocate if !simplified => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
-            Instruction::ArrayGet { array, .. } => {
+            Instruction::ArrayGet { array, .. } if !simplified => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
                 let array = *array;
@@ -509,7 +509,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
             }
-            Instruction::ArraySet { array, value, .. } => {
+            Instruction::ArraySet { array, value, .. } if !simplified => {
                 references.mark_value_used(*array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
@@ -545,7 +545,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                 }
             }
-            Instruction::Call { arguments, .. } => {
+            Instruction::Call { arguments, .. } if !simplified => {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
