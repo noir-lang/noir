@@ -50,6 +50,5 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
     } else {
         PackageType::Binary
     };
-    initialize_project(package_dir, package_name, package_type);
-    Ok(())
+    initialize_project(package_dir, package_name, package_type)
 }

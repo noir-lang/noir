@@ -15,6 +15,11 @@ pub enum CliError {
     DestinationAlreadyExists(PathBuf),
 
     #[error(
+        "Error: `nargo init` cannot be run on existing packages.\nNote: `Nargo.toml` already exists."
+    )]
+    NargoInitCannotBeRunOnExistingPackages,
+
+    #[error(
         "Error: {0}\nIf you need a package name to not match the directory name, consider using the `--name` flag."
     )]
     InvalidPackageName(String),
