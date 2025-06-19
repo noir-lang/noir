@@ -734,7 +734,7 @@ impl<'brillig> Context<'brillig> {
                 _ => return,
             };
 
-            if matches!(instruction, Instruction::MakeArray { .. }) {
+            if matches!(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
                 self.cached_instruction_results.remove(instruction);
             }
         }
