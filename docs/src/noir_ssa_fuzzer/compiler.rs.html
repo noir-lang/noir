@@ -31,7 +31,9 @@
 <a href="#30" id="30">30</a>
 <a href="#31" id="31">31</a>
 <a href="#32" id="32">32</a>
-<a href="#33" id="33">33</a></pre></div><pre class="rust"><code><span class="kw">use </span>noir_ssa_executor::compiler::{
+<a href="#33" id="33">33</a>
+<a href="#34" id="34">34</a>
+<a href="#35" id="35">35</a></pre></div><pre class="rust"><code><span class="kw">use </span>noir_ssa_executor::compiler::{
     compile_from_artifacts, evaluator_options, optimize_ssa_into_acir,
 };
 <span class="kw">use </span>noirc_abi::Abi;
@@ -41,6 +43,7 @@
     ssa::{ArtifactsAndWarnings, SsaEvaluatorOptions, function_builder::FunctionBuilder},
 };
 <span class="kw">use </span>std::collections::BTreeMap;
+
 <span class="doccomment">/// Optimizes the given FunctionBuilder into ACIR
 /// its taken from noirc_evaluator::ssa::optimize_all, but modified to accept FunctionBuilder
 /// and to catch panics... It cannot be caught with just catch_unwind.
@@ -50,6 +53,7 @@
     options: SsaEvaluatorOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt; {
     <span class="kw">let </span>ssa = builder.finish();
+    <span class="macro">log::debug!</span>(<span class="string">"SSA: {:}"</span>, ssa);
     optimize_ssa_into_acir(ssa, options)
 }
 
