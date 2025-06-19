@@ -413,7 +413,7 @@ impl FuzzerContext {
             StoredBlock { context: destination_block_context, block_id: destination_block_id };
     }
 
-    /// Adds loop to the program. Switches context to the loop body block.
+    /// Adds a loop to the program. Switches context to the loop body block.
     ///
     /// Loops in Noir on SSA level works as follows:
     /// 1) Create constant for start iteration
