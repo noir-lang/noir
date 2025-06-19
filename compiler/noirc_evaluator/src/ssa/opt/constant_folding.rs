@@ -911,10 +911,6 @@ pub(crate) fn can_be_deduplicated(
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use crate::{
         assert_ssa_snapshot,
         brillig::BrilligOptions,
@@ -922,7 +918,6 @@ mod test {
             Ssa,
             function_builder::FunctionBuilder,
             ir::{
-                function::RuntimeType,
                 map::Id,
                 types::{NumericType, Type},
                 value::ValueMapping,
@@ -1208,63 +1203,38 @@ mod test {
 
     #[test]
     fn constant_array_deduplication() {
-        // fn main f0 {
-        //   b0(v0: u64):
-        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     v5 = call keccakf1600(v1)
-        //     v6 = call keccakf1600(v2)
-        // }
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
-        let main_id = Id::test_new(0);
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u64):
+            v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            v5 = call keccakf1600(v1) -> [u64; 25]
+            v6 = call keccakf1600(v2) -> [u64; 25]
+            return
+        }
+        ";
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-        let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
-
-        let array_contents = im::vector![
-            v0, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
-            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
-        ];
-        let array1 = builder.insert_make_array(array_contents.clone(), typ.clone());
-        let array2 = builder.insert_make_array(array_contents, typ.clone());
-
-        assert_ne!(array1, array2, "arrays were not assigned different value ids");
-
-        let keccakf1600 =
-            builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
-        let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
-        let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
-        builder.terminate_with_return(Vec::new());
-
-        let mut ssa = builder.finish();
-        ssa.normalize_ids();
-
-        println!("{ssa}");
+        let ssa = Ssa::from_str(src).unwrap();
 
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, 4);
 
-        // fn main f0 {
-        //   b0(v0: u64):
-        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     inc_rc v1
-        //     v5 = call keccakf1600(v1)
-        // }
         let ssa = ssa.fold_constants();
 
-        println!("{ssa}");
-
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 3);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u64):
+            v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            inc_rc v2
+            v4 = call keccakf1600(v2) -> [u64; 25]
+            inc_rc v4
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1714,6 +1684,7 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v5 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            inc_rc v5
             inc_rc v5
             inc_rc v5
             v6 = cast v2 as Field
