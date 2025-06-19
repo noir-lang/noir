@@ -20,8 +20,8 @@ pub mod expr;
 pub(crate) mod freq;
 mod func;
 pub mod rewrite;
-mod scope;
-mod types;
+pub mod scope;
+pub mod types;
 pub mod visitor;
 
 #[cfg(test)]
@@ -329,9 +329,11 @@ impl Context {
         Ok(())
     }
 
-    /// As a post-processing step, identify recursive functions and add a call depth parameter to them.
+    /// Post-processing steps that change functions.
     fn rewrite_functions(&mut self, u: &mut Unstructured) -> arbitrary::Result<()> {
-        rewrite::add_recursion_limit(self, u)
+        rewrite::remove_unreachable_functions(self);
+        rewrite::add_recursion_limit(self, u)?;
+        Ok(())
     }
 
     /// Return the generated [Program].
@@ -529,6 +531,11 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_clone_and_drop = false;
         printer.show_print_as_std = true;
         printer.show_type_in_let = true;
+        // Most of the time it doesn't affect testing, except the comptime tests where
+        // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
+        // Using it also inserts an extra `cast` in the SSA,
+        // which at the moment for example defeats loop unrolling.
+        printer.show_type_of_int_literal = false;
         printer.print_program(self.0, f)
     }
 }
@@ -549,6 +556,10 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         // Declare the type in `let` so that when we parse snippets we can match the types which
         // the AST had, otherwise a literal which was a `u32` in the AST might be inferred as `Field`.
         printer.show_type_in_let = true;
+        // Also annotate literals with their type, so we don't have subtle differences in expressions,
+        // for example `for i in (5 / 10) as u32 .. 2` is `0..2` or `1..2` depending on whether 5 and 10
+        // were some number in the AST or `Field` when parsed by the test.
+        printer.show_type_of_int_literal = true;
         for function in &self.0.functions {
             if function.id == Program::main_id() {
                 let mut function = function.clone();

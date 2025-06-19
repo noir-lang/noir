@@ -42,6 +42,8 @@ fn main() {
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 
+    generate_interpret_execution_success_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -115,6 +117,53 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     "brillig_continue_break",
 ];
 
+/// `nargo interpret` ignored tests, either because they don't currently work or
+/// becuase they are too slow to run.
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 21] = [
+    // slow
+    "regression_4709",
+    // panic: index out of bounds
+    "array_dynamic_nested_blackbox_input",
+    // wrong result
+    "brillig_block_parameter_liveness",
+    // panic: BlockArgumentCountMismatch
+    "brillig_cow_regression",
+    // wrong result
+    "databus",
+    // panic: index out of bounds
+    "databus_composite_calldata",
+    // wrong result
+    "databus_two_calldata",
+    // wrong result
+    "databus_two_calldata_simple",
+    // panic: Internal(TypeError)
+    "inline_decompose_hint_brillig_call",
+    // panic: Internal(TypeError)
+    "multi_scalar_mul",
+    // panic: index out of bounds
+    "regression_11294",
+    // panic: Internal(TypeError)
+    "regression_3889",
+    // panic: index out of bounds
+    "regression_7612",
+    // gives a wrong result
+    "regression_7744",
+    // gives a wrong result
+    "regression_8174",
+    // panic: index out of bounds
+    "regression_struct_array_conditional",
+    // panic Internal(TypeError)
+    "simple_shield",
+    // panic: index out of bounds
+    "slice_loop",
+    // panic: index out of bounds
+    "struct_array_inputs",
+    // panic: BlockArgumentCountMismatch
+    "struct_inputs",
+    // panic: BlockArgumentCountMismatch
+    "tuple_inputs",
+];
+
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
@@ -147,13 +196,17 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
+    // bug
+    "alias_trait_method_call_multiple_candidates",
     // bug
     "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
+    // bug
+    "primitive_trait_method_call_multiple_candidates",
     // bug
     "reexports",
     // bug
@@ -184,6 +237,10 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
     "trait_override_implementation",
     // bug
     "trait_static_methods",
+    // bug
+    "type_trait_method_call_multiple_candidates",
+    // bug
+    "type_trait_method_call_multiple_candidates_with_turbofish",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
@@ -192,7 +249,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 20] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
     "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
@@ -201,9 +258,11 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
     "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
     "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
     "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
+    "noirc_frontend_tests_traits_serialize_test_with_a_previous_unrelated_definition",
     "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
     "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
@@ -371,6 +430,7 @@ fn test_{test_name}() {{
     )
     .expect("Could not write templated test file.");
 }
+
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
@@ -684,6 +744,41 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             "compile",
             "compile_failure(nargo, test_program_dir);",
             &MatrixConfig::default(),
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "interpret",
+            "interpret_execution_success(nargo);",
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                vary_inliner: true,
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
+            },
         );
     }
     writeln!(test_file, "}}").unwrap();

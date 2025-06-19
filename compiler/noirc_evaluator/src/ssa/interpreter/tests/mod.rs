@@ -13,6 +13,7 @@ use super::{InterpreterError, Ssa, Value};
 
 mod black_box;
 mod instructions;
+mod intrinsics;
 
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
@@ -51,7 +52,7 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     results.pop().unwrap()
 }
 
-fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }
 

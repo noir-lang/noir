@@ -86,8 +86,12 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(trait_.name.as_str());
                 self.show_trait_generics(generics);
             }
-            Type::NamedGeneric(NamedGeneric { name, .. }) => {
-                self.push_str(name);
+            Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
+                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                    self.show_type(typ);
+                } else {
+                    self.push_str(name);
+                }
             }
             Type::CheckedCast { from: _, to } => {
                 self.show_type(to);

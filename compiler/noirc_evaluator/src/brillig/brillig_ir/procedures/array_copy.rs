@@ -81,13 +81,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
 
             // Increase our array copy counter if that flag is set
             if ctx.count_arrays_copied {
-                let array_copy_counter = BrilligVariable::SingleAddr(SingleAddrVariable {
-                    address: ctx.array_copy_counter_address(),
-                    bit_size: 32,
-                });
-
-                let counter_register = array_copy_counter.extract_register();
-                ctx.codegen_usize_op(counter_register, counter_register, BrilligBinaryOp::Add, 1);
+                ctx.codegen_increment_array_copy_counter();
             }
         }
     });

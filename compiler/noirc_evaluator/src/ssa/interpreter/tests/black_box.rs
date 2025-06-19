@@ -161,7 +161,7 @@ fn test_poseidon() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [Field; 4]):
-        v1 = call poseidon2_permutation(v0) -> [u64; 4]
+        v1 = call poseidon2_permutation(v0, u32 4) -> [u64; 4]
         return v1
     }
       ";

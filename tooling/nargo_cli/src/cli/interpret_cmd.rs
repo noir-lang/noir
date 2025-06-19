@@ -1,5 +1,7 @@
 //! Use the SSA Interpreter to execute a SSA after a certain pass.
 
+use std::collections::BTreeMap;
+
 use acvm::acir::circuit::ExpressionWidth;
 use fm::{FileId, FileManager};
 use nargo::constants::PROVER_INPUT_FILE;
@@ -7,11 +9,14 @@ use nargo::ops::report_errors;
 use nargo::package::Package;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompilationResult, CompileOptions};
+use noirc_abi::Abi;
+use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::brillig::BrilligOptions;
+use noirc_evaluator::ssa::interpreter::InterpreterOptions;
+use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 use noirc_frontend::debug::DebugInstrumenter;
@@ -43,6 +48,10 @@ pub(super) struct InterpretCommand {
     /// When nothing is specified, the SSA is interpreted after all passes.
     #[clap(long)]
     ssa_pass: Vec<String>,
+
+    /// If true, the interpreter will print each value definition to stdout.
+    #[clap(long)]
+    print_definitions: bool,
 }
 
 impl WorkspaceCommand for InterpretCommand {
@@ -74,7 +83,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         );
 
         // Report warnings and get the AST, or exit if the compilation failed.
-        let program = report_errors(
+        let (program, abi) = report_errors(
             program_result,
             &file_manager,
             args.compile_options.deny_warnings,
@@ -82,17 +91,34 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         )?;
 
         // Parse the inputs and convert them to what the SSA interpreter expects.
-        let abi = noir_ast_fuzzer::program_abi(&program);
         let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
-        let (prover_input, _) =
+        let (prover_input, return_value) =
             noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
+
         let ssa_input = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
+
+        let ssa_return =
+            if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
+                Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
+            } else {
+                None
+            };
 
         // Generate the initial SSA.
         let mut ssa = generate_ssa(program)
             .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
 
-        print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, "Initial SSA", &ssa_input);
+        let interpreter_options = InterpreterOptions { print_definitions: args.print_definitions };
+
+        print_and_interpret_ssa(
+            &ssa_options,
+            &args.ssa_pass,
+            &mut ssa,
+            "Initial SSA",
+            &ssa_input,
+            &ssa_return,
+            interpreter_options,
+        )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
         for (i, ssa_pass) in ssa_passes.iter().enumerate() {
@@ -106,7 +132,15 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .run(ssa)
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
-            print_and_interpret_ssa(&ssa_options, &args.ssa_pass, &mut ssa, &msg, &ssa_input);
+            print_and_interpret_ssa(
+                &ssa_options,
+                &args.ssa_pass,
+                &mut ssa,
+                &msg,
+                &ssa_input,
+                &ssa_return,
+                interpreter_options,
+            )?;
         }
     }
     Ok(())
@@ -122,7 +156,7 @@ fn compile_into_program(
     workspace: &Workspace,
     package: &Package,
     options: &CompileOptions,
-) -> CompilationResult<Program> {
+) -> CompilationResult<(Program, Abi)> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     if options.disable_comptime_printing {
         context.disable_comptime_printing();
@@ -159,7 +193,10 @@ fn compile_into_program(
         println!("{program}");
     }
 
-    Ok((program, warnings))
+    let error_types = BTreeMap::default();
+    let abi = gen_abi(&context, &main_id, program.return_visibility(), error_types);
+
+    Ok(((program, abi), warnings))
 }
 
 fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
@@ -205,12 +242,26 @@ fn interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &Ssa,
     msg: &str,
-    args: &[noirc_evaluator::ssa::interpreter::value::Value],
-) {
+    args: &[Value],
+    return_value: &Option<Vec<Value>>,
+    options: InterpreterOptions,
+) -> Result<(), CliError> {
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
-        let result = ssa.interpret(args.into());
+        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        let args = Value::snapshot_args(args);
+        let result = ssa.interpret_with_options(args, options);
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
+        if let Some(return_value) = return_value {
+            let result = result.expect("Expected a non-error result");
+            if &result != return_value {
+                let error = format!(
+                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value:?}\nActual result:   {result:?}"
+                );
+                return Err(CliError::Generic(error));
+            }
+        }
     }
+    Ok(())
 }
 
 fn print_and_interpret_ssa(
@@ -218,8 +269,10 @@ fn print_and_interpret_ssa(
     passes_to_interpret: &[String],
     ssa: &mut Ssa,
     msg: &str,
-    args: &[noirc_evaluator::ssa::interpreter::value::Value],
-) {
+    args: &[Value],
+    return_value: &Option<Vec<Value>>,
+    interpreter_options: InterpreterOptions,
+) -> Result<(), CliError> {
     print_ssa(options, ssa, msg);
-    interpret_ssa(passes_to_interpret, ssa, msg, args);
+    interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
