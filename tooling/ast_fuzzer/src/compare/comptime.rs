@@ -74,19 +74,28 @@ pub struct CompareComptime {
     pub source: String,
     pub ssa: CompareArtifact,
     pub force_brillig: bool,
-    /// If the comptime code is executed directly, its results
-    /// are wrapped in a `main` function returning them, for further comparison.
-    pub comptime_ssa: Option<CompareArtifact>,
 }
 
 impl CompareComptime {
-    /// Execute the Noir code passed through the interpreter
-    /// and the SSA, then compare the results.
-    pub fn exec_direct(&self) -> eyre::Result<CompareCompiledResult> {
-        let comptime_ssa = match &self.comptime_ssa {
-            Some(comptime_ssa) => comptime_ssa,
-            None => unreachable!("SSA returning the comptime execution result should be available"),
+    /// Execute the Noir code with the comptime interpreter
+    /// and prepare SSA returning the result literal,
+    /// then compare SSA execution results.
+    pub fn exec_direct(
+        &self,
+        f_comptime: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+    ) -> eyre::Result<CompareCompiledResult> {
+        // log source code before interpreting
+        log::debug!("comptime src:\n{}", self.source);
+
+        let comptime_res = match interpret(&format!("comptime {}", self.source)) {
+            Err(e) => {
+                panic!("elaborator error while interpreting generated comptime code: {:?}", e)
+            }
+            Ok(res) => res,
         };
+
+        let program_comptime = program_wrap_expression(comptime_res)?;
+        let comptime_ssa = CompareArtifact::from(f_comptime(program_comptime)?);
 
         let blackbox_solver = Bn254BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
@@ -218,41 +227,7 @@ impl CompareComptime {
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
 
-        Ok(Self { program, abi, source, ssa, force_brillig, comptime_ssa: None })
-    }
-
-    /// Generate a random comptime-viable AST, reverse it into
-    /// Noir code and also compile it into SSA.
-    /// Then, execute the resulting code with the comptime
-    /// interpreter and prepare SSA returning the result
-    /// literal for comparison.
-    pub fn arb_direct(
-        u: &mut Unstructured,
-        c: Config,
-        f: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
-        f_comptime: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
-    ) -> arbitrary::Result<Self> {
-        let force_brillig = c.force_brillig;
-        let program = arb_program_comptime(u, c.clone())?;
-        let abi = program_abi(&program);
-
-        let ssa = CompareArtifact::from(f(program.clone())?);
-
-        let source = format!("{}", DisplayAstAsNoirComptime(&program));
-        // log source code before interpreting
-        log::debug!("comptime src:\n{}", source);
-
-        let comptime_res = match interpret(&format!("comptime {}", source)) {
-            Err(e) => {
-                panic!("elaborator error while interpreting generated comptime code: {:?}", e)
-            }
-            Ok(res) => res,
-        };
-
-        let program_comptime = program_wrap_expression(c, comptime_res)?;
-        let comptime_ssa = Some(CompareArtifact::from(f_comptime(program_comptime)?));
-
-        Ok(Self { program, abi, source, ssa, force_brillig, comptime_ssa })
+        Ok(Self { program, abi, source, ssa, force_brillig })
     }
 }
 

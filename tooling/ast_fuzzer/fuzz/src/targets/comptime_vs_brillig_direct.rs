@@ -39,30 +39,25 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         ..Default::default()
     };
 
-    let inputs = CompareComptime::arb_direct(
-        u,
-        config,
-        |program| {
-            let options = CompareOptions::default();
-            let ssa = create_ssa_or_die(
-                change_all_functions_into_unconstrained(program),
-                &options.onto(default_ssa_options()),
-                Some("brillig"),
-            );
-            Ok((ssa, options))
-        },
-        |program| {
-            let options = CompareOptions::default();
-            let ssa = create_ssa_or_die(
-                program,
-                &options.onto(default_ssa_options()),
-                Some("comptime_result_wrapper"),
-            );
-            Ok((ssa, options))
-        },
-    )?;
+    let inputs = CompareComptime::arb(u, config, |program| {
+        let options = CompareOptions::default();
+        let ssa = create_ssa_or_die(
+            change_all_functions_into_unconstrained(program),
+            &options.onto(default_ssa_options()),
+            Some("brillig"),
+        );
+        Ok((ssa, options))
+    })?;
 
-    let result = inputs.exec_direct()?;
+    let result = inputs.exec_direct(|program| {
+        let options = CompareOptions::default();
+        let ssa = create_ssa_or_die(
+            program,
+            &options.onto(default_ssa_options()),
+            Some("comptime_result_wrapper"),
+        );
+        Ok((ssa, options))
+    })?;
 
     compare_results_comptime(&inputs, &result)
 }
