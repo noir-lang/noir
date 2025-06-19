@@ -502,13 +502,12 @@ impl FuzzerContext {
         let block_body_id = self.insert_ssa_block();
 
         // if we are in loop, we use iter_block of this loop as the end_block for the new loop
-        let block_end_id;
-        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
-            block_end_id =
-                self.cycle_bodies_to_iters_ids[&self.current_block.block_id].block_iter_id;
-        } else {
-            block_end_id = self.insert_ssa_block();
-        }
+        let block_end_id =
+            if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id].block_iter_id
+            } else {
+                self.insert_ssa_block()
+            };
         // create constant for start
         let start_id = self.insert_constant(start_iter, ValueType::U32);
         // create constant for end
