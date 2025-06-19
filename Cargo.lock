@@ -3749,7 +3749,6 @@ dependencies = [
  "im",
  "insta",
  "iter-extended",
- "log",
  "noirc_arena",
  "noirc_errors",
  "noirc_printable_type",

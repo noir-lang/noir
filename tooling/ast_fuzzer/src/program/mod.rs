@@ -88,7 +88,7 @@ pub fn program_wrap_expression(config: Config, expr: Expression) -> arbitrary::R
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(None, FuncId(0), |_u, _fctx| Ok(expr.clone()))?;
+    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _fctx| Ok(expr.clone()))?;
 
     let program = ctx.finalize();
     Ok(program)
@@ -336,15 +336,15 @@ impl Context {
 
     /// Generate random function body.
     fn gen_function(&mut self, u: &mut Unstructured, id: FuncId) -> arbitrary::Result<()> {
-        self.gen_function_with_body(Some(u), id, |u, fctx| fctx.gen_body(u.unwrap()))
+        self.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
     }
 
     /// Generate function with a specified body generator.
     fn gen_function_with_body(
         &mut self,
-        u: Option<&mut Unstructured>,
+        u: &mut Unstructured,
         id: FuncId,
-        f: impl Fn(Option<&mut Unstructured>, FunctionContext) -> arbitrary::Result<Expression>,
+        f: impl Fn(&mut Unstructured, FunctionContext) -> arbitrary::Result<Expression>,
     ) -> arbitrary::Result<()> {
         let fctx = FunctionContext::new(self, id);
         let body = f(u, fctx)?;

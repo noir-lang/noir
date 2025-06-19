@@ -24,7 +24,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ImplMap, UnresolvedEnum, UnresolvedFunctions,
@@ -2410,10 +2410,20 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
     }
 }
 
+/// The possible errors of interpreting given code
+/// into a monomorphized AST expression.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElaboratorError {
+    Parse(Vec<ParserError>),
+    Compile(Vec<CompilationError>),
+    Interpret(InterpreterError),
+    HIRConvert(InterpreterError),
+}
+
 /// Interpret source code using the elaborator, without
 /// parsing and compiling it with nargo, converting
 /// the result into a monomorphized AST expression.
-pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
+pub fn interpret(src: &str) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
     use crate::hir::{
         Context, ParsedFiles,
         def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
@@ -2444,9 +2454,12 @@ pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
     let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
     let (module, errors) = parse_program(src, file);
-    // Skip warnings
-    let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).collect();
-    assert_eq!(errors.len(), 0);
+    // Skip parser warnings
+    let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
+    if !errors.is_empty() {
+        return Err(ElaboratorError::Parse(errors));
+    }
+
     let ast = module.into_sorted();
 
     let def_map = CrateDefMap::new(krate, root_module);
@@ -2465,12 +2478,11 @@ pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
         ElaboratorOptions::test_default(),
     );
 
-    // Skip compiler warnings
+    // Skip the elaborator's compilation warnings
     let errors: Vec<_> = elaborator.errors.iter().filter(|&e| e.is_error()).cloned().collect();
     if !errors.is_empty() {
-        log::debug!("elaborator errors: {:?}", errors);
+        return Err(ElaboratorError::Compile(errors));
     }
-    assert_eq!(errors.len(), 0);
 
     let mut interpreter = elaborator.setup_interpreter();
 
@@ -2479,13 +2491,13 @@ pub fn interpret(src: &str) -> crate::monomorphization::ast::Expression {
     // into HIR first and then processing it with the monomorphizer
     let expr_id =
         match interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
-            Err(e) => panic!("interpreter error: {:?}", e),
+            Err(e) => return Err(ElaboratorError::Interpret(e)),
             Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
-                Err(e) => panic!("could not convert interpreter result into HIR: {:?}", e),
+                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
                 Ok(expr_id) => expr_id,
             },
         };
 
     let mut monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
-    monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible")
+    Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
 }

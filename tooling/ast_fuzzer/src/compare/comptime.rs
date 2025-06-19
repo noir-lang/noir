@@ -242,7 +242,12 @@ impl CompareComptime {
         // log source code before interpreting
         log::debug!("comptime src:\n{}", source);
 
-        let comptime_res = interpret(&format!("comptime {}", source));
+        let comptime_res = match interpret(&format!("comptime {}", source)) {
+            Err(e) => {
+                panic!("elaborator error while interpreting generated comptime code: {:?}", e)
+            }
+            Ok(res) => res,
+        };
 
         let program_comptime = program_wrap_expression(c, comptime_res)?;
         let comptime_ssa = Some(CompareArtifact::from(f_comptime(program_comptime)?));
