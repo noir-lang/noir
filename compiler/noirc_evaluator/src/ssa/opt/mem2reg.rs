@@ -85,12 +85,13 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -401,16 +402,27 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        mut instruction: InstructionId,
+        instruction: InstructionId,
     ) {
-        // If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
+        // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
+        // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
-        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } else {
-            return;
-        }
+        // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
+        // and we need to mark those references as used to keep their stores alive.
+        let (instruction, _simplified) = {
+            let (ins, loc) = self.inserter.map_instruction(instruction);
+            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
+                InsertInstructionResult::Results(id, _) => (id, false),
+                InsertInstructionResult::SimplifiedTo(value) => {
+                    let value = &self.inserter.function.dfg[value];
+                    let Value::Instruction { instruction, .. } = value else {
+                        return;
+                    };
+                    (*instruction, true)
+                }
+                _ => return,
+            }
+        };
 
         match &self.inserter.function.dfg[instruction] {
             Instruction::Load { address } => {
@@ -554,6 +566,12 @@ impl<'f> PerFunctionContext<'f> {
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     self.add_array_aliases(elements, aliases);
+
+                    for value in elements {
+                        references.for_each_alias_of(*value, |_, alias| {
+                            self.aliased_references.entry(alias).or_default().insert(instruction);
+                        });
+                    }
                 }
             }
             _ => (),
