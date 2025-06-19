@@ -20,7 +20,7 @@ use crate::{
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
-            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType, TraitGenerics},
+            generics::{Generic, TraitGenerics},
         },
     },
     hir_def::{
@@ -41,17 +41,21 @@ use crate::{
 };
 
 use super::{
-    Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
+    Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
-    primitive_types::PrimitiveType,
 };
 
 pub const SELF_TYPE_NAME: &str = "Self";
 
 pub(super) struct TraitPathResolution {
-    pub(super) method: TraitMethod,
+    pub(super) method: TraitPathResolutionMethod,
     pub(super) item: Option<PathResolutionItem>,
     pub(super) errors: Vec<PathResolutionError>,
+}
+
+pub(super) enum TraitPathResolutionMethod {
+    NotATraitMethod(FuncId),
+    TraitMethod(TraitMethod),
 }
 
 impl Elaborator<'_> {
@@ -346,80 +350,6 @@ impl Elaborator<'_> {
             WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
             _ => None,
         }
-    }
-
-    fn instantiate_primitive_type(
-        &mut self,
-        primitive_type: PrimitiveType,
-        args: GenericTypeArgs,
-        location: Location,
-    ) -> Type {
-        match primitive_type {
-            PrimitiveType::Bool
-            | PrimitiveType::CtString
-            | PrimitiveType::Expr
-            | PrimitiveType::Field
-            | PrimitiveType::FunctionDefinition
-            | PrimitiveType::I8
-            | PrimitiveType::I16
-            | PrimitiveType::I32
-            | PrimitiveType::I64
-            | PrimitiveType::U1
-            | PrimitiveType::U8
-            | PrimitiveType::U16
-            | PrimitiveType::U32
-            | PrimitiveType::U64
-            | PrimitiveType::U128
-            | PrimitiveType::Module
-            | PrimitiveType::Quoted
-            | PrimitiveType::StructDefinition
-            | PrimitiveType::TraitConstraint
-            | PrimitiveType::TraitDefinition
-            | PrimitiveType::TraitImpl
-            | PrimitiveType::TypeDefinition
-            | PrimitiveType::TypedExpr
-            | PrimitiveType::Type
-            | PrimitiveType::UnresolvedType => {
-                if !args.is_empty() {
-                    let found = args.ordered_args.len() + args.named_args.len();
-                    self.push_err(CompilationError::TypeError(
-                        TypeCheckError::GenericCountMismatch {
-                            item: primitive_type.name().to_string(),
-                            expected: 0,
-                            found,
-                            location,
-                        },
-                    ));
-                }
-            }
-            PrimitiveType::Str => {
-                let item = StrPrimitiveType;
-                let (mut args, _) = self.resolve_type_args_inner(
-                    args,
-                    item,
-                    location,
-                    PathResolutionMode::MarkAsReferenced,
-                );
-                assert_eq!(args.len(), 1);
-                let length = args.pop().unwrap();
-                return Type::String(Box::new(length));
-            }
-            PrimitiveType::Fmtstr => {
-                let item = FmtstrPrimitiveType;
-                let (mut args, _) = self.resolve_type_args_inner(
-                    args,
-                    item,
-                    location,
-                    PathResolutionMode::MarkAsReferenced,
-                );
-                assert_eq!(args.len(), 2);
-                let element = args.pop().unwrap();
-                let length = args.pop().unwrap();
-                return Type::FmtString(Box::new(length), Box::new(element));
-            }
-        }
-
-        primitive_type.to_type()
     }
 
     fn resolve_trait_as_type(
@@ -803,11 +733,9 @@ impl Elaborator<'_> {
                 let the_trait = self.interner.get_trait(trait_id);
                 let method = the_trait.find_method(method.as_str())?;
                 let constraint = the_trait.as_constraint(path.location);
-                return Some(TraitPathResolution {
-                    method: TraitMethod { method_id: method, constraint, assumed: true },
-                    item: None,
-                    errors: Vec::new(),
-                });
+                let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
+                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
             }
         }
         None
@@ -824,11 +752,10 @@ impl Elaborator<'_> {
         let the_trait = self.interner.get_trait(meta.trait_id?);
         let method = the_trait.find_method(path.last_name())?;
         let constraint = the_trait.as_constraint(path.location);
-        Some(TraitPathResolution {
-            method: TraitMethod { method_id: method, constraint, assumed: false },
-            item: Some(path_resolution.item),
-            errors: path_resolution.errors,
-        })
+        let trait_method = TraitMethod { method_id: method, constraint, assumed: false };
+        let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+        let item = Some(path_resolution.item);
+        Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
 
     // This resolves a static trait method T::trait_method by iterating over the where clause
@@ -853,11 +780,9 @@ impl Elaborator<'_> {
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
                 if let Some(method) = the_trait.find_method(path.last_name()) {
-                    return Some(TraitPathResolution {
-                        method: TraitMethod { method_id: method, constraint, assumed: true },
-                        item: None,
-                        errors: Vec::new(),
-                    });
+                    let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
+                    let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                    return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
                 }
             }
         }
@@ -874,15 +799,39 @@ impl Elaborator<'_> {
         let location = path.location;
         let last_segment = path.pop();
         let before_last_segment = path.last_segment();
+        let turbofish = before_last_segment.turbofish();
 
         let path_resolution = self.use_path_as_type(path).ok()?;
-        let PathResolutionItem::Type(type_id) = path_resolution.item else {
-            return None;
+        let typ = match path_resolution.item {
+            PathResolutionItem::Type(type_id) => {
+                let generics = self.resolve_struct_id_turbofish_generics(type_id, turbofish);
+                let datatype = self.get_type(type_id);
+                Type::DataType(datatype, generics)
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                let generics =
+                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, turbofish);
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+                let type_alias = type_alias.borrow();
+                type_alias.get_type(&generics)
+            }
+            PathResolutionItem::PrimitiveType(primitive_type) => {
+                self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish)
+            }
+            PathResolutionItem::Module(..)
+            | PathResolutionItem::Trait(..)
+            | PathResolutionItem::Global(..)
+            | PathResolutionItem::ModuleFunction(..)
+            | PathResolutionItem::Method(..)
+            | PathResolutionItem::SelfMethod(..)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..) => {
+                return None;
+            }
         };
 
-        let datatype = self.get_type(type_id);
-        let generics = datatype.borrow().instantiate(self.interner);
-        let typ = Type::DataType(datatype, generics);
         let method_name = last_segment.ident.as_str();
 
         // If we can find a method on the type, this is definitely not a trait method
@@ -891,6 +840,7 @@ impl Elaborator<'_> {
         }
 
         let trait_methods = self.interner.lookup_trait_methods(&typ, method_name, false);
+
         if trait_methods.is_empty() {
             return None;
         }
@@ -899,24 +849,36 @@ impl Elaborator<'_> {
             self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
         let hir_method_reference = hir_method_reference?;
         let func_id = hir_method_reference.func_id(self.interner)?;
-        let HirMethodReference::TraitMethodId(trait_method_id, _, _) = hir_method_reference else {
-            return None;
-        };
+        match hir_method_reference {
+            HirMethodReference::FuncId(func_id) => {
+                // It could happen that we find a single function (one in a trait impl)
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
 
-        let trait_id = trait_method_id.trait_id;
-        let trait_ = self.interner.get_trait(trait_id);
-        let mut constraint = trait_.as_constraint(location);
-        constraint.typ = typ.clone();
+                let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
+                Some(TraitPathResolution { method, item: None, errors })
+            }
+            HirMethodReference::TraitMethodId(trait_method_id, _, _) => {
+                let trait_id = trait_method_id.trait_id;
+                let trait_ = self.interner.get_trait(trait_id);
+                let mut constraint = trait_.as_constraint(location);
+                constraint.typ = typ.clone();
 
-        let method = TraitMethod { method_id: trait_method_id, constraint, assumed: false };
-        let turbofish = before_last_segment.turbofish();
-        let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, turbofish, func_id);
-        let mut errors = path_resolution.errors;
-        if let Some(error) = error {
-            errors.push(error);
+                let trait_method =
+                    TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+                let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
+
+                let mut errors = path_resolution.errors;
+                if let Some(error) = error {
+                    errors.push(error);
+                }
+
+                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                Some(TraitPathResolution { method, item: Some(item), errors })
+            }
         }
-
-        Some(TraitPathResolution { method, item: Some(item), errors })
     }
 
     // Try to resolve the given trait method path.
@@ -985,7 +947,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -993,7 +955,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -1001,7 +963,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
         let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -1484,7 +1446,8 @@ impl Elaborator<'_> {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
-                                    kind: rhs_type.to_string(),
+                                    typ: rhs_type.to_string(),
+                                    operator: "!",
                                     location,
                                 }
                             });
@@ -1495,7 +1458,8 @@ impl Elaborator<'_> {
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
                             return Err(TypeCheckError::InvalidUnaryOp {
-                                kind: rhs_type.to_string(),
+                                typ: rhs_type.to_string(),
+                                operator: "-",
                                 location,
                             });
                         }
@@ -2282,28 +2246,6 @@ impl Elaborator<'_> {
         } else {
             self.generics.push(resolved_generic.clone());
         }
-    }
-
-    /// Push a type variable into the current FunctionContext to be defaulted if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    fn push_type_variable(&mut self, typ: Type) {
-        self.get_function_context().type_variables.push(typ);
-    }
-
-    /// Push a trait constraint into the current FunctionContext to be solved if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(
-        &mut self,
-        constraint: TraitConstraint,
-        expr_id: ExprId,
-        select_impl: bool,
-    ) {
-        self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    fn get_function_context(&mut self) -> &mut FunctionContext {
-        let context = self.function_context.last_mut();
-        context.expect("The function_context stack should always be non-empty")
     }
 
     pub fn bind_generics_from_trait_constraint(

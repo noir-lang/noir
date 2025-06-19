@@ -32,7 +32,7 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
-//!     
+//!
 //!     This removal requires a couple conditions:
 //!       - No store occurs to that address before the next load,
 //!       - The address is not used as an argument to a call
@@ -225,6 +225,7 @@ impl<'f> PerFunctionContext<'f> {
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
+        // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
         if let Some(expression) = block.expressions.get(store_address) {
             if let Some(aliases) = block.aliases.get(expression) {
                 let allocation_aliases_parameter =
@@ -251,15 +252,17 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let all_aliases_set_for_removal = aliases.any(|alias| {
+                // Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
+                let has_alias_not_marked_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        self.instructions_to_remove.is_disjoint(alias_instructions)
+                        !alias_instructions.is_subset(&self.instructions_to_remove)
                     } else {
                         false
                     }
                 });
 
-                if all_aliases_set_for_removal == Some(true) {
+                if has_alias_not_marked_for_removal == Some(true) {
                     return true;
                 }
             }
@@ -476,10 +479,15 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.mark_value_used(*array, self.inserter.function);
 
-                if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = *array;
+                let array = *array;
+                let array_typ = self.inserter.function.dfg.type_of_value(array);
+                if Self::contains_references(&array_typ) {
+                    references.for_each_alias_of(array, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
+                    references.mark_value_used(array, self.inserter.function);
+
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -518,7 +526,7 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Call { arguments, .. } => {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
-                // This prevents us potentially removing a last store that is altered within another function.
+                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
                     references.for_each_alias_of(*arg, |_, alias| {
                         self.instruction_input_references.insert(alias);
@@ -536,12 +544,22 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    for element in elements {
-                        aliases.insert(*element);
-                    }
+                    self.add_array_aliases(elements, aliases);
                 }
             }
             _ => (),
+        }
+    }
+
+    /// In order to handle nested arrays we need to recursively search whether there are any references
+    /// contained within an array's elements.
+    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+        for &element in elements {
+            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
+                self.add_array_aliases(&elements, aliases);
+            } else if self.inserter.function.dfg.value_is_reference(element) {
+                aliases.insert(element);
+            }
         }
     }
 
@@ -643,6 +661,13 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, .. } => {
+                // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
+                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
+                for return_value in return_values {
+                    references.for_each_alias_of(*return_value, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
+                }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
@@ -1174,7 +1199,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
             return
-        }  
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -1289,7 +1314,7 @@ mod tests {
     }
 
     #[test]
-    fn keep_last_store_used_in_make_array_returned_from_function() {
+    fn keep_last_store_in_make_array_returned_from_function() {
         let src = "
         brillig(inline) fn main f0 {
           b0():
@@ -1313,6 +1338,129 @@ mod tests {
     }
 
     #[test]
+    fn keep_last_store_in_make_array_used_in_array_get_that_returns_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 0)
+          b3(v0: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_diff_block_from_make_array_used_in_array_get_that_returns_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            v3 = make_array [v1] : [&mut u1]
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 0)
+          b3(v0: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn remove_last_store_in_make_array_that_is_never_used() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            jmp b1()
+          b1():
+            v2 = make_array [v0] : [&mut u1]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            jmp b1()
+          b1():
+            v1 = make_array [v0] : [&mut u1]
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> [&mut u1; 1]
+            v3 = array_get v1, index u32 0 -> &mut u1
+            store u32 1 at v3
+            v5 = load v3 -> u1
+            return v5
+        }
+        brillig(inline_always) fn foo f1 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store v0 at v1
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1()
+          b1():
+            v4 = load v2 -> u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v7 = load v2 -> u32
+            v8 = add v7, u32 1
+            store v8 at v2
+            jmp b5()
+          b4():
+            v9 = make_array [v1] : [&mut u1; 1]
+            return v9
+          b5():
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
     fn keep_last_store_in_make_array_where_aliases_are_none() {
         let src = "
         brillig(inline) fn foo f1 {
@@ -1327,6 +1475,43 @@ mod tests {
             v0 = allocate -> &mut u1
             store u1 1 at v0
             return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_nested_array_used_in_array_get_in_separate_block() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 1 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v6 = make_array [v5] : [&mut u1; 1]
+            v7 = make_array [v4, v6] : [[&mut u1; 1]; 2]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 1)
+          b3(v0: u32):
+            v11 = lt v0, u32 2
+            constrain v11 == u1 1
+            v12 = array_get v7, index v0 -> [&mut u1; 1]
+            v13 = array_get v12, index u32 0 -> &mut u1
+            v14 = load v13 -> u1
+            jmpif v14 then: b4, else: b5
+          b4():
+            jmp b6(u1 1)
+          b5():
+            jmp b6(u1 0)
+          b6(v1: u1):
+            return v1
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();

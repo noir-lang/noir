@@ -8,14 +8,14 @@ use crate::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
         PathSegment, Pattern, TypePath,
     },
-    elaborator::types::SELF_TYPE_NAME,
+    elaborator::{
+        Turbofish,
+        types::{SELF_TYPE_NAME, TraitPathResolutionMethod},
+    },
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{errors::ResolverError, import::PathResolutionError},
-        type_check::{
-            Source, TypeCheckError,
-            generics::{FmtstrPrimitiveType, Generic, StrPrimitiveType},
-        },
+        type_check::{Source, TypeCheckError},
     },
     hir_def::{
         expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
@@ -23,12 +23,14 @@ use crate::{
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
+        TypeAliasId, TypeId,
     },
     signed_field::SignedField,
 };
 
 use super::{
-    Elaborator, PrimitiveType, ResolverMeta,
+    Elaborator, ResolverMeta,
+    function_context::BindableTypeVariableKind,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -629,7 +631,15 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
-        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        let typ = self.type_check_variable_with_bindings(
+            expr,
+            id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        );
         self.interner.push_expr_type(id, typ.clone());
 
         // If this variable it a comptime local variable, use its current value as the final expression
@@ -768,15 +778,7 @@ impl Elaborator<'_> {
     ) -> (Vec<Type>, Option<Type>) {
         match item {
             PathResolutionItem::Method(struct_id, Some(generics), _func_id) => {
-                let struct_type = self.interner.get_type(struct_id);
-                let struct_type = struct_type.borrow();
-                let struct_generics = struct_type.instantiate(self.interner);
-                let generics = self.resolve_struct_turbofish_generics(
-                    &struct_type,
-                    struct_generics,
-                    Some(generics.generics),
-                    generics.location,
-                );
+                let generics = self.resolve_struct_id_turbofish_generics(struct_id, Some(generics));
                 (generics, None)
             }
             PathResolutionItem::SelfMethod(_) => {
@@ -790,21 +792,8 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeAliasFunction(type_alias_id, generics, _func_id) => {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
-                let alias_generics = vecmap(&type_alias.generics, |generic| {
-                    self.interner.next_type_variable_with_kind(generic.kind())
-                });
-
-                // First solve the generics on the alias, if any
-                let generics = if let Some(generics) = generics {
-                    self.resolve_alias_turbofish_generics(
-                        &type_alias,
-                        alias_generics,
-                        Some(generics.generics),
-                        generics.location,
-                    )
-                } else {
-                    alias_generics
-                };
+                let generics =
+                    self.resolve_type_alias_id_turbofish_generics(type_alias_id, generics);
 
                 // Now instantiate the underlying struct or alias with those generics, the struct might
                 // have more generics than those in the alias, like in this example:
@@ -828,101 +817,19 @@ impl Elaborator<'_> {
                 );
                 (generics, None)
             }
-            PathResolutionItem::TypeTraitFunction(self_type, trait_id, generics, _func_id) => {
-                let generics = if let Some(generics) = generics {
-                    let trait_ = self.interner.get_trait(trait_id);
-                    let kinds = vecmap(&trait_.generics, |generic| generic.kind());
-                    let trait_generics = vecmap(&kinds, |kind| {
-                        self.interner.next_type_variable_with_kind(kind.clone())
-                    });
-
-                    self.resolve_trait_turbofish_generics(
-                        &trait_.name.to_string(),
-                        kinds,
-                        trait_generics,
-                        Some(generics.generics),
-                        generics.location,
-                    )
-                } else {
-                    Vec::new()
-                };
-                (generics, Some(self_type))
+            PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
+                (Vec::new(), Some(self_type))
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
-                let generics = match primitive_type {
-                    PrimitiveType::Bool
-                    | PrimitiveType::CtString
-                    | PrimitiveType::Expr
-                    | PrimitiveType::Field
-                    | PrimitiveType::FunctionDefinition
-                    | PrimitiveType::I8
-                    | PrimitiveType::I16
-                    | PrimitiveType::I32
-                    | PrimitiveType::I64
-                    | PrimitiveType::U1
-                    | PrimitiveType::U8
-                    | PrimitiveType::U16
-                    | PrimitiveType::U32
-                    | PrimitiveType::U64
-                    | PrimitiveType::U128
-                    | PrimitiveType::Module
-                    | PrimitiveType::Quoted
-                    | PrimitiveType::StructDefinition
-                    | PrimitiveType::TraitConstraint
-                    | PrimitiveType::TraitDefinition
-                    | PrimitiveType::TraitImpl
-                    | PrimitiveType::TypeDefinition
-                    | PrimitiveType::TypedExpr
-                    | PrimitiveType::Type
-                    | PrimitiveType::UnresolvedType => {
-                        if let Some(turbofish) = turbofish {
-                            self.push_err(CompilationError::TypeError(
-                                TypeCheckError::GenericCountMismatch {
-                                    item: primitive_type.name().to_string(),
-                                    expected: 0,
-                                    found: turbofish.generics.len(),
-                                    location: turbofish.location,
-                                },
-                            ));
-                        }
-                        Vec::new()
+                let typ = self.instantiate_primitive_type_with_turbofish(primitive_type, turbofish);
+                let generics = match typ {
+                    Type::String(length) => {
+                        vec![*length]
                     }
-                    PrimitiveType::Str => {
-                        if let Some(turbofish) = turbofish {
-                            let item = StrPrimitiveType;
-                            let item_generic_kinds = item.generic_kinds(self.interner);
-                            let kind = item_generic_kinds[0].clone();
-                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
-                            self.resolve_item_turbofish_generics(
-                                item.item_kind(),
-                                &item.item_name(self.interner),
-                                item_generic_kinds,
-                                generics,
-                                Some(turbofish.generics),
-                                turbofish.location,
-                            )
-                        } else {
-                            Vec::new()
-                        }
+                    Type::FmtString(length, element) => {
+                        vec![*length, *element]
                     }
-                    PrimitiveType::Fmtstr => {
-                        if let Some(turbofish) = turbofish {
-                            let item_generic_kinds =
-                                FmtstrPrimitiveType {}.generic_kinds(self.interner);
-                            let kind = item_generic_kinds[0].clone();
-                            let generics = vec![self.interner.next_type_variable_with_kind(kind)];
-                            self.resolve_item_turbofish_generics(
-                                "primitive type",
-                                "fmtstr",
-                                item_generic_kinds,
-                                generics,
-                                Some(turbofish.generics),
-                                turbofish.location,
-                            )
-                        } else {
-                            Vec::new()
-                        }
-                    }
+                    _ => Vec::new(),
                 };
                 (generics, None)
             }
@@ -938,20 +845,74 @@ impl Elaborator<'_> {
         }
     }
 
+    pub(super) fn resolve_struct_id_turbofish_generics(
+        &mut self,
+        struct_id: TypeId,
+        mut turbofish: Option<Turbofish>,
+    ) -> Vec<Type> {
+        let struct_type = self.interner.get_type(struct_id);
+        let struct_type = struct_type.borrow();
+        let struct_generics = struct_type.instantiate(self.interner);
+        if let Some(turbofish) = turbofish.take() {
+            self.resolve_struct_turbofish_generics(
+                &struct_type,
+                struct_generics,
+                Some(turbofish.generics),
+                turbofish.location,
+            )
+        } else {
+            struct_generics
+        }
+    }
+
+    pub(super) fn resolve_type_alias_id_turbofish_generics(
+        &mut self,
+        type_alias_id: TypeAliasId,
+        generics: Option<Turbofish>,
+    ) -> Vec<Type> {
+        let type_alias = self.interner.get_type_alias(type_alias_id);
+        let type_alias = type_alias.borrow();
+        let alias_generics = vecmap(&type_alias.generics, |generic| {
+            self.interner.next_type_variable_with_kind(generic.kind())
+        });
+
+        if let Some(generics) = generics {
+            self.resolve_alias_turbofish_generics(
+                &type_alias,
+                alias_generics,
+                Some(generics.generics),
+                generics.location,
+            )
+        } else {
+            alias_generics
+        }
+    }
+
     fn resolve_variable(&mut self, path: TypedPath) -> (HirIdent, Option<PathResolutionItem>) {
         if let Some(trait_path_resolution) = self.resolve_trait_generic_path(&path) {
             for error in trait_path_resolution.errors {
                 self.push_err(error);
             }
 
-            return (
-                HirIdent {
-                    location: path.location,
-                    id: self.interner.trait_method_id(trait_path_resolution.method.method_id),
-                    impl_kind: ImplKind::TraitMethod(trait_path_resolution.method),
-                },
-                trait_path_resolution.item,
-            );
+            return match trait_path_resolution.method {
+                TraitPathResolutionMethod::NotATraitMethod(func_id) => (
+                    HirIdent {
+                        location: path.location,
+                        id: self.interner.function_definition_id(func_id),
+                        impl_kind: ImplKind::NotATraitMethod,
+                    },
+                    trait_path_resolution.item,
+                ),
+
+                TraitPathResolutionMethod::TraitMethod(trait_method) => (
+                    HirIdent {
+                        location: path.location,
+                        id: self.interner.trait_method_id(trait_method.method_id),
+                        impl_kind: ImplKind::TraitMethod(trait_method),
+                    },
+                    trait_path_resolution.item,
+                ),
+            };
         }
 
         // If the Path is being used as an Expression, then it is referring to a global from a separate module
@@ -1022,15 +983,24 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        self.type_check_variable_with_bindings(
+            ident,
+            expr_id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        )
     }
 
-    pub(super) fn type_check_variable_with_bindings(
+    pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
+        push_required_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
@@ -1098,6 +1068,17 @@ impl Elaborator<'_> {
                     method.constraint,
                     expr_id,
                     true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
+        if push_required_type_variables {
+            for (type_variable, _kind, typ) in bindings.values() {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    typ.clone(),
+                    BindableTypeVariableKind::Ident(ident.id),
+                    ident.location,
                 );
             }
         }

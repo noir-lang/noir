@@ -6,10 +6,14 @@ use noirc_frontend::Shared;
 use crate::ssa::{
     interpreter::{
         InterpreterError, NumericValue, Value,
-        tests::{expect_value, expect_values, expect_values_with_args, from_constant},
+        tests::{
+            expect_value, expect_value_with_args, expect_values, expect_values_with_args,
+            from_constant,
+        },
         value::ReferenceValue,
     },
     ir::{
+        integer::IntegerConstant,
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -213,7 +217,10 @@ fn mul_signed() {
         acir(inline) fn main f0 {
           b0():
             v0 = mul i64 2, i64 100
-            return v0
+            v1 = cast v0 as u128
+            v2 = truncate v1 to 64 bits, max_bit_size: 128
+            v3 = cast v2 as i64
+            return v3
         }
     ",
     );
@@ -236,11 +243,17 @@ fn mul_overflow_unsigned() {
 
 #[test]
 fn mul_overflow_signed() {
+    // We return v0 as we simply want the output from the mul operation in this test.
+    // However, the valid SSA signed overflow patterns requires that the appropriate
+    // casts and truncates follow a signed mul.
     let value = expect_value(
         "
         acir(inline) fn main f0 {
           b0():
             v0 = mul i8 127, i8 2
+            v1 = cast v0 as u16
+            v2 = truncate v1 to 8 bits, max_bit_size: 16
+            v3 = cast v2 as i8
             return v0
         }
     ",
@@ -449,7 +462,7 @@ fn shl_overflow() {
 }
 
 #[test]
-fn shr() {
+fn shr_unsigned() {
     let values = expect_values(
         "
         acir(inline) fn main f0 {
@@ -467,8 +480,33 @@ fn shr() {
 }
 
 #[test]
-/// shr does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
-fn shr_overflow() {
+fn shr_signed() {
+    let values = expect_values(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i16 65520, u8 2      
+            v1 = shr i16 65533, u8 1      
+            v2 = shr i16 65528, u8 3 
+            return v0, v1, v2
+        }
+    ",
+    );
+
+    let neg_four = IntegerConstant::Signed { value: -4, bit_size: 16 };
+    let (neg_four_constant, typ) = neg_four.into_numeric_constant();
+    assert_eq!(values[0], from_constant(neg_four_constant, typ));
+    let neg_two = IntegerConstant::Signed { value: -2, bit_size: 16 };
+    let (neg_two_constant, typ) = neg_two.into_numeric_constant();
+    assert_eq!(values[1], from_constant(neg_two_constant, typ));
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 16 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(values[2], from_constant(neg_one_constant, typ));
+}
+
+#[test]
+/// shr on unsigned integer does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
+fn shr_overflow_unsigned() {
     let value = expect_value(
         "
         acir(inline) fn main f0 {
@@ -479,6 +517,44 @@ fn shr_overflow() {
     ",
     );
     assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+}
+
+#[test]
+/// shr on signed integers does not error on overflow.
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
+/// See https://github.com/noir-lang/noir/pull/8805.
+fn shr_overflow_signed_negative_lhs() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 192, u8 9
+            return v0
+        }
+    ",
+    );
+
+    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
+    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+    assert_eq!(value, from_constant(neg_one_constant, typ));
+}
+
+#[test]
+/// shr on signed integers does not error on overflow.
+/// If the value being shifted is positive we return 0, and -1 if it is negative.
+/// See https://github.com/noir-lang/noir/pull/8805.
+fn shr_overflow_signed_positive_lhs() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = shr i8 1, u8 255
+            return v0
+        }
+    ",
+    );
+
+    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
 
 #[test]
@@ -554,8 +630,8 @@ fn constrain() {
 }
 
 #[test]
-fn constrain_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn constrain_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -567,34 +643,33 @@ fn constrain_disabled_by_enable_side_effects() {
     );
 }
 
-// SSA Parser does not yet parse ConstrainNotEqual
-// #[test]
-// fn constrain_not_equal() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             v0 = eq u8 3, u8 4
-//             constrain v0 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
-//
-// #[test]
-// fn constrain_not_equal_disabled_by_enable_side_effects() {
-//     executes_with_no_errors(
-//         "
-//         acir(inline) fn main f0 {
-//           b0():
-//             enable_side_effects u1 0
-//             constrain u1 1 != u1 1
-//             return
-//         }
-//     ",
-//     );
-// }
+#[test]
+fn constrain_not_equal() {
+    executes_with_no_errors(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = eq u8 3, u8 4
+            constrain v0 != u1 1
+            return
+        }
+    ",
+    );
+}
+
+#[test]
+fn constrain_not_equal_not_disabled_by_enable_side_effects() {
+    expect_error(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            constrain u1 1 != u1 1
+            return
+        }
+    ",
+    );
+}
 
 #[test]
 fn range_check() {
@@ -624,8 +699,8 @@ fn range_check_fail() {
 }
 
 #[test]
-fn range_check_disabled_by_enable_side_effects() {
-    executes_with_no_errors(
+fn range_check_not_disabled_by_enable_side_effects() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -773,7 +848,7 @@ fn array_get_with_offset() {
 }
 
 #[test]
-fn array_get_disabled_by_enable_side_effects() {
+fn array_get_not_disabled_by_enable_side_effects_if_index_is_known_to_be_safe() {
     let value = expect_value(
         r#"
         acir(inline) fn main f0 {
@@ -784,6 +859,23 @@ fn array_get_disabled_by_enable_side_effects() {
             return v1
         }
     "#,
+    );
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
+}
+
+#[test]
+fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() {
+    let value = expect_value_with_args(
+        r#"
+        acir(inline) fn main f0 {
+          b0(v2: u32):
+            enable_side_effects u1 0
+            v0 = make_array [Field 1, Field 2] : [Field; 2]
+            v1 = array_get v0, index v2 -> Field
+            return v1
+        }
+    "#,
+        vec![Value::Numeric(NumericValue::U32(1))],
     );
     assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
 }
@@ -1019,28 +1111,31 @@ fn nop() {
 #[test]
 fn test_range_and_xor_bb() {
     let src = "
-  acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field):
-            v2 = call black_box(v0) -> Field
-            v3 = call f2(v2,v1) -> Field
-            call f3(v3)
-            return
-  }
+      acir(inline) fn main f0 {
+        b0(v0: Field, v1: Field):
+          v2 = call black_box(v0) -> Field
+          v3 = call f2(v2,v1) -> Field
+          call f3(v3)
+          return
+      }
 
-  acir(inline) fn test_and_xor f2 {
-    b0(v0: Field, v1: Field):
-    v2 = cast v0 as u8
-    v4 = cast v1 as u8
-    v8 = and v2, v4
-    v9 = xor v2, v4
-    return v9
-}
+      acir(inline) fn test_and_xor f2 {
+        b0(v0: Field, v1: Field):
+          v2 = truncate v0 to 8 bits, max_bit_size: 254
+          v3 = cast v2 as u8
+          v4 = truncate v1 to 8 bits, max_bit_size: 254
+          v5 = cast v4 as u8
+          v8 = and v3, v5
+          v9 = xor v3, v5
+          v10 = cast v9 as Field
+          return v10
+      }
 
-  acir(inline) fn test_range f3 {
-    b0(v0: Field):
-      range_check v0 to 8 bits
-      return
-    }
+      acir(inline) fn test_range f3 {
+        b0(v0: Field):
+          range_check v0 to 8 bits
+          return
+      }
       ";
     let values = expect_values_with_args(
         src,
