@@ -566,12 +566,6 @@ impl<'f> PerFunctionContext<'f> {
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     self.add_array_aliases(elements, aliases);
-
-                    for value in elements {
-                        references.for_each_alias_of(*value, |_, alias| {
-                            self.aliased_references.entry(alias).or_default().insert(instruction);
-                        });
-                    }
                 }
             }
             _ => (),
