@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750284472151,
+  "lastUpdate": 1750332046325,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d8313935c3382f4e2f8568f7de3beb311273f194",
-          "message": "fix: Count array copies for slice functions (#8867)",
-          "timestamp": "2025-06-11T20:14:25Z",
-          "tree_id": "baaa63dff01fc76426306c8552bc7b047530daa4",
-          "url": "https://github.com/noir-lang/noir/commit/d8313935c3382f4e2f8568f7de3beb311273f194"
-        },
-        "date": 1749674164528,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248713,
-            "range": "± 352",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220900,
-            "range": "± 8709",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784226,
-            "range": "± 3345",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783372,
             "range": "± 3568",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f1a3938e429863a211a09a7cf1837dbe1b1320f4",
+          "message": "fix(fuzz): Avoid negating `i8::MIN` into `i8::MAX+1` which won't compile (#8972)",
+          "timestamp": "2025-06-19T10:57:50Z",
+          "tree_id": "6a9bc44d858675f29a6af4134aadf4006a65658b",
+          "url": "https://github.com/noir-lang/noir/commit/f1a3938e429863a211a09a7cf1837dbe1b1320f4"
+        },
+        "date": 1750332033700,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252289,
+            "range": "± 604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223269,
+            "range": "± 20830",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779349,
+            "range": "± 1375",
             "unit": "ns/iter"
           }
         ]
