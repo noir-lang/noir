@@ -1,4 +1,5 @@
 fn main() -> pub bool {
+    // Safety:
     unsafe {
         func_1()
     }
