@@ -1069,7 +1069,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
 
         // Recurse on the parent module, but only if the parent module isn't the current module
-        // (if so, we can already reach the definition just by priting its name)
+        // (if so, we can already reach the definition just by printing its name)
         let module_def_id_parent_module = get_parent_module(self.interner, module_def_id);
         if module_def_id_parent_module != Some(self.module_id) {
             if let Some(module_def_id_parent_module) = module_def_id_parent_module {
