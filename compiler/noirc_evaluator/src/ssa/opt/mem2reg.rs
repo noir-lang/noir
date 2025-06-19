@@ -462,6 +462,8 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
+                // Remember that we used the value in this instruction. If this instruction
+                // isn't removed at the end, we need to keep the stores to the value as well.
                 references.for_each_alias_of(value, |_, alias| {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 });
@@ -522,8 +524,12 @@ impl<'f> PerFunctionContext<'f> {
 
                     references.expressions.insert(result, expression.clone());
                     references.aliases.insert(expression, aliases);
+
+                    // Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
                     references.for_each_alias_of(*value, |_, alias| {
-                        self.instruction_input_references.insert(alias);
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
                     });
                 }
             }
