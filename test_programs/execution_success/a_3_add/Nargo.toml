@@ -1,5 +1,5 @@
 [package]
-name = "_3_add"
+name = "a_3_add"
 type = "bin"
 authors = [""]
 
