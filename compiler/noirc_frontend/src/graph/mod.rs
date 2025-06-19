@@ -65,8 +65,8 @@ impl From<&CrateName> for String {
 
 /// Creates a new CrateName rejecting any invalid crate name.
 /// Valid crate names are ones that are also valid Noir identifiers:
-/// they must start with an ASCII alphabetic character or `_` (underscore),
-/// then continue with ASCII alphanumeric characters or `_` (underscore).
+/// they must start with an ASCII alphabetic character or '_' (underscore),
+/// then continue with ASCII alphanumeric characters or '_' (underscore).
 /// In Rust '-' is also allowed, but we disallow it as it's similar to '_'
 /// and we do not want names that differ by a hyphen.
 impl FromStr for CrateName {
@@ -86,13 +86,13 @@ impl FromStr for CrateName {
                         ));
                     } else {
                         return Err(format!(
-                            "invalid character '{char}' in package name \"{name}\", the first character must be an ASCII alphabetic character or `_` (underscore)"
+                            "invalid character '{char}' in package name \"{name}\", the first character must be an ASCII alphabetic character or '_' (underscore)"
                         ));
                     }
                 }
             } else if !(char.is_ascii_alphanumeric() || char == '_') {
                 return Err(format!(
-                    "invalid character '{char}' in package name \"{name}\", characters must be ASCII alphanumeric characters or `_` (underscore)"
+                    "invalid character '{char}' in package name \"{name}\", characters must be ASCII alphanumeric characters or '_' (underscore)"
                 ));
             }
         }
