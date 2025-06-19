@@ -219,6 +219,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
         ),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove unreachable instructions"),
     ]
 }
 
@@ -232,6 +233,7 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove unreachable instructions"),
     ]
 }
 
