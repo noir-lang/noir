@@ -63,9 +63,7 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(Some(u), FuncId(0), |u, fctx| {
-        fctx.gen_body_with_lit_call(u.unwrap(), FuncId(1))
-    })?;
+    ctx.gen_function_with_body(u, FuncId(0), |u, fctx| fctx.gen_body_with_lit_call(u, FuncId(1)))?;
     ctx.rewrite_functions(u)?;
 
     let program = ctx.finalize();
@@ -88,7 +86,9 @@ pub fn program_wrap_expression(config: Config, expr: Expression) -> arbitrary::R
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _fctx| Ok(expr.clone()))?;
+    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _fctx| {
+        Ok(expr.clone())
+    })?;
 
     let program = ctx.finalize();
     Ok(program)
