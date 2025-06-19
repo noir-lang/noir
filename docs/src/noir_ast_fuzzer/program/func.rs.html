@@ -1590,7 +1590,22 @@
 <a href="#1589" id="1589">1589</a>
 <a href="#1590" id="1590">1590</a>
 <a href="#1591" id="1591">1591</a>
-<a href="#1592" id="1592">1592</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2094,16 +2109,21 @@
         max_depth: usize,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.choose_producer(u, typ)<span class="question-mark">? </span>{
-            <span class="kw">let </span>(mutable, src_name, src_type) = <span class="self">self</span>.get_variable(<span class="kw-2">&amp;</span>id).clone();
+            <span class="kw">let </span>(src_mutable, src_name, src_type) = <span class="self">self</span>.get_variable(<span class="kw-2">&amp;</span>id).clone();
             <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
-            <span class="kw">let </span>src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
+            <span class="kw">let </span>src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
             <span class="kw">let </span>src_dyn = <span class="kw">match </span>id {
                 VariableId::Global(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
                 VariableId::Local(id) =&gt; <span class="self">self</span>.is_dynamic(<span class="kw-2">&amp;</span>id),
             };
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) =
-                <span class="self">self</span>.gen_expr_from_source(u, (src_expr, src_dyn), <span class="kw-2">&amp;</span>src_type, typ, max_depth)<span class="question-mark">?
-            </span>{
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_expr_from_source(
+                u,
+                (src_expr, src_dyn),
+                <span class="kw-2">&amp;</span>src_type,
+                src_mutable,
+                typ,
+                max_depth,
+            )<span class="question-mark">? </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(expr));
             }
         } <span class="kw">else </span>{
@@ -2150,6 +2170,7 @@
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         (src_expr, src_dyn): TrackedExpression,
         src_type: <span class="kw-2">&amp;</span>Type,
+        src_mutable: bool,
         tgt_type: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
@@ -2181,7 +2202,7 @@
                 <span class="kw">let </span>expr = expr::deref(src_expr, tgt_type.clone());
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
             }
-            (<span class="kw">_</span>, Type::Reference(typ, <span class="bool-val">true</span>)) <span class="kw">if </span>typ.as_ref() == src_type =&gt; {
+            (<span class="kw">_</span>, Type::Reference(typ, <span class="bool-val">true</span>)) <span class="kw">if </span>typ.as_ref() == src_type &amp;&amp; src_mutable =&gt; {
                 <span class="kw">let </span>expr = expr::ref_mut(src_expr, typ.as_ref().clone());
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
             }
@@ -2218,6 +2239,7 @@
                     u,
                     (item_expr, src_dyn || idx_dyn),
                     item_typ,
+                    src_mutable,
                     tgt_type,
                     max_depth,
                 )
@@ -2231,6 +2253,7 @@
                         u,
                         (item_expr, src_dyn),
                         item_type,
+                        src_mutable,
                         tgt_type,
                         max_depth,
                     )<span class="question-mark">? </span>{
@@ -2837,7 +2860,14 @@
         });
 
         <span class="comment">// Derive the final result from the call, e.g. by casting, or accessing a member.
-        </span><span class="self">self</span>.gen_expr_from_source(u, (call_expr, call_dyn), <span class="kw-2">&amp;</span>return_type, typ, <span class="self">self</span>.max_depth())
+        </span><span class="self">self</span>.gen_expr_from_source(
+            u,
+            (call_expr, call_dyn),
+            <span class="kw-2">&amp;</span>return_type,
+            <span class="bool-val">true</span>,
+            typ,
+            <span class="self">self</span>.max_depth(),
+        )
     }
 
     <span class="doccomment">/// Generate a call to a specific function, with arbitrary literals
