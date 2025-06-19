@@ -1074,10 +1074,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         if module_def_id_parent_module != Some(self.module_id) {
             if let Some(module_def_id_parent_module) = module_def_id_parent_module {
                 let visibility = self
-                    .interner
-                    .try_module_attributes(&module_def_id_parent_module)
-                    .map(|attributes| attributes.visibility)
-                    .unwrap_or(ItemVisibility::Public);
+                    .module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
                 self.show_reference_to_module_def_id(
                     ModuleDefId::ModuleId(module_def_id_parent_module),
                     visibility,
