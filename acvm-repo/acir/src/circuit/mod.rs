@@ -584,6 +584,7 @@ mod tests {
         }
 
         /// Override the maximum size of collections created by `proptest`.
+        #[allow(unsafe_code)]
         fn run_with_max_size_range<T, F>(cases: u32, f: F)
         where
             T: Arbitrary,

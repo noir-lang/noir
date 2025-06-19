@@ -126,7 +126,7 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
@@ -141,8 +141,6 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     "pedersen_commitment",
     "simple_shield",
     "strings",
-    // ICE: Global value not found in cache v0
-    "integer_array_indexing",
     // The minimum SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
     "lambda_from_dynamic_if",
     // This relies on maximum inliner setting

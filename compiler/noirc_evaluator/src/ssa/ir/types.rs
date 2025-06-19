@@ -297,6 +297,18 @@ impl Type {
             }
         }
     }
+
+    /// True if this is a function type or if it is a composite type which contains a function.
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::Reference(element_type) => element_type.contains_function(),
+            Type::Function => true,
+            Type::Numeric(_) => false,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(|elem| elem.contains_function())
+            }
+        }
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.
