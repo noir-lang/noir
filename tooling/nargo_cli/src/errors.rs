@@ -11,7 +11,7 @@ pub enum CliError {
     #[error("{0}")]
     Generic(String),
 
-    #[error("Error: destination {} already exists", .0.display())]
+    #[error("Error: destination {} already exists\n\nUse `new init` to initialize the directory", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
     #[error(
