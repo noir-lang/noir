@@ -522,6 +522,9 @@ impl<'f> PerFunctionContext<'f> {
 
                     references.expressions.insert(result, expression.clone());
                     references.aliases.insert(expression, aliases);
+                    references.for_each_alias_of(*value, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
                 }
             }
             Instruction::Call { arguments, .. } => {
