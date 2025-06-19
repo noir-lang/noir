@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{
     function::RuntimeType,
+    instruction::ArrayOffset,
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
@@ -161,7 +162,9 @@ impl FunctionBuilder {
                         if let Type::Array(_, 0) = subitem_typ {
                             continue;
                         }
-                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                        let offset = ArrayOffset::None;
+                        let element =
+                            self.insert_array_get(value, index_var, offset, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,

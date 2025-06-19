@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, y: Field) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(false == not_operator(x != 0));
+        assert(true == not_operator(y != 0));
+    }
+}
+
+unconstrained fn not_operator(x: bool) -> bool {
+    !x
+}

@@ -1,0 +1,6 @@
+[package]
+name = "loop_invariant_regression_8586"
+type = "bin"
+authors = [""]
+
+[dependencies]

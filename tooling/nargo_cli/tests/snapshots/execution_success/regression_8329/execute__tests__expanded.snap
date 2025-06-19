@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u1, y: u1, z: u1) -> pub u1 {
+    let p: u1 = y - z;
+    if p != 0 {
+        let a: u1 = x / z;
+        let b: u1 = a - z;
+        if b != 0 {
+            let _: u1 = a / b;
+        }
+    };
+    let u: u1 = x - z;
+    let v: u1 = y - u;
+    v
+}

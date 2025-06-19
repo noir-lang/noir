@@ -1,1 +1,0 @@
-[double_neg_cond_global_var] Circuit output: Field(1)

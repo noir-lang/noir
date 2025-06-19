@@ -1,0 +1,6 @@
+[package]
+name = "lambda_call_assign_in_lambda"
+type = "bin"
+authors = [""]
+
+[dependencies]

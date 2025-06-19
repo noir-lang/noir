@@ -105,10 +105,10 @@ impl ChunkFormatter<'_, '_> {
                 ));
             }
             ExpressionKind::AsTraitPath(as_trait_path) => {
-                group.text(self.chunk(|formatter| formatter.format_as_trait_path(as_trait_path)));
+                group.text(self.chunk(|formatter| formatter.format_as_trait_path(*as_trait_path)));
             }
             ExpressionKind::TypePath(type_path) => {
-                group.group(self.format_type_path(type_path));
+                group.group(self.format_type_path(*type_path));
             }
             ExpressionKind::Resolved(..)
             | ExpressionKind::Interned(..)
@@ -227,12 +227,15 @@ impl ChunkFormatter<'_, '_> {
                     formatter.write_comma();
                     formatter.write_space();
                 }
-                formatter.format_pattern(pattern);
+                let mut pattern_and_type_group = formatter.format_pattern(pattern);
                 if typ.typ != UnresolvedTypeData::Unspecified {
-                    formatter.write_token(Token::Colon);
-                    formatter.write_space();
-                    formatter.format_type(typ);
+                    pattern_and_type_group.text(formatter.chunk_formatter().chunk(|formatter| {
+                        formatter.write_token(Token::Colon);
+                        formatter.write_space();
+                        formatter.format_type(typ);
+                    }));
                 }
+                formatter.format_chunk_group(pattern_and_type_group);
             }
             formatter.skip_comments_and_whitespace();
             if formatter.is_at(Token::Comma) {
@@ -2601,5 +2604,21 @@ global y = 1;
 }
 "#;
         assert_format_with_max_width(src, src, 28);
+    }
+
+    #[test]
+    fn cast_broken_to_two_lines_inside_array() {
+        let src = r#"fn foo() {
+    bar(
+        "",
+        [
+            (private_call_timestamp)
+                 as i32,
+            2,
+        ],
+    );
+}
+"#;
+        assert_format_with_max_width(src, src, 40);
     }
 }

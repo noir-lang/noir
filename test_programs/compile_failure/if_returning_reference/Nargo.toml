@@ -1,0 +1,6 @@
+[package]
+name = "if_returning_reference"
+type = "bin"
+authors = [""]
+
+[dependencies]

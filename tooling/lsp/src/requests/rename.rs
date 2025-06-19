@@ -45,7 +45,7 @@ pub(crate) fn on_rename_request(
             false,
         )
         .map(|locations| {
-            let rs = locations.iter().fold(
+            locations.iter().fold(
                 HashMap::new(),
                 |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
                     let edit =
@@ -53,8 +53,7 @@ pub(crate) fn on_rename_request(
                     acc.entry(location.uri.clone()).or_default().push(edit);
                     acc
                 },
-            );
-            rs
+            )
         });
 
         let response = WorkspaceEdit {

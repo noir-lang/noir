@@ -279,7 +279,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Expression(expression) => expression.fmt(f),
             Function(args, ret, env, unconstrained) => {
@@ -558,9 +562,7 @@ impl UnresolvedTypeExpression {
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
-            ExpressionKind::AsTraitPath(path) => {
-                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
-            }
+            ExpressionKind::AsTraitPath(path) => Ok(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }

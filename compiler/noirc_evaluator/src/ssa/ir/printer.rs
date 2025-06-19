@@ -8,7 +8,7 @@ use iter_extended::vecmap;
 use crate::ssa::{
     Ssa,
     ir::{
-        instruction::ArrayGetOffset,
+        instruction::ArrayOffset,
         types::{NumericType, Type},
     },
 };
@@ -36,6 +36,9 @@ impl Display for Ssa {
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
+                }
+                Value::Function(id) => {
+                    writeln!(f, "{}", id)?;
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
             };
@@ -239,20 +242,24 @@ fn display_instruction_inner(
                 "array_get {}, index {}{}{}",
                 show(*array),
                 show(*index),
-                match offset {
-                    ArrayGetOffset::None => String::new(),
-                    ArrayGetOffset::Array | ArrayGetOffset::Slice =>
-                        format!(" minus {}", offset.to_u32()),
-                },
+                display_array_offset(offset),
                 result_types(dfg, results)
             )
         }
-        Instruction::ArraySet { array, index, value, mutable } => {
+        Instruction::ArraySet { array, index, value, mutable, offset } => {
             let array = show(*array);
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(f, "array_set{mutable} {array}, index {index}, value {value}")
+            writeln!(
+                f,
+                "array_set{} {}, index {}{}, value {}",
+                mutable,
+                array,
+                index,
+                display_array_offset(offset),
+                value
+            )
         }
         Instruction::IncrementRc { value } => {
             writeln!(f, "inc_rc {}", show(*value))
@@ -260,8 +267,10 @@ fn display_instruction_inner(
         Instruction::DecrementRc { value } => {
             writeln!(f, "dec_rc {}", show(*value))
         }
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
-            writeln!(f, "range_check {} to {} bits", show(*value), *max_bit_size,)
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+            let message =
+                assert_message.as_ref().map(|message| format!(", {message:?}")).unwrap_or_default();
+            writeln!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);
@@ -315,6 +324,13 @@ fn display_instruction_inner(
     }
 }
 
+fn display_array_offset(offset: &ArrayOffset) -> String {
+    match offset {
+        ArrayOffset::None => String::new(),
+        ArrayOffset::Array | ArrayOffset::Slice => format!(" minus {}", offset.to_u32()),
+    }
+}
+
 pub(crate) fn display_binary(binary: &super::instruction::Binary, dfg: &DataFlowGraph) -> String {
     format!("{} {}, {}", binary.operator, value(dfg, binary.lhs), value(dfg, binary.rhs))
 }
@@ -327,8 +343,12 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
         if element > 0xFF {
             return None;
         }
-        let byte = element as u8;
-        if byte.is_ascii_alphanumeric() || byte.is_ascii_punctuation() || byte.is_ascii_whitespace()
+        let byte: u8 = element as u8;
+        const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+        if byte != FORM_FEED
+            && (byte.is_ascii_alphanumeric()
+                || byte.is_ascii_punctuation()
+                || byte.is_ascii_whitespace())
         {
             string.push(byte as char);
         } else {

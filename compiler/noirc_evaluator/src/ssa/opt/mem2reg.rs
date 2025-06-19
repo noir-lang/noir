@@ -32,7 +32,7 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
-//!     
+//!
 //!     This removal requires a couple conditions:
 //!       - No store occurs to that address before the next load,
 //!       - The address is not used as an argument to a call
@@ -137,9 +137,9 @@ struct PerFunctionContext<'f> {
     /// If a value is not used in anymore loads we can remove the last store to that value.
     last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
 
-    /// Track whether a reference was passed into another entry point
+    /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
-    calls_reference_input: HashSet<ValueId>,
+    instruction_input_references: HashSet<ValueId>,
 
     /// Track whether a reference has been aliased, and store the respective
     /// instruction that aliased that reference.
@@ -159,8 +159,8 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
             last_loads: HashMap::default(),
-            calls_reference_input: HashSet::default(),
             aliased_references: HashMap::default(),
+            instruction_input_references: HashSet::default(),
         }
     }
 
@@ -225,6 +225,7 @@ impl<'f> PerFunctionContext<'f> {
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
+        // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
         if let Some(expression) = block.expressions.get(store_address) {
             if let Some(aliases) = block.aliases.get(expression) {
                 let allocation_aliases_parameter =
@@ -239,26 +240,29 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| self.calls_reference_input.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                let allocation_aliases_instr_input =
+                    aliases.any(|alias| self.instruction_input_references.contains(&alias));
+                if allocation_aliases_instr_input == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter =
+                let allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
+                if allocation_aliases_terminator_args == Some(true) {
                     return true;
                 }
 
-                let allocation_aliases_parameter = aliases.any(|alias| {
+                // Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
+                let has_alias_not_marked_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        self.instructions_to_remove.is_disjoint(alias_instructions)
+                        !alias_instructions.is_subset(&self.instructions_to_remove)
                     } else {
                         false
                     }
                 });
-                if allocation_aliases_parameter == Some(true) {
+
+                if has_alias_not_marked_for_removal == Some(true) {
                     return true;
                 }
             }
@@ -384,7 +388,6 @@ impl<'f> PerFunctionContext<'f> {
                 if let Some(aliases) = references.aliases.get(expression) {
                     let allocation_aliases_parameter =
                         aliases.any(|alias| reference_parameters.contains(&alias));
-
                     // If `allocation_aliases_parameter` is known to be false
                     if allocation_aliases_parameter == Some(false) {
                         self.instructions_to_remove.insert(*instruction);
@@ -459,18 +462,9 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(*last_store);
                 }
 
-                if self.inserter.function.dfg.value_is_reference(value) {
-                    if let Some(expression) = references.expressions.get(&value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                self.aliased_references
-                                    .entry(alias)
-                                    .or_default()
-                                    .insert(instruction);
-                            });
-                        }
-                    }
-                }
+                references.for_each_alias_of(value, |_, alias| {
+                    self.aliased_references.entry(alias).or_default().insert(instruction);
+                });
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -485,10 +479,15 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.mark_value_used(*array, self.inserter.function);
 
-                if self.inserter.function.dfg.value_is_reference(result) {
-                    let array = *array;
+                let array = *array;
+                let array_typ = self.inserter.function.dfg.type_of_value(array);
+                if Self::contains_references(&array_typ) {
+                    references.for_each_alias_of(array, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
+                    references.mark_value_used(array, self.inserter.function);
+
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -526,16 +525,12 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::Call { arguments, .. } => {
+                // We need to appropriately mark each alias of a reference as being used as a call argument.
+                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
-                    if self.inserter.function.dfg.value_is_reference(*arg) {
-                        if let Some(expression) = references.expressions.get(arg) {
-                            if let Some(aliases) = references.aliases.get(expression) {
-                                aliases.for_each(|alias| {
-                                    self.calls_reference_input.insert(alias);
-                                });
-                            }
-                        }
-                    }
+                    references.for_each_alias_of(*arg, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
                 }
                 self.mark_all_unknown(arguments, references);
             }
@@ -547,14 +542,24 @@ impl<'f> PerFunctionContext<'f> {
 
                     let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
                     references.expressions.insert(array, expr.clone());
-                    let aliases = references.aliases.entry(expr).or_default();
+                    let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    for element in elements {
-                        aliases.insert(*element);
-                    }
+                    self.add_array_aliases(elements, aliases);
                 }
             }
             _ => (),
+        }
+    }
+
+    /// In order to handle nested arrays we need to recursively search whether there are any references
+    /// contained within an array's elements.
+    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+        for &element in elements {
+            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
+                self.add_array_aliases(&elements, aliases);
+            } else if self.inserter.function.dfg.value_is_reference(element) {
+                aliases.insert(element);
+            }
         }
     }
 
@@ -578,7 +583,8 @@ impl<'f> PerFunctionContext<'f> {
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
-            if self.inserter.function.dfg.value_is_reference(*value) {
+            let typ = self.inserter.function.dfg.type_of_value(*value);
+            if Self::contains_references(&typ) {
                 let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
@@ -655,6 +661,13 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             TerminatorInstruction::Return { return_values, .. } => {
+                // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
+                // This prevents us potentially removing a last store from a preceding block or is altered within another function.
+                for return_value in return_values {
+                    references.for_each_alias_of(*return_value, |_, alias| {
+                        self.instruction_input_references.insert(alias);
+                    });
+                }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
@@ -679,9 +692,11 @@ mod tests {
             ir::{
                 basic_block::BasicBlockId,
                 dfg::DataFlowGraph,
-                instruction::{BinaryOp, Instruction, Intrinsic, TerminatorInstruction},
+                instruction::{
+                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
+                },
                 map::Id,
-                types::Type,
+                types::{NumericType, Type},
             },
             opt::assert_normalized_ssa_equals,
         },
@@ -695,14 +710,14 @@ mod tests {
         //     v1 = make_array [Field 1, Field 2]
         //     store v1 in v0
         //     v2 = load v0
-        //     v3 = array_get v2, index 1
+        //     v3 = array_get v2, index u32 1
         //     return v3
         // }
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
         let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.field_constant(FieldElement::one());
+        let one = builder.numeric_constant(FieldElement::one(), NumericType::length_type());
         let two = builder.field_constant(FieldElement::one());
 
         let element_type = Arc::new(vec![Type::field()]);
@@ -711,7 +726,8 @@ mod tests {
 
         builder.insert_store(v0, v1);
         let v2 = builder.insert_load(v0, array_type);
-        let v3 = builder.insert_array_get(v2, one, Type::field());
+        let offset = ArrayOffset::None;
+        let v3 = builder.insert_array_get(v2, one, offset, Type::field());
         builder.terminate_with_return(vec![v3]);
 
         let ssa = builder.finish().mem2reg().fold_constants();
@@ -1183,7 +1199,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
             return
-        }  
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -1229,6 +1245,277 @@ mod tests {
 
         let ssa = ssa.mem2reg();
         // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_used_in_call_single_block() {
+        // This checks that when an array containing references is used in a call
+        // that we do not remove the original stores to those internal references
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v3 = make_array [u32 0, v0] : [(u32, &mut Field); 1]
+            v5 = call f1(v3) -> Field
+            v6 = load v0 -> Field   // make sure this isn't optimized to Field 1
+            return v3
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: [(u32, &mut Field); 1]):
+            v2 = array_get v0, index u32 1 -> &mut Field
+            v3 = load v2 -> Field
+            store Field 77 at v2
+            return v3
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_used_in_make_array_used_as_reference() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut [&mut u1; 1]
+            store v4 at v5
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v7 = eq v0, u32 0
+            jmpif v7 then: b2, else: b3
+          b2():
+            v14 = unchecked_add v0, u32 1
+            jmp b1(v14)
+          b3():
+            v8 = load v5 -> [&mut u1; 1]
+            v9 = array_get v8, index u32 0 -> &mut u1
+            v10 = load v9 -> u1
+            jmpif v10 then: b4, else: b5
+          b4():
+            jmp b6(Field 0)
+          b5():
+            jmp b6(Field 1)
+          b6(v1: Field):
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_returned_from_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [&mut u1; 2]
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v0, v2] : [&mut u1; 2]
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_used_in_array_get_that_returns_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 0)
+          b3(v0: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_diff_block_from_make_array_used_in_array_get_that_returns_result() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            v3 = make_array [v1] : [&mut u1]
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 0)
+          b3(v0: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn remove_last_store_in_make_array_that_is_never_used() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            jmp b1()
+          b1():
+            v2 = make_array [v0] : [&mut u1]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            jmp b1()
+          b1():
+            v1 = make_array [v0] : [&mut u1]
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> [&mut u1; 1]
+            v3 = array_get v1, index u32 0 -> &mut u1
+            store u32 1 at v3
+            v5 = load v3 -> u1
+            return v5
+        }
+        brillig(inline_always) fn foo f1 {
+          b0(v0: u1):
+            v1 = allocate -> &mut u1
+            store v0 at v1
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1()
+          b1():
+            v4 = load v2 -> u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v7 = load v2 -> u32
+            v8 = add v7, u32 1
+            store v8 at v2
+            jmp b5()
+          b4():
+            v9 = make_array [v1] : [&mut u1; 1]
+            return v9
+          b5():
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_in_make_array_where_aliases_are_none() {
+        let src = "
+        brillig(inline) fn foo f1 {
+          b0(v0: &mut u1):
+            v1 = call f2() -> &mut u1
+            store u1 1 at v1
+            v3 = make_array [v1] : [&mut u1; 1]
+            return v3
+        }
+        brillig(inline) fn get_ref f2 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_nested_array_used_in_array_get_in_separate_block() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 1 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v6 = make_array [v5] : [&mut u1; 1]
+            v7 = make_array [v4, v6] : [[&mut u1; 1]; 2]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 1)
+          b3(v0: u32):
+            v11 = lt v0, u32 2
+            constrain v11 == u1 1
+            v12 = array_get v7, index v0 -> [&mut u1; 1]
+            v13 = array_get v12, index u32 0 -> &mut u1
+            v14 = load v13 -> u1
+            jmpif v14 then: b4, else: b5
+          b4():
+            jmp b6(u1 1)
+          b5():
+            jmp b6(u1 0)
+          b6(v1: u1):
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
 }

@@ -2,7 +2,10 @@
 
 use crate::ssa::{
     Ssa,
-    ir::function::{Function, RuntimeType},
+    ir::{
+        call_graph::CallGraph,
+        function::{Function, RuntimeType},
+    },
 };
 
 use super::inlining::{self, InlineInfo};
@@ -10,12 +13,13 @@ use super::inlining::{self, InlineInfo};
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
     pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Ssa {
+        let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
-        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self);
+        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
         let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, false, aggressiveness);
+            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {

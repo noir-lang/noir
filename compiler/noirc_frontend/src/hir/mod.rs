@@ -19,6 +19,7 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -52,6 +53,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 
     pub package_build_path: PathBuf,
+
+    /// Writer for comptime prints.
+    pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 }
 
 #[derive(Debug)]
@@ -73,6 +77,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -90,6 +95,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -284,6 +290,10 @@ impl Context<'_, '_> {
     }
 
     pub fn disable_comptime_printing(&mut self) {
-        self.def_interner.disable_comptime_printing = true;
+        self.interpreter_output = None;
+    }
+
+    pub fn set_comptime_printing(&mut self, output: Rc<RefCell<dyn std::io::Write>>) {
+        self.interpreter_output = Some(output);
     }
 }

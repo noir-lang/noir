@@ -1,1 +1,0 @@
-[double_neg_cond_bool_input] Circuit output: Field(1)

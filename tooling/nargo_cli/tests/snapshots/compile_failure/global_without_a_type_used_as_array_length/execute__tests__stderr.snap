@@ -1,0 +1,47 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused global X
+  ┌─ src/main.nr:2:8
+  │
+2 │ global X: [Field; BAR] = [];
+  │        - unused global
+  │
+
+error: cannot find `OOPS` in this scope
+  ┌─ src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ---- not found in this scope
+  │
+
+error: Globals must have a specified type
+  ┌─ src/main.nr:1:8
+  │
+1 │ global BAR = OOPS;
+  │        ---   ---- Inferred type is `_`
+  │
+
+error: Variable not in scope
+  ┌─ src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ---- Could not find variable
+  │
+
+error: Global failed to evaluate
+  ┌─ src/main.nr:1:14
+  │
+1 │ global BAR = OOPS;
+  │              ----
+  │
+
+error: expected type got global
+  ┌─ src/main.nr:2:19
+  │
+2 │ global X: [Field; BAR] = [];
+  │                   ---
+  │
+
+Aborting due to 5 previous errors

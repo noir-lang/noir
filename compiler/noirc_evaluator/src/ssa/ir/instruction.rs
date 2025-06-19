@@ -280,13 +280,14 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    /// `offset` determines whether the index has been offseted by some offset.
-    ArrayGet { array: ValueId, index: ValueId, offset: ArrayGetOffset },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -410,6 +411,63 @@ impl Instruction {
         }
     }
 
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectual
+            MakeArray { .. } | Noop => false,
+
+            // Some binary math can overflow or underflow
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr => false,
+            },
+
+            // These don't have side effects
+            Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+            // `ArrayGet`s which read from "known good" indices from an array have no side effects
+            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+
+            // ArraySet has side effects
+            ArraySet { .. } => true,
+        }
+    }
+
     /// Replaces values present in this instruction with other values according to the given mapping.
     pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
         if !mapping.is_empty() {
@@ -481,12 +539,15 @@ impl Instruction {
             Instruction::ArrayGet { array, index, offset } => {
                 Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
             }
-            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                mutable: *mutable,
-            },
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
+                Instruction::ArraySet {
+                    array: f(*array),
+                    index: f(*index),
+                    value: f(*value),
+                    mutable: *mutable,
+                    offset: *offset,
+                }
+            }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -553,7 +614,7 @@ impl Instruction {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -619,7 +680,7 @@ impl Instruction {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -648,17 +709,17 @@ impl Instruction {
     }
 }
 
-/// Determines whether an ArrayGet index has been offseted by a given value.
+/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
-/// and vectors with constant indicces.
+/// and vectors with constant indices.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
-pub enum ArrayGetOffset {
+pub enum ArrayOffset {
     None,
     Array,
     Slice,
 }
 
-impl ArrayGetOffset {
+impl ArrayOffset {
     pub fn from_u32(value: u32) -> Option<Self> {
         match value {
             0 => Some(Self::None),

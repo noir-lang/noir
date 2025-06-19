@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Could not resolve 'baz' in path
+  ┌─ bin/src/main.nr:2:30
+  │
+2 │     assert(foo::bar() + foo::baz() == 3);
+  │                              ---
+  │
+
+error: Could not resolve 'baz' in path
+  ┌─ bin/src/main.nr:4:17
+  │
+4 │     assert(foo::baz() == 2);
+  │                 ---
+  │
+
+error: Could not resolve 'baz' in path
+  ┌─ bin/src/main.nr:5:23
+  │
+5 │     foo::bar() + foo::baz()
+  │                       ---
+  │
+
+Aborting due to 3 previous errors

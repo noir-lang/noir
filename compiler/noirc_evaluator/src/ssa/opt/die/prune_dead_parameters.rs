@@ -55,7 +55,7 @@ use crate::ssa::{
 
 impl Ssa {
     /// See [`prune_dead_parameters`][self] module for more information.
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn prune_dead_parameters(
         mut self,
         unused_parameters: &HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,

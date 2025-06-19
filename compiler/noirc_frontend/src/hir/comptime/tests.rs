@@ -1,6 +1,5 @@
 #![cfg(test)]
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
@@ -76,17 +75,17 @@ fn interpret_helper(src: &str) -> Result<Value, InterpreterError> {
     with_interpreter(src, |interpreter, main, errors| {
         assert_eq!(errors.len(), 0);
         let no_location = Location::dummy();
-        interpreter.call_function(main, Vec::new(), HashMap::new(), no_location)
+        interpreter.call_function(main, Vec::new(), Default::default(), no_location)
     })
 }
 
-fn interpret(src: &str) -> Value {
+pub(super) fn interpret(src: &str) -> Value {
     interpret_helper(src).unwrap_or_else(|error| {
         panic!("Expected interpreter to exit successfully, but found {error:?}")
     })
 }
 
-fn interpret_expect_error(src: &str) -> InterpreterError {
+pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
     interpret_helper(src).expect_err("Expected interpreter to error")
 }
 

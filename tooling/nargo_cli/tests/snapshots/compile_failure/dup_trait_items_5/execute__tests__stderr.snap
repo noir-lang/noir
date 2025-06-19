@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused trait MyTrait
+  ┌─ src/main.nr:1:7
+  │
+1 │ trait MyTrait {
+  │       ------- unused trait
+  │
+
+error: Duplicate definitions of trait associated constant with name MyItem found
+  ┌─ src/main.nr:2:6
+  │
+2 │   fn MyItem();
+  │      ------ First trait associated constant found here
+3 │   let MyItem: u32;
+  │       ------ Second trait associated constant found here
+  │
+
+Aborting due to 1 previous error

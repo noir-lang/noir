@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(_empty: [u32; 0], value_1: u32, value_2: u32) {
-    assert((value_1 + 1) == value_2);
-}

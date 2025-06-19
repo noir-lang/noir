@@ -4,14 +4,14 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
-        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
-        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
-        UnresolvedTypeExpression, UnsafeExpression,
+        Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility,
+        Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -19,7 +19,7 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{TypeCheckError, generics::TraitGenerics},
+        type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
@@ -35,11 +35,13 @@ use crate::{
     node_interner::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
+    shared::Signedness,
     token::{FmtStrFragment, Tokens},
 };
 
 use super::{
     Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -53,6 +55,8 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(_)));
+
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
@@ -99,13 +103,18 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(path);
+                return self.elaborate_as_trait_path(*path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
+
+        if is_integer_literal {
+            self.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
     }
 
@@ -166,9 +175,7 @@ impl Elaborator<'_> {
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
 
-            if break_or_continue_location.is_none() {
-                statements.push(id);
-            }
+            statements.push(id);
 
             let stmt = self.interner.statement(&id);
 
@@ -182,6 +189,8 @@ impl Elaborator<'_> {
                 });
             }
 
+            let is_break_or_continue = matches!(stmt, HirStatement::Break | HirStatement::Continue);
+
             if let Some(break_or_continue_location) = break_or_continue_location {
                 if !errored_unreachable {
                     self.push_err(ResolverError::UnreachableStatement {
@@ -190,11 +199,12 @@ impl Elaborator<'_> {
                     });
                     errored_unreachable = true;
                 }
-            } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
+            } else if is_break_or_continue {
                 break_or_continue_location = Some(location);
-                block_type = stmt_type;
-            } else if i + 1 == statements.len() {
-                block_type = stmt_type;
+            }
+
+            if i + 1 == statements.len() {
+                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
             }
         }
 
@@ -269,7 +279,16 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let first_elem_type = self.interner.next_type_variable();
+                let type_variable_id = self.interner.next_type_variable_id();
+                let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                let first_elem_type = Type::TypeVariable(type_variable);
                 let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -442,13 +461,12 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        self.push_index_to_check(index);
-
-        let expected = self.polymorphic_integer_or_field();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-            expected_typ: "an integer".to_owned(),
-            expr_typ: index_type.to_string(),
-            expr_location: location,
+        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+            expected: expected.clone(),
+            actual: index_type.clone(),
+            location,
+            source: Source::ArrayIndex,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
@@ -842,6 +860,19 @@ impl Elaborator<'_> {
                 last_segment.generics,
                 turbofish_location,
             );
+        }
+
+        // Each of the struct generics must be bound at the end of the function
+        let struct_id = r#type.borrow().id;
+        for (index, generic) in generics.iter().enumerate() {
+            if let Type::TypeVariable(type_variable) = generic {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
         }
 
         let struct_type = r#type.clone();

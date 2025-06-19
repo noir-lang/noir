@@ -253,6 +253,7 @@ impl ModCollector<'_> {
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
                 resolved_trait_generics: Vec::new(),
+                unresolved_associated_types: Vec::new(),
             };
 
             self.def_collector.items.trait_impls.push(unresolved_trait_impl);
@@ -609,6 +610,7 @@ impl ModCollector<'_> {
                             vec![],
                             false,
                             false,
+                            ItemVisibility::Public,
                         );
 
                         if let Err((first_def, second_def)) = self.def_collector.def_map
@@ -635,7 +637,7 @@ impl ModCollector<'_> {
                             });
                         }
                     }
-                    TraitItem::Type { name } => {
+                    TraitItem::Type { name, bounds: _ } => {
                         if let Err((first_def, second_def)) =
                             self.def_collector.def_map[trait_id.0.local_id].declare_type_alias(
                                 name.clone(),
@@ -1131,7 +1133,17 @@ pub fn collect_struct(
             let span = unresolved.struct_def.location.span;
             let attributes = unresolved.struct_def.attributes.clone();
             let local_id = module_id.local_id;
-            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
+            let visibility = unresolved.struct_def.visibility;
+            interner.new_type(
+                name,
+                span,
+                attributes,
+                resolved_generics,
+                visibility,
+                krate,
+                local_id,
+                file_id,
+            )
         }
         Err(error) => {
             definition_errors.push(error.into());
@@ -1225,7 +1237,17 @@ pub fn collect_enum(
             let span = unresolved.enum_def.location.span;
             let attributes = unresolved.enum_def.attributes.clone();
             let local_id = module_id.local_id;
-            interner.new_type(name, span, attributes, resolved_generics, krate, local_id, file_id)
+            let visibility = unresolved.enum_def.visibility;
+            interner.new_type(
+                name,
+                span,
+                attributes,
+                resolved_generics,
+                visibility,
+                krate,
+                local_id,
+                file_id,
+            )
         }
         Err(error) => {
             definition_errors.push(error.into());
@@ -1475,6 +1497,7 @@ pub(crate) fn collect_global(
         global.attributes.clone(),
         matches!(global.pattern, Pattern::Mutable { .. }),
         global.comptime,
+        visibility,
     );
 
     // Add the statement to the scope so its path can be looked up later

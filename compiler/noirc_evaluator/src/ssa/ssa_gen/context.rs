@@ -16,8 +16,8 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
 use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -297,17 +297,17 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.field,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.field
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value.field
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
@@ -717,6 +717,11 @@ impl<'a> FunctionContext<'a> {
                 }
                 value
             }
+            // When casting a signed value to u1 we can truncate then cast
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: 1 },
+            ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
             // For mixed sign to unsigned or unsigned to sign;
             // 1. we cast to the required type using the same signedness
             // 2. then we switch the signedness
@@ -787,11 +792,18 @@ impl<'a> FunctionContext<'a> {
     /// Looks up the value of a given local variable. Expects the variable to have
     /// been previously defined or panics otherwise.
     pub(super) fn lookup(&self, id: LocalId) -> Values {
-        self.definitions.get(&id).expect("lookup: variable not defined").clone()
+        self.definitions
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup: variable {id:?} not defined"))
+            .clone()
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+        self.shared_context
+            .globals
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
+            .clone()
     }
 
     /// Extract the given field of the tuple. Panics if the given Values is not
@@ -1060,7 +1072,9 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            let mutable = false;
+            let offset = ArrayOffset::None;
+            array = self.builder.insert_array_set(array, index, value, mutable, offset);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

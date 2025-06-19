@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
@@ -38,6 +36,7 @@ mod stdlib;
 
 use debug::filter_relevant_files;
 
+pub use abi_gen::gen_abi;
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
@@ -78,7 +77,7 @@ pub struct CompileOptions {
     /// Only show SSA passes whose name contains the provided string.
     /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
-    pub show_ssa_pass: Option<String>,
+    pub show_ssa_pass: Vec<String>,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -235,6 +234,7 @@ impl CompileOptions {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum CompileError {
     MonomorphizationError(MonomorphizationError),
     RuntimeError(RuntimeError),
@@ -589,7 +589,9 @@ fn compile_contract_inner(
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
             options.show_ssa &= show;
-            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
+            if !show {
+                options.show_ssa_pass.clear();
+            }
         };
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
@@ -644,7 +646,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
                         let fields =
-                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ, _)| {
                                 (name, abi_type_from_hir_type(context, &typ))
                             });
                         let path =
@@ -707,6 +709,7 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 /// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
+#[allow(clippy::result_large_err)]
 pub fn compile_no_check(
     context: &mut Context,
     options: &CompileOptions,
@@ -737,8 +740,9 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
+        || options.count_array_copies
         || options.show_ssa
-        || options.show_ssa_pass.is_some()
+        || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
         || options.minimal_ssa;
 
@@ -754,15 +758,12 @@ pub fn compile_no_check(
 
     let return_visibility = program.return_visibility();
     let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass {
-            Some(string) => SsaLogging::Contains(string.clone()),
-            None => {
-                if options.show_ssa {
-                    SsaLogging::All
-                } else {
-                    SsaLogging::None
-                }
-            }
+        ssa_logging: if !options.show_ssa_pass.is_empty() {
+            SsaLogging::Contains(options.show_ssa_pass.clone())
+        } else if options.show_ssa {
+            SsaLogging::All
+        } else {
+            SsaLogging::None
         },
         brillig_options: BrilligOptions {
             enable_debug_trace: options.show_brillig,
@@ -794,7 +795,7 @@ pub fn compile_no_check(
             create_program(program, &ssa_evaluator_options)?
         };
 
-    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
+    let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

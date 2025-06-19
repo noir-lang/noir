@@ -494,9 +494,7 @@ mod tests {
         builder.terminate_with_jmp(block1_id, vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.main().clone();
-
-        func
+        ssa.main().clone()
     }
 
     fn check_dom_matrix(

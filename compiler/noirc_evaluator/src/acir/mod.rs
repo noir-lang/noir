@@ -1067,10 +1067,10 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)
+        } else {
+            Ok(result)
         }
-
-        Ok(result)
     }
 
     /// Adds a range check against the bit size of the result of addition, subtraction or multiplication
@@ -1080,12 +1080,12 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError> {
         let msg = match binary.operator {
             BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
             BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
             BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
-            _ => return Ok(()),
+            _ => return Ok(result),
         };
 
         self.acir_context.range_constrain_var(
@@ -1093,8 +1093,7 @@ impl<'a> Context<'a> {
             &NumericType::Unsigned { bit_size },
             Some(msg.to_string()),
             predicate,
-        )?;
-        Ok(())
+        )
     }
 
     /// Operands in a binary operation are checked to have the same type.
@@ -1166,10 +1165,17 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = power_of_two::<FieldElement>(bit_size);
-                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                    var = self.acir_context.add_var(var, integer_modulus)?;
-                    max_bit_size += 1;
+                    //
+                    // FieldElements have max bit size equals to max_num_bits so
+                    // we filter out this bit size because there is no underflow
+                    // for FieldElements. Furthermore, adding a power of two
+                    // would be incorrect for a FieldElement (cf. #8519).
+                    if max_bit_size < FieldElement::max_num_bits() {
+                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
+                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
+                        var = self.acir_context.add_var(var, integer_modulus)?;
+                        max_bit_size += 1;
+                    }
                 }
             }
             Value::Param { .. } => {

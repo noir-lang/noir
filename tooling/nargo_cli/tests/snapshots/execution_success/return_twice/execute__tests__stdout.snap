@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[return_twice] Circuit output: Vec([Field(100), Field(100)])

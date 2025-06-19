@@ -2,12 +2,15 @@ use acvm::{AcirField, FieldElement};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct SignedField {
-    pub field: FieldElement,
-    pub is_negative: bool,
+    field: FieldElement,
+    is_negative: bool,
 }
 
 impl SignedField {
-    pub fn new(field: FieldElement, is_negative: bool) -> Self {
+    pub fn new(field: FieldElement, mut is_negative: bool) -> Self {
+        if field.is_zero() {
+            is_negative = false;
+        }
         Self { field, is_negative }
     }
 
@@ -16,7 +19,7 @@ impl SignedField {
     }
 
     pub fn negative(field: impl Into<FieldElement>) -> Self {
-        Self { field: field.into(), is_negative: true }
+        Self::new(field.into(), true)
     }
 
     pub fn zero() -> SignedField {
@@ -25,6 +28,15 @@ impl SignedField {
 
     pub fn one() -> SignedField {
         Self { field: FieldElement::one(), is_negative: false }
+    }
+
+    /// Returns the inner FieldElement which will always be positive
+    pub fn absolute_value(&self) -> FieldElement {
+        self.field
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.is_negative
     }
 
     /// Convert a signed integer to a SignedField, carefully handling
@@ -147,9 +159,8 @@ impl std::ops::Div for SignedField {
 impl std::ops::Neg for SignedField {
     type Output = Self;
 
-    fn neg(mut self) -> Self::Output {
-        self.is_negative = !self.is_negative;
-        self
+    fn neg(self) -> Self::Output {
+        Self::new(self.field, !self.is_negative)
     }
 }
 

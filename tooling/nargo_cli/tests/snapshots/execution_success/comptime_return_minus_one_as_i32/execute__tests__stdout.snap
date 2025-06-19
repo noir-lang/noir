@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[comptime_return_minus_one_as_i32] Circuit output: Field(4294967295)

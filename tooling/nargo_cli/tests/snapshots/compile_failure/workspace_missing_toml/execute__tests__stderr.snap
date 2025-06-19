@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Cannot read file crates/a/Nargo.toml - does it exist?

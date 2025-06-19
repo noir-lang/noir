@@ -1,1 +1,0 @@
-[global_array_rc_regression_8259] Circuit output: Vec([Field(1), Field(0), Field(1)])

@@ -1,3 +1,5 @@
+use acvm::AcirField;
+
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
 use crate::hir_def::expr::HirBinaryOp;
@@ -164,7 +166,11 @@ pub(super) fn evaluate_infix(
         },
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
-                field: lhs / rhs,
+                field: if rhs.absolute_value().is_zero() {
+                    return Err(math_error("/"));
+                } else {
+                    lhs / rhs
+                },
                 int: lhs.checked_div(rhs),
             }
         },
@@ -195,10 +201,24 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Xor => match_bitwise! {
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
-        BinaryOpKind::ShiftRight => match_bitshift! {
-            // Overflow on shift-right returns 0 in Noir
-            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs.into()).or(Some(0))
-        },
+        BinaryOpKind::ShiftRight => {
+            let is_negative = lhs_value.is_negative();
+            match_bitshift! {
+                (lhs_value as lhs ">>" rhs_value as rhs) => {
+                    Some(
+                        lhs.checked_shr(rhs.into())
+                            .unwrap_or(
+                                // fallback based on whether we have a negative value
+                                if is_negative {
+                                    // !0 = -1 for signed types
+                                    !0
+                                } else {
+                                    0
+                                })
+                    )
+                }
+            }
+        }
         BinaryOpKind::ShiftLeft => match_bitshift! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
         },
@@ -210,6 +230,9 @@ pub(super) fn evaluate_infix(
 
 #[cfg(test)]
 mod test {
+    use crate::hir::comptime::InterpreterError;
+    use crate::hir::comptime::tests::{interpret, interpret_expect_error};
+
     use super::{BinaryOpKind, HirBinaryOp, Location, Value};
 
     use super::evaluate_infix;
@@ -224,5 +247,200 @@ mod test {
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
         assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
+    }
+
+    #[test]
+    fn shl_unsigned() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                3 << 4
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::U64(48));
+    }
+
+    #[test]
+    fn shl_signed() {
+        let src = r#"
+            comptime fn main() -> pub i64 {
+                2 << 3
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(16));
+    }
+
+    #[test]
+    fn shl_unsigned_overflow() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                1 << 128
+            }
+        "#;
+
+        let err = interpret_expect_error(src);
+        let InterpreterError::MathError { operator, .. } = err else {
+            panic!("Expected overflow error");
+        };
+        assert_eq!(operator, "<<");
+    }
+
+    #[test]
+    fn shl_signed_overflow() {
+        let src = r#"
+            comptime fn main() -> pub i64 {
+                1 << 64
+            }
+        "#;
+
+        let err = interpret_expect_error(src);
+        let InterpreterError::MathError { operator, .. } = err else {
+            panic!("Expected overflow error");
+        };
+        assert_eq!(operator, "<<");
+    }
+
+    #[test]
+    fn shr_unsigned() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 1
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::U64(32));
+    }
+
+    #[test]
+    fn shr_unsigned_overflow() {
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 63
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::U64(0));
+
+        let src = r#"
+            comptime fn main() -> pub u64 {
+                64 >> 255
+            }
+        "#;
+        let result = interpret(src);
+        // 255 % 64 == 63, so 64 >> 63 => 0
+        assert_eq!(result, Value::U64(0));
+
+        let src = "
+            comptime fn main() -> pub u32 {
+                1360887544 >> 141
+            }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::U32(0));
+    }
+
+    #[test]
+    fn shr_signed_overflow_negative_lhs() {
+        let src = "
+        comptime fn main() -> pub i64 {
+            -64 >> 63
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(-1));
+
+        let src = "
+        comptime fn main() -> pub i64 {
+            -64 >> 255
+        }
+        ";
+        let result = interpret(src);
+        // 255 % 64 == 63, so 64 >> 63 => -1
+        assert_eq!(result, Value::I64(-1));
+
+        let src = "
+        comptime fn main() -> pub i32 {
+            -1360887544 >> 141
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I32(-1));
+    }
+
+    #[test]
+    fn shr_signed_overflow_positive_lhs() {
+        let src = "
+        comptime fn main() -> pub i64 {
+            64 >> 63
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(0));
+
+        let src = "
+        comptime fn main() -> pub i64 {
+            64 >> 255
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(0));
+
+        let src = "
+        comptime fn main() -> pub i32 {
+            1360887544 >> 141
+        }
+        ";
+        let result = interpret(src);
+        assert_eq!(result, Value::I32(0));
+    }
+
+    #[test]
+    fn shr_signed() {
+        let src = r#"
+            comptime fn main() -> pub i64 {
+                -64 >> 1
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::I64(-32));
+    }
+
+    #[test]
+    fn div_zero_field() {
+        let src = r#"
+            comptime fn main() -> pub Field {
+                32 / 0
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+    }
+
+    #[test]
+    fn div_zero_int() {
+        let src = r#"
+            comptime fn main() -> pub i32 {
+                32 / 0
+            }
+        "#;
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::MathError { operator: "/", location: _ }));
+    }
+
+    #[test]
+    fn div() {
+        let src = r#"
+            comptime fn main() {
+                let x_field = 8;
+                let x_i32: i32 = -7;
+
+                // Field division is weird so I'm not testing with a remainder here
+                assert_eq(x_field / 2, 4);
+                assert_eq(x_i32 / 2, -3);
+            }
+        "#;
+        let result = interpret(src);
+        assert_eq!(result, Value::Unit);
     }
 }

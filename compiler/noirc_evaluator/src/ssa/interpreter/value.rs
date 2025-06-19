@@ -7,12 +7,17 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
+    integer::IntegerConstant,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
 
 use super::IResult;
 
+/// Be careful when using `Clone`: `ArrayValue` and `ReferenceValue`
+/// are backed by a `Shared` data structure, and for example modifying
+/// an array element would be reflected in the original and the clone
+/// as well. Use `Value::snapshot` to make independent clones.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     Numeric(NumericValue),
@@ -52,7 +57,7 @@ pub struct ReferenceValue {
     pub element_type: Arc<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
@@ -74,9 +79,10 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
-            }
+            Value::ArrayOrSlice(array) => Type::Array(
+                array.element_types.clone(),
+                (array.elements.borrow().len() / array.element_types.len()) as u32,
+            ),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
@@ -152,7 +158,7 @@ impl Value {
         Self::Numeric(NumericValue::U1(value))
     }
 
-    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
@@ -200,6 +206,35 @@ impl Value {
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         self.as_numeric()?.as_field()
     }
+
+    /// Clone the value in a way that modifications to it won't affect the original.
+    pub fn snapshot(&self) -> Self {
+        match self {
+            Value::Numeric(n) => Value::Numeric(*n),
+            Value::Reference(r) => Value::Reference(ReferenceValue {
+                original_id: r.original_id,
+                element: Shared::new(r.element.borrow().clone()),
+                element_type: r.element_type.clone(),
+            }),
+            Value::ArrayOrSlice(a) => Value::ArrayOrSlice(ArrayValue {
+                elements: Shared::new(a.elements.borrow().clone()),
+                rc: Shared::new(*a.rc.borrow()),
+                element_types: a.element_types.clone(),
+                is_slice: a.is_slice,
+            }),
+            Value::Function(id) => Value::Function(*id),
+            Value::Intrinsic(i) => Value::Intrinsic(*i),
+            Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
+        }
+    }
+
+    /// Take a snapshot of interpreter arguments.
+    ///
+    /// Useful when we want to use the same input to run the interpreter
+    /// after different SSA passes, without them affecting each other.
+    pub fn snapshot_args(args: &[Value]) -> Vec<Value> {
+        args.iter().map(|arg| arg.snapshot()).collect()
+    }
 }
 
 impl NumericValue {
@@ -221,6 +256,13 @@ impl NumericValue {
 
     pub(crate) fn zero(typ: NumericType) -> Self {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
+    }
+
+    pub(crate) fn neg_one(typ: NumericType) -> Self {
+        let neg_one = IntegerConstant::Signed { value: -1, bit_size: typ.bit_size() };
+        let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+        Self::from_constant(neg_one_constant, typ)
+            .unwrap_or_else(|_| panic!("Negative one cannot fit in {typ}"))
     }
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
@@ -327,6 +369,16 @@ impl NumericValue {
             NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
         }
     }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            NumericValue::I8(v) => *v < 0,
+            NumericValue::I16(v) => *v < 0,
+            NumericValue::I32(v) => *v < 0,
+            NumericValue::I64(v) => *v < 0,
+            _ => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Value {
@@ -379,3 +431,14 @@ impl std::fmt::Display for ArrayValue {
         write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
     }
 }
+
+impl PartialEq for ArrayValue {
+    fn eq(&self, other: &Self) -> bool {
+        // Don't compare RC
+        self.elements == other.elements
+            && self.element_types == other.element_types
+            && self.is_slice == other.is_slice
+    }
+}
+
+impl Eq for ArrayValue {}

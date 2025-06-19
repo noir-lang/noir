@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[wildcard_type] Circuit output: Vec([Field(7), Field(14), Field(10), Field(6)])

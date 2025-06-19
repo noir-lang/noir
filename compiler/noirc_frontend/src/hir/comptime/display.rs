@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use noirc_printable_type::format_field_string;
 
 use crate::{
     Type,
@@ -364,7 +365,10 @@ impl Display for ValuePrinter<'_, '_> {
                 let msg = if *value { "true" } else { "false" };
                 write!(f, "{msg}")
             }
-            Value::Field(value) => write!(f, "{value}"),
+            Value::Field(value) => {
+                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
+                write!(f, "{}", format_field_string(value.to_field_element()))
+            }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),
             Value::I32(value) => write!(f, "{value}"),
