@@ -14,7 +14,9 @@ pub enum CliError {
     #[error("Error: destination {} already exists", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
-    #[error("Invalid package name {0}. Did you mean to use `--name`?")]
+    #[error(
+        "Error: {0}\nIf you need a package name to not match the directory name, consider using the `--name` flag."
+    )]
     InvalidPackageName(String),
 
     #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
