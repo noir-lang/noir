@@ -34,12 +34,11 @@ impl Function {
         self.simple_reachable_blocks_optimization(|context| {
             let block_id = context.block_id;
 
-            if current_block_id.is_none() {
-                current_block_id = Some(block_id);
-            } else if current_block_id != Some(block_id) {
+            if current_block_id != Some(block_id) {
                 current_block_instructions_are_unreachable = false;
-                current_block_id = Some(block_id);
             }
+
+            current_block_id = Some(block_id);
 
             if current_block_instructions_are_unreachable {
                 context.remove_current_instruction();
