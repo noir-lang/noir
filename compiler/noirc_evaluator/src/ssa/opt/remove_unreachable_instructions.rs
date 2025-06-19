@@ -3,8 +3,8 @@
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
 //! values with zeroed values of the appropriate type. If the block has successors
-//! those successors will also be unreachable if they come afterwards in a pre-order
-//! traversal.
+//! those successors will also be considered unreachable if they are dominated
+//! by that block.
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
@@ -13,7 +13,7 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, dfg::DataFlowGraph, function::Function,
+        basic_block::BasicBlockId, dfg::DataFlowGraph, dom::DominatorTree, function::Function,
         instruction::Instruction, types::Type, value::ValueId,
     },
     ssa_gen::Ssa,
@@ -30,16 +30,13 @@ impl Ssa {
 
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
+        let mut dom = DominatorTree::with_function(self);
+
         // The current block we are currently processing
         let mut current_block_id = None;
 
         // Whether the current block instructions were determined to be unreachable
         let mut current_block_instructions_are_unreachable = false;
-
-        // This is the set of all blocks we've seen so far. We need to keep this because when
-        // we determine that a block is unreachable, all of its successors are also unreachable
-        // but only if we didn't see them before.
-        let mut seen_blocks = HashSet::default();
 
         // This is the final set of blocks that we concluded have some unreachable instructions.
         // At the end we'll zero out their terminators.
@@ -51,7 +48,6 @@ impl Function {
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_instructions_are_unreachable = unreachable_blocks.contains(&block_id);
-                seen_blocks.insert(block_id);
             }
 
             if current_block_instructions_are_unreachable {
@@ -86,7 +82,7 @@ impl Function {
                 unreachable_blocks.insert(block_id);
                 current_block_instructions_are_unreachable = true;
 
-                add_successors(&seen_blocks, &mut unreachable_blocks, context.dfg, block_id);
+                add_successors(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
             }
         });
 
@@ -101,19 +97,30 @@ impl Function {
     }
 }
 
-/// Recursively adds a block's successors to `unreachable_blocks` unless they were already seen.
+/// Adds all of a block's successors to the `unreachable_blocks` set if they are dominated by that block.
 fn add_successors(
-    seen_blocks: &HashSet<BasicBlockId>,
-    unreachable_blocks: &mut HashSet<BasicBlockId>,
-    dfg: &DataFlowGraph,
     block_id: BasicBlockId,
+    dfg: &DataFlowGraph,
+    dom: &mut DominatorTree,
+    unreachable_blocks: &mut HashSet<BasicBlockId>,
 ) {
+    // First compute the set of all successors
+    let mut all_successors = HashSet::default();
+    all_successors.insert(block_id);
+
     let mut blocks_to_process = vec![block_id];
     while let Some(block_id) = blocks_to_process.pop() {
         for successor in dfg[block_id].successors() {
-            if !seen_blocks.contains(&successor) && unreachable_blocks.insert(successor) {
+            if all_successors.insert(successor) {
                 blocks_to_process.push(successor);
             }
+        }
+    }
+
+    // Now add them to `unreachable_blocks` if they are dominated by the block
+    for successor in all_successors {
+        if dom.dominates(block_id, successor) {
+            unreachable_blocks.insert(successor);
         }
     }
 }
@@ -162,7 +169,10 @@ fn zeroed_value(function: &mut Function, block_id: BasicBlockId, typ: &Type) -> 
 
 #[cfg(test)]
 mod test {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn removes_unreachable_instructions_in_block() {
@@ -346,22 +356,75 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 
-        assert_ssa_snapshot!(ssa, @r#"
+    #[test]
+    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_1() {
+        let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             jmp b1()
           b1():
-            v2 = add Field 1, Field 2
-            jmp b2(v2)
+            jmpif u1 0 then: b2, else: b3
           b2():
-            jmpif u1 0 then: b3, else: b4
-          b3():
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmpif u1 0 then: b4, else: b1
-          b4():
-            return Field 0
+            jmp b3()
+          b3():
+            v1 = add Field 1, Field 2
+            return v1
         }
-        "#);
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_2() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b4()
+          b3():
+            jmp b4()
+          b4():
+            v1 = add Field 1, Field 2
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_3() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b4()
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            v1 = add Field 1, Field 2
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
