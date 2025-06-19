@@ -29,7 +29,7 @@ mod test {
         use super::utils;
 
         pub fn use_utils() {
-            super::utils::func()
+            utils::func()
         }
     }
 
