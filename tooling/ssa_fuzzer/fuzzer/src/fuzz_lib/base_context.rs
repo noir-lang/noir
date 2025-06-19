@@ -415,7 +415,7 @@ impl FuzzerContext {
 
     /// Adds a loop to the program. Switches context to the loop body block.
     ///
-    /// Loops in Noir on SSA level works as follows:
+    /// Loops in Noir on SSA level work as follows:
     /// 1) Create constant for start iteration
     /// 2) Jump to the "block_if" (block that checks if the loop should continue)
     /// 3) In "block_if" create constant for end iteration
