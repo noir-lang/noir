@@ -13,8 +13,8 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, function::Function, instruction::Instruction, types::Type,
-        value::ValueId,
+        basic_block::BasicBlockId, dfg::DataFlowGraph, function::Function,
+        instruction::Instruction, types::Type, value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -51,15 +51,6 @@ impl Function {
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_instructions_are_unreachable = unreachable_blocks.contains(&block_id);
-
-                if current_block_instructions_are_unreachable {
-                    for successor in context.dfg[block_id].successors() {
-                        if !seen_blocks.contains(&successor) {
-                            unreachable_blocks.insert(successor);
-                        }
-                    }
-                }
-
                 seen_blocks.insert(block_id);
             }
 
@@ -95,11 +86,7 @@ impl Function {
                 unreachable_blocks.insert(block_id);
                 current_block_instructions_are_unreachable = true;
 
-                for successor in context.dfg[block_id].successors() {
-                    if !seen_blocks.contains(&successor) {
-                        unreachable_blocks.insert(successor);
-                    }
-                }
+                add_successors(&seen_blocks, &mut unreachable_blocks, context.dfg, block_id);
             }
         });
 
@@ -110,6 +97,23 @@ impl Function {
                 zeroed_value(self, block_id, &typ)
             });
             self.dfg[block_id].set_terminator(terminator);
+        }
+    }
+}
+
+/// Recursively adds a block's successors to `unreachable_blocks` unless they were already seen.
+fn add_successors(
+    seen_blocks: &HashSet<BasicBlockId>,
+    unreachable_blocks: &mut HashSet<BasicBlockId>,
+    dfg: &DataFlowGraph,
+    block_id: BasicBlockId,
+) {
+    let mut blocks_to_process = vec![block_id];
+    while let Some(block_id) = blocks_to_process.pop() {
+        for successor in dfg[block_id].successors() {
+            if !seen_blocks.contains(&successor) && unreachable_blocks.insert(successor) {
+                blocks_to_process.push(successor);
+            }
         }
     }
 }
@@ -286,6 +290,36 @@ mod test {
           b2():
             jmp b1()
           b3():
+            return Field 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_following_block_with_no_instructions() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            v2 = add Field 1, Field 2
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
             return Field 0
         }
         "#);
