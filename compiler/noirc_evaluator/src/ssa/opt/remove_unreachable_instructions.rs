@@ -36,7 +36,7 @@ impl Function {
         let mut current_block_instructions_are_unreachable = false;
         let mut unreachable_blocks = HashSet::default();
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_reachable_pre_order_blocks_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
@@ -215,6 +215,41 @@ mod test {
             jmp b2(u1 0)
           b2(v1: u1):
             return u1 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_from_successors_goes_in_pre_order() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [&mut u1; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            v4 = array_get v0, index u32 0 -> &mut u1
+            v5 = load v4 -> u1
+            jmp b2(v5)
+          b1(v8: u1):
+            v9 = add v8, u1 1
+            return v9
+          b2(v6: u1):
+            v7 = add v6, u1 1
+            jmp b1(v7)
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array [] : [&mut u1; 0]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b2(u1 0)
+          b1(v0: u1):
+            return u1 0
+          b2(v1: u1):
+            jmp b1(u1 0)
         }
         "#);
     }
