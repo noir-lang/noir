@@ -71,7 +71,7 @@ impl Ssa {
             (*id, function.inlined(&self, &should_inline_call))
         });
 
-        self
+        self.remove_unreachable_functions()
     }
 }
 
@@ -112,10 +112,6 @@ mod test {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
-        }
-        acir(inline) fn foo f1 {
-          b0(v0: Field):
-            return v0
         }
         ");
     }
@@ -160,14 +156,10 @@ mod test {
         assert_ssa_snapshot!(&mut ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v2 = call f2(v0) -> Field
+            v2 = call f1(v0) -> Field
             return v2
         }
-        acir(inline) fn foo f1 {
-          b0(v0: Field):
-            return v0
-        }
-        acir(inline) fn bar f2 {
+        acir(inline) fn bar f1 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -178,15 +170,6 @@ mod test {
         ssa = ssa.inline_simple_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            v1 = add v0, v0
-            return v1
-        }
-        acir(inline) fn foo f1 {
-          b0(v0: Field):
-            return v0
-        }
-        acir(inline) fn bar f2 {
           b0(v0: Field):
             v1 = add v0, v0
             return v1
@@ -221,11 +204,6 @@ mod test {
             v3 = add v0, Field 1
             v4 = add v2, v3
             return v4
-        }
-        acir(inline) fn foo f1 {
-          b0(v0: Field):
-            v2 = add v0, Field 1
-            return v2
         }
         ");
     }
