@@ -723,19 +723,22 @@ impl<'brillig> Context<'brillig> {
         use Instruction::{ArraySet, Store};
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        if let Store { value: array, .. } | ArraySet { array, .. } = instruction {
-            if function.dfg.is_global(*array) {
+        if let Store { value, .. } | ArraySet { array: value, .. } = instruction {
+            if function.dfg.is_global(*value) {
                 // Early return as we expect globals to be immutable.
                 return;
             };
 
-            let instruction = match &function.dfg[*array] {
+            if !matches!(function.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_)) {
+                // Early return as we only care about arrays and slices. (`Store` can act on non-array values as well)
+                return;
+            };
+
+            let instruction = match &function.dfg[*value] {
                 Value::Instruction { instruction, .. } => &function.dfg[*instruction],
                 _ => return,
             };
 
-            // There's no need to check the return type of the call instruction here, as we already know
-            // that it returns at least one array.
             if matches!(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
                 self.cached_instruction_results.remove(instruction);
             }
