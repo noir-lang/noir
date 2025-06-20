@@ -29,7 +29,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/62QsQ2AMAwEMWIgO7aJ3bEKEc7+IyCUFFEKGjjp9cVLVzwsDeiZWXsfvRl3kcgpiOnE5MUURctuZKSmVzLmMLHsxTM6CQdVdY7aGF34DYL/XPi4tuGLGXjZbl/bHHBEAQAA",
+      "bytecode": "H4sIAAAAAAAA/42OsQmAMBRE/eIgltopjiCClVja2DmA2FlmBHEBpxAdJ52dVeofSH4RQkLy4LiDu+Ig0QDJJiXPyatl2Hh9lc/Y3YxNc9F8/f6uR8vF+SOiuQ0AEL9V3zIju3pfJwFn40dp5AAAAA==",
       "debug_symbols": "dY/RCoMwDEX/Jc99GIM58FfGkFijFEJaYisM8d8XRTcZ7Cm9OT2XdoaO2jI0Qfo4Qv2YodXAHIaGo8ccoth2XhwcsclKZCs4cbMSKkmGWgqzgwm5bJfGhLLNjGr04oCks2mFfWBaT4v72pf/anXd3er+kW9mPy2hD/r73gk1YMu0x76IP9H8Sgc5/ps0euqK0tq0Met+Aw==",
       "names": [
         "double"
@@ -59,7 +59,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/62QsQ2AMAwECWIgO7YTu2MVojj7j4CAFFEKGjjp9cVLV3xYHkLPzNp7702QmD1HR8IDohUVYClJUVFUalQiV9ZsxTIYMjk2MfJ2U0cXfAPDfy64XNvwxUx42U76ES6ERAEAAA==",
+      "bytecode": "H4sIAAAAAAAA/42OsQmAMBRE/eIgltopjiCClVja2DmA2FlmBHEBpxAdJ52dVcqQQPKLEBKSB8cd3BUHiQZQNil6jl4tw0brq3zG7iZkmovm6/d3PVrKzl8Ibm4DAMRv1bfMyK7e10kbsxZI5AAAAA==",
       "debug_symbols": "dY/RCoMwDEX/Jc99UMZA/JUxJNYohdCW2ApD/PdFsZsM9pTenJ5Lu8JAfZ4658cwQ/tYoRfH7KaOg8XkgtftuhkosUtCpCu4cLUiCvkErc/MBhbkfFyaI/pjJhSllQHyg04tHB3TftrM167+q3VzO+W6aT76Xf2nJrROfl+8oDjsmc44Zm8vNL1iIeXHUYKlIQvtTQfT7jc=",
       "names": [
         "quadruple"
@@ -89,7 +89,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/62QsQ2AMAwEMWIgO7aJ3bEKEc7+IyAgRZSCBk56ffHSFQ/TA7SMzK231oyrSOQUxLRj8mKKomU1MlLTIxlzmFj24hmdhIOqOke9id6F3yD4z4WXa+m+GIGX7QSI948TRAEAAA==",
+      "bytecode": "H4sIAAAAAAAA/42OsQmAMBRE/eIgltopjiCClVja2DmA2FlmBHEBpxAdJ52dVdokkPwihITkwXEHd8VBogGUTYqeo1fLsNH6Kp+xuwmZ5qL5+v1dj5ay8xeCm9sAAPFb9S0zsqv3dRJZS+955AAAAA==",
       "debug_symbols": "dY/RCoMwDEX/Jc99UGF78FfGkFijFEJbYisM8d8XxW4y2FN6c3ou7QoD9XnqnB/DDO1jhV4cs5s6DhaTC16362agxC4Jka7gwtWKKOQTtD4zG1iQ83FpjuiPmVCUVgbIDzq1cHRM+2kzX7v6r9ZNfcp1c//oN/WfmtA6+X3xguKwZzrjmL290PSKhZQfRwmWhiy0Nx1Mu98=",
       "names": [
         "triple"
