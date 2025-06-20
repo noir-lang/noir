@@ -13,7 +13,7 @@ mod moo {
 }
 
 pub fn baz() -> i32 {
-    moo::bar::foo()
+    bar::foo()
 }
 
 fn main() {}
