@@ -2724,7 +2724,20 @@
 <a href="#2723" id="2723">2723</a>
 <a href="#2724" id="2724">2724</a>
 <a href="#2725" id="2725">2725</a>
-<a href="#2726" id="2726">2726</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass moves code from inside a loop to before the loop
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass moves code from inside a loop to before the loop
 //! if that code will always have the same result on every iteration of the loop.
 //!
 //! To identify a loop invariant, check whether all of an instruction's values are:
@@ -3517,10 +3530,12 @@
                 .and_then(|v| <span class="kw">if </span>only_outer_induction { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(v) })
                 .or(<span class="self">self</span>.outer_induction_variables.get(rhs)),
         ) {
-            (<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((lower_bound, upper_bound))) =&gt; {
+            <span class="comment">// LHS is a constant, RHS is the induction variable with a known lower and upper bound.
+            </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">Some</span>((lower_bound, upper_bound))) =&gt; {
                 <span class="prelude-val">Some</span>((<span class="bool-val">false</span>, lhs, <span class="kw-2">*</span>lower_bound, <span class="kw-2">*</span>upper_bound))
             }
-            (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(rhs), <span class="prelude-val">Some</span>((lower_bound, upper_bound)), <span class="prelude-val">None</span>) =&gt; {
+            <span class="comment">// RHS is a constant, LHS is the induction variable with a known lower an upper bound
+            </span>(<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(rhs), <span class="prelude-val">Some</span>((lower_bound, upper_bound)), <span class="prelude-val">None</span>) =&gt; {
                 <span class="prelude-val">Some</span>((<span class="bool-val">true</span>, rhs, <span class="kw-2">*</span>lower_bound, <span class="kw-2">*</span>upper_bound))
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -3622,17 +3637,28 @@
             | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; <span class="bool-val">true</span>,
             BinaryOp::Div | BinaryOp::Mod =&gt; {
                 <span class="comment">// Division can be evaluated if we ensure that the divisor cannot be zero
-                </span><span class="kw">let </span><span class="prelude-val">Some</span>((left, value, lower, <span class="kw">_</span>)) =
+                </span><span class="kw">let </span><span class="prelude-val">Some</span>((left, value, lower, upper)) =
                     <span class="self">self</span>.match_induction_and_constant(<span class="kw-2">&amp;</span>binary.lhs, <span class="kw-2">&amp;</span>binary.rhs, <span class="bool-val">true</span>)
                 <span class="kw">else </span>{
-                    <span class="kw">return </span><span class="bool-val">false</span>;
+                    <span class="comment">// Not a constant vs non-constant case, we cannot evaluate it.
+                    </span><span class="kw">return </span><span class="bool-val">false</span>;
                 };
+
                 <span class="kw">if </span>left {
-                    <span class="kw">if </span>!value.is_zero() {
+                    <span class="comment">// If the induction variable is on the LHS, we're dividing with a constant.
+                    </span><span class="kw">if </span>!value.is_zero() {
                         <span class="kw">return </span><span class="bool-val">true</span>;
                     }
-                } <span class="kw">else if </span>!lower.is_zero() {
-                    <span class="kw">return </span><span class="bool-val">true</span>;
+                } <span class="kw">else </span>{
+                    <span class="comment">// Otherwise we are dividing a constant with the induction variable, and we have to check whether
+                    // at any point in the loop the induction variable can be zero.
+                    </span><span class="kw">let </span>can_be_zero = lower.is_negative() &amp;&amp; !upper.is_negative()
+                        || lower.is_zero()
+                        || upper.is_zero();
+
+                    <span class="kw">if </span>!can_be_zero {
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
                 }
 
                 <span class="bool-val">false

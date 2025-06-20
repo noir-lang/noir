@@ -118,7 +118,14 @@
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
 <a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>num_traits::Zero;
@@ -212,6 +219,13 @@
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Signed { value, .. } =&gt; value.is_zero(),
             <span class="self">Self</span>::Unsigned { value, .. } =&gt; value.is_zero(),
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_negative(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            <span class="self">Self</span>::Signed { value, .. } =&gt; value.is_negative(),
+            <span class="self">Self</span>::Unsigned { .. } =&gt; <span class="bool-val">false</span>,
         }
     }
 }
