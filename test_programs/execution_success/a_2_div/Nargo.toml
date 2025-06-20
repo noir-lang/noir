@@ -1,0 +1,6 @@
+[package]
+name = "a_2_div"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -15,10 +15,7 @@ use noirc_frontend::{
         stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    modules::{
-        get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id,
-        relative_module_full_path,
-    },
+    modules::{get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id},
     node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
@@ -1049,8 +1046,6 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             }
         }
 
-        let mut reexport = None;
-
         let is_visible = module_def_id_is_visible(
             module_def_id,
             self.module_id,
@@ -1061,63 +1056,33 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             self.dependencies,
         );
         if !is_visible {
-            reexport = self.interner.get_reexports(module_def_id).first();
-
-            // If we can't find a reexport for the main item, check if the parent module
-            // has a reexport, then use the item through that reexported module
-            if reexport.is_none() {
-                if let Some(module_def_id_parent_module) =
-                    get_parent_module(self.interner, module_def_id)
-                {
-                    let module_def_id_parent = ModuleDefId::ModuleId(module_def_id_parent_module);
-                    let visibility = self.module_def_id_visibility(module_def_id_parent);
-                    self.show_reference_to_module_def_id(
-                        module_def_id_parent,
-                        visibility,
-                        use_import,
-                    );
-                    self.push_str("::");
-                    let name = self.module_def_id_name(module_def_id);
-                    self.push_str(&name);
-                    return name;
-                }
+            if let Some(reexport) = self.interner.get_reexports(module_def_id).first() {
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::ModuleId(reexport.module_id),
+                    reexport.visibility,
+                    true,
+                );
+                self.push_str("::");
+                self.push_str(reexport.name.as_str());
+                return reexport.name.to_string();
             }
         }
 
-        if let Some(reexport) = reexport {
-            self.show_reference_to_module_def_id(
-                ModuleDefId::ModuleId(reexport.module_id),
-                reexport.visibility,
-                true,
-            );
-            self.push_str("::");
-            self.push_str(reexport.name.as_str());
-            return reexport.name.to_string();
-        }
-
-        if let Some(full_path) = relative_module_full_path(
-            module_def_id,
-            self.module_id,
-            current_module_parent_id,
-            self.interner,
-        ) {
-            if !full_path.is_empty() {
-                // `relative_module_full_path` for a module returns the full path to that module
-                // so we need to remove the last segment
-                if matches!(module_def_id, ModuleDefId::ModuleId(..)) {
-                    let mut full_path = full_path.split("::").collect::<Vec<_>>();
-                    full_path.pop();
-                    let full_path = full_path.join("::");
-                    if !full_path.is_empty() {
-                        self.push_str(&full_path);
-                        self.push_str("::");
-                    }
-                } else {
-                    self.push_str(&full_path);
-                    self.push_str("::");
-                }
+        // Recurse on the parent module, but only if the parent module isn't the current module
+        // (if so, we can already reach the definition just by printing its name)
+        let module_def_id_parent_module = get_parent_module(self.interner, module_def_id);
+        if module_def_id_parent_module != Some(self.module_id) {
+            if let Some(module_def_id_parent_module) = module_def_id_parent_module {
+                let visibility = self
+                    .module_def_id_visibility(ModuleDefId::ModuleId(module_def_id_parent_module));
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::ModuleId(module_def_id_parent_module),
+                    visibility,
+                    use_import,
+                );
+                self.push_str("::");
             }
-        };
+        }
 
         let name = self.module_def_id_name(module_def_id);
         self.push_str(&name);

@@ -25,7 +25,7 @@ unconstrained fn uint_casts() {
 
 unconstrained fn int_casts() {
     let x: i32 = 456;
-    assert(x as i8 == -56 as i8);
+    assert(x as i8 == -(56 as i8));
     assert(x as i64 == 456);
 }
 

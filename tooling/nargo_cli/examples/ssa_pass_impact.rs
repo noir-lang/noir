@@ -283,7 +283,7 @@ fn collect_ssa_before_and_after(
                 after: SsaPrint { step: i + 1, msg: pass.msg().to_string(), ssa: format!("{ssa}") },
             });
         }
-        last_msg = pass.msg()
+        last_msg = pass.msg();
     }
 
     Ok(pairs)
