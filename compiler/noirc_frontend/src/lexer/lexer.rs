@@ -408,7 +408,7 @@ impl<'a> Lexer<'a> {
     fn eat_digits(&mut self, initial_char: char) -> SpannedTokenResult {
         let start = self.position;
 
-        let integer_str = self.eat_while(Some(initial_char), |ch| {
+        let original_str = self.eat_while(Some(initial_char), |ch| {
             // We eat any alphanumeric character. Even though we're only expecting
             // integers, we don't want to allow things like `1234abc` to be lexed
             // as an integer followed by an ident. We'd rather an invalid integer error here.
@@ -419,7 +419,7 @@ impl<'a> Lexer<'a> {
         let end = self.position;
 
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
-        let mut integer_str = integer_str.replace('_', "");
+        let mut integer_str = original_str.replace('_', "");
         let type_suffix = Self::check_for_integer_type_suffix(&mut integer_str);
 
         let bigint_result = match integer_str.strip_prefix("0x") {
@@ -441,7 +441,7 @@ impl<'a> Lexer<'a> {
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     location: self.location(Span::inclusive(start, end)),
-                    found: integer_str,
+                    found: original_str,
                 });
             }
         };
