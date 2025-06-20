@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750434423164,
+  "lastUpdate": 1750434759603,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "98d19fb4d61fd3b4f6420862af2d5f7af8a30f0f",
-          "message": "fix: do not hoist control dependent cast (#8886)",
-          "timestamp": "2025-06-12T13:33:21Z",
-          "tree_id": "10dcd7ce24c9840b64f859dae449b9a419f3c837",
-          "url": "https://github.com/noir-lang/noir/commit/98d19fb4d61fd3b4f6420862af2d5f7af8a30f0f"
-        },
-        "date": 1749737523531,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.29,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.51,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.17,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.248,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 134,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.534,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.776,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.754,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5845dc5aaf039d71d45700bb6784b4df7da03bae",
+          "message": "fix(LICM): Consider negative loop bounds before hoisting `div <const> <induction-var>` (#8986)",
+          "timestamp": "2025-06-20T15:23:43Z",
+          "tree_id": "76e81fdb0c31a247d609f46e04fe61f68e70a2a9",
+          "url": "https://github.com/noir-lang/noir/commit/5845dc5aaf039d71d45700bb6784b4df7da03bae"
+        },
+        "date": 1750434747074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.444,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.454,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.106,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 180,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.296,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
             "unit": "s"
           }
         ]
