@@ -323,7 +323,7 @@ impl<'brillig> Context<'brillig> {
                     {
                         for &value in cached {
                             let value_type = dfg.type_of_value(value);
-                            if value_type.contains_an_array() {
+                            if value_type.is_array() {
                                 let inc_rc = Instruction::IncrementRc { value };
                                 let call_stack = dfg.get_instruction_call_stack_id(id);
                                 dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
@@ -1949,9 +1949,10 @@ mod test {
     }
 
     #[test]
-    fn unknown_issue_regression_test() {
+    fn functions_returning_arrays_inc_rc_while_deduplicating() {
         // Regression test for an issue discovered in https://github.com/AztecProtocol/aztec-packages/pull/14492
-        // Marking `f1` as `predicate_pure` instead of `impure` results in an invalid storage write.
+        // Previously no `inc_rc` was being generated when deduplicating the calls to `f1`,
+        // resulting in both references mutating the same array as opposed to having their own copies.
         let src = r#"
         brillig(inline) impure fn constructor f0 {
           b0():
