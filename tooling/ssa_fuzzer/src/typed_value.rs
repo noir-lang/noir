@@ -2,8 +2,9 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
+use serde::{Deserialize, Serialize};
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
 pub enum ValueType {
     Field,
     Boolean,
