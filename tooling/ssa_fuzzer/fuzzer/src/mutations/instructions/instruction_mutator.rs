@@ -1,4 +1,12 @@
+//! This file contains mechanisms for deterministically mutating a given [Instruction](crate::fuzz_lib::instruction::Instruction) value
+//! Types of mutations applied:
+//! 1. Random (randomly select a new instruction)
+//! 2. Argument mutation
+
 use crate::fuzz_lib::instruction::Instruction;
+use crate::mutations::configuration::{
+    BASIC_INSTRUCTION_MUTATION_CONFIGURATION, InstructionMutationOptions,
+};
 use crate::mutations::instructions::argument_mutator::argument_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
@@ -10,9 +18,10 @@ trait InstructionMutatorFactory {
     fn new() -> Box<dyn InstructionMutator>;
 }
 
+/// Return new random instruction
 struct RandomMutation;
 impl InstructionMutator for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Instruction) -> Instruction {
+    fn mutate(&self, rng: &mut StdRng, _value: Instruction) -> Instruction {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
@@ -24,9 +33,9 @@ impl InstructionMutatorFactory for RandomMutation {
     }
 }
 
+/// Mutate arguments of the instruction
 struct InstructionArgumentsMutation;
 impl InstructionMutator for InstructionArgumentsMutation {
-    /// big boi
     fn mutate(&self, rng: &mut StdRng, value: Instruction) -> Instruction {
         match value {
             Instruction::AddChecked { lhs, rhs } => Instruction::AddChecked {
@@ -99,25 +108,10 @@ impl InstructionMutatorFactory for InstructionArgumentsMutation {
     }
 }
 
-struct DefaultMutation;
-impl InstructionMutator for DefaultMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Instruction) -> Instruction {
-        value
-    }
-}
-impl InstructionMutatorFactory for DefaultMutation {
-    fn new() -> Box<dyn InstructionMutator> {
-        Box::new(DefaultMutation)
-    }
-}
-
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn InstructionMutator> {
-    let mutator = if rng.gen_bool(0.9) {
-        InstructionArgumentsMutation::new()
-    } else if rng.gen_bool(0.1) {
-        RandomMutation::new()
-    } else {
-        DefaultMutation::new()
+    let mutator = match BASIC_INSTRUCTION_MUTATION_CONFIGURATION.select(rng) {
+        InstructionMutationOptions::Random => RandomMutation::new(),
+        InstructionMutationOptions::ArgumentMutation => InstructionArgumentsMutation::new(),
     };
     mutator
 }

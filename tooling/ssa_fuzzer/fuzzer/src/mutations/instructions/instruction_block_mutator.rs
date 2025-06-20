@@ -1,4 +1,14 @@
+//! This file contains mechanisms for deterministically mutating a given [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) value
+//! Types of mutations applied:
+//! 1. Random (randomly select a new instruction block)
+//! 2. Instruction deletion
+//! 3. Instruction insertion
+//! 4. Instruction mutation
+
 use crate::fuzz_lib::instruction::InstructionBlock;
+use crate::mutations::configuration::{
+    BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION, InstructionBlockMutationOptions,
+};
 use crate::mutations::instructions::instruction_mutator::instruction_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
@@ -11,9 +21,10 @@ trait InstructionBlockMutatorFactory {
     fn new() -> Box<dyn InstructionBlockMutator>;
 }
 
+/// Return new random instruction block
 struct RandomMutation;
 impl InstructionBlockMutator for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
+    fn mutate(&self, rng: &mut StdRng, _value: InstructionBlock) -> InstructionBlock {
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
@@ -25,6 +36,7 @@ impl InstructionBlockMutatorFactory for RandomMutation {
     }
 }
 
+/// Remove randomly chosen instruction from the block
 struct InstructionBlockDeletionMutation;
 impl InstructionBlockMutator for InstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -42,6 +54,7 @@ impl InstructionBlockMutatorFactory for InstructionBlockDeletionMutation {
     }
 }
 
+/// Insert randomly generated instruction into the block
 struct InstructionBlockInsertionMutation;
 impl InstructionBlockMutator for InstructionBlockInsertionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -63,6 +76,7 @@ impl InstructionBlockMutatorFactory for InstructionBlockInsertionMutation {
     }
 }
 
+/// Mutate randomly chosen instruction in the block
 struct InstructionBlockInstructionMutation;
 impl InstructionBlockMutator for InstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -80,29 +94,18 @@ impl InstructionBlockMutatorFactory for InstructionBlockInstructionMutation {
     }
 }
 
-struct InstructionBlockDefaultMutation;
-impl InstructionBlockMutator for InstructionBlockDefaultMutation {
-    fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
-        value
-    }
-}
-impl InstructionBlockMutatorFactory for InstructionBlockDefaultMutation {
-    fn new() -> Box<dyn InstructionBlockMutator> {
-        Box::new(InstructionBlockDefaultMutation)
-    }
-}
-
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn InstructionBlockMutator> {
-    let mutator = if rng.gen_bool(0.7) {
-        InstructionBlockInstructionMutation::new()
-    } else if rng.gen_bool(0.1) {
-        RandomMutation::new()
-    } else if rng.gen_bool(0.2) {
-        InstructionBlockInsertionMutation::new()
-    } else if rng.gen_bool(0.2) {
-        InstructionBlockInstructionMutation::new()
-    } else {
-        InstructionBlockDefaultMutation::new()
+    let mutator = match BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION.select(rng) {
+        InstructionBlockMutationOptions::Random => RandomMutation::new(),
+        InstructionBlockMutationOptions::InstructionDeletion => {
+            InstructionBlockDeletionMutation::new()
+        }
+        InstructionBlockMutationOptions::InstructionInsertion => {
+            InstructionBlockInsertionMutation::new()
+        }
+        InstructionBlockMutationOptions::InstructionMutation => {
+            InstructionBlockInstructionMutation::new()
+        }
     };
     mutator
 }

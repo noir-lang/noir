@@ -1,8 +1,8 @@
-use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::base_context::FuzzerCommand;
 use super::fuzzer::Fuzzer;
 use super::instruction::InstructionBlock;
 use super::options::FuzzerOptions;
+use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use libfuzzer_sys::arbitrary;
@@ -43,9 +43,8 @@ pub(crate) struct FuzzerData {
     pub(crate) blocks: Vec<InstructionBlock>,
     pub(crate) commands: Vec<FuzzerCommand>,
     /// initial witness values for the program as `WitnessValue`
-    /// last and last but one values are preserved for the boolean values (true, false)
-    ///                                                                       ↓ we subtract 2, because [initialize_witness_map] func inserts two boolean variables itself
-    pub(crate) initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
+    pub(crate) initial_witness:
+        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
     pub(crate) return_instruction_block_idx: usize,
 }
 
@@ -55,7 +54,7 @@ impl Default for FuzzerData {
             blocks: vec![],
             commands: vec![],
             initial_witness: [const { WitnessValue::U64(0) };
-                (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
+                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
             return_instruction_block_idx: 0,
         }
     }
@@ -80,10 +79,16 @@ fn initialize_witness_map(
         types.push(type_);
     }
     // insert true and false boolean values
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 2), FieldElement::from(1_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES),
+        FieldElement::from(1_u32),
+    );
     values.push(FieldElement::from(1_u32));
     types.push(ValueType::Boolean);
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 1), FieldElement::from(0_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES + 1),
+        FieldElement::from(0_u32),
+    );
     values.push(FieldElement::from(0_u32));
     types.push(ValueType::Boolean);
     (witness_map, values, types)

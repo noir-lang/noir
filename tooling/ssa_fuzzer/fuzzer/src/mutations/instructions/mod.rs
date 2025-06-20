@@ -1,6 +1,17 @@
+//! This file contains mechanisms for deterministically mutating a given vector of [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) values
+//! Types of mutations applied:
+//! 1. Random (randomly select a new instruction block)
+//! 2. Instruction block deletion
+//! 3. Instruction block insertion
+//! 4. Instruction mutation
+
 mod argument_mutator;
 mod instruction_block_mutator;
 mod instruction_mutator;
+use super::configuration::{
+    BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION,
+    VectorOfInstructionBlocksMutationOptions,
+};
 use crate::fuzz_lib::instruction::InstructionBlock;
 use instruction_block_mutator::instruction_block_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
@@ -81,29 +92,18 @@ impl MutateVecInstructionBlockFactory for MutateInstructionBlockInstructionMutat
     }
 }
 
-struct MutateInstructionBlockDefaultMutation;
-impl MutateVecInstructionBlock for MutateInstructionBlockDefaultMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
-        value
-    }
-}
-impl MutateVecInstructionBlockFactory for MutateInstructionBlockDefaultMutation {
-    fn new() -> Box<dyn MutateVecInstructionBlock> {
-        Box::new(MutateInstructionBlockDefaultMutation)
-    }
-}
-
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn MutateVecInstructionBlock> {
-    let mutator = if rng.gen_bool(0.5) {
-        RandomMutation::new()
-    } else if rng.gen_bool(0.3) {
-        MutateInstructionBlockDeletionMutation::new()
-    } else if rng.gen_bool(0.2) {
-        MutateInstructionBlockInsertionMutation::new()
-    } else if rng.gen_bool(0.2) {
-        MutateInstructionBlockInstructionMutation::new()
-    } else {
-        MutateInstructionBlockDefaultMutation::new()
+    let mutator = match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
+        VectorOfInstructionBlocksMutationOptions::Random => RandomMutation::new(),
+        VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion => {
+            MutateInstructionBlockDeletionMutation::new()
+        }
+        VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion => {
+            MutateInstructionBlockInsertionMutation::new()
+        }
+        VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation => {
+            MutateInstructionBlockInstructionMutation::new()
+        }
     };
     mutator
 }
