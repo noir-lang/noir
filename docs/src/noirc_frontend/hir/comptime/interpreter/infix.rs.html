@@ -444,7 +444,13 @@
 <a href="#443" id="443">443</a>
 <a href="#444" id="444">444</a>
 <a href="#445" id="445">445</a>
-<a href="#446" id="446">446</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -467,7 +473,7 @@
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
 
-    <span class="kw">let </span>math_error = |operator| InterpreterError::MathError { location, operator };
+    <span class="kw">let </span>math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     <span class="doccomment">/// Generate matches that can promote the type of one side to the other if they are compatible.
     </span><span class="macro">macro_rules!</span> match_values {
@@ -726,7 +732,7 @@
         "#</span>;
 
         <span class="kw">let </span>err = interpret_expect_error(src);
-        <span class="kw">let </span>InterpreterError::MathError { operator, .. } = err <span class="kw">else </span>{
+        <span class="kw">let </span>InterpreterError::BinaryOperationOverflow { operator, .. } = err <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected overflow error"</span>);
         };
         <span class="macro">assert_eq!</span>(operator, <span class="string">"&lt;&lt;"</span>);
@@ -741,7 +747,7 @@
         "#</span>;
 
         <span class="kw">let </span>err = interpret_expect_error(src);
-        <span class="kw">let </span>InterpreterError::MathError { operator, .. } = err <span class="kw">else </span>{
+        <span class="kw">let </span>InterpreterError::BinaryOperationOverflow { operator, .. } = err <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected overflow error"</span>);
         };
         <span class="macro">assert_eq!</span>(operator, <span class="string">"&lt;&lt;"</span>);
@@ -860,7 +866,10 @@
             }
         "#</span>;
         <span class="kw">let </span>result = interpret_expect_error(src);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::MathError { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            result,
+            InterpreterError::BinaryOperationOverflow { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}
+        ));
     }
 
     <span class="attr">#[test]
@@ -871,7 +880,10 @@
             }
         "#</span>;
         <span class="kw">let </span>result = interpret_expect_error(src);
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, InterpreterError::MathError { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+            result,
+            InterpreterError::BinaryOperationOverflow { operator: <span class="string">"/"</span>, location: <span class="kw">_ </span>}
+        ));
     }
 
     <span class="attr">#[test]

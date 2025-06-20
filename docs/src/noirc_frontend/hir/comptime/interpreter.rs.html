@@ -1665,9 +1665,43 @@
 <a href="#1664" id="1664">1664</a>
 <a href="#1665" id="1665">1665</a>
 <a href="#1666" id="1666">1666</a>
-<a href="#1667" id="1667">1667</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
+<span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>acvm::blackbox_solver::BigIntSolverWithId;
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::try_vecmap;
@@ -2946,6 +2980,7 @@
             <span class="self">self</span>.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } <span class="kw">else if </span>loop_index_type.is_unsigned() {
             <span class="kw">let </span>get_index = <span class="kw">match </span>start_value {
+                Value::U1(<span class="kw">_</span>) =&gt; |i| Value::U1(i == <span class="number">1</span>),
                 Value::U8(<span class="kw">_</span>) =&gt; |i| Value::U8(i <span class="kw">as </span>u8),
                 Value::U16(<span class="kw">_</span>) =&gt; |i| Value::U16(i <span class="kw">as </span>u16),
                 Value::U32(<span class="kw">_</span>) =&gt; |i| Value::U32(i <span class="kw">as </span>u32),
@@ -3136,7 +3171,14 @@
     } <span class="kw">else if let </span>Type::Integer(sign, bit_size) = <span class="kw-2">&amp;</span>typ {
         <span class="kw">match </span>(sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location });
+                <span class="kw">let </span>field_value = value.to_field_element();
+                <span class="kw">if </span>field_value.is_zero() {
+                    <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">false</span>))
+                } <span class="kw">else if </span>field_value.is_one() {
+                    <span class="prelude-val">Ok</span>(Value::U1(<span class="bool-val">true</span>))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
+                }
             }
             (Signedness::Unsigned, IntegerBitSize::Eight) =&gt; {
                 <span class="kw">let </span>value = value
@@ -3240,6 +3282,13 @@
         Value::I16(value) =&gt; value <span class="kw">as </span>usize,
         Value::I32(value) =&gt; value <span class="kw">as </span>usize,
         Value::I64(value) =&gt; value <span class="kw">as </span>usize,
+        Value::U1(value) =&gt; {
+            <span class="kw">if </span>value {
+                <span class="number">1_usize
+            </span>} <span class="kw">else </span>{
+                <span class="number">0_usize
+            </span>}
+        }
         Value::U8(value) =&gt; value <span class="kw">as </span>usize,
         Value::U16(value) =&gt; value <span class="kw">as </span>usize,
         Value::U32(value) =&gt; value <span class="kw">as </span>usize,
@@ -3262,15 +3311,30 @@
     <span class="kw">match </span>operator {
         UnaryOp::Minus =&gt; <span class="kw">match </span>rhs {
             Value::Field(value) =&gt; <span class="prelude-val">Ok</span>(Value::Field(-value)),
-            Value::I8(value) =&gt; <span class="prelude-val">Ok</span>(Value::I8(-value)),
-            Value::I16(value) =&gt; <span class="prelude-val">Ok</span>(Value::I16(-value)),
-            Value::I32(value) =&gt; <span class="prelude-val">Ok</span>(Value::I32(-value)),
-            Value::I64(value) =&gt; <span class="prelude-val">Ok</span>(Value::I64(-value)),
-            Value::U8(value) =&gt; <span class="prelude-val">Ok</span>(Value::U8(<span class="number">0 </span>- value)),
-            Value::U16(value) =&gt; <span class="prelude-val">Ok</span>(Value::U16(<span class="number">0 </span>- value)),
-            Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(Value::U32(<span class="number">0 </span>- value)),
-            Value::U64(value) =&gt; <span class="prelude-val">Ok</span>(Value::U64(<span class="number">0 </span>- value)),
-            Value::U128(value) =&gt; <span class="prelude-val">Ok</span>(Value::U128(<span class="number">0 </span>- value)),
+            Value::I8(value) =&gt; value
+                .checked_neg()
+                .map(Value::I8)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I16(value) =&gt; value
+                .checked_neg()
+                .map(Value::I16)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I32(value) =&gt; value
+                .checked_neg()
+                .map(Value::I32)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I64(value) =&gt; value
+                .checked_neg()
+                .map(Value::I64)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::U1(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u1" </span>}),
+            Value::U8(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u8" </span>}),
+            Value::U16(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u16" </span>}),
+            Value::U32(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u32" </span>}),
+            Value::U64(<span class="kw">_</span>) =&gt; <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u64" </span>}),
+            Value::U128(<span class="kw">_</span>) =&gt; {
+                <span class="prelude-val">Err</span>(InterpreterError::CannotApplyMinusToType { location, typ: <span class="string">"u128" </span>})
+            }
             value =&gt; {
                 <span class="kw">let </span>operator = <span class="string">"minus"</span>;
                 <span class="kw">let </span>typ = value.get_type().into_owned();
@@ -3283,6 +3347,7 @@
             Value::I16(value) =&gt; <span class="prelude-val">Ok</span>(Value::I16(!value)),
             Value::I32(value) =&gt; <span class="prelude-val">Ok</span>(Value::I32(!value)),
             Value::I64(value) =&gt; <span class="prelude-val">Ok</span>(Value::I64(!value)),
+            Value::U1(value) =&gt; <span class="prelude-val">Ok</span>(Value::U1(!value)),
             Value::U8(value) =&gt; <span class="prelude-val">Ok</span>(Value::U8(!value)),
             Value::U16(value) =&gt; <span class="prelude-val">Ok</span>(Value::U16(!value)),
             Value::U32(value) =&gt; <span class="prelude-val">Ok</span>(Value::U32(!value)),
@@ -3314,6 +3379,7 @@
 
 <span class="kw">fn </span>to_u128(value: Value) -&gt; <span class="prelude-ty">Option</span>&lt;u128&gt; {
     <span class="kw">match </span>value {
+        Value::U1(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw">if </span>value { <span class="number">1_u128 </span>} <span class="kw">else </span>{ <span class="number">0_u128 </span>}),
         Value::U8(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
         Value::U16(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),
         Value::U32(value) =&gt; <span class="prelude-val">Some</span>(value <span class="kw">as </span>u128),

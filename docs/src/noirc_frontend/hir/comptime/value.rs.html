@@ -718,7 +718,9 @@
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
 <a href="#719" id="719">719</a>
-<a href="#720" id="720">720</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -1295,6 +1297,7 @@
                 | I16(<span class="kw">_</span>)
                 | I32(<span class="kw">_</span>)
                 | I64(<span class="kw">_</span>)
+                | U1(<span class="kw">_</span>)
                 | U8(<span class="kw">_</span>)
                 | U16(<span class="kw">_</span>)
                 | U32(<span class="kw">_</span>)
@@ -1368,6 +1371,7 @@
             <span class="self">Self</span>::I16(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I32(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I64(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
+            <span class="self">Self</span>::U1(value) =&gt; <span class="prelude-val">Some</span>(FieldElement::from(<span class="kw-2">*</span>value)),
             <span class="self">Self</span>::U8(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),

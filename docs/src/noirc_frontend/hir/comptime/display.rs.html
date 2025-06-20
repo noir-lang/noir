@@ -970,7 +970,8 @@
 <a href="#969" id="969">969</a>
 <a href="#970" id="970">970</a>
 <a href="#971" id="971">971</a>
-<a href="#972" id="972">972</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1345,7 +1346,8 @@
             Value::I16(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::I32(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::I64(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
-            Value::U1(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
+            Value::U1(<span class="bool-val">false</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"0"</span>),
+            Value::U1(<span class="bool-val">true</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"1"</span>),
             Value::U8(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::U16(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
             Value::U32(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}"</span>),
