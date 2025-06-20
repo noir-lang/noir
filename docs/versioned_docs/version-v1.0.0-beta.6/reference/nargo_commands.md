@@ -705,7 +705,7 @@ Current information provided per circuit: 1. The number of ACIR opcodes 2. Count
 
   Possible values: `true`, `false`
 
-* `--profile-execution`
+* `--profile-execution` — Forces execution of binaries in Brillig VM and profiles their execution. This is useful for analyzing the performance of unconstrained functions and identifying execution bottlenecks. When this flag is used, it automatically enables the Brillig VM as execution profiling is only relevant for unconstrained code with control flow (e.g. loops and if statements)
 
   Possible values: `true`, `false`
 
