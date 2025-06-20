@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/fuzz/src/targets/comptime_vs_brillig.rs`."><title>comptime_vs_brillig.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer_fuzz" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer_fuzz/targets/</div>comptime_vs_brillig.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/fuzz/src/targets/comptime_vs_brillig_direct.rs`."><title>comptime_vs_brillig_direct.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer_fuzz" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../static.files/storage-59e33391.js"></script><script defer src="../../../static.files/src-script-56102188.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer_fuzz/targets/</div>comptime_vs_brillig_direct.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -59,11 +59,30 @@
 <a href="#58" id="58">58</a>
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
-<a href="#61" id="61">61</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a>
+<a href="#67" id="67">67</a>
+<a href="#68" id="68">68</a>
+<a href="#69" id="69">69</a>
+<a href="#70" id="70">70</a>
+<a href="#71" id="71">71</a>
+<a href="#72" id="72">72</a>
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
+<a href="#77" id="77">77</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
 //! (after converting the AST to Noir and running it through the comptime
 //! interpreter) vs when everything is forced to be Brillig.
 //! We choose Brillig here because it mostly matches comptime feature set
 //! (e.g. `loop`, `while`, `break` and `continue` are possible)
+//! This variant accesses the interpreter directly instead of going
+//! through nargo, which speeds up execution but also currently
+//! has some issues (inability to use prints among others).
 </span><span class="kw">use crate</span>::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>color_eyre::eyre;
@@ -74,8 +93,6 @@
 
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>config = Config {
-        <span class="comment">// It's easy to overflow.
-        </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
         <span class="comment">// Avoid using large integers in for loops that the frontend would reject.
         </span>avoid_large_int_literals: <span class="bool-val">true</span>,
         <span class="comment">// Also avoid negative integers, because the frontend rejects them for loops.
@@ -86,13 +103,20 @@
         </span>comptime_friendly: <span class="bool-val">true</span>,
         <span class="comment">// Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         </span>force_brillig: <span class="bool-val">true</span>,
+        <span class="comment">// Avoid overflows, divisions by zero and constraints for now, as we currently
+        // don't catch errors issued by the elaborator
+        </span>avoid_overflow: <span class="bool-val">true</span>,
+        avoid_err_by_zero: <span class="bool-val">true</span>,
+        avoid_constrain: <span class="bool-val">true</span>,
+        <span class="comment">// At the moment prints aren't recognized by elaborator
+        </span>avoid_print: <span class="bool-val">true</span>,
         <span class="comment">// Use lower limits because of the interpreter, to avoid stack overflow
         </span>max_loop_size: <span class="number">5</span>,
         max_recursive_calls: <span class="number">5</span>,
         ..Default::default()
     };
 
-    <span class="kw">let </span>inputs = CompareComptime::arb(u, config, |<span class="kw">_</span>, program| {
+    <span class="kw">let </span>inputs = CompareComptime::arb(u, config, |program| {
         <span class="kw">let </span>options = CompareOptions::default();
         <span class="kw">let </span>ssa = create_ssa_or_die(
             change_all_functions_into_unconstrained(program),
@@ -102,7 +126,15 @@
         <span class="prelude-val">Ok</span>((ssa, options))
     })<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>result = inputs.exec()<span class="question-mark">?</span>;
+    <span class="kw">let </span>result = inputs.exec_direct(|program| {
+        <span class="kw">let </span>options = CompareOptions::default();
+        <span class="kw">let </span>ssa = create_ssa_or_die(
+            program,
+            <span class="kw-2">&amp;</span>options.onto(default_ssa_options()),
+            <span class="prelude-val">Some</span>(<span class="string">"comptime_result_wrapper"</span>),
+        );
+        <span class="prelude-val">Ok</span>((ssa, options))
+    })<span class="question-mark">?</span>;
 
     compare_results_comptime(<span class="kw-2">&amp;</span>inputs, <span class="kw-2">&amp;</span>result)
 }
@@ -113,11 +145,11 @@
     <span class="doccomment">/// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
-    /// cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig
+    /// cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig_direct
     /// ```
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>fuzz_with_arbtest() {
-        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">200</span>);
+        <span class="kw">crate</span>::targets::tests::fuzz_with_arbtest(<span class="kw">super</span>::fuzz, <span class="number">500</span>);
     }
 }
 </code></pre></div></section></main></body></html>

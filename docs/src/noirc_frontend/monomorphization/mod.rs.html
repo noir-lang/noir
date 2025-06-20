@@ -2597,7 +2597,10 @@
 <a href="#2596" id="2596">2596</a>
 <a href="#2597" id="2597">2597</a>
 <a href="#2598" id="2598">2598</a>
-<a href="#2599" id="2599">2599</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2804,7 +2807,10 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'interner</span>&gt; Monomorphizer&lt;<span class="lifetime">'interner</span>&gt; {
-    <span class="kw">fn </span>new(interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span><span class="kw-2">mut </span>NodeInterner, debug_type_tracker: DebugTypeTracker) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span><span class="kw-2">mut </span>NodeInterner,
+        debug_type_tracker: DebugTypeTracker,
+    ) -&gt; <span class="self">Self </span>{
         Monomorphizer {
             functions: HashMap::default(),
             locals: HashMap::default(),
@@ -3080,7 +3086,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>expr(
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr: node_interner::ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {

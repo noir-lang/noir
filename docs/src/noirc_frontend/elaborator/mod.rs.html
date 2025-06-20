@@ -2409,7 +2409,101 @@
 <a href="#2408" id="2408">2408</a>
 <a href="#2409" id="2409">2409</a>
 <a href="#2410" id="2410">2410</a>
-<a href="#2411" id="2411">2411</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2411" id="2411">2411</a>
+<a href="#2412" id="2412">2412</a>
+<a href="#2413" id="2413">2413</a>
+<a href="#2414" id="2414">2414</a>
+<a href="#2415" id="2415">2415</a>
+<a href="#2416" id="2416">2416</a>
+<a href="#2417" id="2417">2417</a>
+<a href="#2418" id="2418">2418</a>
+<a href="#2419" id="2419">2419</a>
+<a href="#2420" id="2420">2420</a>
+<a href="#2421" id="2421">2421</a>
+<a href="#2422" id="2422">2422</a>
+<a href="#2423" id="2423">2423</a>
+<a href="#2424" id="2424">2424</a>
+<a href="#2425" id="2425">2425</a>
+<a href="#2426" id="2426">2426</a>
+<a href="#2427" id="2427">2427</a>
+<a href="#2428" id="2428">2428</a>
+<a href="#2429" id="2429">2429</a>
+<a href="#2430" id="2430">2430</a>
+<a href="#2431" id="2431">2431</a>
+<a href="#2432" id="2432">2432</a>
+<a href="#2433" id="2433">2433</a>
+<a href="#2434" id="2434">2434</a>
+<a href="#2435" id="2435">2435</a>
+<a href="#2436" id="2436">2436</a>
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a>
+<a href="#2498" id="2498">2498</a>
+<a href="#2499" id="2499">2499</a>
+<a href="#2500" id="2500">2500</a>
+<a href="#2501" id="2501">2501</a>
+<a href="#2502" id="2502">2502</a>
+<a href="#2503" id="2503">2503</a>
+<a href="#2504" id="2504">2504</a>
+<a href="#2505" id="2505">2505</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2435,7 +2529,7 @@
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ImplMap, UnresolvedEnum, UnresolvedFunctions,
@@ -4819,5 +4913,99 @@
             <span class="self">self</span>.idents.remove(ident);
         }
     }
+}
+
+<span class="doccomment">/// The possible errors of interpreting given code
+/// into a monomorphized AST expression.
+</span><span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+</span><span class="kw">pub enum </span>ElaboratorError {
+    Parse(Vec&lt;ParserError&gt;),
+    Compile(Vec&lt;CompilationError&gt;),
+    Interpret(InterpreterError),
+    HIRConvert(InterpreterError),
+}
+
+<span class="doccomment">/// Interpret source code using the elaborator, without
+/// parsing and compiling it with nargo, converting
+/// the result into a monomorphized AST expression.
+</span><span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
+</span><span class="kw">pub fn </span>interpret(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::monomorphization::ast::Expression, ElaboratorError&gt; {
+    <span class="kw">use </span><span class="kw">crate</span>::hir::{
+        Context, ParsedFiles,
+        def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
+        def_map::{CrateDefMap, ModuleData},
+    };
+    <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+    <span class="kw">use </span><span class="kw">crate</span>::parse_program;
+    <span class="kw">use </span>fm::{FileId, FileManager};
+    <span class="kw">use </span>std::path::PathBuf;
+
+    <span class="kw">let </span>file = FileId::default();
+
+    <span class="kw">let </span>location = Location::new(Default::default(), file);
+    <span class="kw">let </span>root_module = ModuleData::new(
+        <span class="prelude-val">None</span>,
+        location,
+        Vec::new(),
+        Vec::new(),
+        <span class="bool-val">false</span>, <span class="comment">// is contract
+        </span><span class="bool-val">false</span>, <span class="comment">// is struct
+    </span>);
+
+    <span class="kw">let </span>file_manager = FileManager::new(<span class="kw-2">&amp;</span>PathBuf::new());
+    <span class="kw">let </span>parsed_files = ParsedFiles::new();
+    <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    <span class="kw">let </span>krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    <span class="kw">let </span>(module, errors) = parse_program(src, file);
+    <span class="comment">// Skip parser warnings
+    </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
+    <span class="kw">if </span>!errors.is_empty() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Parse(errors));
+    }
+
+    <span class="kw">let </span>ast = module.into_sorted();
+
+    <span class="kw">let </span>def_map = CrateDefMap::new(krate, root_module);
+    <span class="kw">let </span>root_module_id = def_map.root();
+    <span class="kw">let </span><span class="kw-2">mut </span>collector = DefCollector::new(def_map);
+
+    collect_defs(<span class="kw-2">&amp;mut </span>collector, ast, FileId::dummy(), root_module_id, krate, <span class="kw-2">&amp;mut </span>context);
+    context.def_maps.insert(krate, collector.def_map);
+
+    <span class="kw">let </span>main = context.get_main_function(<span class="kw-2">&amp;</span>krate).expect(<span class="string">"Expected 'main' function"</span>);
+
+    <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::elaborate_and_return_self(
+        <span class="kw-2">&amp;mut </span>context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
+    );
+
+    <span class="comment">// Skip the elaborator's compilation warnings
+    </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = elaborator.errors.iter().filter(|<span class="kw-2">&amp;</span>e| e.is_error()).cloned().collect();
+    <span class="kw">if </span>!errors.is_empty() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Compile(errors));
+    }
+
+    <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
+
+    <span class="comment">// The most straightforward way to convert the interpreter result into
+    // an acceptable monomorphized AST expression seems to be converting it
+    // into HIR first and then processing it with the monomorphizer
+    </span><span class="kw">let </span>expr_id =
+        <span class="kw">match </span>interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
+            <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Interpret(e)),
+            <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">match </span>value.into_hir_expression(elaborator.interner, Location::dummy()) {
+                <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::HIRConvert(e)),
+                <span class="prelude-val">Ok</span>(expr_id) =&gt; expr_id,
+            },
+        };
+
+    <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+    <span class="prelude-val">Ok</span>(monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>))
 }
 </code></pre></div></section></main></body></html>

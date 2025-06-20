@@ -340,7 +340,7 @@
 </span><span class="kw">type </span>SsaErrorTypes = BTreeMap&lt;acir::circuit::ErrorSelector, ErrorType&gt;;
 
 <span class="doccomment">/// The execution result is the value returned from the circuit and any output from `println`.
-</span><span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>ExecResult = (<span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, NargoError&lt;FieldElement&gt;&gt;, String);
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>NargoErrorWithTypes(NargoError&lt;FieldElement&gt;, SsaErrorTypes);

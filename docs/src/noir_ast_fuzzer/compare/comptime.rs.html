@@ -260,7 +260,57 @@
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
 <a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -278,10 +328,12 @@
     file_manager_with_stdlib, prepare_crate,
 };
 <span class="kw">use </span>noirc_evaluator::ssa::SsaProgramArtifact;
-<span class="kw">use </span>noirc_frontend::{hir::Context, monomorphization::ast::Program};
+<span class="kw">use </span>noirc_frontend::{elaborator::interpret, hir::Context, monomorphization::ast::Program};
 
 <span class="kw">use super</span>::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
-<span class="kw">use crate</span>::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
+<span class="kw">use crate</span>::{
+    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
+};
 
 <span class="doccomment">/// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -337,7 +389,58 @@
 }
 
 <span class="kw">impl </span>CompareComptime {
-    <span class="doccomment">/// Execute the Noir code and the SSA, then compare the results.
+    <span class="doccomment">/// Execute the Noir code with the comptime interpreter
+    /// and prepare SSA returning the result literal,
+    /// then compare SSA execution results.
+    </span><span class="kw">pub fn </span>exec_direct(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        f_comptime: <span class="kw">impl </span>FnOnce(Program) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
+    ) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
+        <span class="comment">// log source code before interpreting
+        </span><span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
+
+        <span class="kw">let </span>comptime_res = <span class="kw">match </span>interpret(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"comptime {}"</span>, <span class="self">self</span>.source)) {
+            <span class="prelude-val">Err</span>(e) =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"elaborator error while interpreting generated comptime code: {:?}"</span>, e)
+            }
+            <span class="prelude-val">Ok</span>(res) =&gt; res,
+        };
+
+        <span class="kw">let </span>program_comptime = program_wrap_expression(comptime_res)<span class="question-mark">?</span>;
+        <span class="kw">let </span>comptime_ssa = CompareArtifact::from(f_comptime(program_comptime)<span class="question-mark">?</span>);
+
+        <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
+        <span class="kw">let </span>initial_witness = <span class="self">self</span>.abi.encode(<span class="kw-2">&amp;</span>BTreeMap::new(), <span class="prelude-val">None</span>).wrap_err(<span class="string">"abi::encode"</span>)<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>do_exec = |program| {
+            <span class="kw">let </span><span class="kw-2">mut </span>print = Vec::new();
+
+            <span class="kw">let </span><span class="kw-2">mut </span>foreign_call_executor = DefaultForeignCallBuilder::default()
+                .with_mocks(<span class="bool-val">false</span>)
+                .with_output(<span class="kw-2">&amp;mut </span>print)
+                .build();
+
+            nargo::ops::execute_program(
+                program,
+                initial_witness.clone(),
+                <span class="kw-2">&amp;</span>blackbox_solver,
+                <span class="kw-2">&amp;mut </span>foreign_call_executor,
+            )
+        };
+
+        <span class="kw">let </span>res1 = do_exec(<span class="kw-2">&amp;</span>comptime_ssa.artifact.program);
+        <span class="kw">let </span>res2 = do_exec(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program);
+
+        CompareCompiledResult::new(
+            <span class="kw-2">&amp;</span><span class="self">self</span>.abi,
+            <span class="kw-2">&amp;</span>Default::default(),
+            <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.error_types,
+            (res1, <span class="string">""</span>.into()),
+            (res2, <span class="string">""</span>.into()),
+        )
+    }
+
+    <span class="doccomment">/// Execute the Noir code (via nargo) and the SSA, then compare the results.
     </span><span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>blackbox_solver = Bn254BlackBoxSolver(<span class="bool-val">false</span>);
 
@@ -426,16 +529,13 @@
     </span><span class="kw">pub fn </span>arb(
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         c: Config,
-        f: <span class="kw">impl </span>FnOnce(
-            <span class="kw-2">&amp;mut </span>Unstructured,
-            Program,
-        ) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
+        f: <span class="kw">impl </span>FnOnce(Program) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
     ) -&gt; arbitrary::Result&lt;<span class="self">Self</span>&gt; {
         <span class="kw">let </span>force_brillig = c.force_brillig;
         <span class="kw">let </span>program = arb_program_comptime(u, c)<span class="question-mark">?</span>;
         <span class="kw">let </span>abi = program_abi(<span class="kw-2">&amp;</span>program);
 
-        <span class="kw">let </span>ssa = CompareArtifact::from(f(u, program.clone())<span class="question-mark">?</span>);
+        <span class="kw">let </span>ssa = CompareArtifact::from(f(program.clone())<span class="question-mark">?</span>);
 
         <span class="kw">let </span>source = <span class="macro">format!</span>(<span class="string">"{}"</span>, DisplayAstAsNoirComptime(<span class="kw-2">&amp;</span>program));
 

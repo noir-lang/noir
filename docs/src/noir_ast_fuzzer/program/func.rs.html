@@ -2512,7 +2512,7 @@
             }
 
             <span class="comment">// For now only try prints in unconstrained code, were we don't need to create a proxy.
-            </span><span class="kw">if </span>freq.enabled(<span class="string">"print"</span>) {
+            </span><span class="kw">if </span>freq.enabled_when(<span class="string">"print"</span>, !<span class="self">self</span>.ctx.config.avoid_print) {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = <span class="self">self</span>.gen_print(u)<span class="question-mark">? </span>{
                     <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
                 }

@@ -129,7 +129,13 @@
 <a href="#128" id="128">128</a>
 <a href="#129" id="129">129</a>
 <a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>rand <span class="kw">as _</span>;
@@ -143,7 +149,10 @@
 <span class="kw">pub use </span>compare::{input_value_to_ssa, input_values_to_ssa};
 <span class="kw">pub use </span>input::arb_inputs;
 <span class="kw">use </span>program::freq::Freqs;
-<span class="kw">pub use </span>program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
+<span class="kw">pub use </span>program::{
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
+    program_wrap_expression,
+};
 <span class="kw">pub use </span>program::{expr, rewrite, scope, types, visitor};
 
 <span class="doccomment">/// AST generation configuration.
@@ -194,6 +203,8 @@
     </span><span class="kw">pub </span>avoid_loop_control: bool,
     <span class="doccomment">/// Avoid using function pointers in parameters.
     </span><span class="kw">pub </span>avoid_lambdas: bool,
+    <span class="doccomment">/// Avoid print statements.
+    </span><span class="kw">pub </span>avoid_print: bool,
     <span class="doccomment">/// Avoid using constrain statements.
     </span><span class="kw">pub </span>avoid_constrain: bool,
     <span class="doccomment">/// Only use comptime friendly expressions.
@@ -255,6 +266,7 @@
             avoid_negative_int_literals: <span class="bool-val">false</span>,
             avoid_loop_control: <span class="bool-val">false</span>,
             avoid_lambdas: <span class="bool-val">false</span>,
+            avoid_print: <span class="bool-val">false</span>,
             avoid_constrain: <span class="bool-val">false</span>,
             comptime_friendly: <span class="bool-val">false</span>,
         }
