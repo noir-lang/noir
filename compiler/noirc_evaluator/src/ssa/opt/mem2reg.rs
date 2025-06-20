@@ -32,7 +32,7 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
-//!     
+//!
 //!     This removal requires a couple conditions:
 //!       - No store occurs to that address before the next load,
 //!       - The address is not used as an argument to a call
@@ -252,15 +252,17 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let all_aliases_set_for_removal = aliases.any(|alias| {
+                // Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
+                let has_alias_not_marked_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        self.instructions_to_remove.is_disjoint(alias_instructions)
+                        !alias_instructions.is_subset(&self.instructions_to_remove)
                     } else {
                         false
                     }
                 });
 
-                if all_aliases_set_for_removal == Some(true) {
+                if has_alias_not_marked_for_removal == Some(true) {
                     return true;
                 }
             }
@@ -1197,7 +1199,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
             return
-        }  
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();

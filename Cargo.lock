@@ -3561,6 +3561,7 @@ version = "1.0.0-beta.7"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
+ "log",
  "noir_ssa_executor",
  "noirc_abi",
  "noirc_driver",
