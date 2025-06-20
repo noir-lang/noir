@@ -84,7 +84,16 @@
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
 <span class="kw">use </span><span class="kw">super</span>::NargoConfig;
 <span class="kw">use </span>clap::Args;
@@ -123,7 +132,7 @@
         <span class="prelude-val">Some</span>(name) =&gt; name,
         <span class="prelude-val">None </span>=&gt; {
             <span class="kw">let </span>name = config.program_dir.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|<span class="kw">_</span>| CliError::InvalidPackageName(name.into()))<span class="question-mark">?
+            name.parse().map_err(CliError::InvalidPackageName)<span class="question-mark">?
         </span>}
     };
 
@@ -134,8 +143,7 @@
     } <span class="kw">else </span>{
         PackageType::Binary
     };
-    initialize_project(config.program_dir, package_name, package_type);
-    <span class="prelude-val">Ok</span>(())
+    initialize_project(config.program_dir, package_name, package_type)
 }
 
 <span class="doccomment">/// Initializes a new Noir project in `package_dir`.
@@ -143,8 +151,14 @@
     package_dir: PathBuf,
     package_name: CrateName,
     package_type: PackageType,
-) {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
     <span class="kw">let </span>src_dir = package_dir.join(SRC_DIR);
+    <span class="kw">let </span>toml_path = package_dir.join(PKG_FILE);
+
+    <span class="comment">// We don't want to accidentally overwrite an existing Nargo.toml file
+    </span><span class="kw">if </span>toml_path.exists() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(CliError::NargoInitCannotBeRunOnExistingPackages);
+    }
 
     <span class="kw">let </span>toml_contents = <span class="macro">format!</span>(
         <span class="string">r#"[package]
@@ -155,19 +169,23 @@ authors = [""]
 [dependencies]"#
     </span>);
 
-    write_to_file(toml_contents.as_bytes(), <span class="kw-2">&amp;</span>package_dir.join(PKG_FILE)).unwrap();
-    <span class="comment">// This uses the `match` syntax instead of `if` so we get a compile error when we add new package types (which likely need new template files)
-    </span><span class="kw">match </span>package_type {
-        PackageType::Binary =&gt; {
-            write_to_file(BIN_EXAMPLE.as_bytes(), <span class="kw-2">&amp;</span>src_dir.join(<span class="string">"main.nr"</span>)).unwrap();
-        }
-        PackageType::Contract =&gt; {
-            write_to_file(CONTRACT_EXAMPLE.as_bytes(), <span class="kw-2">&amp;</span>src_dir.join(<span class="string">"main.nr"</span>)).unwrap();
-        }
-        PackageType::Library =&gt; {
-            write_to_file(LIB_EXAMPLE.as_bytes(), <span class="kw-2">&amp;</span>src_dir.join(<span class="string">"lib.nr"</span>)).unwrap();
-        }
+    write_to_file(toml_contents.as_bytes(), <span class="kw-2">&amp;</span>toml_path).unwrap();
+
+    <span class="kw">let </span>(example, entry_name) = <span class="kw">match </span>package_type {
+        PackageType::Binary =&gt; (BIN_EXAMPLE, <span class="string">"main.nr"</span>),
+        PackageType::Contract =&gt; (CONTRACT_EXAMPLE, <span class="string">"main.nr"</span>),
+        PackageType::Library =&gt; (LIB_EXAMPLE, <span class="string">"lib.nr"</span>),
     };
+    <span class="kw">let </span>entry_path = src_dir.join(entry_name);
+
+    <span class="comment">// It's fine to run `nargo init` if a source directory exists:
+    // it might be that the source is already there and the user just wants to create the Nargo.toml file.
+    </span><span class="kw">if </span>!entry_path.exists() {
+        write_to_file(example.as_bytes(), <span class="kw-2">&amp;</span>entry_path).unwrap();
+    }
+
     <span class="macro">println!</span>(<span class="string">"Project successfully created! It is located at {}"</span>, package_dir.display());
+
+    <span class="prelude-val">Ok</span>(())
 }
 </code></pre></div></section></main></body></html>
