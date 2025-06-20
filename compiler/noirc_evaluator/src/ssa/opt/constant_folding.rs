@@ -734,6 +734,8 @@ impl<'brillig> Context<'brillig> {
                 _ => return,
             };
 
+            // There's no need to check the return type of the call instruction here, as we already know
+            // that it returns at least one array.
             if matches!(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
                 self.cached_instruction_results.remove(instruction);
             }
