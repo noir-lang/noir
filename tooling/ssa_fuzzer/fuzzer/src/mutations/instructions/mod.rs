@@ -22,28 +22,30 @@ trait MutateVecInstructionBlock {
 }
 
 trait MutateVecInstructionBlockFactory {
-    fn new() -> Box<dyn MutateVecInstructionBlock>;
+    fn new_box() -> Box<dyn MutateVecInstructionBlock>;
 }
 
+/// Return new random vector of instruction blocks
 struct RandomMutation;
 impl MutateVecInstructionBlock for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
+    fn mutate(&self, rng: &mut StdRng, _value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
         let mut bytes = [0u8; 128];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
 impl MutateVecInstructionBlockFactory for RandomMutation {
-    fn new() -> Box<dyn MutateVecInstructionBlock> {
+    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
         Box::new(RandomMutation)
     }
 }
 
+/// Return vector of instruction blocks with one randomly chosen block removed
 struct MutateInstructionBlockDeletionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
         let mut blocks = value;
-        if blocks.len() > 0 {
+        if !blocks.is_empty() {
             let block_idx = rng.gen_range(0..blocks.len());
             blocks.remove(block_idx);
         }
@@ -51,16 +53,17 @@ impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
     }
 }
 impl MutateVecInstructionBlockFactory for MutateInstructionBlockDeletionMutation {
-    fn new() -> Box<dyn MutateVecInstructionBlock> {
+    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
         Box::new(MutateInstructionBlockDeletionMutation)
     }
 }
 
+/// Return vector of instruction blocks with one randomly generated block inserted
 struct MutateInstructionBlockInsertionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
         let mut blocks = value;
-        let block_idx = if blocks.len() == 0 { 0 } else { rng.gen_range(0..blocks.len()) };
+        let block_idx = if blocks.is_empty() { 0 } else { rng.gen_range(0..blocks.len()) };
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
         let mut unstructured = Unstructured::new(&bytes);
@@ -70,16 +73,17 @@ impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
     }
 }
 impl MutateVecInstructionBlockFactory for MutateInstructionBlockInsertionMutation {
-    fn new() -> Box<dyn MutateVecInstructionBlock> {
+    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
         Box::new(MutateInstructionBlockInsertionMutation)
     }
 }
 
+/// Return vector of instruction blocks with one randomly chosen block mutated
 struct MutateInstructionBlockInstructionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
         let mut blocks = value;
-        if blocks.len() > 0 {
+        if !blocks.is_empty() {
             let block_idx = rng.gen_range(0..blocks.len());
             blocks[block_idx] = instruction_block_mutator(blocks[block_idx].clone(), rng);
         }
@@ -87,25 +91,24 @@ impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
     }
 }
 impl MutateVecInstructionBlockFactory for MutateInstructionBlockInstructionMutation {
-    fn new() -> Box<dyn MutateVecInstructionBlock> {
+    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
         Box::new(MutateInstructionBlockInstructionMutation)
     }
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn MutateVecInstructionBlock> {
-    let mutator = match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
-        VectorOfInstructionBlocksMutationOptions::Random => RandomMutation::new(),
+    match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
+        VectorOfInstructionBlocksMutationOptions::Random => RandomMutation::new_box(),
         VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion => {
-            MutateInstructionBlockDeletionMutation::new()
+            MutateInstructionBlockDeletionMutation::new_box()
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion => {
-            MutateInstructionBlockInsertionMutation::new()
+            MutateInstructionBlockInsertionMutation::new_box()
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation => {
-            MutateInstructionBlockInstructionMutation::new()
+            MutateInstructionBlockInstructionMutation::new_box()
         }
-    };
-    mutator
+    }
 }
 
 pub(crate) fn mutate_vec_instruction_block(

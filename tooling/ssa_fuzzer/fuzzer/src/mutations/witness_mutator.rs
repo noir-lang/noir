@@ -15,7 +15,7 @@ trait WitnessMutator {
     fn mutate(&self, rng: &mut StdRng, value: &WitnessValue) -> WitnessValue;
 }
 trait WitnessMutatorFactory {
-    fn new() -> Box<dyn WitnessMutator>;
+    fn new_box() -> Box<dyn WitnessMutator>;
 }
 
 /// Return new random witness value
@@ -24,11 +24,11 @@ impl WitnessMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: &WitnessValue) -> WitnessValue {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
-        return Unstructured::new(&bytes).arbitrary().unwrap();
+        Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
 impl WitnessMutatorFactory for RandomMutation {
-    fn new() -> Box<dyn WitnessMutator> {
+    fn new_box() -> Box<dyn WitnessMutator> {
         Box::new(RandomMutation)
     }
 }
@@ -50,7 +50,7 @@ impl WitnessMutator for MaxValueMutation {
     }
 }
 impl WitnessMutatorFactory for MaxValueMutation {
-    fn new() -> Box<dyn WitnessMutator> {
+    fn new_box() -> Box<dyn WitnessMutator> {
         Box::new(MaxValueMutation)
     }
 }
@@ -69,18 +69,17 @@ impl WitnessMutator for MinValueMutation {
     }
 }
 impl WitnessMutatorFactory for MinValueMutation {
-    fn new() -> Box<dyn WitnessMutator> {
+    fn new_box() -> Box<dyn WitnessMutator> {
         Box::new(MinValueMutation)
     }
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn WitnessMutator> {
-    let mutator = match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
-        WitnessMutationOptions::Random => RandomMutation::new(),
-        WitnessMutationOptions::MaxValue => MaxValueMutation::new(),
-        WitnessMutationOptions::MinValue => MinValueMutation::new(),
-    };
-    mutator
+    match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
+        WitnessMutationOptions::Random => RandomMutation::new_box(),
+        WitnessMutationOptions::MaxValue => MaxValueMutation::new_box(),
+        WitnessMutationOptions::MinValue => MinValueMutation::new_box(),
+    }
 }
 
 pub(crate) fn witness_mutate(witness_value: &WitnessValue, rng: &mut StdRng) -> WitnessValue {

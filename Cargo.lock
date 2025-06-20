@@ -3565,7 +3565,6 @@ dependencies = [
  "noir_ssa_executor",
  "noirc_abi",
  "noirc_driver",
- "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rand 0.8.5",

@@ -18,7 +18,7 @@ trait InstructionBlockMutator {
 }
 
 trait InstructionBlockMutatorFactory {
-    fn new() -> Box<dyn InstructionBlockMutator>;
+    fn new_box() -> Box<dyn InstructionBlockMutator>;
 }
 
 /// Return new random instruction block
@@ -31,7 +31,7 @@ impl InstructionBlockMutator for RandomMutation {
     }
 }
 impl InstructionBlockMutatorFactory for RandomMutation {
-    fn new() -> Box<dyn InstructionBlockMutator> {
+    fn new_box() -> Box<dyn InstructionBlockMutator> {
         Box::new(RandomMutation)
     }
 }
@@ -41,7 +41,7 @@ struct InstructionBlockDeletionMutation;
 impl InstructionBlockMutator for InstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
         let mut blocks = value.instructions;
-        if blocks.len() > 0 {
+        if !blocks.is_empty() {
             let block_idx = rng.gen_range(0..blocks.len());
             blocks.remove(block_idx);
         }
@@ -49,7 +49,7 @@ impl InstructionBlockMutator for InstructionBlockDeletionMutation {
     }
 }
 impl InstructionBlockMutatorFactory for InstructionBlockDeletionMutation {
-    fn new() -> Box<dyn InstructionBlockMutator> {
+    fn new_box() -> Box<dyn InstructionBlockMutator> {
         Box::new(InstructionBlockDeletionMutation)
     }
 }
@@ -64,14 +64,14 @@ impl InstructionBlockMutator for InstructionBlockInsertionMutation {
         let instruction = unstructured.arbitrary().unwrap();
         let mut blocks = value.instructions;
         blocks.insert(
-            if blocks.len() == 0 { 0 } else { rng.gen_range(0..blocks.len()) },
+            if blocks.is_empty() { 0 } else { rng.gen_range(0..blocks.len()) },
             instruction,
         );
         InstructionBlock { instructions: blocks }
     }
 }
 impl InstructionBlockMutatorFactory for InstructionBlockInsertionMutation {
-    fn new() -> Box<dyn InstructionBlockMutator> {
+    fn new_box() -> Box<dyn InstructionBlockMutator> {
         Box::new(InstructionBlockInsertionMutation)
     }
 }
@@ -81,7 +81,7 @@ struct InstructionBlockInstructionMutation;
 impl InstructionBlockMutator for InstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
         let mut instructions = value.instructions;
-        if instructions.len() > 0 {
+        if !instructions.is_empty() {
             let instruction_idx = rng.gen_range(0..instructions.len());
             instructions[instruction_idx] = instruction_mutator(instructions[instruction_idx], rng);
         }
@@ -89,25 +89,24 @@ impl InstructionBlockMutator for InstructionBlockInstructionMutation {
     }
 }
 impl InstructionBlockMutatorFactory for InstructionBlockInstructionMutation {
-    fn new() -> Box<dyn InstructionBlockMutator> {
+    fn new_box() -> Box<dyn InstructionBlockMutator> {
         Box::new(InstructionBlockInstructionMutation)
     }
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn InstructionBlockMutator> {
-    let mutator = match BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION.select(rng) {
-        InstructionBlockMutationOptions::Random => RandomMutation::new(),
+    match BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION.select(rng) {
+        InstructionBlockMutationOptions::Random => RandomMutation::new_box(),
         InstructionBlockMutationOptions::InstructionDeletion => {
-            InstructionBlockDeletionMutation::new()
+            InstructionBlockDeletionMutation::new_box()
         }
         InstructionBlockMutationOptions::InstructionInsertion => {
-            InstructionBlockInsertionMutation::new()
+            InstructionBlockInsertionMutation::new_box()
         }
         InstructionBlockMutationOptions::InstructionMutation => {
-            InstructionBlockInstructionMutation::new()
+            InstructionBlockInstructionMutation::new_box()
         }
-    };
-    mutator
+    }
 }
 
 pub(crate) fn instruction_block_mutator(

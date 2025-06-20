@@ -17,7 +17,7 @@ trait MutateVecFuzzerCommand {
 }
 
 trait MutateVecFuzzerCommandFactory {
-    fn new() -> Box<dyn MutateVecFuzzerCommand>;
+    fn new_box() -> Box<dyn MutateVecFuzzerCommand>;
 }
 
 /// Return new random vector of fuzzer commands
@@ -30,7 +30,7 @@ impl MutateVecFuzzerCommand for RandomMutation {
     }
 }
 impl MutateVecFuzzerCommandFactory for RandomMutation {
-    fn new() -> Box<dyn MutateVecFuzzerCommand> {
+    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
         Box::new(RandomMutation)
     }
 }
@@ -40,14 +40,14 @@ struct RemoveCommandMutation;
 impl MutateVecFuzzerCommand for RemoveCommandMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
         let mut commands = value;
-        if commands.len() > 0 {
+        if !commands.is_empty() {
             commands.remove(rng.gen_range(0..commands.len()));
         }
         commands
     }
 }
 impl MutateVecFuzzerCommandFactory for RemoveCommandMutation {
-    fn new() -> Box<dyn MutateVecFuzzerCommand> {
+    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
         Box::new(RemoveCommandMutation)
     }
 }
@@ -65,7 +65,7 @@ impl MutateVecFuzzerCommand for AddCommandMutation {
     }
 }
 impl MutateVecFuzzerCommandFactory for AddCommandMutation {
-    fn new() -> Box<dyn MutateVecFuzzerCommand> {
+    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
         Box::new(AddCommandMutation)
     }
 }
@@ -78,7 +78,7 @@ impl MutateVecFuzzerCommand for ReplaceCommandMutation {
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
         let command = Unstructured::new(&bytes).arbitrary().unwrap();
-        if commands.len() > 0 {
+        if !commands.is_empty() {
             let command_idx = rng.gen_range(0..commands.len());
             commands[command_idx] = command;
         }
@@ -86,20 +86,19 @@ impl MutateVecFuzzerCommand for ReplaceCommandMutation {
     }
 }
 impl MutateVecFuzzerCommandFactory for ReplaceCommandMutation {
-    fn new() -> Box<dyn MutateVecFuzzerCommand> {
+    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
         Box::new(ReplaceCommandMutation)
     }
 }
 
 // todo more mutations
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn MutateVecFuzzerCommand> {
-    let mutator = match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
-        FuzzerCommandMutationOptions::Random => RandomMutation::new(),
-        FuzzerCommandMutationOptions::RemoveCommand => RemoveCommandMutation::new(),
-        FuzzerCommandMutationOptions::AddCommand => AddCommandMutation::new(),
-        FuzzerCommandMutationOptions::ReplaceCommand => ReplaceCommandMutation::new(),
-    };
-    mutator
+    match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
+        FuzzerCommandMutationOptions::Random => RandomMutation::new_box(),
+        FuzzerCommandMutationOptions::RemoveCommand => RemoveCommandMutation::new_box(),
+        FuzzerCommandMutationOptions::AddCommand => AddCommandMutation::new_box(),
+        FuzzerCommandMutationOptions::ReplaceCommand => ReplaceCommandMutation::new_box(),
+    }
 }
 
 pub(crate) fn mutate_vec_fuzzer_command(

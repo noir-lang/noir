@@ -16,7 +16,7 @@ trait ArgumentsMutator {
     fn mutate(&self, rng: &mut StdRng, value: Argument) -> Argument;
 }
 trait ArgumentsMutatorFactory {
-    fn new() -> Box<dyn ArgumentsMutator>;
+    fn new_box() -> Box<dyn ArgumentsMutator>;
 }
 
 /// Return new random argument
@@ -25,11 +25,11 @@ impl ArgumentsMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: Argument) -> Argument {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
-        return Unstructured::new(&bytes).arbitrary().unwrap();
+        Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
 impl ArgumentsMutatorFactory for RandomMutation {
-    fn new() -> Box<dyn ArgumentsMutator> {
+    fn new_box() -> Box<dyn ArgumentsMutator> {
         Box::new(RandomMutation)
     }
 }
@@ -42,7 +42,7 @@ impl ArgumentsMutator for IncrementArgumentIndexMutation {
     }
 }
 impl ArgumentsMutatorFactory for IncrementArgumentIndexMutation {
-    fn new() -> Box<dyn ArgumentsMutator> {
+    fn new_box() -> Box<dyn ArgumentsMutator> {
         Box::new(IncrementArgumentIndexMutation)
     }
 }
@@ -55,7 +55,7 @@ impl ArgumentsMutator for DecrementArgumentIndexMutation {
     }
 }
 impl ArgumentsMutatorFactory for DecrementArgumentIndexMutation {
-    fn new() -> Box<dyn ArgumentsMutator> {
+    fn new_box() -> Box<dyn ArgumentsMutator> {
         Box::new(DecrementArgumentIndexMutation)
     }
 }
@@ -71,19 +71,18 @@ impl ArgumentsMutator for ChangeTypeMutation {
     }
 }
 impl ArgumentsMutatorFactory for ChangeTypeMutation {
-    fn new() -> Box<dyn ArgumentsMutator> {
+    fn new_box() -> Box<dyn ArgumentsMutator> {
         Box::new(ChangeTypeMutation)
     }
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn ArgumentsMutator> {
-    let mutator = match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
-        ArgumentMutationOptions::Random => RandomMutation::new(),
-        ArgumentMutationOptions::IncrementIndex => IncrementArgumentIndexMutation::new(),
-        ArgumentMutationOptions::DecrementIndex => DecrementArgumentIndexMutation::new(),
-        ArgumentMutationOptions::ChangeType => ChangeTypeMutation::new(),
-    };
-    mutator
+    match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+        ArgumentMutationOptions::Random => RandomMutation::new_box(),
+        ArgumentMutationOptions::IncrementIndex => IncrementArgumentIndexMutation::new_box(),
+        ArgumentMutationOptions::DecrementIndex => DecrementArgumentIndexMutation::new_box(),
+        ArgumentMutationOptions::ChangeType => ChangeTypeMutation::new_box(),
+    }
 }
 
 pub(crate) fn argument_mutator(argument: Argument, rng: &mut StdRng) -> Argument {

@@ -3,9 +3,8 @@ use noir_ssa_executor::compiler::{
 };
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram};
-use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
-    errors::{InternalError, RuntimeError},
+    errors::RuntimeError,
     ssa::{ArtifactsAndWarnings, SsaEvaluatorOptions, function_builder::FunctionBuilder},
 };
 use std::collections::BTreeMap;

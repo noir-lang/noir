@@ -15,7 +15,7 @@ trait InstructionMutator {
     fn mutate(&self, rng: &mut StdRng, value: Instruction) -> Instruction;
 }
 trait InstructionMutatorFactory {
-    fn new() -> Box<dyn InstructionMutator>;
+    fn new_box() -> Box<dyn InstructionMutator>;
 }
 
 /// Return new random instruction
@@ -28,7 +28,7 @@ impl InstructionMutator for RandomMutation {
     }
 }
 impl InstructionMutatorFactory for RandomMutation {
-    fn new() -> Box<dyn InstructionMutator> {
+    fn new_box() -> Box<dyn InstructionMutator> {
         Box::new(RandomMutation)
     }
 }
@@ -103,17 +103,16 @@ impl InstructionMutator for InstructionArgumentsMutation {
     }
 }
 impl InstructionMutatorFactory for InstructionArgumentsMutation {
-    fn new() -> Box<dyn InstructionMutator> {
+    fn new_box() -> Box<dyn InstructionMutator> {
         Box::new(InstructionArgumentsMutation)
     }
 }
 
 fn mutation_factory(rng: &mut StdRng) -> Box<dyn InstructionMutator> {
-    let mutator = match BASIC_INSTRUCTION_MUTATION_CONFIGURATION.select(rng) {
-        InstructionMutationOptions::Random => RandomMutation::new(),
-        InstructionMutationOptions::ArgumentMutation => InstructionArgumentsMutation::new(),
-    };
-    mutator
+    match BASIC_INSTRUCTION_MUTATION_CONFIGURATION.select(rng) {
+        InstructionMutationOptions::Random => RandomMutation::new_box(),
+        InstructionMutationOptions::ArgumentMutation => InstructionArgumentsMutation::new_box(),
+    }
 }
 
 pub(crate) fn instruction_mutator(instruction: Instruction, rng: &mut StdRng) -> Instruction {

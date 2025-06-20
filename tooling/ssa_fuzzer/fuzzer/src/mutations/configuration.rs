@@ -35,16 +35,16 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
 /// Mutations config for single mutation
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum MutationOptions {
-    MutateInstructionBlocks,
-    MutateFuzzerCommands,
-    MutateWitnesses,
+    InstructionBlocks,
+    FuzzerCommands,
+    Witnesses,
 }
 
 pub(crate) type MutationConfig = WeightedSelectionConfig<MutationOptions, 3>;
 pub(crate) const BASIC_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
-    (MutationOptions::MutateInstructionBlocks, 1),
-    (MutationOptions::MutateFuzzerCommands, 1),
-    (MutationOptions::MutateWitnesses, 1),
+    (MutationOptions::InstructionBlocks, 1),
+    (MutationOptions::FuzzerCommands, 1),
+    (MutationOptions::Witnesses, 1),
 ]);
 
 /// Mutations of witness values
