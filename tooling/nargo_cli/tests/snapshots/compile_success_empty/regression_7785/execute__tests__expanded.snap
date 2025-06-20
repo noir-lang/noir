@@ -5,12 +5,12 @@ expression: expanded_code
 fn main() {
     // Safety: comment added by `nargo expand`
     let input: u32 = unsafe { inject_value() };
-    let table: [u32; 2] = [0; 2];
-    let mut s: u32 = table[1];
+    let table: [u32; 2] = [0_u32; 2];
+    let mut s: u32 = table[1_u32];
     s = table[s + input];
     s = table[s];
 }
 
 unconstrained fn inject_value() -> u32 {
-    0
+    0_u32
 }

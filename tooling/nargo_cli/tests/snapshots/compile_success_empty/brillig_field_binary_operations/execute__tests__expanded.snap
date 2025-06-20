@@ -5,8 +5,8 @@ expression: expanded_code
 fn main() {
     // Safety: comment added by `nargo expand`
     unsafe {
-        let x: Field = 4;
-        let y: Field = 2;
+        let x: Field = 4_Field;
+        let y: Field = 2_Field;
         assert((x + y) == add(x, y));
         assert((x - y) == sub(x, y));
         assert((x * y) == mul(x, y));

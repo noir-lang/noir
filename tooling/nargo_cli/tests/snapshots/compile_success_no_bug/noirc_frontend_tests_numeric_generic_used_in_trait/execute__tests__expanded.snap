@@ -11,7 +11,7 @@ struct MyType<T> {
 
 impl<let N: u32, T> Deserialize<N, T> for MyType<T> {
     fn deserialize(fields: [Field; N], other: T) -> Self {
-        Self { a: fields[0], b: fields[1], c: fields[2], d: other }
+        Self { a: fields[0_u32], b: fields[1_u32], c: fields[2_u32], d: other }
     }
 }
 

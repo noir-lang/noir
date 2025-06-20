@@ -9,5 +9,5 @@ mod moo {
 }
 
 fn main() {
-    let _: moo::Foo = moo::Foo { x: 1 };
+    let _: moo::Foo = moo::Foo { x: 1_Field };
 }

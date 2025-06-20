@@ -116,8 +116,11 @@ impl Parser<'_> {
         if self.eat(Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        None,
+                        start_location,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     Some(UnresolvedTypeExpression::BinaryOperation(
@@ -159,8 +162,8 @@ impl Parser<'_> {
 
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        let int = self.eat_int()?;
-        Some(UnresolvedTypeExpression::Constant(int, self.previous_token_location))
+        let (int, suffix) = self.eat_int()?;
+        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -248,8 +251,11 @@ impl Parser<'_> {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                    let lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        None,
+                        start_location,
+                    );
                     let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
                     let type_expr = UnresolvedTypeExpression::BinaryOperation(
@@ -423,7 +429,7 @@ mod tests {
     fn parses_constant_type_expression() {
         let src = "42";
         let expr = parse_type_expression_no_errors(src);
-        let UnresolvedTypeExpression::Constant(n, _) = expr else {
+        let UnresolvedTypeExpression::Constant(n, _, _) = expr else {
             panic!("Expected constant");
         };
         assert_eq!(n, 42_u32.into());
@@ -475,7 +481,7 @@ mod tests {
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression");
         };
-        let UnresolvedTypeExpression::Constant(n, _) = expr else {
+        let UnresolvedTypeExpression::Constant(n, _, _) = expr else {
             panic!("Expected constant");
         };
         assert_eq!(n, 42_u32.into());

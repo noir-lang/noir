@@ -7,7 +7,7 @@ use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
     node_interner::ExprId,
-    token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
@@ -264,11 +264,11 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int(&mut self) -> Option<FieldElement> {
+    fn eat_int(&mut self) -> Option<(FieldElement, Option<IntegerTypeSuffix>)> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
             match token.into_token() {
-                Token::Int(int) => Some(int),
+                Token::Int(int, suffix) => Some((int, suffix)),
                 _ => unreachable!(),
             }
         } else {

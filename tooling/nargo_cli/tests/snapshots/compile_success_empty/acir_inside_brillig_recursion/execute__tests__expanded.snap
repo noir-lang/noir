@@ -5,7 +5,7 @@ expression: expanded_code
 fn main() {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(fibonacci(3) == fibonacci_hint(3));
+        assert(fibonacci(3_u32) == fibonacci_hint(3_u32));
     }
 }
 
@@ -14,9 +14,9 @@ unconstrained fn fibonacci_hint(x: u32) -> u32 {
 }
 
 fn fibonacci(x: u32) -> u32 {
-    if x <= 1 {
+    if x <= 1_u32 {
         x
     } else {
-        fibonacci(x - 1) + fibonacci(x - 2)
+        fibonacci(x - 1_u32) + fibonacci(x - 2_u32)
     }
 }

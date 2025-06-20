@@ -1952,7 +1952,7 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Value::Field(SignedField::positive(field.absolute_value())),
                 Value::Bool(field.is_negative()),

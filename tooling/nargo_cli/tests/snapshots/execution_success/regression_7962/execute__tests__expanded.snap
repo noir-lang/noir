@@ -3,6 +3,6 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(v0: u64) -> pub u64 {
-    let v1: u64 = v0 - 1;
-    v1 & 1
+    let v1: u64 = v0 - 1_u64;
+    v1 & 1_u64
 }

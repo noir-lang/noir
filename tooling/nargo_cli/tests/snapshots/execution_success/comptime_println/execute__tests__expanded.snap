@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let x: Field = 3;
+    let x: Field = 3_Field;
     println(x);
     ()
 }

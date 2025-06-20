@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let pt_y: Field = 17631683881184975370165255887551781615748388533673675138860;
+    let pt_y: Field = 17631683881184975370165255887551781615748388533673675138860_Field;
     let pt: std::embedded_curve_ops::EmbeddedCurvePoint =
-        std::embedded_curve_ops::EmbeddedCurvePoint { x: 1, y: pt_y, is_infinite: false };
+        std::embedded_curve_ops::EmbeddedCurvePoint { x: 1_Field, y: pt_y, is_infinite: false };
     let pt_2x: std::embedded_curve_ops::EmbeddedCurvePoint = pt.double();
     let pt_4x: std::embedded_curve_ops::EmbeddedCurvePoint = pt_2x.double();
     assert(pt_2x != pt_4x);

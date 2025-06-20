@@ -11,5 +11,5 @@ fn call<T>(t: T, f: fn(T) -> Field) -> Field {
 }
 
 fn main() {
-    let _: Field = call(Foo { value: 1 }, |foo: Foo| -> Field foo.value);
+    let _: Field = call(Foo { value: 1_Field }, |foo: Foo| -> Field foo.value);
 }

@@ -6,7 +6,7 @@ fn main(x: Field, y: Field, a: Field, b: Field) {
     let x_as_u8: u8 = x as u8;
     let y_as_u8: u8 = y as u8;
     assert((x_as_u8 & y_as_u8) == x_as_u8);
-    let flag: bool = (x == 0) & (y == 16);
+    let flag: bool = (x == 0_Field) & (y == 16_Field);
     assert(flag);
     let a_as_u8: u8 = a as u8;
     let b_as_u8: u8 = b as u8;

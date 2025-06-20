@@ -14,12 +14,12 @@ mod baz {
 mod foo {
     pub mod bar {
         pub fn in_bar_mod() -> Field {
-            2
+            2_Field
         }
     }
 
     pub fn in_foo_mod() -> Field {
-        1
+        1_Field
     }
 }
 

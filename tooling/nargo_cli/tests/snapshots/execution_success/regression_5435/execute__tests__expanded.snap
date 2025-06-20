@@ -12,10 +12,10 @@ fn main(input: Field, enable: bool) {
 
 #[no_predicates]
 fn no_predicate_function(enable: Field) -> Field {
-    if enable == 0 {
-        1
+    if enable == 0_Field {
+        1_Field
     } else {
-        0
+        0_Field
     }
 }
 

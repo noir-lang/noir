@@ -17,5 +17,5 @@ trait Serialize<let N: u32> {
 }
 
 fn main() {
-    let _: ValueNote = ValueNote { value: 1 };
+    let _: ValueNote = ValueNote { value: 1_Field };
 }

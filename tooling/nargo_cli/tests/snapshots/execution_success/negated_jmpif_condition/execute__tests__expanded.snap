@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(mut x: Field) {
-    let mut q: Field = 0;
-    if x != 10 { q = 2; };
-    assert(q == 2);
+    let mut q: Field = 0_Field;
+    if x != 10_Field { q = 2_Field; };
+    assert(q == 2_Field);
 }

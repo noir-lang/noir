@@ -9,7 +9,7 @@ pub trait Foo {
 
     fn bar(self) -> i32 {
         let _: Self = self;
-        1
+        1_i32
     }
 }
 

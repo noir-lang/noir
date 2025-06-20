@@ -41,27 +41,27 @@ mod b {
 }
 
 fn main() {
-    assert(attributes_run == 19);
+    assert(attributes_run == 19_Field);
 }
 
 comptime mut global attributes_run: Field = 19;
 
 pub comptime fn assert_run_order_function(_f: FunctionDefinition, order: Field) {
     assert(order == attributes_run);
-    attributes_run = attributes_run + 1;
+    attributes_run = attributes_run + 1_Field;
 }
 
 pub comptime fn assert_run_order_struct(_s: TypeDefinition, order: Field) {
     assert(order == attributes_run);
-    attributes_run = attributes_run + 1;
+    attributes_run = attributes_run + 1_Field;
 }
 
 pub comptime fn assert_run_order_trait(_t: TraitDefinition, order: Field) {
     assert(order == attributes_run);
-    attributes_run = attributes_run + 1;
+    attributes_run = attributes_run + 1_Field;
 }
 
 pub comptime fn assert_run_order_module(_m: Module, order: Field) {
     assert(order == attributes_run);
-    attributes_run = attributes_run + 1;
+    attributes_run = attributes_run + 1_Field;
 }

@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: i64) {
-    assert((x as i8) == -1);
-    assert((x as i16) == -1);
-    assert((x as i32) == -1);
-    assert((x as i64) == 9223372036854775807);
+    assert((x as i8) == -1_i8);
+    assert((x as i16) == -1_i16);
+    assert((x as i32) == -1_i32);
+    assert((x as i64) == 9223372036854775807_i64);
 }

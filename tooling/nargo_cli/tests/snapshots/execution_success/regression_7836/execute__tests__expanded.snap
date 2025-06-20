@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u32) {
-    if x == 43 { let _: u32 = foo(x); };
-    assert(foo(x) != 0);
+    if x == 43_u32 { let _: u32 = foo(x); };
+    assert(foo(x) != 0_u32);
 }
 
 fn foo(input: u32) -> u32 {
-    assert(input != 0);
-    input % 100
+    assert(input != 0_u32);
+    input % 100_u32
 }

@@ -9,6 +9,6 @@ global EIGHT: u32 = 8;
 global SEVEN: u32 = 7;
 
 fn main() {
-    assert([0; 8] == [0; 8]);
-    assert([0; 7] == [0; 7]);
+    assert([0_Field; 8] == [0_Field; 8]);
+    assert([0_Field; 7] == [0_Field; 7]);
 }

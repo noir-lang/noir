@@ -9,7 +9,7 @@ pub struct WeirdStruct<T, U> {
 
 pub fn my_fn() -> WeirdStruct<Field, [u8; 3]> {
     {
-        WeirdStruct::<Field, [u8; 3]> { a: 1, b: [0; 3] }
+        WeirdStruct::<Field, [u8; 3]> { a: 1_Field, b: [0_u8; 3] }
     }
 }
 

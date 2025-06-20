@@ -13,23 +13,23 @@ struct Foo {
 }
 
 fn main(pair: (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, u8) {
-    let mut start_val: u8 = 0;
-    for i in 0..2 {
+    let mut start_val: u8 = 0_u8;
+    for i in 0_u32..2_u32 {
         assert(x[i].0 == start_val);
-        assert(x[i].1 == (start_val + 1));
-        assert(x[i].2 == (start_val + 2));
-        start_val = start_val + 3;
+        assert(x[i].1 == (start_val + 1_u8));
+        assert(x[i].2 == (start_val + 2_u8));
+        start_val = start_val + 3_u8;
     }
-    assert(struct_pair.0.a == 1);
-    assert(struct_pair.0.b == [2, 3, 20]);
-    assert(struct_pair.0.bar.inner == [100, 101, 102]);
-    assert(struct_pair.1.inner == [103, 104, 105]);
-    let (u, v): (Field, Field) = if (pair.0 as u32) < 1 {
-        (pair.0, pair.0 + 1)
+    assert(struct_pair.0.a == 1_Field);
+    assert(struct_pair.0.b == [2_Field, 3_Field, 20_Field]);
+    assert(struct_pair.0.bar.inner == [100_Field, 101_Field, 102_Field]);
+    assert(struct_pair.1.inner == [103_Field, 104_Field, 105_Field]);
+    let (u, v): (Field, Field) = if (pair.0 as u32) < 1_u32 {
+        (pair.0, pair.0 + 1_Field)
     } else {
-        (pair.0 + 1, pair.0)
+        (pair.0 + 1_Field, pair.0)
     };
-    assert(u == (pair.0 + 1));
+    assert(u == (pair.0 + 1_Field));
     assert(v == pair.0);
     (u, v as u8)
 }

@@ -12,5 +12,5 @@ struct Foo {
 }
 
 fn main(foos: [Foo; 1]) {
-    assert(foos[0].a == 10);
+    assert(foos[0_u32].a == 10_Field);
 }

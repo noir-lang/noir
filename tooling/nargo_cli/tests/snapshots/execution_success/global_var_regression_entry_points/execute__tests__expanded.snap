@@ -4098,41 +4098,41 @@ mod consts {
 fn main(x: Field, y: pub Field) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(entry_point_only_const_global(x) == 2);
+        assert(entry_point_only_const_global(x) == 2_Field);
         check_acc_entry_point(x, y);
-        assert(entry_point_only_const_global(x) == 2);
+        assert(entry_point_only_const_global(x) == 2_Field);
         entry_point_inner_func_globals(x as Field, y);
-        assert(entry_point_no_globals(x, y) == 1);
-        assert(entry_point_no_globals(x, y) == 1);
-        assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_only_const_global(x) == 2);
-        assert(entry_point_no_globals(x, y) == 1);
-        assert(entry_point_no_globals(x, y) == 1);
-        assert(entry_point_no_globals(x, y) == 1);
+        assert(entry_point_no_globals(x, y) == 1_Field);
+        assert(entry_point_no_globals(x, y) == 1_Field);
+        assert(entry_point_only_const_global(x) == 2_Field);
+        assert(entry_point_only_const_global(x) == 2_Field);
+        assert(entry_point_only_const_global(x) == 2_Field);
+        assert(entry_point_only_const_global(x) == 2_Field);
+        assert(entry_point_only_const_global(x) == 2_Field);
+        assert(entry_point_no_globals(x, y) == 1_Field);
+        assert(entry_point_no_globals(x, y) == 1_Field);
+        assert(entry_point_no_globals(x, y) == 1_Field);
     }
 }
 
 unconstrained fn check_acc_entry_point(x: Field, y: Field) {
-    let mut acc: Field = 0;
-    for i in 0..2 {
-        for j in 0..2 {
+    let mut acc: Field = 0_Field;
+    for i in 0_u32..2_u32 {
+        for j in 0_u32..2_u32 {
             acc = acc + EXPONENTIATE[i][j];
         }
     }
     assert(!acc.lt(x));
     assert(x != y);
-    assert(inner(x + 1) == 2);
+    assert(inner(x + 1_Field) == 2_Field);
 }
 
 fn inner(x: Field) -> Field {
-    x + 1
+    x + 1_Field
 }
 
 unconstrained fn entry_point_only_const_global(x: Field) -> Field {
-    inner(x + 1)
+    inner(x + 1_Field)
 }
 
 unconstrained fn entry_point_no_globals(x: Field, y: Field) -> Field {

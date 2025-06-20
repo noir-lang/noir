@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(b: [[u1; 1]; 1]) -> pub [[u1; 1]; 1] {
-    if b[0][0] == b[0][0] {
+    if b[0_u32][0_u32] == b[0_u32][0_u32] {
         b
     } else {
         b

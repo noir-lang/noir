@@ -15,7 +15,7 @@ impl<T> Foo<T> {
 type Bar = Foo<i32>;
 
 fn foo() -> Bar {
-    Foo::new(1)
+    Foo::new(1_i32)
 }
 
 fn main() {

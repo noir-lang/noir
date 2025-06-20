@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let one: u8 = 1;
-    let p: ((u8, Field), (Field, Field)) = ((one, 2), (3, 4));
+    let one: u8 = 1_u8;
+    let p: ((u8, Field), (Field, Field)) = ((one, 2_Field), (3_Field, 4_Field));
     assert(p == p);
 }

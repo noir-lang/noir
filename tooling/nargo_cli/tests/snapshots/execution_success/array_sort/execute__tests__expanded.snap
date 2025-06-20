@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(xs: [u8; 3]) {
     let sorted: [u8; 3] = xs.sort();
-    assert(sorted[0] == 1);
-    assert(sorted[1] == 2);
-    assert(sorted[2] == 3);
+    assert(sorted[0_u32] == 1_u8);
+    assert(sorted[1_u32] == 2_u8);
+    assert(sorted[2_u32] == 3_u8);
 }

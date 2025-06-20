@@ -9,7 +9,7 @@ struct Foo {
 type MyFn = fn(Foo) -> Field;
 
 fn call(f: MyFn) -> Field {
-    f(Foo { value: 1 })
+    f(Foo { value: 1_Field })
 }
 
 fn main() {

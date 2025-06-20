@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main() {
     ();
-    println(1);
+    println(1_Field);
     ();
-    println(2);
+    println(2_Field);
 }

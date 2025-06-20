@@ -20,7 +20,7 @@ impl LibTrait<u32> for StructA {
     }
 
     fn get_constant() -> Field {
-        1
+        1_Field
     }
 }
 
@@ -32,7 +32,7 @@ impl LibTrait<u64> for StructB {
     }
 
     fn get_constant() -> Field {
-        1
+        1_Field
     }
 }
 

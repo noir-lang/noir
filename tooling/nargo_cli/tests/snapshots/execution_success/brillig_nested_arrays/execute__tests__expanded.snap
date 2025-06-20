@@ -17,14 +17,14 @@ unconstrained fn access_nested(notes: [MyNote; 2], x: u32, y: u32) -> Field {
 }
 
 unconstrained fn create_inside_brillig() -> [MyNote; 2] {
-    let header: Header = Header { params: [1, 2, 3] };
-    let note0: MyNote = MyNote { array: [1, 2], plain: 3, header: header };
-    let note1: MyNote = MyNote { array: [4, 5], plain: 6, header: header };
+    let header: Header = Header { params: [1_Field, 2_Field, 3_Field] };
+    let note0: MyNote = MyNote { array: [1_Field, 2_Field], plain: 3_Field, header: header };
+    let note1: MyNote = MyNote { array: [4_Field, 5_Field], plain: 6_Field, header: header };
     [note0, note1]
 }
 
 unconstrained fn assert_inside_brillig(notes: [MyNote; 2], x: u32, y: u32) {
-    assert(access_nested(notes, x, y) == (((2 + 4) + 3) + 1));
+    assert(access_nested(notes, x, y) == (((2_Field + 4_Field) + 3_Field) + 1_Field));
 }
 
 unconstrained fn create_and_assert_inside_brillig(x: u32, y: u32) {
@@ -34,10 +34,10 @@ unconstrained fn create_and_assert_inside_brillig(x: u32, y: u32) {
 fn main(x: u32, y: u32) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        let header: Header = Header { params: [1, 2, 3] };
-        let note0: MyNote = MyNote { array: [1, 2], plain: 3, header: header };
-        let note1: MyNote = MyNote { array: [4, 5], plain: 6, header: header };
-        assert(access_nested([note0, note1], x, y) == (((2 + 4) + 3) + 1));
+        let header: Header = Header { params: [1_Field, 2_Field, 3_Field] };
+        let note0: MyNote = MyNote { array: [1_Field, 2_Field], plain: 3_Field, header: header };
+        let note1: MyNote = MyNote { array: [4_Field, 5_Field], plain: 6_Field, header: header };
+        assert(access_nested([note0, note1], x, y) == (((2_Field + 4_Field) + 3_Field) + 1_Field));
         let notes: [MyNote; 2] = create_inside_brillig();
         assert_inside_brillig(notes, x, y);
         create_and_assert_inside_brillig(x, y);

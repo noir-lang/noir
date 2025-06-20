@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main() -> pub [i8; 2] {
-    if *func_5()[0][1].0 {
-        [0, 1]
+    if *func_5()[0_u32][1_u32].0 {
+        [0_i8, 1_i8]
     } else {
-        [2, 3]
+        [2_i8, 3_i8]
     }
 }
 

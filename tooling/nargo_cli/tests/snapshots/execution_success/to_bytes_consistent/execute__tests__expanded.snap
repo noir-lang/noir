@@ -4,10 +4,10 @@ expression: expanded_code
 ---
 fn main(x: Field) {
     let byte_array: [u8; 31] = x.to_be_bytes();
-    let x_as_constant: Field = 2040124;
+    let x_as_constant: Field = 2040124_Field;
     let constant_byte_array: [u8; 31] = x_as_constant.to_be_bytes();
     assert(constant_byte_array.len() == byte_array.len());
-    for i in 0..constant_byte_array.len() {
+    for i in 0_u32..constant_byte_array.len() {
         assert(constant_byte_array[i] == byte_array[i]);
     }
 }

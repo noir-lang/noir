@@ -9,19 +9,19 @@ struct bar {
 }
 
 fn main(enable: [Field; 2]) -> pub [Field; 4] {
-    let mut result: [Field; 4] = [0; 4];
-    let a: [bar; 4] = foo(enable[1]);
-    for i in 0..4 {
-        result[i] = a[i].data[i % 2];
+    let mut result: [Field; 4] = [0_Field; 4];
+    let a: [bar; 4] = foo(enable[1_u32]);
+    for i in 0_u32..4_u32 {
+        result[i] = a[i].data[i % 2_u32];
     }
     result
 }
 
 fn foo(x: Field) -> [bar; 4] {
     [
-        bar { enable: [true, true, false, false], data: [x, x + 1], pad: 0 },
-        bar { enable: [true, false, false, false], data: [x + 2, x + 7], pad: 0 },
-        bar { enable: [true, true, false, true], data: [x + 3, x + 5], pad: 0 },
-        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 },
+        bar { enable: [true, true, false, false], data: [x, x + 1_Field], pad: 0_u32 },
+        bar { enable: [true, false, false, false], data: [x + 2_Field, x + 7_Field], pad: 0_u32 },
+        bar { enable: [true, true, false, true], data: [x + 3_Field, x + 5_Field], pad: 0_u32 },
+        bar { enable: [false, false, false, false], data: [x + 4_Field, x - 1_Field], pad: 0_u32 },
     ]
 }

@@ -24,7 +24,7 @@ where
     H: Default,
 {
     let mut hasher: H = Default::default();
-    Hasher::write(&mut hasher, input[0]);
-    Hasher::write(&mut hasher, input[1]);
+    Hasher::write(&mut hasher, input[0_u32]);
+    Hasher::write(&mut hasher, input[1_u32]);
     Hasher::finish(hasher)
 }

@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(sum_to_check: u32) {
-    let mut sum: u32 = 0;
-    for i in 0..4 {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..4_u32 {
         sum = sum + i;
     }
     assert(sum_to_check == sum);

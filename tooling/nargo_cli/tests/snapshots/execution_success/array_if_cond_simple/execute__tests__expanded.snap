@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: bool, mut y: [u32; 30]) {
-    if x { y[0] = 1; };
-    let z: u32 = y[0] + y[1];
-    assert(z == 1);
+    if x { y[0_u32] = 1_u32; };
+    let z: u32 = y[0_u32] + y[1_u32];
+    assert(z == 1_u32);
 }

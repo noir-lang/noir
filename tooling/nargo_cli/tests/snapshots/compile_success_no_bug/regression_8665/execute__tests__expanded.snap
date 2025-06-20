@@ -23,7 +23,7 @@ impl<V> ContextGetter<V> {
 
 unconstrained fn main() {
     {
-        let mut context: Context = Context { get_field: || -> Field { 0 } };
+        let mut context: Context = Context { get_field: || -> Field { 0_Field } };
         let wrapper_getter: ContextGetter<ContextWrapper> = ContextGetter::<ContextWrapper> {
             context: &mut context,
             getter: |context: &mut Context| -> ContextWrapper ContextWrapper { context: context },

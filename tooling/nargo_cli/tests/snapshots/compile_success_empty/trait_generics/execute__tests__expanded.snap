@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let xs: [Field; 1] = [3];
-    let ys: [u32; 1] = [3];
+    let xs: [Field; 1] = [3_Field];
+    let ys: [u32; 1] = [3_u32];
     foo(xs, ys);
-    assert(15 == sum(Data { a: 5, b: 10 }));
-    assert(15 == sum_static(Data { a: 5, b: 10 }));
+    assert(15_Field == sum(Data { a: 5_Field, b: 10_Field }));
+    assert(15_Field == sum_static(Data { a: 5_Field, b: 10_Field }));
 }
 
 fn foo<T, U>(x: T, u: U)
@@ -61,7 +61,7 @@ where
     T: Serializable<M>,
 {
     let serialized: [Field; M] = Serializable::serialize(data);
-    serialized.fold(0, |acc: Field, elem: Field| -> Field { acc + elem })
+    serialized.fold(0_Field, |acc: Field, elem: Field| -> Field { acc + elem })
 }
 
 fn sum_static<T, let M: u32>(data: T) -> Field
@@ -69,5 +69,5 @@ where
     T: Serializable<M>,
 {
     let serialized: [Field; M] = Serializable::serialize(data);
-    serialized.fold(0, |acc: Field, elem: Field| -> Field { acc + elem })
+    serialized.fold(0_Field, |acc: Field, elem: Field| -> Field { acc + elem })
 }

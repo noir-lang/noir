@@ -5,7 +5,7 @@ expression: expanded_code
 use std::meta::unquote;
 
 fn main() {
-    let foo: Foo = Foo { x: 4, y: 4 };
+    let foo: Foo = Foo { x: 4_Field, y: 4_u32 };
     foo.assert_equal();
 }
 

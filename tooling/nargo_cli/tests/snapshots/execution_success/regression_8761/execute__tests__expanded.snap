@@ -4,10 +4,10 @@ expression: expanded_code
 ---
 fn main() -> pub Field {
     let mut d: [&mut bool; 1] = [&mut false];
-    for _ in 0..1 {}
-    if *d[0] {
-        0
+    for _ in 0_u32..1_u32 {}
+    if *d[0_u32] {
+        0_Field
     } else {
-        1
+        1_Field
     }
 }

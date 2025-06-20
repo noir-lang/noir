@@ -4,5 +4,5 @@ expression: expanded_code
 ---
 fn main() {
     ();
-    assert(2 == 2);
+    assert(2_Field == 2_Field);
 }

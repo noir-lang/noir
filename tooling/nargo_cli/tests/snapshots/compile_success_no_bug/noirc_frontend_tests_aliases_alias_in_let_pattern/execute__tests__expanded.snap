@@ -9,6 +9,6 @@ struct Foo<T> {
 type Bar<U> = Foo<U>;
 
 fn main() {
-    let Foo::<[Field; 1]> { x }: Foo<[Field; 1]> = Foo::<[Field; 1]> { x: [0] };
+    let Foo::<[Field; 1]> { x }: Foo<[Field; 1]> = Foo::<[Field; 1]> { x: [0_Field] };
     let _: [Field; 1] = x;
 }

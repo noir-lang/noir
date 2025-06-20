@@ -11,7 +11,7 @@ where
     T: Foo,
     T: Foo2,
 {
-    T::bar(1);
+    T::bar(1_Field);
     T::bar(());
     T::bar(());
 }

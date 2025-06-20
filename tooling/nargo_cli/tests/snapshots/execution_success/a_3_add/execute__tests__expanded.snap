@@ -5,6 +5,6 @@ expression: expanded_code
 fn main(mut x: u32, y: u32, z: u32) {
     x = x + y;
     assert(x == z);
-    x = x * 8;
-    assert(x > 9);
+    x = x * 8_u32;
+    assert(x > 9_u32);
 }

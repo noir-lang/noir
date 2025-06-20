@@ -19,7 +19,7 @@ use crate::{
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum BorrowedToken<'input> {
     Ident(&'input str),
-    Int(FieldElement),
+    Int(FieldElement, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
@@ -131,10 +131,44 @@ pub enum BorrowedToken<'input> {
     Invalid(char),
 }
 
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
+pub enum IntegerTypeSuffix {
+    I8,
+    I16,
+    I32,
+    I64,
+    U1,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Field,
+}
+
+impl IntegerTypeSuffix {
+    pub(crate) fn as_type(&self) -> crate::Type {
+        use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
+        match self {
+            IntegerTypeSuffix::I8 => Integer(Signed, Eight),
+            IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
+            IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
+            IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
+            IntegerTypeSuffix::U1 => Integer(Unsigned, One),
+            IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
+            IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
+            IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
+            IntegerTypeSuffix::U64 => Integer(Unsigned, SixtyFour),
+            IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
+            IntegerTypeSuffix::Field => crate::Type::FieldElement,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement),
+    Int(FieldElement, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
@@ -264,7 +298,7 @@ pub enum Token {
 pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     match token {
         Token::Ident(s) => BorrowedToken::Ident(s),
-        Token::Int(n) => BorrowedToken::Int(*n),
+        Token::Int(n, suffix) => BorrowedToken::Int(*n, *suffix),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(b) => BorrowedToken::Str(b),
         Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
@@ -473,7 +507,8 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n) => write!(f, "{}", n),
+            Token::Int(n, Some(suffix)) => write!(f, "{n}_{suffix}"),
+            Token::Int(n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
@@ -565,6 +600,24 @@ impl fmt::Display for Token {
     }
 }
 
+impl fmt::Display for IntegerTypeSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IntegerTypeSuffix::I8 => write!(f, "i8"),
+            IntegerTypeSuffix::I16 => write!(f, "i16"),
+            IntegerTypeSuffix::I32 => write!(f, "i32"),
+            IntegerTypeSuffix::I64 => write!(f, "i64"),
+            IntegerTypeSuffix::U1 => write!(f, "u1"),
+            IntegerTypeSuffix::U8 => write!(f, "u8"),
+            IntegerTypeSuffix::U16 => write!(f, "u16"),
+            IntegerTypeSuffix::U32 => write!(f, "u32"),
+            IntegerTypeSuffix::U64 => write!(f, "u64"),
+            IntegerTypeSuffix::U128 => write!(f, "u128"),
+            IntegerTypeSuffix::Field => write!(f, "Field"),
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, Ord, PartialOrd)]
 /// The different kinds of tokens that are possible in the target language
 pub enum TokenKind {
@@ -615,7 +668,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_)
+            Token::Int(..)
             | Token::Bool(_)
             | Token::Str(_)
             | Token::RawStr(..)

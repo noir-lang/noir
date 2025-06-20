@@ -14,7 +14,7 @@ fn main(x: u64) {
     //regression for 3481
     assert(x << 63 == 0);
 
-    assert_eq((1 as u64) << 32, 0x0100000000);
+    assert_eq(1_u64 << 32, 0x0100000000);
 
     //regression for 6201
     let a: i16 = -769;

@@ -5,14 +5,14 @@ expression: expanded_code
 fn main(x: Field) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(4 == conditional(x == 1));
+        assert(4_Field == conditional(x == 1_Field));
     }
 }
 
 unconstrained fn conditional(x: bool) -> Field {
     if x {
-        4
+        4_Field
     } else {
-        5
+        5_Field
     }
 }

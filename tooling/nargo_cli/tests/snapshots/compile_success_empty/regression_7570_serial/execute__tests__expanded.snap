@@ -10,7 +10,7 @@ pub enum Foo {
 
 fn main() {
     let arena: [Foo; 1] = [Foo::A];
-    let x: Foo = arena[0];
+    let x: Foo = arena[0_u32];
     {
         let internal___variable: Foo = x;
         match internal___variable {

@@ -3,7 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main() -> pub bool {
-    false >= *func_3(&mut false)[if *func_3(&mut true)[0] { 0 } else { 0 }]
+    false
+        >= *func_3(&mut false)[if *func_3(&mut true)[0_u32] {
+            0_u32
+        } else {
+            0_u32
+        }]
 }
 
 fn func_3(b: &mut bool) -> [&mut bool] {

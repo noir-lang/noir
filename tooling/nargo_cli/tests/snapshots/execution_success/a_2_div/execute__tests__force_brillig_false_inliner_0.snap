@@ -86,7 +86,7 @@ expression: artifact
   "debug_symbols": "pZLbisMgEIbfZa698BBzepVlCSYxRRATrC4sIe++E0227UWhtDf/Fx2/gYmuMOo+XjrjpvkK7dcKvTfWmktn50EFMzvcXTcC57ILXmvcgrs6Wovy2gVoXbSWwI+yMR26LsolBuWxSgloNyKx4WSs3r82crPpc7WuDrfh/7J82WZUHjpj9ENfvuOL+vQL8ZZffObz5on/jSs1GP9w3yDwIIEipUxZpqxS1imblIxmMGg5gmeIjCJDZpQZVUadgV0EAY5dcELOMrAL/m8uMrBLue2zeaN6q48HOUU33L3P8LuclfMFL34e9Bi93mdLNZz2Dw==",
   "file_map": {
     "50": {
-      "source": "// Testing integer division: 7/3 = 2\nfn main(mut x: u32, y: u32, z: u32) {\n    let a = x % y;\n    assert(x / y == z);\n    assert(a == x - z * y);\n    assert((50 as u64) % (9 as u64) == 5);\n}\n",
+      "source": "// Testing integer division: 7/3 = 2\nfn main(mut x: u32, y: u32, z: u32) {\n    let a = x % y;\n    assert(x / y == z);\n    assert(a == x - z * y);\n    assert(50_u64 % 9 == 5);\n}\n",
       "path": ""
     }
   },

@@ -24,7 +24,7 @@ where
     where
         Self: One,
     {
-        One::one(self) + 1
+        One::one(self) + 1_i32
     }
 }
 

@@ -194,26 +194,26 @@ impl Ord for EmptyStruct {
 }
 
 fn main() {
-    let s: MyStruct = MyStruct { my_field: 1 };
+    let s: MyStruct = MyStruct { my_field: 1_u32 };
     s.do_nothing();
     let o: MyOtherStruct<Field, u32> = Default::default();
     assert(o == o);
     let o: MyOtherStruct<u8, [str<2>]> = Default::default();
     assert(o == o);
     let o1: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct::<i8> { x: 54 as i8 },
+        field1: 12_u32,
+        field2: 24_i8,
+        field3: MyOtherOtherStruct::<i8> { x: 54_i8 },
     };
     let o2: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct::<i8> { x: 55 as i8 },
+        field1: 12_u32,
+        field2: 24_i8,
+        field3: MyOtherOtherStruct::<i8> { x: 55_i8 },
     };
     assert(o1 < o2);
-    let mut hasher: TestHasher = TestHasher { result: 0 };
+    let mut hasher: TestHasher = TestHasher { result: 0_Field };
     o1.hash(&mut hasher);
-    assert(hasher.finish() == ((12 + 24) + 54));
+    assert(hasher.finish() == ((12_Field + 24_Field) + 54_Field));
     let empty: EmptyStruct = EmptyStruct {};
     assert(empty == empty);
 }

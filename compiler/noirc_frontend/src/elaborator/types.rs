@@ -598,7 +598,10 @@ impl Elaborator<'_> {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 self.check_kind(typ, expected_kind, location)
             }
-            UnresolvedTypeExpression::Constant(int, _span) => {
+            UnresolvedTypeExpression::Constant(int, suffix, _span) => {
+                if let Some(suffix) = suffix {
+                    self.check_kind(suffix.as_type(), expected_kind, location);
+                }
                 Type::Constant(int, expected_kind.clone())
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {

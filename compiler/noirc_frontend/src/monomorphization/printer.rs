@@ -253,9 +253,7 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal {
-                    // Unfortunately this doesn't work: `-128 as i8` panics with `attempt to negate with overflow` because it first treats `128` as `u8`.
-                    //write!(f, "{x} as {typ}")
-                    write!(f, "{{ let x: {typ} = {x}; x }}")
+                    write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
                 }

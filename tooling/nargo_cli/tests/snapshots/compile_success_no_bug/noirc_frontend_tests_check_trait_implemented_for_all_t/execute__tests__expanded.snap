@@ -8,7 +8,7 @@ trait Default2 {
 
 impl Default2 for u64 {
     fn default2() -> Self {
-        0
+        0_u64
     }
 }
 

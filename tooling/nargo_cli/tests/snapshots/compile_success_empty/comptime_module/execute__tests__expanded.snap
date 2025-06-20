@@ -31,7 +31,7 @@ mod yet_another_module {
 comptime mut global counter: u32 = 4;
 
 comptime fn increment_counter() {
-    counter = counter + 1;
+    counter = counter + 1_u32;
 }
 
 comptime fn outer_attribute_func(m: Module) -> Quoted {
@@ -86,7 +86,7 @@ comptime fn add_function(m: Module) {
 fn main() {
     let _: foo::Struct1 = foo::Struct1 {};
     ();
-    assert(counter == 4);
+    assert(counter == 4_u32);
     yet_another_module::generated_outer_function();
     yet_another_module::generated_inner_function();
     let _: Foo = add_to_me::added_function();

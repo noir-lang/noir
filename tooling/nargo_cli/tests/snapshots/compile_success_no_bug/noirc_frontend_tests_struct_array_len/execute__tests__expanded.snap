@@ -14,5 +14,5 @@ impl<let N: u32, T> Array<T, N> {
 
 fn main(xs: [Field; 2]) {
     let ys: Array<Field, 2> = Array::<Field, 2> { inner: xs };
-    assert(ys.len() == 2);
+    assert(ys.len() == 2_u32);
 }
