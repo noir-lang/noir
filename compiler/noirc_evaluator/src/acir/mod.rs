@@ -634,7 +634,14 @@ impl<'a> Context<'a> {
                 unreachable!("Expected all store instructions to be removed before acir_gen")
             }
             Instruction::Load { .. } => {
-                unreachable!("Expected all load instructions to be removed before acir_gen")
+                // Load instructions should have been removed before acir_gen, unless the loaded memory cannot be resolved.
+                // In that case, we use an 'uninitialized witness' to represent an unresolved load.
+                // The resulting opcodes will not be solvable and will generate an error during execution.
+                let result_ids = dfg.instruction_results(instruction_id);
+                for result in result_ids {
+                    let value = AcirValue::uninitialized(dfg.type_of_value(*result).into());
+                    self.ssa_values.insert(*result, value);
+                }
             }
             Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
                 // Only Brillig needs to worry about reference counted arrays
@@ -1280,7 +1287,9 @@ impl<'a> Context<'a> {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(_, _) => {
+                        unreachable!("Non-array passed to array.len() method")
+                    }
                     AcirValue::Array(values) => values.len(),
                     AcirValue::DynamicArray(array) => array.len,
                 };
