@@ -938,12 +938,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let max_r = F::from_be_bytes_reduce(&max_r_big.to_bytes_be());
                 let max_r_var = self.add_constant(max_r);
 
-                // Bound the remainder to be <=p-q0*b, if the predicate is true,
-                // that is, if q0 == q then assert(r <= max_r), where is max_r = p-q0*b, and q0 = p/b.
+                // Bound the remainder to be <p-q0*b, if the predicate is true,
+                // that is, if q0 == q then assert(r < max_r), where is max_r = p-q0*b, and q0 = p/b, so that q*b+r<p
                 self.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    zero,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )?;
