@@ -46,7 +46,7 @@ expression: artifact
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(2))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(5))]",
     "EXPR [ (-1, _2, _5) (5096253676302562286669017222071363378443840053029366383258766538131, _5) (1, _6) -1 ]",
     "EXPR [ (-1, _2, _6) (5096253676302562286669017222071363378443840053029366383258766538131, _6) 0 ]",
-    "EXPR [ (1, _3, _6) (268435454, _6) (-1, _7) 0 ]",
+    "EXPR [ (1, _3, _6) (268435455, _6) (-1, _7) 0 ]",
     "BLACKBOX::RANGE [(_7, 32)] []",
     "EXPR [ (1, _1) (-1, _3) 0 ]",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: [Simple(Witness(8)), Simple(Witness(9))]",

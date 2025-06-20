@@ -80,7 +80,7 @@ expression: artifact
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(8))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(11))]",
     "EXPR [ (-1, _8, _11) (5096253676302562286669017222071363378443840053029366383258766538131, _11) (1, _12) -1 ]",
     "EXPR [ (-1, _8, _12) (5096253676302562286669017222071363378443840053029366383258766538131, _12) 0 ]",
-    "EXPR [ (1, _9, _12) (268435454, _12) (-1, _13) 0 ]",
+    "EXPR [ (1, _9, _12) (268435455, _12) (-1, _13) 0 ]",
     "BLACKBOX::RANGE [(_13, 32)] []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(9))], q_c: 4294967301 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(14)), Simple(Witness(15))]",
     "BLACKBOX::RANGE [(_15, 32)] []",
