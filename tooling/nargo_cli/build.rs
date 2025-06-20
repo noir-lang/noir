@@ -151,7 +151,7 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
@@ -159,12 +159,6 @@ const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 9] = [
     "diamond_deps_0",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
-    "poseidonsponge_x5_254",
-    // bug
-    "regression_5045",
-    // bug
-    "regression_7744",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -190,7 +184,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
     "overlapping_dep_and_mod",
     // bug
     "primitive_trait_method_call_multiple_candidates",
-    // bug
+    // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
+    // because it references another project by a relative path
     "reexports",
     // bug
     "regression_7038",

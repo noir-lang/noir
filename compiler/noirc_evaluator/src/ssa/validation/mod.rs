@@ -327,7 +327,18 @@ impl<'f> Validator<'f> {
         }
     }
 
+    fn type_check_globals(&self) {
+        let globals = (*self.function.dfg.globals).clone();
+        for (_, global) in globals.values_iter() {
+            let global_typ = global.get_type();
+            if global_typ.contains_function() {
+                panic!("Globals cannot contain function pointers");
+            }
+        }
+    }
+
     fn run(&mut self) {
+        self.type_check_globals();
         self.validate_single_return_block();
 
         for block in self.function.reachable_blocks() {
@@ -367,7 +378,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -382,7 +393,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -396,7 +407,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -410,7 +421,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -425,7 +436,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -440,7 +451,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -454,7 +465,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -468,7 +479,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -482,7 +493,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -496,7 +507,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -514,7 +525,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -530,7 +541,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -545,7 +556,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -561,7 +572,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -577,7 +588,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -593,7 +604,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -609,7 +620,7 @@ mod tests {
             return v4
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -623,7 +634,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -638,7 +649,7 @@ mod tests {
         }
         ";
 
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -650,7 +661,7 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -663,7 +674,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -678,7 +689,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -691,7 +702,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -704,7 +715,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -724,7 +735,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -744,7 +755,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -752,11 +763,11 @@ mod tests {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
-            v1 = call to_le_bytes(v0, u32 256) -> [u8; 1]
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 1]
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -768,7 +779,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[should_panic(
@@ -783,7 +794,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[should_panic(
@@ -798,7 +809,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -810,7 +821,7 @@ mod tests {
             return v0
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -823,7 +834,7 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -836,7 +847,7 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -849,7 +860,7 @@ mod tests {
             return v0
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -863,7 +874,7 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -877,6 +888,36 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Globals cannot contain function pointers")]
+    fn function_pointer_in_global_array() {
+        let src = "
+        g2 = make_array [f1, f2] : [function; 2]
+
+        acir(inline) fn main f0 {
+          b0(v3: u32, v4: Field):
+            v6 = call f1() -> Field
+            v8 = call f2() -> Field
+            v10 = lt v3, u32 2
+            constrain v10 == u1 1
+            v12 = array_get g2, index v3 -> function
+            v13 = call v12() -> Field
+            v14 = eq v13, v4
+            constrain v13 == v4
+            return
+        }
+        acir(inline) fn f1 f1 {
+          b0():
+            return Field 1
+        }
+        acir(inline) fn f2 f2 {
+          b0():
+            return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }

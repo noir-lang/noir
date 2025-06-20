@@ -502,16 +502,21 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
-            let (mutable, src_name, src_type) = self.get_variable(&id).clone();
+            let (src_mutable, src_name, src_type) = self.get_variable(&id).clone();
             let ident_id = self.next_ident_id();
-            let src_expr = expr::ident(id, ident_id, mutable, src_name, src_type.clone());
+            let src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
             let src_dyn = match id {
                 VariableId::Global(_) => false,
                 VariableId::Local(id) => self.is_dynamic(&id),
             };
-            if let Some(expr) =
-                self.gen_expr_from_source(u, (src_expr, src_dyn), &src_type, typ, max_depth)?
-            {
+            if let Some(expr) = self.gen_expr_from_source(
+                u,
+                (src_expr, src_dyn),
+                &src_type,
+                src_mutable,
+                typ,
+                max_depth,
+            )? {
                 return Ok(Some(expr));
             }
         } else {
@@ -558,6 +563,7 @@ impl<'a> FunctionContext<'a> {
         u: &mut Unstructured,
         (src_expr, src_dyn): TrackedExpression,
         src_type: &Type,
+        src_mutable: bool,
         tgt_type: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
@@ -589,7 +595,7 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
-            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
+            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type && src_mutable => {
                 let expr = expr::ref_mut(src_expr, typ.as_ref().clone());
                 Ok(Some((expr, src_dyn)))
             }
@@ -626,6 +632,7 @@ impl<'a> FunctionContext<'a> {
                     u,
                     (item_expr, src_dyn || idx_dyn),
                     item_typ,
+                    src_mutable,
                     tgt_type,
                     max_depth,
                 )
@@ -639,6 +646,7 @@ impl<'a> FunctionContext<'a> {
                         u,
                         (item_expr, src_dyn),
                         item_type,
+                        src_mutable,
                         tgt_type,
                         max_depth,
                     )? {
@@ -897,7 +905,7 @@ impl<'a> FunctionContext<'a> {
             }
 
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled("print") {
+            if freq.enabled_when("print", !self.ctx.config.avoid_print) {
                 if let Some(e) = self.gen_print(u)? {
                     return Ok(e);
                 }
@@ -1245,7 +1253,14 @@ impl<'a> FunctionContext<'a> {
         });
 
         // Derive the final result from the call, e.g. by casting, or accessing a member.
-        self.gen_expr_from_source(u, (call_expr, call_dyn), &return_type, typ, self.max_depth())
+        self.gen_expr_from_source(
+            u,
+            (call_expr, call_dyn),
+            &return_type,
+            true,
+            typ,
+            self.max_depth(),
+        )
     }
 
     /// Generate a call to a specific function, with arbitrary literals

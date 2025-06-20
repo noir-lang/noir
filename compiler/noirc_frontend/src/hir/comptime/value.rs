@@ -89,6 +89,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
@@ -574,6 +575,7 @@ impl Value {
                 | I16(_)
                 | I32(_)
                 | I64(_)
+                | U1(_)
                 | U8(_)
                 | U16(_)
                 | U32(_)
@@ -584,12 +586,50 @@ impl Value {
 
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
+            Value::Function(..) => true,
+            Value::Closure(..) => true,
             Value::Array(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Function(..) => true,
-            Value::Closure(..) => true,
-            _ => false,
+            Value::Slice(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Tuple(values) => values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Struct(fields, _) => {
+                fields.values().any(|value| value.contains_function_or_closure())
+            }
+            Value::Enum(_, values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Field(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U1(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::U128(_)
+            | Value::String(_)
+            | Value::FormatString(_, _)
+            | Value::CtString(_)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitConstraint(_, _)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Zeroed(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_) => false,
         }
     }
 
@@ -609,6 +649,7 @@ impl Value {
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::U1(value) => Some(FieldElement::from(*value)),
             Self::U8(value) => Some((*value as u128).into()),
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),

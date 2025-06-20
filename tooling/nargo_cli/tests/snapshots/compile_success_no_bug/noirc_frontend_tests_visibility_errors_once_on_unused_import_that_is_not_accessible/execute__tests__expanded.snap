@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-use crate::moo::Foo;
+use moo::Foo;
 
 mod moo {
     struct Foo {}

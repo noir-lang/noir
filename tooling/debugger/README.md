@@ -374,7 +374,7 @@ Running `stacktrace` will print information about the current frame in the stack
 ```
 > stacktrace
 Frame #0, opcode 12: EXPR [ (1, _5, _5) (-1, _6) 0 ]
-At /1_mul/src/main.nr:6:5
+At /a_1_mul/src/main.nr:6:5
   1    // Test unsafe integer multiplication with overflow: 12^8 = 429 981 696
   2    // The circuit should handle properly the growth of the bit size
   3    fn main(mut x: u32, y: u32, z: u32) {
