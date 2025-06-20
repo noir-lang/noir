@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750430906224,
+  "lastUpdate": 1750430911097,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d49ec03978679de9d325c56077cacc4a86931e08",
-          "message": "fix(licm): Account for negative bounds when checking whether a loop executes  (#8889)",
-          "timestamp": "2025-06-12T13:10:24Z",
-          "tree_id": "5efe621aa8ccaa9fc4faa575730e8b32b92e0a7e",
-          "url": "https://github.com/noir-lang/noir/commit/d49ec03978679de9d325c56077cacc4a86931e08"
-        },
-        "date": 1749736018945,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.516,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.322,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.066,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.064,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.552,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.8,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.76,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "256c67899ade021c0140a204dd00801eaebda055",
+          "message": "fix: check \"negate with overflow\" in comptime code + allow u1 to be used in comptime code (#8969)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-20T14:13:38Z",
+          "tree_id": "98bf0640c336d3123fb02d1e96fbf5c48d2d84c7",
+          "url": "https://github.com/noir-lang/noir/commit/256c67899ade021c0140a204dd00801eaebda055"
+        },
+        "date": 1750430897305,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.464,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.402,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.144,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 19.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 181,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.244,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.258,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.754,
             "unit": "s"
           }
         ]
