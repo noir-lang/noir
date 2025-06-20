@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750430196334,
+  "lastUpdate": 1750430576816,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d49ec03978679de9d325c56077cacc4a86931e08",
-          "message": "fix(licm): Account for negative bounds when checking whether a loop executes  (#8889)",
-          "timestamp": "2025-06-12T13:10:24Z",
-          "tree_id": "5efe621aa8ccaa9fc4faa575730e8b32b92e0a7e",
-          "url": "https://github.com/noir-lang/noir/commit/d49ec03978679de9d325c56077cacc4a86931e08"
-        },
-        "date": 1749735111165,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250850,
-            "range": "± 2358",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222279,
-            "range": "± 6605",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786664,
-            "range": "± 12039",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786586,
             "range": "± 3698",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "256c67899ade021c0140a204dd00801eaebda055",
+          "message": "fix: check \"negate with overflow\" in comptime code + allow u1 to be used in comptime code (#8969)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-20T14:13:38Z",
+          "tree_id": "98bf0640c336d3123fb02d1e96fbf5c48d2d84c7",
+          "url": "https://github.com/noir-lang/noir/commit/256c67899ade021c0140a204dd00801eaebda055"
+        },
+        "date": 1750430563547,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255396,
+            "range": "± 1044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223293,
+            "range": "± 4961",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788895,
+            "range": "± 8654",
             "unit": "ns/iter"
           }
         ]
