@@ -1519,7 +1519,42 @@
 <a href="#1518" id="1518">1518</a>
 <a href="#1519" id="1519">1519</a>
 <a href="#1520" id="1520">1520</a>
-<a href="#1521" id="1521">1521</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1979,8 +2014,10 @@
 
                 <span class="comment">// If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(last_store) = references.last_stores.get(<span class="kw-2">&amp;</span>address) {
-                    <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>last_store);
+                </span><span class="kw">if </span>!<span class="self">self</span>.aliased_references.contains_key(<span class="kw-2">&amp;</span>address) {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(last_store) = references.last_stores.get(<span class="kw-2">&amp;</span>address) {
+                        <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>last_store);
+                    }
                 }
 
                 references.for_each_alias_of(value, |<span class="kw">_</span>, alias| {
@@ -2461,9 +2498,7 @@
         // The first store is not removed as it is used as a nested reference in another store.
         // We would need to track whether the store where `v0` is the store value gets removed to know whether
         // to remove it.
-        // The first store in b1 is removed since there is another store to the same reference
-        // in the same block, and the store is not needed before the later store.
-        // The rest of the stores are also removed as no loads are done within any blocks
+        // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
         </span><span class="kw">let </span>expected = <span class="string">"
         acir(inline) fn main f0 {
@@ -2473,6 +2508,7 @@
             v2 = allocate -&gt; &amp;mut &amp;mut Field
             jmp b1()
           b1():
+            store Field 1 at v0
             return
         }
         "</span>;
@@ -3034,6 +3070,40 @@
           b6(v1: u1):
             return v1
         }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>keep_last_stores_with_aliased_references() {
+        <span class="comment">// Ensure `store v8 at v1` is not removed from the program
+        // just because there is a subsequent `store v10 at v1`.
+        // In this case `v1` is aliased to `*v3` so the store is significant.
+        </span><span class="kw">let </span>src = <span class="string">"
+            acir(inline) fn main f0 {
+              b0():
+                v1 = allocate -&gt; &amp;mut Field
+                store Field 0 at v1
+                v3 = allocate -&gt; &amp;mut &amp;mut Field
+                store v1 at v3
+                jmp b1(u32 10)
+              b1(v0: u32):
+                v6 = lt v0, u32 11
+                jmpif v6 then: b2, else: b3
+              b2():
+                v8 = cast v0 as Field
+                store v8 at v1
+                v9 = load v3 -&gt; &amp;mut Field
+                v10 = load v9 -&gt; Field
+                store v10 at v1
+                v12 = unchecked_add v0, u32 1
+                jmp b1(v12)
+              b3():
+                v7 = load v1 -&gt; Field
+                return v7
+            }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.mem2reg();
