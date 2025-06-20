@@ -12,7 +12,6 @@ message BrilligOpcode {
     BinaryIntOp binary_int_op = 2;
     Not not = 3;
     Cast cast = 4;
-    JumpIfNot jump_if_not = 5;
     JumpIf jump_if = 6;
     Jump jump = 7;
     CalldataCopy calldata_copy = 8;
@@ -51,10 +50,6 @@ message BrilligOpcode {
     MemoryAddress destination = 1;
     MemoryAddress source = 2;
     BitSize bit_size = 3;
-  }
-  message JumpIfNot {
-    MemoryAddress condition = 1;
-    uint64 location = 2;
   }
   message JumpIf {
     MemoryAddress condition = 1;

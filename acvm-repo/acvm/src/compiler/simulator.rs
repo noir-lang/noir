@@ -74,19 +74,13 @@ impl CircuitSimulator {
                 }
                 true
             }
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 if !self.initialized_blocks.contains(block_id) {
                     // Memory must be initialized before it can be used.
                     return false;
                 }
-
                 if !self.can_solve_expression(&op.index) {
                     return false;
-                }
-                if let Some(predicate) = predicate {
-                    if !self.can_solve_expression(predicate) {
-                        return false;
-                    }
                 }
                 if op.operation.is_zero() {
                     let Some(w) = op.value.to_witness() else {
@@ -154,8 +148,8 @@ impl CircuitSimulator {
     }
 
     pub fn can_solve_function_input<F: AcirField>(&self, input: &FunctionInput<F>) -> bool {
-        if !input.is_constant() {
-            return self.solvable_witness.contains(&input.to_witness());
+        if let FunctionInput::Witness(w) = input {
+            return self.solvable_witness.contains(w);
         }
         true
     }
@@ -306,7 +300,6 @@ mod tests {
                         },
                         Witness(2),
                     ),
-                    predicate: None,
                 },
             ],
             BTreeSet::from([Witness(1)]),

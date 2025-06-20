@@ -109,7 +109,6 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::ForeignCall { function, .. } => format!("foreign_call({})", function),
         BrilligOpcode::Jump { .. } => "jump".to_string(),
         BrilligOpcode::JumpIf { .. } => "jump_if".to_string(),
-        BrilligOpcode::JumpIfNot { .. } => "jump_if_not".to_string(),
         BrilligOpcode::Load { .. } => "load".to_string(),
         BrilligOpcode::Mov { .. } => "mov".to_string(),
         BrilligOpcode::Return => "return".to_string(),
