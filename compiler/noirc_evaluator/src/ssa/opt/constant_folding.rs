@@ -729,7 +729,7 @@ impl<'brillig> Context<'brillig> {
                 return;
             };
 
-            if !matches!(function.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_)) {
+            if !function.dfg.type_of_value(*value).is_array() {
                 // Early return as we only care about arrays and slices. (`Store` can act on non-array values as well)
                 return;
             };
