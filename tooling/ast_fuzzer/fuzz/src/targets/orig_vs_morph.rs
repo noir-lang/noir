@@ -301,7 +301,7 @@ mod rules {
 
     use super::helpers::{gen_expr, has_side_effect};
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::expr;
+    use noir_ast_fuzzer::{expr, types};
     use noirc_frontend::{
         ast::BinaryOpKind,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
@@ -517,6 +517,8 @@ mod rules {
                     && (ctx.unconstrained || !ctx.is_in_range)
                     // `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
                     && !matches!(expr, Expression::Let(_))
+                    // We can't return references from an `if` statement
+                    && expr.return_type().map(|typ| !types::contains_reference(typ.as_ref())).unwrap_or(true)
             },
             |u, vars, expr| {
                 let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
@@ -804,7 +806,7 @@ mod helpers {
 #[cfg(test)]
 mod tests {
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0xb2fb5f0b00100000 \
+    /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```

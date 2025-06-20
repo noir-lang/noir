@@ -1225,6 +1225,91 @@ mod completion_tests {
     }
 
     #[test]
+    async fn test_suggests_generic_struct_methods_after_colons() {
+        let src = r#"
+            struct Some<T> {
+            }
+
+            impl<T> Some<T> {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Some::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar(…)",
+                        "foobar(${1:self}, ${2:x})",
+                        "fn(self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar2(…)",
+                        "foobar2(${1:self}, ${2:x})",
+                        "fn(&mut self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                function_completion_item("foobar3(…)", "foobar3(${1:y})", "fn(i32)"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
+    async fn test_suggests_generic_struct_with_turbofish_methods_after_colons() {
+        let src = r#"
+            struct Some<T> {
+            }
+
+            impl Some<i32> {
+                fn foobar(self, x: i32) {}
+                fn foobar2(&mut self, x: i32) {}
+            }
+
+            impl Some<i64> {
+                fn foobar3(y: i32) {}
+            }
+
+            fn foo() {
+                Some::<i32>::>|<
+            }
+        "#;
+        assert_completion(
+            src,
+            vec![
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar(…)",
+                        "foobar(${1:self}, ${2:x})",
+                        "fn(self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                completion_item_with_sort_text(
+                    function_completion_item(
+                        "foobar2(…)",
+                        "foobar2(${1:self}, ${2:x})",
+                        "fn(&mut self, i32)",
+                    ),
+                    self_mismatch_sort_text(),
+                ),
+                function_completion_item("foobar3(…)", "foobar3(${1:y})", "fn(i32)"),
+            ],
+        )
+        .await;
+    }
+
+    #[test]
     async fn test_suggests_struct_behind_alias_methods_after_dot() {
         let src = r#"
             struct Some {
