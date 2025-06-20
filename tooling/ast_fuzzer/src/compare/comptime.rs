@@ -16,10 +16,12 @@ use noirc_driver::{
     file_manager_with_stdlib, prepare_crate,
 };
 use noirc_evaluator::ssa::SsaProgramArtifact;
-use noirc_frontend::{hir::Context, monomorphization::ast::Program};
+use noirc_frontend::{elaborator::interpret, hir::Context, monomorphization::ast::Program};
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
-use crate::{Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi};
+use crate::{
+    Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
+};
 
 /// Prepare a code snippet.
 /// (copied from nargo_cli/tests/common.rs)
@@ -75,7 +77,58 @@ pub struct CompareComptime {
 }
 
 impl CompareComptime {
-    /// Execute the Noir code and the SSA, then compare the results.
+    /// Execute the Noir code with the comptime interpreter
+    /// and prepare SSA returning the result literal,
+    /// then compare SSA execution results.
+    pub fn exec_direct(
+        &self,
+        f_comptime: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+    ) -> eyre::Result<CompareCompiledResult> {
+        // log source code before interpreting
+        log::debug!("comptime src:\n{}", self.source);
+
+        let comptime_res = match interpret(&format!("comptime {}", self.source)) {
+            Err(e) => {
+                panic!("elaborator error while interpreting generated comptime code: {:?}", e)
+            }
+            Ok(res) => res,
+        };
+
+        let program_comptime = program_wrap_expression(comptime_res)?;
+        let comptime_ssa = CompareArtifact::from(f_comptime(program_comptime)?);
+
+        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let initial_witness = self.abi.encode(&BTreeMap::new(), None).wrap_err("abi::encode")?;
+
+        let do_exec = |program| {
+            let mut print = Vec::new();
+
+            let mut foreign_call_executor = DefaultForeignCallBuilder::default()
+                .with_mocks(false)
+                .with_output(&mut print)
+                .build();
+
+            nargo::ops::execute_program(
+                program,
+                initial_witness.clone(),
+                &blackbox_solver,
+                &mut foreign_call_executor,
+            )
+        };
+
+        let res1 = do_exec(&comptime_ssa.artifact.program);
+        let res2 = do_exec(&self.ssa.artifact.program);
+
+        CompareCompiledResult::new(
+            &self.abi,
+            &Default::default(),
+            &self.ssa.artifact.error_types,
+            (res1, "".into()),
+            (res2, "".into()),
+        )
+    }
+
+    /// Execute the Noir code (via nargo) and the SSA, then compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
         let blackbox_solver = Bn254BlackBoxSolver(false);
 
@@ -164,16 +217,13 @@ impl CompareComptime {
     pub fn arb(
         u: &mut Unstructured,
         c: Config,
-        f: impl FnOnce(
-            &mut Unstructured,
-            Program,
-        ) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
+        f: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
     ) -> arbitrary::Result<Self> {
         let force_brillig = c.force_brillig;
         let program = arb_program_comptime(u, c)?;
         let abi = program_abi(&program);
 
-        let ssa = CompareArtifact::from(f(u, program.clone())?);
+        let ssa = CompareArtifact::from(f(program.clone())?);
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
 
