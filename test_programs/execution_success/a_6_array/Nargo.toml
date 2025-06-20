@@ -1,5 +1,6 @@
 [package]
-name = "1327_concrete_in_generic"
+name = "a_6_array"
 type = "bin"
 authors = [""]
+
 [dependencies]
