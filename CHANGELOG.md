@@ -1,5 +1,52 @@
 # Changelog
 
+## [1.0.0-beta.8](https://github.com/noir-lang/noir/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-06-20)
+
+
+### Features
+
+* **fuzz:** Add comptime_vs_brillig_direct target ([#8924](https://github.com/noir-lang/noir/issues/8924)) ([1478114](https://github.com/noir-lang/noir/commit/14781141f325e533c81eb5609d8fa89fd18e86c2))
+* **fuzz:** Generate references in the AST fuzzer ([#8728](https://github.com/noir-lang/noir/issues/8728)) ([071c897](https://github.com/noir-lang/noir/commit/071c897fa37987b61d2e87b506fa4bc3566c13d9))
+* Simplify apply function cfg immediately ([#8895](https://github.com/noir-lang/noir/issues/8895)) ([b09073a](https://github.com/noir-lang/noir/commit/b09073a7ec8b5a56a4b7a95847654d6311681721))
+* **ssa_fuzzer:** Loops + signed  ([#8881](https://github.com/noir-lang/noir/issues/8881)) ([8a7046b](https://github.com/noir-lang/noir/commit/8a7046bb1097d49f04b5f85c70ae24155b7f30fb))
+
+
+### Bug Fixes
+
+* Add a aliased check for last stores ([#8955](https://github.com/noir-lang/noir/issues/8955)) ([a56d36a](https://github.com/noir-lang/noir/commit/a56d36a40a1d72f02892f8dd9360800bcde24b75))
+* Assorted SSA interpreter fixes ([#8893](https://github.com/noir-lang/noir/issues/8893)) ([ca3238c](https://github.com/noir-lang/noir/commit/ca3238ce58970f5dad96e9794690a5534cf5c693))
+* Better package name validation and error messages for nargo new/init ([#8978](https://github.com/noir-lang/noir/issues/8978)) ([06c73d7](https://github.com/noir-lang/noir/commit/06c73d7c6390fb5030353f5b82089b84cf415d75))
+* Catch unbound type variables during frontend compilation ([#8686](https://github.com/noir-lang/noir/issues/8686)) ([53bd661](https://github.com/noir-lang/noir/commit/53bd661af5be4bdf683225f2ec6cb8798a722415))
+* Check "negate with overflow" in comptime code + allow u1 to be used in comptime code ([#8969](https://github.com/noir-lang/noir/issues/8969)) ([256c678](https://github.com/noir-lang/noir/commit/256c67899ade021c0140a204dd00801eaebda055))
+* Create calls to `apply` before function values are changed to fields in defunctionalize ([#8916](https://github.com/noir-lang/noir/issues/8916)) ([3546f47](https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31))
+* **defunctionalize:** Create a placeholder function for first-class function calls with no variants ([#8697](https://github.com/noir-lang/noir/issues/8697)) ([e96b40c](https://github.com/noir-lang/noir/commit/e96b40c4214967f14da5beabf2570a2b082940e7))
+* Do not hoist control dependent cast ([#8886](https://github.com/noir-lang/noir/issues/8886)) ([98d19fb](https://github.com/noir-lang/noir/commit/98d19fb4d61fd3b4f6420862af2d5f7af8a30f0f))
+* **expand:** Show references to ModuleDefId recursing on parents ([#8977](https://github.com/noir-lang/noir/issues/8977)) ([2cfc786](https://github.com/noir-lang/noir/commit/2cfc7866b5a5e24829d4176e2aea897f72839674))
+* Fix if/match tracking in last uses pass ([#8935](https://github.com/noir-lang/noir/issues/8935)) ([670063c](https://github.com/noir-lang/noir/commit/670063c66c5327685def09bfc2563fccc9e7b267))
+* **formatter:** Reset indetnation after group changed it ([#8966](https://github.com/noir-lang/noir/issues/8966)) ([39cec14](https://github.com/noir-lang/noir/commit/39cec14be0a4dae7aff54a8b579535b27d58728b))
+* **fuzz:** Avoid negating `i8::MIN` into `i8::MAX+1` which won't compile ([#8972](https://github.com/noir-lang/noir/issues/8972)) ([f1a3938](https://github.com/noir-lang/noir/commit/f1a3938e429863a211a09a7cf1837dbe1b1320f4))
+* **fuzz:** Consider values returned from Brillig to ACIR as dynamic ([#8931](https://github.com/noir-lang/noir/issues/8931)) ([b04a51c](https://github.com/noir-lang/noir/commit/b04a51c190bf277bdd86b5f0255ba410dafcee0d))
+* **fuzz:** Do not take a mutable reference over immutable vars which contain a mutable ref ([#8971](https://github.com/noir-lang/noir/issues/8971)) ([de51b8f](https://github.com/noir-lang/noir/commit/de51b8fa9633bd467cb42db5d242cbe72d6691e5))
+* **fuzz:** Fix env var name in fuzzing workflow ([#8929](https://github.com/noir-lang/noir/issues/8929)) ([7b972b5](https://github.com/noir-lang/noir/commit/7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e))
+* **fuzz:** Use an inline block to circumvent negation with overflow ([#8911](https://github.com/noir-lang/noir/issues/8911)) ([753ad6f](https://github.com/noir-lang/noir/commit/753ad6fb530beb01f94ebf75946050627ede2c11))
+* Handle return_data in the interpreter SSA CLI ([#8914](https://github.com/noir-lang/noir/issues/8914)) ([237876e](https://github.com/noir-lang/noir/commit/237876ef9e918d6b7df511aa46f257e18ca04d71))
+* Increment reference counts when deduplicating calls which return arrays ([#8757](https://github.com/noir-lang/noir/issues/8757)) ([d7030e8](https://github.com/noir-lang/noir/commit/d7030e8c4e05dcba0eb30adac7f0f18458b306f0))
+* Inline global arrays with functions at their call site ([#8905](https://github.com/noir-lang/noir/issues/8905)) ([202130c](https://github.com/noir-lang/noir/commit/202130c2cd178fef812c6f6afb82b575a8d95352))
+* **licm:** Account for negative bounds when checking whether a loop executes  ([#8889](https://github.com/noir-lang/noir/issues/8889)) ([d49ec03](https://github.com/noir-lang/noir/commit/d49ec03978679de9d325c56077cacc4a86931e08))
+* **LICM:** Consider negative loop bounds before hoisting `div <const> <induction-var>` ([#8986](https://github.com/noir-lang/noir/issues/8986)) ([5845dc5](https://github.com/noir-lang/noir/commit/5845dc5aaf039d71d45700bb6784b4df7da03bae))
+* **LSP:** Suggest generic type methods ([#8948](https://github.com/noir-lang/noir/issues/8948)) ([c0d47a5](https://github.com/noir-lang/noir/commit/c0d47a5a9c1e931b26e3ad2e911bed4845ddc9a2))
+* Match against all Value recursive types when checking for a function/closure in a global ([#8967](https://github.com/noir-lang/noir/issues/8967)) ([e43a7f4](https://github.com/noir-lang/noir/commit/e43a7f4e8fd784aa75e1fd525f582d1373db6bb2))
+* **mem2reg:** Keep last store for a used nested array  ([#8917](https://github.com/noir-lang/noir/issues/8917)) ([2e36b30](https://github.com/noir-lang/noir/commit/2e36b3098e765809227ac9685eded019674bf203))
+* **mem2reg:** Keep last store for reference in array used only in an array get ([#8877](https://github.com/noir-lang/noir/issues/8877)) ([b6ad823](https://github.com/noir-lang/noir/commit/b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26))
+* **mem2reg:** Keep store when any aliased reference is kept ([#8960](https://github.com/noir-lang/noir/issues/8960)) ([8aa2267](https://github.com/noir-lang/noir/commit/8aa2267d83404f9ea1606e1c33bd011206d7ba8c))
+* More SSA interpreter fixes ([#8904](https://github.com/noir-lang/noir/issues/8904)) ([abef727](https://github.com/noir-lang/noir/commit/abef727248de29793020d2cc4483ddbeee89b95c))
+* **noirc_evaluator:** U128 Binary::And simplification ([#8940](https://github.com/noir-lang/noir/issues/8940)) ([5071093](https://github.com/noir-lang/noir/commit/5071093f9b51e111a49a5f78d827774ef8e80c74))
+* **parser:** Let `as` have a lower precedence ([#8956](https://github.com/noir-lang/noir/issues/8956)) ([71ab596](https://github.com/noir-lang/noir/commit/71ab596c0f6ef955994d0af1c47f8e340a24898c))
+* Preserve functions which are used in `array_set` instructions ([#8891](https://github.com/noir-lang/noir/issues/8891)) ([945ea6e](https://github.com/noir-lang/noir/commit/945ea6e11d5ca89cfb62bc8e7dc5dda16fefd512))
+* **ssa:** Signed cast simplification ([#8862](https://github.com/noir-lang/noir/issues/8862)) ([bcfb293](https://github.com/noir-lang/noir/commit/bcfb293510273b3019ab36c02db4284a5eac99e2))
+* **ssa:** Swap Brillig index shift and DIE in minimal pipeline ([#8946](https://github.com/noir-lang/noir/issues/8946)) ([b891901](https://github.com/noir-lang/noir/commit/b891901edd36574c6e6817d1f6ca182a93830739))
+* When macro parse error happens, discard warnings; also preserve unquoted token locations ([#8944](https://github.com/noir-lang/noir/issues/8944)) ([d1e55d9](https://github.com/noir-lang/noir/commit/d1e55d93e31cefc8331d8f1174f56db87a995374))
+
 ## [1.0.0-beta.7](https://github.com/noir-lang/noir/compare/v1.0.0-beta.6...v1.0.0-beta.7) (2025-06-12)
 
 
