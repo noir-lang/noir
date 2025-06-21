@@ -151,6 +151,15 @@ impl Interpreter<'_> {
                     let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
+                acvm::acir::BlackBoxFunc::Blake2b => {
+                    check_argument_count(args, 1, intrinsic)?;
+                    let inputs = self.lookup_bytes(args[0], "call Blake2b BlackBox")?;
+                    let result =
+                        acvm::blackbox_solver::blake2b(&inputs).map_err(Self::convert_error)?;
+                    let result = result.iter().map(|e| (*e as u128).into());
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
+                    Ok(vec![result])
+                }
                 acvm::acir::BlackBoxFunc::Blake3 => {
                     check_argument_count(args, 1, intrinsic)?;
                     let inputs = self.lookup_bytes(args[0], "call Blake3 BlackBox")?;

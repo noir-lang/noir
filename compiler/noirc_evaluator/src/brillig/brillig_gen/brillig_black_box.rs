@@ -40,6 +40,25 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 unreachable!("ICE: Blake2s expects one array argument and one array result")
             }
         }
+        BlackBoxFunc::Blake2b => {
+            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
+                (function_arguments, function_results)
+            {
+                let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
+                let output_heap_array =
+                    brillig_context.codegen_brillig_array_to_heap_array(*result_array);
+
+                brillig_context.black_box_op_instruction(BlackBoxOp::Blake2b {
+                    message: message_vector,
+                    output: output_heap_array,
+                });
+
+                brillig_context.deallocate_heap_vector(message_vector);
+                brillig_context.deallocate_heap_array(output_heap_array);
+            } else {
+                unreachable!("ICE: Blake2b expects one array argument and one array result")
+            }
+        }
         BlackBoxFunc::Blake3 => {
             if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
                 (function_arguments, function_results)

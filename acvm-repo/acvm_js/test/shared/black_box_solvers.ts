@@ -52,6 +52,17 @@ export const blake2s256_test_cases: [Uint8Array, Uint8Array][] = [
   ],
 ];
 
+// https://www.rfc-editor.org/rfc/rfc7693.html#appendix-B
+export const blake2b256_test_cases: [Uint8Array, Uint8Array][] = [
+  [
+    // "abc"
+    Uint8Array.from([0x61, 0x62, 0x63]),
+    Uint8Array.from([
+      189, 221, 129, 60, 99, 66, 57, 114, 49, 113, 239, 63, 238, 152, 87, 155, 148, 150, 78, 59, 177, 203, 62, 66, 114, 98, 200, 192, 104, 213, 35, 25,
+    ]),
+  ],
+];
+
 export const keccak256_test_cases: [Uint8Array, Uint8Array][] = [
   [
     Uint8Array.from([0xbd]),
