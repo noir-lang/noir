@@ -106,6 +106,7 @@ message BlackBoxFuncCall {
     BigIntToLeBytes big_int_to_le_bytes = 18;
     Poseidon2Permutation poseidon2_permutation = 19;
     Sha256Compression sha256_compression = 20;
+    Blake2b blake2b = 21;
   }
   message AES128Encrypt {
     repeated FunctionInput inputs = 1;
@@ -125,6 +126,10 @@ message BlackBoxFuncCall {
   }
   message RANGE { FunctionInput input = 1; }
   message Blake2s {
+    repeated FunctionInput inputs = 1;
+    repeated native.Witness outputs = 2;
+  }
+  message Blake2b {
     repeated FunctionInput inputs = 1;
     repeated native.Witness outputs = 2;
   }

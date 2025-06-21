@@ -70,6 +70,7 @@ fn call_foreign(
         "bigint_mul" => bigint_op(bigint_solver, BigIntMul, args, return_type, location),
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
+        "blake2b" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2b),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
             interner,
@@ -216,6 +217,7 @@ fn bigint_op(
 /// Run one of the Blake hash functions.
 /// ```text
 /// pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+/// pub fn blake2b<let N: u32>(input: [u8; N]) -> [u8; 32]
 /// pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 /// ```
 fn blake_hash(

@@ -9,6 +9,7 @@ fn format_blackbox_function<F: AcirField>(call: &BlackBoxFuncCall<F>) -> String 
         BlackBoxFuncCall::XOR { .. } => "xor".to_string(),
         BlackBoxFuncCall::RANGE { .. } => "range".to_string(),
         BlackBoxFuncCall::Blake2s { .. } => "blake2s".to_string(),
+        BlackBoxFuncCall::Blake2b { .. } => "blake2b".to_string(),
         BlackBoxFuncCall::Blake3 { .. } => "blake3".to_string(),
         BlackBoxFuncCall::EcdsaSecp256k1 { .. } => "ecdsa_secp256k1".to_string(),
         BlackBoxFuncCall::EcdsaSecp256r1 { .. } => "ecdsa_secp256r1".to_string(),
@@ -31,6 +32,7 @@ fn format_blackbox_op(call: &BlackBoxOp) -> String {
     match call {
         BlackBoxOp::AES128Encrypt { .. } => "aes128_encrypt".to_string(),
         BlackBoxOp::Blake2s { .. } => "blake2s".to_string(),
+        BlackBoxOp::Blake2b { .. } => "blake2b".to_string(),
         BlackBoxOp::Blake3 { .. } => "blake3".to_string(),
         BlackBoxOp::EcdsaSecp256k1 { .. } => "ecdsa_secp256k1".to_string(),
         BlackBoxOp::EcdsaSecp256r1 { .. } => "ecdsa_secp256r1".to_string(),

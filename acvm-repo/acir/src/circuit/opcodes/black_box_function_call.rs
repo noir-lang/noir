@@ -138,6 +138,12 @@ pub enum BlackBoxFuncCall<F> {
     /// - output is a byte array of length 32, i.e. an array of 32
     ///   (witness, 8), constrained to be the blake2s of the inputs.
     Blake2s { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
+    /// Computes the Blake2b hash of the inputs, as specified in
+    /// <https://tools.ietf.org/html/rfc7693>
+    /// - inputs are a byte array, i.e a vector of (witness, 8)
+    /// - output is a byte array of length 32, i.e. an array of 32
+    ///   (witness, 8), constrained to be the blake2b of the inputs.
+    Blake2b { inputs: Vec<FunctionInput<F>>, outputs: Box<[Witness; 32]> },
     /// Computes the Blake3 hash of the inputs
     /// - inputs are a byte array, i.e a vector of (witness, 8)
     /// - output is a byte array of length 32, i.e an array of 32
@@ -312,6 +318,7 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::XOR { .. } => BlackBoxFunc::XOR,
             BlackBoxFuncCall::RANGE { .. } => BlackBoxFunc::RANGE,
             BlackBoxFuncCall::Blake2s { .. } => BlackBoxFunc::Blake2s,
+            BlackBoxFuncCall::Blake2b { .. } => BlackBoxFunc::Blake2b,
             BlackBoxFuncCall::Blake3 { .. } => BlackBoxFunc::Blake3,
             BlackBoxFuncCall::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,
             BlackBoxFuncCall::EcdsaSecp256r1 { .. } => BlackBoxFunc::EcdsaSecp256r1,
@@ -337,6 +344,7 @@ impl<F> BlackBoxFuncCall<F> {
     pub fn get_outputs_vec(&self) -> Vec<Witness> {
         match self {
             BlackBoxFuncCall::Blake2s { outputs, .. }
+            | BlackBoxFuncCall::Blake2b { outputs, .. }
             | BlackBoxFuncCall::Blake3 { outputs, .. } => outputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { outputs, .. } => outputs.to_vec(),
@@ -373,6 +381,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
         match self {
             BlackBoxFuncCall::AES128Encrypt { inputs, .. }
             | BlackBoxFuncCall::Blake2s { inputs, .. }
+            | BlackBoxFuncCall::Blake2b { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
@@ -605,6 +614,9 @@ mod arb {
             let case_blake2s = (input_vec.clone(), witness_arr_32.clone())
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2s { inputs, outputs });
 
+            let case_blake2b = (input_vec.clone(), witness_arr_32.clone())
+                .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake2b { inputs, outputs });
+
             let case_blake3 = (input_vec.clone(), witness_arr_32.clone())
                 .prop_map(|(inputs, outputs)| BlackBoxFuncCall::Blake3 { inputs, outputs });
 
@@ -735,6 +747,7 @@ mod arb {
                 case_xor,
                 case_range,
                 case_blake2s,
+                case_blake2b,
                 case_blake3,
                 case_ecdsa_secp256k1,
                 case_ecdsa_secp256r1,

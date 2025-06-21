@@ -4,6 +4,9 @@ use blake2::{Blake2s256, Digest};
 
 use crate::BlackBoxResolutionError;
 
+// Blake2b with 256-bit output - using blake2::Blake2b with generic parameter for 32 bytes
+type Blake2b256 = blake2::Blake2b<blake2::digest::consts::U32>;
+
 /// Does a generic hash of the inputs returning the resulting 32 bytes separately.
 fn generic_hash_256<D: Digest>(message: &[u8]) -> Result<[u8; 32], String> {
     let output_bytes: [u8; 32] =
@@ -15,6 +18,11 @@ fn generic_hash_256<D: Digest>(message: &[u8]) -> Result<[u8; 32], String> {
 pub fn blake2s(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
     generic_hash_256::<Blake2s256>(inputs)
         .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Blake2s, err))
+}
+
+pub fn blake2b(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {
+    generic_hash_256::<Blake2b256>(inputs)
+        .map_err(|err| BlackBoxResolutionError::Failed(BlackBoxFunc::Blake2b, err))
 }
 
 pub fn blake3(inputs: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError> {

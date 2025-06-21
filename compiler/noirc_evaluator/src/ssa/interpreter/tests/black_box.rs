@@ -137,6 +137,31 @@ fn test_blake2s() {
 }
 
 #[test]
+fn test_blake2b() {
+    let src = "
+    acir(inline) predicate_pure fn main f0 {
+      b0(v0: [u8; 5]):
+        v3 = call blake2b(v0) -> [u8; 32]
+        return v3
+    }
+      ";
+    let input = from_u32_slice(&[104, 101, 108, 108, 111], NumericType::unsigned(8));
+
+    let values = expect_values_with_args(src, vec![input]);
+    assert!(values.len() == 1);
+    let result = values[0].as_array_or_slice().unwrap();
+    let result = result.elements.borrow();
+    let result = result.iter().map(|v| v.as_u8().unwrap());
+    assert_eq!(
+        result.collect::<Vec<u8>>(),
+        vec![
+            50, 77, 207, 2, 125, 212, 163, 10, 147, 44, 68, 31, 54, 90, 37, 232, 107, 23, 61, 239,
+            164, 184, 229, 137, 72, 37, 52, 113, 184, 27, 114, 207
+        ]
+    );
+}
+
+#[test]
 fn test_keccak() {
     let src = "
     acir(inline) predicate_pure fn main f0 {

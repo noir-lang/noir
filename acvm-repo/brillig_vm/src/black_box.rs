@@ -1,7 +1,7 @@
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
-    BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2s,
+    BigIntSolverWithId, BlackBoxFunctionSolver, BlackBoxResolutionError, aes128_encrypt, blake2b, blake2s,
     blake3, ecdsa_secp256k1_verify, ecdsa_secp256r1_verify, keccakf1600, sha256_compression,
 };
 use num_bigint::BigUint;
@@ -69,6 +69,12 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
         BlackBoxOp::Blake2s { message, output } => {
             let message = to_u8_vec(read_heap_vector(memory, message));
             let bytes = blake2s(message.as_slice())?;
+            memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
+            Ok(())
+        }
+        BlackBoxOp::Blake2b { message, output } => {
+            let message = to_u8_vec(read_heap_vector(memory, message));
+            let bytes = blake2b(message.as_slice())?;
             memory.write_slice(memory.read_ref(output.pointer), &to_value_vec(&bytes));
             Ok(())
         }
@@ -365,6 +371,7 @@ fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
         BlackBoxOp::Blake2s { .. } => BlackBoxFunc::Blake2s,
+        BlackBoxOp::Blake2b { .. } => BlackBoxFunc::Blake2b,
         BlackBoxOp::Blake3 { .. } => BlackBoxFunc::Blake3,
         BlackBoxOp::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
         BlackBoxOp::EcdsaSecp256k1 { .. } => BlackBoxFunc::EcdsaSecp256k1,

@@ -300,6 +300,10 @@ where
                 inputs: Self::encode_vec(inputs),
                 outputs: Self::encode_vec(outputs.as_ref()),
             }),
+            opcodes::BlackBoxFuncCall::Blake2b { inputs, outputs } => Value::Blake2b(Blake2b {
+                inputs: Self::encode_vec(inputs),
+                outputs: Self::encode_vec(outputs.as_ref()),
+            }),
             opcodes::BlackBoxFuncCall::Blake3 { inputs, outputs } => Value::Blake3(Blake3 {
                 inputs: Self::encode_vec(inputs),
                 outputs: Self::encode_vec(outputs.as_ref()),
@@ -434,6 +438,10 @@ where
                         input: Self::decode_some_wrap(&v.input, "input")?,
                     }),
                     Value::Blake2s(v) => Ok(opcodes::BlackBoxFuncCall::Blake2s {
+                        inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
+                        outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
+                    }),
+                    Value::Blake2b(v) => Ok(opcodes::BlackBoxFuncCall::Blake2b {
                         inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
                         outputs: Self::decode_box_arr_wrap(&v.outputs, "outputs")?,
                     }),

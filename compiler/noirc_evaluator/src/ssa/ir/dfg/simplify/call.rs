@@ -606,6 +606,13 @@ fn simplify_black_box_func(
             block,
             call_stack,
         ),
+        BlackBoxFunc::Blake2b => blackbox::simplify_hash(
+            dfg,
+            arguments,
+            acvm::blackbox_solver::blake2b,
+            block,
+            call_stack,
+        ),
         BlackBoxFunc::Blake3 => blackbox::simplify_hash(
             dfg,
             arguments,

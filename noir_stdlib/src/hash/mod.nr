@@ -30,6 +30,12 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
+#[foreign(blake2b)]
+// docs:start:blake2b
+pub fn blake2b<let N: u32>(input: [u8; N]) -> [u8; 32]
+// docs:end:blake2b
+{}
+
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3

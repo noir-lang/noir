@@ -3,7 +3,7 @@ use acir::{
     circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     native_types::{Witness, WitnessMap},
 };
-use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
+use acvm_blackbox_solver::{blake2b, blake2s, blake3, keccakf1600};
 
 use self::{
     aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
@@ -96,6 +96,9 @@ pub(crate) fn solve<F: AcirField>(
         }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
+        }
+        BlackBoxFuncCall::Blake2b { inputs, outputs } => {
+            solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2b)
         }
         BlackBoxFuncCall::Blake3 { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake3)

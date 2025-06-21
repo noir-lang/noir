@@ -209,6 +209,10 @@ impl<F: AcirField> GeneratedAcir<F> {
                 inputs: inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
+            BlackBoxFunc::Blake2b => BlackBoxFuncCall::Blake2b {
+                inputs: inputs[0].clone(),
+                outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
+            },
             BlackBoxFunc::Blake3 => BlackBoxFuncCall::Blake3 {
                 inputs: inputs[0].clone(),
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
@@ -677,7 +681,7 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // All of the hash/cipher methods will take in a
         // variable number of inputs.
-        BlackBoxFunc::AES128Encrypt | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => None,
+        BlackBoxFunc::AES128Encrypt | BlackBoxFunc::Blake2s | BlackBoxFunc::Blake2b | BlackBoxFunc::Blake3 => None,
 
         BlackBoxFunc::Keccakf1600 => Some(25),
         // The permutation takes a fixed number of inputs, but the inputs length depends on the proving system implementation.
@@ -723,7 +727,7 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::AND | BlackBoxFunc::XOR => Some(1),
 
         // 32 byte hash algorithms
-        BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => Some(32),
+        BlackBoxFunc::Blake2s | BlackBoxFunc::Blake2b | BlackBoxFunc::Blake3 => Some(32),
 
         BlackBoxFunc::Keccakf1600 => Some(25),
         // The permutation returns a fixed number of outputs, equals to the inputs length which depends on the proving system implementation.

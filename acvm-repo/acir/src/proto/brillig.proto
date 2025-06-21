@@ -211,6 +211,7 @@ message BlackBoxOp {
     Poseidon2Permutation poseidon2_permutation = 15;
     Sha256Compression sha256_compression = 16;
     ToRadix to_radix = 17;
+    Blake2b blake2b = 18;
   }
   message AES128Encrypt {
     HeapVector inputs = 1;
@@ -219,6 +220,10 @@ message BlackBoxOp {
     HeapVector outputs = 4;
   }
   message Blake2s {
+    HeapVector message = 1;
+    HeapArray output = 2;
+  }
+  message Blake2b {
     HeapVector message = 1;
     HeapArray output = 2;
   }

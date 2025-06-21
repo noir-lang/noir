@@ -1087,6 +1087,18 @@ fn blake2s_op(
 
 // N inputs
 // 32 outputs
+fn blake2b_op(
+    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
+) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
+    let (function_inputs, outputs) = function_inputs_and_outputs;
+    Ok(BlackBoxFuncCall::Blake2b {
+        inputs: function_inputs,
+        outputs: outputs.try_into().expect("Blake2b returns 32 outputs"),
+    })
+}
+
+// N inputs
+// 32 outputs
 fn blake3_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
@@ -1512,6 +1524,20 @@ fn blake2s_zeros() {
 }
 
 #[test]
+fn blake2b_zeros() {
+    let pedantic_solving = true;
+    let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake2b_op);
+    let expected_results: Vec<_> = vec![
+        14, 87, 81, 192, 38, 229, 67, 178, 232, 171, 46, 176, 96, 153, 218, 161, 209, 229, 223, 71,
+        119, 143, 119, 135, 250, 171, 69, 205, 241, 47, 227, 168,
+    ]
+    .into_iter()
+    .map(|x: u128| FieldElement::from(x))
+    .collect();
+    assert_eq!(results, Ok(expected_results));
+}
+
+#[test]
 fn blake3_zeros() {
     let pedantic_solving = true;
     let results = solve_array_input_blackbox_call(vec![], 32, None, pedantic_solving, blake3_op);
@@ -1659,6 +1685,14 @@ proptest! {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let pedantic_solving = true;
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake2s_op);
+        prop_assert!(result, "{}", message);
+    }
+
+    #[test]
+    fn blake2b_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+        let (inputs, distinct_inputs) = inputs_distinct_inputs;
+        let pedantic_solving = true;
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, pedantic_solving, blake2b_op);
         prop_assert!(result, "{}", message);
     }
 
