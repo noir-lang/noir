@@ -13,15 +13,7 @@ pub(crate) fn solve_range_opcode<F: AcirField>(
     // re-enable bitsize checks by default
     let skip_bitsize_checks = !pedantic_solving;
     let w_value = input_to_value(initial_witness, *input, skip_bitsize_checks)?;
-    if input.num_bits() == 0 {
-        // FieldElement requires 1 bit for 0, so it needs special handling.
-        if !w_value.is_zero() {
-            return Err(OpcodeResolutionError::UnsatisfiedConstrain {
-                opcode_location: ErrorLocation::Unresolved,
-                payload: None,
-            });
-        }
-    } else if w_value.num_bits() > input.num_bits() {
+    if w_value.num_bits() > input.num_bits() {
         return Err(OpcodeResolutionError::UnsatisfiedConstrain {
             opcode_location: ErrorLocation::Unresolved,
             payload: None,
