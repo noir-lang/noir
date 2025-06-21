@@ -902,7 +902,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // `rhs` has the correct bit-size because either it is enforced by the overflow checks
         // or `rhs` is zero when the overflow checks are disabled.
         // Indeed, in that case, rhs is replaced with 'predicate * rhs'
-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
+        self.bound_constraint_with_offset(remainder_var, rhs, one, max_rhs_bits, predicate)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -930,7 +930,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // quotient_var is the output of a brillig call
                 self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)?;
 
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                // when q == q0, q*b+r can overflow so we need to bound r to avoid the overflow.
                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
                 let predicate = self.mul_var(size_predicate, predicate)?;
                 // Ensure that there is no overflow, under q == q0 predicate
@@ -938,11 +938,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let max_r = F::from_be_bytes_reduce(&max_r_big.to_bytes_be());
                 let max_r_var = self.add_constant(max_r);
 
-                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                // Bound the remainder to be <p-q0*b, if the predicate is true,
+                // that is, if q0 == q then assert(r < max_r), where is max_r = p-q0*b, and q0 = p/b, so that q*b+r<p
                 self.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    predicate,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )?;
