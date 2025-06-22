@@ -21,6 +21,7 @@ trait MutateVecFuzzerCommandFactory {
 }
 
 /// Return new random vector of fuzzer commands
+#[derive(Default)]
 struct RandomMutation;
 impl MutateVecFuzzerCommand for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
@@ -29,13 +30,9 @@ impl MutateVecFuzzerCommand for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl MutateVecFuzzerCommandFactory for RandomMutation {
-    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Remove randomly chosen command from the vector
+#[derive(Default)]
 struct RemoveCommandMutation;
 impl MutateVecFuzzerCommand for RemoveCommandMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
@@ -46,13 +43,9 @@ impl MutateVecFuzzerCommand for RemoveCommandMutation {
         commands
     }
 }
-impl MutateVecFuzzerCommandFactory for RemoveCommandMutation {
-    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
-        Box::new(RemoveCommandMutation)
-    }
-}
 
 /// Add randomly generated command to the vector
+#[derive(Default)]
 struct AddCommandMutation;
 impl MutateVecFuzzerCommand for AddCommandMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
@@ -64,13 +57,9 @@ impl MutateVecFuzzerCommand for AddCommandMutation {
         commands
     }
 }
-impl MutateVecFuzzerCommandFactory for AddCommandMutation {
-    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
-        Box::new(AddCommandMutation)
-    }
-}
 
 /// Replace randomly chosen command with randomly generated command
+#[derive(Default)]
 struct ReplaceCommandMutation;
 impl MutateVecFuzzerCommand for ReplaceCommandMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
@@ -85,9 +74,13 @@ impl MutateVecFuzzerCommand for ReplaceCommandMutation {
         commands
     }
 }
-impl MutateVecFuzzerCommandFactory for ReplaceCommandMutation {
+
+impl<T> MutateVecFuzzerCommandFactory for T
+where
+    T: MutateVecFuzzerCommand + Default + 'static,
+{
     fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
-        Box::new(ReplaceCommandMutation)
+        Box::new(T::default())
     }
 }
 

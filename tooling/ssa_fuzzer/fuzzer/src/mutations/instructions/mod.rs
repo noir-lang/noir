@@ -26,6 +26,7 @@ trait MutateVecInstructionBlockFactory {
 }
 
 /// Return new random vector of instruction blocks
+#[derive(Default)]
 struct RandomMutation;
 impl MutateVecInstructionBlock for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
@@ -34,13 +35,9 @@ impl MutateVecInstructionBlock for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl MutateVecInstructionBlockFactory for RandomMutation {
-    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Return vector of instruction blocks with one randomly chosen block removed
+#[derive(Default)]
 struct MutateInstructionBlockDeletionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
@@ -52,13 +49,9 @@ impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
         blocks
     }
 }
-impl MutateVecInstructionBlockFactory for MutateInstructionBlockDeletionMutation {
-    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
-        Box::new(MutateInstructionBlockDeletionMutation)
-    }
-}
 
 /// Return vector of instruction blocks with one randomly generated block inserted
+#[derive(Default)]
 struct MutateInstructionBlockInsertionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
@@ -72,13 +65,9 @@ impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
         blocks
     }
 }
-impl MutateVecInstructionBlockFactory for MutateInstructionBlockInsertionMutation {
-    fn new_box() -> Box<dyn MutateVecInstructionBlock> {
-        Box::new(MutateInstructionBlockInsertionMutation)
-    }
-}
 
 /// Return vector of instruction blocks with one randomly chosen block mutated
+#[derive(Default)]
 struct MutateInstructionBlockInstructionMutation;
 impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: Vec<InstructionBlock>) -> Vec<InstructionBlock> {
@@ -90,9 +79,13 @@ impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
         blocks
     }
 }
-impl MutateVecInstructionBlockFactory for MutateInstructionBlockInstructionMutation {
+
+impl<T> MutateVecInstructionBlockFactory for T
+where
+    T: MutateVecInstructionBlock + Default + 'static,
+{
     fn new_box() -> Box<dyn MutateVecInstructionBlock> {
-        Box::new(MutateInstructionBlockInstructionMutation)
+        Box::new(T::default())
     }
 }
 

@@ -20,6 +20,7 @@ trait ArgumentsMutatorFactory {
 }
 
 /// Return new random argument
+#[derive(Default)]
 struct RandomMutation;
 impl ArgumentsMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: Argument) -> Argument {
@@ -28,39 +29,27 @@ impl ArgumentsMutator for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl ArgumentsMutatorFactory for RandomMutation {
-    fn new_box() -> Box<dyn ArgumentsMutator> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Increment index of the argument
+#[derive(Default)]
 struct IncrementArgumentIndexMutation;
 impl ArgumentsMutator for IncrementArgumentIndexMutation {
     fn mutate(&self, _rng: &mut StdRng, value: Argument) -> Argument {
         Argument { index: value.index + 1, value_type: value.value_type }
     }
 }
-impl ArgumentsMutatorFactory for IncrementArgumentIndexMutation {
-    fn new_box() -> Box<dyn ArgumentsMutator> {
-        Box::new(IncrementArgumentIndexMutation)
-    }
-}
 
 /// Decrement index of the argument
+#[derive(Default)]
 struct DecrementArgumentIndexMutation;
 impl ArgumentsMutator for DecrementArgumentIndexMutation {
     fn mutate(&self, _rng: &mut StdRng, value: Argument) -> Argument {
         Argument { index: value.index.saturating_sub(1), value_type: value.value_type }
     }
 }
-impl ArgumentsMutatorFactory for DecrementArgumentIndexMutation {
-    fn new_box() -> Box<dyn ArgumentsMutator> {
-        Box::new(DecrementArgumentIndexMutation)
-    }
-}
 
 /// Change type of the argument
+#[derive(Default)]
 struct ChangeTypeMutation;
 impl ArgumentsMutator for ChangeTypeMutation {
     fn mutate(&self, rng: &mut StdRng, value: Argument) -> Argument {
@@ -70,9 +59,13 @@ impl ArgumentsMutator for ChangeTypeMutation {
         Argument { index: value.index, value_type }
     }
 }
-impl ArgumentsMutatorFactory for ChangeTypeMutation {
+
+impl<T> ArgumentsMutatorFactory for T
+where
+    T: ArgumentsMutator + Default + 'static,
+{
     fn new_box() -> Box<dyn ArgumentsMutator> {
-        Box::new(ChangeTypeMutation)
+        Box::new(T::default())
     }
 }
 

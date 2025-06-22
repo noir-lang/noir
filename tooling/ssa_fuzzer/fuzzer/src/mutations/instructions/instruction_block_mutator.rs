@@ -22,6 +22,7 @@ trait InstructionBlockMutatorFactory {
 }
 
 /// Return new random instruction block
+#[derive(Default)]
 struct RandomMutation;
 impl InstructionBlockMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: InstructionBlock) -> InstructionBlock {
@@ -30,13 +31,9 @@ impl InstructionBlockMutator for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl InstructionBlockMutatorFactory for RandomMutation {
-    fn new_box() -> Box<dyn InstructionBlockMutator> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Remove randomly chosen instruction from the block
+#[derive(Default)]
 struct InstructionBlockDeletionMutation;
 impl InstructionBlockMutator for InstructionBlockDeletionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -48,13 +45,9 @@ impl InstructionBlockMutator for InstructionBlockDeletionMutation {
         InstructionBlock { instructions: blocks }
     }
 }
-impl InstructionBlockMutatorFactory for InstructionBlockDeletionMutation {
-    fn new_box() -> Box<dyn InstructionBlockMutator> {
-        Box::new(InstructionBlockDeletionMutation)
-    }
-}
 
 /// Insert randomly generated instruction into the block
+#[derive(Default)]
 struct InstructionBlockInsertionMutation;
 impl InstructionBlockMutator for InstructionBlockInsertionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -70,13 +63,9 @@ impl InstructionBlockMutator for InstructionBlockInsertionMutation {
         InstructionBlock { instructions: blocks }
     }
 }
-impl InstructionBlockMutatorFactory for InstructionBlockInsertionMutation {
-    fn new_box() -> Box<dyn InstructionBlockMutator> {
-        Box::new(InstructionBlockInsertionMutation)
-    }
-}
 
 /// Mutate randomly chosen instruction in the block
+#[derive(Default)]
 struct InstructionBlockInstructionMutation;
 impl InstructionBlockMutator for InstructionBlockInstructionMutation {
     fn mutate(&self, rng: &mut StdRng, value: InstructionBlock) -> InstructionBlock {
@@ -88,9 +77,13 @@ impl InstructionBlockMutator for InstructionBlockInstructionMutation {
         InstructionBlock { instructions }
     }
 }
-impl InstructionBlockMutatorFactory for InstructionBlockInstructionMutation {
+
+impl<T> InstructionBlockMutatorFactory for T
+where
+    T: InstructionBlockMutator + Default + 'static,
+{
     fn new_box() -> Box<dyn InstructionBlockMutator> {
-        Box::new(InstructionBlockInstructionMutation)
+        Box::new(T::default())
     }
 }
 

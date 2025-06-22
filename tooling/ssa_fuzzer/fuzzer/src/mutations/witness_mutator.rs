@@ -19,6 +19,7 @@ trait WitnessMutatorFactory {
 }
 
 /// Return new random witness value
+#[derive(Default)]
 struct RandomMutation;
 impl WitnessMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: &WitnessValue) -> WitnessValue {
@@ -27,13 +28,9 @@ impl WitnessMutator for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl WitnessMutatorFactory for RandomMutation {
-    fn new_box() -> Box<dyn WitnessMutator> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Return witness value with max value
+#[derive(Default)]
 struct MaxValueMutation;
 impl WitnessMutator for MaxValueMutation {
     fn mutate(&self, _rng: &mut StdRng, value: &WitnessValue) -> WitnessValue {
@@ -49,13 +46,9 @@ impl WitnessMutator for MaxValueMutation {
         }
     }
 }
-impl WitnessMutatorFactory for MaxValueMutation {
-    fn new_box() -> Box<dyn WitnessMutator> {
-        Box::new(MaxValueMutation)
-    }
-}
 
 /// Return witness value with min value
+#[derive(Default)]
 struct MinValueMutation;
 impl WitnessMutator for MinValueMutation {
     fn mutate(&self, _rng: &mut StdRng, value: &WitnessValue) -> WitnessValue {
@@ -68,9 +61,13 @@ impl WitnessMutator for MinValueMutation {
         }
     }
 }
-impl WitnessMutatorFactory for MinValueMutation {
+
+impl<T> WitnessMutatorFactory for T
+where
+    T: WitnessMutator + Default + 'static,
+{
     fn new_box() -> Box<dyn WitnessMutator> {
-        Box::new(MinValueMutation)
+        Box::new(T::default())
     }
 }
 

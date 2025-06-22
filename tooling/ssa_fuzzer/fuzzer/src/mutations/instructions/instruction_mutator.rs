@@ -19,6 +19,7 @@ trait InstructionMutatorFactory {
 }
 
 /// Return new random instruction
+#[derive(Default)]
 struct RandomMutation;
 impl InstructionMutator for RandomMutation {
     fn mutate(&self, rng: &mut StdRng, _value: Instruction) -> Instruction {
@@ -27,13 +28,9 @@ impl InstructionMutator for RandomMutation {
         Unstructured::new(&bytes).arbitrary().unwrap()
     }
 }
-impl InstructionMutatorFactory for RandomMutation {
-    fn new_box() -> Box<dyn InstructionMutator> {
-        Box::new(RandomMutation)
-    }
-}
 
 /// Mutate arguments of the instruction
+#[derive(Default)]
 struct InstructionArgumentsMutation;
 impl InstructionMutator for InstructionArgumentsMutation {
     fn mutate(&self, rng: &mut StdRng, value: Instruction) -> Instruction {
@@ -102,9 +99,13 @@ impl InstructionMutator for InstructionArgumentsMutation {
         }
     }
 }
-impl InstructionMutatorFactory for InstructionArgumentsMutation {
+
+impl<T> InstructionMutatorFactory for T
+where
+    T: InstructionMutator + Default + 'static,
+{
     fn new_box() -> Box<dyn InstructionMutator> {
-        Box::new(InstructionArgumentsMutation)
+        Box::new(T::default())
     }
 }
 
