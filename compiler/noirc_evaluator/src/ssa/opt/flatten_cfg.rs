@@ -900,144 +900,58 @@ impl<'f> Context<'f> {
                         }
 
                         BlackBoxFunc::EcdsaSecp256k1 => {
-                            let pub_key_x = arguments[0];
-                            let pub_key_y = arguments[1];
-                            let generator_x: [u8; 32] = [
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
+                            const GENERATOR_X: [u8; 32] = [
                                 0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
                                 0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
                                 0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
                             ];
-                            let generator_y: [u8; 32] = [
+                            const GENERATOR_Y: [u8; 32] = [
                                 0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
                                 0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
                                 0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
                             ];
 
-                            let gen_x_values = generator_x.iter().map(|byte| {
-                                self.inserter.function.dfg.make_constant(
-                                    FieldElement::from(*byte as u32),
-                                    NumericType::unsigned(8),
-                                )
-                            });
-                            let gen_x_array = Instruction::MakeArray {
-                                elements: gen_x_values.collect(),
-                                typ: Type::Array(
-                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
-                                    32,
-                                ),
-                            };
-                            let gen_x_array_value =
-                                self.insert_instruction(gen_x_array, call_stack);
-                            let not_condition = self.not_instruction(condition, call_stack);
-                            let pub_key_x_new = self.insert_instruction(
-                                Instruction::IfElse {
-                                    then_condition: condition,
-                                    then_value: pub_key_x,
-                                    else_condition: not_condition,
-                                    else_value: gen_x_array_value,
-                                },
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
                                 call_stack,
                             );
-
-                            let gen_y_values = generator_y.iter().map(|byte| {
-                                self.inserter.function.dfg.make_constant(
-                                    FieldElement::from(*byte as u32),
-                                    NumericType::unsigned(8),
-                                )
-                            });
-                            let gen_y_array = Instruction::MakeArray {
-                                elements: gen_y_values.collect(),
-                                typ: Type::Array(
-                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
-                                    32,
-                                ),
-                            };
-                            let gen_y_array_value =
-                                self.insert_instruction(gen_y_array, call_stack);
-                            let not_condition = self.not_instruction(condition, call_stack);
-                            let pub_key_y_new = self.insert_instruction(
-                                Instruction::IfElse {
-                                    then_condition: condition,
-                                    then_value: pub_key_y,
-                                    else_condition: not_condition,
-                                    else_value: gen_y_array_value,
-                                },
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
                                 call_stack,
                             );
-
-                            arguments[0] = pub_key_x_new;
-                            arguments[1] = pub_key_y_new;
 
                             Instruction::Call { func, arguments }
                         }
                         BlackBoxFunc::EcdsaSecp256r1 => {
-                            let pub_key_x = arguments[0];
-                            let pub_key_y = arguments[1];
-                            let generator_x: [u8; 32] = [
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
+                            const GENERATOR_X: [u8; 32] = [
                                 0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
                                 0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
                                 0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
                             ];
-                            let generator_y: [u8; 32] = [
+                            const GENERATOR_Y: [u8; 32] = [
                                 0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
                                 0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
                                 0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
                             ];
 
-                            let gen_x_values = generator_x.iter().map(|byte| {
-                                self.inserter.function.dfg.make_constant(
-                                    FieldElement::from(*byte as u32),
-                                    NumericType::unsigned(8),
-                                )
-                            });
-                            let gen_x_array = Instruction::MakeArray {
-                                elements: gen_x_values.collect(),
-                                typ: Type::Array(
-                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
-                                    32,
-                                ),
-                            };
-                            let gen_x_array_value =
-                                self.insert_instruction(gen_x_array, call_stack);
-                            let not_condition = self.not_instruction(condition, call_stack);
-                            let pub_key_x_new = self.insert_instruction(
-                                Instruction::IfElse {
-                                    then_condition: condition,
-                                    then_value: pub_key_x,
-                                    else_condition: not_condition,
-                                    else_value: gen_x_array_value,
-                                },
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
                                 call_stack,
                             );
-
-                            let gen_y_values = generator_y.iter().map(|byte| {
-                                self.inserter.function.dfg.make_constant(
-                                    FieldElement::from(*byte as u32),
-                                    NumericType::unsigned(8),
-                                )
-                            });
-                            let gen_y_array = Instruction::MakeArray {
-                                elements: gen_y_values.collect(),
-                                typ: Type::Array(
-                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
-                                    32,
-                                ),
-                            };
-                            let gen_y_array_value =
-                                self.insert_instruction(gen_y_array, call_stack);
-                            let not_condition = self.not_instruction(condition, call_stack);
-                            let pub_key_y_new = self.insert_instruction(
-                                Instruction::IfElse {
-                                    then_condition: condition,
-                                    then_value: pub_key_y,
-                                    else_condition: not_condition,
-                                    else_value: gen_y_array_value,
-                                },
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
                                 call_stack,
                             );
-
-                            arguments[0] = pub_key_x_new;
-                            arguments[1] = pub_key_y_new;
 
                             Instruction::Call { func, arguments }
                         }
@@ -1093,6 +1007,45 @@ impl<'f> Context<'f> {
         )
         .unwrap();
         vec![g1_x, g1_y, g2_x, g2_y]
+    }
+
+    /// Merges the given array with a constant array of 32 elements of type `u8`.
+    ///
+    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
+    /// where the x and y coordinates of the generators are constant values.
+    fn merge_with_array_constant(
+        &mut self,
+        array: ValueId,
+        constant: [u8; 32],
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
+        let array_type = self.inserter.function.dfg.type_of_value(array);
+        assert_eq!(array_type, expected_array_type);
+
+        let elements = constant
+            .iter()
+            .map(|elem| {
+                self.inserter
+                    .function
+                    .dfg
+                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+            })
+            .collect();
+        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
+        let constant_array_value = self.insert_instruction(constant_array, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition: condition,
+                then_value: array,
+                else_condition: not_condition,
+                else_value: constant_array_value,
+            },
+            call_stack,
+        )
     }
 
     /// Returns the values corresponding to the given inputs by doing
