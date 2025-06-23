@@ -1318,10 +1318,11 @@ impl<'context> Elaborator<'context> {
             {
                 for trait_constrain in &trait_implementation.borrow().where_clause {
                     let trait_bound = &trait_constrain.trait_bound;
-                    self.interner.add_assumed_trait_implementation(
-                        trait_constrain.typ.clone(),
+                    self.add_trait_bound_to_scope(
+                        trait_bound.location,
+                        &trait_constrain.typ,
+                        trait_bound,
                         trait_bound.trait_id,
-                        trait_bound.trait_generics.clone(),
                     );
                 }
             }
