@@ -367,8 +367,7 @@ struct BitCounter {
 impl BitCounter {
     fn bits(&self) -> u32 {
         // If we don't have a non-zero byte then the field element is zero,
-        // which we consider to require a single bit to represent.
-        // OTOH some operations produce range constraints with 0 bits.
+        // which we consider to require a zero bits to represent.
         if self.count == 0 {
             return 0;
         }
