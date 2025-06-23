@@ -28,7 +28,7 @@ pub struct Printer<'local> {
 }
 
 impl Ssa {
-    pub fn print_without_locations<'local>(&'local self) -> Printer<'local> {
+    pub fn print_without_locations(&self) -> Printer {
         Printer { ssa: self, fm: None }
     }
 
@@ -40,7 +40,7 @@ impl Ssa {
     }
 }
 
-impl<'local> Display for Printer<'local> {
+impl Display for Printer<'_> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let globals = (*self.ssa.functions[&self.ssa.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);

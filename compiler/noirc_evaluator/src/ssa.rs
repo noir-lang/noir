@@ -358,7 +358,7 @@ pub fn optimize_into_acir<S>(
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
-    files: &fm::FileManager,
+    files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
@@ -443,7 +443,7 @@ impl SsaProgramArtifact {
 pub fn create_program(
     program: Program,
     options: &SsaEvaluatorOptions,
-    files: &fm::FileManager,
+    files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     create_program_with_passes(program, options, &primary_passes(options), secondary_passes, files)
 }
@@ -465,7 +465,7 @@ pub fn create_program_with_minimal_passes(
             func.name
         );
     }
-    create_program_with_passes(program, options, &minimal_passes(), |_| vec![], files)
+    create_program_with_passes(program, options, &minimal_passes(), |_| vec![], Some(files))
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
@@ -476,7 +476,7 @@ pub fn create_program_with_passes<S>(
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
-    files: &fm::FileManager,
+    files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
@@ -664,7 +664,7 @@ impl<'local> SsaBuilder<'local> {
         ssa_logging: SsaLogging,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
-        files: &'local fm::FileManager,
+        files: Option<&'local fm::FileManager>,
     ) -> Result<Self, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
@@ -676,8 +676,7 @@ impl<'local> SsaBuilder<'local> {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, Some(files))
-            .print("Initial SSA"))
+        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print("Initial SSA"))
     }
 
     pub fn from_ssa(

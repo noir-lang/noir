@@ -796,7 +796,7 @@ pub fn compile_no_check(
                 &context.file_manager,
             )?
         } else {
-            create_program(program, &ssa_evaluator_options, &context.file_manager)?
+            create_program(program, &ssa_evaluator_options, Some(&context.file_manager))?
         };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);

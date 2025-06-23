@@ -283,6 +283,7 @@ fn interpret_ssa(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn print_and_interpret_ssa(
     options: &SsaEvaluatorOptions,
     passes_to_interpret: &[String],

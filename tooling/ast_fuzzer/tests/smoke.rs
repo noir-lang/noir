@@ -59,7 +59,7 @@ fn arb_program_can_be_executed() {
             eprintln!("{}", DisplayAstAsNoir(&program));
         }
 
-        let ssa = ssa::create_program(program.clone(), &options)
+        let ssa = ssa::create_program(program.clone(), &options, None)
             .unwrap_or_else(|e| print_ast_and_panic(&format!("Failed to compile program: {e}")));
 
         let inputs = arb_inputs(u, &ssa.program, &abi)?;
