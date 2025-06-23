@@ -2503,7 +2503,8 @@
 <a href="#2502" id="2502">2502</a>
 <a href="#2503" id="2503">2503</a>
 <a href="#2504" id="2504">2504</a>
-<a href="#2505" id="2505">2505</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2505" id="2505">2505</a>
+<a href="#2506" id="2506">2506</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -3823,10 +3824,11 @@
             {
                 <span class="kw">for </span>trait_constrain <span class="kw">in </span><span class="kw-2">&amp;</span>trait_implementation.borrow().where_clause {
                     <span class="kw">let </span>trait_bound = <span class="kw-2">&amp;</span>trait_constrain.trait_bound;
-                    <span class="self">self</span>.interner.add_assumed_trait_implementation(
-                        trait_constrain.typ.clone(),
+                    <span class="self">self</span>.add_trait_bound_to_scope(
+                        trait_bound.location,
+                        <span class="kw-2">&amp;</span>trait_constrain.typ,
+                        trait_bound,
                         trait_bound.trait_id,
-                        trait_bound.trait_generics.clone(),
                     );
                 }
             }
