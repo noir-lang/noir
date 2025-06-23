@@ -557,19 +557,26 @@ impl<'a> FunctionContext<'a> {
     /// e.g. given a source type of `[(u32, bool); 4]` and a target of `u64`
     /// it might generate `my_var[2].0 as u64`.
     ///
+    /// The `src_mutable` parameter indicates whether we can take a mutable reference over the source.
+    ///
     /// Returns `None` if there is no way to produce the target from the source.
     fn gen_expr_from_source(
         &mut self,
         u: &mut Unstructured,
         (src_expr, src_dyn): TrackedExpression,
         src_type: &Type,
-        src_mutable: bool,
+        mut src_mutable: bool,
         tgt_type: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         // If we found our type, return it without further ado.
         if src_type == tgt_type {
             return Ok(Some((src_expr, src_dyn)));
+        }
+
+        // Mutable references to array elements are currently unsupported
+        if types::is_array_or_slice(src_type) {
+            src_mutable = false;
         }
 
         // Cast the source into the target type.
@@ -595,8 +602,12 @@ impl<'a> FunctionContext<'a> {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
-            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type && src_mutable => {
-                let expr = expr::ref_mut(src_expr, typ.as_ref().clone());
+            (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
+                let expr = if src_mutable {
+                    expr::ref_mut(src_expr, typ.as_ref().clone())
+                } else {
+                    self.indirect_ref_mut((src_expr, src_dyn), typ.as_ref().clone())
+                };
                 Ok(Some((expr, src_dyn)))
             }
             (Type::Array(len, item_typ), _) if *len > 0 => {
