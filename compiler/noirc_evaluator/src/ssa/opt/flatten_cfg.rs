@@ -899,6 +899,11 @@ impl<'f> Context<'f> {
                             Instruction::Call { func, arguments }
                         }
 
+                        // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
+                        // the public key doesn't not sit on the relevant curve.
+                        //
+                        // We then replace the public key with the generator point if the constraint is inactive to avoid
+                        // invalid public keys from causing constraints to fail.
                         BlackBoxFunc::EcdsaSecp256k1 => {
                             // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
                             const GENERATOR_X: [u8; 32] = [
