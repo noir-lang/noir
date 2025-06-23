@@ -5,16 +5,16 @@
 //! values with zeroed values of the appropriate type. If the block has successors
 //! those successors will also be considered unreachable if they are dominated
 //! by that block.
-use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
 use fxhash::FxHashSet as HashSet;
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, dfg::DataFlowGraph, dom::DominatorTree, function::Function,
-        instruction::Instruction, types::Type, value::ValueId,
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        dom::DominatorTree,
+        function::Function,
+        instruction::{Instruction, TerminatorInstruction},
     },
     ssa_gen::Ssa,
 };
@@ -38,8 +38,7 @@ impl Function {
         // Whether the current block instructions were determined to be unreachable
         let mut current_block_instructions_are_unreachable = false;
 
-        // This is the final set of blocks that we concluded have some unreachable instructions.
-        // At the end we'll zero out their terminators.
+        // Blocks that can't be reached because their dominator has an always failing instruction.
         let mut unreachable_blocks = HashSet::default();
 
         self.simple_reachable_blocks_optimization(|context| {
@@ -56,7 +55,7 @@ impl Function {
             }
 
             let instruction = context.instruction();
-            let is_unreachable = match instruction {
+            let always_failing_instruction = match instruction {
                 Instruction::Constrain(lhs, rhs, _) => {
                     let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
                         return;
@@ -78,22 +77,16 @@ impl Function {
                 _ => false,
             };
 
-            if is_unreachable {
-                unreachable_blocks.insert(block_id);
+            if always_failing_instruction {
                 current_block_instructions_are_unreachable = true;
 
                 add_dominated_blocks(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
+                let terminator = context.dfg[block_id].take_terminator();
+                let call_stack = terminator.call_stack();
+                context.dfg[block_id]
+                    .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
         });
-
-        for block_id in unreachable_blocks {
-            let mut terminator = self.dfg[block_id].take_terminator();
-            terminator.map_values_mut(|value_id| {
-                let typ = self.dfg.type_of_value(value_id);
-                zeroed_value(self, block_id, &typ)
-            });
-            self.dfg[block_id].set_terminator(terminator);
-        }
     }
 }
 
@@ -124,54 +117,9 @@ fn add_dominated_blocks(
     }
 }
 
-fn zeroed_value(function: &mut Function, block_id: BasicBlockId, typ: &Type) -> ValueId {
-    match typ {
-        Type::Numeric(numeric_type) => {
-            function.dfg.make_constant(FieldElement::zero(), *numeric_type)
-        }
-        Type::Array(element_types, len) => {
-            let mut array = im::Vector::new();
-            for _ in 0..*len {
-                for typ in element_types.iter() {
-                    array.push_back(zeroed_value(function, block_id, typ));
-                }
-            }
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
-        }
-        Type::Slice(_) => {
-            let array = im::Vector::new();
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
-        }
-        Type::Reference(element_type) => {
-            let instruction = Instruction::Allocate;
-            let reference_type = Type::Reference(Arc::new((**element_type).clone()));
-            function
-                .dfg
-                .insert_instruction_and_results(
-                    instruction,
-                    block_id,
-                    Some(vec![reference_type]),
-                    CallStackId::root(),
-                )
-                .first()
-        }
-        Type::Function => {
-            // We can have the function return itself. It's fine because the terminator is unreachable anyway.
-            function.dfg.import_function(function.id())
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::{
-        assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
-    };
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
     fn removes_unreachable_instructions_in_block() {
@@ -193,7 +141,7 @@ mod test {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            return u1 0
+            unreachable
         }
         "#);
     }
@@ -222,13 +170,9 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = make_array [] : [&mut u1; 0]
+            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b1(u1 0)
-          b1(v0: u1):
-            jmp b2(u1 0)
-          b2(v1: u1):
-            return u1 0
+            unreachable
         }
         "#);
     }
@@ -259,13 +203,9 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = make_array [] : [&mut u1; 0]
+            v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b2(u1 0)
-          b1(v0: u1):
-            return u1 0
-          b2(v1: u1):
-            jmp b1(u1 0)
+            unreachable
         }
         "#);
     }
@@ -298,13 +238,7 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0():
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b1()
-          b1():
-            jmpif u1 0 then: b2, else: b3
-          b2():
-            jmp b1()
-          b3():
-            return Field 0
+            unreachable
         }
         "#);
     }
@@ -332,11 +266,7 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0():
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b1()
-          b1():
-            jmp b2()
-          b2():
-            return Field 0
+            unreachable
         }
         "#);
     }
@@ -363,7 +293,24 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            v2 = add Field 1, Field 2
+            jmp b2(v2)
+          b2():
+            jmpif u1 0 then: b3, else: b4
+          b3():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+          b4():
+            v4 = add Field 1, Field 2
+            return v4
+        }
+        "#);
     }
 
     #[test]
@@ -385,7 +332,21 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+          b3():
+            v3 = add Field 1, Field 2
+            return v3
+        }
+        "#);
     }
 
     #[test]
@@ -409,7 +370,23 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+          b3():
+            jmp b4()
+          b4():
+            v3 = add Field 1, Field 2
+            return v3
+        }
+        "#);
     }
 
     #[test]
@@ -436,6 +413,24 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            v3 = add Field 1, Field 2
+            return v3
+        }
+        "#);
     }
 }
