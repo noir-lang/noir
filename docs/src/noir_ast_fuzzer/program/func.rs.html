@@ -1605,7 +1605,18 @@
 <a href="#1604" id="1604">1604</a>
 <a href="#1605" id="1605">1605</a>
 <a href="#1606" id="1606">1606</a>
-<a href="#1607" id="1607">1607</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2164,19 +2175,26 @@
     /// e.g. given a source type of `[(u32, bool); 4]` and a target of `u64`
     /// it might generate `my_var[2].0 as u64`.
     ///
+    /// The `src_mutable` parameter indicates whether we can take a mutable reference over the source.
+    ///
     /// Returns `None` if there is no way to produce the target from the source.
     </span><span class="kw">fn </span>gen_expr_from_source(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
         (src_expr, src_dyn): TrackedExpression,
         src_type: <span class="kw-2">&amp;</span>Type,
-        src_mutable: bool,
+        <span class="kw-2">mut </span>src_mutable: bool,
         tgt_type: <span class="kw-2">&amp;</span>Type,
         max_depth: usize,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// If we found our type, return it without further ado.
         </span><span class="kw">if </span>src_type == tgt_type {
             <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((src_expr, src_dyn)));
+        }
+
+        <span class="comment">// Mutable references to array elements are currently unsupported
+        </span><span class="kw">if </span>types::is_array_or_slice(src_type) {
+            src_mutable = <span class="bool-val">false</span>;
         }
 
         <span class="comment">// Cast the source into the target type.
@@ -2202,8 +2220,12 @@
                 <span class="kw">let </span>expr = expr::deref(src_expr, tgt_type.clone());
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
             }
-            (<span class="kw">_</span>, Type::Reference(typ, <span class="bool-val">true</span>)) <span class="kw">if </span>typ.as_ref() == src_type &amp;&amp; src_mutable =&gt; {
-                <span class="kw">let </span>expr = expr::ref_mut(src_expr, typ.as_ref().clone());
+            (<span class="kw">_</span>, Type::Reference(typ, <span class="bool-val">true</span>)) <span class="kw">if </span>typ.as_ref() == src_type =&gt; {
+                <span class="kw">let </span>expr = <span class="kw">if </span>src_mutable {
+                    expr::ref_mut(src_expr, typ.as_ref().clone())
+                } <span class="kw">else </span>{
+                    <span class="self">self</span>.indirect_ref_mut((src_expr, src_dyn), typ.as_ref().clone())
+                };
                 <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, src_dyn)))
             }
             (Type::Array(len, item_typ), <span class="kw">_</span>) <span class="kw">if </span><span class="kw-2">*</span>len &gt; <span class="number">0 </span>=&gt; {
