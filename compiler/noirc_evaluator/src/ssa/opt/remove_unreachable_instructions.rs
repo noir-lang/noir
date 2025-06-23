@@ -199,7 +199,7 @@ mod test {
     }
 
     #[test]
-    fn removes_unreachable_instructions_from_successors() {
+    fn removes_unreachable_instructions_from_dominated_blocks_normal_order() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -234,7 +234,9 @@ mod test {
     }
 
     #[test]
-    fn removes_unreachable_instructions_from_successors_goes_in_pre_order() {
+    fn removes_unreachable_instructions_from_dominated_blocks_different_order() {
+        // This is the same as `removes_unreachable_instructions_from_dominated_blocks_normal_order`
+        // except that the blocks are in a different order.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -269,7 +271,10 @@ mod test {
     }
 
     #[test]
-    fn removes_unreachable_instructions_if_successor_has_other_predecessors() {
+    fn removes_unreachable_instructions_from_dominated_blocks_transitively() {
+        // This tests that if a block has an unreachable instruction,
+        // all of its successors that are dominated by it are also unreachable,
+        // and that is applied recursively.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -306,6 +311,8 @@ mod test {
 
     #[test]
     fn removes_unreachable_instructions_following_block_with_no_instructions() {
+        // This tests that if a block is determined to be unreachable,
+        // a dominated block that has no instructions also gets its terminator zeroed out.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -335,7 +342,8 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_previously_seen_blocks() {
+    fn does_not_zeroes_terminator_of_non_dominated_block() {
+        // Here both b1 and b4 are successors of b3, but both are not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -359,7 +367,8 @@ mod test {
     }
 
     #[test]
-    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_1() {
+    fn does_not_zeroes_terminator_of_non_dominated_block_2() {
+        // Here b3 is a successof of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -380,7 +389,8 @@ mod test {
     }
 
     #[test]
-    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_2() {
+    fn does_not_zeroes_terminator_of_non_dominated_block_3() {
+        // Here b4 is a transitive successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -403,7 +413,9 @@ mod test {
     }
 
     #[test]
-    fn does_not_consider_block_as_unreachable_if_it_has_other_predecessors_3() {
+    fn does_not_zeroes_terminator_of_non_dominated_block_4() {
+        // Here b5 is a transitive successor of b2, but is not dominated by it
+        // (it's a transitive successof of b1)
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
