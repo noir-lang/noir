@@ -63,14 +63,31 @@ struct WitnessSmallAddSubMutation;
 impl WitnessMutator for WitnessSmallAddSubMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
         let small_update: i128 = rng.gen_range(0..256);
+        let sign: bool = rng.gen_range(0..2) == 0;
         *value = match value {
             WitnessValue::Field(field) => WitnessValue::Field(FieldRepresentation {
                 high: field.high,
-                low: field.low.wrapping_add(small_update as u128),
+                low: if !sign {
+                    field.low.wrapping_add(small_update as u128)
+                } else {
+                    field.low.wrapping_sub(small_update as u128)
+                },
             }),
-            WitnessValue::U64(u64) => WitnessValue::U64(u64.wrapping_add(small_update as u64)),
-            WitnessValue::I64(i64) => WitnessValue::I64(i64.wrapping_add(small_update as u64)),
-            WitnessValue::I32(i32) => WitnessValue::I32(i32.wrapping_add(small_update as u32)),
+            WitnessValue::U64(u64) => WitnessValue::U64(if !sign {
+                u64.wrapping_add(small_update as u64)
+            } else {
+                u64.wrapping_sub(small_update as u64)
+            }),
+            WitnessValue::I64(i64) => WitnessValue::I64(if !sign {
+                i64.wrapping_add(small_update as u64)
+            } else {
+                i64.wrapping_sub(small_update as u64)
+            }),
+            WitnessValue::I32(i32) => WitnessValue::I32(if !sign {
+                i32.wrapping_add(small_update as u32)
+            } else {
+                i32.wrapping_sub(small_update as u32)
+            }),
             WitnessValue::Boolean(bool) => WitnessValue::Boolean(*bool ^ (small_update % 2 == 1)),
         }
     }
@@ -81,7 +98,7 @@ struct WitnessAddSubPowerOfTwoMutation;
 impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
         let exponent = rng.gen_range(0..254);
-        let sign: i128 = if rng.gen_range(0..2) == 0 { 1 } else { -1 };
+        let sign: bool = rng.gen_range(0..2) == 0;
         *value = match value {
             WitnessValue::Field(field) => {
                 // I don't think implementing field addition is worth the effort, so we just
@@ -90,19 +107,33 @@ impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
                 let power_of_two: i128 = 1 << (exponent % 128);
 
                 WitnessValue::Field(FieldRepresentation {
-                    high: field.high.wrapping_add((is_high as i128 * sign * power_of_two) as u128),
-                    low: field.low.wrapping_add((!is_high as i128 * sign * power_of_two) as u128),
+                    high: if !sign {
+                        field.high.wrapping_add((is_high as i128 * power_of_two) as u128)
+                    } else {
+                        field.high.wrapping_sub((is_high as i128 * power_of_two) as u128)
+                    },
+                    low: if !sign {
+                        field.low.wrapping_add((!is_high as i128 * power_of_two) as u128)
+                    } else {
+                        field.low.wrapping_sub((!is_high as i128 * power_of_two) as u128)
+                    },
                 })
             }
-            WitnessValue::U64(u64) => {
-                WitnessValue::U64(u64.wrapping_add(1 << (exponent % 64) * sign))
-            }
-            WitnessValue::I64(i64) => {
-                WitnessValue::I64(i64.wrapping_add(1 << (exponent % 64) * sign))
-            }
-            WitnessValue::I32(i32) => {
-                WitnessValue::I32(i32.wrapping_add(1 << (exponent % 32) * sign))
-            }
+            WitnessValue::U64(u64) => WitnessValue::U64(if !sign {
+                u64.wrapping_add(1 << (exponent % 64))
+            } else {
+                u64.wrapping_sub(1 << (exponent % 64))
+            }),
+            WitnessValue::I64(i64) => WitnessValue::I64(if !sign {
+                i64.wrapping_add(1 << (exponent % 64))
+            } else {
+                i64.wrapping_sub(1 << (exponent % 64))
+            }),
+            WitnessValue::I32(i32) => WitnessValue::I32(if !sign {
+                i32.wrapping_add(1 << (exponent % 32))
+            } else {
+                i32.wrapping_sub(1 << (exponent % 32))
+            }),
             WitnessValue::Boolean(bool) => {
                 WitnessValue::Boolean(*bool ^ (1 << (exponent % 2) == 1))
             }
