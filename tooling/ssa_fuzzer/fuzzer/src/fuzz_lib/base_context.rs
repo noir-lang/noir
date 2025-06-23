@@ -31,8 +31,8 @@ pub(crate) enum FuzzerCommand {
     /// Merges two instruction blocks, stores result in instruction_blocks
     MergeInstructionBlocks { first_block_idx: usize, second_block_idx: usize },
     /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
-    /// If in loop, finalizes then and else branches with jump to the loop iter block. Switches context to the loop end block.
-    /// Otherwise, switches current_block_context to then_branch.
+    /// If in loop, stores then and else branches as loop bodies
+    /// Switches current_block_context to then_branch.
     /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
     InsertJmpIfBlock { block_then_idx: usize, block_else_idx: usize },
     /// Terminates current SSA block with jmp.
