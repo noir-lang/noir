@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750692343185,
+  "lastUpdate": 1750714877563,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f5522446a390ba65429ca84fc87a9e991d0985c6",
-          "message": "chore(fuzz): More metamorphic rules (#8857)",
-          "timestamp": "2025-06-12T17:53:45Z",
-          "tree_id": "f90fbce6f701289b8b2786a7e261cc094243bcbd",
-          "url": "https://github.com/noir-lang/noir/commit/f5522446a390ba65429ca84fc87a9e991d0985c6"
-        },
-        "date": 1749752295511,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251540,
-            "range": "± 668",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224576,
-            "range": "± 5231",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790907,
-            "range": "± 1546",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2812795,
             "range": "± 7917",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "caabecf88bddb60d573ff8da7b637b1857c5f593",
+          "message": "fix: add parent traits when adding trait impl where clause (#9000)",
+          "timestamp": "2025-06-23T21:17:17Z",
+          "tree_id": "455655504af6c4ca3ee52909f9458182cc1e39f8",
+          "url": "https://github.com/noir-lang/noir/commit/caabecf88bddb60d573ff8da7b637b1857c5f593"
+        },
+        "date": 1750714865369,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249322,
+            "range": "± 1876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220487,
+            "range": "± 4912",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2705739,
+            "range": "± 42659",
             "unit": "ns/iter"
           }
         ]
