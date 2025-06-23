@@ -238,59 +238,6 @@ impl FuzzerContext {
         let block_else_instruction_block =
             self.instruction_blocks[block_else_idx % self.instruction_blocks.len()].clone();
 
-        // TODO(sn): add support of nested jmp_if in cycles
-        // If the current block is a loop body
-        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
-            let CycleInfo { block_iter_id, block_end_id } =
-                self.cycle_bodies_to_iters_ids[&self.current_block.block_id];
-            let current_block = self.stored_blocks[&block_end_id].clone();
-
-            // init then branch
-            let block_then_id = self.insert_ssa_block();
-
-            self.switch_to_block(block_then_id);
-            // context of then branch is shared with predecessor (loop body)
-            current_block.context.clone().insert_instructions(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                &block_then_instruction_block.instructions,
-            );
-            // jump to the loop iter block
-            self.insert_jmp_instruction(block_iter_id, vec![]);
-
-            // init else branch
-            let block_else_id = self.insert_ssa_block();
-            self.switch_to_block(block_else_id);
-            // context of else branch is shared with predecessor (loop body)
-            current_block.context.clone().insert_instructions(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                &block_else_instruction_block.instructions,
-            );
-            // jump to the loop iter block
-            self.insert_jmp_instruction(block_iter_id, vec![]);
-
-            // finalize the loop body with jmp_if
-            self.switch_to_block(self.current_block.block_id);
-            self.current_block.context.finalize_block_with_jmp_if(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                block_then_id,
-                block_else_id,
-            );
-            // remove children blocks not to merge them (they already jumped to iter block)
-            self.current_block.context.children_blocks.pop();
-            self.current_block.context.children_blocks.pop();
-
-            // switch context to the loop end block
-            self.current_block =
-                StoredBlock { context: current_block.context, block_id: block_end_id };
-            self.switch_to_block(self.current_block.block_id);
-            // remove loop body from the map, we don't need it anymore
-            self.cycle_bodies_to_iters_ids.remove(&self.current_block.block_id);
-            return;
-        }
-
         self.store_variables();
 
         if block_then_instruction_block.instructions.len()
@@ -359,7 +306,19 @@ impl FuzzerContext {
             StoredBlock { context: block_then_context, block_id: block_then_id };
         let else_stored_block =
             StoredBlock { context: block_else_context, block_id: block_else_id };
-        self.not_terminated_blocks.push_back(else_stored_block);
+
+        // if current context is cycle body we define then and else branch as new bodies
+        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+            let CycleInfo { block_iter_id, block_end_id } =
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id];
+            self.cycle_bodies_to_iters_ids
+                .insert(block_then_id, CycleInfo { block_iter_id, block_end_id });
+            self.cycle_bodies_to_iters_ids
+                .insert(block_else_id, CycleInfo { block_iter_id, block_end_id });
+            self.cycle_bodies_to_iters_ids.remove(&self.current_block.block_id);
+        } else {
+            self.not_terminated_blocks.push_back(else_stored_block);
+        }
         self.switch_to_block(then_stored_block.block_id);
         self.current_block = then_stored_block.clone();
     }
