@@ -37,7 +37,7 @@ impl MutateVecInstructionBlock for RandomMutation {
 struct InstructionBlockDeletionMutation;
 impl MutateVecInstructionBlock for InstructionBlockDeletionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
-        let mut blocks = value;
+        let blocks = value;
         if !blocks.is_empty() {
             let block_idx = rng.gen_range(0..blocks.len());
             blocks.remove(block_idx);
@@ -49,7 +49,7 @@ impl MutateVecInstructionBlock for InstructionBlockDeletionMutation {
 struct InstructionBlockInsertionMutation;
 impl MutateVecInstructionBlock for InstructionBlockInsertionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
-        let mut blocks = value;
+        let blocks = value;
         let block_idx = if blocks.is_empty() { 0 } else { rng.gen_range(0..blocks.len()) };
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
