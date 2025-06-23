@@ -575,6 +575,7 @@ impl Value {
                 | I16(_)
                 | I32(_)
                 | I64(_)
+                | U1(_)
                 | U8(_)
                 | U16(_)
                 | U32(_)
@@ -648,6 +649,7 @@ impl Value {
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::U1(value) => Some(FieldElement::from(*value)),
             Self::U8(value) => Some((*value as u128).into()),
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),
