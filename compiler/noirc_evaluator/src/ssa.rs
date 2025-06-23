@@ -213,7 +213,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
-        // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+        // A function can be potentially unreachable post-DIE if all calls to that function were removed,
+        // or after the removal of unreachable instructions.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
