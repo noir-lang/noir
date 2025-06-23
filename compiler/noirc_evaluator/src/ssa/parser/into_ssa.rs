@@ -229,7 +229,7 @@ impl Translator {
                     queue.push_back(self.lookup_block(then_block)?);
                     queue.push_back(self.lookup_block(else_block)?);
                 }
-                ParsedTerminator::Return(..) | ParsedTerminator::Unreachable => (),
+                ParsedTerminator::Return(..) => (),
             }
         }
 
@@ -264,9 +264,6 @@ impl Translator {
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
                 self.builder.terminate_with_return(return_values);
-            }
-            ParsedTerminator::Unreachable => {
-                self.builder.terminate_with_unreachable();
             }
         }
 

@@ -193,11 +193,6 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
             TerminatorInstruction::Return { .. } => {
                 unreachable!("ICE: predecessor block should not have return terminator instruction")
             }
-            TerminatorInstruction::Unreachable { .. } => {
-                unreachable!(
-                    "ICE: predecessor block should not have unreachable terminator instruction"
-                )
-            }
         };
 
         function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);

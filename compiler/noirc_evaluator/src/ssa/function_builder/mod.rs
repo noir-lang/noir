@@ -442,12 +442,6 @@ impl FunctionBuilder {
         self.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
     }
 
-    /// Terminate the current block with an unreachable instruction
-    pub fn terminate_with_unreachable(&mut self) {
-        let call_stack = self.call_stack;
-        self.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
-    }
-
     /// Returns a ValueId pointing to the given function or imports the function
     /// into the current function if it was not already, and returns that ID.
     pub fn import_function(&mut self, function: FunctionId) -> ValueId {

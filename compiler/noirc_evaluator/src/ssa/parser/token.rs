@@ -172,7 +172,6 @@ pub(crate) enum Keyword {
     UncheckedAdd,
     UncheckedSub,
     UncheckedMul,
-    Unreachable,
     Value,
     Xor,
 }
@@ -239,7 +238,6 @@ impl Keyword {
             "unchecked_add" => Keyword::UncheckedAdd,
             "unchecked_sub" => Keyword::UncheckedSub,
             "unchecked_mul" => Keyword::UncheckedMul,
-            "unreachable" => Keyword::Unreachable,
             "value" => Keyword::Value,
             "xor" => Keyword::Xor,
             _ => return None,
@@ -310,7 +308,6 @@ impl Display for Keyword {
             Keyword::UncheckedAdd => write!(f, "unchecked_add"),
             Keyword::UncheckedSub => write!(f, "unchecked_sub"),
             Keyword::UncheckedMul => write!(f, "unchecked_mul"),
-            Keyword::Unreachable => write!(f, "unreachable"),
             Keyword::Value => write!(f, "value"),
             Keyword::Xor => write!(f, "xor"),
         }

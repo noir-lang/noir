@@ -58,8 +58,6 @@ pub enum InterpreterError {
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
     BlackBoxError { name: String, reason: String },
-    #[error("Reached the unreachable")]
-    ReachedTheUnreachable,
 }
 
 /// These errors can only result from interpreting malformed SSA

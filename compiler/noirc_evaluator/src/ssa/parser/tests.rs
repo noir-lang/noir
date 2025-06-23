@@ -260,17 +260,6 @@ fn test_call_no_return_value() {
 }
 
 #[test]
-fn test_unreachable() {
-    let src = "
-        acir(inline) fn main f0 {
-          b0():
-            unreachable
-        }
-        ";
-    assert_ssa_roundtrip(src);
-}
-
-#[test]
 fn test_call_intrinsic() {
     let src = "
         acir(inline) fn main f0 {

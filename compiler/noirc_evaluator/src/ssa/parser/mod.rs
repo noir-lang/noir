@@ -689,10 +689,6 @@ impl<'a> Parser<'a> {
             return Ok(terminator);
         }
 
-        if let Some(terminator) = self.parse_unreachable()? {
-            return Ok(terminator);
-        }
-
         self.expected_instruction_or_terminator()
     }
 
@@ -744,14 +740,6 @@ impl<'a> Parser<'a> {
         let else_block = self.eat_identifier_or_error()?;
 
         Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
-    }
-
-    fn parse_unreachable(&mut self) -> ParseResult<Option<ParsedTerminator>> {
-        if !self.eat_keyword(Keyword::Unreachable)? {
-            return Ok(None);
-        }
-
-        Ok(Some(ParsedTerminator::Unreachable))
     }
 
     fn parse_arguments(&mut self) -> ParseResult<Vec<ParsedValue>> {

@@ -157,9 +157,6 @@ fn display_terminator(
                 writeln!(f, "    return {}", value_list(dfg, return_values))
             }
         }
-        Some(TerminatorInstruction::Unreachable { .. }) => {
-            writeln!(f, "    unreachable")
-        }
         None => writeln!(f, "    (no terminator instruction)"),
     }
 }

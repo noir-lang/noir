@@ -915,11 +915,8 @@ impl<'a> Context<'a> {
     ) -> usize {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => return 0,
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
+            _ => unreachable!("ICE: Program must have a singular return"),
         };
 
         return_values
@@ -938,10 +935,7 @@ impl<'a> Context<'a> {
                 (return_values, *call_stack)
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
-                unreachable!("ICE: Program must have a singular return")
-            }
-            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
+            _ => unreachable!("ICE: Program must have a singular return"),
         };
 
         let mut has_constant_return = false;

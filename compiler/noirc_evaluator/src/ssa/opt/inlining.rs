@@ -727,12 +727,6 @@ impl<'function> PerFunctionContext<'function> {
 
                 Some((block_id, return_values))
             }
-            TerminatorInstruction::Unreachable { .. } => {
-                // Note: `unreachable` terminators are only added during the `remove_unreachable_instructions`,
-                // which runs near the end of the optimization pipeline, so never before inlining.
-                // If we ever want to run it before inlining we'll have to handle this case.
-                panic!("Unreachable terminator instruction should not exist during inlining.")
-            }
         }
     }
 }

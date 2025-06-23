@@ -262,9 +262,6 @@ impl<'ssa> Interpreter<'ssa> {
 
                     break return_values;
                 }
-                Some(TerminatorInstruction::Unreachable { .. }) => {
-                    return Err(InterpreterError::ReachedTheUnreachable);
-                }
             }
         };
 
