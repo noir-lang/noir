@@ -131,6 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
+use std::sync::Arc;
+
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -830,69 +832,244 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
-                    // If inputs are distinct curve points, then so is their predicate version.
-                    // If inputs are identical (point doubling), then so is their predicate version
-                    // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        #[cfg(feature = "bn254")]
-                        {
-                            let generators = Self::grumpkin_generators();
-                            // Convert the generators to ValueId
-                            let generators = generators
-                                .iter()
-                                .map(|v| {
-                                    self.inserter
-                                        .function
-                                        .dfg
-                                        .make_constant(*v, NumericType::NativeField)
-                                })
-                                .collect::<Vec<ValueId>>();
-                            let (point1_x, point2_x) = self.predicate_argument(
-                                &arguments,
-                                &generators,
-                                true,
-                                condition,
-                                call_stack,
-                            );
-                            let (point1_y, point2_y) = self.predicate_argument(
-                                &arguments,
-                                &generators,
-                                false,
-                                condition,
-                                call_stack,
-                            );
-                            arguments[0] = point1_x;
-                            arguments[1] = point1_y;
-                            arguments[3] = point2_x;
-                            arguments[4] = point2_y;
+
+                    Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => match blackbox {
+                        //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                        // If inputs are distinct curve points, then so is their predicate version.
+                        // If inputs are identical (point doubling), then so is their predicate version
+                        // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
+                        BlackBoxFunc::EmbeddedCurveAdd => {
+                            #[cfg(feature = "bn254")]
+                            {
+                                let generators = Self::grumpkin_generators();
+                                // Convert the generators to ValueId
+                                let generators = generators
+                                    .iter()
+                                    .map(|v| {
+                                        self.inserter
+                                            .function
+                                            .dfg
+                                            .make_constant(*v, NumericType::NativeField)
+                                    })
+                                    .collect::<Vec<ValueId>>();
+                                let (point1_x, point2_x) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    true,
+                                    condition,
+                                    call_stack,
+                                );
+                                let (point1_y, point2_y) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    false,
+                                    condition,
+                                    call_stack,
+                                );
+                                arguments[0] = point1_x;
+                                arguments[1] = point1_y;
+                                arguments[3] = point2_x;
+                                arguments[4] = point2_y;
+                            }
+
+                            Instruction::Call { func, arguments }
                         }
 
-                        Instruction::Call { func, arguments }
-                    }
-                    // For MSM, we also ensure the inputs are on the curve if the predicate is false.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let points_array_idx = if matches!(
-                            self.inserter.function.dfg.type_of_value(arguments[0]),
-                            Type::Array { .. }
-                        ) {
-                            0
-                        } else {
-                            // if the first argument is not an array, we assume it is a slice
-                            // which means the array is the second argument
-                            1
-                        };
-                        let (elements, typ) = self.apply_predicate_to_msm_argument(
-                            arguments[points_array_idx],
-                            condition,
-                            call_stack,
-                        );
+                        // For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                        BlackBoxFunc::MultiScalarMul => {
+                            let points_array_idx = if matches!(
+                                self.inserter.function.dfg.type_of_value(arguments[0]),
+                                Type::Array { .. }
+                            ) {
+                                0
+                            } else {
+                                // if the first argument is not an array, we assume it is a slice
+                                // which means the array is the second argument
+                                1
+                            };
+                            let (elements, typ) = self.apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack,
+                            );
 
-                        let instruction = Instruction::MakeArray { elements, typ };
-                        let array = self.insert_instruction(instruction, call_stack);
-                        arguments[points_array_idx] = array;
-                        Instruction::Call { func, arguments }
-                    }
+                            let instruction = Instruction::MakeArray { elements, typ };
+                            let array = self.insert_instruction(instruction, call_stack);
+                            arguments[points_array_idx] = array;
+                            Instruction::Call { func, arguments }
+                        }
+
+                        BlackBoxFunc::EcdsaSecp256k1 => {
+                            let pub_key_x = arguments[0];
+                            let pub_key_y = arguments[1];
+                            let generator_x: [u8; 32] = [
+                                0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
+                                0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
+                                0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
+                            ];
+                            let generator_y: [u8; 32] = [
+                                0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
+                                0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
+                                0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
+                            ];
+
+                            let gen_x_values = generator_x.iter().map(|byte| {
+                                self.inserter.function.dfg.make_constant(
+                                    FieldElement::from(*byte as u32),
+                                    NumericType::unsigned(8),
+                                )
+                            });
+                            let gen_x_array = Instruction::MakeArray {
+                                elements: gen_x_values.collect(),
+                                typ: Type::Array(
+                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
+                                    32,
+                                ),
+                            };
+                            let gen_x_array_value =
+                                self.insert_instruction(gen_x_array, call_stack);
+                            let not_condition = self.not_instruction(condition, call_stack);
+                            let pub_key_x_new = self.insert_instruction(
+                                Instruction::IfElse {
+                                    then_condition: condition,
+                                    then_value: pub_key_x,
+                                    else_condition: not_condition,
+                                    else_value: gen_x_array_value,
+                                },
+                                call_stack,
+                            );
+
+                            let gen_y_values = generator_y.iter().map(|byte| {
+                                self.inserter.function.dfg.make_constant(
+                                    FieldElement::from(*byte as u32),
+                                    NumericType::unsigned(8),
+                                )
+                            });
+                            let gen_y_array = Instruction::MakeArray {
+                                elements: gen_y_values.collect(),
+                                typ: Type::Array(
+                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
+                                    32,
+                                ),
+                            };
+                            let gen_y_array_value =
+                                self.insert_instruction(gen_y_array, call_stack);
+                            let not_condition = self.not_instruction(condition, call_stack);
+                            let pub_key_y_new = self.insert_instruction(
+                                Instruction::IfElse {
+                                    then_condition: condition,
+                                    then_value: pub_key_y,
+                                    else_condition: not_condition,
+                                    else_value: gen_y_array_value,
+                                },
+                                call_stack,
+                            );
+
+                            arguments[0] = pub_key_x_new;
+                            arguments[1] = pub_key_y_new;
+
+                            Instruction::Call { func, arguments }
+                        }
+                        BlackBoxFunc::EcdsaSecp256r1 => {
+                            let pub_key_x = arguments[0];
+                            let pub_key_y = arguments[1];
+                            let generator_x: [u8; 32] = [
+                                0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
+                                0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
+                                0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+                            ];
+                            let generator_y: [u8; 32] = [
+                                0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+                                0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+                                0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+                            ];
+
+                            let gen_x_values = generator_x.iter().map(|byte| {
+                                self.inserter.function.dfg.make_constant(
+                                    FieldElement::from(*byte as u32),
+                                    NumericType::unsigned(8),
+                                )
+                            });
+                            let gen_x_array = Instruction::MakeArray {
+                                elements: gen_x_values.collect(),
+                                typ: Type::Array(
+                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
+                                    32,
+                                ),
+                            };
+                            let gen_x_array_value =
+                                self.insert_instruction(gen_x_array, call_stack);
+                            let not_condition = self.not_instruction(condition, call_stack);
+                            let pub_key_x_new = self.insert_instruction(
+                                Instruction::IfElse {
+                                    then_condition: condition,
+                                    then_value: pub_key_x,
+                                    else_condition: not_condition,
+                                    else_value: gen_x_array_value,
+                                },
+                                call_stack,
+                            );
+
+                            let gen_y_values = generator_y.iter().map(|byte| {
+                                self.inserter.function.dfg.make_constant(
+                                    FieldElement::from(*byte as u32),
+                                    NumericType::unsigned(8),
+                                )
+                            });
+                            let gen_y_array = Instruction::MakeArray {
+                                elements: gen_y_values.collect(),
+                                typ: Type::Array(
+                                    Arc::new(vec![Type::Numeric(NumericType::unsigned(8))]),
+                                    32,
+                                ),
+                            };
+                            let gen_y_array_value =
+                                self.insert_instruction(gen_y_array, call_stack);
+                            let not_condition = self.not_instruction(condition, call_stack);
+                            let pub_key_y_new = self.insert_instruction(
+                                Instruction::IfElse {
+                                    then_condition: condition,
+                                    then_value: pub_key_y,
+                                    else_condition: not_condition,
+                                    else_value: gen_y_array_value,
+                                },
+                                call_stack,
+                            );
+
+                            arguments[0] = pub_key_x_new;
+                            arguments[1] = pub_key_y_new;
+
+                            Instruction::Call { func, arguments }
+                        }
+
+                        BlackBoxFunc::RecursiveAggregation => {
+                            todo!("Conditional recursive aggregation is not supported yet")
+                        }
+
+                        // These functions will always be satisfiable no matter the input so no modification is needed.
+                        BlackBoxFunc::AND
+                        | BlackBoxFunc::XOR
+                        | BlackBoxFunc::AES128Encrypt
+                        | BlackBoxFunc::Blake2s
+                        | BlackBoxFunc::Blake3
+                        | BlackBoxFunc::Keccakf1600
+                        | BlackBoxFunc::Poseidon2Permutation
+                        | BlackBoxFunc::Sha256Compression => Instruction::Call { func, arguments },
+
+                        BlackBoxFunc::RANGE => unreachable!(
+                            "RANGE should have been converted into `Instruction::RangeCheck`"
+                        ),
+
+                        BlackBoxFunc::BigIntAdd
+                        | BlackBoxFunc::BigIntSub
+                        | BlackBoxFunc::BigIntMul
+                        | BlackBoxFunc::BigIntDiv
+                        | BlackBoxFunc::BigIntFromLeBytes
+                        | BlackBoxFunc::BigIntToLeBytes => {
+                            todo!("BigInt opcodes are not supported yet")
+                        }
+                    },
+
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
