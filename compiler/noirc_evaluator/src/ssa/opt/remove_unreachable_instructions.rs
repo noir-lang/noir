@@ -122,7 +122,7 @@ mod test {
     use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
     #[test]
-    fn removes_unreachable_instructions_in_block() {
+    fn removes_unreachable_instructions_in_block_for_constrain_equal() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -141,6 +141,31 @@ mod test {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_in_block_for_constrain_not_equal() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [&mut u1; 0]
+            constrain u1 0 != u1 0, "Index out of bounds"
+            v4 = array_get v0, index u32 0 -> &mut u1
+            v5 = load v4 -> u1
+            return v5
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [] : [&mut u1; 0]
+            constrain u1 0 != u1 0, "Index out of bounds"
             unreachable
         }
         "#);
