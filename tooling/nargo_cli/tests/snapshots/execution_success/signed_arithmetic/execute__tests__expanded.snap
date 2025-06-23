@@ -3,29 +3,29 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(mut x: i32, mut y: i32, z: i32) {
-    let mut s1: i8 = 5;
-    let mut s2: i8 = 8;
-    assert((s1 + s2) == 13);
-    assert((x + y) == 13);
-    s2 = -8;
+    let mut s1: i8 = 5_i8;
+    let mut s2: i8 = 8_i8;
+    assert((s1 + s2) == 13_i8);
+    assert((x + y) == 13_i32);
+    s2 = -8_i8;
     y = -y;
-    assert((s1 + s2) == -3);
-    assert((x + y) == -3);
-    s1 = -15;
-    assert((s1 - s2) == -7);
-    assert((z - y) == -7);
-    s1 = -5;
-    s2 = 8;
+    assert((s1 + s2) == -3_i8);
+    assert((x + y) == -3_i32);
+    s1 = -15_i8;
+    assert((s1 - s2) == -7_i8);
+    assert((z - y) == -7_i32);
+    s1 = -5_i8;
+    s2 = 8_i8;
     x = -x;
     y = -y;
-    assert((s1 - s2) == -13);
-    assert((x - y) == -13);
-    s2 = -8;
+    assert((s1 - s2) == -13_i8);
+    assert((x - y) == -13_i32);
+    s2 = -8_i8;
     y = -y;
-    assert((s1 * s2) == 40);
-    assert((x * y) == 40);
-    s1 = 1;
-    s2 = -8;
-    assert((s1 * s2) == -8);
-    assert(((x / x) * y) == -8);
+    assert((s1 * s2) == 40_i8);
+    assert((x * y) == 40_i32);
+    s1 = 1_i8;
+    s2 = -8_i8;
+    assert((s1 * s2) == -8_i8);
+    assert(((x / x) * y) == -8_i32);
 }

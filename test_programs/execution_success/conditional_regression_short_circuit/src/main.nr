@@ -25,7 +25,7 @@ fn bar(x: Field) {
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest = std::hash::blake3(x);
-    digest[0] = 5 as u8;
+    digest[0] = 5;
     digest = std::hash::blake3(x);
     assert(digest == result);
 }

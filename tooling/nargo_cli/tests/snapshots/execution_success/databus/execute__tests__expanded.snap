@@ -11,5 +11,5 @@ fn main(mut x: u32, y: u32, z: [u32; 4]) -> return_data u32 {
 }
 
 unconstrained fn foo(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }

@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: expected type i32, found type Field
+  ┌─ src/main.nr:1:18
+  │  
+1 │   fn main() -> pub i32 {
+  │                    --- expected i32 because of return type
+2 │ ╭     comptime {
+3 │ │         -1
+4 │ │     }
+  │ ╰─────' Field returned here
+  │  
+
+Aborting due to 1 previous error

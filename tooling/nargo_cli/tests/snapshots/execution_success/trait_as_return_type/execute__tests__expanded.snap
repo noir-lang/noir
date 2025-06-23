@@ -10,7 +10,7 @@ struct A {}
 
 impl SomeTrait for A {
     fn magic_number(self) -> Field {
-        2
+        2_Field
     }
 }
 
@@ -18,7 +18,7 @@ struct B {}
 
 impl SomeTrait for B {
     fn magic_number(self) -> Field {
-        4
+        4_Field
     }
 }
 
@@ -48,10 +48,10 @@ fn main(x: u32) {
     let a: A = factory_a();
     let b: B = B {};
     let b2: B = factory_b();
-    assert(a.magic_number() == 2);
-    assert(b.magic_number() == 4);
-    assert(b2.magic_number() == 4);
-    let c: C = factory_c(10);
-    assert(c.magic_number() == 10);
-    assert(factory_c(13).magic_number() == 13);
+    assert(a.magic_number() == 2_Field);
+    assert(b.magic_number() == 4_Field);
+    assert(b2.magic_number() == 4_Field);
+    let c: C = factory_c(10_Field);
+    assert(c.magic_number() == 10_Field);
+    assert(factory_c(13_Field).magic_number() == 13_Field);
 }
