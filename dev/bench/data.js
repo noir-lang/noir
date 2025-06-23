@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750716334759,
+  "lastUpdate": 1750716348808,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c17cd4179548b9271f1efb17df22f33b3c23188b",
-          "message": "chore(ssa_fuzzer): Add SSA validation to the SSA fuzzer (#8901)",
-          "timestamp": "2025-06-12T20:16:10Z",
-          "tree_id": "18a2421b55ac37f199df32bf0ad9fa11a60843de",
-          "url": "https://github.com/noir-lang/noir/commit/c17cd4179548b9271f1efb17df22f33b3c23188b"
-        },
-        "date": 1749761024043,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.348,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.644,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.138,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.392,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.118,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.524,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.763,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.774,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "27e5ed347ce732df113c0329335140c9acdaea76",
+          "message": "feat: Implement type suffixes (#8970)",
+          "timestamp": "2025-06-23T21:36:36Z",
+          "tree_id": "4b22961b87274127e9dc89fb396acd203ebe0909",
+          "url": "https://github.com/noir-lang/noir/commit/27e5ed347ce732df113c0329335140c9acdaea76"
+        },
+        "date": 1750716334991,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.322,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.418,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 179,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.264,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.75,
             "unit": "s"
           }
         ]
