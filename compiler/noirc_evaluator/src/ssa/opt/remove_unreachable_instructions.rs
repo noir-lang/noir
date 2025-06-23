@@ -458,4 +458,44 @@ mod test {
         }
         "#);
     }
+
+    #[test]
+    fn removes_block_that_is_unreachable_when_all_of_its_predecessors_are_unreachable() {
+        // Here b4 won't be conisdered unreachable when we find that b2 or b3 are unreachable,
+        // because neither dominate it, but it will still not show up in the final SSA
+        // because no block will be able to reach it.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b4()
+          b3():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            jmp b4()
+          b4():
+            return Field 1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+          b3():
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#);
+    }
 }
