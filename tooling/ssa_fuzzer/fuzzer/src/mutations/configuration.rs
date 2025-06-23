@@ -53,14 +53,18 @@ pub(crate) enum WitnessMutationOptions {
     Random,
     MaxValue,
     MinValue,
+    SmallAddSub,
+    PowerOfTwoAddSub,
 }
 
-pub(crate) type WitnessMutationConfig = WeightedSelectionConfig<WitnessMutationOptions, 3>;
+pub(crate) type WitnessMutationConfig = WeightedSelectionConfig<WitnessMutationOptions, 5>;
 pub(crate) const BASIC_WITNESS_MUTATION_CONFIGURATION: WitnessMutationConfig =
     WitnessMutationConfig::new([
         (WitnessMutationOptions::Random, 1),
-        (WitnessMutationOptions::MaxValue, 3),
+        (WitnessMutationOptions::MaxValue, 2),
         (WitnessMutationOptions::MinValue, 2),
+        (WitnessMutationOptions::SmallAddSub, 4),
+        (WitnessMutationOptions::PowerOfTwoAddSub, 3),
     ]);
 
 /// Mutations of fuzzer commands
@@ -89,16 +93,18 @@ pub(crate) enum VectorOfInstructionBlocksMutationOptions {
     InstructionBlockDeletion,
     InstructionBlockInsertion,
     InstructionBlockMutation,
+    InstructionBlockSwap,
 }
 
 pub(crate) type VectorOfInstructionBlocksMutationConfig =
-    WeightedSelectionConfig<VectorOfInstructionBlocksMutationOptions, 4>;
+    WeightedSelectionConfig<VectorOfInstructionBlocksMutationOptions, 5>;
 pub(crate) const BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION:
     VectorOfInstructionBlocksMutationConfig = VectorOfInstructionBlocksMutationConfig::new([
     (VectorOfInstructionBlocksMutationOptions::Random, 1),
     (VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion, 15),
     (VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion, 15),
     (VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation, 55),
+    (VectorOfInstructionBlocksMutationOptions::InstructionBlockSwap, 15),
 ]);
 
 /// Mutations of single instruction block
@@ -108,16 +114,18 @@ pub(crate) enum InstructionBlockMutationOptions {
     InstructionDeletion,
     InstructionInsertion,
     InstructionMutation,
+    InstructionSwap,
 }
 
 pub(crate) type InstructionBlockMutationConfig =
-    WeightedSelectionConfig<InstructionBlockMutationOptions, 4>;
+    WeightedSelectionConfig<InstructionBlockMutationOptions, 5>;
 pub(crate) const BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION: InstructionBlockMutationConfig =
     InstructionBlockMutationConfig::new([
         (InstructionBlockMutationOptions::Random, 1),
         (InstructionBlockMutationOptions::InstructionDeletion, 15),
         (InstructionBlockMutationOptions::InstructionInsertion, 15),
         (InstructionBlockMutationOptions::InstructionMutation, 55),
+        (InstructionBlockMutationOptions::InstructionSwap, 15),
     ]);
 
 /// Mutations of instructions
@@ -133,6 +141,21 @@ pub(crate) const BASIC_INSTRUCTION_MUTATION_CONFIGURATION: InstructionMutationCo
         (InstructionMutationOptions::Random, 1),
         (InstructionMutationOptions::ArgumentMutation, 4),
     ]);
+
+/// Instruction argument mutation configuration
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum InstructionArgumentMutationOptions {
+    Left,
+    Right,
+}
+
+pub(crate) type InstructionArgumentMutationConfig =
+    WeightedSelectionConfig<InstructionArgumentMutationOptions, 2>;
+pub(crate) const BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION:
+    InstructionArgumentMutationConfig = InstructionArgumentMutationConfig::new([
+    (InstructionArgumentMutationOptions::Left, 1),
+    (InstructionArgumentMutationOptions::Right, 1),
+]);
 
 /// Mutations of arguments of instructions
 #[derive(Copy, Clone, Debug)]
@@ -151,3 +174,13 @@ pub(crate) const BASIC_ARGUMENT_MUTATION_CONFIGURATION: ArgumentMutationConfig =
         (ArgumentMutationOptions::DecrementIndex, 3),
         (ArgumentMutationOptions::ChangeType, 2),
     ]);
+
+/// Mutations of value types
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ValueTypeMutationOptions {
+    Random,
+}
+
+pub(crate) type ValueTypeMutationConfig = WeightedSelectionConfig<ValueTypeMutationOptions, 1>;
+pub(crate) const BASIC_VALUE_TYPE_MUTATION_CONFIGURATION: ValueTypeMutationConfig =
+    ValueTypeMutationConfig::new([(ValueTypeMutationOptions::Random, 1)]);

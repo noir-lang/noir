@@ -6,8 +6,9 @@
 //! 4. Change type
 
 use crate::fuzz_lib::instruction::Argument;
-use crate::mutations::configuration::{
-    ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
+use crate::mutations::{
+    configuration::{ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION},
+    instructions::type_mutations::type_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
@@ -19,10 +20,10 @@ trait ArgumentsMutator {
 /// Return new random argument
 struct RandomMutation;
 impl ArgumentsMutator for RandomMutation {
-    fn mutate(rng: &mut StdRng, _value: &mut Argument) {
+    fn mutate(rng: &mut StdRng, value: &mut Argument) {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
-        Unstructured::new(&bytes).arbitrary().unwrap()
+        *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
 }
 
@@ -46,10 +47,7 @@ impl ArgumentsMutator for DecrementArgumentIndexMutation {
 struct ChangeTypeMutation;
 impl ArgumentsMutator for ChangeTypeMutation {
     fn mutate(rng: &mut StdRng, value: &mut Argument) {
-        let mut bytes = [0u8; 17];
-        rng.fill(&mut bytes);
-        let value_type = Unstructured::new(&bytes).arbitrary().unwrap();
-        value.value_type = value_type;
+        type_mutator(&mut value.value_type, rng);
     }
 }
 

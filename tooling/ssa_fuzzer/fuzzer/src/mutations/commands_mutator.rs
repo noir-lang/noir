@@ -19,10 +19,10 @@ trait MutateVecFuzzerCommand {
 /// Return new random vector of fuzzer commands
 struct RandomMutation;
 impl MutateVecFuzzerCommand for RandomMutation {
-    fn mutate(rng: &mut StdRng, _commands: &mut Vec<FuzzerCommand>) {
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
         let mut bytes = [0u8; 128];
         rng.fill(&mut bytes);
-        Unstructured::new(&bytes).arbitrary().unwrap()
+        *commands = Unstructured::new(&bytes).arbitrary().unwrap();
     }
 }
 

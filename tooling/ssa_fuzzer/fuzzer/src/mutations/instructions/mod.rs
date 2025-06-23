@@ -8,6 +8,8 @@
 mod argument_mutator;
 mod instruction_block_mutator;
 mod instruction_mutator;
+mod type_mutations;
+
 use super::configuration::{
     BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION,
     VectorOfInstructionBlocksMutationOptions,
@@ -24,16 +26,16 @@ trait MutateVecInstructionBlock {
 /// Return new random vector of instruction blocks
 struct RandomMutation;
 impl MutateVecInstructionBlock for RandomMutation {
-    fn mutate(rng: &mut StdRng, _value: &mut Vec<InstructionBlock>) {
+    fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
         let mut bytes = [0u8; 128];
         rng.fill(&mut bytes);
-        Unstructured::new(&bytes).arbitrary().unwrap()
+        *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
 }
 
 /// Return vector of instruction blocks with one randomly chosen block removed
-struct MutateInstructionBlockDeletionMutation;
-impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
+struct InstructionBlockDeletionMutation;
+impl MutateVecInstructionBlock for InstructionBlockDeletionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
         let mut blocks = value;
         if !blocks.is_empty() {
@@ -44,8 +46,8 @@ impl MutateVecInstructionBlock for MutateInstructionBlockDeletionMutation {
 }
 
 /// Return vector of instruction blocks with one randomly generated block inserted
-struct MutateInstructionBlockInsertionMutation;
-impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
+struct InstructionBlockInsertionMutation;
+impl MutateVecInstructionBlock for InstructionBlockInsertionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
         let mut blocks = value;
         let block_idx = if blocks.is_empty() { 0 } else { rng.gen_range(0..blocks.len()) };
@@ -58,13 +60,25 @@ impl MutateVecInstructionBlock for MutateInstructionBlockInsertionMutation {
 }
 
 /// Return vector of instruction blocks with one randomly chosen block mutated
-struct MutateInstructionBlockInstructionMutation;
-impl MutateVecInstructionBlock for MutateInstructionBlockInstructionMutation {
+struct InstructionBlockInstructionMutation;
+impl MutateVecInstructionBlock for InstructionBlockInstructionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
-        let mut blocks = value;
+        let blocks = value;
         if !blocks.is_empty() {
             let block_idx = rng.gen_range(0..blocks.len());
-            blocks[block_idx] = instruction_block_mutator(blocks[block_idx].clone(), rng);
+            instruction_block_mutator(&mut blocks[block_idx], rng);
+        }
+    }
+}
+
+struct InstructionBlockInstructionSwapMutation;
+impl MutateVecInstructionBlock for InstructionBlockInstructionSwapMutation {
+    fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
+        let blocks = value;
+        if !blocks.is_empty() {
+            let block_idx_1 = rng.gen_range(0..blocks.len());
+            let block_idx_2 = rng.gen_range(0..blocks.len());
+            blocks.swap(block_idx_1, block_idx_2);
         }
     }
 }
@@ -78,13 +92,16 @@ pub(crate) fn mutate_vec_instruction_block(
             RandomMutation::mutate(rng, vec_instruction_block)
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion => {
-            MutateInstructionBlockDeletionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockDeletionMutation::mutate(rng, vec_instruction_block)
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion => {
-            MutateInstructionBlockInsertionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInsertionMutation::mutate(rng, vec_instruction_block)
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation => {
-            MutateInstructionBlockInstructionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInstructionMutation::mutate(rng, vec_instruction_block)
+        }
+        VectorOfInstructionBlocksMutationOptions::InstructionBlockSwap => {
+            InstructionBlockInstructionSwapMutation::mutate(rng, vec_instruction_block)
         }
     }
 }
