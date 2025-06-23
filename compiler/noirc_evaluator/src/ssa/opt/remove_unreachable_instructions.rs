@@ -218,7 +218,7 @@ mod test {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 != u1 0, "Index out of bounds"
-            unreachable
+            return u1 0
         }
         "#);
     }
@@ -496,10 +496,12 @@ mod test {
             jmp b3()
           b2():
             constrain u1 0 == u1 1, "Index out of bounds"
-            unreachable
+            jmp b4()
           b3():
             constrain u1 0 == u1 1, "Index out of bounds"
-            unreachable
+            jmp b4()
+          b4():
+            return Field 1
         }
         "#);
     }
