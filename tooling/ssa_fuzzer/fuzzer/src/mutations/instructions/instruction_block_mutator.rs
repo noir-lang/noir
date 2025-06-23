@@ -72,7 +72,7 @@ impl InstructionBlockMutator for InstructionBlockInstructionMutation {
         let mut instructions = value.instructions;
         if !instructions.is_empty() {
             let instruction_idx = rng.gen_range(0..instructions.len());
-            instructions[instruction_idx] = instruction_mutator(instructions[instruction_idx], rng);
+            instruction_mutator(&mut instructions[instruction_idx], rng);
         }
         InstructionBlock { instructions }
     }

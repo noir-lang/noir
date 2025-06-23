@@ -12,17 +12,14 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
 trait WitnessMutator {
-    fn mutate(&self, rng: &mut StdRng, value: &WitnessValue) -> WitnessValue;
-}
-trait WitnessMutatorFactory {
-    fn new_box() -> Box<dyn WitnessMutator>;
+    fn mutate(rng: &mut StdRng, value: &mut WitnessValue);
 }
 
 /// Return new random witness value
 #[derive(Default)]
 struct RandomMutation;
 impl WitnessMutator for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, _value: &WitnessValue) -> WitnessValue {
+    fn mutate(rng: &mut StdRng, _value: &mut WitnessValue) {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
@@ -33,8 +30,8 @@ impl WitnessMutator for RandomMutation {
 #[derive(Default)]
 struct MaxValueMutation;
 impl WitnessMutator for MaxValueMutation {
-    fn mutate(&self, _rng: &mut StdRng, value: &WitnessValue) -> WitnessValue {
-        match value {
+    fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
+        let mutated_value = match value {
             WitnessValue::Field(_) => WitnessValue::Field(FieldRepresentation {
                 high: 64323764613183177041862057485226039389,
                 low: 53438638232309528389504892708671455232, // high * 2^128 + low = p - 1
@@ -43,43 +40,30 @@ impl WitnessMutator for MaxValueMutation {
             WitnessValue::Boolean(_) => WitnessValue::Boolean(true),
             WitnessValue::I64(_) => WitnessValue::I64((1 << 63) - 1), // 2^63 - 1, sign bit is 0
             WitnessValue::I32(_) => WitnessValue::I32((1 << 31) - 1), // 2^31 - 1, sign bit is 0
-        }
+        };
+        *value = mutated_value;
     }
 }
 
 /// Return witness value with min value
-#[derive(Default)]
 struct MinValueMutation;
 impl WitnessMutator for MinValueMutation {
-    fn mutate(&self, _rng: &mut StdRng, value: &WitnessValue) -> WitnessValue {
-        match value {
+    fn mutate(_rng: &mut StdRng, value: &mut WitnessValue) {
+        let mutated_value = match value {
             WitnessValue::Field(_) => WitnessValue::Field(FieldRepresentation { high: 0, low: 0 }),
             WitnessValue::U64(_) => WitnessValue::U64(0),
             WitnessValue::Boolean(_) => WitnessValue::Boolean(false),
             WitnessValue::I64(_) => WitnessValue::I64(1 << 63), // 2^63, sign bit is 1
             WitnessValue::I32(_) => WitnessValue::I32(1 << 31), // 2^31, sign bit is 1
-        }
+        };
+        *value = mutated_value;
     }
 }
 
-impl<T> WitnessMutatorFactory for T
-where
-    T: WitnessMutator + Default + 'static,
-{
-    fn new_box() -> Box<dyn WitnessMutator> {
-        Box::new(T::default())
-    }
-}
-
-fn mutation_factory(rng: &mut StdRng) -> Box<dyn WitnessMutator> {
+pub(crate) fn witness_mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
     match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
-        WitnessMutationOptions::Random => RandomMutation::new_box(),
-        WitnessMutationOptions::MaxValue => MaxValueMutation::new_box(),
-        WitnessMutationOptions::MinValue => MinValueMutation::new_box(),
+        WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),
+        WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(rng, witness_value),
+        WitnessMutationOptions::MinValue => MinValueMutation::mutate(rng, witness_value),
     }
-}
-
-pub(crate) fn witness_mutate(witness_value: &WitnessValue, rng: &mut StdRng) -> WitnessValue {
-    let mutator = mutation_factory(rng);
-    mutator.mutate(rng, witness_value)
 }

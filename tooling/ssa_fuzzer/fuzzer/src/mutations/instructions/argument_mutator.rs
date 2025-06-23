@@ -13,17 +13,13 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
 trait ArgumentsMutator {
-    fn mutate(&self, rng: &mut StdRng, value: Argument) -> Argument;
-}
-trait ArgumentsMutatorFactory {
-    fn new_box() -> Box<dyn ArgumentsMutator>;
+    fn mutate(rng: &mut StdRng, value: &mut Argument);
 }
 
 /// Return new random argument
-#[derive(Default)]
 struct RandomMutation;
 impl ArgumentsMutator for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, _value: Argument) -> Argument {
+    fn mutate(rng: &mut StdRng, _value: &mut Argument) {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
@@ -31,54 +27,41 @@ impl ArgumentsMutator for RandomMutation {
 }
 
 /// Increment index of the argument
-#[derive(Default)]
 struct IncrementArgumentIndexMutation;
 impl ArgumentsMutator for IncrementArgumentIndexMutation {
-    fn mutate(&self, _rng: &mut StdRng, value: Argument) -> Argument {
-        Argument { index: value.index + 1, value_type: value.value_type }
+    fn mutate(_rng: &mut StdRng, value: &mut Argument) {
+        value.index = value.index.saturating_add(1);
     }
 }
 
 /// Decrement index of the argument
-#[derive(Default)]
 struct DecrementArgumentIndexMutation;
 impl ArgumentsMutator for DecrementArgumentIndexMutation {
-    fn mutate(&self, _rng: &mut StdRng, value: Argument) -> Argument {
-        Argument { index: value.index.saturating_sub(1), value_type: value.value_type }
+    fn mutate(_rng: &mut StdRng, value: &mut Argument) {
+        value.index = value.index.saturating_sub(1);
     }
 }
 
 /// Change type of the argument
-#[derive(Default)]
 struct ChangeTypeMutation;
 impl ArgumentsMutator for ChangeTypeMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Argument) -> Argument {
+    fn mutate(rng: &mut StdRng, value: &mut Argument) {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
         let value_type = Unstructured::new(&bytes).arbitrary().unwrap();
-        Argument { index: value.index, value_type }
+        value.value_type = value_type;
     }
 }
 
-impl<T> ArgumentsMutatorFactory for T
-where
-    T: ArgumentsMutator + Default + 'static,
-{
-    fn new_box() -> Box<dyn ArgumentsMutator> {
-        Box::new(T::default())
-    }
-}
-
-fn mutation_factory(rng: &mut StdRng) -> Box<dyn ArgumentsMutator> {
+pub(crate) fn argument_mutator(argument: &mut Argument, rng: &mut StdRng) {
     match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
-        ArgumentMutationOptions::Random => RandomMutation::new_box(),
-        ArgumentMutationOptions::IncrementIndex => IncrementArgumentIndexMutation::new_box(),
-        ArgumentMutationOptions::DecrementIndex => DecrementArgumentIndexMutation::new_box(),
-        ArgumentMutationOptions::ChangeType => ChangeTypeMutation::new_box(),
+        ArgumentMutationOptions::Random => RandomMutation::mutate(rng, argument),
+        ArgumentMutationOptions::IncrementIndex => {
+            IncrementArgumentIndexMutation::mutate(rng, argument)
+        }
+        ArgumentMutationOptions::DecrementIndex => {
+            DecrementArgumentIndexMutation::mutate(rng, argument)
+        }
+        ArgumentMutationOptions::ChangeType => ChangeTypeMutation::mutate(rng, argument),
     }
-}
-
-pub(crate) fn argument_mutator(argument: Argument, rng: &mut StdRng) -> Argument {
-    let mutator = mutation_factory(rng);
-    mutator.mutate(rng, argument)
 }

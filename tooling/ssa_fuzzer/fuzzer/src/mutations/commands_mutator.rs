@@ -13,18 +13,13 @@ use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
 trait MutateVecFuzzerCommand {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand>;
-}
-
-trait MutateVecFuzzerCommandFactory {
-    fn new_box() -> Box<dyn MutateVecFuzzerCommand>;
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>);
 }
 
 /// Return new random vector of fuzzer commands
-#[derive(Default)]
 struct RandomMutation;
 impl MutateVecFuzzerCommand for RandomMutation {
-    fn mutate(&self, rng: &mut StdRng, _value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
+    fn mutate(rng: &mut StdRng, _commands: &mut Vec<FuzzerCommand>) {
         let mut bytes = [0u8; 128];
         rng.fill(&mut bytes);
         Unstructured::new(&bytes).arbitrary().unwrap()
@@ -32,38 +27,30 @@ impl MutateVecFuzzerCommand for RandomMutation {
 }
 
 /// Remove randomly chosen command from the vector
-#[derive(Default)]
 struct RemoveCommandMutation;
 impl MutateVecFuzzerCommand for RemoveCommandMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
-        let mut commands = value;
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
         if !commands.is_empty() {
             commands.remove(rng.gen_range(0..commands.len()));
         }
-        commands
     }
 }
 
 /// Add randomly generated command to the vector
-#[derive(Default)]
 struct AddCommandMutation;
 impl MutateVecFuzzerCommand for AddCommandMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
-        let mut commands = value.clone();
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
         let command = Unstructured::new(&bytes).arbitrary().unwrap();
         commands.push(command);
-        commands
     }
 }
 
 /// Replace randomly chosen command with randomly generated command
-#[derive(Default)]
 struct ReplaceCommandMutation;
 impl MutateVecFuzzerCommand for ReplaceCommandMutation {
-    fn mutate(&self, rng: &mut StdRng, value: Vec<FuzzerCommand>) -> Vec<FuzzerCommand> {
-        let mut commands = value;
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
         let mut bytes = [0u8; 25];
         rng.fill(&mut bytes);
         let command = Unstructured::new(&bytes).arbitrary().unwrap();
@@ -71,33 +58,23 @@ impl MutateVecFuzzerCommand for ReplaceCommandMutation {
             let command_idx = rng.gen_range(0..commands.len());
             commands[command_idx] = command;
         }
-        commands
-    }
-}
-
-impl<T> MutateVecFuzzerCommandFactory for T
-where
-    T: MutateVecFuzzerCommand + Default + 'static,
-{
-    fn new_box() -> Box<dyn MutateVecFuzzerCommand> {
-        Box::new(T::default())
-    }
-}
-
-// todo more mutations
-fn mutation_factory(rng: &mut StdRng) -> Box<dyn MutateVecFuzzerCommand> {
-    match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
-        FuzzerCommandMutationOptions::Random => RandomMutation::new_box(),
-        FuzzerCommandMutationOptions::RemoveCommand => RemoveCommandMutation::new_box(),
-        FuzzerCommandMutationOptions::AddCommand => AddCommandMutation::new_box(),
-        FuzzerCommandMutationOptions::ReplaceCommand => ReplaceCommandMutation::new_box(),
     }
 }
 
 pub(crate) fn mutate_vec_fuzzer_command(
-    vec_fuzzer_command: Vec<FuzzerCommand>,
+    vec_fuzzer_command: &mut Vec<FuzzerCommand>,
     rng: &mut StdRng,
-) -> Vec<FuzzerCommand> {
-    let mutator = mutation_factory(rng);
-    mutator.mutate(rng, vec_fuzzer_command)
+) {
+    match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
+        FuzzerCommandMutationOptions::Random => RandomMutation::mutate(rng, vec_fuzzer_command),
+        FuzzerCommandMutationOptions::RemoveCommand => {
+            RemoveCommandMutation::mutate(rng, vec_fuzzer_command)
+        }
+        FuzzerCommandMutationOptions::AddCommand => {
+            AddCommandMutation::mutate(rng, vec_fuzzer_command)
+        }
+        FuzzerCommandMutationOptions::ReplaceCommand => {
+            ReplaceCommandMutation::mutate(rng, vec_fuzzer_command)
+        }
+    }
 }

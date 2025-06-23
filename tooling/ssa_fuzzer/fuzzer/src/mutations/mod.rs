@@ -12,19 +12,18 @@ use rand::{Rng, rngs::StdRng};
 pub(crate) fn mutate(data: FuzzerData, rng: &mut StdRng) -> FuzzerData {
     let (mut blocks, mut commands, mut initial_witness) =
         (data.blocks, data.commands, data.initial_witness);
-    let number_of_mutations = rng.gen_range(0..MAX_NUMBER_OF_MUTATIONS);
+    let number_of_mutations = rng.gen_range(1..MAX_NUMBER_OF_MUTATIONS);
     for _ in 0..number_of_mutations {
         match BASIC_MUTATION_CONFIGURATION.select(rng) {
             MutationOptions::InstructionBlocks => {
-                blocks = instructions::mutate_vec_instruction_block(blocks, rng);
+                instructions::mutate_vec_instruction_block(&mut blocks, rng);
             }
             MutationOptions::FuzzerCommands => {
-                commands = commands_mutator::mutate_vec_fuzzer_command(commands, rng);
+                commands_mutator::mutate_vec_fuzzer_command(&mut commands, rng);
             }
             MutationOptions::Witnesses => {
                 let index = rng.gen_range(0..initial_witness.len());
-                initial_witness[index] =
-                    witness_mutator::witness_mutate(&initial_witness[index], rng);
+                witness_mutator::witness_mutate(&mut initial_witness[index], rng);
             }
         }
     }
