@@ -2,7 +2,7 @@
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
-//! values with zeroed values of the appropriate type. If the block has successors
+//! with a special `unreachable` value. If the block has successors
 //! those successors will also be considered unreachable if they are dominated
 //! by that block.
 
