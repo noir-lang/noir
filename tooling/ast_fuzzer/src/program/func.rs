@@ -730,9 +730,9 @@ impl<'a> FunctionContext<'a> {
         let ops = BinaryOp::iter()
             .filter(|op| {
                 types::can_binary_op_return(op, typ)
-                    && (!self.ctx.config.avoid_overflow && !self.in_no_dynamic
+                    && (!(self.ctx.config.avoid_overflow || self.in_no_dynamic)
                         || !types::can_binary_op_overflow(op))
-                    && (!self.ctx.config.avoid_err_by_zero && !self.in_no_dynamic
+                    && (!(self.ctx.config.avoid_err_by_zero || self.in_no_dynamic)
                         || !types::can_binary_op_err_by_zero(op))
             })
             .collect::<Vec<_>>();
