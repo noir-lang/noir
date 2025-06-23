@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750715828646,
+  "lastUpdate": 1750715830482,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f5522446a390ba65429ca84fc87a9e991d0985c6",
-          "message": "chore(fuzz): More metamorphic rules (#8857)",
-          "timestamp": "2025-06-12T17:53:45Z",
-          "tree_id": "f90fbce6f701289b8b2786a7e261cc094243bcbd",
-          "url": "https://github.com/noir-lang/noir/commit/f5522446a390ba65429ca84fc87a9e991d0985c6"
-        },
-        "date": 1749752924534,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.76,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/01b9e1665c04e97ce9cb5e320adaa2b0c7dc60cd"
         },
         "date": 1750692328654,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.11,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.62,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.81,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "caabecf88bddb60d573ff8da7b637b1857c5f593",
+          "message": "fix: add parent traits when adding trait impl where clause (#9000)",
+          "timestamp": "2025-06-23T21:17:17Z",
+          "tree_id": "455655504af6c4ca3ee52909f9458182cc1e39f8",
+          "url": "https://github.com/noir-lang/noir/commit/caabecf88bddb60d573ff8da7b637b1857c5f593"
+        },
+        "date": 1750715815847,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
