@@ -32,7 +32,7 @@ impl Ssa {
         Printer { ssa: self, fm: None }
     }
 
-    pub fn print_with_files<'local>(
+    pub fn print_with<'local>(
         &'local self,
         files: Option<&'local fm::FileManager>,
     ) -> Printer<'local> {

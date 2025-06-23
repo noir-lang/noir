@@ -767,7 +767,7 @@ impl<'local> SsaBuilder<'local> {
         };
 
         if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa.print_with_files(self.files));
+            println!("After {msg}:\n{}", self.ssa.print_with(self.files));
         }
         self
     }
