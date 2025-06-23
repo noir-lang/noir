@@ -12,7 +12,6 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
@@ -25,7 +24,7 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
-#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Hash)]
 pub(crate) enum FuzzerCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
