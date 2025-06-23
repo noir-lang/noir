@@ -34,20 +34,6 @@ impl Function {
         .expect("`f` cannot error internally so this should be unreachable");
     }
 
-    /// Similar to `simple_reachable_blocks_optimization` but traverses the blocks in pre-order.
-    pub(crate) fn simple_reachable_pre_order_blocks_optimization<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
-    {
-        let blocks = self.reachable_pre_order_blocks().into_iter();
-
-        self.simple_optimization_result(blocks, move |context| {
-            f(context);
-            Ok(())
-        })
-        .expect("`f` cannot error internally so this should be unreachable");
-    }
-
     /// Performs a simple optimization according to the given callback, returning early if
     /// an error occurred.
     ///
@@ -62,17 +48,8 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization_result<F>(&mut self, f: F) -> RtResult<()>
-    where
-        F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
-    {
-        let blocks = self.reachable_blocks().into_iter();
-        self.simple_optimization_result(blocks, f)
-    }
-
-    fn simple_optimization_result<F>(
+    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
         &mut self,
-        blocks: impl Iterator<Item = BasicBlockId>,
         mut f: F,
     ) -> RtResult<()>
     where
@@ -80,7 +57,7 @@ impl Function {
     {
         let mut values_to_replace = ValueMapping::default();
 
-        for block_id in blocks {
+        for block_id in self.reachable_blocks() {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {

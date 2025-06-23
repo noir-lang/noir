@@ -1,8 +1,7 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use acvm::FieldElement;
-use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
@@ -190,23 +189,6 @@ impl Function {
                 stack.extend(self.dfg[block].successors());
             }
         }
-        blocks
-    }
-
-    /// Collects all the reachable blocks of this function and returns them in pre-order.
-    pub(crate) fn reachable_pre_order_blocks(&self) -> Vec<BasicBlockId> {
-        let mut blocks = Vec::new();
-        let mut seen = HashSet::default();
-        let mut stack = VecDeque::new();
-        stack.push_back(self.entry_block);
-
-        while let Some(block) = stack.pop_front() {
-            if seen.insert(block) {
-                blocks.push(block);
-                stack.extend(self.dfg[block].successors());
-            }
-        }
-
         blocks
     }
 

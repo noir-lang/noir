@@ -42,7 +42,7 @@ impl Function {
         // At the end we'll zero out their terminators.
         let mut unreachable_blocks = HashSet::default();
 
-        self.simple_reachable_pre_order_blocks_optimization(|context| {
+        self.simple_reachable_blocks_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
