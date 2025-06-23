@@ -610,7 +610,14 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -646,6 +653,7 @@
 <span class="kw">pub use </span>type_alias::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::QuotedType;
+<span class="kw">use </span><span class="kw">crate</span>::token::IntegerTypeSuffix;
 <span class="kw">use crate</span>::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -845,7 +853,7 @@
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Location),
+    Constant(FieldElement, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
     BinaryOperation(
         Box&lt;UnresolvedTypeExpression&gt;,
         BinaryTypeOperator,
@@ -939,7 +947,8 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             UnresolvedTypeExpression::Variable(name) =&gt; name.fmt(f),
-            UnresolvedTypeExpression::Constant(x, <span class="kw">_</span>) =&gt; x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, <span class="prelude-val">None</span>, <span class="kw">_</span>) =&gt; x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, <span class="prelude-val">Some</span>(suffix), <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{x}_{suffix}"</span>),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"({lhs} {op} {rhs})"</span>)
             }
@@ -1120,7 +1129,7 @@
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
             UnresolvedTypeExpression::Variable(path) =&gt; path.location,
-            UnresolvedTypeExpression::Constant(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
+            UnresolvedTypeExpression::Constant(<span class="kw">_</span>, <span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
             UnresolvedTypeExpression::BinaryOperation(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
             UnresolvedTypeExpression::AsTraitPath(path) =&gt; {
                 path.trait_path.location.merge(path.impl_item.location())
@@ -1134,14 +1143,19 @@
 
     <span class="kw">fn </span>from_expr_helper(expr: Expression) -&gt; <span class="prelude-ty">Result</span>&lt;UnresolvedTypeExpression, Expression&gt; {
         <span class="kw">match </span>expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) =&gt; <span class="kw">match </span>int.try_to_unsigned::&lt;u32&gt;() {
-                <span class="prelude-val">Some</span>(int) =&gt; <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
-                <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, suffix)) =&gt; {
+                <span class="kw">match </span>int.try_to_unsigned::&lt;u32&gt;() {
+                    <span class="prelude-val">Some</span>(int) =&gt; {
+                        <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location))
+                    }
+                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(expr),
+                }
+            }
             ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) <span class="kw">if </span>prefix.operator == UnaryOp::Minus =&gt; {
                 <span class="kw">let </span>lhs = Box::new(UnresolvedTypeExpression::Constant(
                     FieldElement::zero(),
+                    <span class="prelude-val">None</span>,
                     expr.location,
                 ));
                 <span class="kw">let </span>rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)<span class="question-mark">?</span>);
@@ -1198,7 +1212,7 @@
             UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) =&gt; {
                 lhs.contains_unspecified() || rhs.contains_unspecified()
             }
-            UnresolvedTypeExpression::Constant(<span class="kw">_</span>, <span class="kw">_</span>) | UnresolvedTypeExpression::AsTraitPath(<span class="kw">_</span>) =&gt; {
+            UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(<span class="kw">_</span>) =&gt; {
                 <span class="bool-val">false
             </span>}
         }

@@ -2214,7 +2214,9 @@
 <a href="#2213" id="2213">2213</a>
 <a href="#2214" id="2214">2214</a>
 <a href="#2215" id="2215">2215</a>
-<a href="#2216" id="2216">2216</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2216" id="2216">2216</a>
+<a href="#2217" id="2217">2217</a>
+<a href="#2218" id="2218">2218</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -2464,7 +2466,8 @@
     <span class="kw">fn </span>parse_member_access_field_name(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Ident&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
             <span class="prelude-val">Some</span>(ident)
-        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(int) = <span class="self">self</span>.eat_int() {
+        <span class="comment">// Using `None` because we don't want to allow integer type suffixes on tuple field names
+        </span>} <span class="kw">else if let </span><span class="prelude-val">Some</span>((int, <span class="prelude-val">None</span>)) = <span class="self">self</span>.eat_int() {
             <span class="prelude-val">Some</span>(Ident::new(int.to_string(), <span class="self">self</span>.previous_token_location))
         } <span class="kw">else </span>{
             <span class="self">self</span>.push_error(
@@ -2956,8 +2959,8 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::boolean(bool));
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(int) = <span class="self">self</span>.eat_int() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::integer(int));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((int, suffix)) = <span class="self">self</span>.eat_int() {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(ExpressionKind::integer(int, suffix));
         }
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(string) = <span class="self">self</span>.eat_str() {
@@ -3289,9 +3292,10 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_integer_literal() {
-        <span class="kw">let </span>src = <span class="string">"42"</span>;
+        <span class="kw">let </span>src = <span class="string">"42u32"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">use </span><span class="kw">crate</span>::token::IntegerTypeSuffix::U32;
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">Some</span>(U32))) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::positive(<span class="number">42_u128</span>));
@@ -3301,7 +3305,7 @@
     </span><span class="kw">fn </span>parses_negative_integer_literal() {
         <span class="kw">let </span>src = <span class="string">"-42"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::negative(<span class="number">42_u128</span>));
@@ -3314,7 +3318,7 @@
         <span class="kw">let </span>ExpressionKind::Parenthesized(expr) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected parenthesized expression"</span>);
         };
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::positive(<span class="number">42_u128</span>));
@@ -3369,13 +3373,13 @@
         <span class="macro">assert_eq!</span>(exprs.len(), <span class="number">2</span>);
 
         <span class="kw">let </span>expr = exprs.remove(<span class="number">0</span>);
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::positive(<span class="number">1_u128</span>));
 
         <span class="kw">let </span>expr = exprs.remove(<span class="number">0</span>);
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::positive(<span class="number">2_u128</span>));
@@ -3395,7 +3399,7 @@
             <span class="macro">panic!</span>(<span class="string">"Expected expression statement"</span>);
         };
 
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="prelude-val">None</span>)) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal"</span>);
         };
         <span class="macro">assert_eq!</span>(value, SignedField::positive(<span class="number">1_u128</span>));

@@ -605,7 +605,13 @@
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
 <a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
@@ -723,8 +729,11 @@
         <span class="kw">if </span><span class="self">self</span>.eat(Token::Minus) {
             <span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
                 <span class="prelude-val">Some</span>(rhs) =&gt; {
-                    <span class="kw">let </span>lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                    <span class="kw">let </span>lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        <span class="prelude-val">None</span>,
+                        start_location,
+                    );
                     <span class="kw">let </span>op = BinaryTypeOperator::Subtraction;
                     <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
                     <span class="prelude-val">Some</span>(UnresolvedTypeExpression::BinaryOperation(
@@ -766,8 +775,8 @@
 
     <span class="doccomment">/// ConstantTypeExpression = int
     </span><span class="kw">fn </span>parse_constant_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt; {
-        <span class="kw">let </span>int = <span class="self">self</span>.eat_int()<span class="question-mark">?</span>;
-        <span class="prelude-val">Some</span>(UnresolvedTypeExpression::Constant(int, <span class="self">self</span>.previous_token_location))
+        <span class="kw">let </span>(int, suffix) = <span class="self">self</span>.eat_int()<span class="question-mark">?</span>;
+        <span class="prelude-val">Some</span>(UnresolvedTypeExpression::Constant(int, suffix, <span class="self">self</span>.previous_token_location))
     }
 
     <span class="doccomment">/// VariableTypeExpression = Path
@@ -855,8 +864,11 @@
             <span class="comment">// If we ate '-' what follows must be a type expression, never a type
             </span><span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
                 <span class="prelude-val">Some</span>(rhs) =&gt; {
-                    <span class="kw">let </span>lhs =
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), start_location);
+                    <span class="kw">let </span>lhs = UnresolvedTypeExpression::Constant(
+                        FieldElement::zero(),
+                        <span class="prelude-val">None</span>,
+                        start_location,
+                    );
                     <span class="kw">let </span>op = BinaryTypeOperator::Subtraction;
                     <span class="kw">let </span>location = <span class="self">self</span>.location_since(start_location);
                     <span class="kw">let </span>type_expr = UnresolvedTypeExpression::BinaryOperation(
@@ -1030,7 +1042,7 @@
     </span><span class="kw">fn </span>parses_constant_type_expression() {
         <span class="kw">let </span>src = <span class="string">"42"</span>;
         <span class="kw">let </span>expr = parse_type_expression_no_errors(src);
-        <span class="kw">let </span>UnresolvedTypeExpression::Constant(n, <span class="kw">_</span>) = expr <span class="kw">else </span>{
+        <span class="kw">let </span>UnresolvedTypeExpression::Constant(n, <span class="kw">_</span>, <span class="kw">_</span>) = expr <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected constant"</span>);
         };
         <span class="macro">assert_eq!</span>(n, <span class="number">42_u32</span>.into());
@@ -1082,7 +1094,7 @@
         <span class="kw">let </span>UnresolvedTypeData::Expression(expr) = typ.typ <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected expression"</span>);
         };
-        <span class="kw">let </span>UnresolvedTypeExpression::Constant(n, <span class="kw">_</span>) = expr <span class="kw">else </span>{
+        <span class="kw">let </span>UnresolvedTypeExpression::Constant(n, <span class="kw">_</span>, <span class="kw">_</span>) = expr <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected constant"</span>);
         };
         <span class="macro">assert_eq!</span>(n, <span class="number">42_u32</span>.into());

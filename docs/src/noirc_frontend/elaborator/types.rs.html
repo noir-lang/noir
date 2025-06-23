@@ -2338,7 +2338,10 @@
 <a href="#2337" id="2337">2337</a>
 <a href="#2338" id="2338">2338</a>
 <a href="#2339" id="2339">2339</a>
-<a href="#2340" id="2340">2340</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2340" id="2340">2340</a>
+<a href="#2341" id="2341">2341</a>
+<a href="#2342" id="2342">2342</a>
+<a href="#2343" id="2343">2343</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2938,7 +2941,10 @@
                 <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 <span class="self">self</span>.check_kind(typ, expected_kind, location)
             }
-            UnresolvedTypeExpression::Constant(int, _span) =&gt; {
+            UnresolvedTypeExpression::Constant(int, suffix, _span) =&gt; {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(suffix) = suffix {
+                    <span class="self">self</span>.check_kind(suffix.as_type(), expected_kind, location);
+                }
                 Type::Constant(int, expected_kind.clone())
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {

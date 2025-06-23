@@ -115,13 +115,21 @@
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
     Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    token::IntegerTypeSuffix,
 };
 <span class="kw">use </span>num_bigint::BigInt;
 
@@ -169,7 +177,12 @@
 }
 
 <span class="kw">impl </span>Visitor <span class="kw">for </span>HoverFinder&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">fn </span>visit_literal_integer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: SignedField, span: Span) {
+    <span class="kw">fn </span>visit_literal_integer(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        value: SignedField,
+        _suffix: <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;,
+        span: Span,
+    ) {
         <span class="kw">if </span>!<span class="self">self</span>.intersects_span(span) {
             <span class="kw">return</span>;
         }
@@ -181,7 +194,8 @@
             <span class="kw">return</span>;
         };
 
-        <span class="kw">let </span>value = format_integer(typ, value);
+        <span class="comment">// Ignore the suffix when formatting the integer, we already show its type
+        </span><span class="kw">let </span>value = format_integer(typ, value);
         <span class="kw">let </span>contents = HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value });
         <span class="self">self</span>.hover = <span class="prelude-val">Some</span>(Hover { contents, range });
     }

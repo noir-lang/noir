@@ -638,7 +638,7 @@
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
     node_interner::ExprId,
-    token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 <span class="kw">use super</span>::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
@@ -895,11 +895,11 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>eat_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FieldElement&gt; {
+    <span class="kw">fn </span>eat_int(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(FieldElement, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;)&gt; {
         <span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.token.token(), Token::Int(..)) {
             <span class="kw">let </span>token = <span class="self">self</span>.bump();
             <span class="kw">match </span>token.into_token() {
-                Token::Int(int) =&gt; <span class="prelude-val">Some</span>(int),
+                Token::Int(int, suffix) =&gt; <span class="prelude-val">Some</span>((int, suffix)),
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
             }
         } <span class="kw">else </span>{

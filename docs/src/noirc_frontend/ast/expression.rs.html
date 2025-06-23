@@ -895,7 +895,8 @@
 <a href="#894" id="894">894</a>
 <a href="#895" id="895">895</a>
 <a href="#896" id="896">896</a>
-<a href="#897" id="897">897</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -908,7 +909,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::Visibility;
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
-<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, Token, Tokens};
+<span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 <span class="kw">use crate</span>::{Kind, Type};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -1077,14 +1078,16 @@
         <span class="kw">match </span>(operator, <span class="kw-2">&amp;</span>rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
-            ) =&gt; ExpressionKind::Literal(Literal::Integer(-<span class="kw-2">*</span>field)),
+                Expression {
+                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
+                },
+            ) =&gt; ExpressionKind::Literal(Literal::Integer(-<span class="kw-2">*</span>field, <span class="kw-2">*</span>suffix)),
             <span class="kw">_ </span>=&gt; ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
-    <span class="kw">pub fn </span>integer(contents: FieldElement) -&gt; ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents)))
+    <span class="kw">pub fn </span>integer(contents: FieldElement, suffix: <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;) -&gt; ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
     }
 
     <span class="kw">pub fn </span>boolean(contents: bool) -&gt; ExpressionKind {
@@ -1272,7 +1275,7 @@
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(SignedField),
+    Integer(SignedField, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec&lt;FmtStrFragment&gt;, u32 <span class="comment">/* length */</span>),
@@ -1531,9 +1534,8 @@
                 <span class="macro">write!</span>(f, <span class="string">"&amp;[{repeated_element}; {length}]"</span>)
             }
             Literal::Bool(boolean) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="kw">if </span><span class="kw-2">*</span>boolean { <span class="string">"true" </span>} <span class="kw">else </span>{ <span class="string">"false" </span>}),
-            Literal::Integer(signed_field) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"{signed_field}"</span>)
-            }
+            Literal::Integer(signed_field, <span class="prelude-val">Some</span>(suffix)) =&gt; <span class="macro">write!</span>(f, <span class="string">"{signed_field}_{suffix}"</span>),
+            Literal::Integer(signed_field, <span class="prelude-val">None</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{signed_field}"</span>),
             Literal::Str(string) =&gt; <span class="macro">write!</span>(f, <span class="string">"\"{string}\""</span>),
             Literal::RawStr(string, num_hashes) =&gt; {
                 <span class="kw">let </span>hashes: String =

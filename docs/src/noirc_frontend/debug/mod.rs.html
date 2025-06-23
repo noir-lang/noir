@@ -1581,13 +1581,13 @@
 
 <span class="kw">fn </span>uint_expr(x: u128, location: Location) -&gt; ast::Expression {
     <span class="kw">let </span>value = SignedField::positive(x);
-    <span class="kw">let </span>kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    <span class="kw">let </span>kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, <span class="prelude-val">None</span>));
     ast::Expression { kind, location }
 }
 
 <span class="kw">fn </span>sint_expr(x: i128, location: Location) -&gt; ast::Expression {
     <span class="kw">let </span>value = SignedField::from_signed(x);
-    <span class="kw">let </span>kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    <span class="kw">let </span>kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, <span class="prelude-val">None</span>));
     ast::Expression { kind, location }
 }
 </code></pre></div></section></main></body></html>

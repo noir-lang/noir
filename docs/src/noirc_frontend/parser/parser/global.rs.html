@@ -187,7 +187,8 @@
 <a href="#186" id="186">186</a>
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     ast::{
@@ -368,7 +369,8 @@
         <span class="macro">assert_eq!</span>(let_statement.pattern.span().start(), <span class="number">16</span>);
         <span class="macro">assert_eq!</span>(let_statement.pattern.span().end(), <span class="number">19</span>);
 
-        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value)) = let_statement.expression.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Literal(Literal::Integer(value, <span class="kw">_</span>)) = let_statement.expression.kind
+        <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected integer literal expression, got {:?}"</span>, let_statement.expression.kind);
         };
 

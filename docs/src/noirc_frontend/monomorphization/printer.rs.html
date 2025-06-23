@@ -567,9 +567,7 @@
 <a href="#566" id="566">566</a>
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a>
-<a href="#570" id="570">570</a>
-<a href="#571" id="571">571</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -824,9 +822,7 @@
             }
             <span class="kw">super</span>::ast::Literal::Integer(x, typ, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if </span><span class="self">self</span>.show_type_of_int_literal {
-                    <span class="comment">// Unfortunately this doesn't work: `-128 as i8` panics with `attempt to negate with overflow` because it first treats `128` as `u8`.
-                    //write!(f, "{x} as {typ}")
-                    </span><span class="macro">write!</span>(f, <span class="string">"{{ let x: {typ} = {x}; x }}"</span>)
+                    <span class="macro">write!</span>(f, <span class="string">"{x}_{typ}"</span>)
                 } <span class="kw">else </span>{
                     x.fmt(f)
                 }

@@ -2948,7 +2948,35 @@
 <a href="#2947" id="2947">2947</a>
 <a href="#2948" id="2948">2948</a>
 <a href="#2949" id="2949">2949</a>
-<a href="#2950" id="2950">2950</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#2950" id="2950">2950</a>
+<a href="#2951" id="2951">2951</a>
+<a href="#2952" id="2952">2952</a>
+<a href="#2953" id="2953">2953</a>
+<a href="#2954" id="2954">2954</a>
+<a href="#2955" id="2955">2955</a>
+<a href="#2956" id="2956">2956</a>
+<a href="#2957" id="2957">2957</a>
+<a href="#2958" id="2958">2958</a>
+<a href="#2959" id="2959">2959</a>
+<a href="#2960" id="2960">2960</a>
+<a href="#2961" id="2961">2961</a>
+<a href="#2962" id="2962">2962</a>
+<a href="#2963" id="2963">2963</a>
+<a href="#2964" id="2964">2964</a>
+<a href="#2965" id="2965">2965</a>
+<a href="#2966" id="2966">2966</a>
+<a href="#2967" id="2967">2967</a>
+<a href="#2968" id="2968">2968</a>
+<a href="#2969" id="2969">2969</a>
+<a href="#2970" id="2970">2970</a>
+<a href="#2971" id="2971">2971</a>
+<a href="#2972" id="2972">2972</a>
+<a href="#2973" id="2973">2973</a>
+<a href="#2974" id="2974">2974</a>
+<a href="#2975" id="2975">2975</a>
+<a href="#2976" id="2976">2976</a>
+<a href="#2977" id="2977">2977</a>
+<a href="#2978" id="2978">2978</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -2963,6 +2991,7 @@
     hir_def::types::{<span class="self">self</span>},
     node_interner::{NodeInterner, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
+    token::IntegerTypeSuffix,
 };
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -3211,6 +3240,15 @@
                     location,
                 }
             }),
+        }
+    }
+
+    <span class="doccomment">/// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
+    /// Note that `Kind::IntegerOrField` and `Kind::Integer` resolve to types and are thus not numeric.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_integer_type_suffix(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            Kind::Numeric(typ) =&gt; typ.as_integer_type_suffix(),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 }
@@ -5452,6 +5490,24 @@
             | Type::Quoted(..)
             | Type::Forall(..)
             | Type::Error =&gt; <span class="self">self</span>,
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>as_integer_type_suffix(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt; {
+        <span class="kw">use </span>{IntegerBitSize::<span class="kw-2">*</span>, Signedness::<span class="kw-2">*</span>};
+        <span class="kw">match </span><span class="self">self</span>.follow_bindings_shallow().as_ref() {
+            Type::FieldElement =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::Field),
+            Type::Integer(Signed, Eight) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::I8),
+            Type::Integer(Signed, Sixteen) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::I16),
+            Type::Integer(Signed, ThirtyTwo) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::I32),
+            Type::Integer(Signed, SixtyFour) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64),
+            Type::Integer(Unsigned, One) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U1),
+            Type::Integer(Unsigned, Eight) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U8),
+            Type::Integer(Unsigned, Sixteen) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U16),
+            Type::Integer(Unsigned, ThirtyTwo) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U32),
+            Type::Integer(Unsigned, SixtyFour) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U64),
+            Type::Integer(Unsigned, HundredTwentyEight) =&gt; <span class="prelude-val">Some</span>(IntegerTypeSuffix::U128),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
 }

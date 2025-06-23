@@ -984,7 +984,7 @@
 
         <span class="kw">if </span><span class="self">self</span>.eat_keyword(Keyword::CallData) {
             <span class="kw">if </span><span class="self">self</span>.eat_left_paren() {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(int) = <span class="self">self</span>.eat_int() {
+                <span class="kw">if let </span><span class="prelude-val">Some</span>((int, <span class="prelude-val">None</span>)) = <span class="self">self</span>.eat_int() {
                     <span class="self">self</span>.eat_or_error(Token::RightParen);
 
                     <span class="kw">let </span>id = int.to_u128() <span class="kw">as </span>u32;

@@ -1626,11 +1626,23 @@
 <a href="#1625" id="1625">1625</a>
 <a href="#1626" id="1626">1626</a>
 <a href="#1627" id="1627">1627</a>
-<a href="#1628" id="1628">1628</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{
+        FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, SpannedToken, Token, Tokens,
+    },
 };
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>fm::FileId;
@@ -1961,7 +1973,7 @@
     <span class="kw">fn </span>eat_alpha_numeric(<span class="kw-2">&amp;mut </span><span class="self">self</span>, initial_char: char) -&gt; SpannedTokenResult {
         <span class="kw">match </span>initial_char {
             <span class="string">'A'</span>..=<span class="string">'Z' </span>| <span class="string">'a'</span>..=<span class="string">'z' </span>| <span class="string">'_' </span>=&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.eat_word(initial_char)<span class="question-mark">?</span>),
-            <span class="string">'0'</span>..=<span class="string">'9' </span>=&gt; <span class="self">self</span>.eat_digit(initial_char),
+            <span class="string">'0'</span>..=<span class="string">'9' </span>=&gt; <span class="self">self</span>.eat_digits(initial_char),
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(LexerErrorKind::UnexpectedCharacter {
                 location: <span class="self">self</span>.location(Span::single_char(<span class="self">self</span>.position)),
                 found: initial_char.into(),
@@ -2031,32 +2043,22 @@
         <span class="prelude-val">Ok</span>(ident_token.into_span(start, end))
     }
 
-    <span class="kw">fn </span>eat_digit(<span class="kw-2">&amp;mut </span><span class="self">self</span>, initial_char: char) -&gt; SpannedTokenResult {
+    <span class="kw">fn </span>eat_digits(<span class="kw-2">&amp;mut </span><span class="self">self</span>, initial_char: char) -&gt; SpannedTokenResult {
         <span class="kw">let </span>start = <span class="self">self</span>.position;
 
-        <span class="kw">let </span>integer_str = <span class="self">self</span>.eat_while(<span class="prelude-val">Some</span>(initial_char), |ch| {
-            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == <span class="string">'x'</span>) | (ch == <span class="string">'_'</span>)
+        <span class="kw">let </span>original_str = <span class="self">self</span>.eat_while(<span class="prelude-val">Some</span>(initial_char), |ch| {
+            <span class="comment">// We eat any alphanumeric character. Even though we're only expecting
+            // integers, we don't want to allow things like `1234abc` to be lexed
+            // as an integer followed by an ident. We'd rather an invalid integer error here.
+            // This also lets us parse integer type suffixes more easily.
+            </span>ch.is_ascii_alphanumeric() | (ch == <span class="string">'_'</span>)
         });
 
         <span class="kw">let </span>end = <span class="self">self</span>.position;
 
-        <span class="comment">// We want to enforce some simple rules about usage of underscores:
-        // 1. Underscores cannot appear at the end of a integer literal. e.g. 0x123_.
-        // 2. There cannot be more than one underscore consecutively, e.g. 0x5__5, 5__5.
-        //
-        // We're not concerned with an underscore at the beginning of a decimal literal
-        // such as `_5` as this would be lexed into an ident rather than an integer literal.
-        </span><span class="kw">let </span>invalid_underscore_location = integer_str.ends_with(<span class="string">'_'</span>);
-        <span class="kw">let </span>consecutive_underscores = integer_str.contains(<span class="string">"__"</span>);
-        <span class="kw">if </span>invalid_underscore_location || consecutive_underscores {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(LexerErrorKind::InvalidIntegerLiteral {
-                location: <span class="self">self</span>.location(Span::inclusive(start, end)),
-                found: integer_str,
-            });
-        }
-
         <span class="comment">// Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
-        </span><span class="kw">let </span>integer_str = integer_str.replace(<span class="string">'_'</span>, <span class="string">""</span>);
+        </span><span class="kw">let </span><span class="kw-2">mut </span>integer_str = original_str.replace(<span class="string">'_'</span>, <span class="string">""</span>);
+        <span class="kw">let </span>type_suffix = <span class="self">Self</span>::check_for_integer_type_suffix(<span class="kw-2">&amp;mut </span>integer_str);
 
         <span class="kw">let </span>bigint_result = <span class="kw">match </span>integer_str.strip_prefix(<span class="string">"0x"</span>) {
             <span class="prelude-val">Some</span>(integer_str) =&gt; BigInt::from_str_radix(integer_str, <span class="number">16</span>),
@@ -2077,14 +2079,42 @@
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(LexerErrorKind::InvalidIntegerLiteral {
                     location: <span class="self">self</span>.location(Span::inclusive(start, end)),
-                    found: integer_str,
+                    found: original_str,
                 });
             }
         };
 
-        <span class="kw">let </span>integer_token = Token::Int(integer);
+        <span class="kw">let </span>integer_token = Token::Int(integer, type_suffix);
         <span class="prelude-val">Ok</span>(integer_token.into_span(start, end))
     }
+
+    <span class="doccomment">/// Check for and return the type suffix on the integer string if it exists.
+    /// If there is a type suffix, it is also stripped from the string
+    </span><span class="kw">fn </span>check_for_integer_type_suffix(integer_string: <span class="kw-2">&amp;mut </span>String) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt; {
+        <span class="kw">let </span>cases = [
+            (<span class="string">"i8"</span>, IntegerTypeSuffix::I8),
+            (<span class="string">"i16"</span>, IntegerTypeSuffix::I16),
+            (<span class="string">"i32"</span>, IntegerTypeSuffix::I32),
+            (<span class="string">"i64"</span>, IntegerTypeSuffix::I64),
+            (<span class="string">"u1"</span>, IntegerTypeSuffix::U1),
+            (<span class="string">"u8"</span>, IntegerTypeSuffix::U8),
+            (<span class="string">"u16"</span>, IntegerTypeSuffix::U16),
+            (<span class="string">"u32"</span>, IntegerTypeSuffix::U32),
+            (<span class="string">"u64"</span>, IntegerTypeSuffix::U64),
+            (<span class="string">"u128"</span>, IntegerTypeSuffix::U128),
+            (<span class="string">"Field"</span>, IntegerTypeSuffix::Field),
+        ];
+
+        <span class="kw">let </span>len = integer_string.len();
+        <span class="kw">for </span>(suffix_string, suffix_value) <span class="kw">in </span>cases {
+            <span class="kw">if </span>integer_string.ends_with(suffix_string) {
+                integer_string.truncate(len - suffix_string.len());
+                <span class="kw">return </span><span class="prelude-val">Some</span>(suffix_value);
+            }
+        }
+
+        <span class="prelude-val">None
+    </span>}
 
     <span class="kw">fn </span>eat_string_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; SpannedTokenResult {
         <span class="kw">let </span>start = <span class="self">self</span>.position;
@@ -2674,7 +2704,7 @@
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"x"</span>.to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(<span class="number">5_i128</span>)),
+            Token::Int(FieldElement::from(<span class="number">5_i128</span>), <span class="prelude-val">None</span>),
         ];
 
         <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
@@ -2696,7 +2726,7 @@
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"x"</span>.to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(<span class="number">5_i128</span>)),
+            Token::Int(FieldElement::from(<span class="number">5_i128</span>), <span class="prelude-val">None</span>),
         ];
 
         <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
@@ -2744,7 +2774,7 @@
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"x"</span>.to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(<span class="number">5_i128</span>)),
+            Token::Int(FieldElement::from(<span class="number">5_i128</span>), <span class="prelude-val">None</span>),
         ];
 
         <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
@@ -2933,31 +2963,21 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_eat_integer_literals() {
         <span class="kw">let </span>test_cases: Vec&lt;(<span class="kw-2">&amp;</span>str, Token)&gt; = <span class="macro">vec!</span>[
-            (<span class="string">"0x05"</span>, Token::Int(<span class="number">5_i128</span>.into())),
-            (<span class="string">"5"</span>, Token::Int(<span class="number">5_i128</span>.into())),
-            (<span class="string">"0x1234_5678"</span>, Token::Int(<span class="number">0x1234_5678_u128</span>.into())),
-            (<span class="string">"0x_01"</span>, Token::Int(<span class="number">0x1_u128</span>.into())),
-            (<span class="string">"1_000_000"</span>, Token::Int(<span class="number">1_000_000_u128</span>.into())),
+            (<span class="string">"0x05"</span>, Token::Int(<span class="number">5_i128</span>.into(), <span class="prelude-val">None</span>)),
+            (<span class="string">"5"</span>, Token::Int(<span class="number">5_i128</span>.into(), <span class="prelude-val">None</span>)),
+            (<span class="string">"0x1234_5678"</span>, Token::Int(<span class="number">0x1234_5678_u128</span>.into(), <span class="prelude-val">None</span>)),
+            (<span class="string">"0x_01"</span>, Token::Int(<span class="number">0x1_u128</span>.into(), <span class="prelude-val">None</span>)),
+            (<span class="string">"1_000_000"</span>, Token::Int(<span class="number">1_000_000_u128</span>.into(), <span class="prelude-val">None</span>)),
+            (<span class="string">"1__0___Field"</span>, Token::Int(<span class="number">10_u32</span>.into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::Field))),
+            (<span class="string">"0x1u1"</span>, Token::Int(<span class="number">1_u32</span>.into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U1))),
+            (<span class="string">"97_i64"</span>, Token::Int(<span class="number">97_u32</span>.into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::I64))),
+            (<span class="string">"97_u128"</span>, Token::Int(<span class="number">97_u32</span>.into(), <span class="prelude-val">Some</span>(IntegerTypeSuffix::U128))),
         ];
 
         <span class="kw">for </span>(input, expected_token) <span class="kw">in </span>test_cases {
             <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
             <span class="kw">let </span>got = lexer.next_token().unwrap();
             <span class="macro">assert_eq!</span>(got.token(), <span class="kw-2">&amp;</span>expected_token);
-        }
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_reject_invalid_underscores_in_integer_literal() {
-        <span class="kw">let </span>test_cases: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = <span class="macro">vec!</span>[<span class="string">"0x05_"</span>, <span class="string">"5_"</span>, <span class="string">"5__5"</span>, <span class="string">"0x5__5"</span>];
-
-        <span class="kw">for </span>input <span class="kw">in </span>test_cases {
-            <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
-            <span class="kw">let </span>token = lexer.next_token();
-            <span class="macro">assert!</span>(
-                <span class="macro">matches!</span>(token, <span class="prelude-val">Err</span>(LexerErrorKind::InvalidIntegerLiteral { .. })),
-                <span class="string">"expected {input} to throw error"
-            </span>);
         }
     }
 
@@ -2989,7 +3009,7 @@
 
         <span class="comment">// Int position
         </span><span class="kw">let </span>int_position = whitespace_position + <span class="number">1</span>;
-        <span class="kw">let </span>int_token = Token::Int(<span class="number">5_i128</span>.into()).into_single_span(int_position);
+        <span class="kw">let </span>int_token = Token::Int(<span class="number">5_i128</span>.into(), <span class="prelude-val">None</span>).into_single_span(int_position);
 
         <span class="kw">let </span>expected = <span class="macro">vec!</span>[let_token, ident_token, assign_token, int_token];
         <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(input);
@@ -3017,14 +3037,14 @@
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"five"</span>.to_string()),
             Token::Assign,
-            Token::Int(<span class="number">5_i128</span>.into()),
+            Token::Int(<span class="number">5_i128</span>.into(), <span class="prelude-val">None</span>),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"ten"</span>.to_string()),
             Token::Colon,
             Token::Ident(<span class="string">"Field"</span>.to_string()),
             Token::Assign,
-            Token::Int(<span class="number">10_i128</span>.into()),
+            Token::Int(<span class="number">10_i128</span>.into(), <span class="prelude-val">None</span>),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident(<span class="string">"mul"</span>.to_string()),
@@ -3050,7 +3070,7 @@
             Token::Ident(<span class="string">"ten"</span>.to_string()),
             Token::RightParen,
             Token::Equal,
-            Token::Int(<span class="number">50_i128</span>.into()),
+            Token::Int(<span class="number">50_i128</span>.into(), <span class="prelude-val">None</span>),
             Token::Semicolon,
             Token::Keyword(Keyword::Assert),
             Token::LeftParen,
@@ -3058,7 +3078,7 @@
             Token::Plus,
             Token::Ident(<span class="string">"five"</span>.to_string()),
             Token::Equal,
-            Token::Int(<span class="number">15_i128</span>.into()),
+            Token::Int(<span class="number">15_i128</span>.into(), <span class="prelude-val">None</span>),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,

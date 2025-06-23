@@ -917,7 +917,10 @@
 <a href="#916" id="916">916</a>
 <a href="#917" id="917">917</a>
 <a href="#918" id="918">918</a>
-<a href="#919" id="919">919</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -937,7 +940,7 @@
 <span class="kw">impl </span>ItemPrinter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="kw">fn </span>show_hir_expression_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId) {
         <span class="kw">let </span>hir_expr = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id);
-        <span class="self">self</span>.show_hir_expression(hir_expr);
+        <span class="self">self</span>.show_hir_expression(hir_expr, expr_id);
     }
 
     <span class="kw">fn </span>dereference_hir_expression_id(<span class="kw-2">&amp;</span><span class="self">self</span>, expr_id: ExprId) -&gt; ExprId {
@@ -962,7 +965,7 @@
         <span class="kw">if </span>parens {
             <span class="self">self</span>.push(<span class="string">'('</span>);
         }
-        <span class="self">self</span>.show_hir_expression(hir_expr);
+        <span class="self">self</span>.show_hir_expression(hir_expr, expr_id);
         <span class="kw">if </span>parens {
             <span class="self">self</span>.push(<span class="string">')'</span>);
         }
@@ -974,13 +977,13 @@
         <span class="kw">if </span>curlies {
             <span class="self">self</span>.push(<span class="string">'{'</span>);
         }
-        <span class="self">self</span>.show_hir_expression(hir_expr);
+        <span class="self">self</span>.show_hir_expression(hir_expr, expr_id);
         <span class="kw">if </span>curlies {
             <span class="self">self</span>.push(<span class="string">'}'</span>);
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>show_hir_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_expr: HirExpression) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>show_hir_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_expr: HirExpression, expr_id: ExprId) {
         <span class="kw">match </span>hir_expr {
             HirExpression::Ident(hir_ident, generics) =&gt; {
                 <span class="self">self</span>.show_hir_ident(hir_ident);
@@ -990,7 +993,7 @@
                 }
             }
             HirExpression::Literal(hir_literal) =&gt; {
-                <span class="self">self</span>.show_hir_literal(hir_literal);
+                <span class="self">self</span>.show_hir_literal(hir_literal, expr_id);
             }
             HirExpression::Block(hir_block_expression) =&gt; {
                 <span class="self">self</span>.show_hir_block_expression(hir_block_expression);
@@ -1473,7 +1476,7 @@
         }
     }
 
-    <span class="kw">fn </span>show_hir_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal: HirLiteral) {
+    <span class="kw">fn </span>show_hir_literal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal: HirLiteral, expr_id: ExprId) {
         <span class="kw">match </span>literal {
             HirLiteral::Array(hir_array_literal) =&gt; {
                 <span class="self">self</span>.push_str(<span class="string">"["</span>);
@@ -1490,6 +1493,9 @@
             }
             HirLiteral::Integer(signed_field) =&gt; {
                 <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>signed_field.to_string());
+                <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(expr_id);
+                <span class="self">self</span>.push_str(<span class="string">"_"</span>);
+                <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>typ.to_string());
             }
             HirLiteral::Str(string) =&gt; {
                 <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{:?}"</span>, string));

@@ -1688,7 +1688,19 @@
 <a href="#1687" id="1687">1687</a>
 <a href="#1688" id="1688">1688</a>
 <a href="#1689" id="1689">1689</a>
-<a href="#1690" id="1690">1690</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
 
 <span class="kw">use crate</span>::{
@@ -1709,7 +1721,7 @@
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
     token::{
-        FmtStrFragment, MetaAttribute, MetaAttributeName, SecondaryAttribute,
+        FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
     },
 };
@@ -1868,7 +1880,13 @@
 
     <span class="kw">fn </span>visit_literal_bool(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: bool, <span class="kw">_</span>: Span) {}
 
-    <span class="kw">fn </span>visit_literal_integer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _value: SignedField, <span class="kw">_</span>: Span) {}
+    <span class="kw">fn </span>visit_literal_integer(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        _value: SignedField,
+        _suffix: <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;,
+        <span class="kw">_</span>: Span,
+    ) {
+    }
 
     <span class="kw">fn </span>visit_literal_str(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>str, <span class="kw">_</span>: Span) {}
 
@@ -2156,7 +2174,13 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_constant_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _value: FieldElement, _span: Span) {}
+    <span class="kw">fn </span>visit_constant_type_expression(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        _value: FieldElement,
+        _suffix: <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;,
+        _span: Span,
+    ) {
+    }
 
     <span class="kw">fn </span>visit_binary_type_expression(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -2683,8 +2707,8 @@
                 }
             }
             Literal::Bool(value) =&gt; visitor.visit_literal_bool(<span class="kw-2">*</span>value, span),
-            Literal::Integer(value) =&gt; {
-                visitor.visit_literal_integer(<span class="kw-2">*</span>value, span);
+            Literal::Integer(value, suffix) =&gt; {
+                visitor.visit_literal_integer(<span class="kw-2">*</span>value, <span class="kw-2">*</span>suffix, span);
             }
             Literal::Str(str) =&gt; visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) =&gt; visitor.visit_literal_raw_str(str, <span class="kw-2">*</span>length, span),
@@ -3238,8 +3262,8 @@
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, location) =&gt; {
-                visitor.visit_constant_type_expression(<span class="kw-2">*</span>field_element, location.span);
+            UnresolvedTypeExpression::Constant(field_element, suffix, location) =&gt; {
+                visitor.visit_constant_type_expression(<span class="kw-2">*</span>field_element, <span class="kw-2">*</span>suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {
                 <span class="kw">if </span>visitor.visit_binary_type_expression(lhs, <span class="kw-2">*</span>op, rhs, location.span) {

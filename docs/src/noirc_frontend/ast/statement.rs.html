@@ -1760,7 +1760,7 @@
                 lhs: <span class="self">self</span>.end,
                 operator: Located::from(end_location, BinaryOpKind::Add),
                 rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(<span class="number">1u32</span>)),
+                    ExpressionKind::integer(FieldElement::from(<span class="number">1u32</span>), <span class="prelude-val">None</span>),
                     end_location,
                 ),
             }));
@@ -1813,7 +1813,7 @@
             }
             ForRange::Array(array) =&gt; {
                 <span class="kw">let </span>array_location = array.location;
-                <span class="kw">let </span>start_range = ExpressionKind::integer(FieldElement::zero());
+                <span class="kw">let </span>start_range = ExpressionKind::integer(FieldElement::zero(), <span class="prelude-val">None</span>);
                 <span class="kw">let </span>start_range = Expression::new(start_range, array_location);
 
                 <span class="kw">let </span>next_unique_id = unique_name_counter;
