@@ -470,8 +470,10 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
+                if !self.aliased_references.contains_key(&address) {
+                    if let Some(last_store) = references.last_stores.get(&address) {
+                        self.instructions_to_remove.insert(*last_store);
+                    }
                 }
 
                 // Remember that we used the value in this instruction. If this instruction
@@ -961,9 +963,7 @@ mod tests {
         // The first store is not removed as it is used as a nested reference in another store.
         // We would need to track whether the store where `v0` is the store value gets removed to know whether
         // to remove it.
-        // The first store in b1 is removed since there is another store to the same reference
-        // in the same block, and the store is not needed before the later store.
-        // The rest of the stores are also removed as no loads are done within any blocks
+        // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
         let expected = "
         acir(inline) fn main f0 {
@@ -973,6 +973,7 @@ mod tests {
             v2 = allocate -> &mut &mut Field
             jmp b1()
           b1():
+            store Field 1 at v0
             return
         }
         ";
@@ -1534,6 +1535,40 @@ mod tests {
           b6(v1: u1):
             return v1
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_stores_with_aliased_references() {
+        // Ensure `store v8 at v1` is not removed from the program
+        // just because there is a subsequent `store v10 at v1`.
+        // In this case `v1` is aliased to `*v3` so the store is significant.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                v3 = allocate -> &mut &mut Field
+                store v1 at v3
+                jmp b1(u32 10)
+              b1(v0: u32):
+                v6 = lt v0, u32 11
+                jmpif v6 then: b2, else: b3
+              b2():
+                v8 = cast v0 as Field
+                store v8 at v1
+                v9 = load v3 -> &mut Field
+                v10 = load v9 -> Field
+                store v10 at v1
+                v12 = unchecked_add v0, u32 1
+                jmp b1(v12)
+              b3():
+                v7 = load v1 -> Field
+                return v7
+            }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
