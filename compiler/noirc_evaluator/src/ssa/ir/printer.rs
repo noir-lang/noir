@@ -2,6 +2,7 @@
 use std::fmt::{Display, Formatter, Result};
 
 use acvm::acir::AcirField;
+use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
 
@@ -21,9 +22,27 @@ use super::{
     value::{Value, ValueId},
 };
 
-impl Display for Ssa {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let globals = (*self.functions[&self.main_id].dfg.globals).clone();
+pub struct Printer<'local> {
+    ssa: &'local Ssa,
+    fm: Option<&'local fm::FileManager>,
+}
+
+impl Ssa {
+    pub fn print_without_files<'local>(&'local self) -> Printer<'local> {
+        Printer { ssa: self, fm: None }
+    }
+
+    pub fn print_with_files<'local>(
+        &'local self,
+        files: &'local fm::FileManager,
+    ) -> Printer<'local> {
+        Printer { ssa: self, fm: Some(files) }
+    }
+}
+
+impl<'local> Display for Printer<'local> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let globals = (*self.ssa.functions[&self.ssa.main_id].dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals);
 
         for (id, global_value) in globals_dfg.values_iter() {
@@ -32,7 +51,7 @@ impl Display for Ssa {
                     writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
                 }
                 Value::Instruction { instruction, .. } => {
-                    display_instruction(&globals_dfg, *instruction, true, f)?;
+                    display_instruction(&globals_dfg, *instruction, true, self.fm, f)?;
                 }
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
@@ -48,8 +67,9 @@ impl Display for Ssa {
             writeln!(f)?;
         }
 
-        for function in self.functions.values() {
-            writeln!(f, "{function}")?;
+        for function in self.ssa.functions.values() {
+            display_function(function, self.fm, f)?;
+            writeln!(f)?;
         }
         Ok(())
     }
@@ -57,12 +77,16 @@ impl Display for Ssa {
 
 impl Display for Function {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        display_function(self, f)
+        display_function(self, None, f)
     }
 }
 
 /// Helper function for Function's Display impl to pretty-print the function with the given formatter.
-fn display_function(function: &Function, f: &mut Formatter) -> Result {
+fn display_function(
+    function: &Function,
+    files: Option<&fm::FileManager>,
+    f: &mut Formatter,
+) -> Result {
     if let Some(purity) = function.dfg.purity_of(function.id()) {
         writeln!(f, "{} {purity} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     } else {
@@ -70,19 +94,24 @@ fn display_function(function: &Function, f: &mut Formatter) -> Result {
     }
 
     for block_id in function.reachable_blocks() {
-        display_block(&function.dfg, block_id, f)?;
+        display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
 }
 
 /// Display a single block. This will not display the block's successors.
-fn display_block(dfg: &DataFlowGraph, block_id: BasicBlockId, f: &mut Formatter) -> Result {
+fn display_block(
+    dfg: &DataFlowGraph,
+    block_id: BasicBlockId,
+    fm: Option<&fm::FileManager>,
+    f: &mut Formatter,
+) -> Result {
     let block = &dfg[block_id];
 
     writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
-        display_instruction(dfg, *instruction, false, f)?;
+        display_instruction(dfg, *instruction, false, fm, f)?;
     }
 
     display_terminator(dfg, block.terminator(), f)
@@ -166,6 +195,7 @@ fn display_instruction(
     dfg: &DataFlowGraph,
     instruction: InstructionId,
     in_global_space: bool,
+    fm: Option<&fm::FileManager>,
     f: &mut Formatter,
 ) -> Result {
     if !in_global_space {
@@ -182,7 +212,24 @@ fn display_instruction(
         write!(f, "{} = ", value_list)?;
     }
 
-    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)
+    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)?;
+
+    if let Some(fm) = fm {
+        let call_stack = dfg.get_instruction_call_stack(instruction);
+        if let Some(location) = call_stack.last() {
+            if let Ok(name) = fm.as_file_map().get_name(location.file) {
+                let files = fm.as_file_map();
+                let start_index = location.span.start() as usize;
+                match codespan_files::Files::line_index(files, location.file, start_index) {
+                    // Offset line_index by 1 to convert it into a line number
+                    Ok(line_index) => write!(f, "\t// {name}:{}", line_index + 1)?,
+                    // Showing the file name alone is better than nothing
+                    Err(_) => write!(f, "\t// {name}")?,
+                }
+            }
+        }
+    }
+    writeln!(f)
 }
 
 fn display_instruction_inner(
@@ -196,48 +243,40 @@ fn display_instruction_inner(
 
     match instruction {
         Instruction::Binary(binary) => {
-            writeln!(f, "{}", display_binary(binary, dfg))
+            write!(f, "{}", display_binary(binary, dfg))
         }
-        Instruction::Cast(lhs, typ) => writeln!(f, "cast {} as {typ}", show(*lhs)),
-        Instruction::Not(rhs) => writeln!(f, "not {}", show(*rhs)),
+        Instruction::Cast(lhs, typ) => write!(f, "cast {} as {typ}", show(*lhs)),
+        Instruction::Not(rhs) => write!(f, "not {}", show(*rhs)),
         Instruction::Truncate { value, bit_size, max_bit_size } => {
             let value = show(*value);
-            writeln!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
+            write!(f, "truncate {value} to {bit_size} bits, max_bit_size: {max_bit_size}",)
         }
         Instruction::Constrain(lhs, rhs, error) => {
             write!(f, "constrain {} == {}", show(*lhs), show(*rhs))?;
-            if let Some(error) = error {
-                display_constrain_error(dfg, error, f)
-            } else {
-                writeln!(f)
-            }
+            if let Some(error) = error { display_constrain_error(dfg, error, f) } else { Ok(()) }
         }
         Instruction::ConstrainNotEqual(lhs, rhs, error) => {
             write!(f, "constrain {} != {}", show(*lhs), show(*rhs))?;
-            if let Some(error) = error {
-                display_constrain_error(dfg, error, f)
-            } else {
-                writeln!(f)
-            }
+            if let Some(error) = error { display_constrain_error(dfg, error, f) } else { Ok(()) }
         }
         Instruction::Call { func, arguments } => {
             let arguments = value_list(dfg, arguments);
-            writeln!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
+            write!(f, "call {}({}){}", show(*func), arguments, result_types(dfg, results))
         }
         Instruction::Allocate => {
-            writeln!(f, "allocate{}", result_types(dfg, results))
+            write!(f, "allocate{}", result_types(dfg, results))
         }
         Instruction::Load { address } => {
-            writeln!(f, "load {}{}", show(*address), result_types(dfg, results))
+            write!(f, "load {}{}", show(*address), result_types(dfg, results))
         }
         Instruction::Store { address, value } => {
-            writeln!(f, "store {} at {}", show(*value), show(*address))
+            write!(f, "store {} at {}", show(*value), show(*address))
         }
         Instruction::EnableSideEffectsIf { condition } => {
-            writeln!(f, "enable_side_effects {}", show(*condition))
+            write!(f, "enable_side_effects {}", show(*condition))
         }
         Instruction::ArrayGet { array, index, offset } => {
-            writeln!(
+            write!(
                 f,
                 "array_get {}, index {}{}{}",
                 show(*array),
@@ -251,7 +290,7 @@ fn display_instruction_inner(
             let index = show(*index);
             let value = show(*value);
             let mutable = if *mutable { " mut" } else { "" };
-            writeln!(
+            write!(
                 f,
                 "array_set{} {}, index {}{}, value {}",
                 mutable,
@@ -262,22 +301,22 @@ fn display_instruction_inner(
             )
         }
         Instruction::IncrementRc { value } => {
-            writeln!(f, "inc_rc {}", show(*value))
+            write!(f, "inc_rc {}", show(*value))
         }
         Instruction::DecrementRc { value } => {
-            writeln!(f, "dec_rc {}", show(*value))
+            write!(f, "dec_rc {}", show(*value))
         }
         Instruction::RangeCheck { value, max_bit_size, assert_message } => {
             let message =
                 assert_message.as_ref().map(|message| format!(", {message:?}")).unwrap_or_default();
-            writeln!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
+            write!(f, "range_check {} to {} bits{}", show(*value), *max_bit_size, message)
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = show(*then_condition);
             let then_value = show(*then_value);
             let else_condition = show(*else_condition);
             let else_value = show(*else_value);
-            writeln!(
+            write!(
                 f,
                 "if {then_condition} then {then_value} else (if {else_condition}) {else_value}"
             )
@@ -298,9 +337,9 @@ fn display_instruction_inner(
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
                     if is_slice {
-                        return writeln!(f, "make_array &b{:?}", string);
+                        return write!(f, "make_array &b{:?}", string);
                     } else {
-                        return writeln!(f, "make_array b{:?}", string);
+                        return write!(f, "make_array b{:?}", string);
                     }
                 }
             }
@@ -318,9 +357,9 @@ fn display_instruction_inner(
                 write!(f, "{}", value)?;
             }
 
-            writeln!(f, "] : {typ}")
+            write!(f, "] : {typ}")
         }
-        Instruction::Noop => writeln!(f, "nop"),
+        Instruction::Noop => write!(f, "nop"),
     }
 }
 
