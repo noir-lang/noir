@@ -914,7 +914,9 @@ impl<'f> LoopIteration<'f> {
                 }
                 vec![*destination]
             }
-            TerminatorInstruction::Return { .. } => vec![],
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {
+                vec![]
+            }
         }
     }
 

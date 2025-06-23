@@ -727,6 +727,7 @@ impl<'function> PerFunctionContext<'function> {
 
                 Some((block_id, return_values))
             }
+            TerminatorInstruction::Unreachable { .. } => None, // Nothing to do
         }
     }
 }

@@ -466,6 +466,10 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.set_block_terminator(target, new_return);
                 vec![]
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                // Nothing to do
+                vec![]
+            }
         }
     }
 

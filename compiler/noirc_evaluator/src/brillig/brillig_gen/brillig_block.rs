@@ -251,6 +251,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 });
                 self.brillig_context.codegen_return(&return_registers);
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                self.brillig_context.revert_with_string("Reached the unreachable".to_string());
+            }
         }
     }
 

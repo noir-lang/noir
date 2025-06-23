@@ -277,7 +277,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
     }
 
-    pub(super) fn revert_with_string(&mut self, revert_string: String) {
+    pub(crate) fn revert_with_string(&mut self, revert_string: String) {
         if self.can_call_procedures {
             self.call_revert_with_string_procedure(revert_string);
         } else {
