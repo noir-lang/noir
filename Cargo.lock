@@ -89,6 +89,7 @@ dependencies = [
  "k256",
  "keccak",
  "libaes",
+ "log",
  "num-bigint",
  "num-prime",
  "p256",
