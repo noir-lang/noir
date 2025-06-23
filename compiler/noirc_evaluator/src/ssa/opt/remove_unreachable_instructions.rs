@@ -104,22 +104,22 @@ fn add_dominated_blocks(
     dom: &mut DominatorTree,
     unreachable_blocks: &mut HashSet<BasicBlockId>,
 ) {
-    // First compute the set of all successors
-    let mut all_successors = HashSet::default();
+    // First compute the set of all blocks that are reachable from the starting block
+    let mut reachable_blocks = HashSet::default();
 
     let mut blocks_to_process = vec![block_id];
     while let Some(block_id) = blocks_to_process.pop() {
         for successor in dfg[block_id].successors() {
-            if all_successors.insert(successor) {
+            if reachable_blocks.insert(successor) {
                 blocks_to_process.push(successor);
             }
         }
     }
 
     // Now add them to `unreachable_blocks` if they are dominated by the block
-    for successor in all_successors {
-        if dom.dominates(block_id, successor) {
-            unreachable_blocks.insert(successor);
+    for reachable_block in reachable_blocks {
+        if dom.dominates(block_id, reachable_block) {
+            unreachable_blocks.insert(reachable_block);
         }
     }
 }
