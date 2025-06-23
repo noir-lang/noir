@@ -82,7 +82,7 @@ impl Function {
                 unreachable_blocks.insert(block_id);
                 current_block_instructions_are_unreachable = true;
 
-                add_successors(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
+                add_dominated_blocks(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
             }
         });
 
@@ -97,8 +97,8 @@ impl Function {
     }
 }
 
-/// Adds all of a block's successors to the `unreachable_blocks` set if they are dominated by that block.
-fn add_successors(
+/// Adds all of a block's dominated blocks to the `unreachable_blocks` set if they are dominated by that block.
+fn add_dominated_blocks(
     block_id: BasicBlockId,
     dfg: &DataFlowGraph,
     dom: &mut DominatorTree,
@@ -106,7 +106,6 @@ fn add_successors(
 ) {
     // First compute the set of all successors
     let mut all_successors = HashSet::default();
-    all_successors.insert(block_id);
 
     let mut blocks_to_process = vec![block_id];
     while let Some(block_id) = blocks_to_process.pop() {
