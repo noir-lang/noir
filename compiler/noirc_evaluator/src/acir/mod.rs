@@ -913,10 +913,9 @@ impl<'a> Context<'a> {
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> usize {
-        let no_return_values = Vec::new();
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values, .. } => return_values,
-            TerminatorInstruction::Unreachable { .. } => &no_return_values,
+            TerminatorInstruction::Unreachable { .. } => return 0,
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
                 unreachable!("ICE: Program must have a singular return")
@@ -934,7 +933,6 @@ impl<'a> Context<'a> {
         terminator: &TerminatorInstruction,
         dfg: &DataFlowGraph,
     ) -> Result<(Vec<AcirVar>, Vec<SsaReport>), RuntimeError> {
-        let no_return_values = Vec::new();
         let (return_values, call_stack) = match terminator {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 (return_values, *call_stack)
@@ -943,7 +941,7 @@ impl<'a> Context<'a> {
             TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
                 unreachable!("ICE: Program must have a singular return")
             }
-            TerminatorInstruction::Unreachable { call_stack } => (&no_return_values, *call_stack),
+            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
         };
 
         let mut has_constant_return = false;
