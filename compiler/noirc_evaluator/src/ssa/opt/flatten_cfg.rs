@@ -956,9 +956,8 @@ impl<'f> Context<'f> {
                             Instruction::Call { func, arguments }
                         }
 
-                        BlackBoxFunc::RecursiveAggregation => {
-                            todo!("Conditional recursive aggregation is not supported yet")
-                        }
+                        // TODO: determine what changes are necessary here.
+                        BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
 
                         // These functions will always be satisfiable no matter the input so no modification is needed.
                         BlackBoxFunc::AND
