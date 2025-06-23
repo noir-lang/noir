@@ -28,15 +28,15 @@ pub struct Printer<'local> {
 }
 
 impl Ssa {
-    pub fn print_without_files<'local>(&'local self) -> Printer<'local> {
+    pub fn print_without_locations<'local>(&'local self) -> Printer<'local> {
         Printer { ssa: self, fm: None }
     }
 
     pub fn print_with_files<'local>(
         &'local self,
-        files: &'local fm::FileManager,
+        files: Option<&'local fm::FileManager>,
     ) -> Printer<'local> {
-        Printer { ssa: self, fm: Some(files) }
+        Printer { ssa: self, fm: files }
     }
 }
 
@@ -424,15 +424,15 @@ fn display_constrain_error(
 ) -> Result {
     match error {
         ConstrainError::StaticString(assert_message_string) => {
-            writeln!(f, ", {assert_message_string:?}")
+            write!(f, ", {assert_message_string:?}")
         }
         ConstrainError::Dynamic(_, is_string, values) => {
             if let Some(constant_string) =
                 try_to_extract_string_from_error_payload(*is_string, values, dfg)
             {
-                writeln!(f, ", {constant_string:?}")
+                write!(f, ", {constant_string:?}")
             } else {
-                writeln!(f, ", data {}", value_list(dfg, values))
+                write!(f, ", data {}", value_list(dfg, values))
             }
         }
     }

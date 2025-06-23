@@ -253,7 +253,7 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: &FileM
     };
     if print {
         ssa.normalize_ids();
-        println!("After {msg}:\n{}", ssa.print_with_files(fm));
+        println!("After {msg}:\n{}", ssa.print_with_files(Some(fm)));
     }
 }
 

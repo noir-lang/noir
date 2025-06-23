@@ -653,7 +653,9 @@ pub struct SsaBuilder<'local> {
     /// List of SSA pass message fragments that we want to skip, for testing purposes.
     pub skip_passes: Vec<String>,
 
-    pub files: &'local fm::FileManager,
+    /// Providing a file manager is optional - if provided it can be used to print source
+    /// locations along with each ssa instructions when debugging.
+    pub files: Option<&'local fm::FileManager>,
 }
 
 impl<'local> SsaBuilder<'local> {
@@ -674,14 +676,15 @@ impl<'local> SsaBuilder<'local> {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print("Initial SSA"))
+        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, Some(files))
+            .print("Initial SSA"))
     }
 
     pub fn from_ssa(
         ssa: Ssa,
         ssa_logging: SsaLogging,
         print_codegen_timings: bool,
-        files: &'local fm::FileManager,
+        files: Option<&'local fm::FileManager>,
     ) -> Self {
         Self {
             ssa_logging,
