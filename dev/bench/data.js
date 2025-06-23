@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750715292965,
+  "lastUpdate": 1750715305412,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f5522446a390ba65429ca84fc87a9e991d0985c6",
-          "message": "chore(fuzz): More metamorphic rules (#8857)",
-          "timestamp": "2025-06-12T17:53:45Z",
-          "tree_id": "f90fbce6f701289b8b2786a7e261cc094243bcbd",
-          "url": "https://github.com/noir-lang/noir/commit/f5522446a390ba65429ca84fc87a9e991d0985c6"
-        },
-        "date": 1749752552309,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.364,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.348,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.072,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.58,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.772,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.75,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "caabecf88bddb60d573ff8da7b637b1857c5f593",
+          "message": "fix: add parent traits when adding trait impl where clause (#9000)",
+          "timestamp": "2025-06-23T21:17:17Z",
+          "tree_id": "455655504af6c4ca3ee52909f9458182cc1e39f8",
+          "url": "https://github.com/noir-lang/noir/commit/caabecf88bddb60d573ff8da7b637b1857c5f593"
+        },
+        "date": 1750715291389,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.962,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.448,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 181,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.308,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.774,
             "unit": "s"
           }
         ]
