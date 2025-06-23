@@ -222,9 +222,9 @@ fn display_instruction(
                 let start_index = location.span.start() as usize;
                 match codespan_files::Files::line_index(files, location.file, start_index) {
                     // Offset line_index by 1 to convert it into a line number
-                    Ok(line_index) => write!(f, "\t// {name}:{}", line_index + 1)?,
+                    Ok(line_index) => write!(f, "\t\t// {name}:{}", line_index + 1)?,
                     // Showing the file name alone is better than nothing
-                    Err(_) => write!(f, "\t// {name}")?,
+                    Err(_) => write!(f, "\t\t// {name}")?,
                 }
             }
         }
