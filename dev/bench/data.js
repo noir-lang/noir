@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750786707004,
+  "lastUpdate": 1750795543033,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "237876ef9e918d6b7df511aa46f257e18ca04d71",
-          "message": "fix: handle return_data in the interpreter SSA CLI (#8914)",
-          "timestamp": "2025-06-13T16:34:18Z",
-          "tree_id": "0c31518f7d51f1ce853ef8a357cb0cea6416b9fd",
-          "url": "https://github.com/noir-lang/noir/commit/237876ef9e918d6b7df511aa46f257e18ca04d71"
-        },
-        "date": 1749833931986,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249828,
-            "range": "± 758",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221659,
-            "range": "± 3612",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785363,
-            "range": "± 1185",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795852,
             "range": "± 2997",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4fb8d367129689d177e233877763c03ee24171f4",
+          "message": "feat: `nargo expand` for LSP (#9012)",
+          "timestamp": "2025-06-24T19:41:52Z",
+          "tree_id": "d11e11d3ec575d22d1ea1dcd0f901483b48aa446",
+          "url": "https://github.com/noir-lang/noir/commit/4fb8d367129689d177e233877763c03ee24171f4"
+        },
+        "date": 1750795530513,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253786,
+            "range": "± 1154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224380,
+            "range": "± 3624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779723,
+            "range": "± 1025",
             "unit": "ns/iter"
           }
         ]
