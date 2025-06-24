@@ -32,7 +32,7 @@ nargo.workspace = true
 noirc_abi.workspace = true
 noirc_driver.workspace = true
 noirc_evaluator.workspace = true
-noirc_frontend.workspace = true
+noirc_frontend = { workspace = true, features = ["test_utils"] }
 noir_greybox_fuzzer.workspace = true
 
 [dev-dependencies]

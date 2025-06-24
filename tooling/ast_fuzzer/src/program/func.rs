@@ -905,7 +905,7 @@ impl<'a> FunctionContext<'a> {
             }
 
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled("print") {
+            if freq.enabled_when("print", !self.ctx.config.avoid_print) {
                 if let Some(e) = self.gen_print(u)? {
                     return Ok(e);
                 }
