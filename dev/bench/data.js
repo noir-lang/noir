@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750773419542,
+  "lastUpdate": 1750775785751,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18615,48 +18615,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3d3f74d6da291ec70b428bf1d2f644ea848e9077",
-          "message": "chore: Casting ACIR vs Brillig regression tests (#8903)",
-          "timestamp": "2025-06-13T14:13:51Z",
-          "tree_id": "e3f746a86ec7afd113077879b54409cae0a34c49",
-          "url": "https://github.com/noir-lang/noir/commit/3d3f74d6da291ec70b428bf1d2f644ea848e9077"
-        },
-        "date": 1749825515289,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249414,
-            "range": "± 1152",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222017,
-            "range": "± 8060",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784950,
-            "range": "± 1473",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "202130c2cd178fef812c6f6afb82b575a8d95352",
           "message": "fix: Inline global arrays with functions at their call site (#8905)",
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781334,
             "range": "± 9277",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0a807d3ccadac6e7e8a5c726e9f39a2235cf9b84",
+          "message": "chore: redo typo PR by donatik27 (#9004)",
+          "timestamp": "2025-06-24T14:11:50Z",
+          "tree_id": "1dc9e694d2aa2a7411e3b7964ec202547965d732",
+          "url": "https://github.com/noir-lang/noir/commit/0a807d3ccadac6e7e8a5c726e9f39a2235cf9b84"
+        },
+        "date": 1750775772352,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256381,
+            "range": "± 1779",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226699,
+            "range": "± 2852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780428,
+            "range": "± 896",
             "unit": "ns/iter"
           }
         ]
