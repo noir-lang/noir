@@ -144,7 +144,8 @@ jobs:
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
 
       - name: Add gates diff to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        # We don't run this step on external PRs
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           # delete the comment in case changes no longer impact circuit sizes

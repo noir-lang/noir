@@ -675,6 +675,8 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Test Suite Duration"

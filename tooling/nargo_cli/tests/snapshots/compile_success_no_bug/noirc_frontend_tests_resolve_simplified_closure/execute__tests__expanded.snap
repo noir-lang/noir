@@ -9,5 +9,5 @@ fn do_closure(x: Field) -> Field {
 }
 
 fn main(x: Field) {
-    assert(do_closure(x) == 100);
+    assert(do_closure(x) == 100_Field);
 }

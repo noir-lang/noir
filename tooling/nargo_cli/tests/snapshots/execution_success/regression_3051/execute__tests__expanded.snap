@@ -8,7 +8,7 @@ trait Foo {
 
 impl Foo for Field {
     fn foo(self) -> Self {
-        self + 1
+        self + 1_Field
     }
 }
 
@@ -18,11 +18,11 @@ trait Bar {
 
 impl Bar for u64 {
     fn bar(self) -> Self {
-        self + 1
+        self + 1_u64
     }
 }
 
 fn main() {
-    println(1.foo());
-    println(1.bar());
+    println(1_Field.foo());
+    println(1_u64.bar());
 }

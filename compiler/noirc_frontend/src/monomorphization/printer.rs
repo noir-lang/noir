@@ -6,7 +6,8 @@ use crate::{
 };
 
 use super::ast::{
-    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
+    Definition, Expression, FuncId, Function, GlobalId, InlineType, LValue, LocalId, Program, Type,
+    While,
 };
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
@@ -28,6 +29,7 @@ pub struct AstPrinter {
     pub show_clone_and_drop: bool,
     pub show_print_as_std: bool,
     pub show_type_in_let: bool,
+    pub show_type_of_int_literal: bool,
 }
 
 impl Default for AstPrinter {
@@ -39,6 +41,7 @@ impl Default for AstPrinter {
             show_clone_and_drop: true,
             show_print_as_std: false,
             show_type_in_let: false,
+            show_type_of_int_literal: false,
         }
     }
 }
@@ -110,6 +113,9 @@ impl AstPrinter {
         let name = self.fmt_func(&function.name, function.id);
         let return_type = &function.return_type;
 
+        if function.inline_type != InlineType::Inline {
+            writeln!(f, "#[{}]", function.inline_type)?;
+        }
         write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
         if options.comptime_wrap_body {
@@ -183,9 +189,15 @@ impl AstPrinter {
                 )?;
                 self.print_expr(&let_expr.expression, f)
             }
-            Expression::Constrain(expr, ..) => {
-                write!(f, "constrain ")?;
-                self.print_expr(expr, f)
+            Expression::Constrain(expr, _, payload) => {
+                write!(f, "assert(")?;
+                self.print_expr(expr, f)?;
+                if let Some(payload) = payload {
+                    write!(f, ", ")?;
+                    self.print_expr(&payload.as_ref().0, f)?;
+                }
+                write!(f, ")")?;
+                Ok(())
             }
             Expression::Assign(assign) => {
                 self.print_lvalue(&assign.lvalue, f)?;
@@ -239,7 +251,13 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
+            super::ast::Literal::Integer(x, typ, _) => {
+                if self.show_type_of_int_literal {
+                    write!(f, "{x}_{typ}")
+                } else {
+                    x.fmt(f)
+                }
+            }
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => {
                 if s.contains("\"") {

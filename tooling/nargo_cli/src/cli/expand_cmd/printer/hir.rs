@@ -18,7 +18,7 @@ use super::ItemPrinter;
 impl ItemPrinter<'_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
         let hir_expr = self.interner.expression(&expr_id);
-        self.show_hir_expression(hir_expr);
+        self.show_hir_expression(hir_expr, expr_id);
     }
 
     fn dereference_hir_expression_id(&self, expr_id: ExprId) -> ExprId {
@@ -43,7 +43,7 @@ impl ItemPrinter<'_, '_> {
         if parens {
             self.push('(');
         }
-        self.show_hir_expression(hir_expr);
+        self.show_hir_expression(hir_expr, expr_id);
         if parens {
             self.push(')');
         }
@@ -55,13 +55,13 @@ impl ItemPrinter<'_, '_> {
         if curlies {
             self.push('{');
         }
-        self.show_hir_expression(hir_expr);
+        self.show_hir_expression(hir_expr, expr_id);
         if curlies {
             self.push('}');
         }
     }
 
-    pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression) {
+    pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression, expr_id: ExprId) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
                 self.show_hir_ident(hir_ident);
@@ -71,7 +71,7 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::Literal(hir_literal) => {
-                self.show_hir_literal(hir_literal);
+                self.show_hir_literal(hir_literal, expr_id);
             }
             HirExpression::Block(hir_block_expression) => {
                 self.show_hir_block_expression(hir_block_expression);
@@ -554,7 +554,7 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    fn show_hir_literal(&mut self, literal: HirLiteral) {
+    fn show_hir_literal(&mut self, literal: HirLiteral, expr_id: ExprId) {
         match literal {
             HirLiteral::Array(hir_array_literal) => {
                 self.push_str("[");
@@ -571,6 +571,9 @@ impl ItemPrinter<'_, '_> {
             }
             HirLiteral::Integer(signed_field) => {
                 self.push_str(&signed_field.to_string());
+                let typ = self.interner.id_type(expr_id);
+                self.push_str("_");
+                self.push_str(&typ.to_string());
             }
             HirLiteral::Str(string) => {
                 self.push_str(&format!("{:?}", string));

@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let a: &mut &mut &mut [Field; 3] = &mut &mut &mut [1, 2, 3];
-    assert(a[0] == 1);
-    a[0] = 4;
-    assert(a[0] == 4);
+    let a: &mut &mut &mut [Field; 3] = &mut &mut &mut [1_Field, 2_Field, 3_Field];
+    assert(a[0_u32] == 1_Field);
+    a[0_u32] = 4_Field;
+    assert(a[0_u32] == 4_Field);
 }

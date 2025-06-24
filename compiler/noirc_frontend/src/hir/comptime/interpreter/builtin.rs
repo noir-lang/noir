@@ -18,7 +18,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -1952,7 +1952,7 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Value::Field(SignedField::positive(field.absolute_value())),
                 Value::Bool(field.is_negative()),
@@ -2492,7 +2492,15 @@ fn function_def_as_typed_expr(
     ));
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.type_check_variable(hir_ident, expr_id, generics)
+            let bindings = TypeBindings::default();
+            let push_required_type_variables = false;
+            elaborator.type_check_variable_with_bindings(
+                hir_ident,
+                expr_id,
+                generics,
+                bindings,
+                push_required_type_variables,
+            )
         });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))

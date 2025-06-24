@@ -16,7 +16,7 @@ impl MagicNumber for i32 {
     }
 
     fn from_value() -> Self {
-        0
+        0_i32
     }
 }
 
@@ -26,7 +26,7 @@ impl MagicNumber for i64 {
     }
 
     fn from_value() -> Self {
-        0
+        0_i64
     }
 }
 

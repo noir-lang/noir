@@ -16,6 +16,8 @@ use thiserror::Error;
 use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
 
+pub type RtResult<T> = Result<T, RuntimeError>;
+
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
     #[error(transparent)]
@@ -64,6 +66,23 @@ pub enum RuntimeError {
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
+    #[error(
+        "Cannot return references from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedReferenceFromDynamicIf { call_stack: CallStack },
+    #[error(
+        "Cannot return a function from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedFunctionFromDynamicIf { call_stack: CallStack },
+    /// This case is not an error. It's used during codegen to prevent inserting instructions after
+    /// code when a break or continue is generated.
+    #[error("Break or continue")]
+    BreakOrContinue { call_stack: CallStack },
+
+    #[error(
+        "Only constant indices are supported when indexing an array containing reference values"
+    )]
+    DynamicIndexingWithReference { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -173,6 +192,10 @@ impl RuntimeError {
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
+            | RuntimeError::BreakOrContinue { call_stack }
+            | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack } => call_stack,
         }
     }

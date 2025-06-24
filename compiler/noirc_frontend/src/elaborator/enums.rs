@@ -400,8 +400,11 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(value)) => {
-                let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+            ExpressionKind::Literal(Literal::Integer(value, suffix)) => {
+                let actual = match suffix {
+                    Some(suffix) => suffix.as_type(),
+                    None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
+                };
                 unify_with_expected_type(self, &actual);
                 Pattern::Int(value)
             }
@@ -713,8 +716,9 @@ impl Elaborator<'_> {
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
             | PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {

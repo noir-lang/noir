@@ -37,6 +37,9 @@ impl Display for Ssa {
                 Value::Global(_) => {
                     panic!("Value::Global should only be in the function dfg");
                 }
+                Value::Function(id) => {
+                    writeln!(f, "{}", id)?;
+                }
                 _ => panic!("Expected only numeric constant or instruction"),
             };
         }

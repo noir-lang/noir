@@ -1,0 +1,6 @@
+[package]
+name = "array_with_refs_return"
+type = "bin"
+authors = [""]
+
+[dependencies]

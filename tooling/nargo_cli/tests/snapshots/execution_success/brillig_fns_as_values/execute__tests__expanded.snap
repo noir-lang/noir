@@ -9,12 +9,12 @@ struct MyStruct {
 fn main(x: u32) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(wrapper(increment, x) == (x + 1));
-        assert(wrapper(increment_acir, x) == (x + 1));
-        assert(wrapper(decrement, x) == (x - 1));
-        assert(wrapper_with_struct(MyStruct { operation: increment }, x) == (x + 1));
-        assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == (x - 1));
-        assert(increment(x) == (x + 1));
+        assert(wrapper(increment, x) == (x + 1_u32));
+        assert(wrapper(increment_acir, x) == (x + 1_u32));
+        assert(wrapper(decrement, x) == (x - 1_u32));
+        assert(wrapper_with_struct(MyStruct { operation: increment }, x) == (x + 1_u32));
+        assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == (x - 1_u32));
+        assert(increment(x) == (x + 1_u32));
     }
 }
 
@@ -23,11 +23,11 @@ unconstrained fn wrapper(func: unconstrained fn(u32) -> u32, param: u32) -> u32 
 }
 
 unconstrained fn increment(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }
 
 unconstrained fn decrement(x: u32) -> u32 {
-    x - 1
+    x - 1_u32
 }
 
 unconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {
@@ -36,5 +36,5 @@ unconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {
 }
 
 fn increment_acir(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }

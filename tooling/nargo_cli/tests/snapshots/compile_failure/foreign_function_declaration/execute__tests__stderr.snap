@@ -16,4 +16,11 @@ error: Definition of low-level function outside of standard library
   │ ------------------------- Usage of the `#[foreign]` or `#[builtin]` function attributes are not allowed outside of the Noir standard library
   │
 
-Aborting due to 2 previous errors
+error: Type annotation needed
+  ┌─ src/main.nr:9:5
+  │
+9 │     my_pedersen_hash([1])
+  │     ---------------- Could not determine the type of the generic argument `N` declared on the function `my_pedersen_hash`
+  │
+
+Aborting due to 3 previous errors

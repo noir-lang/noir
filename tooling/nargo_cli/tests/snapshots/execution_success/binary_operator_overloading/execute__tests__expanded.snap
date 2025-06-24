@@ -7,8 +7,8 @@ use std::{cmp::Ordering, ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, S
 fn main(x: u32, y: u32) {
     let wx: Wrapper = Wrapper::new(x);
     let wy: Wrapper = Wrapper::new(y);
-    let ex: u32 = 3;
-    let ey: u32 = 9;
+    let ex: u32 = 3_u32;
+    let ey: u32 = 9_u32;
     assert((wx + wy).inner == (ex + ey));
     assert((wy - wx).inner == (ey - ex));
     assert((wx * wy).inner == (ex * ey));

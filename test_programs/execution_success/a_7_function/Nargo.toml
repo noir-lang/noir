@@ -1,0 +1,6 @@
+[package]
+name = "a_7_function"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -342,7 +342,7 @@ mod notification_tests {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
 
         // Open the document, fake the text to be empty
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
@@ -355,7 +355,7 @@ mod notification_tests {
         );
 
         // Fake the text to change to "global a = 1;"
-        on_did_change_text_document(
+        let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {
                 text_document: VersionedTextDocumentIdentifier {

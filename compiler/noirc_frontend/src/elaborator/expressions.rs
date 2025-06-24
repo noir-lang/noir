@@ -4,7 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -36,11 +36,12 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
     },
     shared::Signedness,
-    token::{FmtStrFragment, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
 use super::{
     Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -54,6 +55,8 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
+
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
@@ -107,6 +110,11 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
+
+        if is_integer_literal {
+            self.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
     }
 
@@ -246,8 +254,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer) => {
-                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
+            Literal::Integer(integer, suffix) => {
+                (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -263,6 +271,24 @@ impl Elaborator<'_> {
         }
     }
 
+    fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
+        use {Signedness::*, Type::Integer};
+        match suffix {
+            Some(IntegerTypeSuffix::I8) => Integer(Signed, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
+            Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::U64) => Integer(Unsigned, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U128) => Integer(Unsigned, IntegerBitSize::HundredTwentyEight),
+            Some(IntegerTypeSuffix::Field) => Type::FieldElement,
+            None => self.polymorphic_integer_or_field(),
+        }
+    }
+
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
@@ -271,7 +297,16 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let first_elem_type = self.interner.next_type_variable();
+                let type_variable_id = self.interner.next_type_variable_id();
+                let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                let first_elem_type = Type::TypeVariable(type_variable);
                 let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -300,7 +335,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
@@ -843,6 +878,19 @@ impl Elaborator<'_> {
                 last_segment.generics,
                 turbofish_location,
             );
+        }
+
+        // Each of the struct generics must be bound at the end of the function
+        let struct_id = r#type.borrow().id;
+        for (index, generic) in generics.iter().enumerate() {
+            if let Type::TypeVariable(type_variable) = generic {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
         }
 
         let struct_type = r#type.clone();

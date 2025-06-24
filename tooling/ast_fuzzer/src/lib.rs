@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+use rand as _;
 
 mod abi;
 pub mod compare;
@@ -9,11 +9,14 @@ mod input;
 mod program;
 
 pub use abi::program_abi;
-pub use compare::input_values_to_ssa;
+pub use compare::{input_value_to_ssa, input_values_to_ssa};
 pub use input::arb_inputs;
 use program::freq::Freqs;
-pub use program::{DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime};
-pub use program::{expr, rewrite, visitor};
+pub use program::{
+    DisplayAstAsNoir, DisplayAstAsNoirComptime, arb_program, arb_program_comptime,
+    program_wrap_expression,
+};
+pub use program::{expr, rewrite, scope, types, visitor};
 
 /// AST generation configuration.
 #[derive(Debug, Clone)]
@@ -63,6 +66,10 @@ pub struct Config {
     pub avoid_loop_control: bool,
     /// Avoid using function pointers in parameters.
     pub avoid_lambdas: bool,
+    /// Avoid print statements.
+    pub avoid_print: bool,
+    /// Avoid using constrain statements.
+    pub avoid_constrain: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -79,15 +86,14 @@ impl Default for Config {
             ("call", 15),
         ]);
         let stmt_freqs_acir = Freqs::new(&[
-            ("drop", 0), // The `ownership` module says it will insert `Drop` and `Clone`.
             ("assign", 30),
             ("if", 10),
             ("for", 22),
             ("let", 25),
             ("call", 5),
+            ("constrain", 5),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("drop", 0),
             ("break", 20),
             ("continue", 20),
             ("assign", 30),
@@ -98,6 +104,7 @@ impl Default for Config {
             ("let", 20),
             ("call", 5),
             ("print", 15),
+            ("constrain", 10),
         ]);
         Self {
             max_globals: 3,
@@ -122,6 +129,8 @@ impl Default for Config {
             avoid_negative_int_literals: false,
             avoid_loop_control: false,
             avoid_lambdas: false,
+            avoid_print: false,
+            avoid_constrain: false,
             comptime_friendly: false,
         }
     }

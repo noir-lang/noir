@@ -54,16 +54,8 @@ fn main() {
     assert_eq(o, o);
 
     // Field & str<2> above don't implement Ord
-    let o1 = MyOtherStruct {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct { x: 54 as i8 },
-    };
-    let o2 = MyOtherStruct {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct { x: 55 as i8 },
-    };
+    let o1 = MyOtherStruct { field1: 12u32, field2: 24i8, field3: MyOtherOtherStruct { x: 54i8 } };
+    let o2 = MyOtherStruct { field1: 12u32, field2: 24i8, field3: MyOtherOtherStruct { x: 55i8 } };
     assert(o1 < o2);
 
     let mut hasher = TestHasher { result: 0 };
