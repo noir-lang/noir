@@ -412,7 +412,7 @@ pub(crate) mod tests {
         let profiling_active = false;
         let mut vm = VM::new(calldata, bytecode, &DummyBlackBoxSolver, profiling_active, None);
 
-        let status = vm.process_opcodes();
+        let status = vm.process_opcodes(None);
         if let VMStatus::Finished { return_data_offset, return_data_size } = status {
             (vm, return_data_offset, return_data_size)
         } else {
@@ -491,7 +491,7 @@ pub(crate) mod tests {
         let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
         let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
-        let status = vm.process_opcodes();
+        let status = vm.process_opcodes(None);
         assert_eq!(
             status,
             VMStatus::ForeignCallWait {
@@ -505,7 +505,7 @@ pub(crate) mod tests {
         let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
         vm.resolve_foreign_call(response);
 
-        let status = vm.process_opcodes();
+        let status = vm.process_opcodes(None);
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
     }
 }

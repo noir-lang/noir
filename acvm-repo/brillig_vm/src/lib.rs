@@ -30,6 +30,9 @@ mod black_box;
 mod cast;
 mod memory;
 
+/// A suggested limit for the number of opcodes that can be executed in a single Brillig VM process.
+pub const DEFAULT_EXECUTION_LIMIT: u32 = 10_000_000;
+
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
@@ -196,6 +199,20 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status.clone()
     }
 
+    pub fn get_memory(&self) -> &[MemoryValue<F>] {
+        self.memory.values()
+    }
+
+    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
+        self.memory.write(MemoryAddress::direct(ptr), value);
+    }
+
+    /// Returns the VM's current call stack, including the actual program
+    /// counter in the last position of the returned vector.
+    pub fn get_call_stack(&self) -> Vec<usize> {
+        self.call_stack.iter().copied().chain(std::iter::once(self.program_counter)).collect()
+    }
+
     /// Sets the current status of the VM to Finished (completed execution).
     fn finish(&mut self, return_data_offset: usize, return_data_size: usize) -> VMStatus<F> {
         self.status(VMStatus::Finished { return_data_offset, return_data_size })
@@ -247,26 +264,21 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Loop over the bytecode and update the program counter
-    pub fn process_opcodes(&mut self) -> VMStatus<F> {
+    pub fn process_opcodes(&mut self, limit: Option<u32>) -> VMStatus<F> {
+        let mut opcodes_processed = 0;
         while !matches!(
             self.process_opcode(),
             VMStatus::Finished { .. } | VMStatus::Failure { .. } | VMStatus::ForeignCallWait { .. }
-        ) {}
+        ) {
+            if let Some(limit) = limit {
+                opcodes_processed += 1;
+                if opcodes_processed >= limit {
+                    // If we have reached the limit, we stop processing opcodes
+                    break;
+                }
+            }
+        }
         self.status.clone()
-    }
-
-    pub fn get_memory(&self) -> &[MemoryValue<F>] {
-        self.memory.values()
-    }
-
-    pub fn write_memory_at(&mut self, ptr: usize, value: MemoryValue<F>) {
-        self.memory.write(MemoryAddress::direct(ptr), value);
-    }
-
-    /// Returns the VM's current call stack, including the actual program
-    /// counter in the last position of the returned vector.
-    pub fn get_call_stack(&self) -> Vec<usize> {
-        self.call_stack.iter().copied().chain(std::iter::once(self.program_counter)).collect()
     }
 
     /// Process a single opcode and modify the program counter.
@@ -618,7 +630,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.set_program_counter(self.program_counter + 1)
     }
 
-    /// Increments the program counter by `value`.
+    /// Sets the program counter by `value`.
     /// If the program counter no longer points to an opcode
     /// in the bytecode, then the VMStatus reports halted.
     fn set_program_counter(&mut self, value: usize) -> VMStatus<F> {
