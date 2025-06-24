@@ -266,10 +266,20 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     /// Loop over the bytecode and update the program counter
     pub fn process_opcodes(&mut self, limit: Option<u32>) -> VMStatus<F> {
         let mut opcodes_processed = 0;
-        while !matches!(
-            self.process_opcode(),
-            VMStatus::Finished { .. } | VMStatus::Failure { .. } | VMStatus::ForeignCallWait { .. }
-        ) {
+        loop {
+            let new_status = self.process_opcode();
+
+            if matches!(
+                new_status,
+                VMStatus::Finished { .. }
+                    | VMStatus::Failure { .. }
+                    | VMStatus::ForeignCallWait { .. }
+            ) {
+                // If we reach these states then we either have finished execution or need to
+                // hand control back to the caller to process a foreign call.
+                break;
+            }
+
             if let Some(limit) = limit {
                 opcodes_processed += 1;
                 if opcodes_processed >= limit {
@@ -278,6 +288,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 }
             }
         }
+
         self.status.clone()
     }
 
