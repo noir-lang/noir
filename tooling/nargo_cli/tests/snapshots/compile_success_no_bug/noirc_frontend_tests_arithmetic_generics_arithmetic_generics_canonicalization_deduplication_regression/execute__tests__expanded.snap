@@ -8,5 +8,5 @@ struct ArrData<let N: u32> {
 }
 
 fn main() {
-    let _f: ArrData<5> = ArrData::<5> { a: [0; 5], b: [0; 9] };
+    let _f: ArrData<5> = ArrData::<5> { a: [0_Field; 5], b: [0_Field; 9] };
 }

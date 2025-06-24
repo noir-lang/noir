@@ -17,7 +17,7 @@ fn must_be_zero(x: u8) {
 
 fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
     //Test case for short-circuit
-    let mut data = [0 as u32; 32];
+    let mut data = [0u32; 32];
     let mut ba = a;
     for i in 0..32 {
         let i_u32 = i as u32;
