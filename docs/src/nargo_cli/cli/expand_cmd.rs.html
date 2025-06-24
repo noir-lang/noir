@@ -73,66 +73,21 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
-<a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a>
-<a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a>
-<a href="#84" id="84">84</a>
-<a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a>
-<a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a>
-<a href="#89" id="89">89</a>
-<a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
-<a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
-<a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a>
-<a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a>
-<a href="#102" id="102">102</a>
-<a href="#103" id="103">103</a>
-<a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a>
-<a href="#110" id="110">110</a>
-<a href="#111" id="111">111</a>
-<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
-<span class="kw">use </span>items::ItemBuilder;
 <span class="kw">use </span>nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager,
     ops::check_crate_and_report_errors, package::Package, parse_all, prepare_package,
     workspace::Workspace,
 };
-<span class="kw">use </span>nargo_fmt::ImportsGranularity;
+<span class="kw">use </span>nargo_expand::get_expanded_crate;
 <span class="kw">use </span>nargo_toml::PackageSelection;
 <span class="kw">use </span>noirc_driver::CompileOptions;
-<span class="kw">use </span>noirc_frontend::{
-    hir::{ParsedFiles, def_map::ModuleId},
-    parse_program_with_dummy_file,
-};
-<span class="kw">use </span>printer::ItemPrinter;
+<span class="kw">use </span>noirc_frontend::hir::ParsedFiles;
 
 <span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
 <span class="kw">use super</span>::{LockType, PackageOptions, WorkspaceCommand};
-
-<span class="kw">mod </span>items;
-<span class="kw">mod </span>printer;
 
 <span class="doccomment">/// Show the result of macro expansion
 </span><span class="attr">#[derive(Debug, Clone, Args, Default)]
@@ -173,12 +128,12 @@
     package: <span class="kw-2">&amp;</span>Package,
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CompileError&gt; {
-    <span class="kw">let </span>code = get_expanded_package(file_manager, parsed_files, package, compile_options)<span class="question-mark">?</span>;
+    <span class="kw">let </span>code = get_expanded_package_or_error(file_manager, parsed_files, package, compile_options)<span class="question-mark">?</span>;
     <span class="macro">println!</span>(<span class="string">"{code}"</span>);
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>get_expanded_package(
+<span class="kw">fn </span>get_expanded_package_or_error(
     file_manager: <span class="kw-2">&amp;</span>FileManager,
     parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
     package: <span class="kw-2">&amp;</span>Package,
@@ -191,35 +146,6 @@
 
     check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>root_module_id = context.def_maps[<span class="kw-2">&amp;</span>crate_id].root();
-    <span class="kw">let </span>module_id = ModuleId { krate: crate_id, local_id: root_module_id };
-
-    <span class="kw">let </span><span class="kw-2">mut </span>builder = ItemBuilder::new(crate_id, <span class="kw-2">&amp;</span>context.def_interner, <span class="kw-2">&amp;</span>context.def_maps);
-    <span class="kw">let </span>item = builder.build_module(module_id);
-
-    <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span>context.crate_graph[context.root_crate_id()].dependencies;
-
-    <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>printer = ItemPrinter::new(
-        crate_id,
-        <span class="kw-2">&amp;</span>context.def_interner,
-        <span class="kw-2">&amp;</span>context.def_maps,
-        dependencies,
-        <span class="kw-2">&amp;mut </span>string,
-    );
-    printer.show_item(item);
-
-    <span class="kw">let </span>(parsed_module, errors) = parse_program_with_dummy_file(<span class="kw-2">&amp;</span>string);
-    <span class="kw">if </span>errors.is_empty() {
-        <span class="kw">let </span>config = nargo_fmt::Config {
-            reorder_imports: <span class="bool-val">true</span>,
-            imports_granularity: ImportsGranularity::Crate,
-            ..Default::default()
-        };
-        <span class="prelude-val">Ok</span>(nargo_fmt::format(<span class="kw-2">&amp;</span>string, parsed_module, <span class="kw-2">&amp;</span>config))
-    } <span class="kw">else </span>{
-        string.push_str(<span class="string">"\n\n// Warning: the generated code has syntax errors"</span>);
-        <span class="prelude-val">Ok</span>(string)
-    }
+    <span class="prelude-val">Ok</span>(get_expanded_crate(<span class="kw-2">&amp;</span>context, crate_id))
 }
 </code></pre></div></section></main></body></html>

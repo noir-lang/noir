@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["expand_package","get_expanded_package","run"],"mod":["items","printer"],"struct":["ExpandCommand"]};
+window.SIDEBAR_ITEMS = {"fn":["expand_package","get_expanded_package_or_error","run"],"struct":["ExpandCommand"]};
