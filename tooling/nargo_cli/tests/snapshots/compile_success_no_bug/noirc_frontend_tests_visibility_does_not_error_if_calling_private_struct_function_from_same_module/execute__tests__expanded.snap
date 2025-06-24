@@ -6,11 +6,11 @@ struct Foo {}
 
 impl Foo {
     fn bar() -> Field {
-        0
+        0_Field
     }
 }
 
 fn main() {
     let _: Foo = Foo {};
-    assert(Foo::bar() == 0);
+    assert(Foo::bar() == 0_Field);
 }

@@ -5,7 +5,7 @@ expression: expanded_code
 use std::mem::checked_transmute;
 
 fn main() {
-    let _: [Field; 5] = distribute::<1, 2, 3>([1, 2, 3, 4, 5]);
+    let _: [Field; 5] = distribute::<1, 2, 3>([1_Field, 2_Field, 3_Field, 4_Field, 5_Field]);
 }
 
 pub fn distribute<let N: u32, let A: u32, let B: u32>(

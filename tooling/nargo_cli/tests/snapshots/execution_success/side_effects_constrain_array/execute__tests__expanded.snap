@@ -7,11 +7,11 @@ struct Bar {
 }
 
 fn main(y: pub u32) {
-    let bar: Bar = Bar { inner: [100, 101, 102] };
-    if y < 10 {
-        assert(bar.inner == [100, 101, 102]);
+    let bar: Bar = Bar { inner: [100_Field, 101_Field, 102_Field] };
+    if y < 10_u32 {
+        assert(bar.inner == [100_Field, 101_Field, 102_Field]);
     };
-    if y > 10 {
-        assert(bar.inner == [0, 1, 2]);
+    if y > 10_u32 {
+        assert(bar.inner == [0_Field, 1_Field, 2_Field]);
     }
 }

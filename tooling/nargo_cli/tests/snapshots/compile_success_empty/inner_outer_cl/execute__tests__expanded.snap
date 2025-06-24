@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let z1: Field = 0;
-    let z2: Field = 1;
+    let z1: Field = 0_Field;
+    let z2: Field = 1_Field;
     let cl_outer: fn[(Field, Field)](Field) -> Field = |x: Field| -> Field {
         let cl_inner: fn[(Field, Field)](Field) -> Field = |y: Field| -> Field { (x + y) + z2 };
-        cl_inner(1) + z1
+        cl_inner(1_Field) + z1
     };
-    let result: Field = cl_outer(1);
-    assert(result == 3);
+    let result: Field = cl_outer(1_Field);
+    assert(result == 3_Field);
 }

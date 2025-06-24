@@ -21,11 +21,11 @@ fn main() {
     let x_foo = x.foo();
     assert_eq(x_foo, x_foo); // ensure we don't need an additional type annotation for Bar here
 
-    // The `as u8` is still necessary even though we know the object type,
+    // The `_u8` is still necessary even though we know the object type,
     // otherwise we try to search for `u64: Foo<Bar = Field>`.
     // It seems the `Bar = u8` constraint is still there & checked for, but
     // the defaulting of the polymorphic integer occurs first.
-    assert_eq(x.foo(), 0 as u8);
+    assert_eq(x.foo(), 0_u8);
 }
 
 // Ensure we can use `<T as Foo>::Bar: Eq` in a function's where clause

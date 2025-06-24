@@ -5,7 +5,7 @@ expression: expanded_code
 fn main(x: u8, nest: bool) {
     if nest {
         let foo: u8 = unsafe_assert([x]);
-        assert(foo != 0);
+        assert(foo != 0_u8);
     }
 }
 
@@ -14,15 +14,15 @@ pub fn unsafe_assert<let N: u32>(msg: [u8; N]) -> u8 {
     // Safety: comment added by `nargo expand`
     let block: [u8; 2] = unsafe { get_block(msg) };
     verify_block(msg, block);
-    block[0]
+    block[0_u32]
 }
 
 unconstrained fn get_block<let N: u32>(msg: [u8; N]) -> [u8; 2] {
-    let mut block: [u8; 2] = [0; 2];
-    block[0] = msg[0];
+    let mut block: [u8; 2] = [0_u8; 2];
+    block[0_u32] = msg[0_u32];
     block
 }
 
 fn verify_block<let N: u32>(msg: [u8; N], block: [u8; 2]) {
-    assert(block[0] == msg[0]);
+    assert(block[0_u32] == msg[0_u32]);
 }

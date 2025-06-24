@@ -3,32 +3,36 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() -> pub bool {
-    let ctx_depth: u32 = 5;
+    let ctx_depth: u32 = 5_u32;
     // Safety: comment added by `nargo expand`
-    let cond: bool = unsafe { func_1(true, 1, ctx_depth) };
+    let cond: bool = unsafe { func_1(true, 1_i8, ctx_depth) };
     let _: i8 = if !cond {
         // Safety: comment added by `nargo expand`
-        unsafe { func_2(1, true, ctx_depth) }[0]
+        unsafe { func_2(1_Field, true, ctx_depth) }[0_u32]
     } else {
-        0
+        0_i8
     };
     false
 }
 
 unconstrained fn func_1(a: bool, b: i8, mut ctx_depth: u32) -> bool {
-    if ctx_depth == 0 {
+    if ctx_depth == 0_u32 {
         false
     } else {
-        ctx_depth = ctx_depth - 1;
-        func_1(false, func_2(a as Field, false, ctx_depth)[3], ctx_depth)
+        ctx_depth = ctx_depth - 1_u32;
+        func_1(
+            false,
+            func_2(a as Field, false, ctx_depth)[3_u32],
+            ctx_depth,
+        )
     }
 }
 
 unconstrained fn func_2(mut a: Field, mut b: bool, mut ctx_depth: u32) -> [i8; 4] {
-    if ctx_depth == 0 {
-        [6, 101, 92, 30]
+    if ctx_depth == 0_u32 {
+        [6_i8, 101_i8, 92_i8, 30_i8]
     } else {
-        ctx_depth = ctx_depth - 1;
-        func_2(a, func_1(b, 0, ctx_depth), ctx_depth)
+        ctx_depth = ctx_depth - 1_u32;
+        func_2(a, func_1(b, 0_i8, ctx_depth), ctx_depth)
     }
 }
