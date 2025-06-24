@@ -237,7 +237,8 @@
 <a href="#236" id="236">236</a>
 <a href="#237" id="237">237</a>
 <a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::PublicInputs;
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::PublicInputs;
 <span class="kw">use </span>acvm::{
     FieldElement,
     acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
@@ -296,6 +297,7 @@
             print_codegen_timings: options.print_codegen_timings,
             passed: HashMap::new(),
             skip_passes: <span class="macro">vec!</span>[],
+            files: <span class="prelude-val">None</span>,
         };
         optimize_ssa_builder_into_acir(
             builder,

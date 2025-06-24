@@ -346,7 +346,8 @@
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#348" id="348">348</a>
+<a href="#349" id="349">349</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::{Circuit, ExpressionWidth, Program <span class="kw">as </span>AcirProgram},
@@ -434,7 +435,7 @@
         <span class="kw">let </span>second_variable_type = <span class="self">Self</span>::get_type(second_variable);
         <span class="kw">let </span>ssa = binary_function(op, first_variable_type, second_variable_type);
         <span class="kw">let </span>serialized_ssa = <span class="kw-2">&amp;</span>serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
-        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa);
+        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa.print_without_locations());
 
         <span class="kw">let </span>program = ssa_to_acir_program(ssa);
         <span class="kw">let </span>serialized_program = AcirProgram::serialize_program(<span class="kw-2">&amp;</span>program);
@@ -466,7 +467,7 @@
 
     <span class="kw">fn </span>new_by_ssa(ssa: Ssa, instruction_name: String, variable: <span class="kw-2">&amp;</span>Variable) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>serialized_ssa = <span class="kw-2">&amp;</span>serde_json::to_string(<span class="kw-2">&amp;</span>ssa).unwrap();
-        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa);
+        <span class="kw">let </span>formatted_ssa = <span class="macro">format!</span>(<span class="string">"{}"</span>, ssa.print_without_locations());
 
         <span class="kw">let </span>program = ssa_to_acir_program(ssa);
         <span class="kw">let </span>serialized_program = AcirProgram::serialize_program(<span class="kw-2">&amp;</span>program);
@@ -587,6 +588,7 @@
         print_codegen_timings: <span class="bool-val">false</span>,
         passed: HashMap::default(),
         skip_passes: <span class="macro">vec!</span>[],
+        files: <span class="prelude-val">None</span>,
     };
     <span class="kw">let </span>ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,

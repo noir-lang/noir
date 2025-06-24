@@ -1570,7 +1570,8 @@
 <a href="#1569" id="1569">1569</a>
 <a href="#1570" id="1570">1570</a>
 <a href="#1571" id="1571">1571</a>
-<a href="#1572" id="1572">1572</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2900,7 +2901,7 @@
         <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
         <span class="comment">// Check that it's still the original
-        </span>assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
+        </span>assert_normalized_ssa_equals(ssa, <span class="kw-2">&amp;</span>parse_ssa().print_without_locations().to_string());
     }
 
     <span class="attr">#[test]
@@ -2908,7 +2909,8 @@
         <span class="kw">let </span>ssa = brillig_unroll_test_case();
         <span class="kw">let </span>ssa = ssa.unroll_loops_iteratively(<span class="prelude-val">Some</span>(-<span class="number">90</span>)).unwrap();
         <span class="comment">// Check that it's still the original
-        </span>assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
+        </span><span class="kw">let </span>expected = brillig_unroll_test_case();
+        assert_normalized_ssa_equals(ssa, <span class="kw-2">&amp;</span>expected.print_without_locations().to_string());
     }
 
     <span class="attr">#[test]

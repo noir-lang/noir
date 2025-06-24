@@ -1644,8 +1644,7 @@
 <a href="#1643" id="1643">1643</a>
 <a href="#1644" id="1644">1644</a>
 <a href="#1645" id="1645">1645</a>
-<a href="#1646" id="1646">1646</a>
-<a href="#1647" id="1647">1647</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1646" id="1646">1646</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -2965,7 +2964,6 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.defunctionalize();
-        <span class="macro">println!</span>(<span class="string">"{}"</span>, ssa);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {

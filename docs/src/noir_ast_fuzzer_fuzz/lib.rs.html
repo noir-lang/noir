@@ -206,7 +206,13 @@
 <a href="#205" id="205">205</a>
 <a href="#206" id="206">206</a>
 <a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::circuit::ExpressionWidth;
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>noir_ast_fuzzer::DisplayAstAsNoir;
 <span class="kw">use </span>noir_ast_fuzzer::compare::{
@@ -285,12 +291,14 @@
         <span class="macro">eprintln!</span>(<span class="string">"---\n{}\n---"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>program));
     }
 
-    ssa::create_program_with_passes(program, options, primary, secondary).unwrap_or_else(|e| {
-        <span class="macro">panic!</span>(
-            <span class="string">"failed to compile program: {}{e}"</span>,
-            msg.map(|s| <span class="macro">format!</span>(<span class="string">"{s}: "</span>)).unwrap_or_default()
-        )
-    })
+    ssa::create_program_with_passes(program, options, primary, secondary, <span class="prelude-val">None</span>).unwrap_or_else(
+        |e| {
+            <span class="macro">panic!</span>(
+                <span class="string">"failed to compile program: {}{e}"</span>,
+                msg.map(|s| <span class="macro">format!</span>(<span class="string">"{s}: "</span>)).unwrap_or_default()
+            )
+        },
+    )
 }
 
 <span class="doccomment">/// Compare the execution result and print the inputs if the result is a failure.
@@ -401,11 +409,15 @@
 
         <span class="macro">eprintln!</span>(
             <span class="string">"---\nSSA 1 after step {} ({}):\n{}"</span>,
-            inputs.ssa1.step, inputs.ssa1.msg, inputs.ssa1.ssa
+            inputs.ssa1.step,
+            inputs.ssa1.msg,
+            inputs.ssa2.ssa.print_without_locations()
         );
         <span class="macro">eprintln!</span>(
             <span class="string">"---\nSSA 2 after step {} ({}):\n{}"</span>,
-            inputs.ssa2.step, inputs.ssa2.msg, inputs.ssa2.ssa
+            inputs.ssa2.step,
+            inputs.ssa2.msg,
+            inputs.ssa2.ssa.print_without_locations()
         );
 
         <span class="comment">// Returning it as-is, so we can see the error message at the bottom as well.

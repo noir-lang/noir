@@ -115,7 +115,8 @@
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -181,10 +182,10 @@
 
     ssa.normalize_ids();
 
-    <span class="kw">let </span>ssa = ssa.to_string();
+    <span class="kw">let </span>ssa = ssa.print_without_locations().to_string();
     <span class="kw">let </span>ssa = ssa.trim_end();
 
-    <span class="kw">let </span>expected_ssa = expected_ssa.to_string();
+    <span class="kw">let </span>expected_ssa = expected_ssa.print_without_locations().to_string();
     <span class="kw">let </span>expected_ssa = expected_ssa.trim_end();
 
     <span class="kw">if </span>ssa == expected_ssa {
@@ -229,7 +230,8 @@
         <span class="attr">#[allow(unused_mut)]
         </span><span class="kw">let </span><span class="kw-2">mut </span>mut_ssa = <span class="macro-nonterminal">$ssa</span>;
         mut_ssa.normalize_ids();
-        <span class="macro">insta::assert_snapshot!</span>(mut_ssa, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
+        <span class="kw">let </span>ssa_string = mut_ssa.print_without_locations().to_string();
+        <span class="macro">insta::assert_snapshot!</span>(ssa_string, $(<span class="macro-nonterminal">$arg</span>)<span class="kw-2">*</span>)
     };
 }
 </code></pre></div></section></main></body></html>

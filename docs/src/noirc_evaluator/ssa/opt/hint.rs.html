@@ -95,8 +95,7 @@
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#97" id="97">97</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 
@@ -122,8 +121,7 @@
             skip_passes: Default::default(),
         };
 
-        <span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), <span class="bool-val">false</span>);
-
+        <span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
         <span class="prelude-val">Ok</span>(builder.run_passes(<span class="kw-2">&amp;</span>primary_passes(options))<span class="question-mark">?</span>.finish())
     }
 

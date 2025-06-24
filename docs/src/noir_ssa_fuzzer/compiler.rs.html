@@ -53,7 +53,7 @@
     options: SsaEvaluatorOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt; {
     <span class="kw">let </span>ssa = builder.finish();
-    <span class="macro">log::debug!</span>(<span class="string">"SSA: {:}"</span>, ssa);
+    <span class="macro">log::debug!</span>(<span class="string">"SSA: {:}"</span>, ssa.print_without_locations());
     optimize_ssa_into_acir(ssa, options)
 }
 

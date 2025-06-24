@@ -836,7 +836,11 @@
 <a href="#835" id="835">835</a>
 <a href="#836" id="836">836</a>
 <a href="#837" id="837">837</a>
-<a href="#838" id="838">838</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
@@ -1628,9 +1632,13 @@
 
     <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         <span class="kw">if </span>options.minimal_ssa {
-            create_program_with_minimal_passes(program, <span class="kw-2">&amp;</span>ssa_evaluator_options)<span class="question-mark">?
+            create_program_with_minimal_passes(
+                program,
+                <span class="kw-2">&amp;</span>ssa_evaluator_options,
+                <span class="kw-2">&amp;</span>context.file_manager,
+            )<span class="question-mark">?
         </span>} <span class="kw">else </span>{
-            create_program(program, <span class="kw-2">&amp;</span>ssa_evaluator_options)<span class="question-mark">?
+            create_program(program, <span class="kw-2">&amp;</span>ssa_evaluator_options, <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager))<span class="question-mark">?
         </span>};
 
     <span class="kw">let </span>abi = gen_abi(context, <span class="kw-2">&amp;</span>main_function, return_visibility, error_types);

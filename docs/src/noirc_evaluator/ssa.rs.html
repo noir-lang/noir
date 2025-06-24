@@ -770,7 +770,28 @@
 <a href="#769" id="769">769</a>
 <a href="#770" id="770">770</a>
 <a href="#771" id="771">771</a>
-<a href="#772" id="772">772</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1059,6 +1080,7 @@
     <span class="kw">let </span>ssa_gen_span_guard = ssa_gen_span.enter();
     <span class="kw">let </span><span class="kw-2">mut </span>builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)<span class="question-mark">?</span>;
     <span class="kw">let </span>passed = std::mem::take(<span class="kw-2">&amp;mut </span>builder.passed);
+    <span class="kw">let </span>files = builder.files;
     <span class="kw">let </span><span class="kw-2">mut </span>ssa = builder.finish();
 
     <span class="kw">let </span><span class="kw-2">mut </span>ssa_level_warnings = <span class="macro">vec!</span>[];
@@ -1072,12 +1094,16 @@
     <span class="kw">let </span>ssa_gen_span = <span class="macro">span!</span>(Level::TRACE, <span class="string">"ssa_generation"</span>);
     <span class="kw">let </span>ssa_gen_span_guard = ssa_gen_span.enter();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>ssa =
-        SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), options.print_codegen_timings)
-            .with_passed(passed)
-            .with_skip_passes(options.skip_passes.clone())
-            .run_passes(<span class="kw-2">&amp;</span>secondary(<span class="kw-2">&amp;</span>brillig))<span class="question-mark">?
-            </span>.finish();
+    <span class="kw">let </span><span class="kw-2">mut </span>ssa = SsaBuilder::from_ssa(
+        ssa,
+        options.ssa_logging.clone(),
+        options.print_codegen_timings,
+        files,
+    )
+    .with_passed(passed)
+    .with_skip_passes(options.skip_passes.clone())
+    .run_passes(<span class="kw-2">&amp;</span>secondary(<span class="kw-2">&amp;</span>brillig))<span class="question-mark">?
+    </span>.finish();
 
     <span class="kw">if </span>!options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
@@ -1125,6 +1151,7 @@
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     primary: <span class="kw-2">&amp;</span>[SsaPass],
     secondary: S,
+    files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt;
 <span class="kw">where
     </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
@@ -1134,6 +1161,7 @@
         options.ssa_logging.clone(),
         options.print_codegen_timings,
         <span class="kw-2">&amp;</span>options.emit_ssa,
+        files,
     )<span class="question-mark">?</span>;
 
     optimize_ssa_builder_into_acir(builder, options, primary, secondary)
@@ -1208,8 +1236,9 @@
 </span><span class="kw">pub fn </span>create_program(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
+    files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt; {
-    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>primary_passes(options), secondary_passes)
+    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>primary_passes(options), secondary_passes, files)
 }
 
 <span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
@@ -1220,6 +1249,7 @@
 </span><span class="kw">pub fn </span>create_program_with_minimal_passes(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
+    files: <span class="kw-2">&amp;</span>fm::FileManager,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt; {
     <span class="kw">for </span>func <span class="kw">in </span><span class="kw-2">&amp;</span>program.functions {
         <span class="macro">assert!</span>(
@@ -1228,7 +1258,7 @@
             func.name
         );
     }
-    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>minimal_passes(), |<span class="kw">_</span>| <span class="macro">vec!</span>[])
+    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>minimal_passes(), |<span class="kw">_</span>| <span class="macro">vec!</span>[], <span class="prelude-val">Some</span>(files))
 }
 
 <span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
@@ -1239,6 +1269,7 @@
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     primary: <span class="kw-2">&amp;</span>[SsaPass],
     secondary: S,
+    files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt;
 <span class="kw">where
     </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
@@ -1252,7 +1283,7 @@
     <span class="kw">let </span>ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
-    ) = optimize_into_acir(program, options, primary, secondary)<span class="question-mark">?</span>;
+    ) = optimize_into_acir(program, options, primary, secondary, files)<span class="question-mark">?</span>;
 
     <span class="macro">assert_eq!</span>(
         generated_acirs.len(),
@@ -1402,7 +1433,7 @@
 }
 
 <span class="comment">// This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-</span><span class="kw">pub struct </span>SsaBuilder {
+</span><span class="kw">pub struct </span>SsaBuilder&lt;<span class="lifetime">'local</span>&gt; {
     <span class="doccomment">/// The SSA being built; it is the input and the output of every pass ran by the builder.
     </span><span class="kw">pub </span>ssa: Ssa,
     <span class="doccomment">/// Options to control which SSA passes to print.
@@ -1414,14 +1445,19 @@
     </span><span class="kw">pub </span>passed: HashMap&lt;String, usize&gt;,
     <span class="doccomment">/// List of SSA pass message fragments that we want to skip, for testing purposes.
     </span><span class="kw">pub </span>skip_passes: Vec&lt;String&gt;,
+
+    <span class="doccomment">/// Providing a file manager is optional - if provided it can be used to print source
+    /// locations along with each ssa instructions when debugging.
+    </span><span class="kw">pub </span>files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'local </span>fm::FileManager&gt;,
 }
 
-<span class="kw">impl </span>SsaBuilder {
+<span class="kw">impl</span>&lt;<span class="lifetime">'local</span>&gt; SsaBuilder&lt;<span class="lifetime">'local</span>&gt; {
     <span class="kw">pub fn </span>from_program(
         program: Program,
         ssa_logging: SsaLogging,
         print_codegen_timings: bool,
         emit_ssa: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+        files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'local </span>fm::FileManager&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, RuntimeError&gt; {
         <span class="kw">let </span>ssa = ssa_gen::generate_ssa(program)<span class="question-mark">?</span>;
         <span class="kw">if let </span><span class="prelude-val">Some</span>(emit_ssa) = emit_ssa {
@@ -1433,14 +1469,20 @@
             <span class="kw">let </span>ssa_path = emit_ssa.with_extension(<span class="string">"ssa.json"</span>);
             write_to_file(<span class="kw-2">&amp;</span>serde_json::to_vec(<span class="kw-2">&amp;</span>ssa).unwrap(), <span class="kw-2">&amp;</span>ssa_path);
         }
-        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_ssa(ssa, ssa_logging, print_codegen_timings).print(<span class="string">"Initial SSA"</span>))
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print(<span class="string">"Initial SSA"</span>))
     }
 
-    <span class="kw">pub fn </span>from_ssa(ssa: Ssa, ssa_logging: SsaLogging, print_codegen_timings: bool) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>from_ssa(
+        ssa: Ssa,
+        ssa_logging: SsaLogging,
+        print_codegen_timings: bool,
+        files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'local </span>fm::FileManager&gt;,
+    ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             ssa_logging,
             print_codegen_timings,
             ssa,
+            files,
             passed: Default::default(),
             skip_passes: Default::default(),
         }
@@ -1517,7 +1559,7 @@
         };
 
         <span class="kw">if </span>print_ssa_pass {
-            <span class="macro">println!</span>(<span class="string">"After {msg}:\n{}"</span>, <span class="self">self</span>.ssa);
+            <span class="macro">println!</span>(<span class="string">"After {msg}:\n{}"</span>, <span class="self">self</span>.ssa.print_with(<span class="self">self</span>.files));
         }
         <span class="self">self
     </span>}

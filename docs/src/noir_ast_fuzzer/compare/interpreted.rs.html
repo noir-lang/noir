@@ -383,7 +383,12 @@
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -474,7 +479,12 @@
                 .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
                 .join(<span class="string">"\n"</span>)
         );
-        <span class="macro">log::debug!</span>(<span class="string">"SSA after step {} ({}):\n{}\n"</span>, <span class="self">self</span>.ssa1.step, <span class="self">self</span>.ssa1.msg, <span class="self">self</span>.ssa1.ssa);
+        <span class="macro">log::debug!</span>(
+            <span class="string">"SSA after step {} ({}):\n{}\n"</span>,
+            <span class="self">self</span>.ssa1.step,
+            <span class="self">self</span>.ssa1.msg,
+            <span class="self">self</span>.ssa1.ssa.print_without_locations()
+        );
 
         <span class="comment">// Interpret an SSA with a fresh copy of the input values.
         </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| ssa.interpret(Value::snapshot_args(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa_args));
