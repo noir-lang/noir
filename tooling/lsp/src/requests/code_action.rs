@@ -67,7 +67,7 @@ pub(crate) fn on_code_action_request(
                     byte_range,
                     args.crate_id,
                     args.def_maps,
-                    args.dependencies,
+                    args.dependencies(),
                     args.interner,
                     args.usage_tracker,
                 );
