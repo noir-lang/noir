@@ -200,7 +200,7 @@ fn display_instruction(
 ) -> Result {
     match display_instruction_buffer(dfg, instruction, in_global_space, fm) {
         Ok(string) => write!(f, "{string}"),
-        Err(_) => Err(std::fmt::Error::default()),
+        Err(_) => Err(std::fmt::Error),
     }
 }
 
@@ -242,7 +242,7 @@ fn display_instruction_buffer(
                 // Add some padding before the comment
                 let arbitrary_padding_size = 50;
                 if buffer.len() < arbitrary_padding_size {
-                    buffer.resize(arbitrary_padding_size, ' ' as u8);
+                    buffer.resize(arbitrary_padding_size, b' ');
                 }
 
                 match codespan_files::Files::line_index(files, location.file, start_index) {
