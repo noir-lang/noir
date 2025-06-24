@@ -641,7 +641,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.set_program_counter(self.program_counter + 1)
     }
 
-    /// Sets the program counter by `value`.
+    /// Sets the program counter to `value`.
     /// If the program counter no longer points to an opcode
     /// in the bytecode, then the VMStatus reports halted.
     fn set_program_counter(&mut self, value: usize) -> VMStatus<F> {
