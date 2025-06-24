@@ -466,7 +466,10 @@
 <a href="#465" id="465">465</a>
 <a href="#466" id="466">466</a>
 <a href="#467" id="467">467</a>
-<a href="#468" id="468">468</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -547,6 +550,8 @@
 <span class="kw">use </span>solver::WrapperSolver;
 <span class="kw">use </span>types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 <span class="kw">use </span>with_file::parsed_module_with_file;
+
+<span class="kw">use crate</span>::{requests::on_expand_request, types::request::NargoExpand};
 
 <span class="attr">#[derive(Debug, Error)]
 </span><span class="kw">pub enum </span>LspError {
@@ -638,6 +643,7 @@
             .request::&lt;SignatureHelpRequest, <span class="kw">_</span>&gt;(on_signature_help_request)
             .request::&lt;CodeActionRequest, <span class="kw">_</span>&gt;(on_code_action_request)
             .request::&lt;WorkspaceSymbolRequest, <span class="kw">_</span>&gt;(on_workspace_symbol_request)
+            .request::&lt;NargoExpand, <span class="kw">_</span>&gt;(on_expand_request)
             .notification::&lt;notification::Initialized&gt;(on_initialized)
             .notification::&lt;notification::DidChangeConfiguration&gt;(on_did_change_configuration)
             .notification::&lt;notification::DidOpenTextDocument&gt;(on_did_open_text_document)

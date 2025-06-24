@@ -146,6 +146,6 @@
 
     check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(get_expanded_crate(<span class="kw-2">&amp;</span>context, crate_id))
+    <span class="prelude-val">Ok</span>(get_expanded_crate(crate_id, <span class="kw-2">&amp;</span>context.crate_graph, <span class="kw-2">&amp;</span>context.def_maps, <span class="kw-2">&amp;</span>context.def_interner))
 }
 </code></pre></div></section></main></body></html>

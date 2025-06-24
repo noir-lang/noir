@@ -753,7 +753,15 @@
 <a href="#752" id="752">752</a>
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
 
@@ -773,7 +781,7 @@
 <span class="kw">use </span>nargo_fmt::Config;
 
 <span class="kw">use </span>noirc_frontend::ast::Ident;
-<span class="kw">use </span>noirc_frontend::graph::CrateId;
+<span class="kw">use </span>noirc_frontend::graph::{CrateGraph, CrateId};
 <span class="kw">use </span>noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 <span class="kw">use </span>noirc_frontend::node_interner::ReferenceId;
 <span class="kw">use </span>noirc_frontend::parser::ParserError;
@@ -804,6 +812,7 @@
 <span class="kw">mod </span>code_lens_request;
 <span class="kw">mod </span>completion;
 <span class="kw">mod </span>document_symbol;
+<span class="kw">mod </span>expand;
 <span class="kw">mod </span>goto_declaration;
 <span class="kw">mod </span>goto_definition;
 <span class="kw">mod </span>hover;
@@ -818,9 +827,10 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>{
     code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
     code_lens_request::on_code_lens_request, completion::on_completion_request,
-    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
-    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
-    hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
+    document_symbol::on_document_symbol_request, expand::on_expand_request,
+    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, test_run::on_test_run_request,
     tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
@@ -1213,9 +1223,15 @@
     package_cache: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>HashMap&lt;PathBuf, PackageCacheData&gt;,
     crate_id: CrateId,
     crate_name: String,
-    dependencies: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Vec&lt;Dependency&gt;,
+    crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>CrateGraph,
     def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
     usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UsageTracker,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ProcessRequestCallbackArgs&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dependencies(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Vec&lt;Dependency&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies
+    }
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>process_request&lt;F, T&gt;(
@@ -1271,7 +1287,7 @@
         package_cache: <span class="kw-2">&amp;</span>state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: <span class="kw-2">&amp;</span>crate_graph[crate_id].dependencies,
+        crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -1336,7 +1352,7 @@
         package_cache: <span class="kw-2">&amp;</span>state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: <span class="kw-2">&amp;</span>context.crate_graph[crate_id].dependencies,
+        crate_graph: <span class="kw-2">&amp;</span>context.crate_graph,
         def_maps,
         usage_tracker,
     }))

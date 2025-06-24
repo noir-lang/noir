@@ -931,7 +931,12 @@
 <a href="#930" id="930">930</a>
 <a href="#931" id="931">931</a>
 <a href="#932" id="932">932</a>
-<a href="#933" id="933">933</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_frontend::NamedGeneric;
@@ -1018,7 +1023,7 @@
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
 
     <span class="kw">if </span>id.local_id == crate_root {
-        <span class="kw">let </span>dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)<span class="question-mark">?</span>;
+        <span class="kw">let </span>dep = args.dependencies().iter().find(|dep| dep.crate_id == id.krate)<span class="question-mark">?</span>;
         string.push_str(<span class="string">"    crate "</span>);
         string.push_str(<span class="kw-2">&amp;</span>dep.name.to_string());
     } <span class="kw">else </span>{
@@ -1615,8 +1620,13 @@
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
     string: <span class="kw-2">&amp;mut </span>String,
 ) -&gt; bool {
-    <span class="kw">let </span>full_path =
-        module_full_path(module, args.interner, args.crate_id, <span class="kw-2">&amp;</span>args.crate_name, args.dependencies);
+    <span class="kw">let </span>full_path = module_full_path(
+        module,
+        args.interner,
+        args.crate_id,
+        <span class="kw-2">&amp;</span>args.crate_name,
+        args.dependencies(),
+    );
     <span class="kw">if </span>full_path.is_empty() {
         <span class="kw">return </span><span class="bool-val">false</span>;
     }
