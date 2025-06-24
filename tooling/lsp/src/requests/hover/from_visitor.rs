@@ -5,6 +5,7 @@ use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    token::IntegerTypeSuffix,
 };
 use num_bigint::BigInt;
 
@@ -52,7 +53,12 @@ impl<'a> HoverFinder<'a> {
 }
 
 impl Visitor for HoverFinder<'_> {
-    fn visit_literal_integer(&mut self, value: SignedField, span: Span) {
+    fn visit_literal_integer(
+        &mut self,
+        value: SignedField,
+        _suffix: Option<IntegerTypeSuffix>,
+        span: Span,
+    ) {
         if !self.intersects_span(span) {
             return;
         }
@@ -64,6 +70,7 @@ impl Visitor for HoverFinder<'_> {
             return;
         };
 
+        // Ignore the suffix when formatting the integer, we already show its type
         let value = format_integer(typ, value);
         let contents = HoverContents::Markup(MarkupContent { kind: MarkupKind::Markdown, value });
         self.hover = Some(Hover { contents, range });

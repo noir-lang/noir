@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(minus_one: i8) {
-    assert(minus_one < 0);
-    assert(0 < (minus_one as u8));
-    assert(0 > minus_one);
-    let most_negative_number: i8 = (minus_one * 127) - 1;
-    assert(most_negative_number < 0);
-    assert(127 > most_negative_number);
+    assert(minus_one < 0_i8);
+    assert(0_u8 < (minus_one as u8));
+    assert(0_i8 > minus_one);
+    let most_negative_number: i8 = (minus_one * 127_i8) - 1_i8;
+    assert(most_negative_number < 0_i8);
+    assert(127_i8 > most_negative_number);
 }

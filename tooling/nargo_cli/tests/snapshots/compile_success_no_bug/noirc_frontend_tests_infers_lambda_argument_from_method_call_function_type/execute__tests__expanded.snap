@@ -23,6 +23,6 @@ impl<T> Box<T> {
 }
 
 fn main() {
-    let box: Box<Foo> = Box::<Foo> { value: Foo { value: 1 } };
+    let box: Box<Foo> = Box::<Foo> { value: Foo { value: 1_Field } };
     let _: Box<Field> = box.map(|foo: Foo| -> Field foo.foo());
 }

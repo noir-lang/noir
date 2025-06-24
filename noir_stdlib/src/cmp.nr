@@ -546,17 +546,17 @@ mod cmp_tests {
 
     #[test]
     fn sanity_check_min() {
-        assert_eq(min(0 as u64, 1 as u64), 0);
-        assert_eq(min(0 as u64, 0 as u64), 0);
-        assert_eq(min(1 as u64, 1 as u64), 1);
-        assert_eq(min(255 as u8, 0 as u8), 0);
+        assert_eq(min(0_u64, 1), 0);
+        assert_eq(min(0_u64, 0), 0);
+        assert_eq(min(1_u64, 1), 1);
+        assert_eq(min(255_u8, 0), 0);
     }
 
     #[test]
     fn sanity_check_max() {
-        assert_eq(max(0 as u64, 1 as u64), 1);
-        assert_eq(max(0 as u64, 0 as u64), 0);
-        assert_eq(max(1 as u64, 1 as u64), 1);
-        assert_eq(max(255 as u8, 0 as u8), 255);
+        assert_eq(max(0_u64, 1), 1);
+        assert_eq(max(0_u64, 0), 0);
+        assert_eq(max(1_u64, 1), 1);
+        assert_eq(max(255_u8, 0), 255);
     }
 }

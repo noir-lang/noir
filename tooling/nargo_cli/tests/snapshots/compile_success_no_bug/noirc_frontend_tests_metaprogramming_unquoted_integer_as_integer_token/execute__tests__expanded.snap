@@ -13,7 +13,7 @@ impl Serialize<1> for Field {
 pub fn foobar() {}
 
 comptime fn attr(_f: FunctionDefinition) -> Quoted {
-    let serialized_len: Field = 1;
+    let serialized_len: Field = 1_Field;
     quote {
         impl Serialize < serialized_len > for Field {
             fn serialize() {
