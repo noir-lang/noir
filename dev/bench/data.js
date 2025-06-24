@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750775785751,
+  "lastUpdate": 1750776082240,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3d3f74d6da291ec70b428bf1d2f644ea848e9077",
-          "message": "chore: Casting ACIR vs Brillig regression tests (#8903)",
-          "timestamp": "2025-06-13T14:13:51Z",
-          "tree_id": "e3f746a86ec7afd113077879b54409cae0a34c49",
-          "url": "https://github.com/noir-lang/noir/commit/3d3f74d6da291ec70b428bf1d2f644ea848e9077"
-        },
-        "date": 1749826018188,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.268,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.488,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.302,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 122,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 125,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.062,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.562,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.774,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "202130c2cd178fef812c6f6afb82b575a8d95352",
           "message": "fix: Inline global arrays with functions at their call site (#8905)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.77,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0a807d3ccadac6e7e8a5c726e9f39a2235cf9b84",
+          "message": "chore: redo typo PR by donatik27 (#9004)",
+          "timestamp": "2025-06-24T14:11:50Z",
+          "tree_id": "1dc9e694d2aa2a7411e3b7964ec202547965d732",
+          "url": "https://github.com/noir-lang/noir/commit/0a807d3ccadac6e7e8a5c726e9f39a2235cf9b84"
+        },
+        "date": 1750776069135,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.574,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.498,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.048,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 183,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 178,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.258,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.318,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.777,
             "unit": "s"
           }
         ]
