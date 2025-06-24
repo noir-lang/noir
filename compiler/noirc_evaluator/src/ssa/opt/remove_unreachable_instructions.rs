@@ -28,6 +28,7 @@ impl Function {
         let mut current_block_id = None;
 
         // Whether the current block instructions were determined to be unreachable
+        // after an always failing one was found.
         let mut current_block_instructions_are_unreachable = false;
 
         self.simple_reachable_blocks_optimization(|context| {
