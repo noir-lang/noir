@@ -30,7 +30,7 @@ mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;
 mod remove_truncate_after_range_check;
-mod remove_unreachable;
+mod remove_unreachable_functions;
 mod remove_unreachable_instructions;
 mod simple_optimization;
 mod simplify_cfg;
