@@ -131,7 +131,8 @@
 <a href="#130" id="130">130</a>
 <a href="#131" id="131">131</a>
 <a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a></pre></div><pre class="rust"><code><span class="kw">use </span>p256::elliptic_curve::PrimeField;
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a></pre></div><pre class="rust"><code><span class="kw">use </span>p256::elliptic_curve::PrimeField;
 <span class="kw">use </span>p256::elliptic_curve::sec1::FromEncodedPoint;
 
 <span class="kw">use </span>blake2::digest::generic_array::GenericArray;
@@ -167,7 +168,8 @@
         pubkey.unwrap()
     } <span class="kw">else </span>{
         <span class="comment">// Public key must sit on the Secp256r1 curve.
-        </span><span class="kw">return </span><span class="bool-val">false</span>;
+        </span><span class="macro">log::warn!</span>(<span class="string">"Invalid public key provided for ECDSA verification"</span>);
+        <span class="kw">return </span><span class="bool-val">false</span>;
     };
 
     <span class="comment">// Note: This is incorrect as it will panic if `hashed_msg &gt;= p256::NistP256::ORDER`.
