@@ -961,7 +961,7 @@ impl<'f> Context<'f> {
                             Instruction::Call { func, arguments }
                         }
 
-                        // TODO: determine what changes are necessary here.
+                        // TODO: https://github.com/noir-lang/noir/issues/8998
                         BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
 
                         // These functions will always be satisfiable no matter the input so no modification is needed.
