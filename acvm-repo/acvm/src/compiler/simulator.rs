@@ -21,7 +21,7 @@ pub struct CircuitSimulator {
 
 impl CircuitSimulator {
     /// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
-    /// Returns false if the circuit cannot be solved
+    /// Returns the index of the opcode that cannot be solved, if any.
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
         let circuit_inputs = circuit.circuit_arguments();

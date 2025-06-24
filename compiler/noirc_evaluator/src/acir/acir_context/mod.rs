@@ -84,8 +84,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             expression_width: Default::default(),
             warnings: Default::default(),
         };
-
+        // Creates an AcirVar variable using a witness that will not get a value, making the circuit unsolvable.
+        // It is used to represent loading memory at an unresolved address ('uninitialized memory').
         let uninitialized_var = context.add_data(AcirVarData::Witness(Witness(u32::MAX)));
+        // This variable can be retrieved with the 'AcirVar::uninitialized()' function.
         assert_eq!(uninitialized_var, AcirVar::uninitialized());
         context
     }

@@ -20,7 +20,10 @@ pub fn check_program(compiled_program: &CompiledProgram) -> Result<(), ErrorsAnd
                 .with_call_stack(call_stack)
             } else {
                 CustomDiagnostic::from_message(
-                    &format!("Circuit \"{}\" is not solvable", compiled_program.names[i]),
+                    &format!(
+                        "Circuit \"{}\" is not solvable for opcode \"{}\"",
+                        compiled_program.names[i], opcode
+                    ),
                     fm::FileId::dummy(),
                 )
             };

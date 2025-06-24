@@ -171,8 +171,11 @@ impl AcirValue {
             AcirType::Array(acir_types, len) => {
                 let values: im::Vector<AcirValue> =
                     acir_types.iter().map(|t| AcirValue::uninitialized(t.clone())).collect();
-                let values =
-                    if values.len() == 1 { values[0].clone() } else { AcirValue::Array(values) };
+                let values = if values.len() == 1 {
+                    values.into_iter().next().unwrap()
+                } else {
+                    AcirValue::Array(values)
+                };
                 AcirValue::Array(im::Vector::from(vec![values; len]))
             }
         }
