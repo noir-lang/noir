@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750760614435,
+  "lastUpdate": 1750772668519,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18615,48 +18615,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26",
-          "message": "fix(mem2reg): Keep last store for reference in array used only in an array get (#8877)",
-          "timestamp": "2025-06-13T14:13:34Z",
-          "tree_id": "1b79a1e85cb9db1452262ab05ff37ee5d1f5a1d6",
-          "url": "https://github.com/noir-lang/noir/commit/b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26"
-        },
-        "date": 1749825425848,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249897,
-            "range": "± 857",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222273,
-            "range": "± 7816",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2822662,
-            "range": "± 3307",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "3d3f74d6da291ec70b428bf1d2f644ea848e9077",
           "message": "chore: Casting ACIR vs Brillig regression tests (#8903)",
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777457,
             "range": "± 6234",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f8c71c261bfe2d4dc5d5d25db3d587c4463862a6",
+          "message": "fix: recover generics when defining trait impl function (#9009)",
+          "timestamp": "2025-06-24T13:19:18Z",
+          "tree_id": "bb6c4d0f1c4e958cb6fd6109fb6834bd2374aac0",
+          "url": "https://github.com/noir-lang/noir/commit/f8c71c261bfe2d4dc5d5d25db3d587c4463862a6"
+        },
+        "date": 1750772654770,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253973,
+            "range": "± 661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223176,
+            "range": "± 1898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781334,
+            "range": "± 9277",
             "unit": "ns/iter"
           }
         ]
