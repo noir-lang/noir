@@ -1616,7 +1616,10 @@
 <a href="#1615" id="1615">1615</a>
 <a href="#1616" id="1616">1616</a>
 <a href="#1617" id="1617">1617</a>
-<a href="#1618" id="1618">1618</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2355,11 +2358,14 @@
         max_depth: usize,
     ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
         <span class="comment">// Collect the operations can return the expected type.
+        // Avoid operations that can fail in no-dynamic mode, otherwise they will be considered non-constant indexes.
         </span><span class="kw">let </span>ops = BinaryOp::iter()
             .filter(|op| {
                 types::can_binary_op_return(op, typ)
-                    &amp;&amp; (!<span class="self">self</span>.ctx.config.avoid_overflow || !types::can_binary_op_overflow(op))
-                    &amp;&amp; (!<span class="self">self</span>.ctx.config.avoid_err_by_zero || !types::can_binary_op_err_by_zero(op))
+                    &amp;&amp; (!(<span class="self">self</span>.ctx.config.avoid_overflow || <span class="self">self</span>.in_no_dynamic)
+                        || !types::can_binary_op_overflow(op))
+                    &amp;&amp; (!(<span class="self">self</span>.ctx.config.avoid_err_by_zero || <span class="self">self</span>.in_no_dynamic)
+                        || !types::can_binary_op_err_by_zero(op))
             })
             .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
