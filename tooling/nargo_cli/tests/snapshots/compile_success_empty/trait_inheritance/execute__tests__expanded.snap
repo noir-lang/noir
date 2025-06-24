@@ -8,7 +8,7 @@ trait Foo {
 
 trait Bar: Foo {
     fn bar(self) -> Field {
-        self.foo() + 1
+        self.foo() + 1_Field
     }
 
     fn baz(self) -> Field;
@@ -26,16 +26,16 @@ impl Foo for Struct {
 
 impl Bar for Struct {
     fn bar(self) -> Field {
-        self.foo() + 1
+        self.foo() + 1_Field
     }
 
     fn baz(self) -> Field {
-        self.foo() + 2
+        self.foo() + 2_Field
     }
 }
 
 fn main() {
-    let s: Struct = Struct { x: 1 };
-    assert(s.bar() == 2);
-    assert(s.baz() == 3);
+    let s: Struct = Struct { x: 1_Field };
+    assert(s.bar() == 2_Field);
+    assert(s.baz() == 3_Field);
 }

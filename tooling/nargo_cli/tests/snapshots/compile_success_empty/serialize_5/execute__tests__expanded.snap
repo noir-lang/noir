@@ -24,7 +24,7 @@ impl Serialize for Foo {
     let N: u32 = 1;
 
     fn serialize(self) -> [Field; 1] {
-        [0; 1]
+        [0_Field; 1]
     }
 }
 
@@ -34,7 +34,7 @@ impl Serialize for Bar {
     let N: u32 = 1;
 
     fn serialize(self) -> [Field; 1] {
-        [1]
+        [1_Field]
     }
 }
 
@@ -46,7 +46,7 @@ impl Serialize for Baz {
     let N: u32 = 1;
 
     fn serialize(self) -> [Field; 1] {
-        [0; 1]
+        [0_Field; 1]
     }
 }
 

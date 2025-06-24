@@ -736,7 +736,7 @@ impl ForBounds {
                 lhs: self.end,
                 operator: Located::from(end_location, BinaryOpKind::Add),
                 rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32)),
+                    ExpressionKind::integer(FieldElement::from(1u32), None),
                     end_location,
                 ),
             }));
@@ -789,7 +789,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;

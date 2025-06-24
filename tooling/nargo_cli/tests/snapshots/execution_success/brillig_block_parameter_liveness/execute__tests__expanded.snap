@@ -35,49 +35,49 @@ struct Outer {
 }
 
 unconstrained fn main(conditions: [bool; 5]) -> pub Outer {
-    let out0: Outer = if conditions[0] {
+    let out0: Outer = if conditions[0_u32] {
         let mut outer: Outer = std::mem::zeroed();
-        outer.middle_a.inner_a.a = 1;
+        outer.middle_a.inner_a.a = 1_u64;
         outer
     } else {
         let mut outer: Outer = std::mem::zeroed();
-        outer.middle_f.inner_c.d = 2;
+        outer.middle_f.inner_c.d = 2_u64;
         outer
     };
-    let out1: Outer = if conditions[1] {
+    let out1: Outer = if conditions[1_u32] {
         let mut new_outer: Outer = out0;
-        new_outer.middle_a.inner_a.b = 3;
+        new_outer.middle_a.inner_a.b = 3_u64;
         new_outer
     } else {
         let mut new_outer: Outer = out0;
-        new_outer.middle_f.inner_c.c = 4;
+        new_outer.middle_f.inner_c.c = 4_u64;
         new_outer
     };
-    let out2: Outer = if conditions[2] {
+    let out2: Outer = if conditions[2_u32] {
         let mut new_outer: Outer = out1;
-        new_outer.middle_a.inner_a.c = 5;
+        new_outer.middle_a.inner_a.c = 5_u64;
         new_outer
     } else {
         let mut new_outer: Outer = out1;
-        new_outer.middle_f.inner_c.b = 6;
+        new_outer.middle_f.inner_c.b = 6_u64;
         new_outer
     };
-    let out3: Outer = if conditions[3] {
+    let out3: Outer = if conditions[3_u32] {
         let mut new_outer: Outer = out2;
-        new_outer.middle_a.inner_a.d = 7;
+        new_outer.middle_a.inner_a.d = 7_u64;
         new_outer
     } else {
         let mut new_outer: Outer = out2;
-        new_outer.middle_f.inner_c.a = 8;
+        new_outer.middle_f.inner_c.a = 8_u64;
         new_outer
     };
-    let out4: Outer = if conditions[4] {
+    let out4: Outer = if conditions[4_u32] {
         let mut new_outer: Outer = out3;
-        new_outer.middle_a.inner_a.f = 9;
+        new_outer.middle_a.inner_a.f = 9_u64;
         new_outer
     } else {
         let mut new_outer: Outer = out3;
-        new_outer.middle_f.inner_c.f = 10;
+        new_outer.middle_f.inner_c.f = 10_u64;
         new_outer
     };
     out4

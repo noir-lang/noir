@@ -7,7 +7,7 @@ use moo::bar;
 mod moo {
     pub mod bar {
         pub fn foo() -> i32 {
-            1
+            1_i32
         }
     }
 }
