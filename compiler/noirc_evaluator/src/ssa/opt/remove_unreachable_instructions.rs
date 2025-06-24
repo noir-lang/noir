@@ -261,7 +261,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_non_dominated_block_1() {
+    fn does_not_removes_instructions_from_non_dominated_block_1() {
         // Here both b1 and b4 are successors of b3, but both are not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -303,7 +303,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_non_dominated_block_2() {
+    fn does_not_removes_instructions_from_non_dominated_block_2() {
         // Here b3 is a successof of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -339,7 +339,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_non_dominated_block_3() {
+    fn does_not_removes_instructions_from_non_dominated_block_3() {
         // Here b4 is a transitive successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -379,7 +379,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_non_dominated_block_4() {
+    fn does_not_removes_instructions_from_non_dominated_block_4() {
         // Here b5 is a transitive successor of b2, but is not dominated by it
         // (it's a transitive successof of b1)
         let src = r#"
