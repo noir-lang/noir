@@ -755,7 +755,13 @@
 <a href="#754" id="754">754</a>
 <a href="#755" id="755">755</a>
 <a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -915,6 +921,12 @@
     ///       For more context regarding malleability you can reference BIP 0062.
     ///     - the hash of the message, as a vector of bytes
     /// - output: 0 for failure and 1 for success
+    ///
+    /// Expected backend behavior:
+    /// - The backend MAY fail to prove this opcode if the public key is not on the secp256k1 curve.
+    ///    - Otherwise the backend MUST constrain the output to be false.
+    /// - The backend MUST constrain the output to be false if `s` is not normalized.
+    /// - The backend MUST constrain the output to match the signature's validity.
     </span>EcdsaSecp256k1 {
         public_key_x: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">32</span>]&gt;,
         public_key_y: Box&lt;[FunctionInput&lt;F&gt;; <span class="number">32</span>]&gt;,
