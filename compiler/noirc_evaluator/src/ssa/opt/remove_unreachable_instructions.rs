@@ -6,6 +6,7 @@
 
 use crate::ssa::{
     ir::{
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, TerminatorInstruction},
     },
@@ -42,30 +43,7 @@ impl Function {
                 return;
             }
 
-            let instruction = context.instruction();
-            let always_failing_instruction = match instruction {
-                Instruction::Constrain(lhs, rhs, _) => {
-                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
-                        return;
-                    };
-                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
-                        return;
-                    };
-                    lhs_constant != rhs_constant
-                }
-                Instruction::ConstrainNotEqual(lhs, rhs, _) => {
-                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
-                        return;
-                    };
-                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
-                        return;
-                    };
-                    lhs_constant == rhs_constant
-                }
-                _ => false,
-            };
-
-            if always_failing_instruction {
+            if always_fails(context.dfg, context.instruction()) {
                 current_block_instructions_are_unreachable = true;
 
                 let terminator = context.dfg[block_id].take_terminator();
@@ -74,6 +52,31 @@ impl Function {
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
         });
+    }
+}
+
+/// Returns `true` if the given instruction will always produce an asertion failure.
+fn always_fails(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
+    match instruction {
+        Instruction::Constrain(lhs, rhs, _) => {
+            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
+                return false;
+            };
+            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
+                return false;
+            };
+            lhs_constant != rhs_constant
+        }
+        Instruction::ConstrainNotEqual(lhs, rhs, _) => {
+            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
+                return false;
+            };
+            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
+                return false;
+            };
+            lhs_constant == rhs_constant
+        }
+        _ => false,
     }
 }
 
