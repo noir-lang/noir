@@ -138,10 +138,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 /// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
-        SsaPass::new(
-            move |ssa| ssa.remove_unreachable_instructions(false),
-            "Remove Unreachable Instructions",
-        ),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
@@ -217,10 +214,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(
-            move |ssa| ssa.remove_unreachable_instructions(true),
-            "Remove Unreachable Instructions",
-        ),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed,
         // or after the removal of unreachable instructions.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
@@ -238,10 +232,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        SsaPass::new(
-            move |ssa| ssa.remove_unreachable_instructions(true),
-            "Remove Unreachable Instructions",
-        ),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
         // It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),

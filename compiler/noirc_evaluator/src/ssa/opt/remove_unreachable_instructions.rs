@@ -13,29 +13,31 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
-        function::Function, instruction::Instruction, post_order::PostOrder, types::Type,
-        value::ValueId,
+        basic_block::BasicBlockId,
+        cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
+        dom::DominatorTree,
+        function::Function,
+        instruction::{Instruction, TerminatorInstruction},
+        post_order::PostOrder,
+        types::Type,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
 
 impl Ssa {
     /// Remove instructions following an always-failing constraint.
-    ///
-    /// If this pass is to be followed by other passes that need the CFG intact,
-    /// then we need to avoid replacing values in `JmpIf` terminators with zeros.
-    /// However at the end, before ACIR generation, that is the way to go.
-    pub(crate) fn remove_unreachable_instructions(mut self, use_zero_in_terminator: bool) -> Ssa {
+    pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions(use_zero_in_terminator);
+            function.remove_unreachable_instructions();
         }
         self
     }
 }
 
 impl Function {
-    fn remove_unreachable_instructions(&mut self, use_zero_in_terminator: bool) {
+    fn remove_unreachable_instructions(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -108,12 +110,20 @@ impl Function {
 
         for block_id in unreachable_blocks {
             let mut terminator = self.dfg[block_id].take_terminator();
+            let use_dummy_ref = matches!(terminator, TerminatorInstruction::JmpIf { .. });
             terminator.map_values_mut(|value_id| {
-                let typ = self.dfg.type_of_value(value_id);
-                if use_zero_in_terminator {
-                    zeroed_value(self, block_id, &typ)
+                // We only need to replace values that come from instructions we may not have seen.
+                // Constant values, or values coming from parameters, can be preserved, and in some
+                // cases have to be, for example for loop boundaries that unrolling expects to be constant.
+                if matches!(self.dfg[value_id], Value::Instruction { .. }) {
+                    let typ = self.dfg.type_of_value(value_id);
+                    if use_dummy_ref {
+                        dummy_ref(self, block_id, typ)
+                    } else {
+                        zeroed_value(self, block_id, &typ)
+                    }
                 } else {
-                    dummy_ref(self, block_id, typ)
+                    value_id
                 }
             });
             self.dfg[block_id].set_terminator(terminator);
@@ -171,6 +181,10 @@ fn zeroed_value(function: &mut Function, block_id: BasicBlockId, typ: &Type) -> 
 /// such as infinite loops, that other passes would have difficulty dealing with.
 ///
 /// The alternative to this is to have a new kind of _unreachable_ terminator instruction.
+///
+/// Leaving dummy refs in the final SSA might cause errors in ACIR gen. If that happens,
+/// then we need to give a hint that the pass isn't followed by anything that relies on
+/// the CFG having any particular shape, and zeros can be used.
 fn dummy_ref(function: &mut Function, block_id: BasicBlockId, typ: Type) -> ValueId {
     // Pretend that we have a reference for the appropriate type.
     let instruction = Instruction::Allocate;
@@ -240,7 +254,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -265,7 +279,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -296,7 +310,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -333,7 +347,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -371,7 +385,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -405,7 +419,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -441,7 +455,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -463,7 +477,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -487,7 +501,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -514,7 +528,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -540,7 +554,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(true);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -561,7 +575,7 @@ mod test {
     }
 
     #[test]
-    fn can_use_dummy_refs_in_terminator_instead_of_zero() {
+    fn uses_dummy_refs_in_terminator_instead_of_zero_with_jmpif() {
         // Check that we did not replace `jmpif v0` with `jmpif u1 0`, which could end up
         // being simplified into an infinite loop.
         let src = r#"
@@ -593,7 +607,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions(false);
+        let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
