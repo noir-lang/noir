@@ -198,9 +198,26 @@ fn display_instruction(
     fm: Option<&fm::FileManager>,
     f: &mut Formatter,
 ) -> Result {
+    match display_instruction_buffer(dfg, instruction, in_global_space, fm) {
+        Ok(string) => write!(f, "{string}"),
+        Err(_) => Err(std::fmt::Error::default()),
+    }
+}
+
+fn display_instruction_buffer(
+    dfg: &DataFlowGraph,
+    instruction: InstructionId,
+    in_global_space: bool,
+    fm: Option<&fm::FileManager>,
+) -> std::result::Result<String, ()> {
+    // Need to write to a Vec<u8> and later convert that to a String so we can
+    // count how large it is to add padding for the location comment later.
+    let mut buffer: Vec<u8> = Vec::new();
+    use std::io::Write;
+
     if !in_global_space {
         // instructions are always indented within a function
-        write!(f, "    ")?;
+        write!(buffer, "    ").map_err(|_| ())?;
     }
 
     let results = dfg.instruction_results(instruction);
@@ -209,10 +226,11 @@ fn display_instruction(
         if in_global_space {
             value_list = value_list.replace('v', "g");
         }
-        write!(f, "{} = ", value_list)?;
+        write!(buffer, "{} = ", value_list).map_err(|_| ())?;
     }
 
-    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, f)?;
+    display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, &mut buffer)
+        .map_err(|_| ())?;
 
     if let Some(fm) = fm {
         let call_stack = dfg.get_instruction_call_stack(instruction);
@@ -220,16 +238,25 @@ fn display_instruction(
             if let Ok(name) = fm.as_file_map().get_name(location.file) {
                 let files = fm.as_file_map();
                 let start_index = location.span.start() as usize;
+
+                // Add some padding before the comment
+                let arbitrary_padding_size = 50;
+                if buffer.len() < arbitrary_padding_size {
+                    buffer.resize(arbitrary_padding_size, ' ' as u8);
+                }
+
                 match codespan_files::Files::line_index(files, location.file, start_index) {
                     // Offset line_index by 1 to convert it into a line number
-                    Ok(line_index) => write!(f, "\t\t// {name}:{}", line_index + 1)?,
+                    Ok(line_index) => write!(buffer, "\t// {name}:{}", line_index + 1),
                     // Showing the file name alone is better than nothing
-                    Err(_) => write!(f, "\t\t// {name}")?,
+                    Err(_) => write!(buffer, "\t// {name}"),
                 }
+                .map_err(|_| ())?;
             }
         }
     }
-    writeln!(f)
+    writeln!(buffer).map_err(|_| ())?;
+    String::from_utf8(buffer).map_err(|_| ())
 }
 
 fn display_instruction_inner(
@@ -237,8 +264,9 @@ fn display_instruction_inner(
     instruction: &Instruction,
     results: &[ValueId],
     in_global_space: bool,
-    f: &mut Formatter,
-) -> Result {
+    f: &mut Vec<u8>,
+) -> std::result::Result<(), std::io::Error> {
+    use std::io::Write;
     let show = |id| value(dfg, id);
 
     match instruction {
@@ -420,8 +448,9 @@ pub(crate) fn try_to_extract_string_from_error_payload(
 fn display_constrain_error(
     dfg: &DataFlowGraph,
     error: &ConstrainError,
-    f: &mut Formatter,
-) -> Result {
+    f: &mut Vec<u8>,
+) -> std::result::Result<(), std::io::Error> {
+    use std::io::Write;
     match error {
         ConstrainError::StaticString(assert_message_string) => {
             write!(f, ", {assert_message_string:?}")
