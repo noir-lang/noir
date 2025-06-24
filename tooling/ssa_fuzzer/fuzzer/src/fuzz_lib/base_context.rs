@@ -330,23 +330,6 @@ impl FuzzerContext {
         self.current_block = then_stored_block.clone();
     }
 
-    fn loop_end_defined_variables(
-        &mut self,
-        first_body_block_id: BasicBlockId,
-    ) -> HashMap<ValueType, Vec<TypedValue>> {
-        let iter_block_for_loop_id =
-            self.cycle_bodies_to_iters_ids[&first_body_block_id].block_iter_id;
-        let variables_stored_by_first_body_block =
-            self.stored_variables_for_block[&first_body_block_id].clone();
-        for (body_block_id, cycle_info) in self.cycle_bodies_to_iters_ids.iter() {
-            if cycle_info.block_iter_id == iter_block_for_loop_id {
-                let variables_stored_by_second_body_block =
-                    self.stored_variables_for_block[body_block_id].clone();
-            }
-        }
-        variables_stored_by_first_body_block
-    }
-
     fn process_jmp_block(&mut self, block_idx: usize) {
         // If the current block is a loop body
         if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
