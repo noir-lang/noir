@@ -29,6 +29,7 @@ impl Ssa {
 
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
+        println!("remove_unreachable_instructions from {}", self.id());
         // Iterate each block in reverse post order = forward order
         let cfg = ControlFlowGraph::with_function(self);
         let mut block_order = PostOrder::with_cfg(&cfg).into_vec();
@@ -50,9 +51,11 @@ impl Function {
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
-                current_block_instructions_are_unreachable = cfg
-                    .predecessors(block_id)
-                    .all(|block_id| unreachable_blocks.contains(&block_id));
+                let has_predecessors = cfg.predecessors(block_id).len() > 0;
+                current_block_instructions_are_unreachable = has_predecessors
+                    && cfg
+                        .predecessors(block_id)
+                        .all(|block_id| unreachable_blocks.contains(&block_id));
 
                 if current_block_instructions_are_unreachable {
                     unreachable_blocks.insert(block_id);
@@ -161,7 +164,9 @@ mod test {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            return u1 0
+            v3 = allocate -> &mut u1
+            v4 = load v3 -> u1
+            return v4
         }
         "#);
     }
@@ -186,7 +191,9 @@ mod test {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 != u1 0, "Index out of bounds"
-            return u1 0
+            v2 = allocate -> &mut u1
+            v3 = load v2 -> u1
+            return v3
         }
         "#);
     }
@@ -217,11 +224,17 @@ mod test {
           b0():
             v2 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b1(u1 0)
+            v5 = allocate -> &mut u1
+            v6 = load v5 -> u1
+            jmp b1(v6)
           b1(v0: u1):
-            jmp b2(u1 0)
+            v7 = allocate -> &mut u1
+            v8 = load v7 -> u1
+            jmp b2(v8)
           b2(v1: u1):
-            return u1 0
+            v9 = allocate -> &mut u1
+            v10 = load v9 -> u1
+            return v10
         }
         "#);
     }
@@ -254,11 +267,17 @@ mod test {
           b0():
             v2 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            jmp b2(u1 0)
+            v5 = allocate -> &mut u1
+            v6 = load v5 -> u1
+            jmp b2(v6)
           b1(v0: u1):
-            return u1 0
+            v9 = allocate -> &mut u1
+            v10 = load v9 -> u1
+            return v10
           b2(v1: u1):
-            jmp b1(u1 0)
+            v7 = allocate -> &mut u1
+            v8 = load v7 -> u1
+            jmp b1(v8)
         }
         "#);
     }
@@ -329,7 +348,8 @@ mod test {
           b1():
             jmp b2()
           b2():
-            return Field 0
+            v4 = add Field 1, Field 2
+            return v4
         }
         "#);
     }
