@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750796107624,
+  "lastUpdate": 1750796248439,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9071a7b4d89bc9343e6cbcbe3f824819fe7a6a51",
-          "message": "chore: Add various regression tests for mutable references (#8915)",
-          "timestamp": "2025-06-13T18:19:24Z",
-          "tree_id": "c3a4c7bb1c96e4d8ab599a3302c1d6790b29bb90",
-          "url": "https://github.com/noir-lang/noir/commit/9071a7b4d89bc9343e6cbcbe3f824819fe7a6a51"
-        },
-        "date": 1749840352313,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.153,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.181,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.008,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9fc413d9ac940b4f8e130aa6d874cf8e0efabde2",
+          "message": "fix: Add a remove_unreachable_instructions SSA pass (with unreachable terminator) (#9008)",
+          "timestamp": "2025-06-24T19:45:20Z",
+          "tree_id": "dc44b3490d719b214c04307390c1a9d66e162d3e",
+          "url": "https://github.com/noir-lang/noir/commit/9fc413d9ac940b4f8e130aa6d874cf8e0efabde2"
+        },
+        "date": 1750796235991,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.028,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.291,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.183,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.021,
             "unit": "s"
           }
         ]
