@@ -2,17 +2,10 @@
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
-//! with a special `unreachable` value. If the block has successors
-//! those successors will also be considered unreachable if they are dominated
-//! by that block.
-
-use fxhash::FxHashSet as HashSet;
+//! with a special `unreachable` value.
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
-        dom::DominatorTree,
         function::Function,
         instruction::{Instruction, TerminatorInstruction},
     },
@@ -30,23 +23,18 @@ impl Ssa {
 
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
-        let mut dom = DominatorTree::with_function(self);
-
         // The current block we are currently processing
         let mut current_block_id = None;
 
         // Whether the current block instructions were determined to be unreachable
         let mut current_block_instructions_are_unreachable = false;
 
-        // Blocks that can't be reached because their dominator has an always failing instruction.
-        let mut unreachable_blocks = HashSet::default();
-
         self.simple_reachable_blocks_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
-                current_block_instructions_are_unreachable = unreachable_blocks.contains(&block_id);
+                current_block_instructions_are_unreachable = false;
             }
 
             if current_block_instructions_are_unreachable {
@@ -80,40 +68,12 @@ impl Function {
             if always_failing_instruction {
                 current_block_instructions_are_unreachable = true;
 
-                add_dominated_blocks(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
                 let terminator = context.dfg[block_id].take_terminator();
                 let call_stack = terminator.call_stack();
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
             }
         });
-    }
-}
-
-/// Adds all of a block's dominated blocks to the `unreachable_blocks` set if they are dominated by that block.
-fn add_dominated_blocks(
-    block_id: BasicBlockId,
-    dfg: &DataFlowGraph,
-    dom: &mut DominatorTree,
-    unreachable_blocks: &mut HashSet<BasicBlockId>,
-) {
-    // First compute the set of all blocks that are reachable from the starting block
-    let mut reachable_blocks = HashSet::default();
-
-    let mut blocks_to_process = vec![block_id];
-    while let Some(block_id) = blocks_to_process.pop() {
-        for successor in dfg[block_id].successors() {
-            if reachable_blocks.insert(successor) {
-                blocks_to_process.push(successor);
-            }
-        }
-    }
-
-    // Now add them to `unreachable_blocks` if they are dominated by the block
-    for reachable_block in reachable_blocks {
-        if dom.dominates(block_id, reachable_block) {
-            unreachable_blocks.insert(reachable_block);
-        }
     }
 }
 
@@ -297,7 +257,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_zeroes_terminator_of_non_dominated_block() {
+    fn does_not_zeroes_terminator_of_non_dominated_block_1() {
         // Here both b1 and b4 are successors of b3, but both are not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
