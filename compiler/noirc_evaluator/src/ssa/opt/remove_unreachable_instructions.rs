@@ -7,6 +7,7 @@
 //! by that block.
 use std::sync::Arc;
 
+use acvm::{AcirField, FieldElement};
 use fxhash::FxHashSet as HashSet;
 use noirc_errors::call_stack::CallStackId;
 
@@ -20,16 +21,21 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
+    /// Remove instructions following an always-failing constraint.
+    ///
+    /// If this pass is to be followed by other passes that need the CFG intact,
+    /// then we need to avoid replacing values in `JmpIf` terminators with zeros.
+    /// However at the end, before ACIR generation, that is the way to go.
+    pub(crate) fn remove_unreachable_instructions(mut self, use_zero_in_terminator: bool) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions();
+            function.remove_unreachable_instructions(use_zero_in_terminator);
         }
         self
     }
 }
 
 impl Function {
-    fn remove_unreachable_instructions(&mut self) {
+    fn remove_unreachable_instructions(&mut self, use_zero_in_terminator: bool) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
         let mut dom = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
@@ -104,9 +110,55 @@ impl Function {
             let mut terminator = self.dfg[block_id].take_terminator();
             terminator.map_values_mut(|value_id| {
                 let typ = self.dfg.type_of_value(value_id);
-                dummy_ref(self, block_id, typ)
+                if use_zero_in_terminator {
+                    zeroed_value(self, block_id, &typ)
+                } else {
+                    dummy_ref(self, block_id, typ)
+                }
             });
             self.dfg[block_id].set_terminator(terminator);
+        }
+    }
+}
+
+fn zeroed_value(function: &mut Function, block_id: BasicBlockId, typ: &Type) -> ValueId {
+    match typ {
+        Type::Numeric(numeric_type) => {
+            function.dfg.make_constant(FieldElement::zero(), *numeric_type)
+        }
+        Type::Array(element_types, len) => {
+            let mut array = im::Vector::new();
+            for _ in 0..*len {
+                for typ in element_types.iter() {
+                    array.push_back(zeroed_value(function, block_id, typ));
+                }
+            }
+            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            let stack = CallStackId::root();
+            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
+        }
+        Type::Slice(_) => {
+            let array = im::Vector::new();
+            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            let stack = CallStackId::root();
+            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
+        }
+        Type::Reference(element_type) => {
+            let instruction = Instruction::Allocate;
+            let reference_type = Type::Reference(Arc::new((**element_type).clone()));
+            function
+                .dfg
+                .insert_instruction_and_results(
+                    instruction,
+                    block_id,
+                    Some(vec![reference_type]),
+                    CallStackId::root(),
+                )
+                .first()
+        }
+        Type::Function => {
+            // We can have the function return itself. It's fine because the terminator is unreachable anyway.
+            function.dfg.import_function(function.id())
         }
     }
 }
@@ -188,16 +240,14 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v3 = allocate -> &mut u1
-            v4 = load v3 -> u1
-            return v4
+            return u1 0
         }
         "#);
     }
@@ -215,16 +265,14 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v0 = make_array [] : [&mut u1; 0]
             constrain u1 0 != u1 0, "Index out of bounds"
-            v2 = allocate -> &mut u1
-            v3 = load v2 -> u1
-            return v3
+            return u1 0
         }
         "#);
     }
@@ -248,24 +296,18 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v2 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = allocate -> &mut u1
-            v6 = load v5 -> u1
-            jmp b1(v6)
+            jmp b1(u1 0)
           b1(v0: u1):
-            v7 = allocate -> &mut u1
-            v8 = load v7 -> u1
-            jmp b2(v8)
+            jmp b2(u1 0)
           b2(v1: u1):
-            v9 = allocate -> &mut u1
-            v10 = load v9 -> u1
-            return v10
+            return u1 0
         }
         "#);
     }
@@ -291,24 +333,18 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v2 = make_array [] : [&mut u1; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = allocate -> &mut u1
-            v6 = load v5 -> u1
-            jmp b2(v6)
+            jmp b2(u1 0)
           b1(v0: u1):
-            v9 = allocate -> &mut u1
-            v10 = load v9 -> u1
-            return v10
+            return u1 0
           b2(v1: u1):
-            v7 = allocate -> &mut u1
-            v8 = load v7 -> u1
-            jmp b1(v8)
+            jmp b1(u1 0)
         }
         "#);
     }
@@ -335,7 +371,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -343,15 +379,11 @@ mod test {
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b1()
           b1():
-            v2 = allocate -> &mut u1
-            v3 = load v2 -> u1
-            jmpif v3 then: b2, else: b3
+            jmpif u1 0 then: b2, else: b3
           b2():
             jmp b1()
           b3():
-            v4 = allocate -> &mut Field
-            v5 = load v4 -> Field
-            return v5
+            return Field 0
         }
         "#);
     }
@@ -373,7 +405,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -383,9 +415,7 @@ mod test {
           b1():
             jmp b2()
           b2():
-            v2 = allocate -> &mut Field
-            v3 = load v2 -> Field
-            return v3
+            return Field 0
         }
         "#);
     }
@@ -411,7 +441,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -433,7 +463,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -457,7 +487,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -484,7 +514,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -510,7 +540,7 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
+        let ssa = ssa.remove_unreachable_instructions(true);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -526,6 +556,73 @@ mod test {
             jmp b4()
           b4():
             return Field 1
+        }
+        "#);
+    }
+
+    #[test]
+    fn can_use_dummy_refs_in_terminator_instead_of_zero() {
+        // Check that we did not replace `jmpif v0` with `jmpif u1 0`, which could end up
+        // being simplified into an infinite loop.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+          }
+        brillig(inline) fn func_2 f1 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b3, else: b4
+          b2():
+            return
+          b3():
+            jmp b2()
+          b4():
+            constrain u1 0 == u1 1
+            jmp b5()
+          b5():
+            jmpif v0 then: b7, else: b8
+          b6():
+            jmp b1()
+          b7():
+            jmp b6()
+          b8():
+            jmp b5()
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions(false);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            call f1(u1 1)
+            return
+        }
+        brillig(inline) fn func_2 f1 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b3, else: b4
+          b2():
+            return
+          b3():
+            jmp b2()
+          b4():
+            constrain u1 0 == u1 1
+            jmp b5()
+          b5():
+            v3 = allocate -> &mut u1
+            v4 = load v3 -> u1
+            jmpif v4 then: b7, else: b8
+          b6():
+            jmp b1()
+          b7():
+            jmp b6()
+          b8():
+            jmp b5()
         }
         "#);
     }
