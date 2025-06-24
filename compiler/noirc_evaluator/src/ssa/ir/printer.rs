@@ -233,30 +233,50 @@ fn display_instruction_buffer(
         .map_err(|_| ())?;
 
     if let Some(fm) = fm {
-        let call_stack = dfg.get_instruction_call_stack(instruction);
-        if let Some(location) = call_stack.last() {
-            if let Ok(name) = fm.as_file_map().get_name(location.file) {
-                let files = fm.as_file_map();
-                let start_index = location.span.start() as usize;
-
-                // Add some padding before the comment
-                let arbitrary_padding_size = 50;
-                if buffer.len() < arbitrary_padding_size {
-                    buffer.resize(arbitrary_padding_size, b' ');
-                }
-
-                match codespan_files::Files::line_index(files, location.file, start_index) {
-                    // Offset line_index by 1 to convert it into a line number
-                    Ok(line_index) => write!(buffer, "\t// {name}:{}", line_index + 1),
-                    // Showing the file name alone is better than nothing
-                    Err(_) => write!(buffer, "\t// {name}"),
-                }
-                .map_err(|_| ())?;
-            }
-        }
+        write_location_information(dfg, instruction, fm, &mut buffer).map_err(|_| ())?;
     }
     writeln!(buffer).map_err(|_| ())?;
     String::from_utf8(buffer).map_err(|_| ())
+}
+
+fn write_location_information(
+    dfg: &DataFlowGraph,
+    instruction: InstructionId,
+    fm: &fm::FileManager,
+    buffer: &mut Vec<u8>,
+) -> std::io::Result<()> {
+    use codespan_files::Files;
+    use std::io::Write;
+    let call_stack = dfg.get_instruction_call_stack(instruction);
+
+    if let Some(location) = call_stack.last() {
+        if let Ok(name) = fm.as_file_map().get_name(location.file) {
+            let files = fm.as_file_map();
+            let start_index = location.span.start() as usize;
+
+            // Add some padding before the comment
+            let arbitrary_padding_size = 50;
+            if buffer.len() < arbitrary_padding_size {
+                buffer.resize(arbitrary_padding_size, b' ');
+            }
+
+            write!(buffer, "\t// {name}")?;
+
+            let Ok(line_index) = files.line_index(location.file, start_index) else {
+                return Ok(());
+            };
+
+            // Offset index by 1 to get the line number
+            write!(buffer, ":{}", line_index + 1)?;
+
+            let Ok(column_number) = files.column_number(location.file, line_index, start_index)
+            else {
+                return Ok(());
+            };
+            write!(buffer, ":{}", column_number)?;
+        }
+    }
+    Ok(())
 }
 
 fn display_instruction_inner(
@@ -265,7 +285,7 @@ fn display_instruction_inner(
     results: &[ValueId],
     in_global_space: bool,
     f: &mut Vec<u8>,
-) -> std::result::Result<(), std::io::Error> {
+) -> std::io::Result<()> {
     use std::io::Write;
     let show = |id| value(dfg, id);
 
@@ -449,7 +469,7 @@ fn display_constrain_error(
     dfg: &DataFlowGraph,
     error: &ConstrainError,
     f: &mut Vec<u8>,
-) -> std::result::Result<(), std::io::Error> {
+) -> std::io::Result<()> {
     use std::io::Write;
     match error {
         ConstrainError::StaticString(assert_message_string) => {
