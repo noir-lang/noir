@@ -7,7 +7,6 @@
 //! by that block.
 use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
 use fxhash::FxHashSet as HashSet;
 use noirc_errors::call_stack::CallStackId;
 
@@ -90,7 +89,7 @@ impl Function {
             let mut terminator = self.dfg[block_id].take_terminator();
             terminator.map_values_mut(|value_id| {
                 let typ = self.dfg.type_of_value(value_id);
-                zeroed_value(self, block_id, &typ)
+                dummy_ref(self, block_id, typ)
             });
             self.dfg[block_id].set_terminator(terminator);
         }
@@ -124,46 +123,34 @@ fn add_dominated_blocks(
     }
 }
 
-fn zeroed_value(function: &mut Function, block_id: BasicBlockId, typ: &Type) -> ValueId {
-    match typ {
-        Type::Numeric(numeric_type) => {
-            function.dfg.make_constant(FieldElement::zero(), *numeric_type)
-        }
-        Type::Array(element_types, len) => {
-            let mut array = im::Vector::new();
-            for _ in 0..*len {
-                for typ in element_types.iter() {
-                    array.push_back(zeroed_value(function, block_id, typ));
-                }
-            }
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
-        }
-        Type::Slice(_) => {
-            let array = im::Vector::new();
-            let instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
-            let stack = CallStackId::root();
-            function.dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
-        }
-        Type::Reference(element_type) => {
-            let instruction = Instruction::Allocate;
-            let reference_type = Type::Reference(Arc::new((**element_type).clone()));
-            function
-                .dfg
-                .insert_instruction_and_results(
-                    instruction,
-                    block_id,
-                    Some(vec![reference_type]),
-                    CallStackId::root(),
-                )
-                .first()
-        }
-        Type::Function => {
-            // We can have the function return itself. It's fine because the terminator is unreachable anyway.
-            function.dfg.import_function(function.id())
-        }
-    }
+/// Pretend that we have a value for the terminator by allocating a reference and loading it.
+///
+/// We will never store to this reference, so it would be an error to actually execute the instruction,
+/// but it should prevent the SSA optimizations from simplifying `JmpIf` instructions into `Jmp` if we
+/// use some kind of constant value instead, which would alter the CFG and cause other issues,
+/// such as infinite loops, that other passes would have difficulty dealing with.
+///
+/// The alternative to this is to have a new kind of _unreachable_ terminator instruction.
+fn dummy_ref(function: &mut Function, block_id: BasicBlockId, typ: Type) -> ValueId {
+    // Pretend that we have a reference for the appropriate type.
+    let instruction = Instruction::Allocate;
+    let reference_type = Type::Reference(Arc::new(typ.clone()));
+    let reference_id = function
+        .dfg
+        .insert_instruction_and_results(
+            instruction,
+            block_id,
+            Some(vec![reference_type]),
+            CallStackId::root(),
+        )
+        .first();
+
+    // Load the reference. We should never execute this instruction, because the code is unreachable.
+    let instruction = Instruction::Load { address: reference_id };
+    function
+        .dfg
+        .insert_instruction_and_results(instruction, block_id, Some(vec![typ]), CallStackId::root())
+        .first()
 }
 
 #[cfg(test)]
