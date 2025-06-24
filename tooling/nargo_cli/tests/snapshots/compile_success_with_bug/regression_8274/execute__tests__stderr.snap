@@ -9,7 +9,7 @@ warning: unused variable h
   │         - unused variable
   │
 
-bug: Assertion is always false
+bug: Assertion is always false: attempted to divide by constant larger than operand type: 128 > 64
   ┌─ src/main.nr:2:14
   │
 2 │     let h = (((a as u64) >> b) % (11912905567223247326 * 14329851068374824036));

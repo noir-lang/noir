@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false
+bug: Assertion is always false: attempted to divide by constant larger than operand type: 254 > 32
   ┌─ src/main.nr:5:13
   │
 5 │     b[0] = (b[0] % (869374236 - a));
