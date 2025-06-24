@@ -1633,3 +1633,28 @@ fn trait_impl_with_child_constraint() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_with_same_generic_in_different_default_methods() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let U: u32>(self, _msg: str<U>) { 
+            let _ = self; 
+        }
+
+        fn bar<let U: u32>(self, _msg: str<U>) {
+            let _ = self;
+        }
+    }
+
+    pub struct Struct {}
+
+    impl Trait for Struct {}
+
+    pub fn main() {
+        Struct {}.bar("Hello");
+    }
+    "#;
+    assert_no_errors!(src);
+}
