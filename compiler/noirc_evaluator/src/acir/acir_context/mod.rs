@@ -904,10 +904,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // Indeed, in that case, rhs is replaced with 'predicate * rhs'
         //
         // Using the predicate as an offset is a small optimization:
-        // * if the predicate is true, then the offset is one and this asserts that 'r<rhs',
+        // * if the predicate is true, then the offset is one and this assert that 'r<rhs',
         //   without using a predicate (because 'one' is given for the predicate argument).
         // * if the predicate is false, then this will assert 'r<=rhs',
-        //   for which 'r=0' is a valid assignment.
+        //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
+        //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
+        //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
         self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
