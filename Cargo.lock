@@ -3503,6 +3503,7 @@ dependencies = [
  "fxhash",
  "iter-extended",
  "nargo",
+ "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
  "noirc_driver",
