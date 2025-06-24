@@ -2233,7 +2233,7 @@
         <span class="self">self</span>.inserter.map_terminator_in_place(block);
 
         <span class="kw">match </span><span class="self">self</span>.inserter.function.dfg[block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { .. } =&gt; (), <span class="comment">// Nothing to do
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Unreachable { .. } =&gt; (), <span class="comment">// Nothing to do
             </span>TerminatorInstruction::Jmp { destination, arguments, .. } =&gt; {
                 <span class="kw">let </span>destination_parameters = <span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>destination].parameters();
                 <span class="macro">assert_eq!</span>(destination_parameters.len(), arguments.len());

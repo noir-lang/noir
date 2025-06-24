@@ -2196,7 +2196,10 @@
 <a href="#2195" id="2195">2195</a>
 <a href="#2196" id="2196">2196</a>
 <a href="#2197" id="2197">2197</a>
-<a href="#2198" id="2198">2198</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2198" id="2198">2198</a>
+<a href="#2199" id="2199">2199</a>
+<a href="#2200" id="2200">2200</a>
+<a href="#2201" id="2201">2201</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2449,6 +2452,9 @@
                 });
                 <span class="self">self</span>.brillig_context.codegen_return(<span class="kw-2">&amp;</span>return_registers);
             }
+            TerminatorInstruction::Unreachable { .. } =&gt; {
+                <span class="comment">// If we assume this is unreachable code then there's nothing to do here
+            </span>}
         }
     }
 

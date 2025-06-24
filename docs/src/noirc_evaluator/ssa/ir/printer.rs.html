@@ -486,7 +486,10 @@
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
 <a href="#487" id="487">487</a>
-<a href="#488" id="488">488</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -673,6 +676,9 @@
             } <span class="kw">else </span>{
                 <span class="macro">writeln!</span>(f, <span class="string">"    return {}"</span>, value_list(dfg, return_values))
             }
+        }
+        <span class="prelude-val">Some</span>(TerminatorInstruction::Unreachable { .. }) =&gt; {
+            <span class="macro">writeln!</span>(f, <span class="string">"    unreachable"</span>)
         }
         <span class="prelude-val">None </span>=&gt; <span class="macro">writeln!</span>(f, <span class="string">"    (no terminator instruction)"</span>),
     }

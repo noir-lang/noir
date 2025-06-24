@@ -585,7 +585,10 @@
 <a href="#584" id="584">584</a>
 <a href="#585" id="585">585</a>
 <a href="#586" id="586">586</a>
-<a href="#587" id="587">587</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
 };
@@ -816,7 +819,7 @@
                     queue.push_back(<span class="self">self</span>.lookup_block(then_block)<span class="question-mark">?</span>);
                     queue.push_back(<span class="self">self</span>.lookup_block(else_block)<span class="question-mark">?</span>);
                 }
-                ParsedTerminator::Return(..) =&gt; (),
+                ParsedTerminator::Return(..) | ParsedTerminator::Unreachable =&gt; (),
             }
         }
 
@@ -851,6 +854,9 @@
             ParsedTerminator::Return(values) =&gt; {
                 <span class="kw">let </span>return_values = <span class="self">self</span>.translate_values(values)<span class="question-mark">?</span>;
                 <span class="self">self</span>.builder.terminate_with_return(return_values);
+            }
+            ParsedTerminator::Unreachable =&gt; {
+                <span class="self">self</span>.builder.terminate_with_unreachable();
             }
         }
 

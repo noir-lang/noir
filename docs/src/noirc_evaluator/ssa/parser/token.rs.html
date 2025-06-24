@@ -313,7 +313,10 @@
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::{Position, Span, Spanned};
@@ -487,6 +490,7 @@
     UncheckedAdd,
     UncheckedSub,
     UncheckedMul,
+    Unreachable,
     Value,
     Xor,
 }
@@ -553,6 +557,7 @@
             <span class="string">"unchecked_add" </span>=&gt; Keyword::UncheckedAdd,
             <span class="string">"unchecked_sub" </span>=&gt; Keyword::UncheckedSub,
             <span class="string">"unchecked_mul" </span>=&gt; Keyword::UncheckedMul,
+            <span class="string">"unreachable" </span>=&gt; Keyword::Unreachable,
             <span class="string">"value" </span>=&gt; Keyword::Value,
             <span class="string">"xor" </span>=&gt; Keyword::Xor,
             <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">None</span>,
@@ -623,6 +628,7 @@
             Keyword::UncheckedAdd =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked_add"</span>),
             Keyword::UncheckedSub =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked_sub"</span>),
             Keyword::UncheckedMul =&gt; <span class="macro">write!</span>(f, <span class="string">"unchecked_mul"</span>),
+            Keyword::Unreachable =&gt; <span class="macro">write!</span>(f, <span class="string">"unreachable"</span>),
             Keyword::Value =&gt; <span class="macro">write!</span>(f, <span class="string">"value"</span>),
             Keyword::Xor =&gt; <span class="macro">write!</span>(f, <span class="string">"xor"</span>),
         }

@@ -991,7 +991,13 @@
 <a href="#990" id="990">990</a>
 <a href="#991" id="991">991</a>
 <a href="#992" id="992">992</a>
-<a href="#993" id="993">993</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1719,6 +1725,12 @@
                 }
 
                 <span class="prelude-val">Some</span>((block_id, return_values))
+            }
+            TerminatorInstruction::Unreachable { .. } =&gt; {
+                <span class="comment">// Note: `unreachable` terminators are only added during the `remove_unreachable_instructions`,
+                // which runs near the end of the optimization pipeline, so never before inlining.
+                // If we ever want to run it before inlining we'll have to handle this case.
+                </span><span class="macro">panic!</span>(<span class="string">"Unreachable terminator instruction should not exist during inlining."</span>)
             }
         }
     }

@@ -1980,7 +1980,11 @@
 <a href="#1979" id="1979">1979</a>
 <a href="#1980" id="1980">1980</a>
 <a href="#1981" id="1981">1981</a>
-<a href="#1982" id="1982">1982</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
@@ -2449,6 +2453,10 @@
 
                 <span class="self">self</span>.inserter.function.dfg.set_block_terminator(target, new_return);
                 <span class="macro">vec!</span>[]
+            }
+            TerminatorInstruction::Unreachable { .. } =&gt; {
+                <span class="comment">// Nothing to do
+                </span><span class="macro">vec!</span>[]
             }
         }
     }

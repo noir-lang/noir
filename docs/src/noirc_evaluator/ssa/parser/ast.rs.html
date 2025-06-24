@@ -193,7 +193,8 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::{<span class="self">self</span>, Display, Formatter};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
@@ -375,6 +376,7 @@
     Jmp { destination: Identifier, arguments: Vec&lt;ParsedValue&gt; },
     Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
     Return(Vec&lt;ParsedValue&gt;),
+    Unreachable,
 }
 
 <span class="attr">#[derive(Debug, Clone)]

@@ -607,7 +607,13 @@
 <a href="#606" id="606">606</a>
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
-<a href="#609" id="609">609</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>data_bus;
 
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
@@ -1049,6 +1055,12 @@
     </span><span class="kw">pub fn </span>terminate_with_return(<span class="kw-2">&amp;mut </span><span class="self">self</span>, return_values: Vec&lt;ValueId&gt;) {
         <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
         <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Return { return_values, call_stack });
+    }
+
+    <span class="doccomment">/// Terminate the current block with an unreachable instruction
+    </span><span class="kw">pub fn </span>terminate_with_unreachable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>call_stack = <span class="self">self</span>.call_stack;
+        <span class="self">self</span>.terminate_block_with(TerminatorInstruction::Unreachable { call_stack });
     }
 
     <span class="doccomment">/// Returns a ValueId pointing to the given function or imports the function

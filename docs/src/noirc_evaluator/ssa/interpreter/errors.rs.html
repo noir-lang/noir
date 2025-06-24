@@ -171,7 +171,9 @@
 <a href="#170" id="170">170</a>
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
-<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
@@ -231,6 +233,8 @@
     </span>ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     <span class="attr">#[error(<span class="string">"Failed to solve blackbox function {name}: {reason}"</span>)]
     </span>BlackBoxError { name: String, reason: String },
+    <span class="attr">#[error(<span class="string">"Reached the unreachable"</span>)]
+    </span>ReachedTheUnreachable,
 }
 
 <span class="doccomment">/// These errors can only result from interpreting malformed SSA

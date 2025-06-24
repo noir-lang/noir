@@ -116,7 +116,8 @@
 <a href="#115" id="115">115</a>
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -148,7 +149,8 @@
 <span class="kw">mod </span>remove_enable_side_effects;
 <span class="kw">mod </span>remove_if_else;
 <span class="kw">mod </span>remove_truncate_after_range_check;
-<span class="kw">mod </span>remove_unreachable;
+<span class="kw">mod </span>remove_unreachable_functions;
+<span class="kw">mod </span>remove_unreachable_instructions;
 <span class="kw">mod </span>simple_optimization;
 <span class="kw">mod </span>simplify_cfg;
 <span class="kw">mod </span>unrolling;

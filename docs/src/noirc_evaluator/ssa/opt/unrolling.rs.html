@@ -1571,7 +1571,9 @@
 <a href="#1570" id="1570">1570</a>
 <a href="#1571" id="1571">1571</a>
 <a href="#1572" id="1572">1572</a>
-<a href="#1573" id="1573">1573</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2487,7 +2489,9 @@
                 }
                 <span class="macro">vec!</span>[<span class="kw-2">*</span>destination]
             }
-            TerminatorInstruction::Return { .. } =&gt; <span class="macro">vec!</span>[],
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } =&gt; {
+                <span class="macro">vec!</span>[]
+            }
         }
     }
 

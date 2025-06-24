@@ -947,7 +947,16 @@
 <a href="#946" id="946">946</a>
 <a href="#947" id="947">947</a>
 <a href="#948" id="948">948</a>
-<a href="#949" id="949">949</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1802,6 +1811,10 @@
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
     </span>Return { return_values: Vec&lt;ValueId&gt;, call_stack: CallStackId },
+
+    <span class="doccomment">/// A terminator that will never be reached because an instruction in its block
+    /// will always produce an assertion failure.
+    </span>Unreachable { call_stack: CallStackId },
 }
 
 <span class="kw">impl </span>TerminatorInstruction {
@@ -1822,6 +1835,7 @@
                     <span class="kw-2">*</span>return_value = f(<span class="kw-2">*</span>return_value);
                 }
             }
+            Unreachable { .. } =&gt; (),
         }
     }
 
@@ -1842,6 +1856,7 @@
                     f(<span class="kw-2">*</span>return_value);
                 }
             }
+            Unreachable { .. } =&gt; (),
         }
     }
 
@@ -1862,6 +1877,7 @@
                     f(index, <span class="kw-2">*</span>return_value);
                 }
             }
+            Unreachable { .. } =&gt; (),
         }
     }
 
@@ -1876,7 +1892,7 @@
             Jmp { destination, .. } =&gt; {
                 <span class="kw-2">*</span>destination = f(<span class="kw-2">*</span>destination);
             }
-            Return { .. } =&gt; (),
+            Return { .. } | Unreachable { .. } =&gt; (),
         }
     }
 
@@ -1884,7 +1900,8 @@
         <span class="kw">match </span><span class="self">self </span>{
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } =&gt; <span class="kw-2">*</span>call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } =&gt; <span class="kw-2">*</span>call_stack,
         }
     }
 
@@ -1892,7 +1909,8 @@
         <span class="kw">match </span><span class="self">self </span>{
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } =&gt; <span class="kw-2">*</span>call_stack = new_call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } =&gt; <span class="kw-2">*</span>call_stack = new_call_stack,
         }
     }
 }

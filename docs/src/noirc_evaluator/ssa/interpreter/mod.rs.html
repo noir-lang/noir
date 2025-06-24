@@ -1487,7 +1487,10 @@
 <a href="#1486" id="1486">1486</a>
 <a href="#1487" id="1487">1487</a>
 <a href="#1488" id="1488">1488</a>
-<a href="#1489" id="1489">1489</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1750,6 +1753,9 @@
                     }
 
                     <span class="kw">break </span>return_values;
+                }
+                <span class="prelude-val">Some</span>(TerminatorInstruction::Unreachable { .. }) =&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::ReachedTheUnreachable);
                 }
             }
         };

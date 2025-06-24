@@ -791,7 +791,10 @@
 <a href="#790" id="790">790</a>
 <a href="#791" id="791">791</a>
 <a href="#792" id="792">792</a>
-<a href="#793" id="793">793</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1006,7 +1009,9 @@
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
         <span class="comment">// Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
-        <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
+        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>),
+        <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed,
+        // or after the removal of unreachable instructions.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
         SsaPass::new_try(
@@ -1022,6 +1027,7 @@
 </span><span class="kw">pub fn </span>secondary_passes(brillig: <span class="kw-2">&amp;</span>Brillig) -&gt; Vec&lt;SsaPass&gt; {
     <span class="macro">vec!</span>[
         SsaPass::new(<span class="kw">move </span>|ssa| ssa.fold_constants_with_brillig(brillig), <span class="string">"Inlining Brillig Calls"</span>),
+        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>),
         <span class="comment">// It could happen that we inlined all calls to a given brillig function.
         // In that case it's unused so we can remove it. This is what we check next.
         </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),

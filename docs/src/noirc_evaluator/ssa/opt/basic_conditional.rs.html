@@ -523,7 +523,10 @@
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
 <a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -885,6 +888,9 @@
             TerminatorInstruction::Return { return_values, call_stack } =&gt; {
                 <span class="kw">let </span>return_values = vecmap(return_values, |value| <span class="self">self</span>.inserter.resolve(value));
                 TerminatorInstruction::Return { return_values, call_stack }
+            }
+            TerminatorInstruction::Unreachable { call_stack } =&gt; {
+                TerminatorInstruction::Unreachable { call_stack }
             }
         };
         <span class="self">self</span>.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);

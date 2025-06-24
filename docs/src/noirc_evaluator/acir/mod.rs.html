@@ -1810,7 +1810,13 @@
 <a href="#1809" id="1809">1809</a>
 <a href="#1810" id="1810">1810</a>
 <a href="#1811" id="1811">1811</a>
-<a href="#1812" id="1812">1812</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2727,8 +2733,11 @@
     ) -&gt; usize {
         <span class="kw">let </span>return_values = <span class="kw">match </span>terminator {
             TerminatorInstruction::Return { return_values, .. } =&gt; return_values,
+            TerminatorInstruction::Unreachable { .. } =&gt; <span class="kw">return </span><span class="number">0</span>,
             <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            </span><span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>),
+            </span>TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>)
+            }
         };
 
         return_values
@@ -2747,7 +2756,10 @@
                 (return_values, <span class="kw-2">*</span>call_stack)
             }
             <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            </span><span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>),
+            </span>TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"ICE: Program must have a singular return"</span>)
+            }
+            TerminatorInstruction::Unreachable { .. } =&gt; <span class="kw">return </span><span class="prelude-val">Ok</span>((<span class="macro">vec!</span>[], <span class="macro">vec!</span>[])),
         };
 
         <span class="kw">let </span><span class="kw-2">mut </span>has_constant_return = <span class="bool-val">false</span>;
