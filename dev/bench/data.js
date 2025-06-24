@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750772964478,
+  "lastUpdate": 1750772967199,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26",
-          "message": "fix(mem2reg): Keep last store for reference in array used only in an array get (#8877)",
-          "timestamp": "2025-06-13T14:13:34Z",
-          "tree_id": "1b79a1e85cb9db1452262ab05ff37ee5d1f5a1d6",
-          "url": "https://github.com/noir-lang/noir/commit/b6ad823cb02c2460cfc2bdd48e0f5c7eb5a49f26"
-        },
-        "date": 1749825977471,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.358,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.328,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.078,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 131,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 129,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.086,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.516,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.764,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "3d3f74d6da291ec70b428bf1d2f644ea848e9077",
           "message": "chore: Casting ACIR vs Brillig regression tests (#8903)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.765,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f8c71c261bfe2d4dc5d5d25db3d587c4463862a6",
+          "message": "fix: recover generics when defining trait impl function (#9009)",
+          "timestamp": "2025-06-24T13:19:18Z",
+          "tree_id": "bb6c4d0f1c4e958cb6fd6109fb6834bd2374aac0",
+          "url": "https://github.com/noir-lang/noir/commit/f8c71c261bfe2d4dc5d5d25db3d587c4463862a6"
+        },
+        "date": 1750772953615,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.374,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.936,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.084,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 19.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 180,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 182,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.336,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.77,
             "unit": "s"
           }
         ]
