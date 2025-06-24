@@ -12,8 +12,9 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
-        instruction::Instruction, post_order::PostOrder, types::Type, value::ValueId,
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, dfg::DataFlowGraph, dom::DominatorTree,
+        function::Function, instruction::Instruction, post_order::PostOrder, types::Type,
+        value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -29,11 +30,12 @@ impl Ssa {
 
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
-        println!("remove_unreachable_instructions from {}", self.id());
-        // Iterate each block in reverse post order = forward order
         let cfg = ControlFlowGraph::with_function(self);
-        let mut block_order = PostOrder::with_cfg(&cfg).into_vec();
+        let post_order = PostOrder::with_cfg(&cfg);
+        let mut dom = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        // Iterate each block in reverse post order = forward order
         // Start with the entry, process all blocks before their successors.
+        let mut block_order = post_order.into_vec();
         block_order.reverse();
 
         // The current block we are currently processing
@@ -51,11 +53,12 @@ impl Function {
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
-                let has_predecessors = cfg.predecessors(block_id).len() > 0;
-                current_block_instructions_are_unreachable = has_predecessors
-                    && cfg
-                        .predecessors(block_id)
-                        .all(|block_id| unreachable_blocks.contains(&block_id));
+
+                current_block_instructions_are_unreachable = unreachable_blocks.contains(&block_id)
+                    || cfg.predecessors(block_id).len() > 0
+                        && cfg
+                            .predecessors(block_id)
+                            .all(|block_id| unreachable_blocks.contains(&block_id));
 
                 if current_block_instructions_are_unreachable {
                     unreachable_blocks.insert(block_id);
@@ -93,6 +96,7 @@ impl Function {
             if is_unreachable {
                 unreachable_blocks.insert(block_id);
                 current_block_instructions_are_unreachable = true;
+                add_dominated_blocks(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
             }
         });
 
@@ -135,6 +139,33 @@ fn dummy_ref(function: &mut Function, block_id: BasicBlockId, typ: Type) -> Valu
         .dfg
         .insert_instruction_and_results(instruction, block_id, Some(vec![typ]), CallStackId::root())
         .first()
+}
+
+/// Adds all of a block's dominated blocks to the `unreachable_blocks` set if they are dominated by that block.
+fn add_dominated_blocks(
+    block_id: BasicBlockId,
+    dfg: &DataFlowGraph,
+    dom: &mut DominatorTree,
+    unreachable_blocks: &mut HashSet<BasicBlockId>,
+) {
+    // First compute the set of all blocks that are reachable from the starting block
+    let mut reachable_blocks = HashSet::default();
+
+    let mut blocks_to_process = vec![block_id];
+    while let Some(block_id) = blocks_to_process.pop() {
+        for successor in dfg[block_id].successors() {
+            if reachable_blocks.insert(successor) {
+                blocks_to_process.push(successor);
+            }
+        }
+    }
+
+    // Now add them to `unreachable_blocks` if they are dominated by the block
+    for reachable_block in reachable_blocks {
+        if dom.dominates(block_id, reachable_block) {
+            unreachable_blocks.insert(reachable_block);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -312,11 +343,15 @@ mod test {
             constrain u1 0 == u1 1, "Index out of bounds"
             jmp b1()
           b1():
-            jmpif u1 0 then: b2, else: b3
+            v2 = allocate -> &mut u1
+            v3 = load v2 -> u1
+            jmpif v3 then: b2, else: b3
           b2():
             jmp b1()
           b3():
-            return Field 0
+            v4 = allocate -> &mut Field
+            v5 = load v4 -> Field
+            return v5
         }
         "#);
     }
@@ -348,8 +383,9 @@ mod test {
           b1():
             jmp b2()
           b2():
-            v4 = add Field 1, Field 2
-            return v4
+            v2 = allocate -> &mut Field
+            v3 = load v2 -> Field
+            return v3
         }
         "#);
     }
