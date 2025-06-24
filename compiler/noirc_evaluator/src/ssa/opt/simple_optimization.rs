@@ -48,16 +48,61 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
-        &mut self,
-        mut f: F,
-    ) -> RtResult<()>
+    pub(crate) fn simple_reachable_blocks_optimization_result<F>(&mut self, f: F) -> RtResult<()>
     where
+        F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
+    {
+        self.blocks_optimization_result(self.reachable_blocks(), f)
+    }
+
+    /// Performs a simple optimization according to the given callback, returning early if
+    /// an error occurred.
+    ///
+    /// The blocks are traversed in the order in the `blocks` iterator, and instructions in those blocks
+    /// are then traversed in turn. For each one, `f` will be called with a context.
+    ///
+    /// The current instruction will be inserted at the end of the callback given to `mutate` unless
+    /// `remove_current_instruction` or `insert_current_instruction` are called.
+    ///
+    /// `insert_current_instruction` is useful if you need to insert new instructions after the current
+    /// one, so this can be done before the callback ends.
+    ///
+    /// `replace_value` can be used to replace a value with another one. This substitution will be
+    /// performed in all subsequent instructions.
+    pub(crate) fn blocks_optimization<I, F>(&mut self, blocks: I, mut f: F)
+    where
+        I: IntoIterator<Item = BasicBlockId>,
+        F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
+    {
+        self.blocks_optimization_result(blocks, move |context| {
+            f(context);
+            Ok(())
+        })
+        .expect("`f` cannot error internally so this should be unreachable");
+    }
+
+    /// Performs a simple optimization according to the given callback, returning early if
+    /// an error occurred.
+    ///
+    /// The blocks are traversed in the order in the `blocks` iterator, and instructions in those blocks
+    /// are then traversed in turn. For each one, `f` will be called with a context.
+    ///
+    /// The current instruction will be inserted at the end of the callback given to `mutate` unless
+    /// `remove_current_instruction` or `insert_current_instruction` are called.
+    ///
+    /// `insert_current_instruction` is useful if you need to insert new instructions after the current
+    /// one, so this can be done before the callback ends.
+    ///
+    /// `replace_value` can be used to replace a value with another one. This substitution will be
+    /// performed in all subsequent instructions.
+    pub(crate) fn blocks_optimization_result<I, F>(&mut self, blocks: I, mut f: F) -> RtResult<()>
+    where
+        I: IntoIterator<Item = BasicBlockId>,
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
 
-        for block_id in self.reachable_blocks() {
+        for block_id in blocks {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {

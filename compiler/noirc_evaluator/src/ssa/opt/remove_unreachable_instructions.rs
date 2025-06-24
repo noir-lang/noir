@@ -12,8 +12,8 @@ use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId, dfg::DataFlowGraph, dom::DominatorTree, function::Function,
-        instruction::Instruction, types::Type, value::ValueId,
+        basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function,
+        instruction::Instruction, post_order::PostOrder, types::Type, value::ValueId,
     },
     ssa_gen::Ssa,
 };
@@ -29,7 +29,11 @@ impl Ssa {
 
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
-        let mut dom = DominatorTree::with_function(self);
+        // Iterate each block in reverse post order = forward order
+        let cfg = ControlFlowGraph::with_function(self);
+        let mut block_order = PostOrder::with_cfg(&cfg).into_vec();
+        // Start with the entry, process all blocks before their successors.
+        block_order.reverse();
 
         // The current block we are currently processing
         let mut current_block_id = None;
@@ -41,12 +45,18 @@ impl Function {
         // At the end we'll zero out their terminators.
         let mut unreachable_blocks = HashSet::default();
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.blocks_optimization(block_order, |context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
-                current_block_instructions_are_unreachable = unreachable_blocks.contains(&block_id);
+                current_block_instructions_are_unreachable = cfg
+                    .predecessors(block_id)
+                    .all(|block_id| unreachable_blocks.contains(&block_id));
+
+                if current_block_instructions_are_unreachable {
+                    unreachable_blocks.insert(block_id);
+                }
             }
 
             if current_block_instructions_are_unreachable {
@@ -80,8 +90,6 @@ impl Function {
             if is_unreachable {
                 unreachable_blocks.insert(block_id);
                 current_block_instructions_are_unreachable = true;
-
-                add_dominated_blocks(block_id, context.dfg, &mut dom, &mut unreachable_blocks);
             }
         });
 
@@ -92,33 +100,6 @@ impl Function {
                 dummy_ref(self, block_id, typ)
             });
             self.dfg[block_id].set_terminator(terminator);
-        }
-    }
-}
-
-/// Adds all of a block's dominated blocks to the `unreachable_blocks` set if they are dominated by that block.
-fn add_dominated_blocks(
-    block_id: BasicBlockId,
-    dfg: &DataFlowGraph,
-    dom: &mut DominatorTree,
-    unreachable_blocks: &mut HashSet<BasicBlockId>,
-) {
-    // First compute the set of all blocks that are reachable from the starting block
-    let mut reachable_blocks = HashSet::default();
-
-    let mut blocks_to_process = vec![block_id];
-    while let Some(block_id) = blocks_to_process.pop() {
-        for successor in dfg[block_id].successors() {
-            if reachable_blocks.insert(successor) {
-                blocks_to_process.push(successor);
-            }
-        }
-    }
-
-    // Now add them to `unreachable_blocks` if they are dominated by the block
-    for reachable_block in reachable_blocks {
-        if dom.dominates(block_id, reachable_block) {
-            unreachable_blocks.insert(reachable_block);
         }
     }
 }
