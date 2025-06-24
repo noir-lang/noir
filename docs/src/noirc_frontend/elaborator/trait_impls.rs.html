@@ -263,7 +263,9 @@
 <a href="#262" id="262">262</a>
 <a href="#263" id="263">263</a>
 <a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     Kind, NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
@@ -327,7 +329,9 @@
                     <span class="kw">let </span>module = <span class="self">self</span>.module_id();
                     <span class="kw">let </span>location = default_impl.def.location;
                     <span class="self">self</span>.interner.push_function(func_id, <span class="kw-2">&amp;</span>default_impl.def, module, location);
-                    <span class="self">self</span>.define_function_meta(<span class="kw-2">&amp;mut </span>default_impl_clone, func_id, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]);
+                    <span class="self">self</span>.recover_generics(|this| {
+                        this.define_function_meta(<span class="kw-2">&amp;mut </span>default_impl_clone, func_id, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span>[]);
+                    });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
