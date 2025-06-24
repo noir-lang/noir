@@ -7,7 +7,7 @@ use crate::{
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    let ssa = ssa.to_string();
+    let ssa = ssa.print_without_locations().to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
