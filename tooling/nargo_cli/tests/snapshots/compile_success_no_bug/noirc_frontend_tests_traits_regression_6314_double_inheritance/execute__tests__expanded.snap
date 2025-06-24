@@ -8,7 +8,7 @@ trait Foo {
 
 impl Foo for Field {
     fn foo(self) -> Self {
-        self + 1
+        self + 1_Field
     }
 }
 
@@ -18,7 +18,7 @@ trait Bar {
 
 impl Bar for Field {
     fn bar(self) -> Self {
-        self + 2
+        self + 2_Field
     }
 }
 
@@ -38,5 +38,5 @@ where
 }
 
 fn main() {
-    assert(0.foo().bar() == baz(0));
+    assert(0_Field.foo().bar() == baz(0_Field));
 }

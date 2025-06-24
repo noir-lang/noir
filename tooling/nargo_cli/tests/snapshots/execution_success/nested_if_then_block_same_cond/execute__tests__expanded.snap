@@ -5,11 +5,11 @@ expression: expanded_code
 fn main(a: bool, b: [[bool; 2]; 3]) -> pub [bool; 2] {
     if !!a {
         if !!a {
-            b[0]
+            b[0_u32]
         } else {
-            b[0]
+            b[0_u32]
         }
     } else {
-        b[0]
+        b[0_u32]
     }
 }

@@ -1613,3 +1613,48 @@ fn errors_on_incorrect_generics_in_type_trait_call() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_impl_with_child_constraint() {
+    let src = r#"
+    trait Parent {}
+
+    trait Child: Parent {
+        fn child() {}
+    }
+
+    pub struct Struct<T> {}
+
+    impl<T: Parent> Parent for Struct<T> {}
+    impl<T: Child> Child for Struct<T> {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_with_same_generic_in_different_default_methods() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let U: u32>(self, _msg: str<U>) { 
+            let _ = self; 
+        }
+
+        fn bar<let U: u32>(self, _msg: str<U>) {
+            let _ = self;
+        }
+    }
+
+    pub struct Struct {}
+
+    impl Trait for Struct {}
+
+    pub fn main() {
+        Struct {}.bar("Hello");
+    }
+    "#;
+    assert_no_errors!(src);
+}

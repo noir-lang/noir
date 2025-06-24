@@ -3,5 +3,5 @@ fn main(mut x: u32, y: u32, z: u32) {
     let a = x % y;
     assert(x / y == z);
     assert(a == x - z * y);
-    assert((50 as u64) % (9 as u64) == 5);
+    assert(50_u64 % 9 == 5);
 }
