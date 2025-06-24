@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750716765601,
+  "lastUpdate": 1750755271201,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7902a216bd9a052ec57aaad6071bbaa779d4dc0b",
-          "message": "chore: Ban dynamic array indices with reference elements (#8888)",
-          "timestamp": "2025-06-13T12:17:36Z",
-          "tree_id": "460f396146f110f6cd69228de77c036b638ad885",
-          "url": "https://github.com/noir-lang/noir/commit/7902a216bd9a052ec57aaad6071bbaa779d4dc0b"
-        },
-        "date": 1749818429548,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250906,
-            "range": "± 623",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225121,
-            "range": "± 4859",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787230,
-            "range": "± 1616",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2807914,
             "range": "± 1682",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f9b66d65e74b6103a72c5caed33871c5394c904d",
+          "message": "fix(fuzz): Avoid overflowing binary ops in \"no dynamic\" mode (#8996)",
+          "timestamp": "2025-06-24T08:30:17Z",
+          "tree_id": "cda62979bf2361bb37750adc71c95cf04de89932",
+          "url": "https://github.com/noir-lang/noir/commit/f9b66d65e74b6103a72c5caed33871c5394c904d"
+        },
+        "date": 1750755258068,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267424,
+            "range": "± 598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235915,
+            "range": "± 7707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2812238,
+            "range": "± 1164",
             "unit": "ns/iter"
           }
         ]
