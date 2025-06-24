@@ -424,8 +424,16 @@ impl<'f> PerFunctionContext<'f> {
             }
         };
 
-        match &self.inserter.function.dfg[instruction] {
-            Instruction::Load { address } if !simplified => {
+        let ins = &self.inserter.function.dfg[instruction];
+
+        // Some instructions, when simplified, cause problems if processed again.
+        // We do need it for MakeArray in some cases, and at the moment that is not problematic.
+        if simplified && !matches!(ins, Instruction::MakeArray { .. }) {
+            return;
+        }
+
+        match ins {
+            Instruction::Load { address } => {
                 let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -464,7 +472,7 @@ impl<'f> PerFunctionContext<'f> {
                 // result to the previous load, which if it was removed should already have a mapping to the known value.
                 references.set_last_load(address, instruction);
             }
-            Instruction::Store { address, value } if !simplified => {
+            Instruction::Store { address, value } => {
                 let address = *address;
                 let value = *value;
 
@@ -487,13 +495,13 @@ impl<'f> PerFunctionContext<'f> {
                 references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
-            Instruction::Allocate if !simplified => {
+            Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.expressions.insert(result, Expression::Other(result));
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
-            Instruction::ArrayGet { array, .. } if !simplified => {
+            Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
                 let array = *array;
@@ -511,7 +519,7 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
             }
-            Instruction::ArraySet { array, value, .. } if !simplified => {
+            Instruction::ArraySet { array, value, .. } => {
                 references.mark_value_used(*array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
@@ -547,7 +555,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                 }
             }
-            Instruction::Call { arguments, .. } if !simplified => {
+            Instruction::Call { arguments, .. } => {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
