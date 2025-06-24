@@ -1554,7 +1554,36 @@
 <a href="#1553" id="1553">1553</a>
 <a href="#1554" id="1554">1554</a>
 <a href="#1555" id="1555">1555</a>
-<a href="#1556" id="1556">1556</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1641,12 +1670,13 @@
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -1957,18 +1987,37 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         block_id: BasicBlockId,
         references: <span class="kw-2">&amp;mut </span>Block,
-        <span class="kw-2">mut </span>instruction: InstructionId,
+        instruction: InstructionId,
     ) {
-        <span class="comment">// If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
+        <span class="comment">// If the instruction was simplified and optimized out of the program we shouldn't analyze it.
+        // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(new_id) = <span class="self">self</span>.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } <span class="kw">else </span>{
+        // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
+        // and we need to mark those references as used to keep their stores alive.
+        </span><span class="kw">let </span>(instruction, simplified) = {
+            <span class="kw">let </span>(ins, loc) = <span class="self">self</span>.inserter.map_instruction(instruction);
+            <span class="kw">match </span><span class="self">self</span>.inserter.push_instruction_value(ins, instruction, block_id, loc) {
+                InsertInstructionResult::Results(id, <span class="kw">_</span>) =&gt; (id, <span class="bool-val">false</span>),
+                InsertInstructionResult::SimplifiedTo(value) =&gt; {
+                    <span class="kw">let </span>value = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[value];
+                    <span class="kw">let </span>Value::Instruction { instruction, .. } = value <span class="kw">else </span>{
+                        <span class="kw">return</span>;
+                    };
+                    (<span class="kw-2">*</span>instruction, <span class="bool-val">true</span>)
+                }
+                <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
+            }
+        };
+
+        <span class="kw">let </span>ins = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[instruction];
+
+        <span class="comment">// Some instructions, when simplified, cause problems if processed again.
+        // We do need it for MakeArray in some cases, and at the moment that is not problematic.
+        </span><span class="kw">if </span>simplified &amp;&amp; !<span class="macro">matches!</span>(ins, Instruction::MakeArray { .. }) {
             <span class="kw">return</span>;
         }
 
-        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[instruction] {
+        <span class="kw">match </span>ins {
             Instruction::Load { address } =&gt; {
                 <span class="kw">let </span>address = <span class="kw-2">*</span>address;
 
@@ -2020,7 +2069,9 @@
                     }
                 }
 
-                references.for_each_alias_of(value, |<span class="kw">_</span>, alias| {
+                <span class="comment">// Remember that we used the value in this instruction. If this instruction
+                // isn't removed at the end, we need to keep the stores to the value as well.
+                </span>references.for_each_alias_of(value, |<span class="kw">_</span>, alias| {
                     <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
                 });
 
@@ -2080,6 +2131,13 @@
 
                     references.expressions.insert(result, expression.clone());
                     references.aliases.insert(expression, aliases);
+
+                    <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
+                    </span>references.for_each_alias_of(<span class="kw-2">*</span>value, |<span class="kw">_</span>, alias| {
+                        <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
+                    });
                 }
             }
             Instruction::Call { arguments, .. } =&gt; {
