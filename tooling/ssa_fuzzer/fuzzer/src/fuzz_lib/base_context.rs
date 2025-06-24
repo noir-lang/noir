@@ -12,6 +12,7 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
@@ -24,15 +25,15 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
-#[derive(Arbitrary, Debug, Clone, Hash)]
+#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize)]
 pub(crate) enum FuzzerCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
     /// Merges two instruction blocks, stores result in instruction_blocks
     MergeInstructionBlocks { first_block_idx: usize, second_block_idx: usize },
     /// terminates current SSA block with jmp_if_else. Creates two new SSA blocks from chosen InstructionBlocks.
-    /// If in loop, stores then and else branches as loop bodies
-    /// Switches current_block_context to then_branch.
+    /// If in loop, finalizes then and else branches with jump to the loop iter block. Switches context to the loop end block.
+    /// Otherwise, switches current_block_context to then_branch.
     /// Adds else_branch to the next_block_queue. If current SSA block is already terminated, skip.
     InsertJmpIfBlock { block_then_idx: usize, block_else_idx: usize },
     /// Terminates current SSA block with jmp.
@@ -329,6 +330,23 @@ impl FuzzerContext {
         self.current_block = then_stored_block.clone();
     }
 
+    fn loop_end_defined_variables(
+        &mut self,
+        first_body_block_id: BasicBlockId,
+    ) -> HashMap<ValueType, Vec<TypedValue>> {
+        let iter_block_for_loop_id =
+            self.cycle_bodies_to_iters_ids[&first_body_block_id].block_iter_id;
+        let variables_stored_by_first_body_block =
+            self.stored_variables_for_block[&first_body_block_id].clone();
+        for (body_block_id, cycle_info) in self.cycle_bodies_to_iters_ids.iter() {
+            if cycle_info.block_iter_id == iter_block_for_loop_id {
+                let variables_stored_by_second_body_block =
+                    self.stored_variables_for_block[body_block_id].clone();
+            }
+        }
+        variables_stored_by_first_body_block
+    }
+
     fn process_jmp_block(&mut self, block_idx: usize) {
         // If the current block is a loop body
         if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
@@ -534,10 +552,19 @@ impl FuzzerContext {
             &block_body.instructions,
         );
 
+        let end_context =
+            if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+                self.stored_blocks
+                    [&self.cycle_bodies_to_iters_ids[&self.current_block.block_id].block_end_id]
+                    .context
+                    .clone()
+            } else {
+                self.current_block.context.clone()
+            };
         // end block does not share variables with body block, so we copy them from the current block
         let block_end_context = BlockContext::new(
-            self.current_block.context.stored_values.clone(),
-            self.current_block.context.memory_addresses.clone(),
+            end_context.stored_values.clone(),
+            end_context.memory_addresses.clone(),
             block_body_context.parent_blocks_history.clone(),
             SsaBlockOptions::from(self.context_options.clone()),
         );
