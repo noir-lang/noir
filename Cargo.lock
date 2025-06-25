@@ -89,6 +89,7 @@ dependencies = [
  "k256",
  "keccak",
  "libaes",
+ "log",
  "num-bigint",
  "num-prime",
  "p256",
@@ -3216,6 +3217,7 @@ dependencies = [
  "lazy_static",
  "light-poseidon",
  "nargo",
+ "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
  "noir_artifact_cli",
@@ -3256,6 +3258,18 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "nargo_expand"
+version = "1.0.0-beta.7"
+dependencies = [
+ "fm",
+ "nargo",
+ "nargo_fmt",
+ "noirc_driver",
+ "noirc_errors",
+ "noirc_frontend",
 ]
 
 [[package]]
@@ -3390,6 +3404,7 @@ dependencies = [
  "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
@@ -3489,6 +3504,7 @@ dependencies = [
  "fxhash",
  "iter-extended",
  "nargo",
+ "nargo_expand",
  "nargo_fmt",
  "nargo_toml",
  "noirc_driver",
@@ -3710,6 +3726,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "chrono",
+ "fm",
  "function_name",
  "fxhash",
  "im",

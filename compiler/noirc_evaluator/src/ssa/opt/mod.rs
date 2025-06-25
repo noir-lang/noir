@@ -30,7 +30,8 @@ mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;
 mod remove_truncate_after_range_check;
-mod remove_unreachable;
+mod remove_unreachable_functions;
+mod remove_unreachable_instructions;
 mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
@@ -64,10 +65,10 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
 
     ssa.normalize_ids();
 
-    let ssa = ssa.to_string();
+    let ssa = ssa.print_without_locations().to_string();
     let ssa = ssa.trim_end();
 
-    let expected_ssa = expected_ssa.to_string();
+    let expected_ssa = expected_ssa.print_without_locations().to_string();
     let expected_ssa = expected_ssa.trim_end();
 
     if ssa == expected_ssa {
@@ -112,6 +113,7 @@ macro_rules! assert_ssa_snapshot {
         #[allow(unused_mut)]
         let mut mut_ssa = $ssa;
         mut_ssa.normalize_ids();
-        insta::assert_snapshot!(mut_ssa, $($arg)*)
+        let ssa_string = mut_ssa.print_without_locations().to_string();
+        insta::assert_snapshot!(ssa_string, $($arg)*)
     };
 }

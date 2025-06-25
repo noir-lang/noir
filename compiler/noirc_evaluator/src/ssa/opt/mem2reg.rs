@@ -85,12 +85,13 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -401,18 +402,37 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        mut instruction: InstructionId,
+        instruction: InstructionId,
     ) {
-        // If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
+        // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
+        // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
-        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } else {
+        // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
+        // and we need to mark those references as used to keep their stores alive.
+        let (instruction, simplified) = {
+            let (ins, loc) = self.inserter.map_instruction(instruction);
+            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
+                InsertInstructionResult::Results(id, _) => (id, false),
+                InsertInstructionResult::SimplifiedTo(value) => {
+                    let value = &self.inserter.function.dfg[value];
+                    let Value::Instruction { instruction, .. } = value else {
+                        return;
+                    };
+                    (*instruction, true)
+                }
+                _ => return,
+            }
+        };
+
+        let ins = &self.inserter.function.dfg[instruction];
+
+        // Some instructions, when simplified, cause problems if processed again.
+        // We do need it for MakeArray in some cases, and at the moment that is not problematic.
+        if simplified && !matches!(ins, Instruction::MakeArray { .. }) {
             return;
         }
 
-        match &self.inserter.function.dfg[instruction] {
+        match ins {
             Instruction::Load { address } => {
                 let address = *address;
 
@@ -464,6 +484,8 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
 
+                // Remember that we used the value in this instruction. If this instruction
+                // isn't removed at the end, we need to keep the stores to the value as well.
                 references.for_each_alias_of(value, |_, alias| {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 });
@@ -524,6 +546,13 @@ impl<'f> PerFunctionContext<'f> {
 
                     references.expressions.insert(result, expression.clone());
                     references.aliases.insert(expression, aliases);
+
+                    // Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
+                    references.for_each_alias_of(*value, |_, alias| {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    });
                 }
             }
             Instruction::Call { arguments, .. } => {
@@ -619,7 +648,7 @@ impl<'f> PerFunctionContext<'f> {
         self.inserter.map_terminator_in_place(block);
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Unreachable { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
                 assert_eq!(destination_parameters.len(), arguments.len());
