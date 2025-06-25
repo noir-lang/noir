@@ -5,6 +5,7 @@ use super::{
     function::Function,
 };
 use fxhash::FxHashMap as HashMap;
+use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.
 #[derive(Clone, Default)]
@@ -161,12 +162,9 @@ impl ControlFlowGraph {
         let reverse = cfg.reverse();
         let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
         // Extract blocks that are not reachable from the exit blocks
-        let dead_blocks: Vec<BasicBlockId> = cfg
-            .data
-            .keys()
-            .filter(|&block| !post_order.as_slice().contains(block))
-            .copied()
-            .collect();
+        let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
+        let dead_blocks: Vec<BasicBlockId> =
+            cfg.data.keys().filter(|&block| !rpo_traversal.contains(block)).copied().collect();
 
         // If some blocks, that we call 'dead' blocks, are not in the post-order traversal of the reverse CFG,
         // or if there are multiple exit nodes, then the reverse CFG is not a CFG because
@@ -182,9 +180,7 @@ impl ControlFlowGraph {
             }
             // Connect the 'dead' blocks to it
             for block in dead_blocks {
-                if !post_order.as_slice().contains(&block) {
-                    cfg.add_edge(block, exit);
-                }
+                cfg.add_edge(block, exit);
             }
         }
         // We can now reverse the extended CFG
