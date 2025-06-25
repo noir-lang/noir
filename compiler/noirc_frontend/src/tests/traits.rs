@@ -1658,3 +1658,22 @@ fn trait_with_same_generic_in_different_default_methods() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_impl_for_trait_with_default_method_in_another_module() {
+    let src = r#"
+    mod moo {
+        fn foo() {}
+
+        pub trait Trait {
+            fn bar() {
+                foo()
+            }
+        }
+    }
+
+    impl moo::Trait for i32 {}
+    "#;
+    assert_no_errors!(src);
+}

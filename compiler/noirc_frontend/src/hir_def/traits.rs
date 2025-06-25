@@ -3,6 +3,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
@@ -18,7 +19,7 @@ pub struct TraitFunction {
     pub typ: Type,
     pub location: Location,
     pub default_impl: Option<Box<NoirFunction>>,
-    pub default_impl_module_id: crate::hir::def_map::LocalModuleId,
+    pub default_impl_module_id: ModuleId,
     pub trait_constraints: Vec<TraitConstraint>,
     pub direct_generics: Generics,
 }

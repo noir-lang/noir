@@ -192,6 +192,11 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
+    /// If present, this module should be used when resolving paths.
+    /// This is currently used as a workaround for default trait methods copied into trait impls:
+    /// their body should be the same but paths should be resolved relative to the trait's module.
+    path_resolution_module: Option<ModuleId>,
+
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
@@ -265,6 +270,7 @@ impl<'context> Elaborator<'context> {
             current_item: None,
             local_module: LocalModuleId::dummy_id(),
             crate_id,
+            path_resolution_module: None,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
@@ -458,6 +464,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = func_meta.source_module;
         self.self_type = func_meta.self_type.clone();
         self.current_trait_impl = func_meta.trait_impl;
+        self.path_resolution_module = func_meta.path_resolution_module;
 
         self.scopes.start_function();
         let old_item = self.current_item.replace(DependencyId::Function(id));
@@ -565,6 +572,7 @@ impl<'context> Elaborator<'context> {
         self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
         self.current_item = old_item;
+        self.path_resolution_module = None;
     }
 
     /// This turns function parameters of the form:
@@ -899,6 +907,7 @@ impl<'context> Elaborator<'context> {
         func_id: FuncId,
         trait_id: Option<TraitId>,
         extra_trait_constraints: &[(TraitConstraint, Location)],
+        path_resolution_module: Option<ModuleId>,
     ) {
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
@@ -1056,6 +1065,7 @@ impl<'context> Elaborator<'context> {
             has_inline_attribute,
             source_crate: self.crate_id,
             source_module: self.local_module,
+            path_resolution_module,
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.self_type.clone(),
             source_file: location.file,
@@ -2323,7 +2333,7 @@ impl<'context> Elaborator<'context> {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, None, extra_constraints);
+                this.define_function_meta(func, *id, None, extra_constraints, None);
             });
         }
     }

@@ -63,11 +63,17 @@ impl Elaborator<'_> {
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
                     self.recover_generics(|this| {
-                        this.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                        this.define_function_meta(
+                            &mut default_impl_clone,
+                            func_id,
+                            None,
+                            &[],
+                            Some(method.default_impl_module_id),
+                        );
                     });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
-                        method.default_impl_module_id,
+                        method.default_impl_module_id.local_id,
                         func_id,
                         *default_impl_clone,
                     ));

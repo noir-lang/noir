@@ -100,6 +100,7 @@ impl<'context> Elaborator<'context> {
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
+        elaborator.path_resolution_module = self.path_resolution_module;
 
         setup(&mut elaborator);
 
@@ -532,7 +533,7 @@ impl<'context> Elaborator<'context> {
         for (trait_id, trait_) in traits {
             let attributes = &trait_.trait_def.attributes;
             let item = Value::TraitDefinition(*trait_id);
-            let context = AttributeContext::new(trait_.module_id);
+            let context = AttributeContext::new(trait_.module_id.local_id);
             self.collect_comptime_attributes_on_item(
                 attributes,
                 item,

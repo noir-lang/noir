@@ -23,7 +23,7 @@ use super::Elaborator;
 impl Elaborator<'_> {
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = unresolved_trait.module_id.local_id;
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -88,7 +88,7 @@ impl Elaborator<'_> {
 
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.local_module = unresolved_trait.module_id;
+            self.local_module = unresolved_trait.module_id.local_id;
 
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
@@ -128,7 +128,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
-        self.local_module = unresolved_trait.module_id;
+        self.local_module = unresolved_trait.module_id.local_id;
 
         let mut functions = vec![];
 
@@ -268,7 +268,7 @@ impl Elaborator<'_> {
         def.visibility = trait_visibility;
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, Some(trait_id), &[]);
+        self.define_function_meta(&mut function, func_id, Some(trait_id), &[], None);
 
         // Here we elaborate functions without a body, mainly to check the arguments and return types.
         // Later on we'll elaborate functions with a body by fully type-checking them.
