@@ -796,12 +796,12 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
     let value = SignedField::positive(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
     let value = SignedField::from_signed(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }

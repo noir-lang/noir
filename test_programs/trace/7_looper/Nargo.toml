@@ -1,6 +1,0 @@
-[package]
-name = "7_looper"
-type = "bin"
-authors = [""]
-
-[dependencies]

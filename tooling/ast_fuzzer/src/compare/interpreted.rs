@@ -89,7 +89,12 @@ impl CompareInterpreted {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa1.step,
+            self.ssa1.msg,
+            self.ssa1.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));
@@ -131,6 +136,18 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // but the fact remains that the interpreter would fail earlier than ACIR or Brillig.
                 // To deal with this we ignore these errors as long as both passes fail the same way.
                 c1 == c2 && t1 == t2
+            }
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+            )
+            | (
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+            ) => {
+                // The value should be a `NumericValue` display format, which is `<type> <value>`.
+                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                value == constant.to_string()
             }
             (Internal(_), _) | (_, Internal(_)) => {
                 // We should not get, or ignore, internal errors.

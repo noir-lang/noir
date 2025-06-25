@@ -8,7 +8,7 @@ trait Foo {
 
 impl Foo for Field {
     fn foo(self) -> Self {
-        self + 1
+        self + 1_Field
     }
 }
 
@@ -23,6 +23,6 @@ comptime fn trait_attr(_t: TraitDefinition) -> Quoted {
 }
 
 fn main() {
-    assert(1.foo() == 2);
-    assert(10.foo() == 11);
+    assert(1_Field.foo() == 2_Field);
+    assert(10_Field.foo() == 11_Field);
 }

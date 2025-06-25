@@ -4,12 +4,12 @@ expression: expanded_code
 ---
 fn case1() -> [Field] {
     if true {};
-    &[1]
+    &[1_Field]
 }
 
 fn case2() -> [u8] {
-    let mut var: u8 = 1;
-    { var = var + 1; };
+    let mut var: u8 = 1_u8;
+    { var = var + 1_u8; };
     &[var]
 }
 

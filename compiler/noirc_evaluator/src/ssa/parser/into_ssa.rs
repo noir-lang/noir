@@ -229,7 +229,7 @@ impl Translator {
                     queue.push_back(self.lookup_block(then_block)?);
                     queue.push_back(self.lookup_block(else_block)?);
                 }
-                ParsedTerminator::Return(..) => (),
+                ParsedTerminator::Return(..) | ParsedTerminator::Unreachable => (),
             }
         }
 
@@ -264,6 +264,9 @@ impl Translator {
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
                 self.builder.terminate_with_return(return_values);
+            }
+            ParsedTerminator::Unreachable => {
+                self.builder.terminate_with_unreachable();
             }
         }
 
@@ -454,7 +457,14 @@ impl Translator {
                             .globals_function
                             .dfg
                             .make_constant(constant.value, constant.typ.unwrap_numeric()),
-                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                        ParsedValue::Variable(identifier) => {
+                            match self.lookup_global(identifier.clone()) {
+                                Ok(global) => global,
+                                Err(lookup_global_err) => self
+                                    .lookup_call_function(identifier)
+                                    .map_err(|_| lookup_global_err)?,
+                            }
+                        }
                     };
                     elements.push_back(element_id);
                 }

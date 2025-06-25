@@ -58,6 +58,7 @@ pub fn optimize_ssa_into_acir(
             print_codegen_timings: options.print_codegen_timings,
             passed: HashMap::new(),
             skip_passes: vec![],
+            files: None,
         };
         optimize_ssa_builder_into_acir(
             builder,

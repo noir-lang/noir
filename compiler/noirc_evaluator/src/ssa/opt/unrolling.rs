@@ -914,7 +914,9 @@ impl<'f> LoopIteration<'f> {
                 }
                 vec![*destination]
             }
-            TerminatorInstruction::Return { .. } => vec![],
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {
+                vec![]
+            }
         }
     }
 
@@ -1328,7 +1330,7 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         // Check that it's still the original
-        assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]
@@ -1336,7 +1338,8 @@ mod tests {
         let ssa = brillig_unroll_test_case();
         let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
         // Check that it's still the original
-        assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
+        let expected = brillig_unroll_test_case();
+        assert_normalized_ssa_equals(ssa, &expected.print_without_locations().to_string());
     }
 
     #[test]

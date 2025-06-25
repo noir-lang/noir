@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
@@ -237,6 +235,7 @@ impl CompileOptions {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum CompileError {
     MonomorphizationError(MonomorphizationError),
     RuntimeError(RuntimeError),
@@ -711,6 +710,7 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 /// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
+#[allow(clippy::result_large_err)]
 pub fn compile_no_check(
     context: &mut Context,
     options: &CompileOptions,
@@ -797,9 +797,13 @@ pub fn compile_no_check(
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         if options.minimal_ssa {
-            create_program_with_minimal_passes(program, &ssa_evaluator_options)?
+            create_program_with_minimal_passes(
+                program,
+                &ssa_evaluator_options,
+                &context.file_manager,
+            )?
         } else {
-            create_program(program, &ssa_evaluator_options)?
+            create_program(program, &ssa_evaluator_options, Some(&context.file_manager))?
         };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);

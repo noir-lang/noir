@@ -162,8 +162,8 @@ mod tests {
                     snapshot_path => format!("./snapshots/execution_success/{test_name}")
                 },
                 {
-                insta::assert_snapshot!(snapshot_name, stdout)
-            })
+                insta::assert_snapshot!(snapshot_name, stdout);
+            });
         }
 
         if has_circuit_output {
@@ -322,8 +322,8 @@ mod tests {
                 snapshot_path => format!("./snapshots/compile_failure/{test_name}")
             },
             {
-            insta::assert_snapshot!(snapshot_name, stderr)
-        })
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn interpret_execution_success(mut nargo: Command) {
@@ -369,7 +369,7 @@ mod tests {
             snapshot_path => format!("./snapshots/execution_success/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
@@ -430,7 +430,7 @@ mod tests {
             snapshot_path => format!("./snapshots/{prefix}/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
@@ -507,8 +507,8 @@ mod tests {
                     Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn check_contract_artifact(
@@ -538,8 +538,8 @@ mod tests {
                 ".noir_version" => "[noir_version]",
                 ".functions[].hash" => "[hash]",
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn file_map_path_redaction() -> Redaction {

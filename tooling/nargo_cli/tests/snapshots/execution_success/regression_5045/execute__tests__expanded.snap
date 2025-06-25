@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar};
+
+fn main(is_active: bool) {
+    let a: EmbeddedCurvePoint = EmbeddedCurvePoint {
+        x: -8519034168028805793603472410045416908800114122389094750979358290384607299995_Field,
+        y: 2726875754519434671146873023426441956600113087238248464305840046775215989920_Field,
+        is_infinite: false,
+    };
+    if is_active {
+        let bad: EmbeddedCurvePoint =
+            EmbeddedCurvePoint { x: 0_Field, y: 5_Field, is_infinite: false };
+        let d: EmbeddedCurvePoint = bad.double();
+        let e: EmbeddedCurvePoint = std::embedded_curve_ops::multi_scalar_mul(
+            [a, bad],
+            [
+                EmbeddedCurveScalar { lo: 1_Field, hi: 0_Field },
+                EmbeddedCurveScalar { lo: 1_Field, hi: 0_Field },
+            ],
+        );
+        assert(e.x != d.x);
+    }
+}

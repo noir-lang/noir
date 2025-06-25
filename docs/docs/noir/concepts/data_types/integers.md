@@ -11,9 +11,11 @@ The allowed sizes are 1, 8, 16, 32, 64 and 128 bits. ([currently only unsigned i
 
 :::info
 
-When an integer is defined in Noir without a specific type, it will default to `Field`.
+When an integer is defined in Noir without a specific type, it will default to `Field` unless another type is expected at its position.
 
 The one exception is for loop indices which default to `u32` since comparisons on `Field`s are not possible.
+
+You can add a type suffix such as `u32` or `Field` to the end of an integer literal to explicitly specify the type.
 
 :::
 
@@ -24,7 +26,7 @@ An unsigned integer type is specified first with the letter `u` (indicating its 
 ```rust
 fn main() {
     let x: u8 = 1;
-    let y: u8 = 1;
+    let y = 1_u8;
     let z = x + y;
     assert (z == 2);
 }
@@ -39,7 +41,7 @@ A signed integer type is specified first with the letter `i` (which stands for i
 ```rust
 fn main() {
     let x: i8 = -1;
-    let y: i8 = -1;
+    let y = -1i8;
     let z = x + y;
     assert (z == -2);
 }
@@ -95,7 +97,7 @@ A similar error would happen with signed integers:
 ```rust
 fn main() -> i8 {
     let x: i8 = -118;
-    let y: i8 = -11;
+    let y = -11;
     let z = x + y;
     z
 }

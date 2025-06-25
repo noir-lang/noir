@@ -18,6 +18,7 @@ members = [
     "tooling/greybox_fuzzer",
     "tooling/tracer",
     "tooling/nargo",
+    "tooling/nargo_expand",
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
@@ -73,6 +74,13 @@ trivial_casts = "warn"
 trivial_numeric_casts = "warn"
 unused_import_braces = "warn"
 unused_qualifications = "warn"
+unreachable_pub = "warn"
+unsafe_code = "deny"
+unused_must_use = "warn"
+
+[workspace.lints.clippy]
+semicolon_if_nothing_returned = "warn"
+result_large_err = "allow"
 
 [workspace.dependencies]
 
@@ -98,6 +106,7 @@ noirc_printable_type = { path = "compiler/noirc_printable_type" }
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
 nargo_cli = { path = "tooling/nargo_cli" }
+nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }
 nargo_toml = { path = "tooling/nargo_toml" }
 noir_lsp = { path = "tooling/lsp" }

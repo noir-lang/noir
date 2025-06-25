@@ -64,6 +64,7 @@ impl HirIdent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ImplKind {
     /// This ident is not a trait method
     NotATraitMethod,
