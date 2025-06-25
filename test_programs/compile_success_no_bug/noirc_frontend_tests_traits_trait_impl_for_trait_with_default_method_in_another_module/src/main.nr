@@ -10,4 +10,6 @@
     }
 
     impl moo::Trait for i32 {}
+
+    fn main() {}
     

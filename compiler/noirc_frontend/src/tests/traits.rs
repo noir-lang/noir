@@ -1674,6 +1674,8 @@ fn trait_impl_for_trait_with_default_method_in_another_module() {
     }
 
     impl moo::Trait for i32 {}
+
+    fn main() {}
     "#;
     assert_no_errors!(src);
 }
