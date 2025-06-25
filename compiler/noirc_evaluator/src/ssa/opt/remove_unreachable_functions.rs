@@ -74,6 +74,16 @@ fn remove_unreachable_functions_post_check(ssa: &Ssa) {
     assert!(has_unreachable_functions, "SSA contains unreachable functions");
 }
 
+/// Identifies all reachable function IDs within the provided [Ssa].
+/// This includes:
+/// - Function calls (functions used via `Call` instructions)
+/// - Function references (functions stored via `Store` instructions)
+///
+/// # Arguments
+/// - `ssa`: The [Ssa] to analyze for usage
+///
+/// # Returns
+/// A sorted set of [`FunctionId`]s that are reachable from the entry points of the SSA.
 fn reachable_functions(ssa: &Ssa) -> HashSet<FunctionId> {
     // Identify entry points
     let entry_points = ssa.functions.iter().filter_map(|(&id, func)| {
