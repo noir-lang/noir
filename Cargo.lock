@@ -3404,6 +3404,7 @@ dependencies = [
  "noir_greybox_fuzzer",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "proptest",
