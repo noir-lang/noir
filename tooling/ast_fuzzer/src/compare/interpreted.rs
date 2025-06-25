@@ -89,7 +89,12 @@ impl CompareInterpreted {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa1.step,
+            self.ssa1.msg,
+            self.ssa1.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));

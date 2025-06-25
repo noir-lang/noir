@@ -71,5 +71,5 @@ fn get_expanded_package_or_error(
 
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
-    Ok(get_expanded_crate(&context, crate_id))
+    Ok(get_expanded_crate(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner))
 }

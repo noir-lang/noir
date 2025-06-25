@@ -1318,7 +1318,6 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
-        println!("{}", ssa);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {

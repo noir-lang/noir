@@ -1,7 +1,11 @@
+use std::collections::BTreeMap;
+
 use nargo_fmt::ImportsGranularity;
 use noirc_driver::CrateId;
 use noirc_frontend::{
-    hir::{Context, def_map::ModuleId},
+    graph::CrateGraph,
+    hir::def_map::{CrateDefMap, ModuleId},
+    node_interner::NodeInterner,
     parse_program_with_dummy_file,
 };
 
@@ -11,24 +15,24 @@ mod items;
 mod printer;
 
 /// Returns the expanded code for the given crate.
-/// Note that `context` must have `activate_lsp_mode` called on it before invoking this function.
-pub fn get_expanded_crate(context: &Context, crate_id: CrateId) -> String {
-    let root_module_id = context.def_maps[&crate_id].root();
+/// Note that `context` that holds the crate graph, def maps and interner
+/// must have `activate_lsp_mode` called on it before invoking this function.
+pub fn get_expanded_crate(
+    crate_id: CrateId,
+    crate_graph: &CrateGraph,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    interner: &NodeInterner,
+) -> String {
+    let root_module_id = def_maps[&crate_id].root();
     let module_id = ModuleId { krate: crate_id, local_id: root_module_id };
 
-    let mut builder = ItemBuilder::new(crate_id, &context.def_interner, &context.def_maps);
+    let mut builder = ItemBuilder::new(crate_id, interner, def_maps);
     let item = builder.build_module(module_id);
 
-    let dependencies = &context.crate_graph[context.root_crate_id()].dependencies;
+    let dependencies = &crate_graph[crate_id].dependencies;
 
     let mut string = String::new();
-    let mut printer = ItemPrinter::new(
-        crate_id,
-        &context.def_interner,
-        &context.def_maps,
-        dependencies,
-        &mut string,
-    );
+    let mut printer = ItemPrinter::new(crate_id, interner, def_maps, dependencies, &mut string);
     printer.show_item(item);
 
     let (parsed_module, errors) = parse_program_with_dummy_file(&string);
