@@ -128,6 +128,32 @@ impl<'a> SsaPass<'a> {
     pub fn run(&self, ssa: Ssa) -> Result<Ssa, RuntimeError> {
         (self.run)(ssa)
     }
+
+    /// Follow up the pass with another one, without adding a separate message for it.
+    ///
+    /// This is useful for attaching cleanup passes that we don't want to appear on their
+    /// own in the pipeline, because it would just increase the noise.
+    pub fn and_then<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        self.and_then_try(move |ssa| Ok(f(ssa)))
+    }
+
+    /// Same as `and_then` but for passes that can fail.
+    pub fn and_then_try<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        Self {
+            msg: self.msg,
+            run: Box::new(move |ssa| {
+                let ssa = self.run(ssa)?;
+                let ssa = f(ssa)?;
+                Ok(ssa)
+            }),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -140,8 +166,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions")
+            .and_then(Ssa::remove_unreachable_functions),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -154,8 +180,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -198,9 +224,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         // The Brillig globals pass expected that we have the used globals map set for each function.
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
-        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+            // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
@@ -213,10 +239,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
-        // A function can be potentially unreachable post-DIE if all calls to that function were removed,
-        // or after the removal of unreachable instructions.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            // A function can be potentially unreachable post-DIE if all calls to that function were removed,
+            // or after the removal of unreachable instructions.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
@@ -231,10 +257,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
-        // It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            // It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
     ]
 }

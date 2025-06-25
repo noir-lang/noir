@@ -299,8 +299,23 @@ mod tests {
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());
     }
 
-    fn compile_success_with_bug(mut nargo: Command) {
+    fn compile_success_with_bug(mut nargo: Command, test_program_dir: PathBuf) {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
+
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_success_with_bug/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
