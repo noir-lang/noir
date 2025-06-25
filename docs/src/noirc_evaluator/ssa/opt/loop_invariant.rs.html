@@ -2931,7 +2931,7 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; LoopInvariantContext&lt;<span class="lifetime">'f</span>&gt; {
     <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span><span class="kw-2">mut </span>Function) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-        <span class="kw">let </span>reversed_cfg = cfg.reverse();
+        <span class="kw">let </span>reversed_cfg = ControlFlowGraph::extended_reverse(function);
         <span class="kw">let </span>post_order = PostOrder::with_cfg(<span class="kw-2">&amp;</span>reversed_cfg);
         <span class="kw">let </span><span class="kw-2">mut </span>post_dom = DominatorTree::with_cfg_and_post_order(<span class="kw-2">&amp;</span>reversed_cfg, <span class="kw-2">&amp;</span>post_order);
         <span class="kw">let </span>post_dom_frontiers = post_dom.compute_dominance_frontiers(<span class="kw-2">&amp;</span>reversed_cfg);
