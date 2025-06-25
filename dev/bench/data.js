@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750853244009,
+  "lastUpdate": 1750853255502,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3546f4780efda452eee310a137ee69a49f334d31",
-          "message": "fix: Create calls to `apply` before function values are changed to fields in defunctionalize (#8916)",
-          "timestamp": "2025-06-13T19:34:41Z",
-          "tree_id": "090f7ad2471fa2b7b944ef2a2a52a0c9ccf28606",
-          "url": "https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31"
-        },
-        "date": 1749845448306,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.026,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.154,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.187,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.009,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.021,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d735bee0da737d2904872d7a44f903857698c24",
+          "message": "chore(ssa): Add `SsaPass:and_then` (#9016)",
+          "timestamp": "2025-06-25T11:36:50Z",
+          "tree_id": "aa160a3afa48ff3f2efd20f437a89153ddf61eca",
+          "url": "https://github.com/noir-lang/noir/commit/6d735bee0da737d2904872d7a44f903857698c24"
+        },
+        "date": 1750853242702,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.291,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.182,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.003,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
