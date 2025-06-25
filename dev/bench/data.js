@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750796739484,
+  "lastUpdate": 1750852778908,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3546f4780efda452eee310a137ee69a49f334d31",
-          "message": "fix: Create calls to `apply` before function values are changed to fields in defunctionalize (#8916)",
-          "timestamp": "2025-06-13T19:34:41Z",
-          "tree_id": "090f7ad2471fa2b7b944ef2a2a52a0c9ccf28606",
-          "url": "https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31"
-        },
-        "date": 1749845105760,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247745,
-            "range": "± 634",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220847,
-            "range": "± 1861",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789198,
-            "range": "± 5499",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781003,
             "range": "± 1818",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d735bee0da737d2904872d7a44f903857698c24",
+          "message": "chore(ssa): Add `SsaPass:and_then` (#9016)",
+          "timestamp": "2025-06-25T11:36:50Z",
+          "tree_id": "aa160a3afa48ff3f2efd20f437a89153ddf61eca",
+          "url": "https://github.com/noir-lang/noir/commit/6d735bee0da737d2904872d7a44f903857698c24"
+        },
+        "date": 1750852766113,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254734,
+            "range": "± 434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228015,
+            "range": "± 3360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784856,
+            "range": "± 3487",
             "unit": "ns/iter"
           }
         ]
