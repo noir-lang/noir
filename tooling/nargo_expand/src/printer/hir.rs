@@ -391,7 +391,7 @@ impl ItemPrinter<'_, '_> {
         let mut method_on_trait_self = false;
 
         // Special case: assumed trait method
-        if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
+        if let ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
             if trait_method.assumed {
                 if let Type::NamedGeneric(NamedGeneric { name, .. }) = &trait_method.constraint.typ
                 {

@@ -1,13 +1,14 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
+use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
-    node_interner::{FuncId, TraitId, TraitMethodId},
+    node_interner::{FuncId, TraitId},
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -181,12 +182,23 @@ impl Trait {
         self.associated_type_bounds = associated_type_bounds;
     }
 
-    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
-        for (idx, method) in self.methods.iter().enumerate() {
+    pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+        for method in self.methods.iter() {
             if &method.name == name {
-                return Some(TraitMethodId { trait_id: self.id, method_index: idx });
+                let id = *self.method_ids.get(name).unwrap();
+                return Some(interner.function_definition_id(id));
             }
         }
+        None
+    }
+
+    pub fn find_method_or_constant(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+        print!("finding method or constant `{name}`: ");
+        if let Some(method) = self.find_method(name, interner) {
+            println!("found");
+            return Some(method);
+        }
+            println!("not found");
         None
     }
 

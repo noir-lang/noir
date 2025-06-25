@@ -97,7 +97,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
-        let trait_method = self.elaborator.interner.get_trait_method_id(function);
+        let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
@@ -579,8 +579,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
+        if let ImplKind::TraitItem(method) = ident.impl_kind {
+            let method_ids = (method.definition, method.constraint.trait_bound.trait_id);
+            let method_id = resolve_trait_method(self.elaborator.interner, method_ids, id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));

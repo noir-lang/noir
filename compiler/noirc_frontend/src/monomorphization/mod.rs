@@ -25,7 +25,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
@@ -86,7 +86,7 @@ pub(super) struct Monomorphizer<'interner> {
         node_interner::FuncId,
         FuncId,
         TypeBindings,
-        Option<TraitMethodId>,
+        Option<TraitItemId>,
         bool,
         Location,
     )>,
@@ -113,6 +113,9 @@ pub(super) struct Monomorphizer<'interner> {
 
     in_unconstrained_function: bool,
 }
+
+/// Identify a trait method by the id within the trait (definition, not impl) and the trait itself
+type TraitItemId = (node_interner::DefinitionId, node_interner::TraitId);
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 type Functions = HashMap<
@@ -263,7 +266,7 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: node_interner::ExprId,
         typ: &HirType,
         turbofish_generics: &[HirType],
-        trait_method: Option<TraitMethodId>,
+        trait_method: Option<TraitItemId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
@@ -1047,8 +1050,9 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
-        if let ImplKind::TraitMethod(method) = ident.impl_kind {
-            return self.resolve_trait_method_expr(expr_id, typ, method.method_id);
+        if let ImplKind::TraitItem(method) = ident.impl_kind {
+            let ids = (method.definition, method.constraint.trait_bound.trait_id);
+            return self.resolve_trait_method_expr(expr_id, typ, ids);
         }
 
         // Ensure all instantiation bindings are bound.
@@ -1610,25 +1614,26 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         expr_id: node_interner::ExprId,
         function_type: HirType,
-        method: TraitMethodId,
+        method_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = resolve_trait_method(self.interner, method, expr_id)
+        let func_id = resolve_trait_method(self.interner, method_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
+        let trait_method = Some(method_id);
         let func_id =
-            match self.lookup_function(func_id, expr_id, &function_type, &[], Some(method)) {
+            match self.lookup_function(func_id, expr_id, &function_type, &[], trait_method) {
                 Definition::Function(func_id) => func_id,
                 _ => unreachable!(),
             };
 
-        let the_trait = self.interner.get_trait(method.trait_id);
         let location = self.interner.expr_location(&expr_id);
+        let name = self.interner.definition_name(method_id.0).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
             mutable: false,
             location: None,
-            name: the_trait.methods[method.method_index].name.to_string(),
+            name,
             typ: Self::convert_type(&function_type, location)?,
             id: self.next_ident_id(),
         }))
@@ -1847,7 +1852,7 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: node_interner::ExprId,
         function_type: HirType,
         turbofish_generics: Vec<HirType>,
-        trait_method: Option<TraitMethodId>,
+        trait_method: Option<TraitItemId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
@@ -2466,17 +2471,15 @@ pub fn undo_instantiation_bindings(bindings: TypeBindings) {
 /// the correct type bindings during monomorphization.
 pub fn perform_impl_bindings(
     interner: &NodeInterner,
-    trait_method: Option<TraitMethodId>,
+    trait_method: Option<TraitItemId>,
     impl_method: node_interner::FuncId,
     location: Location,
 ) -> Result<TypeBindings, InterpreterError> {
     let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
-        let the_trait = interner.get_trait(trait_method.trait_id);
-
         let mut trait_method_type =
-            the_trait.methods[trait_method.method_index].typ.as_monotype().clone();
+            interner.definition_type(trait_method.0).as_monotype().clone();
 
         let mut impl_method_type =
             interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
@@ -2502,7 +2505,7 @@ pub fn perform_impl_bindings(
 
 pub fn resolve_trait_method(
     interner: &mut NodeInterner,
-    method: TraitMethodId,
+    method_id: TraitItemId,
     expr_id: ExprId,
 ) -> Result<node_interner::FuncId, InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
@@ -2517,7 +2520,7 @@ pub fn resolve_trait_method(
 
             match interner.lookup_trait_implementation(
                 &object_type,
-                method.trait_id,
+                method_id.1,
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
@@ -2533,18 +2536,22 @@ pub fn resolve_trait_method(
                     return Err(InterpreterError::NoImpl { location });
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
+                    eprintln!("monomorphization error1");
                     return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
                 }
                 Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
+                        eprintln!("monomorphization error2");
                         return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
+                        eprintln!("monomorphization error3");
                         return Err(InterpreterError::NoImpl { location });
                     }
                 }
                 Err(ImplSearchErrorKind::MultipleMatching(candidates)) => {
+                    eprintln!("monomorphization error4");
                     return Err(InterpreterError::MultipleMatchingImpls {
                         object_type,
                         location,
@@ -2555,7 +2562,17 @@ pub fn resolve_trait_method(
         }
     };
 
-    Ok(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+    let name = interner.definition_name(method_id.0);
+    let impl_ = interner.get_trait_implementation(impl_id);
+    let impl_ = impl_.borrow();
+
+    for method in &impl_.methods {
+        if interner.function_name(method) == name {
+            return Ok(*method);
+        }
+    }
+
+    unreachable!("No method named `{name}` in impl")
 }
 
 /// Extend the arguments to `print` (which is a `bool` to show if newline is needed and

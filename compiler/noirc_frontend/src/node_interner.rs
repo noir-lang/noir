@@ -526,12 +526,6 @@ impl TraitId {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TraitMethodId {
-    pub trait_id: TraitId,
-    pub method_index: usize, // index in Trait::methods
-}
-
 macro_rules! into_index {
     ($id_type:ty) => {
         impl From<$id_type> for Index {
@@ -1417,16 +1411,6 @@ impl NodeInterner {
         self.function_definition_ids[&function]
     }
 
-    /// Returns the DefinitionId of a trait's method, panics if the given trait method
-    /// is not a valid method of the trait or if the trait has not yet had
-    /// its methods ids set during name resolution.
-    pub fn trait_method_id(&self, trait_method: TraitMethodId) -> DefinitionId {
-        let the_trait = self.get_trait(trait_method.trait_id);
-        let method_name = &the_trait.methods[trait_method.method_index].name;
-        let function_id = the_trait.method_ids[method_name.as_str()];
-        self.function_definition_id(function_id)
-    }
-
     /// Adds a non-trait method to a type.
     ///
     /// Returns `Some(duplicate)` if a matching method was already defined.
@@ -1487,15 +1471,21 @@ impl NodeInterner {
         trait_impls.collect()
     }
 
-    /// If the given function belongs to a trait impl, return its trait method id.
-    /// Otherwise, return None.
-    pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {
-        let impl_id = self.function_meta(&function).trait_impl?;
-        let trait_impl = self.get_trait_implementation(impl_id);
-        let trait_impl = trait_impl.borrow();
+    #[allow(unused)]
+    pub fn trait_constraint_string(&self, object_type: &Type, trait_id: TraitId, trait_generics: &[Type], trait_associated_types: &[NamedType]) -> String {
+        let name = self.get_trait(trait_id).name.to_string();
+        let mut generics = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
+        let associated = vecmap(trait_associated_types, |t| format!("{}: {:?}", t.name, t.typ)).join(", ");
 
-        let method_index = trait_impl.methods.iter().position(|id| *id == function)?;
-        Some(TraitMethodId { trait_id: trait_impl.trait_id, method_index })
+        if !generics.is_empty() && !associated.is_empty() {
+            generics += ", ";
+            generics += &associated;
+        }
+
+        if !generics.is_empty() {
+            generics = format!("<{generics}>");
+        }
+        format!("{object_type:?}: {name}{generics}")
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -1902,6 +1892,15 @@ impl NodeInterner {
             .unwrap_or_default()
     }
 
+    /// Returns the definition id and trait id for a given trait function.
+    /// Note that this will return None for impl functions.
+    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<(DefinitionId, TraitId)> {
+        let function = self.function_meta(&function_id);
+        let trait_id = function.trait_id?;
+        let definition_id = self.function_definition_id(function_id);
+        Some((definition_id, trait_id))
+    }
+
     /// Returns what the next trait impl id is expected to be.
     pub fn next_trait_impl_id(&mut self) -> TraitImplId {
         let next_id = self.next_trait_implementation_id;
@@ -1957,22 +1956,22 @@ impl NodeInterner {
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> (DefinitionId, TraitId) {
         let trait_id = self.infix_operator_traits[&operator];
-
-        // Assume that the operator's method to be overloaded is the first method of the trait.
-        TraitMethodId { trait_id, method_index: 0 }
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        (self.function_definition_id(func_id), trait_id)
     }
 
     /// Retrieves the trait id for a given unary operator.
     /// Only some unary operators correspond to a trait: `-` and `!`, but for example `*` does not.
     /// `self.prefix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitMethodId> {
-        let trait_id = self.prefix_operator_traits.get(operator)?;
-
-        // Assume that the operator's method to be overloaded is the first method of the trait.
-        Some(TraitMethodId { trait_id: *trait_id, method_index: 0 })
+    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<(DefinitionId, TraitId)> {
+        let trait_id = *self.prefix_operator_traits.get(operator)?;
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        Some((self.function_definition_id(func_id), trait_id))
     }
 
     /// Add the given trait as an operator trait if its name matches one of the
