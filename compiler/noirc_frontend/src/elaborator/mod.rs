@@ -242,6 +242,13 @@ impl ElaborateReason {
     }
 }
 
+struct FuncMetaDefinition<'a> {
+    func_id: FuncId,
+    trait_id: Option<TraitId>,
+    extra_trait_constraints: &'a [(TraitConstraint, Location)],
+    path_resolution_module: Option<ModuleId>,
+}
+
 impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -902,14 +909,12 @@ impl<'context> Elaborator<'context> {
     /// to be used in analysis and intern the function parameters
     /// Prerequisite: any implicit generics, including any generics from the impl,
     /// have already been added to scope via `self.add_generics`.
-    fn define_function_meta(
-        &mut self,
-        func: &mut NoirFunction,
-        func_id: FuncId,
-        trait_id: Option<TraitId>,
-        extra_trait_constraints: &[(TraitConstraint, Location)],
-        path_resolution_module: Option<ModuleId>,
-    ) {
+    fn define_function_meta(&mut self, func: &mut NoirFunction, definition: FuncMetaDefinition) {
+        let func_id = definition.func_id;
+        let trait_id = definition.trait_id;
+        let extra_trait_constraints = definition.extra_trait_constraints;
+        let path_resolution_module = definition.path_resolution_module;
+
         let in_contract = if self.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
             // See: https://github.com/noir-lang/noir/issues/3254
@@ -2329,12 +2334,20 @@ impl<'context> Elaborator<'context> {
     fn define_function_metas_for_functions(
         &mut self,
         function_set: &mut UnresolvedFunctions,
-        extra_constraints: &[(TraitConstraint, Location)],
+        extra_trait_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &mut function_set.functions {
             self.local_module = *local_module;
             self.recover_generics(|this| {
-                this.define_function_meta(func, *id, None, extra_constraints, None);
+                this.define_function_meta(
+                    func,
+                    FuncMetaDefinition {
+                        func_id: *id,
+                        trait_id: None,
+                        extra_trait_constraints,
+                        path_resolution_module: None,
+                    },
+                );
             });
         }
     }

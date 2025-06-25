@@ -1,6 +1,7 @@
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, TypeVariable,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    elaborator::FuncMetaDefinition,
     graph::CrateId,
     hir::def_collector::{
         dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -84,10 +85,12 @@ impl Elaborator<'_> {
 
                         this.define_function_meta(
                             &mut default_impl_clone,
-                            func_id,
-                            None,
-                            &[],
-                            Some(method.default_impl_module_id),
+                            FuncMetaDefinition {
+                                func_id,
+                                trait_id: None,
+                                extra_trait_constraints: &[],
+                                path_resolution_module: Some(method.default_impl_module_id),
+                            },
                         );
                     });
                     func_ids_in_trait.insert(func_id);

@@ -10,6 +10,7 @@ use crate::{
         ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
+    elaborator::FuncMetaDefinition,
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{
         function::Parameters,
@@ -268,7 +269,15 @@ impl Elaborator<'_> {
         def.visibility = trait_visibility;
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, Some(trait_id), &[], None);
+        self.define_function_meta(
+            &mut function,
+            FuncMetaDefinition {
+                func_id,
+                trait_id: Some(trait_id),
+                extra_trait_constraints: &[],
+                path_resolution_module: None,
+            },
+        );
 
         // Here we elaborate functions without a body, mainly to check the arguments and return types.
         // Later on we'll elaborate functions with a body by fully type-checking them.
