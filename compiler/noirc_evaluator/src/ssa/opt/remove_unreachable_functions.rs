@@ -64,7 +64,6 @@ impl Ssa {
 /// ## Note
 /// We reuse the same logic for checking reachability as in the main pass, so this function will not
 /// catch any bugs in the pass itself, but it will ensure that the pass is idempotent.
-#[cfg(debug_assertions)]
 fn remove_unreachable_functions_post_check(ssa: &Ssa) {
     let reachable_functions = reachable_functions(ssa);
 
