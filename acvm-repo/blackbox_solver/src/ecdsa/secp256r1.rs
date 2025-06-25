@@ -34,6 +34,7 @@ pub(super) fn verify_signature(
         pubkey.unwrap()
     } else {
         // Public key must sit on the Secp256r1 curve.
+        log::warn!("Invalid public key provided for ECDSA verification");
         return false;
     };
 

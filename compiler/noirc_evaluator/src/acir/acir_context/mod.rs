@@ -13,7 +13,7 @@ use acvm::{
     acir::{
         AcirField, BlackBoxFunc,
         circuit::{
-            AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
+            AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
             opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
         },
         native_types::{Expression, Witness},
@@ -26,8 +26,11 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use std::{borrow::Cow, cmp::Ordering};
 
-use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
+use crate::{
+    ErrorType,
+    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+};
 
 mod big_int;
 mod black_box;
@@ -482,9 +485,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
         if diff_expr.is_const() {
             // Constraint is always false
-            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed {
-                call_stack: self.get_call_stack(),
-            }));
+            let message = self.get_assertion_payload_message(assert_message.as_ref());
+            let call_stack = self.get_call_stack();
+            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed { call_stack, message }));
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
@@ -496,6 +499,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
+    }
+
+    /// Returns Some(String) if the assertion message is present and it refers to a static string.
+    fn get_assertion_payload_message(
+        &self,
+        assert_message: Option<&AssertionPayload<F>>,
+    ) -> Option<String> {
+        assert_message.as_ref().and_then(|assertion_payload| {
+            if let Some(ErrorType::String(message)) =
+                self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
+            {
+                Some(message.to_string())
+            } else {
+                None
+            }
+        })
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.

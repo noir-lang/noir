@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub bool {
+    let b: [(bool, &mut u1); 1] = [(false, &mut 0_u1)];
+    b[1_u32].0
+}
