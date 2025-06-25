@@ -51,11 +51,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
         return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-            Some((result, result_type)) => {
+            Some(Ok((result, result_type))) => {
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            None => SimplifyResult::SimplifiedToInstruction(simplified),
+            Some(Err(..)) | None => SimplifyResult::SimplifiedToInstruction(simplified),
         };
     }
 
