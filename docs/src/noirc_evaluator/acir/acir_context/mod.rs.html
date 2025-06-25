@@ -1747,7 +1747,16 @@
 <a href="#1746" id="1746">1746</a>
 <a href="#1747" id="1747">1747</a>
 <a href="#1748" id="1748">1748</a>
-<a href="#1749" id="1749">1749</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2670,6 +2679,14 @@
         // `rhs` has the correct bit-size because either it is enforced by the overflow checks
         // or `rhs` is zero when the overflow checks are disabled.
         // Indeed, in that case, rhs is replaced with 'predicate * rhs'
+        //
+        // Using the predicate as an offset is a small optimization:
+        // * if the predicate is true, then the offset is one and this assert that 'r&lt;rhs',
+        //   without using a predicate (because 'one' is given for the predicate argument).
+        // * if the predicate is false, then this will assert 'r&lt;=rhs',
+        //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
+        //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
+        //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
         </span><span class="self">self</span>.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)<span class="question-mark">?</span>;
 
         <span class="comment">// a * predicate == (b * q + r) * predicate
@@ -2698,7 +2715,7 @@
                 // quotient_var is the output of a brillig call
                 </span><span class="self">self</span>.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)<span class="question-mark">?</span>;
 
-                <span class="comment">// when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                <span class="comment">// when q == q0, q*b+r can overflow so we need to bound r to avoid the overflow.
                 </span><span class="kw">let </span>size_predicate = <span class="self">self</span>.eq_var(q0_var, quotient_var)<span class="question-mark">?</span>;
                 <span class="kw">let </span>predicate = <span class="self">self</span>.mul_var(size_predicate, predicate)<span class="question-mark">?</span>;
                 <span class="comment">// Ensure that there is no overflow, under q == q0 predicate
@@ -2706,11 +2723,12 @@
                 <span class="kw">let </span>max_r = F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>max_r_big.to_bytes_be());
                 <span class="kw">let </span>max_r_var = <span class="self">self</span>.add_constant(max_r);
 
-                <span class="comment">// Bound the remainder to be &lt;p-q0*b, if the predicate is true.
+                <span class="comment">// Bound the remainder to be &lt;p-q0*b, if the predicate is true,
+                // that is, if q0 == q then assert(r &lt; max_r), where is max_r = p-q0*b, and q0 = p/b, so that q*b+r&lt;p
                 </span><span class="self">self</span>.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    predicate,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )<span class="question-mark">?</span>;

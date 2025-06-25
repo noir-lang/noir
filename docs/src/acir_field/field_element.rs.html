@@ -522,7 +522,13 @@
 <a href="#521" id="521">521</a>
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a></pre></div><pre class="rust"><code><span class="kw">use </span>ark_ff::PrimeField;
 <span class="kw">use </span>ark_ff::Zero;
 <span class="kw">use </span>ark_std::io::Write;
 <span class="kw">use </span>num_bigint::BigUint;
@@ -891,9 +897,9 @@
 <span class="kw">impl </span>BitCounter {
     <span class="kw">fn </span>bits(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; u32 {
         <span class="comment">// If we don't have a non-zero byte then the field element is zero,
-        // which we consider to require a single bit to represent.
+        // which we consider to require a zero bits to represent.
         </span><span class="kw">if </span><span class="self">self</span>.count == <span class="number">0 </span>{
-            <span class="kw">return </span><span class="number">1</span>;
+            <span class="kw">return </span><span class="number">0</span>;
         }
 
         <span class="kw">let </span>num_bits_for_head_byte = <span class="self">self</span>.head_byte.ilog2();
@@ -930,8 +936,14 @@
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>requires_one_bit_to_hold_zero() {
+    </span><span class="kw">fn </span>requires_zero_bit_to_hold_zero() {
         <span class="kw">let </span>field = FieldElement::&lt;ark_bn254::Fr&gt;::zero();
+        <span class="macro">assert_eq!</span>(field.num_bits(), <span class="number">0</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>requires_one_bit_to_hold_one() {
+        <span class="kw">let </span>field = FieldElement::&lt;ark_bn254::Fr&gt;::one();
         <span class="macro">assert_eq!</span>(field.num_bits(), <span class="number">1</span>);
     }
 
