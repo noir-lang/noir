@@ -74,7 +74,7 @@ fn remove_unreachable_functions_post_check(ssa: &Ssa) {
     assert!(has_unreachable_functions, "SSA contains unreachable functions");
 }
 
-pub(crate) fn reachable_functions(ssa: &Ssa) -> HashSet<FunctionId> {
+fn reachable_functions(ssa: &Ssa) -> HashSet<FunctionId> {
     // Identify entry points
     let entry_points = ssa.functions.iter().filter_map(|(&id, func)| {
         // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
