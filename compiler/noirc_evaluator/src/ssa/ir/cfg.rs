@@ -181,10 +181,10 @@ impl ControlFlowGraph {
     /// b3   b4          b3   b4              
     /// |    |           ^    ^             
     /// v    v           |    |             
-    /// b2   b5 <-|      b2*  b5 <-|             
+    /// b2   b5 <-|      b2   b5 <-|             
     /// \    /\___|      ^    ^\___|             
     ///  v  v            \    /
-    ///  exit             exit
+    ///  exit             exit*
     pub(crate) fn extended_reverse(func: &mut Function) -> Self {
         let mut cfg = Self::with_function(func);
         // Exit blocks are the ones having no successor
