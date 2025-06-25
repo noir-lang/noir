@@ -46,12 +46,6 @@ impl Ssa {
 
         self
     }
-
-    pub(crate) fn assert_no_unreachable_functions(self) -> Self {
-        remove_unreachable_functions_post_check(&self);
-
-        self
-    }
 }
 
 /// Post-check condition for [Ssa::remove_unreachable_functions].
@@ -64,6 +58,7 @@ impl Ssa {
 /// ## Note
 /// We reuse the same logic for checking reachability as in the main pass, so this function will not
 /// catch any bugs in the pass itself, but it will ensure that the pass is idempotent.
+#[cfg(debug_assertions)]
 fn remove_unreachable_functions_post_check(ssa: &Ssa) {
     let reachable_functions = reachable_functions(ssa);
 

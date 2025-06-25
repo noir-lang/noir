@@ -372,8 +372,7 @@ where
         options.print_codegen_timings,
         &options.emit_ssa,
         files,
-    )?
-    .run_pass(Ssa::assert_no_unreachable_functions, "Assert no unreachable functions");
+    )?;
 
     optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
