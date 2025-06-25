@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750872750077,
+  "lastUpdate": 1750872752331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3967,85 +3967,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e",
-          "message": "fix(fuzz): Fix env var name in fuzzing workflow (#8929)",
-          "timestamp": "2025-06-16T14:26:16Z",
-          "tree_id": "b5af5bc9d5f82ab5f9e08b5900f7219bea3a0bda",
-          "url": "https://github.com/noir-lang/noir/commit/7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e"
-        },
-        "date": 1750085684972,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.33,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.458,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.158,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.226,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 128,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 140,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.048,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.598,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.796,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b04a51c190bf277bdd86b5f0255ba410dafcee0d",
           "message": "fix(fuzz): Consider values returned from Brillig to ACIR as dynamic (#8931)",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.756,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b2c38af614e58554625886218ed8325b33a0590c",
+          "message": "fix: Strange use of predicates in euclidian division (#8934)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-25T17:03:56Z",
+          "tree_id": "431f0253590b306b9d59b2c241f36c5d8bfe3c43",
+          "url": "https://github.com/noir-lang/noir/commit/b2c38af614e58554625886218ed8325b33a0590c"
+        },
+        "date": 1750872738195,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.284,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.304,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.132,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 19.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 203,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 178,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.29,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.755,
             "unit": "s"
           }
         ]
