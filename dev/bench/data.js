@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750867600866,
+  "lastUpdate": 1750867603174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3968,85 +3968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "62627d959f574a2c81bc31bc4b8390ac2598aa21",
-          "message": "chore(fuzz): Add nightly fuzz workflow with 5 minute budget (#8925)\n\nCo-authored-by: Copilot Autofix powered by AI <62310815+github-advanced-security[bot]@users.noreply.github.com>",
-          "timestamp": "2025-06-16T13:07:15Z",
-          "tree_id": "d75515c9f6530c9590b11f668fe55525aa9990b6",
-          "url": "https://github.com/noir-lang/noir/commit/62627d959f574a2c81bc31bc4b8390ac2598aa21"
-        },
-        "date": 1750081265263,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.342,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.79,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.058,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1.248,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 123,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 127,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.096,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.606,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.753,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "7b972b5523d3fe90a7c9a293d8626bdfb6aa3c0e",
           "message": "fix(fuzz): Fix env var name in fuzzing workflow (#8929)",
           "timestamp": "2025-06-16T14:26:16Z",
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.8,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53",
+          "message": "fix: compute the dominance frontier of the reverse cfg using the extended cfg (#9019)",
+          "timestamp": "2025-06-25T15:37:12Z",
+          "tree_id": "a370fbd7d82b102aab1ade20cf83dc19a223a4e6",
+          "url": "https://github.com/noir-lang/noir/commit/d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53"
+        },
+        "date": 1750867586937,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.376,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.814,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 19.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 180,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 190,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.224,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.314,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.756,
             "unit": "s"
           }
         ]
