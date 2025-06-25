@@ -67,6 +67,7 @@ impl Elaborator<'_> {
                         // if the default implementation refers to a generic on the trait, it won't
                         // be found on the trait impl as that generic is already specified there by position.
                         // As a workaround, we define those generics with bound values here so they resolve correctly.
+                        // See https://github.com/noir-lang/noir/issues/9020
                         let trait_ = this.interner.get_trait(trait_id);
                         assert_eq!(trait_.generics.len(), trait_impl.resolved_trait_generics.len());
                         for (trait_generic, trait_impl_generic) in
