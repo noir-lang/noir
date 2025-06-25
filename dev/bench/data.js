@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750854536232,
+  "lastUpdate": 1750854537877,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e2a378d1c414ea36984c76dd6b9c4190eb9a4763",
-          "message": "chore(fuzz): Increase the number of deterministic test cases (#8872)",
-          "timestamp": "2025-06-13T20:08:31Z",
-          "tree_id": "481b9f96fcf6fdc6c06f4b5ba8a0e26df800ca8e",
-          "url": "https://github.com/noir-lang/noir/commit/e2a378d1c414ea36984c76dd6b9c4190eb9a4763"
-        },
-        "date": 1749847534448,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.76,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6d735bee0da737d2904872d7a44f903857698c24"
         },
         "date": 1750853524388,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea507d606d25fae5c25c1c524c4938912b8b8cf4",
+          "message": "feat: show why an assertion will always fail if it's a static string (#9013)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-25T11:50:28Z",
+          "tree_id": "20fb6c0a3caf3912d71a66693d4e9607d847e2df",
+          "url": "https://github.com/noir-lang/noir/commit/ea507d606d25fae5c25c1c524c4938912b8b8cf4"
+        },
+        "date": 1750854524353,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
