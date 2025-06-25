@@ -312,7 +312,7 @@ impl FuzzerContext {
             let CycleInfo { block_iter_id, block_end_id } =
                 self.cycle_bodies_to_iters_ids[&self.current_block.block_id];
             // block cannot have more than two predecessors
-            // so we create join block that terminated with jmp to iter block
+            // so we create a join block that terminates with a jmp to iter block
             // and then terminate then and else blocks with jmp join block in Self::finalize_cycles
             let block_join_id = self.insert_ssa_block();
             self.switch_to_block(block_join_id);
