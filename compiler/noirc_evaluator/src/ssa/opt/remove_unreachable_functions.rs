@@ -70,7 +70,7 @@ fn remove_unreachable_functions_post_check(ssa: &Ssa) {
     let has_unreachable_functions =
         ssa.functions.keys().any(|id| !reachable_functions.contains(id));
 
-    assert!(has_unreachable_functions, "SSA contains unreachable functions");
+    assert!(!has_unreachable_functions, "SSA contains unreachable functions");
 }
 
 /// Identifies all reachable function IDs within the provided [Ssa].
