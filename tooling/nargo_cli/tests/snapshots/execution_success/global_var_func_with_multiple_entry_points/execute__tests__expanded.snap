@@ -18,17 +18,17 @@ fn main(x: Field, y: pub Field) {
 
 unconstrained fn entry_point_one(x: Field, y: Field) {
     let z: Field = (ONE + x) + y;
-    assert(z == 2);
+    assert(z == 2_Field);
     inner_func(x, y);
 }
 
 unconstrained fn entry_point_two(x: Field, y: Field) {
     let z: Field = (TWO + x) + y;
-    assert(z == 3);
+    assert(z == 3_Field);
     inner_func(x, y);
 }
 
 unconstrained fn inner_func(x: Field, y: Field) {
     let z: Field = (THREE + x) + y;
-    assert(z == 4);
+    assert(z == 4_Field);
 }

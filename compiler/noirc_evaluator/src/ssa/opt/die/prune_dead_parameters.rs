@@ -128,6 +128,9 @@ impl Function {
                     TerminatorInstruction::Return { .. } => {
                         unreachable!("ICE: A return block should not be a predecessor");
                     }
+                    TerminatorInstruction::Unreachable { .. } => {
+                        unreachable!("ICE: An unreachable block should not be a predecessor");
+                    }
                 }
             }
         }

@@ -744,7 +744,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_)
+        | Literal::Integer(..)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)

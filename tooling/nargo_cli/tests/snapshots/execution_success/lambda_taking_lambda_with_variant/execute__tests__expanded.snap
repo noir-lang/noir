@@ -7,14 +7,14 @@ unconstrained fn main() -> pub i64 {
 }
 
 unconstrained fn func_2(a: unconstrained fn(u128) -> bool) -> bool {
-    a(1)
+    a(1_u128)
 }
 
 unconstrained fn func_3(b: unconstrained fn(unconstrained fn(u128) -> bool) -> bool) -> i64 {
     let _s: bool = b(func_1);
-    0
+    0_i64
 }
 
 unconstrained fn func_1(a: u128) -> bool {
-    a > 0
+    a > 0_u128
 }

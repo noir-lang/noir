@@ -33,7 +33,7 @@ impl Into2<Field> for Foo {
 }
 
 fn main() {
-    let foo: Foo = Foo { inner: 0 };
+    let foo: Foo = Foo { inner: 0_Field };
     let _: Field = Into2::into2(foo);
     let _: Field = foo.into2();
 }

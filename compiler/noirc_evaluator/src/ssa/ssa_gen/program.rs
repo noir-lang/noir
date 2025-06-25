@@ -131,7 +131,7 @@ mod test {
         let ssa = builder.finish();
         let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
         let deserialized_ssa: Ssa = serde_json::from_str(serialized_ssa).unwrap();
-        let actual_string = format!("{}", deserialized_ssa);
+        let actual_string = format!("{}", deserialized_ssa.print_without_locations());
 
         let expected_string = "acir(inline) fn main f0 {\n  \
         b0(v0: Field):\n    \

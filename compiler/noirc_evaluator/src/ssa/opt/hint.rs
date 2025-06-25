@@ -24,8 +24,7 @@ mod tests {
             skip_passes: Default::default(),
         };
 
-        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false);
-
+        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);
         Ok(builder.run_passes(&primary_passes(options))?.finish())
     }
 

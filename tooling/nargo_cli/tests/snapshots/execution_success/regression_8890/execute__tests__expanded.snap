@@ -5,14 +5,14 @@ expression: expanded_code
 fn main(x: Field, y: pub Field) -> pub Field {
     assert(x != y);
     let mut f: [fn(Field) -> Field; 1] = [my_fun];
-    f[0] = my_fun2;
-    f[0](x)
+    f[0_u32] = my_fun2;
+    f[0_u32](x)
 }
 
 fn my_fun(x: Field) -> Field {
-    x + 1
+    x + 1_Field
 }
 
 fn my_fun2(x: Field) -> Field {
-    x + 2
+    x + 2_Field
 }
