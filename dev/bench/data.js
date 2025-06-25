@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750853264802,
+  "lastUpdate": 1750853537035,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3546f4780efda452eee310a137ee69a49f334d31",
-          "message": "fix: Create calls to `apply` before function values are changed to fields in defunctionalize (#8916)",
-          "timestamp": "2025-06-13T19:34:41Z",
-          "tree_id": "090f7ad2471fa2b7b944ef2a2a52a0c9ccf28606",
-          "url": "https://github.com/noir-lang/noir/commit/3546f4780efda452eee310a137ee69a49f334d31"
-        },
-        "date": 1749845792867,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.87,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 489.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 423.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 312.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 317.76,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9fc413d9ac940b4f8e130aa6d874cf8e0efabde2"
         },
         "date": 1750796719490,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d735bee0da737d2904872d7a44f903857698c24",
+          "message": "chore(ssa): Add `SsaPass:and_then` (#9016)",
+          "timestamp": "2025-06-25T11:36:50Z",
+          "tree_id": "aa160a3afa48ff3f2efd20f437a89153ddf61eca",
+          "url": "https://github.com/noir-lang/noir/commit/6d735bee0da737d2904872d7a44f903857698c24"
+        },
+        "date": 1750853524388,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
