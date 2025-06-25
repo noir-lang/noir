@@ -794,7 +794,33 @@
 <a href="#793" id="793">793</a>
 <a href="#794" id="794">794</a>
 <a href="#795" id="795">795</a>
-<a href="#796" id="796">796</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -924,6 +950,32 @@
     <span class="kw">pub fn </span>run(<span class="kw-2">&amp;</span><span class="self">self</span>, ssa: Ssa) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
         (<span class="self">self</span>.run)(ssa)
     }
+
+    <span class="doccomment">/// Follow up the pass with another one, without adding a separate message for it.
+    ///
+    /// This is useful for attaching cleanup passes that we don't want to appear on their
+    /// own in the pipeline, because it would just increase the noise.
+    </span><span class="kw">pub fn </span>and_then&lt;F&gt;(<span class="self">self</span>, f: F) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>F: Fn(Ssa) -&gt; Ssa + <span class="lifetime">'a</span>,
+    {
+        <span class="self">self</span>.and_then_try(<span class="kw">move </span>|ssa| <span class="prelude-val">Ok</span>(f(ssa)))
+    }
+
+    <span class="doccomment">/// Same as `and_then` but for passes that can fail.
+    </span><span class="kw">pub fn </span>and_then_try&lt;F&gt;(<span class="self">self</span>, f: F) -&gt; <span class="self">Self
+    </span><span class="kw">where
+        </span>F: Fn(Ssa) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; + <span class="lifetime">'a</span>,
+    {
+        <span class="self">Self </span>{
+            msg: <span class="self">self</span>.msg,
+            run: Box::new(<span class="kw">move </span>|ssa| {
+                <span class="kw">let </span>ssa = <span class="self">self</span>.run(ssa)<span class="question-mark">?</span>;
+                <span class="kw">let </span>ssa = f(ssa)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(ssa)
+            }),
+        }
+    }
 }
 
 <span class="kw">pub struct </span>ArtifactsAndWarnings(<span class="kw">pub </span>Artifacts, <span class="kw">pub </span>Vec&lt;SsaReport&gt;);
@@ -936,8 +988,8 @@
     <span class="macro">vec!</span>[
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
-        SsaPass::new(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>),
-        SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        SsaPass::new(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
+            .and_then(Ssa::remove_unreachable_functions),
         <span class="comment">// BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -950,8 +1002,8 @@
         <span class="comment">// Run mem2reg with the CFG separated into blocks
         </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
-        SsaPass::new(Ssa::as_slice_optimization, <span class="string">"`as_slice` optimization"</span>),
-        SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        SsaPass::new(Ssa::as_slice_optimization, <span class="string">"`as_slice` optimization"</span>)
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             <span class="string">"`static_assert` and `assert_constant`"</span>,
@@ -994,9 +1046,9 @@
         SsaPass::new(Ssa::array_set_optimization, <span class="string">"Array Set Optimizations"</span>),
         <span class="comment">// The Brillig globals pass expected that we have the used globals map set for each function.
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        </span>SsaPass::new(Ssa::brillig_entry_point_analysis, <span class="string">"Brillig Entry Point Analysis"</span>),
-        <span class="comment">// Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        </span>SsaPass::new(Ssa::brillig_entry_point_analysis, <span class="string">"Brillig Entry Point Analysis"</span>)
+            <span class="comment">// Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+            </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, <span class="string">"Removing Truncate after RangeCheck"</span>),
         <span class="comment">// This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
@@ -1009,10 +1061,10 @@
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
         <span class="comment">// Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
-        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>),
-        <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed,
-        // or after the removal of unreachable instructions.
-        </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
+            <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed,
+            // or after the removal of unreachable instructions.
+            </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
@@ -1027,10 +1079,10 @@
 </span><span class="kw">pub fn </span>secondary_passes(brillig: <span class="kw-2">&amp;</span>Brillig) -&gt; Vec&lt;SsaPass&gt; {
     <span class="macro">vec!</span>[
         SsaPass::new(<span class="kw">move </span>|ssa| ssa.fold_constants_with_brillig(brillig), <span class="string">"Inlining Brillig Calls"</span>),
-        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>),
-        <span class="comment">// It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        </span>SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
+        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
+            <span class="comment">// It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination_acir, <span class="string">"Dead Instruction Elimination - ACIR"</span>),
     ]
 }
