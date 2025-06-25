@@ -694,7 +694,7 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_with_bug(nargo);",
+            "compile_success_with_bug(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }
