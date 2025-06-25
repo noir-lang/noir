@@ -523,7 +523,7 @@ mod tests {
     /// }
     #[test]
     fn test_cycle_if_then_cycle() {
-        // this argument doesn't exists
+        // this argument doesn't exist
         // fuzzer doesn't support empty instruction blocks
         let dummy_arg = Argument { index: 0, value_type: ValueType::I64 };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
