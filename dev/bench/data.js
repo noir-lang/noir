@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750853542083,
+  "lastUpdate": 1750853663742,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e2a378d1c414ea36984c76dd6b9c4190eb9a4763",
-          "message": "chore(fuzz): Increase the number of deterministic test cases (#8872)",
-          "timestamp": "2025-06-13T20:08:31Z",
-          "tree_id": "481b9f96fcf6fdc6c06f4b5ba8a0e26df800ca8e",
-          "url": "https://github.com/noir-lang/noir/commit/e2a378d1c414ea36984c76dd6b9c4190eb9a4763"
-        },
-        "date": 1749846912744,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250764,
-            "range": "± 679",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223745,
-            "range": "± 6449",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788404,
-            "range": "± 1942",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784856,
             "range": "± 3487",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea507d606d25fae5c25c1c524c4938912b8b8cf4",
+          "message": "feat: show why an assertion will always fail if it's a static string (#9013)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-25T11:50:28Z",
+          "tree_id": "20fb6c0a3caf3912d71a66693d4e9607d847e2df",
+          "url": "https://github.com/noir-lang/noir/commit/ea507d606d25fae5c25c1c524c4938912b8b8cf4"
+        },
+        "date": 1750853651234,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254082,
+            "range": "± 881",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223486,
+            "range": "± 5167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780128,
+            "range": "± 1173",
             "unit": "ns/iter"
           }
         ]
