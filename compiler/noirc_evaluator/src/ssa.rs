@@ -198,6 +198,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // We cannot run mem2reg after DIE, because it removes Store instructions.
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
+        // if they are unreachable and would cause the DIE post-checks to fail.
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         // The Brillig globals pass expected that we have the used globals map set for each function.
@@ -217,7 +220,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
         // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
         // A function can be potentially unreachable post-DIE if all calls to that function were removed,
         // or after the removal of unreachable instructions.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
