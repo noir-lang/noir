@@ -195,7 +195,7 @@ pub struct Elaborator<'context> {
     /// If present, this module should be used when resolving paths.
     /// This is currently used as a workaround for default trait methods copied into trait impls:
     /// their body should be the same but paths should be resolved relative to the trait's module.
-    /// See https://github.com/noir-lang/noir/issues/9020
+    /// See <https://github.com/noir-lang/noir/issues/9020>
     path_resolution_module: Option<ModuleId>,
 
     /// These are the globals that have yet to be elaborated.
