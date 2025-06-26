@@ -1298,17 +1298,15 @@ namespace Acir {
         struct Poseidon2Permutation {
             Acir::HeapVector message;
             Acir::HeapArray output;
-            Acir::MemoryAddress len;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("message", message));
                 packer.pack(std::make_pair("output", output));
-                packer.pack(std::make_pair("len", len));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1316,7 +1314,6 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -3375,17 +3372,15 @@ namespace Acir {
         struct Poseidon2Permutation {
             std::vector<Acir::FunctionInput> inputs;
             std::vector<Acir::Witness> outputs;
-            uint32_t len;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("inputs", inputs));
                 packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("len", len));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3393,7 +3388,6 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -6816,7 +6810,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::Poseidon2Permutation &lhs, const BlackBoxFuncCall::Poseidon2Permutation &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
-        if (!(lhs.len == rhs.len)) { return false; }
         return true;
     }
 
@@ -6842,7 +6835,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::Poseidon2Permutation>::serialize(const Acir::BlackBoxFuncCall::Poseidon2Permutation &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-    serde::Serializable<decltype(obj.len)>::serialize(obj.len, serializer);
 }
 
 template <>
@@ -6851,7 +6843,6 @@ Acir::BlackBoxFuncCall::Poseidon2Permutation serde::Deserializable<Acir::BlackBo
     Acir::BlackBoxFuncCall::Poseidon2Permutation obj;
     obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    obj.len = serde::Deserializable<decltype(obj.len)>::deserialize(deserializer);
     return obj;
 }
 
@@ -7577,7 +7568,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxOp::Poseidon2Permutation &lhs, const BlackBoxOp::Poseidon2Permutation &rhs) {
         if (!(lhs.message == rhs.message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
-        if (!(lhs.len == rhs.len)) { return false; }
         return true;
     }
 
@@ -7603,7 +7593,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxOp::Poseidon2Permutation>::serialize(const Acir::BlackBoxOp::Poseidon2Permutation &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-    serde::Serializable<decltype(obj.len)>::serialize(obj.len, serializer);
 }
 
 template <>
@@ -7612,7 +7601,6 @@ Acir::BlackBoxOp::Poseidon2Permutation serde::Deserializable<Acir::BlackBoxOp::P
     Acir::BlackBoxOp::Poseidon2Permutation obj;
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    obj.len = serde::Deserializable<decltype(obj.len)>::deserialize(deserializer);
     return obj;
 }
 
