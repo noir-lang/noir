@@ -215,7 +215,7 @@ fn binary_op_function_name(op: BinaryOp) -> &'static str {
         BinaryOp::Sub { .. } => "subtract",
         BinaryOp::Mul { .. } => "multiply",
         BinaryOp::Div => "divide",
-        BinaryOp::Mod => "divide",
+        BinaryOp::Mod => "modulo",
         BinaryOp::Shl => "shift left",
         BinaryOp::Shr => "shift right",
         BinaryOp::Eq | BinaryOp::Lt | BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
