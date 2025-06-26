@@ -78,7 +78,7 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: Cow<'de, Vec<u8>> = Deserialize::deserialize(deserializer)?;
+        let s: Cow<'de, [u8]> = Deserialize::deserialize(deserializer)?;
         Ok(Self::from_be_bytes_reduce(&s))
     }
 }
