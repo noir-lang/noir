@@ -157,7 +157,7 @@ pub enum InternalError {
         actual_type: String,
     },
     #[error(
-        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
     )]
     UnexpectedResultType {
         expected_type: &'static str,
@@ -165,11 +165,15 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was `{actual_length}` in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
         actual_length: usize,
         instruction: &'static str,
     },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
 }

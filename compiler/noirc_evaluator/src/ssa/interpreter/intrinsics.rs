@@ -1,6 +1,7 @@
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -621,8 +622,65 @@ impl Interpreter<'_> {
     }
 
     /// Print is not an intrinsic but it is treated like one.
-    pub(super) fn call_print(&mut self, _args: Vec<Value>) -> IResults {
-        // Stub the call for now
+    pub(super) fn call_print(&mut self, args: Vec<Value>) -> IResults {
+        fn get_arg<F, T>(
+            args: &[Value],
+            idx: usize,
+            name: &'static str,
+            typ: &'static str,
+            f: F,
+        ) -> IResult<T>
+        where
+            F: FnOnce(&Value) -> Option<T>,
+        {
+            let arg = &args[idx];
+            if let Some(v) = f(arg) {
+                Ok(v)
+            } else {
+                Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+                    name,
+                    expected_type: typ,
+                    value: arg.to_string(),
+                }))
+            }
+        }
+
+        let invalid_input_size = |expected_size| {
+            Err(InterpreterError::Internal(InternalError::InvalidInputSize {
+                expected_size,
+                size: args.len(),
+            }))
+        };
+
+        // For a regular print we expect 4 arguments, for a formatted one it should be 6.
+        if args.len() < 4 {
+            return invalid_input_size(4);
+        }
+
+        let print_newline = get_arg(&args, 0, "print_newline", "bool", |arg| arg.as_bool())?;
+        let is_fmt_str = get_arg(&args, args.len() - 1, "is_fmt_str", "bool", |arg| arg.as_bool())?;
+
+        if is_fmt_str {
+            if args.len() != 6 {
+                return invalid_input_size(6);
+            }
+            todo!("print format string");
+        } else {
+            if args.len() != 4 {
+                return invalid_input_size(4);
+            }
+            let input_as_fields = value_to_fields(&args[1]);
+            let printable_type = value_to_printable_type(&args[2])?;
+            let printable_value =
+                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+            let printable_display = PrintableValueDisplay::Plain(printable_value, printable_type);
+            if print_newline {
+                println!("{printable_display}");
+            } else {
+                print!("{printable_display}");
+            }
+        }
+
         Ok(Vec::new())
     }
 }
@@ -689,4 +747,68 @@ fn new_embedded_curve_point(
             Type::Numeric(NumericType::bool()),
         ],
     ))
+}
+
+/// Convert a [Value] to a vector of [FieldElement] for printing.
+fn value_to_fields(value: &Value) -> Vec<FieldElement> {
+    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
+        match value {
+            Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+            Value::Reference(reference_value) => {
+                if let Some(value) = reference_value.element.borrow().as_ref() {
+                    go(value, fields);
+                }
+            }
+            Value::ArrayOrSlice(array_value) => {
+                for value in array_value.elements.borrow().iter() {
+                    go(value, fields);
+                }
+            }
+            Value::Function(id) => {
+                fields.push(FieldElement::from(id.to_u32()));
+                // We should push the fields in the `env` of the function, but I'm not sure how to get them.
+            }
+            Value::Intrinsic(_) => {
+                todo!("convert intrinsic to fields")
+            }
+            Value::ForeignFunction(_) => {
+                todo!("convert foreign function to fields")
+            }
+        }
+    }
+
+    let mut fields = Vec::new();
+    go(value, &mut fields);
+    fields
+}
+
+/// Parse a [Value] as [PrintableType].
+fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
+    let name = "type_metadata";
+    let arr = value.as_array_or_slice().and_then(|arr| {
+        arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
+    });
+    let Some(bz) = arr else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "[u8]",
+            value: value.to_string(),
+        }));
+    };
+    let Some(json) = String::from_utf8(bz).ok() else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "String",
+            value: value.to_string(),
+        }));
+    };
+    let printable_type = serde_json::from_str::<PrintableType>(&json).map_err(|e| {
+        InterpreterError::Internal(InternalError::ParsingError {
+            name,
+            expected_type: "PrintableType",
+            value: json,
+            error: e.to_string(),
+        })
+    })?;
+    Ok(printable_type)
 }
