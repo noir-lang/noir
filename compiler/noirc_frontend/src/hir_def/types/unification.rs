@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use crate::{
     BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, TypeVariable,
-    hir::type_check::TypeCheckError,
+    hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
         types,
@@ -504,8 +504,8 @@ impl Type {
         expression: ExprId,
         location: Location,
         interner: &mut NodeInterner,
-        errors: &mut Vec<TypeCheckError>,
-        make_error: impl FnOnce() -> TypeCheckError,
+        errors: &mut Vec<CompilationError>,
+        make_error: impl FnOnce() -> CompilationError,
     ) {
         let mut bindings = TypeBindings::default();
 
@@ -515,6 +515,10 @@ impl Type {
         }
 
         if self.try_array_to_slice_coercion(expected, expression, interner) {
+            return;
+        }
+
+        if self.try_string_to_ctstring_coercion(expected, expression, interner) {
             return;
         }
 
@@ -531,7 +535,7 @@ impl Type {
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
-                errors.push(TypeCheckError::UnsafeFn { location });
+                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
 
                 coerced_self.unify_with_coercions(
                     expected, expression, location, interner, errors, make_error,
@@ -590,8 +594,17 @@ impl Type {
         false
     }
 
+    fn try_string_to_ctstring_coercion(
+        &self,
+        target: &Type,
+        expression: ExprId,
+        interner: &mut NodeInterner,
+    ) -> bool {
+        false
+    }
+
     /// Attempt to coerce `&mut T` to `&T`, returning true if this is possible.
-    pub fn try_reference_coercion(&self, target: &Type) -> bool {
+    pub(crate) fn try_reference_coercion(&self, target: &Type) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 

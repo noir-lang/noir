@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime fn foo(_: FunctionDefinition, slice: [u8]) -> Quoted {
+    quote {
+        fn bar() -> [u8] {
+            slice
+        }
+    }
+}
+
+fn bar() -> [u8] {
+    &[1_u8, 2_u8, 3_u8]
+}
+
+fn main() {
+    assert(bar() == &[1_u8, 2_u8, 3_u8])
+}
