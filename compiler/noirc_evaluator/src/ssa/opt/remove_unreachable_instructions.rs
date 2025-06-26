@@ -87,14 +87,20 @@ impl Function {
                     let requires_acir_gen_predicate =
                         binary.requires_acir_gen_predicate(context.dfg);
                     if requires_acir_gen_predicate {
+                        // If performing the binary operation depends on the side effects condition, then
+                        // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
                         let predicate = context.dfg.get_numeric_constant(side_effects_condition);
                         match predicate {
                             Some(predicate) => {
                                 if predicate.is_zero() {
+                                    // The predicate is zero
                                     return;
                                 }
                             }
-                            None => return,
+                            None => {
+                                // The predicate is a variable
+                                return;
+                            }
                         }
                     }
 

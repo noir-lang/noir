@@ -141,6 +141,9 @@ pub(crate) fn eval_constant_binary_op(
             // Check for overflow
             if result != 0 && result.ilog2() >= bit_size {
                 if let BinaryOp::Shl = operator {
+                    // Right now `shl` might return zero or overflow depending on its values
+                    // so don't assume the final value here.
+                    // See https://github.com/noir-lang/noir/issues/9022
                     return None;
                 }
 
