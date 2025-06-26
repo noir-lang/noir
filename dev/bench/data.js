@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750936146317,
+  "lastUpdate": 1750947583149,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "226a2de6071a5afb73c7a7281a02fc81905d644b",
-          "message": "chore: bump external pinned commits (#8920)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-17T10:35:08Z",
-          "tree_id": "eccb87f146b9161cf2ae5e4b20da399e4d5c4fb8",
-          "url": "https://github.com/noir-lang/noir/commit/226a2de6071a5afb73c7a7281a02fc81905d644b"
-        },
-        "date": 1750157881153,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259624,
-            "range": "± 1100",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233323,
-            "range": "± 2664",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786338,
-            "range": "± 2288",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "iamrecursion@users.noreply.github.com",
             "name": "Ara Adkins",
             "username": "iamrecursion"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778846,
             "range": "± 987",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8e01c4a2dc88b4df9e533aba230695148833c9c4",
+          "message": "fix(ssa_fuzzer): nested conditions in loops (#8997)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-06-26T13:53:45Z",
+          "tree_id": "9f03f62bb08b0d05082ffe2058745336f2e7e584",
+          "url": "https://github.com/noir-lang/noir/commit/8e01c4a2dc88b4df9e533aba230695148833c9c4"
+        },
+        "date": 1750947569407,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253431,
+            "range": "± 5124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223414,
+            "range": "± 2492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780689,
+            "range": "± 15489",
             "unit": "ns/iter"
           }
         ]
