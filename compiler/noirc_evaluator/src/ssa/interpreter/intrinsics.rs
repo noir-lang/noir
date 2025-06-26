@@ -654,7 +654,7 @@ impl<W: Write> Interpreter<'_, W> {
             }))
         };
 
-        // For a regular print we expect 4 arguments, for a formatted one it should be 6.
+        // We expect at least 4 arguments.
         if args.len() < 4 {
             return invalid_input_size(4);
         }
@@ -662,11 +662,27 @@ impl<W: Write> Interpreter<'_, W> {
         let print_newline = get_arg(&args, 0, "print_newline", "bool", |arg| arg.as_bool())?;
         let is_fmt_str = get_arg(&args, args.len() - 1, "is_fmt_str", "bool", |arg| arg.as_bool())?;
 
-        if is_fmt_str {
-            if args.len() != 6 {
-                return invalid_input_size(6);
+        let printable_display = if is_fmt_str {
+            let message = value_to_string("message", &args[1])?;
+            let num_values =
+                get_arg(&args, 2, "num_values", "Field", |arg| arg.as_field())?.to_u128() as usize;
+
+            let exp_args = 4 + 2 * num_values;
+            if args.len() != exp_args {
+                return invalid_input_size(exp_args);
             }
-            todo!("print format string");
+
+            let mut fragments = Vec::new();
+            for i in 0..num_values {
+                let value = &args[3 + i];
+                let meta = &args[3 + num_values + i];
+                let input_as_fields = value_to_fields(value);
+                let printable_type = value_to_printable_type(meta)?;
+                let printable_value =
+                    decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+                fragments.push((printable_value, printable_type));
+            }
+            PrintableValueDisplay::FmtString(message, fragments)
         } else {
             if args.len() != 4 {
                 return invalid_input_size(4);
@@ -675,12 +691,13 @@ impl<W: Write> Interpreter<'_, W> {
             let printable_type = value_to_printable_type(&args[2])?;
             let printable_value =
                 decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
-            let printable_display = PrintableValueDisplay::Plain(printable_value, printable_type);
-            if print_newline {
-                writeln!(self.output, "{printable_display}").expect("writeln");
-            } else {
-                write!(self.output, "{printable_display}").expect("write");
-            }
+            PrintableValueDisplay::Plain(printable_value, printable_type)
+        };
+
+        if print_newline {
+            writeln!(self.output, "{printable_display}").expect("writeln");
+        } else {
+            write!(self.output, "{printable_display}").expect("write");
         }
 
         Ok(Vec::new())
@@ -787,6 +804,20 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
 /// Parse a [Value] as [PrintableType].
 fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
     let name = "type_metadata";
+    let json = value_to_string(name, value)?;
+    let printable_type = serde_json::from_str::<PrintableType>(&json).map_err(|e| {
+        InterpreterError::Internal(InternalError::ParsingError {
+            name,
+            expected_type: "PrintableType",
+            value: json,
+            error: e.to_string(),
+        })
+    })?;
+    Ok(printable_type)
+}
+
+/// Parse a value as `[u8]` and convert to UTF-8 `String`.
+fn value_to_string(name: &'static str, value: &Value) -> IResult<String> {
     let arr = value.as_array_or_slice().and_then(|arr| {
         arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
     });
@@ -797,20 +828,12 @@ fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
             value: value.to_string(),
         }));
     };
-    let Some(json) = String::from_utf8(bz).ok() else {
+    let Some(s) = String::from_utf8(bz).ok() else {
         return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
             name,
             expected_type: "String",
             value: value.to_string(),
         }));
     };
-    let printable_type = serde_json::from_str::<PrintableType>(&json).map_err(|e| {
-        InterpreterError::Internal(InternalError::ParsingError {
-            name,
-            expected_type: "PrintableType",
-            value: json,
-            error: e.to_string(),
-        })
-    })?;
-    Ok(printable_type)
+    Ok(s)
 }
