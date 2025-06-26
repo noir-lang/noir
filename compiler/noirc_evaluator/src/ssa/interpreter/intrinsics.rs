@@ -654,9 +654,9 @@ impl<W: Write> Interpreter<'_, W> {
             }))
         };
 
-        // We expect at least 4 arguments:
-        // * normal: newline, value0, ..., valueN, meta, false
-        // * formatted: newline, msg, N, value1_0, ..., value1_i, ..., valueN_0, ..., valueN_j, meta1, ..., metaN, true
+        // We expect at least 4 arguments (tuples are passed as multiple values):
+        // * normal: newline, value.0, ..., value.i, meta, false
+        // * formatted: newline, msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
         if args.len() < 4 {
             return invalid_input_size(4);
         }
@@ -669,18 +669,17 @@ impl<W: Write> Interpreter<'_, W> {
             let num_values =
                 get_arg(&args, 2, "num_values", "Field", |arg| arg.as_field())?.to_u128() as usize;
 
-            // We expect at least 4 + num_values * 2 values, because each fragment will have 1 type
-            // descriptor, and at least 1 value (tuples are flattened).
+            // We expect at least 4 + num_values * 2 values, because each fragment will have 1 type descriptor, and at least 1 value.
             let min_args = 4 + 2 * num_values;
             if args.len() < min_args {
                 return invalid_input_size(min_args);
             }
 
             // Everything up to the first meta is part of _some_ value.
+            // We'll let each parser take as many fields as they need.
             let meta_idx = args.len() - 1 - num_values;
             let input_as_fields =
                 (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
-            // We'll let each parser take as many fields as they need.
             let field_iterator = &mut input_as_fields.into_iter();
 
             let mut fragments = Vec::new();
