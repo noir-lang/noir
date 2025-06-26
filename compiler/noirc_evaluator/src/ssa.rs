@@ -291,8 +291,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // This can change which globals are used, because constant creation might result
         // in the (re)use of otherwise unused global values.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
     ]
 }
 
