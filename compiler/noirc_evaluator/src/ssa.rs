@@ -243,6 +243,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             // A function can be potentially unreachable post-DIE if all calls to that function were removed,
             // or after the removal of unreachable instructions.
             .and_then(Ssa::remove_unreachable_functions),
+        // Another DIE pass is needed to recompute `used_globals`.
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
