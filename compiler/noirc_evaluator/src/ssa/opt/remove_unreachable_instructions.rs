@@ -166,8 +166,12 @@ fn binary_operation_always_fails(
 
     let rhs_value = context.dfg.get_numeric_constant(rhs)?;
 
-    if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs_value.is_zero() {
+    if matches!(operator, BinaryOp::Div) && rhs_value.is_zero() {
         return Some("attempt to divide by zero".to_string());
+    }
+
+    if matches!(operator, BinaryOp::Mod) && rhs_value.is_zero() {
+        return Some("attempt to calculate the remainder with a divisor of zero".to_string());
     }
 
     let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
