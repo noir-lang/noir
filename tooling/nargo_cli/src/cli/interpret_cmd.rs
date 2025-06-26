@@ -268,7 +268,7 @@ fn interpret_ssa(
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
-        let result = ssa.interpret_with_options(args, options);
+        let result = ssa.interpret_with_options(args, options, std::io::stdout());
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
