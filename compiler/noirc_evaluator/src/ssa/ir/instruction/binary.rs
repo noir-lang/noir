@@ -174,7 +174,7 @@ pub(crate) fn eval_constant_binary_op(
                     if rhs >= bit_size as i128 {
                         if lhs >= 0 { 0 } else { -1 }
                     } else {
-                        result.unwrap_or_default()
+                        result?
                     }
                 }
 
