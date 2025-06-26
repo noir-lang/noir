@@ -18,8 +18,8 @@ unconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {
     for i in 0..N {
         if (i % 2) != 0 { continue; };
         {
-            let i_3789: u32 = i / 2;
-            result[i_3789] = (decode_ascii(as_bytes[i]) * 16) + decode_ascii(as_bytes[i + 1]);
+            let i_3793: u32 = i / 2;
+            result[i_3793] = (decode_ascii(as_bytes[i]) * 16) + decode_ascii(as_bytes[i + 1]);
         }
     }
     result
