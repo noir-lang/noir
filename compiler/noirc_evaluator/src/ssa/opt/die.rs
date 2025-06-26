@@ -96,44 +96,21 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> (Ssa, DIEResult) {
-        let mut result = self
+        let result = self
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let (used_globals, unused_params) =
-                    func.dead_instruction_elimination(flattened, skip_brillig);
+                let unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
                 let mut result = DIEResult::default();
 
-                if func.runtime().is_brillig() {
-                    result.used_globals.insert(*id, used_globals);
-                }
                 result.unused_parameters.insert(*id, unused_params);
 
                 result
             })
             .reduce(DIEResult::default, |mut a, b| {
-                a.used_globals.extend(b.used_globals);
                 a.unused_parameters.extend(b.unused_parameters);
                 a
             });
-
-        let globals = &self.functions[&self.main_id].dfg.globals;
-        for used_global_values in result.used_globals.values_mut() {
-            // DIE only tracks used instruction results, however, globals include constants.
-            // Back track globals for internal values which may be in use.
-            for (id, value) in globals.values_iter().rev() {
-                if used_global_values.contains(&id) {
-                    if let Value::Instruction { instruction, .. } = &value {
-                        let instruction = &globals[*instruction];
-                        instruction.for_each_value(|value_id| {
-                            used_global_values.insert(value_id);
-                        });
-                    }
-                }
-            }
-        }
-
-        self.used_globals = std::mem::take(&mut result.used_globals);
 
         (self, result)
     }
@@ -154,7 +131,6 @@ impl Function {
     /// of its instructions are needed elsewhere.
     ///
     /// # Returns
-    /// - The set of globals that were used in this function.
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -> unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
@@ -162,9 +138,9 @@ impl Function {
         &mut self,
         flattened: bool,
         skip_brillig: bool,
-    ) -> (HashSet<ValueId>, HashMap<BasicBlockId, Vec<ValueId>>) {
+    ) -> HashMap<BasicBlockId, Vec<ValueId>> {
         if skip_brillig && self.dfg.runtime().is_brillig() {
-            return (HashSet::default(), HashMap::default());
+            return HashMap::default();
         }
 
         let mut context = Context { flattened, ..Default::default() };
@@ -198,16 +174,12 @@ impl Function {
 
         context.remove_rc_instructions(&mut self.dfg);
 
-        (
-            context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect(),
-            unused_params_per_block,
-        )
+        unused_params_per_block
     }
 }
 
 #[derive(Default)]
 struct DIEResult {
-    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.

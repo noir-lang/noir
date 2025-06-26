@@ -230,8 +230,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
-        // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -239,13 +237,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
-        // This pass might result in otherwise unused global constant becoming used,
-        // because the creation of shifted index constants can reuse their IDs.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
@@ -291,8 +283,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // This can change which globals are used, because constant creation might result
         // in the (re)use of otherwise unused global values.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
     ]
 }
 
@@ -323,14 +313,13 @@ where
     let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let files = builder.files;
-    let mut ssa = builder.finish();
+    let ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
-    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(&options.brillig_options, used_globals_map)
+        ssa.to_brillig(&options.brillig_options)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
