@@ -851,16 +851,19 @@ impl<'f> LoopInvariantContext<'f> {
             // Therefore a `Some` value shows that this operation is safe.
             let lhs = lhs.into_numeric_constant().0;
             let rhs = rhs.into_numeric_constant().0;
-            if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
-                // Unchecked version of the binary operation
-                let unchecked = Instruction::Binary(Binary {
-                    operator: binary.operator.into_unchecked(),
-                    lhs: binary.lhs,
-                    rhs: binary.rhs,
-                });
-                return SimplifyResult::SimplifiedToInstruction(unchecked);
-            } else {
-                return SimplifyResult::None;
+            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                Some(Ok(..)) => {
+                    // Unchecked version of the binary operation
+                    let unchecked = Instruction::Binary(Binary {
+                        operator: binary.operator.into_unchecked(),
+                        lhs: binary.lhs,
+                        rhs: binary.rhs,
+                    });
+                    return SimplifyResult::SimplifiedToInstruction(unchecked);
+                }
+                _ => {
+                    return SimplifyResult::None;
+                }
             }
         }
 
