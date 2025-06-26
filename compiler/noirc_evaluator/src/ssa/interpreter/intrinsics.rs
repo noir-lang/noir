@@ -789,6 +789,8 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
                 }
             }
             Value::Function(id) => {
+                // Based on `decode_printable_value` it will expect consume the environment as well,
+                // but that's catered for the by the SSA generation: the env is passed as separate values.
                 fields.push(FieldElement::from(id.to_u32()));
             }
             Value::Intrinsic(x) => {
