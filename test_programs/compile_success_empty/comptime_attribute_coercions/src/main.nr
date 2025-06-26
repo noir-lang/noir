@@ -7,6 +7,13 @@ comptime fn foo(_: FunctionDefinition, slice: [u8], _str1: CtString, _str2: CtSt
     }
 }
 
+// Make sure coercion also works in varargs
+#[baz("hello", "world")]
+#[varargs]
+comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
+    assert_eq(args.len(), 2);
+}
+
 fn main() {
     assert_eq(bar(), &[1, 2, 3])
 }

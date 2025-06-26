@@ -14,6 +14,11 @@ fn bar() -> [u8] {
     &[1_u8, 2_u8, 3_u8]
 }
 
+#[varargs]
+comptime fn baz(_f: FunctionDefinition, args: [CtString]) {
+    assert(args.len() == 2_u32);
+}
+
 fn main() {
     assert(bar() == &[1_u8, 2_u8, 3_u8])
 }
