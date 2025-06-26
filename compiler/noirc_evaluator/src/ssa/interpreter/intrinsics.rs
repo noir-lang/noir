@@ -790,13 +790,12 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
             }
             Value::Function(id) => {
                 fields.push(FieldElement::from(id.to_u32()));
-                // We should push the fields in the `env` of the function, but I'm not sure how to get them.
             }
-            Value::Intrinsic(_) => {
-                todo!("convert intrinsic to fields")
+            Value::Intrinsic(x) => {
+                panic!("didn't expect to print intrinsics: {x}")
             }
-            Value::ForeignFunction(_) => {
-                todo!("convert foreign function to fields")
+            Value::ForeignFunction(x) => {
+                panic!("didn't expect to print foreign functions: {x}")
             }
         }
     }
