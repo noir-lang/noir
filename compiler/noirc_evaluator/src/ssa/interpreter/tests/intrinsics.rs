@@ -108,3 +108,44 @@ fn print() {
     hello (0, true, [0x01, 0x02]) == (0, true, [0x01, 0x02])
     ");
 }
+
+#[test]
+fn print_lambda() {
+    // fn main() {
+    //     let y = 1;
+    //     let foo = |x| x + y;
+    //     println(foo);
+    // }
+    let src = r#"
+     acir(inline) fn main f0 {
+       b0():
+         call f2(Field 1, f1)
+         return
+     }
+     acir(inline) fn lambda f1 {
+       b0(v0: Field, v1: Field):
+         v2 = allocate -> &mut Field
+         store v0 at v2
+         v3 = load v2 -> Field
+         v4 = add v1, v3
+         return v4
+     }
+     acir(inline) fn println f2 {
+       b0(v0: Field, v1: function):
+         call f3(u1 1, v0, v1)
+         return
+     }
+     brillig(inline) fn print_unconstrained f3 {
+       b0(v0: u1, v1: Field, v2: function):
+         v30 = make_array b"{\"kind\":\"function\",\"arguments\":[{\"kind\":\"field\"}],\"return_type\":{\"kind\":\"field\"},\"env\":{\"kind\":\"tuple\",\"types\":[{\"kind\":\"field\"}]},\"unconstrained\":false}"
+         call print(v0, v1, v2, v30, u1 0)
+         return
+     }
+    "#;
+
+    let printed_output = expect_printed_output(src);
+
+    insta::assert_snapshot!(printed_output, @"
+    <<fn([Field]) -> Field>>
+    ");
+}
