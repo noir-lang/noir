@@ -261,6 +261,7 @@ impl Elaborator<'_> {
             function_body: FunctionBody::Resolved,
             source_crate: self.crate_id,
             source_module: type_id.local_module_id(),
+            path_resolution_module: None,
             source_file: variant.name.location().file,
             self_type: None,
         };

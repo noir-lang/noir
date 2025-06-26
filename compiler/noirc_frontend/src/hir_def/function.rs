@@ -7,7 +7,7 @@ use super::stmt::HirPattern;
 use super::traits::TraitConstraint;
 use crate::ast::{BlockExpression, FunctionKind, FunctionReturnType};
 use crate::graph::CrateId;
-use crate::hir::def_map::LocalModuleId;
+use crate::hir::def_map::{LocalModuleId, ModuleId};
 use crate::node_interner::{ExprId, NodeInterner, TraitId, TraitImplId, TypeId};
 use crate::shared::Visibility;
 
@@ -169,6 +169,9 @@ pub struct FuncMeta {
 
     /// THe file this function was defined in
     pub source_file: FileId,
+
+    /// If present, this module should be used when resolving paths.
+    pub path_resolution_module: Option<ModuleId>,
 
     /// If this function is from an impl (trait or regular impl), this
     /// is the object type of the impl. Otherwise this is None.

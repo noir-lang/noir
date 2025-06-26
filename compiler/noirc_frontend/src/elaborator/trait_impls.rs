@@ -1,6 +1,7 @@
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric,
+    Kind, NamedGeneric, ResolvedGeneric, TypeVariable,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
+    elaborator::FuncMetaDefinition,
     graph::CrateId,
     hir::def_collector::{
         dc_crate::{CompilationError, UnresolvedTraitImpl},
@@ -63,11 +64,38 @@ impl Elaborator<'_> {
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
                     self.recover_generics(|this| {
-                        this.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                        // Because this default implementation is copied into the trait impl,
+                        // if the default implementation refers to a generic on the trait, it won't
+                        // be found on the trait impl as that generic is already specified there by position.
+                        // As a workaround, we define those generics with bound values here so they resolve correctly.
+                        // See https://github.com/noir-lang/noir/issues/9020
+                        let trait_ = this.interner.get_trait(trait_id);
+                        assert_eq!(trait_.generics.len(), trait_impl.resolved_trait_generics.len());
+                        for (trait_generic, trait_impl_generic) in
+                            trait_.generics.iter().zip(&trait_impl.resolved_trait_generics)
+                        {
+                            let type_var_id = this.interner.next_type_variable_id();
+                            let type_var = TypeVariable::unbound(type_var_id, trait_generic.kind());
+                            type_var.bind(trait_impl_generic.clone());
+                            let name = trait_generic.name.clone();
+                            let location = trait_generic.location;
+                            let resolved_generic = ResolvedGeneric { name, type_var, location };
+                            this.generics.push(resolved_generic);
+                        }
+
+                        this.define_function_meta(
+                            &mut default_impl_clone,
+                            FuncMetaDefinition {
+                                func_id,
+                                trait_id: None,
+                                extra_trait_constraints: &[],
+                                path_resolution_module: Some(method.default_impl_module_id),
+                            },
+                        );
                     });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
-                        method.default_impl_module_id,
+                        method.default_impl_module_id.local_id,
                         func_id,
                         *default_impl_clone,
                     ));

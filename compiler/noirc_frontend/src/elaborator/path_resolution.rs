@@ -348,7 +348,7 @@ impl Elaborator<'_> {
         target: PathResolutionTarget,
         mode: PathResolutionMode,
     ) -> PathResolutionResult {
-        let mut module_id = self.module_id();
+        let mut module_id = self.path_resolution_module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
         if path.kind == PathKind::Plain && path.first_name() == Some(SELF_TYPE_NAME) {
@@ -405,6 +405,14 @@ impl Elaborator<'_> {
             }
             resolution
         })
+    }
+
+    fn path_resolution_module_id(&self) -> ModuleId {
+        if let Some(path_resoulution_module) = self.path_resolution_module {
+            path_resoulution_module
+        } else {
+            self.module_id()
+        }
     }
 
     /// Resolves a path in `current_module`.

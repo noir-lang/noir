@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Reader<let N: u32> {}
+
+pub trait Deserialize<T, let SERIALIZED_LEN: u32> {
+    fn deserialize(x: T, _serialized: [T; SERIALIZED_LEN]) {
+        let _: [T; SERIALIZED_LEN] = [x; SERIALIZED_LEN];
+    }
+}
+
+impl Deserialize<i32, 1> for Field {
+    fn deserialize(x: i32, _serialized: [i32; 1]) {
+        let _: [i32; 1] = [x; 1];
+    }
+}
+
+fn main() {}
