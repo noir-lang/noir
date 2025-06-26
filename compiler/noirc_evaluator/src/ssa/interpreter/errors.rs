@@ -165,7 +165,7 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be {expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
