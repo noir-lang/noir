@@ -2,7 +2,10 @@ use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, binary::eval_constant_binary_op},
+    instruction::{
+        Binary, BinaryOp, Instruction,
+        binary::{BinaryEvaluationResult, eval_constant_binary_op},
+    },
     types::NumericType,
 };
 
@@ -51,11 +54,13 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
         return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-            Some(Ok((result, result_type))) => {
+            BinaryEvaluationResult::Success(result, result_type) => {
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            Some(Err(..)) | None => SimplifyResult::SimplifiedToInstruction(simplified),
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                SimplifyResult::SimplifiedToInstruction(simplified)
+            }
         };
     }
 

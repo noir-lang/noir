@@ -55,7 +55,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::eval_constant_binary_op,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         integer::IntegerConstant,
         post_order::PostOrder,
@@ -852,7 +852,7 @@ impl<'f> LoopInvariantContext<'f> {
             let lhs = lhs.into_numeric_constant().0;
             let rhs = rhs.into_numeric_constant().0;
             match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
-                Some(Ok(..)) => {
+                BinaryEvaluationResult::Success(..) => {
                     // Unchecked version of the binary operation
                     let unchecked = Instruction::Binary(Binary {
                         operator: binary.operator.into_unchecked(),
@@ -861,7 +861,7 @@ impl<'f> LoopInvariantContext<'f> {
                     });
                     return SimplifyResult::SimplifiedToInstruction(unchecked);
                 }
-                _ => {
+                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
                     return SimplifyResult::None;
                 }
             }

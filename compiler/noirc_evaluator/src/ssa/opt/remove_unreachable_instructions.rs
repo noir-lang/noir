@@ -14,7 +14,7 @@ use crate::ssa::{
         function::Function,
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
-            binary::eval_constant_binary_op,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         types::{NumericType, Type},
         value::ValueId,
@@ -181,8 +181,8 @@ fn binary_operation_always_fails(
     let lhs_value = context.dfg.get_numeric_constant(lhs)?;
 
     match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
-        Some(Err(message)) => Some(message),
-        Some(Ok(..)) | None => None,
+        BinaryEvaluationResult::Failure(message) => Some(message),
+        BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
     }
 }
 
