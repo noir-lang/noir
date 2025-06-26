@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750948522447,
+  "lastUpdate": 1750956836347,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "iamrecursion@users.noreply.github.com",
-            "name": "Ara Adkins",
-            "username": "iamrecursion"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "57861abdf296b14748473c8dd0e9b5382ac872fd",
-          "message": "chore: Improve access to data required to extract Noir (#8793)",
-          "timestamp": "2025-06-17T11:30:32Z",
-          "tree_id": "ef0a087ebd7caa741742a1301ea224d1f7817d05",
-          "url": "https://github.com/noir-lang/noir/commit/57861abdf296b14748473c8dd0e9b5382ac872fd"
-        },
-        "date": 1750161224409,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251343,
-            "range": "± 875",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222774,
-            "range": "± 1406",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789367,
-            "range": "± 6023",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780689,
             "range": "± 15489",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "153569f11bd3a1f17ff689b40b1bee9394086a19",
+          "message": "chore: don't compute used globals during DIE (#9029)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-26T16:28:00Z",
+          "tree_id": "6b4711eb41a6f12d432d51df082436d7c4849e26",
+          "url": "https://github.com/noir-lang/noir/commit/153569f11bd3a1f17ff689b40b1bee9394086a19"
+        },
+        "date": 1750956823213,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251688,
+            "range": "± 285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222423,
+            "range": "± 3288",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780457,
+            "range": "± 3301",
             "unit": "ns/iter"
           }
         ]
