@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750947583149,
+  "lastUpdate": 1750948029077,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "226a2de6071a5afb73c7a7281a02fc81905d644b",
-          "message": "chore: bump external pinned commits (#8920)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-17T10:35:08Z",
-          "tree_id": "eccb87f146b9161cf2ae5e4b20da399e4d5c4fb8",
-          "url": "https://github.com/noir-lang/noir/commit/226a2de6071a5afb73c7a7281a02fc81905d644b"
-        },
-        "date": 1750158225779,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.362,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.334,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.112,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 180,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.166,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.282,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.758,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "iamrecursion@users.noreply.github.com",
             "name": "Ara Adkins",
             "username": "iamrecursion"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.768,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8e01c4a2dc88b4df9e533aba230695148833c9c4",
+          "message": "fix(ssa_fuzzer): nested conditions in loops (#8997)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-06-26T13:53:45Z",
+          "tree_id": "9f03f62bb08b0d05082ffe2058745336f2e7e584",
+          "url": "https://github.com/noir-lang/noir/commit/8e01c4a2dc88b4df9e533aba230695148833c9c4"
+        },
+        "date": 1750948016121,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.252,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.522,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 19.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 184,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.268,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.33,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.762,
             "unit": "s"
           }
         ]
