@@ -205,7 +205,10 @@ pub fn monomorphize_debug(
 }
 
 impl<'interner> Monomorphizer<'interner> {
-    fn new(interner: &'interner mut NodeInterner, debug_type_tracker: DebugTypeTracker) -> Self {
+    pub(crate) fn new(
+        interner: &'interner mut NodeInterner,
+        debug_type_tracker: DebugTypeTracker,
+    ) -> Self {
         Monomorphizer {
             functions: HashMap::default(),
             locals: HashMap::default(),
@@ -481,7 +484,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn expr(
+    pub(crate) fn expr(
         &mut self,
         expr: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {

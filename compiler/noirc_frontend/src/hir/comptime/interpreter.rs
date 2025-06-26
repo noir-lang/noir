@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
+use acvm::AcirField;
 use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
@@ -554,7 +555,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirExpression::Match(match_) => todo!("Evaluate match in comptime code"),
             HirExpression::Tuple(tuple) => self.evaluate_tuple(tuple),
             HirExpression::Lambda(lambda) => self.evaluate_lambda(lambda, id),
-            HirExpression::Quote(tokens) => self.evaluate_quote(tokens, id),
+            HirExpression::Quote(tokens) => self.evaluate_quote(tokens),
             HirExpression::Unsafe(block) => self.evaluate_block(block),
             HirExpression::EnumConstructor(constructor) => {
                 self.evaluate_enum_constructor(constructor, id)
@@ -1097,9 +1098,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Closure(Box::new(closure)))
     }
 
-    fn evaluate_quote(&mut self, mut tokens: Tokens, expr_id: ExprId) -> IResult<Value> {
-        let location = self.elaborator.interner.expr_location(&expr_id);
-        let tokens = self.substitute_unquoted_values_into_tokens(tokens, location)?;
+    fn evaluate_quote(&mut self, mut tokens: Tokens) -> IResult<Value> {
+        let tokens = self.substitute_unquoted_values_into_tokens(tokens)?;
         Ok(Value::Quoted(Rc::new(tokens)))
     }
 
@@ -1280,6 +1280,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             self.evaluate_for_loop(start..end, get_index, for_.identifier.id, for_.block)
         } else if loop_index_type.is_unsigned() {
             let get_index = match start_value {
+                Value::U1(_) => |i| Value::U1(i == 1),
                 Value::U8(_) => |i| Value::U8(i as u8),
                 Value::U16(_) => |i| Value::U16(i as u16),
                 Value::U32(_) => |i| Value::U32(i as u32),
@@ -1470,7 +1471,14 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
-                return Err(InterpreterError::TypeUnsupported { typ, location });
+                let field_value = value.to_field_element();
+                if field_value.is_zero() {
+                    Ok(Value::U1(false))
+                } else if field_value.is_one() {
+                    Ok(Value::U1(true))
+                } else {
+                    Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
+                }
             }
             (Signedness::Unsigned, IntegerBitSize::Eight) => {
                 let value = value
@@ -1574,6 +1582,13 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
         Value::I16(value) => value as usize,
         Value::I32(value) => value as usize,
         Value::I64(value) => value as usize,
+        Value::U1(value) => {
+            if value {
+                1_usize
+            } else {
+                0_usize
+            }
+        }
         Value::U8(value) => value as usize,
         Value::U16(value) => value as usize,
         Value::U32(value) => value as usize,
@@ -1596,15 +1611,30 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
     match operator {
         UnaryOp::Minus => match rhs {
             Value::Field(value) => Ok(Value::Field(-value)),
-            Value::I8(value) => Ok(Value::I8(-value)),
-            Value::I16(value) => Ok(Value::I16(-value)),
-            Value::I32(value) => Ok(Value::I32(-value)),
-            Value::I64(value) => Ok(Value::I64(-value)),
-            Value::U8(value) => Ok(Value::U8(0 - value)),
-            Value::U16(value) => Ok(Value::U16(0 - value)),
-            Value::U32(value) => Ok(Value::U32(0 - value)),
-            Value::U64(value) => Ok(Value::U64(0 - value)),
-            Value::U128(value) => Ok(Value::U128(0 - value)),
+            Value::I8(value) => value
+                .checked_neg()
+                .map(Value::I8)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I16(value) => value
+                .checked_neg()
+                .map(Value::I16)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I32(value) => value
+                .checked_neg()
+                .map(Value::I32)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::I64(value) => value
+                .checked_neg()
+                .map(Value::I64)
+                .ok_or_else(|| InterpreterError::NegateWithOverflow { location }),
+            Value::U1(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u1" }),
+            Value::U8(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u8" }),
+            Value::U16(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u16" }),
+            Value::U32(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u32" }),
+            Value::U64(_) => Err(InterpreterError::CannotApplyMinusToType { location, typ: "u64" }),
+            Value::U128(_) => {
+                Err(InterpreterError::CannotApplyMinusToType { location, typ: "u128" })
+            }
             value => {
                 let operator = "minus";
                 let typ = value.get_type().into_owned();
@@ -1617,6 +1647,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             Value::I16(value) => Ok(Value::I16(!value)),
             Value::I32(value) => Ok(Value::I32(!value)),
             Value::I64(value) => Ok(Value::I64(!value)),
+            Value::U1(value) => Ok(Value::U1(!value)),
             Value::U8(value) => Ok(Value::U8(!value)),
             Value::U16(value) => Ok(Value::U16(!value)),
             Value::U32(value) => Ok(Value::U32(!value)),
@@ -1648,6 +1679,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
+        Value::U1(value) => Some(if value { 1_u128 } else { 0_u128 }),
         Value::U8(value) => Some(value as u128),
         Value::U16(value) => Some(value as u128),
         Value::U32(value) => Some(value as u128),

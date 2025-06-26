@@ -32,7 +32,7 @@
 //!   - We also track the last instance of a load instruction to each address in a block.
 //!     If we see that the last load instruction was from the same address as the current load instruction,
 //!     we move to replace the result of the current load with the result of the previous load.
-//!     
+//!
 //!     This removal requires a couple conditions:
 //!       - No store occurs to that address before the next load,
 //!       - The address is not used as an argument to a call
@@ -85,12 +85,13 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::InsertInstructionResult,
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         types::Type,
-        value::ValueId,
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -252,15 +253,17 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
-                let all_aliases_set_for_removal = aliases.any(|alias| {
+                // Check whether there are any aliases whose instructions are not all marked for removal.
+                // If there is any alias marked to survive, we should not remove its last store.
+                let has_alias_not_marked_for_removal = aliases.any(|alias| {
                     if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        self.instructions_to_remove.is_disjoint(alias_instructions)
+                        !alias_instructions.is_subset(&self.instructions_to_remove)
                     } else {
                         false
                     }
                 });
 
-                if all_aliases_set_for_removal == Some(true) {
+                if has_alias_not_marked_for_removal == Some(true) {
                     return true;
                 }
             }
@@ -399,18 +402,37 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        mut instruction: InstructionId,
+        instruction: InstructionId,
     ) {
-        // If the instruction was simplified and optimized out of the program we shouldn't analyze
-        // it. Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
+        // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
+        // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
-        if let Some(new_id) = self.inserter.push_instruction(instruction, block_id) {
-            instruction = new_id;
-        } else {
+        // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
+        // and we need to mark those references as used to keep their stores alive.
+        let (instruction, simplified) = {
+            let (ins, loc) = self.inserter.map_instruction(instruction);
+            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
+                InsertInstructionResult::Results(id, _) => (id, false),
+                InsertInstructionResult::SimplifiedTo(value) => {
+                    let value = &self.inserter.function.dfg[value];
+                    let Value::Instruction { instruction, .. } = value else {
+                        return;
+                    };
+                    (*instruction, true)
+                }
+                _ => return,
+            }
+        };
+
+        let ins = &self.inserter.function.dfg[instruction];
+
+        // Some instructions, when simplified, cause problems if processed again.
+        // We do need it for MakeArray in some cases, and at the moment that is not problematic.
+        if simplified && !matches!(ins, Instruction::MakeArray { .. }) {
             return;
         }
 
-        match &self.inserter.function.dfg[instruction] {
+        match ins {
             Instruction::Load { address } => {
                 let address = *address;
 
@@ -456,10 +478,14 @@ impl<'f> PerFunctionContext<'f> {
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if let Some(last_store) = references.last_stores.get(&address) {
-                    self.instructions_to_remove.insert(*last_store);
+                if !self.aliased_references.contains_key(&address) {
+                    if let Some(last_store) = references.last_stores.get(&address) {
+                        self.instructions_to_remove.insert(*last_store);
+                    }
                 }
 
+                // Remember that we used the value in this instruction. If this instruction
+                // isn't removed at the end, we need to keep the stores to the value as well.
                 references.for_each_alias_of(value, |_, alias| {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 });
@@ -478,13 +504,14 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                if self.inserter.function.dfg.value_is_reference(result) {
-                    references.for_each_alias_of(*array, |_, alias| {
+                let array = *array;
+                let array_typ = self.inserter.function.dfg.type_of_value(array);
+                if Self::contains_references(&array_typ) {
+                    references.for_each_alias_of(array, |_, alias| {
                         self.instruction_input_references.insert(alias);
                     });
-                    references.mark_value_used(*array, self.inserter.function);
+                    references.mark_value_used(array, self.inserter.function);
 
-                    let array = *array;
                     let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
@@ -519,6 +546,13 @@ impl<'f> PerFunctionContext<'f> {
 
                     references.expressions.insert(result, expression.clone());
                     references.aliases.insert(expression, aliases);
+
+                    // Similar to how we remember that we used a value in a `Store` instruction,
+                    // take note that it was used in the `ArraySet`. If this instruction is not
+                    // going to be removed at the end, we shall keep the stores to this value as well.
+                    references.for_each_alias_of(*value, |_, alias| {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    });
                 }
             }
             Instruction::Call { arguments, .. } => {
@@ -541,12 +575,22 @@ impl<'f> PerFunctionContext<'f> {
                     references.expressions.insert(array, expr.clone());
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
-                    for element in elements {
-                        aliases.insert(*element);
-                    }
+                    self.add_array_aliases(elements, aliases);
                 }
             }
             _ => (),
+        }
+    }
+
+    /// In order to handle nested arrays we need to recursively search whether there are any references
+    /// contained within an array's elements.
+    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+        for &element in elements {
+            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
+                self.add_array_aliases(&elements, aliases);
+            } else if self.inserter.function.dfg.value_is_reference(element) {
+                aliases.insert(element);
+            }
         }
     }
 
@@ -604,7 +648,7 @@ impl<'f> PerFunctionContext<'f> {
         self.inserter.map_terminator_in_place(block);
 
         match self.inserter.function.dfg[block].unwrap_terminator() {
-            TerminatorInstruction::JmpIf { .. } => (), // Nothing to do
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Unreachable { .. } => (), // Nothing to do
             TerminatorInstruction::Jmp { destination, arguments, .. } => {
                 let destination_parameters = self.inserter.function.dfg[*destination].parameters();
                 assert_eq!(destination_parameters.len(), arguments.len());
@@ -927,9 +971,7 @@ mod tests {
         // The first store is not removed as it is used as a nested reference in another store.
         // We would need to track whether the store where `v0` is the store value gets removed to know whether
         // to remove it.
-        // The first store in b1 is removed since there is another store to the same reference
-        // in the same block, and the store is not needed before the later store.
-        // The rest of the stores are also removed as no loads are done within any blocks
+        // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
         let expected = "
         acir(inline) fn main f0 {
@@ -939,6 +981,7 @@ mod tests {
             v2 = allocate -> &mut &mut Field
             jmp b1()
           b1():
+            store Field 1 at v0
             return
         }
         ";
@@ -1186,7 +1229,7 @@ mod tests {
         acir(inline) fn foo f1 {
           b0(v0: &mut Field):
             return
-        }  
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -1463,6 +1506,77 @@ mod tests {
             store u1 1 at v0
             return v0
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_store_nested_array_used_in_array_get_in_separate_block() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 1 at v2
+            v4 = make_array [v2] : [&mut u1; 1]
+            v5 = allocate -> &mut u1
+            store u1 1 at v5
+            v6 = make_array [v5] : [&mut u1; 1]
+            v7 = make_array [v4, v6] : [[&mut u1; 1]; 2]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0)
+          b2():
+            jmp b3(u32 1)
+          b3(v0: u32):
+            v11 = lt v0, u32 2
+            constrain v11 == u1 1
+            v12 = array_get v7, index v0 -> [&mut u1; 1]
+            v13 = array_get v12, index u32 0 -> &mut u1
+            v14 = load v13 -> u1
+            jmpif v14 then: b4, else: b5
+          b4():
+            jmp b6(u1 1)
+          b5():
+            jmp b6(u1 0)
+          b6(v1: u1):
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn keep_last_stores_with_aliased_references() {
+        // Ensure `store v8 at v1` is not removed from the program
+        // just because there is a subsequent `store v10 at v1`.
+        // In this case `v1` is aliased to `*v3` so the store is significant.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                v3 = allocate -> &mut &mut Field
+                store v1 at v3
+                jmp b1(u32 10)
+              b1(v0: u32):
+                v6 = lt v0, u32 11
+                jmpif v6 then: b2, else: b3
+              b2():
+                v8 = cast v0 as Field
+                store v8 at v1
+                v9 = load v3 -> &mut Field
+                v10 = load v9 -> Field
+                store v10 at v1
+                v12 = unchecked_add v0, u32 1
+                jmp b1(v12)
+              b3():
+                v7 = load v1 -> Field
+                return v7
+            }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();

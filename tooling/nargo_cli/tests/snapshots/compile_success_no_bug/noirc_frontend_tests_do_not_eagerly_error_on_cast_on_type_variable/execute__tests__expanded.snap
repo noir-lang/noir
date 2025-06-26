@@ -7,6 +7,6 @@ pub fn foo<T, U>(x: T, f: fn(T) -> U) -> U {
 }
 
 fn main() {
-    let x: u8 = 1;
+    let x: u8 = 1_u8;
     let _: Field = foo(x, |x: u8| -> Field { x as Field });
 }

@@ -5,31 +5,31 @@ expression: expanded_code
 fn main(x: u32) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        assert(entry_point(x) == 2);
-        swap_entry_point(x, x + 1);
-        assert(deep_entry_point(x) == 4);
+        assert(entry_point(x) == 2_u32);
+        swap_entry_point(x, x + 1_u32);
+        assert(deep_entry_point(x) == 4_u32);
         multiple_values_entry_point(x);
     }
 }
 
 unconstrained fn returns_multiple_values(x: u32) -> (u32, u32, u32, u32) {
-    (x + 1, x + 2, x + 3, x + 4)
+    (x + 1_u32, x + 2_u32, x + 3_u32, x + 4_u32)
 }
 
 unconstrained fn multiple_values_entry_point(x: u32) {
     let (a, b, c, d): (u32, u32, u32, u32) = returns_multiple_values(x);
-    assert(a == (x + 1));
-    assert(b == (x + 2));
-    assert(c == (x + 3));
-    assert(d == (x + 4));
+    assert(a == (x + 1_u32));
+    assert(b == (x + 2_u32));
+    assert(c == (x + 3_u32));
+    assert(d == (x + 4_u32));
 }
 
 unconstrained fn inner(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }
 
 unconstrained fn entry_point(x: u32) -> u32 {
-    inner(x + 1)
+    inner(x + 1_u32)
 }
 
 unconstrained fn swap(x: u32, y: u32) -> (u32, u32) {
@@ -46,17 +46,17 @@ unconstrained fn swap_entry_point(x: u32, y: u32) {
 }
 
 unconstrained fn level_3(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }
 
 unconstrained fn level_2(x: u32) -> u32 {
-    level_3(x + 1)
+    level_3(x + 1_u32)
 }
 
 unconstrained fn level_1(x: u32) -> u32 {
-    level_2(x + 1)
+    level_2(x + 1_u32)
 }
 
 unconstrained fn deep_entry_point(x: u32) -> u32 {
-    level_1(x + 1)
+    level_1(x + 1_u32)
 }

@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(start: i64, end: i64) -> pub u32 {
-    let start: i64 = start % 5;
-    let end: i64 = end % 5;
-    let mut sum: u32 = 0;
+    let start: i64 = start % 5_i64;
+    let end: i64 = end % 5_i64;
+    let mut sum: u32 = 0_u32;
     for i in start..end {
-        sum = sum + 1;
+        sum = sum + 1_u32;
     }
     sum
 }

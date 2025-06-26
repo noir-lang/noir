@@ -17,7 +17,7 @@ use noirc_abi::input_parser::Format;
 use noirc_evaluator::{brillig::BrilligOptions, ssa};
 
 fn seed_from_env() -> Option<u64> {
-    let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
     let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
         .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
     Some(seed)
@@ -59,7 +59,7 @@ fn arb_program_can_be_executed() {
             eprintln!("{}", DisplayAstAsNoir(&program));
         }
 
-        let ssa = ssa::create_program(program.clone(), &options)
+        let ssa = ssa::create_program(program.clone(), &options, None)
             .unwrap_or_else(|e| print_ast_and_panic(&format!("Failed to compile program: {e}")));
 
         let inputs = arb_inputs(u, &ssa.program, &abi)?;

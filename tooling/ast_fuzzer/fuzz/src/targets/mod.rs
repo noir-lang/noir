@@ -1,5 +1,6 @@
 pub mod acir_vs_brillig;
-pub mod comptime_vs_brillig;
+pub mod comptime_vs_brillig_direct;
+pub mod comptime_vs_brillig_nargo;
 pub mod min_vs_full;
 pub mod orig_vs_morph;
 pub mod pass_vs_prev;
@@ -7,7 +8,7 @@ pub mod pass_vs_prev;
 #[cfg(test)]
 mod tests {
 
-    const TIMEOUT: Duration = Duration::from_secs(20);
+    const BUDGET: Duration = Duration::from_secs(20);
     const MIN_SIZE: u32 = 1 << 12;
     const MAX_SIZE: u32 = 1 << 20;
 
@@ -17,16 +18,32 @@ mod tests {
     use color_eyre::eyre;
     use proptest::prelude::*;
 
-    pub fn seed_from_env() -> Option<u64> {
-        let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    use crate::bool_from_env;
+
+    fn seed_from_env() -> Option<u64> {
+        let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
         let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
             .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
         Some(seed)
     }
 
+    /// How long to let non-deterministic tests run for.
+    fn budget() -> Duration {
+        std::env::var("NOIR_AST_FUZZER_BUDGET_SECS").ok().map_or(BUDGET, |b| {
+            Duration::from_secs(
+                b.parse().unwrap_or_else(|e| panic!("failed to parse budget; got {b}: {e}")),
+            )
+        })
+    }
+
     /// Check if we are running on CI.
-    pub fn is_running_in_ci() -> bool {
+    fn is_running_in_ci() -> bool {
         std::env::var("CI").is_ok()
+    }
+
+    /// Check if we explicitly want non-deterministic behavior, even on CI.
+    fn force_non_deterministic() -> bool {
+        bool_from_env("NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC")
     }
 
     /// `cargo fuzz` takes a long time to ramp up the complexity.
@@ -34,7 +51,7 @@ mod tests {
     ///
     /// Run it with for example:
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
@@ -46,7 +63,7 @@ mod tests {
 
         if let Some(seed) = seed_from_env() {
             run_reproduce(f, seed);
-        } else if is_running_in_ci() {
+        } else if is_running_in_ci() && !force_non_deterministic() {
             run_deterministic(f, cases);
         } else {
             run_nondeterministic(f);
@@ -73,7 +90,7 @@ mod tests {
         })
         .size_min(MIN_SIZE)
         .size_max(MAX_SIZE)
-        .budget(TIMEOUT)
+        .budget(budget())
         .run();
     }
 

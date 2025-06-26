@@ -16,13 +16,17 @@ use noirc_frontend::monomorphization::ast::Program;
 
 pub mod targets;
 
+fn bool_from_env(key: &str) -> bool {
+    std::env::var(key).map(|s| s == "1" || s == "true").unwrap_or_default()
+}
+
 // TODO(#7876): Allow specifying options on the command line.
 fn show_ast() -> bool {
-    std::env::var("NOIR_AST_FUZZER_SHOW_AST").map(|s| s == "1" || s == "true").unwrap_or_default()
+    bool_from_env("NOIR_AST_FUZZER_SHOW_AST")
 }
 
 fn show_ssa() -> bool {
-    std::env::var("NOIR_AST_FUZZER_SHOW_SSA").map(|s| s == "1" || s == "true").unwrap_or_default()
+    bool_from_env("NOIR_AST_FUZZER_SHOW_SSA")
 }
 
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
@@ -73,12 +77,14 @@ where
         eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
     }
 
-    ssa::create_program_with_passes(program, options, primary, secondary).unwrap_or_else(|e| {
-        panic!(
-            "failed to compile program: {}{e}",
-            msg.map(|s| format!("{s}: ")).unwrap_or_default()
-        )
-    })
+    ssa::create_program_with_passes(program, options, primary, secondary, None).unwrap_or_else(
+        |e| {
+            panic!(
+                "failed to compile program: {}{e}",
+                msg.map(|s| format!("{s}: ")).unwrap_or_default()
+            )
+        },
+    )
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
@@ -189,11 +195,15 @@ pub fn compare_results_interpreted(
 
         eprintln!(
             "---\nSSA 1 after step {} ({}):\n{}",
-            inputs.ssa1.step, inputs.ssa1.msg, inputs.ssa1.ssa
+            inputs.ssa1.step,
+            inputs.ssa1.msg,
+            inputs.ssa2.ssa.print_without_locations()
         );
         eprintln!(
             "---\nSSA 2 after step {} ({}):\n{}",
-            inputs.ssa2.step, inputs.ssa2.msg, inputs.ssa2.ssa
+            inputs.ssa2.step,
+            inputs.ssa2.msg,
+            inputs.ssa2.ssa.print_without_locations()
         );
 
         // Returning it as-is, so we can see the error message at the bottom as well.

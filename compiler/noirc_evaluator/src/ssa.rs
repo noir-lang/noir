@@ -128,6 +128,32 @@ impl<'a> SsaPass<'a> {
     pub fn run(&self, ssa: Ssa) -> Result<Ssa, RuntimeError> {
         (self.run)(ssa)
     }
+
+    /// Follow up the pass with another one, without adding a separate message for it.
+    ///
+    /// This is useful for attaching cleanup passes that we don't want to appear on their
+    /// own in the pipeline, because it would just increase the noise.
+    pub fn and_then<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        self.and_then_try(move |ssa| Ok(f(ssa)))
+    }
+
+    /// Same as `and_then` but for passes that can fail.
+    pub fn and_then_try<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        Self {
+            msg: self.msg,
+            run: Box::new(move |ssa| {
+                let ssa = self.run(ssa)?;
+                let ssa = f(ssa)?;
+                Ok(ssa)
+            }),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -140,7 +166,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
+        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions")
+            .and_then(Ssa::remove_unreachable_functions),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -153,8 +180,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -191,26 +218,29 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         ),
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
+        // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        // We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
+        // if they are unreachable and would cause the DIE post-checks to fail.
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
-        // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
-        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+            // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        // A function can be potentially unreachable post-DIE if all calls to that function were removed.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
+            // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
@@ -225,10 +255,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        // It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            // It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
     ]
 }
 
@@ -248,9 +279,9 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // which was called in the AST not being called in the SSA. Such functions would cause
         // panics later, when we are looking for global allocations.
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
-        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         // We need to add an offset to constant array indices in Brillig.
+        // This can change which globals are used, because constant creation might result
+        // in the (re)use of otherwise unused global values.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
     ]
 }
@@ -281,25 +312,29 @@ where
     let ssa_gen_span_guard = ssa_gen_span.enter();
     let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
-    let mut ssa = builder.finish();
+    let files = builder.files;
+    let ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
-    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(&options.brillig_options, used_globals_map)
+        ssa.to_brillig(&options.brillig_options)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
-    let mut ssa =
-        SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), options.print_codegen_timings)
-            .with_passed(passed)
-            .with_skip_passes(options.skip_passes.clone())
-            .run_passes(&secondary(&brillig))?
-            .finish();
+    let mut ssa = SsaBuilder::from_ssa(
+        ssa,
+        options.ssa_logging.clone(),
+        options.print_codegen_timings,
+        files,
+    )
+    .with_passed(passed)
+    .with_skip_passes(options.skip_passes.clone())
+    .run_passes(&secondary(&brillig))?
+    .finish();
 
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
@@ -347,6 +382,7 @@ pub fn optimize_into_acir<S>(
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
+    files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
@@ -356,6 +392,7 @@ where
         options.ssa_logging.clone(),
         options.print_codegen_timings,
         &options.emit_ssa,
+        files,
     )?;
 
     optimize_ssa_builder_into_acir(builder, options, primary, secondary)
@@ -430,8 +467,9 @@ impl SsaProgramArtifact {
 pub fn create_program(
     program: Program,
     options: &SsaEvaluatorOptions,
+    files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    create_program_with_passes(program, options, &primary_passes(options), secondary_passes)
+    create_program_with_passes(program, options, &primary_passes(options), secondary_passes, files)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
@@ -442,6 +480,7 @@ pub fn create_program(
 pub fn create_program_with_minimal_passes(
     program: Program,
     options: &SsaEvaluatorOptions,
+    files: &fm::FileManager,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     for func in &program.functions {
         assert!(
@@ -450,7 +489,7 @@ pub fn create_program_with_minimal_passes(
             func.name
         );
     }
-    create_program_with_passes(program, options, &minimal_passes(), |_| vec![])
+    create_program_with_passes(program, options, &minimal_passes(), |_| vec![], Some(files))
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
@@ -461,6 +500,7 @@ pub fn create_program_with_passes<S>(
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     secondary: S,
+    files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError>
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
@@ -474,7 +514,7 @@ where
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
-    ) = optimize_into_acir(program, options, primary, secondary)?;
+    ) = optimize_into_acir(program, options, primary, secondary, files)?;
 
     assert_eq!(
         generated_acirs.len(),
@@ -624,7 +664,7 @@ fn split_public_and_private_inputs(
 }
 
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-pub struct SsaBuilder {
+pub struct SsaBuilder<'local> {
     /// The SSA being built; it is the input and the output of every pass ran by the builder.
     pub ssa: Ssa,
     /// Options to control which SSA passes to print.
@@ -636,14 +676,19 @@ pub struct SsaBuilder {
     pub passed: HashMap<String, usize>,
     /// List of SSA pass message fragments that we want to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// Providing a file manager is optional - if provided it can be used to print source
+    /// locations along with each ssa instructions when debugging.
+    pub files: Option<&'local fm::FileManager>,
 }
 
-impl SsaBuilder {
+impl<'local> SsaBuilder<'local> {
     pub fn from_program(
         program: Program,
         ssa_logging: SsaLogging,
         print_codegen_timings: bool,
         emit_ssa: &Option<PathBuf>,
+        files: Option<&'local fm::FileManager>,
     ) -> Result<Self, RuntimeError> {
         let ssa = ssa_gen::generate_ssa(program)?;
         if let Some(emit_ssa) = emit_ssa {
@@ -655,14 +700,20 @@ impl SsaBuilder {
             let ssa_path = emit_ssa.with_extension("ssa.json");
             write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
         }
-        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings).print("Initial SSA"))
+        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print("Initial SSA"))
     }
 
-    pub fn from_ssa(ssa: Ssa, ssa_logging: SsaLogging, print_codegen_timings: bool) -> Self {
+    pub fn from_ssa(
+        ssa: Ssa,
+        ssa_logging: SsaLogging,
+        print_codegen_timings: bool,
+        files: Option<&'local fm::FileManager>,
+    ) -> Self {
         Self {
             ssa_logging,
             print_codegen_timings,
             ssa,
+            files,
             passed: Default::default(),
             skip_passes: Default::default(),
         }
@@ -739,7 +790,7 @@ impl SsaBuilder {
         };
 
         if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa);
+            println!("After {msg}:\n{}", self.ssa.print_with(self.files));
         }
         self
     }
