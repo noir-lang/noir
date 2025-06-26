@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750957601357,
+  "lastUpdate": 1750957611031,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "iamrecursion@users.noreply.github.com",
-            "name": "Ara Adkins",
-            "username": "iamrecursion"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "57861abdf296b14748473c8dd0e9b5382ac872fd",
-          "message": "chore: Improve access to data required to extract Noir (#8793)",
-          "timestamp": "2025-06-17T11:30:32Z",
-          "tree_id": "ef0a087ebd7caa741742a1301ea224d1f7817d05",
-          "url": "https://github.com/noir-lang/noir/commit/57861abdf296b14748473c8dd0e9b5382ac872fd"
-        },
-        "date": 1750162008354,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.64,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8e01c4a2dc88b4df9e533aba230695148833c9c4"
         },
         "date": 1750948481096,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "153569f11bd3a1f17ff689b40b1bee9394086a19",
+          "message": "chore: don't compute used globals during DIE (#9029)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-06-26T16:28:00Z",
+          "tree_id": "6b4711eb41a6f12d432d51df082436d7c4849e26",
+          "url": "https://github.com/noir-lang/noir/commit/153569f11bd3a1f17ff689b40b1bee9394086a19"
+        },
+        "date": 1750957596768,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
