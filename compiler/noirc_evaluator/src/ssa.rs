@@ -323,14 +323,13 @@ where
     let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let files = builder.files;
-    let mut ssa = builder.finish();
+    let ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
-    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(&options.brillig_options, used_globals_map)
+        ssa.to_brillig(&options.brillig_options)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
