@@ -193,12 +193,9 @@ impl Trait {
     }
 
     pub fn find_method_or_constant(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
-        print!("finding method or constant `{name}`: ");
         if let Some(method) = self.find_method(name, interner) {
-            println!("found");
             return Some(method);
         }
-            println!("not found");
         None
     }
 

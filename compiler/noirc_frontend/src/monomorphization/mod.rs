@@ -2517,6 +2517,8 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
+            println!("resolve trait method: {}", interner.trait_constraint_string(
+                    &object_type,  method_id.1, &trait_generics.ordered, &trait_generics.named));
 
             match interner.lookup_trait_implementation(
                 &object_type,
@@ -2536,22 +2538,19 @@ pub fn resolve_trait_method(
                     return Err(InterpreterError::NoImpl { location });
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
-                    eprintln!("monomorphization error1");
                     return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
                 }
                 Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        eprintln!("monomorphization error2");
+                        println!("monomorphization error2");
                         return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
-                        eprintln!("monomorphization error3");
                         return Err(InterpreterError::NoImpl { location });
                     }
                 }
                 Err(ImplSearchErrorKind::MultipleMatching(candidates)) => {
-                    eprintln!("monomorphization error4");
                     return Err(InterpreterError::MultipleMatchingImpls {
                         object_type,
                         location,

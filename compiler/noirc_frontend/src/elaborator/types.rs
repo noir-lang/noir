@@ -2139,8 +2139,6 @@ impl Elaborator<'_> {
         select_impl: bool,
         location: Location,
     ) {
-        eprintln!("{}", self.interner.trait_constraint_string(object_type, trait_id, trait_generics, associated_types));
-
         match self.interner.lookup_trait_implementation(
             object_type,
             trait_id,
@@ -2183,7 +2181,6 @@ impl Elaborator<'_> {
                 }
             }
             Err(error) => {
-                println!("(failed)");
                 self.push_trait_constraint_error(object_type, error, location)
             }
         }
