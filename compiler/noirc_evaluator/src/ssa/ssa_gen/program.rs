@@ -21,7 +21,6 @@ use super::ValueId;
 pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
     pub functions: BTreeMap<FunctionId, Function>,
-    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     pub main_id: FunctionId,
     #[serde(skip)]
     pub next_id: AtomicCounter<Function>,
@@ -55,9 +54,6 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            // This field is set only after running DIE and is utilized
-            // for optimizing implementation of globals post-SSA.
-            used_globals: HashMap::default(),
         }
     }
 
