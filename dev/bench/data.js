@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750935286570,
+  "lastUpdate": 1750935302632,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d068d38f359e9ae656ba7d02c4404cf6f583bbbc",
-          "message": "chore(fuzz): Compare print output on failed programs (#8921)",
-          "timestamp": "2025-06-17T09:04:58Z",
-          "tree_id": "2671496526969c90eacaf1fbeba917ee9885797d",
-          "url": "https://github.com/noir-lang/noir/commit/d068d38f359e9ae656ba7d02c4404cf6f583bbbc"
-        },
-        "date": 1750152490153,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249422,
-            "range": "± 966",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221543,
-            "range": "± 2779",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787649,
-            "range": "± 1577",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779943,
             "range": "± 2284",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a77d56d0a31d090136051e7fa7162689fa5d8764",
+          "message": "fix(fuzz): Consider `==` turning into `!=` equivalent (#9025)",
+          "timestamp": "2025-06-26T10:30:40Z",
+          "tree_id": "6e64bec03859a771f0b135a1365560dd3f076694",
+          "url": "https://github.com/noir-lang/noir/commit/a77d56d0a31d090136051e7fa7162689fa5d8764"
+        },
+        "date": 1750935289383,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252349,
+            "range": "± 1360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222806,
+            "range": "± 3888",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778846,
+            "range": "± 987",
             "unit": "ns/iter"
           }
         ]
