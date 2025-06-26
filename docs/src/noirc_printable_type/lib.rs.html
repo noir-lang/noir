@@ -526,8 +526,7 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -860,11 +859,10 @@
             PrintableValue::Struct(struct_map)
         }
         PrintableType::Function { env, .. } =&gt; {
-            <span class="kw">let </span>field_element = field_iterator.next().unwrap();
-            <span class="kw">let </span>func_ref = PrintableValue::Field(field_element);
             <span class="comment">// we want to consume the fields from the environment, but for now they are not actually printed
-            </span>decode_printable_value(field_iterator, env);
-            func_ref
+            </span><span class="kw">let </span>_env = decode_printable_value(field_iterator, env);
+            <span class="kw">let </span>func_id = field_iterator.next().unwrap();
+            PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } =&gt; {
             <span class="comment">// we decode the reference, but it's not really used for printing

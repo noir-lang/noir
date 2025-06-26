@@ -386,7 +386,20 @@
 <a href="#385" id="385">385</a>
 <a href="#386" id="386">386</a>
 <a href="#387" id="387">387</a>
-<a href="#388" id="388">388</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -395,7 +408,12 @@
 <span class="kw">use </span>color_eyre::eyre;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-<span class="kw">use </span>noirc_evaluator::ssa::{<span class="self">self</span>, interpreter::value::Value, ir::types::NumericType, ssa_gen::Ssa};
+<span class="kw">use </span>noirc_evaluator::ssa::{
+    <span class="self">self</span>,
+    interpreter::{InterpreterOptions, value::Value},
+    ir::types::NumericType,
+    ssa_gen::Ssa,
+};
 <span class="kw">use </span>noirc_frontend::{Shared, monomorphization::ast::Program};
 <span class="kw">use </span>regex::Regex;
 
@@ -462,7 +480,7 @@
     }
 
     <span class="kw">pub fn </span>exec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; eyre::Result&lt;CompareInterpretedResult&gt; {
-        <span class="comment">// Debug prints up frontin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        <span class="comment">// Debug prints up front in case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
         </span><span class="macro">log::debug!</span>(<span class="string">"Program: \n{}\n"</span>, <span class="kw">crate</span>::DisplayAstAsNoir(<span class="kw-2">&amp;</span><span class="self">self</span>.program));
         <span class="macro">log::debug!</span>(
             <span class="string">"ABI inputs: \n{}\n"</span>,
@@ -485,26 +503,34 @@
         );
 
         <span class="comment">// Interpret an SSA with a fresh copy of the input values.
-        </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| ssa.interpret(Value::snapshot_args(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa_args));
+        </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| {
+            <span class="kw">let </span><span class="kw-2">mut </span>output = Vec::new();
+            <span class="kw">let </span>res = ssa.interpret_with_options(
+                Value::snapshot_args(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa_args),
+                InterpreterOptions::default(),
+                <span class="kw-2">&amp;mut </span>output,
+            );
+            (res, output)
+        };
 
-        <span class="kw">let </span>res1 = interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.ssa);
-        <span class="kw">let </span>res2 = interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.ssa);
-        <span class="prelude-val">Ok</span>(CompareInterpretedResult::new(res1, res2))
+        <span class="prelude-val">Ok</span>(CompareInterpretedResult::new(interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa1.ssa), interpret(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa2.ssa)))
     }
 }
 
 <span class="kw">impl </span>CompareInterpretedResult {
-    <span class="kw">pub fn </span>new(res1: InterpretResult, res2: InterpretResult) -&gt; <span class="self">Self </span>{
-        <span class="comment">// Currently the SSA interpreter `call_print` doesn't do anything, so we cannot capture the print output.
-        </span><span class="kw">let </span>failed = |e| FailedOutput { error: e, print_output: Default::default() };
-        <span class="kw">let </span>passed =
-            |ret| PassedOutput { return_value: <span class="prelude-val">Some</span>(ret), print_output: Default::default() };
+    <span class="kw">pub fn </span>new(
+        (res1, print1): (InterpretResult, Vec&lt;u8&gt;),
+        (res2, print2): (InterpretResult, Vec&lt;u8&gt;),
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>printed = |p| String::from_utf8(p).expect(<span class="string">"from_utf8 of print"</span>);
+        <span class="kw">let </span>failed = |e, p| FailedOutput { error: e, print_output: printed(p) };
+        <span class="kw">let </span>passed = |ret, p| PassedOutput { return_value: <span class="prelude-val">Some</span>(ret), print_output: printed(p) };
 
         <span class="kw">match </span>(res1, res2) {
-            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::BothPassed(passed(r1), passed(r2)),
-            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::RightFailed(passed(r1), failed(e2)),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::LeftFailed(failed(e1), passed(r2)),
-            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::BothFailed(failed(e1), failed(e2)),
+            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::BothPassed(passed(r1, print1), passed(r2, print2)),
+            (<span class="prelude-val">Ok</span>(r1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::RightFailed(passed(r1, print1), failed(e2, print2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Ok</span>(r2)) =&gt; <span class="self">Self</span>::LeftFailed(failed(e1, print1), passed(r2, print2)),
+            (<span class="prelude-val">Err</span>(e1), <span class="prelude-val">Err</span>(e2)) =&gt; <span class="self">Self</span>::BothFailed(failed(e1, print1), failed(e2, print2)),
         }
     }
 }

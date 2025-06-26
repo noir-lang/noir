@@ -1490,7 +1490,11 @@
 <a href="#1489" id="1489">1489</a>
 <a href="#1490" id="1490">1490</a>
 <a href="#1491" id="1491">1491</a>
-<a href="#1492" id="1492">1492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::cmp::Ordering;
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1519,7 +1523,7 @@
 
 <span class="kw">use </span>value::Value;
 
-<span class="kw">struct </span>Interpreter&lt;<span class="lifetime">'ssa</span>&gt; {
+<span class="kw">struct </span>Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
     <span class="doccomment">/// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
@@ -1533,9 +1537,11 @@
     </span>side_effects_enabled: bool,
 
     options: InterpreterOptions,
+    <span class="doccomment">/// Print output.
+    </span>output: W,
 }
 
-<span class="attr">#[derive(Copy, Clone, Default)]
+<span class="attr">#[derive(Debug, Clone, Copy, Default)]
 </span><span class="kw">pub struct </span>InterpreterOptions {
     <span class="doccomment">/// If true, the interpreter will trace its execution.
     </span><span class="kw">pub </span>trace: bool,
@@ -1566,33 +1572,35 @@
 <span class="attr">#[allow(unused)]
 </span><span class="kw">impl </span>Ssa {
     <span class="kw">pub fn </span>interpret(<span class="kw-2">&amp;</span><span class="self">self</span>, args: Vec&lt;Value&gt;) -&gt; IResults {
-        <span class="self">self</span>.interpret_with_options(args, InterpreterOptions::default())
+        <span class="self">self</span>.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())
     }
 
-    <span class="kw">pub fn </span>interpret_with_options(
+    <span class="kw">pub fn </span>interpret_with_options&lt;W: Write&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         args: Vec&lt;Value&gt;,
         options: InterpreterOptions,
+        output: W,
     ) -&gt; IResults {
-        <span class="self">self</span>.interpret_function(<span class="self">self</span>.main_id, args, options)
+        <span class="self">self</span>.interpret_function(<span class="self">self</span>.main_id, args, options, output)
     }
 
-    <span class="kw">fn </span>interpret_function(
+    <span class="kw">fn </span>interpret_function&lt;W: Write&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         function: FunctionId,
         args: Vec&lt;Value&gt;,
         options: InterpreterOptions,
+        output: W,
     ) -&gt; IResults {
-        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(<span class="self">self</span>, options);
+        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new(<span class="self">self</span>, options, output);
         interpreter.interpret_globals()<span class="question-mark">?</span>;
         interpreter.call_function(function, args)
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'ssa</span>&gt; Interpreter&lt;<span class="lifetime">'ssa</span>&gt; {
-    <span class="kw">fn </span>new(ssa: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Ssa, options: InterpreterOptions) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'ssa</span>, W: Write&gt; Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
+    <span class="kw">fn </span>new(ssa: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Ssa, options: InterpreterOptions, output: W) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>call_stack = <span class="macro">vec!</span>[CallContext::global_context()];
-        <span class="self">Self </span>{ ssa, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options }
+        <span class="self">Self </span>{ ssa, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output }
     }
 
     <span class="kw">fn </span>call_context(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CallContext {
@@ -2650,7 +2658,7 @@
     }};
 }
 
-<span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>&gt; {
+<span class="kw">impl</span>&lt;W: Write&gt; Interpreter&lt;<span class="lifetime">'_</span>, W&gt; {
     <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, side_effects_enabled: bool) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>lhs_id = binary.lhs;
         <span class="kw">let </span>rhs_id = binary.rhs;
