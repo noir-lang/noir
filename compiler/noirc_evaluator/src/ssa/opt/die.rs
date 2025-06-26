@@ -440,7 +440,7 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        Store { .. } => should_remove_load_and_store(function, flattened),
+        Store { .. } => should_remove_store(function, flattened),
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -617,7 +617,7 @@ impl RcTracker {
 /// pass and after the last mem2reg pass. This is currently the case for the DIE
 /// pass where this check is done, but does mean that we cannot perform mem2reg
 /// after the DIE pass.
-fn should_remove_load_and_store(func: &Function, flattened: bool) -> bool {
+fn should_remove_store(func: &Function, flattened: bool) -> bool {
     flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
 }
 
@@ -625,13 +625,13 @@ fn should_remove_load_and_store(func: &Function, flattened: bool) -> bool {
 /// * Store and Load instructions should be removed from ACIR after flattening.
 #[cfg(debug_assertions)]
 fn die_post_check(func: &Function, flattened: bool) {
-    if should_remove_load_and_store(func, flattened) {
+    if should_remove_store(func, flattened) {
         for block_id in func.reachable_blocks() {
             for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
                 let instruction = &func.dfg[*instruction_id];
                 if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
                     panic!(
-                        "not expected to have Load instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
+                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
                         func.name(),
                         func.id(),
                         instruction
