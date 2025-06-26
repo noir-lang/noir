@@ -820,7 +820,13 @@
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
 <a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1040,9 +1046,17 @@
         ),
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, <span class="string">"Adding constrain not equal"</span>),
         SsaPass::new(Ssa::check_u128_mul_overflow, <span class="string">"Check u128 mul overflow"</span>),
+        <span class="comment">// Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
+        // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
+        </span>SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
+        <span class="comment">// We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
+        </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        <span class="comment">// Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
+        // if they are unreachable and would cause the DIE post-checks to fail.
+        </span>SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
-        SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
-        SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
         SsaPass::new(Ssa::array_set_optimization, <span class="string">"Array Set Optimizations"</span>),
         <span class="comment">// The Brillig globals pass expected that we have the used globals map set for each function.
         // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
@@ -1060,10 +1074,8 @@
         // because the creation of shifted index constants can reuse their IDs.
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
         <span class="comment">// Perform another DIE pass to update the used globals after offsetting Brillig indexes.
-        </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
-        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
-            <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed,
-            // or after the removal of unreachable instructions.
+        </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>)
+            <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
             </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
         SsaPass::new_try(
