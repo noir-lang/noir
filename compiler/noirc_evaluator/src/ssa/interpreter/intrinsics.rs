@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
@@ -16,7 +18,7 @@ use crate::ssa::{
 
 use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
 
-impl Interpreter<'_> {
+impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
@@ -675,9 +677,9 @@ impl Interpreter<'_> {
                 decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
             let printable_display = PrintableValueDisplay::Plain(printable_value, printable_type);
             if print_newline {
-                println!("{printable_display}");
+                writeln!(self.output, "{printable_display}").expect("writeln");
             } else {
-                print!("{printable_display}");
+                write!(self.output, "{printable_display}").expect("write");
             }
         }
 
