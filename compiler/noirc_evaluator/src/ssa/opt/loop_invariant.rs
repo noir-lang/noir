@@ -847,8 +847,7 @@ impl<'f> LoopInvariantContext<'f> {
         } {
             // We evaluate this expression using the upper bounds (or lower in the case of sub)
             // of its inputs to check whether it will ever overflow.
-            // If so, this will cause `eval_constant_binary_op` to return `None`.
-            // Therefore a `Some` value shows that this operation is safe.
+            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
             let lhs = lhs.into_numeric_constant().0;
             let rhs = rhs.into_numeric_constant().0;
             match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
