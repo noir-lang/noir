@@ -654,7 +654,9 @@ impl<W: Write> Interpreter<'_, W> {
             }))
         };
 
-        // We expect at least 4 arguments.
+        // We expect at least 4 arguments:
+        // * normal: newline, value0, ..., valueN, meta, false
+        // * formatted: newline, msg, N, value1_0, ..., value1_i, ..., valueN_0, ..., valueN_j, meta1, ..., metaN, true
         if args.len() < 4 {
             return invalid_input_size(4);
         }
@@ -684,11 +686,10 @@ impl<W: Write> Interpreter<'_, W> {
             }
             PrintableValueDisplay::FmtString(message, fragments)
         } else {
-            if args.len() != 4 {
-                return invalid_input_size(4);
-            }
-            let input_as_fields = value_to_fields(&args[1]);
-            let printable_type = value_to_printable_type(&args[2])?;
+            let meta_idx = args.len() - 2;
+            let input_as_fields =
+                (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let printable_type = value_to_printable_type(&args[meta_idx])?;
             let printable_value =
                 decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
             PrintableValueDisplay::Plain(printable_value, printable_type)
