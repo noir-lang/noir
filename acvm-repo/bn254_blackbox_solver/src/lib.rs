@@ -54,8 +54,7 @@ impl BlackBoxFunctionSolver<FieldElement> for Bn254BlackBoxSolver {
     fn poseidon2_permutation(
         &self,
         inputs: &[FieldElement],
-        len: u32,
     ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-        poseidon2_permutation(inputs, len)
+        poseidon2_permutation(inputs)
     }
 }

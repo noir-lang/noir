@@ -201,7 +201,6 @@ message BlackBoxFuncCall {
   message Poseidon2Permutation {
     repeated FunctionInput inputs = 1;
     repeated native.Witness outputs = 2;
-    uint32 len = 3;
   }
   message Sha256Compression {
     repeated FunctionInput inputs = 1;

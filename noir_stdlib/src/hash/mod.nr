@@ -137,7 +137,7 @@ pub fn hash_to_field(inputs: [Field]) -> Field {
 }
 
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.

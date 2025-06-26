@@ -578,11 +578,10 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
                     output: Self::encode_some(output),
                 })
             }
-            brillig::BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+            brillig::BlackBoxOp::Poseidon2Permutation { message, output } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     message: Self::encode_some(message),
                     output: Self::encode_some(output),
-                    len: Self::encode_some(len),
                 })
             }
             brillig::BlackBoxOp::Sha256Compression { input, hash_values, output } => {
@@ -690,7 +689,6 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
             Value::Poseidon2Permutation(v) => Ok(brillig::BlackBoxOp::Poseidon2Permutation {
                 message: Self::decode_some_wrap(&v.message, "message")?,
                 output: Self::decode_some_wrap(&v.output, "output")?,
-                len: Self::decode_some_wrap(&v.len, "len")?,
             }),
             Value::Sha256Compression(v) => Ok(brillig::BlackBoxOp::Sha256Compression {
                 input: Self::decode_some_wrap(&v.input, "input")?,

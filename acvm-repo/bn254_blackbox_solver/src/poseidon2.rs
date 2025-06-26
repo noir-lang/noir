@@ -6,10 +6,9 @@ use crate::FieldElement;
 
 pub fn poseidon2_permutation(
     inputs: &[FieldElement],
-    len: u32,
 ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
     let poseidon = Poseidon2::new();
-    poseidon.permutation(inputs, len)
+    poseidon.permutation(inputs)
 }
 
 pub(crate) struct Poseidon2<'a> {
@@ -491,22 +490,11 @@ impl Poseidon2<'_> {
     pub(crate) fn permutation(
         &self,
         inputs: &[FieldElement],
-        len: u32,
     ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
-        if len as usize != inputs.len() {
+        if inputs.len() != self.config.t as usize {
             return Err(BlackBoxResolutionError::Failed(
                 acir::BlackBoxFunc::Poseidon2Permutation,
-                format!(
-                    "the number of inputs does not match specified length. {} > {}",
-                    inputs.len(),
-                    len
-                ),
-            ));
-        }
-        if len != self.config.t {
-            return Err(BlackBoxResolutionError::Failed(
-                acir::BlackBoxFunc::Poseidon2Permutation,
-                format!("Expected {} values but encountered {}", self.config.t, len),
+                format!("Expected {} values but encountered {}", self.config.t, inputs.len()),
             ));
         }
         // Read witness assignments
@@ -594,7 +582,7 @@ impl<'a> Poseidon2Sponge<'a> {
         for i in 0..self.rate {
             self.state[i] += self.cache[i];
         }
-        self.state = self.poseidon.permutation(&self.state, 4)?;
+        self.state = self.poseidon.permutation(&self.state)?;
         Ok(())
     }
 
@@ -631,7 +619,7 @@ mod test {
     #[test]
     fn smoke_test() {
         let inputs = [FieldElement::zero(); 4];
-        let result = poseidon2_permutation(&inputs, 4).expect("should successfully permute");
+        let result = poseidon2_permutation(&inputs).expect("should successfully permute");
 
         let expected_result = [
             field_from_hex("18DFB8DC9B82229CFF974EFEFC8DF78B1CE96D9D844236B496785C698BC6732E"),

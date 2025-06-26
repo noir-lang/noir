@@ -471,7 +471,7 @@ where
             BlackBoxFuncCall::BigIntToLeBytes { input: _, outputs } => {
                 self.fold_many(outputs.iter());
             }
-            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len: _ } => {
+            BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }

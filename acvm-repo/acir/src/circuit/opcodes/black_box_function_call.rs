@@ -246,9 +246,6 @@ pub enum BlackBoxFuncCall<F> {
         inputs: Vec<FunctionInput<F>>,
         /// Permuted state
         outputs: Vec<Witness>,
-        /// State length (in number of field elements)
-        /// It is the length of inputs and outputs vectors
-        len: u32,
     },
     /// Applies the SHA-256 compression function to the input message
     ///
@@ -706,11 +703,9 @@ mod arb {
             let case_big_int_to_le_bytes = (any::<u32>(), witness_vec.clone())
                 .prop_map(|(input, outputs)| BlackBoxFuncCall::BigIntToLeBytes { input, outputs });
 
-            let case_poseidon2_permutation = (input_vec.clone(), witness_vec.clone(), any::<u32>())
-                .prop_map(|(inputs, outputs, len)| BlackBoxFuncCall::Poseidon2Permutation {
-                    inputs,
-                    outputs,
-                    len,
+            let case_poseidon2_permutation =
+                (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
+                    BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
                 });
 
             let case_sha256_compression = (input_arr_16, input_arr_8, witness_arr_8).prop_map(

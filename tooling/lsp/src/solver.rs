@@ -40,8 +40,7 @@ impl BlackBoxFunctionSolver<acvm::FieldElement> for WrapperSolver {
     fn poseidon2_permutation(
         &self,
         inputs: &[acvm::FieldElement],
-        len: u32,
     ) -> Result<Vec<acvm::FieldElement>, acvm::BlackBoxResolutionError> {
-        self.0.poseidon2_permutation(inputs, len)
+        self.0.poseidon2_permutation(inputs)
     }
 }
