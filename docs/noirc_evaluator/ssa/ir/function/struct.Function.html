@@ -49,11 +49,11 @@ Go through each block and re-insert all instructions.</p>
     &amp;mut self,
     unused_params: &amp;HashMap&lt;<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;,
 )</h4></section></summary><div class="docblock"><p>See <a href="../../opt/die/prune_dead_parameters/index.html" title="mod noirc_evaluator::ssa::opt::die::prune_dead_parameters"><code>prune_dead_parameters</code></a> module for more information</p>
-</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Function-9" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/die.rs.html#142-206">Source</a><a href="#impl-Function-9" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.dead_instruction_elimination" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/die.rs.html#161-205">Source</a><h4 class="code-header">fn <a href="#method.dead_instruction_elimination" class="fn">dead_instruction_elimination</a>(
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-Function-9" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/die.rs.html#119-179">Source</a><a href="#impl-Function-9" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.dead_instruction_elimination" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/die.rs.html#137-178">Source</a><h4 class="code-header">fn <a href="#method.dead_instruction_elimination" class="fn">dead_instruction_elimination</a>(
     &amp;mut self,
     flattened: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
     skip_brillig: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-) -&gt; (HashSet&lt;<a class="type" href="../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;, HashMap&lt;<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;)</h4></section></summary><div class="docblock"><p>Removes any unused instructions in the reachable blocks of the given function.</p>
+) -&gt; HashMap&lt;<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="struct" href="https://doc.rust-lang.org/1.85.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="type" href="../value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Removes any unused instructions in the reachable blocks of the given function.</p>
 <p>This method is designed to be run within the context of the full SSA, not in isolation.
 Running DIE on a single function may cause inconsistencies, such as leaving dangling unused parameters.
 The pruning of block parameters depends on the full SSA context.
@@ -64,9 +64,8 @@ instructions that reference results from an instruction in another block are eva
 If we did not iterate blocks in this order we could not safely say whether or not the results
 of its instructions are needed elsewhere.</p>
 <h5 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h5>
+<p>After processing all functions, the union of these sets enables determining the unused globals.</p>
 <ul>
-<li>The set of globals that were used in this function.
-After processing all functions, the union of these sets enables determining the unused globals.</li>
 <li>A mapping of (block id -&gt; unused parameters) for the given function.
 This can be used by follow-up passes to prune unused parameters from blocks.</li>
 </ul>

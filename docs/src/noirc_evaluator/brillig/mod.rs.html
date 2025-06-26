@@ -180,14 +180,7 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
+<a href="#182" id="182">182</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
 <span class="kw">pub mod </span>brillig_ir;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -212,7 +205,7 @@
     },
     ssa_gen::Ssa,
 };
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>std::{borrow::Cow, collections::BTreeSet};
 
 <span class="kw">pub use </span><span class="self">self</span>::brillig_ir::procedures::ProcedureId;
@@ -318,18 +311,11 @@
 }
 
 <span class="kw">impl </span>Ssa {
-    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-    </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
-        <span class="self">self</span>.to_brillig_with_globals(options, HashMap::default())
-    }
-
     <span class="doccomment">/// Compile Brillig functions and ACIR functions reachable from them
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_brillig_with_globals(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        options: <span class="kw-2">&amp;</span>BrilligOptions,
-        used_globals_map: HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt;,
-    ) -&gt; Brillig {
+    </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
+        <span class="kw">let </span>used_globals_map = <span class="self">self</span>.used_globals_in_brillig_functions();
+
         <span class="comment">// Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
         </span><span class="kw">let </span>brillig_reachable_function_ids = <span class="self">self

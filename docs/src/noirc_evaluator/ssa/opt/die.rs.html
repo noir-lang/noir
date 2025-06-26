@@ -1122,35 +1122,7 @@
 <a href="#1121" id="1121">1121</a>
 <a href="#1122" id="1122">1122</a>
 <a href="#1123" id="1123">1123</a>
-<a href="#1124" id="1124">1124</a>
-<a href="#1125" id="1125">1125</a>
-<a href="#1126" id="1126">1126</a>
-<a href="#1127" id="1127">1127</a>
-<a href="#1128" id="1128">1128</a>
-<a href="#1129" id="1129">1129</a>
-<a href="#1130" id="1130">1130</a>
-<a href="#1131" id="1131">1131</a>
-<a href="#1132" id="1132">1132</a>
-<a href="#1133" id="1133">1133</a>
-<a href="#1134" id="1134">1134</a>
-<a href="#1135" id="1135">1135</a>
-<a href="#1136" id="1136">1136</a>
-<a href="#1137" id="1137">1137</a>
-<a href="#1138" id="1138">1138</a>
-<a href="#1139" id="1139">1139</a>
-<a href="#1140" id="1140">1140</a>
-<a href="#1141" id="1141">1141</a>
-<a href="#1142" id="1142">1142</a>
-<a href="#1143" id="1143">1143</a>
-<a href="#1144" id="1144">1144</a>
-<a href="#1145" id="1145">1145</a>
-<a href="#1146" id="1146">1146</a>
-<a href="#1147" id="1147">1147</a>
-<a href="#1148" id="1148">1148</a>
-<a href="#1149" id="1149">1149</a>
-<a href="#1150" id="1150">1150</a>
-<a href="#1151" id="1151">1151</a>
-<a href="#1152" id="1152">1152</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1124" id="1124">1124</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1248,44 +1220,21 @@
         flattened: bool,
         skip_brillig: bool,
     ) -&gt; (Ssa, DIEResult) {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self
+        <span class="kw">let </span>result = <span class="self">self
             </span>.functions
             .par_iter_mut()
             .map(|(id, func)| {
-                <span class="kw">let </span>(used_globals, unused_params) =
-                    func.dead_instruction_elimination(flattened, skip_brillig);
+                <span class="kw">let </span>unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
                 <span class="kw">let </span><span class="kw-2">mut </span>result = DIEResult::default();
 
-                <span class="kw">if </span>func.runtime().is_brillig() {
-                    result.used_globals.insert(<span class="kw-2">*</span>id, used_globals);
-                }
                 result.unused_parameters.insert(<span class="kw-2">*</span>id, unused_params);
 
                 result
             })
             .reduce(DIEResult::default, |<span class="kw-2">mut </span>a, b| {
-                a.used_globals.extend(b.used_globals);
                 a.unused_parameters.extend(b.unused_parameters);
                 a
             });
-
-        <span class="kw">let </span>globals = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.main_id].dfg.globals;
-        <span class="kw">for </span>used_global_values <span class="kw">in </span>result.used_globals.values_mut() {
-            <span class="comment">// DIE only tracks used instruction results, however, globals include constants.
-            // Back track globals for internal values which may be in use.
-            </span><span class="kw">for </span>(id, value) <span class="kw">in </span>globals.values_iter().rev() {
-                <span class="kw">if </span>used_global_values.contains(<span class="kw-2">&amp;</span>id) {
-                    <span class="kw">if let </span>Value::Instruction { instruction, .. } = <span class="kw-2">&amp;</span>value {
-                        <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>globals[<span class="kw-2">*</span>instruction];
-                        instruction.for_each_value(|value_id| {
-                            used_global_values.insert(value_id);
-                        });
-                    }
-                }
-            }
-        }
-
-        <span class="self">self</span>.used_globals = std::mem::take(<span class="kw-2">&amp;mut </span>result.used_globals);
 
         (<span class="self">self</span>, result)
     }
@@ -1306,7 +1255,6 @@
     /// of its instructions are needed elsewhere.
     ///
     /// # Returns
-    /// - The set of globals that were used in this function.
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -&gt; unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
@@ -1314,9 +1262,9 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         flattened: bool,
         skip_brillig: bool,
-    ) -&gt; (HashSet&lt;ValueId&gt;, HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt;) {
+    ) -&gt; HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt; {
         <span class="kw">if </span>skip_brillig &amp;&amp; <span class="self">self</span>.dfg.runtime().is_brillig() {
-            <span class="kw">return </span>(HashSet::default(), HashMap::default());
+            <span class="kw">return </span>HashMap::default();
         }
 
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context { flattened, ..Default::default() };
@@ -1350,16 +1298,12 @@
 
         context.remove_rc_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg);
 
-        (
-            context.used_values.into_iter().filter(|value| <span class="self">self</span>.dfg.is_global(<span class="kw-2">*</span>value)).collect(),
-            unused_params_per_block,
-        )
+        unused_params_per_block
     }
 }
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">struct </span>DIEResult {
-    used_globals: HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt;,
     unused_parameters: HashMap&lt;FunctionId, HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt;&gt;,
 }
 <span class="doccomment">/// Per function context for tracking unused values and which instructions to remove.

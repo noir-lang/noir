@@ -633,20 +633,7 @@
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a>
-<a href="#638" id="638">638</a>
-<a href="#639" id="639">639</a>
-<a href="#640" id="640">640</a>
-<a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a>
-<a href="#643" id="643">643</a>
-<a href="#644" id="644">644</a>
-<a href="#645" id="645">645</a>
-<a href="#646" id="646">646</a>
-<a href="#647" id="647">647</a>
-<a href="#648" id="648">648</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#635" id="635">635</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -972,11 +959,7 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="comment">// Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
-
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="macro">assert_eq!</span>(
             brillig.globals.len(),
@@ -1091,11 +1074,8 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// Need to run SSA pass that sets up Brillig array gets
         </span><span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        <span class="comment">// Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
 
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="macro">assert_eq!</span>(
             brillig.globals.len(),
@@ -1175,8 +1155,6 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="comment">// Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
 
         <span class="comment">// Show that the constants in each function have different SSA value IDs
         </span><span class="kw">for </span>(func_id, function) <span class="kw">in </span><span class="kw-2">&amp;</span>ssa.functions {
@@ -1205,8 +1183,7 @@
             }
         }
 
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="macro">assert_eq!</span>(brillig.globals.len(), <span class="number">1</span>, <span class="string">"Should have a single entry point"</span>);
         <span class="kw">for </span>(func_id, artifact) <span class="kw">in </span>brillig.globals {
@@ -1265,11 +1242,8 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="comment">// Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
 
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="macro">assert_eq!</span>(
             brillig.globals.len(),

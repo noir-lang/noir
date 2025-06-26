@@ -815,18 +815,7 @@
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
 <a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a>
-<a href="#818" id="818">818</a>
-<a href="#819" id="819">819</a>
-<a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a>
-<a href="#822" id="822">822</a>
-<a href="#823" id="823">823</a>
-<a href="#824" id="824">824</a>
-<a href="#825" id="825">825</a>
-<a href="#826" id="826">826</a>
-<a href="#827" id="827">827</a>
-<a href="#828" id="828">828</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1058,23 +1047,15 @@
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
         SsaPass::new(Ssa::array_set_optimization, <span class="string">"Array Set Optimizations"</span>),
-        <span class="comment">// The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        </span>SsaPass::new(Ssa::brillig_entry_point_analysis, <span class="string">"Brillig Entry Point Analysis"</span>)
+        SsaPass::new(Ssa::brillig_entry_point_analysis, <span class="string">"Brillig Entry Point Analysis"</span>)
             <span class="comment">// Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, <span class="string">"Removing Truncate after RangeCheck"</span>),
         <span class="comment">// This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
-        // This pass might result in otherwise unused global constant becoming used,
-        // because the creation of shifted index constants can reuse their IDs.
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
-        <span class="comment">// Perform another DIE pass to update the used globals after offsetting Brillig indexes.
-        </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>)
+        SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>)
             <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
             </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
@@ -1119,8 +1100,6 @@
         // This can change which globals are used, because constant creation might result
         // in the (re)use of otherwise unused global values.
         </span>SsaPass::new(Ssa::brillig_array_get_and_set, <span class="string">"Brillig Array Get and Set Optimizations"</span>),
-        <span class="comment">// We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-        </span>SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>),
     ]
 }
 
@@ -1151,14 +1130,13 @@
     <span class="kw">let </span><span class="kw-2">mut </span>builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)<span class="question-mark">?</span>;
     <span class="kw">let </span>passed = std::mem::take(<span class="kw-2">&amp;mut </span>builder.passed);
     <span class="kw">let </span>files = builder.files;
-    <span class="kw">let </span><span class="kw-2">mut </span>ssa = builder.finish();
+    <span class="kw">let </span>ssa = builder.finish();
 
     <span class="kw">let </span><span class="kw-2">mut </span>ssa_level_warnings = <span class="macro">vec!</span>[];
     drop(ssa_gen_span_guard);
 
-    <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
     <span class="kw">let </span>brillig = time(<span class="string">"SSA to Brillig"</span>, options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>options.brillig_options, used_globals_map)
+        ssa.to_brillig(<span class="kw-2">&amp;</span>options.brillig_options)
     });
 
     <span class="kw">let </span>ssa_gen_span = <span class="macro">span!</span>(Level::TRACE, <span class="string">"ssa_generation"</span>);

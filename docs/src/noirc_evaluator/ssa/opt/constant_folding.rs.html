@@ -2028,11 +2028,7 @@
 <a href="#2027" id="2027">2027</a>
 <a href="#2028" id="2028">2028</a>
 <a href="#2029" id="2029">2029</a>
-<a href="#2030" id="2030">2030</a>
-<a href="#2031" id="2031">2031</a>
-<a href="#2032" id="2032">2032</a>
-<a href="#2033" id="2033">2033</a>
-<a href="#2034" id="2034">2034</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2030" id="2030">2030</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -3571,9 +3567,7 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
@@ -3611,9 +3605,7 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa.dead_instruction_elimination();
-        <span class="kw">let </span>used_globals_map = std::mem::take(<span class="kw-2">&amp;mut </span>ssa.used_globals);
-        <span class="kw">let </span>brillig = ssa.to_brillig_with_globals(<span class="kw-2">&amp;</span>BrilligOptions::default(), used_globals_map);
+        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
         <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
