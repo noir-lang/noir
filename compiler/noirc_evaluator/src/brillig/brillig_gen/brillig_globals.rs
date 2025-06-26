@@ -439,7 +439,6 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
         let ssa = ssa.brillig_array_get_and_set();
-        dbg!(ssa.used_globals_in_brillig_functions());
 
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
