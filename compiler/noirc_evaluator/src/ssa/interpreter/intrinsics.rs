@@ -669,19 +669,24 @@ impl<W: Write> Interpreter<'_, W> {
             let num_values =
                 get_arg(&args, 2, "num_values", "Field", |arg| arg.as_field())?.to_u128() as usize;
 
-            let exp_args = 4 + 2 * num_values;
-            if args.len() != exp_args {
-                return invalid_input_size(exp_args);
+            // We expect at least 4 + num_values * 2 values, because each fragment will have 1 type
+            // descriptor, and at least 1 value (tuples are flattened).
+            let min_args = 4 + 2 * num_values;
+            if args.len() < min_args {
+                return invalid_input_size(min_args);
             }
+
+            // Everything up to the first meta is part of _some_ value.
+            let meta_idx = args.len() - 1 - num_values;
+            let input_as_fields =
+                (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            // We'll let each parser take as many fields as they need.
+            let field_iterator = &mut input_as_fields.into_iter();
 
             let mut fragments = Vec::new();
             for i in 0..num_values {
-                let value = &args[3 + i];
-                let meta = &args[3 + num_values + i];
-                let input_as_fields = value_to_fields(value);
-                let printable_type = value_to_printable_type(meta)?;
-                let printable_value =
-                    decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+                let printable_type = value_to_printable_type(&args[meta_idx + i])?;
+                let printable_value = decode_printable_value(field_iterator, &printable_type);
                 fragments.push((printable_value, printable_type));
             }
             PrintableValueDisplay::FmtString(message, fragments)
