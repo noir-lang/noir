@@ -54,6 +54,14 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> Ssa {
+        // Perform post-checks on the SSA.
+        let check = |ssa: Ssa| {
+            // Check that we have established the properties expected from this pass.
+            #[cfg(debug_assertions)]
+            ssa.functions.values().for_each(|f| die_post_check(f, flattened));
+            ssa
+        };
+
         let mut previous_unused_params = None;
         loop {
             let (new_ssa, result) =
@@ -64,15 +72,16 @@ impl Ssa {
                 .unused_parameters
                 .values()
                 .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+
             // If there are no unused parameters, return early
             if !has_unused {
-                return new_ssa;
+                return check(new_ssa);
             }
 
             if let Some(previous) = &previous_unused_params {
                 // If no changes to dead parameters occurred, return early
                 if previous == &result.unused_parameters {
-                    return new_ssa;
+                    return check(new_ssa);
                 }
             }
 
@@ -431,16 +440,7 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        // Store instructions must be removed by DIE in acir code, any load
-        // instructions should already be unused by that point.
-        //
-        // Note that this check assumes that it is being performed after the flattening
-        // pass and after the last mem2reg pass. This is currently the case for the DIE
-        // pass where this check is done, but does mean that we cannot perform mem2reg
-        // after the DIE pass.
-        Store { .. } => {
-            flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
-        }
+        Store { .. } => should_remove_store(function, flattened),
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -607,6 +607,38 @@ impl RcTracker {
             .flatten()
             .copied()
             .collect()
+    }
+}
+
+/// Store instructions must be removed by DIE in acir code, any load
+/// instructions should already be unused by that point.
+///
+/// Note that this check assumes that it is being performed after the flattening
+/// pass and after the last mem2reg pass. This is currently the case for the DIE
+/// pass where this check is done, but does mean that we cannot perform mem2reg
+/// after the DIE pass.
+fn should_remove_store(func: &Function, flattened: bool) -> bool {
+    flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+}
+
+/// Check post-execution properties:
+/// * Store and Load instructions should be removed from ACIR after flattening.
+#[cfg(debug_assertions)]
+fn die_post_check(func: &Function, flattened: bool) {
+    if should_remove_store(func, flattened) {
+        for block_id in func.reachable_blocks() {
+            for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
+                let instruction = &func.dfg[*instruction_id];
+                if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
+                    panic!(
+                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
+                        func.name(),
+                        func.id(),
+                        instruction
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -1046,7 +1078,7 @@ mod test {
             v0 = allocate -> &mut Field
             store Field 0 at v0
             return
-        }  
+        }
         "#);
     }
 
