@@ -334,8 +334,7 @@ pub fn decode_printable_value<F: AcirField>(
             // we want to consume the fields from the environment, but for now they are not actually printed
             let _env = decode_printable_value(field_iterator, env);
             let func_id = field_iterator.next().unwrap();
-            let func_ref = PrintableValue::Field(func_id);
-            func_ref
+            PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing
