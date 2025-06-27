@@ -359,14 +359,13 @@ fn poseidon2_permutation(
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
-    let (input, state_length) = check_two_arguments(arguments, location)?;
+    let input = check_one_argument(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
     let input = vecmap(input, SignedField::to_field_element);
-    let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
-        .poseidon2_permutation(&input, state_length)
+        .poseidon2_permutation(&input)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
     let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();

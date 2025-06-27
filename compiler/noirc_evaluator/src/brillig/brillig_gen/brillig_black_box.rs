@@ -345,10 +345,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             }
         }
         BlackBoxFunc::Poseidon2Permutation => {
-            if let (
-                [message, BrilligVariable::SingleAddr(state_len)],
-                [BrilligVariable::BrilligArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
+                (function_arguments, function_results)
             {
                 let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
                 let output_heap_array =
@@ -357,7 +355,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 brillig_context.black_box_op_instruction(BlackBoxOp::Poseidon2Permutation {
                     message: message_vector,
                     output: output_heap_array,
-                    len: state_len.address,
                 });
 
                 brillig_context.deallocate_heap_vector(message_vector);
