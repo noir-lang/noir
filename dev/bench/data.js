@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751054386109,
+  "lastUpdate": 1751054800272,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c0d47a5a9c1e931b26e3ad2e911bed4845ddc9a2",
-          "message": "fix(LSP): suggest generic type methods (#8948)",
-          "timestamp": "2025-06-17T18:04:32Z",
-          "tree_id": "f59a482462b2985f2dc4e838681077a6c80ee6a4",
-          "url": "https://github.com/noir-lang/noir/commit/c0d47a5a9c1e931b26e3ad2e911bed4845ddc9a2"
-        },
-        "date": 1750185632812,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.64,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/30a491dc54903658553b32906a9b2a510121a141"
         },
         "date": 1751044491722,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.35,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 177.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.61,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "17bf172095ff30f7a4cf311ca947f6eec157e98f",
+          "message": "fix(ssa): Remove array from cache in constant folding if it's an argument to a `Call` (#9040)",
+          "timestamp": "2025-06-27T19:29:16Z",
+          "tree_id": "b4091c1931e98757c32a16f20e61b1dfb543cf2c",
+          "url": "https://github.com/noir-lang/noir/commit/17bf172095ff30f7a4cf311ca947f6eec157e98f"
+        },
+        "date": 1751054786669,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
