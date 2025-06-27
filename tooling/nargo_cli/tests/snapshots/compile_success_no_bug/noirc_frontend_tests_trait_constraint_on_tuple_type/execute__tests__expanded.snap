@@ -10,7 +10,7 @@ pub fn bar<T, U, V>(x: (T, U), y: V) -> bool
 where
     (T, U): Foo<V>,
 {
-    Foo::foo(x, y)
+    x.foo(y)
 }
 
 fn main() {}

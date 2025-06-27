@@ -4,6 +4,10 @@ expression: expanded_code
 ---
 trait MyDefault {
     fn my_default(x: Field, y: Field) -> Self;
+
+    fn method2(x: Field) -> Field {
+        x
+    }
 }
 
 struct Foo {
@@ -15,9 +19,13 @@ impl MyDefault for Foo {
     fn my_default(x: Field, y: Field) -> Self {
         Self { bar: x, array: [x, y] }
     }
+
+    fn method2(x: Field) -> Field {
+        x
+    }
 }
 
-fn main(x: Field, y: Field) {
-    let first: Foo = Foo::my_default(x, y);
-    assert(first.bar == x);
+fn main(x: Field) {
+    let first: Field = Foo::method2(x);
+    assert(first == x);
 }
