@@ -100,6 +100,12 @@ impl CompareInterpreted {
             self.ssa1.msg,
             self.ssa1.ssa.print_without_locations()
         );
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa2.step,
+            self.ssa2.msg,
+            self.ssa2.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| {
