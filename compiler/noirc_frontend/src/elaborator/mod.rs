@@ -500,7 +500,7 @@ impl<'context> Elaborator<'context> {
             if name == "_" {
                 continue;
             }
-            let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            let warn_if_unused = !name.starts_with('_') && name != "self";
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 

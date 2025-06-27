@@ -89,7 +89,8 @@ impl Elaborator<'_> {
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
-                if !self_allowed && name.as_str() == "self" {
+                let is_self = name.as_str() == "self";
+                if is_self && !self_allowed {
                     self.push_err(ResolverError::InvalidSelfPattern { location: name.location() });
                 }
 
@@ -109,7 +110,7 @@ impl Elaborator<'_> {
                         name,
                         mutable.is_some(),
                         true, // allow_shadowing
-                        warn_if_unused,
+                        warn_if_unused && !is_self,
                         definition,
                     )
                 };
