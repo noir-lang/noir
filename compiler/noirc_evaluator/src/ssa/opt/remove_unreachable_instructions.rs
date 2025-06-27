@@ -4,9 +4,8 @@
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
 //!
-//! This pass might also transform existing instuctions into a guaranteed `constrain`
-//! failure, for example binary operations that are guaranteed to overflow. After they
-//! have been replaced, any subsequent instructions will be removed as well.
+//! This pass might also add constrain checks after existing instuctions,
+//! for example binary operations that are guaranteed to overflow.
 use acvm::AcirField;
 
 use crate::ssa::{
@@ -107,11 +106,13 @@ impl Function {
                     if let Some(message) =
                         binary_operation_always_fails(*lhs, *operator, *rhs, context)
                     {
+                        // Insert the instruction right away so we can add a constrain immediately after it
+                        context.insert_current_instruction();
+
                         let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
                         let one = context.dfg.make_constant(1_u128.into(), NumericType::bool());
                         let message = Some(ConstrainError::StaticString(message));
                         let instruction = Instruction::Constrain(zero, one, message);
-                        context.remove_current_instruction();
                         let call_stack =
                             context.dfg.get_instruction_call_stack_id(context.instruction_id);
                         context.dfg.insert_instruction_and_results(
@@ -259,6 +260,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
+            v2 = sub u32 0, u32 1
             constrain u1 0 == u1 1, "attempt to subtract with overflow"
             unreachable
         }
@@ -281,6 +283,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
+            v2 = div u32 1, u32 0
             constrain u1 0 == u1 1, "attempt to divide by zero"
             unreachable
         }
