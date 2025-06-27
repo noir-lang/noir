@@ -198,6 +198,14 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 msg1 == msg2
             }
+            (
+                RangeCheckFailedWithMessage { message: msg1, .. },
+                ConstrainEqFailed { msg: msg2, .. },
+            ) => {
+                // The removal of unreachable instructions evaluates constant binary operations and can replace
+                // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
+                msg2.contains(msg1)
+            }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
                 // where the only difference might be the value ID.
