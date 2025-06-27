@@ -807,6 +807,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     }
                     self.show_value(value);
                 }
+                if values.len() == 1 {
+                    self.push(',');
+                }
                 self.push(')');
             }
             Value::Struct(fields, typ) => {
