@@ -173,7 +173,6 @@ fn global_arithmetic_generic_larger_than_u32() {
     
     impl<let F: Field> Foo<F> {
         fn size(self) -> Field {
-            let _ = self;
             F
         }
     }

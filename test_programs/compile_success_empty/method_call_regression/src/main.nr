@@ -12,9 +12,7 @@ struct Struct<A, B> {
 
 // Before the fix, this candidate is searched first, binding ? to `u8` permanently.
 impl Struct<u8, u8> {
-    fn foo(self) {
-        let _ = self;
-    }
+    fn foo(self) {}
 }
 
 // Then this candidate would be searched next but would not be a valid
@@ -24,7 +22,5 @@ impl Struct<u8, u8> {
 // method is actually selected. So this candidate is now valid since
 // `Struct<u32, ()>` unifies with `Struct<?, ()>` with `? = u32`.
 impl Struct<u32, ()> {
-    fn foo(self) {
-        let _ = self;
-    }
+    fn foo(self) {}
 }

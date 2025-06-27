@@ -11,11 +11,11 @@ struct Foo<T> {}
 
 // Ensure we call the Foo<Field> impl
 impl Foo<u32> {
-    fn do_nothing(_self: Self) {
+    fn do_nothing(self) {
         assert(false);
     }
 }
 
 impl Foo<Field> {
-    fn do_nothing(_self: Self) {}
+    fn do_nothing(self) {}
 }

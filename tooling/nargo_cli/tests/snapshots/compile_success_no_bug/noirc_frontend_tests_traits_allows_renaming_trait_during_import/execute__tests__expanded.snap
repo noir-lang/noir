@@ -6,14 +6,14 @@ use trait_mod::Foo as FooTrait;
 
 mod trait_mod {
     pub trait Foo {
-        fn foo(_: Self) {}
+        fn foo(self) {}
     }
 
     impl Foo for Field {
-        fn foo(_: Self) {}
+        fn foo(self) {}
     }
 }
 
 fn main(x: Field) {
-    Field::foo(x);
+    x.foo();
 }

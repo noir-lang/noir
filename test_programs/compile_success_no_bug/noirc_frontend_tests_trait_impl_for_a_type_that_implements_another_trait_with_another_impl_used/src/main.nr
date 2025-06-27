@@ -5,7 +5,6 @@
 
     impl One for i32 {
         fn one(self) -> i32 {
-            let _ = self;
             1
         }
     }
@@ -22,7 +21,6 @@
 
     impl Two for u32 {
         fn two(self) -> i32 {
-            let _ = self;
             0
         }
     }

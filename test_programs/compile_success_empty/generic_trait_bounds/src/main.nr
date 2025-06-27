@@ -16,7 +16,6 @@ impl Foo {
 
 trait Trait2 {
     fn foo<T: Trait>(self, x: T) {
-        let _ = self;
         x.foo();
     }
 }
@@ -34,9 +33,7 @@ impl<T: Trait> Bar<T> {
         x.foo();
     }
 
-    fn baz(self) {
-        let _ = self;
-    }
+    fn baz(self) {}
 }
 
 impl<U: Trait> Trait2 for Bar<U> {

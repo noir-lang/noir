@@ -16,7 +16,7 @@
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+            fn generic_method<U>(self) -> U where U: Default2 {
                 U::default2()
             }
         }

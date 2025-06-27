@@ -5,7 +5,6 @@
             }
 
             fn bar(self) -> i32 {
-                let _ = self;
                 1
             }
         }

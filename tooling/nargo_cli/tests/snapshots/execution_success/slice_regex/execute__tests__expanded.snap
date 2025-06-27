@@ -25,7 +25,7 @@ trait Regex {
 }
 
 impl Regex for () {
-    fn find_match(_self: Self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         Match::empty(input)
     }
 }

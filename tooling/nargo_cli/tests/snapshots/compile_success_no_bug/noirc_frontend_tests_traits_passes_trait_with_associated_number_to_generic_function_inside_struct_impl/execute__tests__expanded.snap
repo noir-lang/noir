@@ -18,9 +18,7 @@ impl<T> Bar<T> {
     fn bar<U>(self)
     where
         U: Trait,
-    {
-        let _: Self = self;
-    }
+    {}
 }
 
 fn main() {

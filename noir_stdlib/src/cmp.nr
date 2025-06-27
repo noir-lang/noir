@@ -9,8 +9,8 @@ pub trait Eq {
 
 // docs:start:derive_eq
 comptime fn derive_eq(s: TypeDefinition) -> Quoted {
-    let signature = quote { fn eq(_self: Self, _other: Self) -> bool };
-    let for_each_field = |name| quote { (_self.$name == _other.$name) };
+    let signature = quote { fn eq(self, _other: Self) -> bool };
+    let for_each_field = |name| quote { (self.$name == _other.$name) };
     let body = |fields| {
         if s.fields_as_written().len() == 0 {
             quote { true }
@@ -88,7 +88,7 @@ impl Eq for i64 {
 }
 
 impl Eq for () {
-    fn eq(_self: Self, _other: ()) -> bool {
+    fn eq(self, _other: ()) -> bool {
         true
     }
 }
@@ -221,10 +221,10 @@ pub trait Ord {
 // docs:start:derive_ord
 comptime fn derive_ord(s: TypeDefinition) -> Quoted {
     let name = quote { $crate::cmp::Ord };
-    let signature = quote { fn cmp(_self: Self, _other: Self) -> $crate::cmp::Ordering };
+    let signature = quote { fn cmp(self, _other: Self) -> $crate::cmp::Ordering };
     let for_each_field = |name| quote {
         if result == $crate::cmp::Ordering::equal() {
-            result = _self.$name.cmp(_other.$name);
+            result = self.$name.cmp(_other.$name);
         }
     };
     let body = |fields| quote {
@@ -346,7 +346,7 @@ impl Ord for i64 {
 }
 
 impl Ord for () {
-    fn cmp(_self: Self, _other: ()) -> Ordering {
+    fn cmp(self, _other: ()) -> Ordering {
         Ordering::equal()
     }
 }

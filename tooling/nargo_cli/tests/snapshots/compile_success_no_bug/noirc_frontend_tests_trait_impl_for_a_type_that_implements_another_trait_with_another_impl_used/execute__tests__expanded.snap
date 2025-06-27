@@ -8,7 +8,6 @@ trait One {
 
 impl One for i32 {
     fn one(self) -> Self {
-        let _: Self = self;
         1_i32
     }
 }
@@ -31,7 +30,6 @@ where
 
 impl Two for u32 {
     fn two(self) -> i32 {
-        let _: Self = self;
         0_i32
     }
 }

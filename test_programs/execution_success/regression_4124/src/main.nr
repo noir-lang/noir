@@ -24,7 +24,7 @@ impl<T> PublicMutable<T> {
         PublicMutable { storage_slot }
     }
 
-    pub fn read<let T_SERIALIZED_LEN: u32>(_self: Self) -> T
+    pub fn read<let T_SERIALIZED_LEN: u32>(self) -> T
     where
         T: MyDeserialize<T_SERIALIZED_LEN>,
     {

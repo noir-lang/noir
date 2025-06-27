@@ -23,16 +23,16 @@ impl MyDefault for Foo {
 
 trait F {
     fn f1(self) -> Field;
-    fn f2(_self: Self) -> Field {
+    fn f2(self) -> Field {
         2
     }
-    fn f3(_self: Self) -> Field {
+    fn f3(self) -> Field {
         3
     }
-    fn f4(_self: Self) -> Field {
+    fn f4(self) -> Field {
         4
     }
-    fn f5(_self: Self) -> Field {
+    fn f5(self) -> Field {
         5
     }
 }
@@ -40,13 +40,13 @@ trait F {
 struct Bar {}
 
 impl F for Bar {
-    fn f5(_self: Self) -> Field {
+    fn f5(self) -> Field {
         50
     }
-    fn f1(_self: Self) -> Field {
+    fn f1(self) -> Field {
         10
     }
-    fn f3(_self: Self) -> Field {
+    fn f3(self) -> Field {
         30
     }
 }

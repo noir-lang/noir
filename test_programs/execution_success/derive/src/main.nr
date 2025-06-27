@@ -15,7 +15,7 @@ comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let generics = s.generics().map(|g| quote { $g }).join(quote {,});
     quote {
         impl<$generics> DoNothing for $typ {
-            fn do_nothing(_self: Self) {
+            fn do_nothing(self) {
                 // Traits can't tell us what to do
                 println("something");
             }

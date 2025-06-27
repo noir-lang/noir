@@ -82,6 +82,7 @@ use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
+pub(crate) use patterns::SelfInPattern;
 pub use primitive_types::PrimitiveType;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -500,7 +501,7 @@ impl<'context> Elaborator<'context> {
             if name == "_" {
                 continue;
             }
-            let warn_if_unused = !(func_meta.trait_impl.is_some() && name == "self");
+            let warn_if_unused = !name.starts_with('_') && name != "self";
             self.add_existing_variable_to_scope(name, parameter.clone(), warn_if_unused);
         }
 
@@ -963,7 +964,12 @@ impl<'context> Elaborator<'context> {
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
 
-        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
+        let is_associated_function =
+            self.self_type.is_some() || trait_id.is_some() || self.current_trait_impl.is_some();
+
+        for (index, Param { visibility, pattern, typ, location: _ }) in
+            func.parameters().iter().cloned().enumerate()
+        {
             self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
@@ -988,12 +994,23 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(&typ);
             }
 
+            let warn_if_unused = true;
+            let self_in_pattern = if is_associated_function {
+                if index == 0 {
+                    SelfInPattern::Allowed
+                } else {
+                    SelfInPattern::DisallowedInNonFirstParameter
+                }
+            } else {
+                SelfInPattern::DisallowedInNonAssociatedFunction
+            };
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
-                true, // warn_if_unused
+                warn_if_unused,
+                self_in_pattern,
             );
 
             parameters.push((pattern, typ.clone(), visibility));

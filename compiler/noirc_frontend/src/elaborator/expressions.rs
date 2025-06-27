@@ -13,6 +13,7 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
+    elaborator::patterns::SelfInPattern,
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -1279,7 +1280,17 @@ impl Elaborator<'_> {
                 };
 
                 arg_types.push(typ.clone());
-                (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
+                let warn_if_unused = true;
+                (
+                    self.elaborate_pattern(
+                        pattern,
+                        typ.clone(),
+                        parameter,
+                        warn_if_unused,
+                        SelfInPattern::DisallowedInContext,
+                    ),
+                    typ,
+                )
             });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);

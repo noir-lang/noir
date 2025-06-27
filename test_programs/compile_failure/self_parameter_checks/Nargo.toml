@@ -1,0 +1,7 @@
+[package]
+name = "self_parameter_checksw"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

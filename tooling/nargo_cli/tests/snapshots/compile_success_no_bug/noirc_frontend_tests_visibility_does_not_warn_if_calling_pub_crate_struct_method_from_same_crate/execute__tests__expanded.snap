@@ -6,9 +6,7 @@ mod moo {
     pub struct Foo {}
 
     impl Foo {
-        pub(crate) fn bar(self) {
-            let _: Self = self;
-        }
+        pub(crate) fn bar(self) {}
     }
 }
 

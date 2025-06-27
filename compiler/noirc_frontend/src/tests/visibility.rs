@@ -266,9 +266,7 @@ fn warns_if_calling_private_struct_method() {
         pub struct Foo {}
 
         impl Foo {
-            fn bar(self) {
-                let _ = self;
-            }
+            fn bar(self) { }
         }
     }
 
@@ -291,9 +289,7 @@ fn does_not_warn_if_calling_pub_crate_struct_method_from_same_crate() {
         pub struct Foo {}
 
         impl Foo {
-            pub(crate) fn bar(self) {
-                let _ = self;
-            }
+            pub(crate) fn bar(self) { }
         }
     }
 

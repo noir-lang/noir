@@ -6,6 +6,7 @@ use crate::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
+    elaborator::patterns::SelfInPattern,
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{
@@ -137,6 +138,7 @@ impl Elaborator<'_> {
             definition,
             &mut Vec::new(),
             warn_if_unused,
+            SelfInPattern::DisallowedInContext,
         );
 
         let attributes = let_stmt.attributes;

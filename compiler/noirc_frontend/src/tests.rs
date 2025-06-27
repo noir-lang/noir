@@ -1504,7 +1504,7 @@ fn specify_method_types_with_turbofish() {
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+            fn generic_method<U>(self) -> U where U: Default2 {
                 U::default2()
             }
         }
@@ -1570,7 +1570,7 @@ fn incorrect_turbofish_count_method_call() {
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default2 {
+            fn generic_method<U>(self) -> U where U: Default2 {
                 U::default()
             }
         }
@@ -2839,7 +2839,6 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
 
     impl One for i32 {
         fn one(self) -> i32 {
-            let _ = self;
             1
         }
     }
@@ -2856,7 +2855,6 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
 
     impl Two for u32 {
         fn two(self) -> i32 {
-            let _ = self;
             0
         }
     }
@@ -3022,8 +3020,6 @@ fn struct_array_len() {
 
         impl<T, let N: u32> Array<T, N> {
             pub fn len(self) -> u32 {
-                       ^^^^ unused variable self
-                       ~~~~ unused variable
                 N as u32
             }
         }
@@ -3035,7 +3031,7 @@ fn struct_array_len() {
             assert(ys.len() == 2);
         }
     "#;
-    check_errors!(src);
+    assert_no_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6245):
@@ -3664,9 +3660,7 @@ fn mutable_self_call() {
     struct Bar {}
 
     impl Bar {
-        fn bar(&mut self) {
-            let _ = self;
-        }
+        fn bar(&mut self) { }
     }
     "#;
     assert_no_errors!(src);

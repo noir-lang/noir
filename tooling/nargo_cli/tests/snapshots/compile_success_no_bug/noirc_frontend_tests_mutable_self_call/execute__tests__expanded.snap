@@ -10,7 +10,5 @@ fn main() {
 struct Bar {}
 
 impl Bar {
-    fn bar(&mut self) {
-        let _: &mut Self = self;
-    }
+    fn bar(&mut self) {}
 }

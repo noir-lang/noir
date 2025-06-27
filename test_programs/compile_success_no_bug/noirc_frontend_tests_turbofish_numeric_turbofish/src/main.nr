@@ -3,7 +3,7 @@
     }
 
     impl<let N: u32> Reader<N> {
-        fn read<let C: u32>(_self: Self) {}
+        fn read<let C: u32>(self) {}
     }
 
     fn main() {

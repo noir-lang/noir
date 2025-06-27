@@ -5,13 +5,13 @@ expression: expanded_code
 struct Empty<T> {}
 
 impl Foo for Empty<u32> {
-    fn foo(_self: Self) -> u32 {
+    fn foo(self) -> u32 {
         32_u32
     }
 }
 
 impl Foo for Empty<u64> {
-    fn foo(_self: Self) -> u32 {
+    fn foo(self) -> u32 {
         64_u32
     }
 }
@@ -63,7 +63,7 @@ trait T3 {
 }
 
 impl T3 for u32 {
-    fn t3<U>(_self: Self, y: U) -> U {
+    fn t3<U>(self, y: U) -> U {
         y
     }
 }
