@@ -3275,7 +3275,7 @@
         expected: <span class="kw-2">&amp;</span>Type,
         expression: ExprId,
         location: Location,
-        make_error: <span class="kw">impl </span>FnOnce() -&gt; TypeCheckError,
+        make_error: <span class="kw">impl </span>FnOnce() -&gt; CompilationError,
     ) {
         <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
         actual.unify_with_coercions(
@@ -3286,7 +3286,7 @@
             <span class="kw-2">&amp;mut </span>errors,
             make_error,
         );
-        <span class="self">self</span>.push_errors(errors.into_iter().map(|error| error.into()));
+        <span class="self">self</span>.push_errors(errors);
     }
 
     <span class="doccomment">/// Return a fresh integer or field type variable and log it
@@ -3388,11 +3388,11 @@
 
         <span class="kw">for </span>(param, (arg, arg_expr_id, arg_location)) <span class="kw">in </span>fn_params.iter().zip(callsite_args) {
             <span class="self">self</span>.unify_with_coercions(arg, param, <span class="kw-2">*</span>arg_expr_id, <span class="kw-2">*</span>arg_location, || {
-                TypeCheckError::TypeMismatch {
+                CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
                     expr_typ: arg.to_string(),
                     expr_location: <span class="kw-2">*</span>arg_location,
-                }
+                })
             });
         }
 
@@ -4456,7 +4456,7 @@
                         <span class="string">"implicitly returns `()` as its body has no tail or `return` expression"</span>,
                     );
                     }
-                    error
+                    CompilationError::TypeError(error)
                 },
             );
         }

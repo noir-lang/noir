@@ -1497,7 +1497,9 @@
 <a href="#1496" id="1496">1496</a>
 <a href="#1497" id="1497">1497</a>
 <a href="#1498" id="1498">1498</a>
-<a href="#1499" id="1499">1499</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -2462,10 +2464,12 @@
                     expected_type,
                     resolved,
                     field_location,
-                    || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: field_type.to_string(),
-                        expr_location: field_location,
+                    || {
+                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                            expected_typ: expected_type.to_string(),
+                            expr_typ: field_type.to_string(),
+                            expr_location: field_location,
+                        })
                     },
                 );
             } <span class="kw">else if </span>seen_fields.contains(<span class="kw-2">&amp;</span>field_name) {

@@ -694,13 +694,27 @@
 <a href="#693" id="693">693</a>
 <a href="#694" id="694">694</a>
 <a href="#695" id="695">695</a>
-<a href="#696" id="696">696</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    Type, TypeBindings, UnificationError,
+    Type, TypeBindings,
     ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
@@ -940,8 +954,7 @@
             function,
             arguments,
             location,
-        )
-        .map_err(CompilationError::from)<span class="question-mark">?</span>;
+        )<span class="question-mark">?</span>;
 
         arguments.insert(<span class="number">0</span>, (item, location));
 
@@ -967,7 +980,7 @@
         function: FuncId,
         arguments: Vec&lt;Expression&gt;,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Value, Location)&gt;, InterpreterError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(Value, Location)&gt;, CompilationError&gt; {
         <span class="kw">let </span>meta = interpreter.elaborator.interner.function_meta(<span class="kw-2">&amp;</span>function);
 
         <span class="kw">let </span><span class="kw-2">mut </span>parameters = vecmap(<span class="kw-2">&amp;</span>meta.parameters.<span class="number">0</span>, |(<span class="kw">_</span>, typ, <span class="kw">_</span>)| typ.clone());
@@ -977,7 +990,8 @@
                 expected: <span class="number">0</span>,
                 actual: arguments.len() + <span class="number">1</span>,
                 location,
-            });
+            }
+            .into());
         }
 
         <span class="kw">let </span>expected_type = item.get_type();
@@ -988,7 +1002,8 @@
                 expected: parameters[<span class="number">0</span>].clone(),
                 actual: expected_type.clone(),
                 location,
-            });
+            }
+            .into());
         }
 
         <span class="comment">// Remove the initial parameter for the comptime item since that is not included
@@ -1032,13 +1047,26 @@
                 push_arg(Value::TraitDefinition(trait_id));
             } <span class="kw">else </span>{
                 <span class="kw">let </span>(expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
-                <span class="kw">if let </span><span class="prelude-val">Err</span>(UnificationError) = expr_type.unify(param_type) {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch {
-                        expected: param_type.clone(),
-                        actual: expr_type,
-                        location: arg_location,
-                    });
+                <span class="kw">let </span><span class="kw-2">mut </span>errors = Vec::new();
+                expr_type.clone().unify_with_coercions(
+                    param_type,
+                    expr_id,
+                    arg_location,
+                    interpreter.elaborator.interner,
+                    <span class="kw-2">&amp;mut </span>errors,
+                    || {
+                        CompilationError::InterpreterError(InterpreterError::TypeMismatch {
+                            expected: param_type.clone(),
+                            actual: expr_type,
+                            location: arg_location,
+                        })
+                    },
+                );
+
+                <span class="kw">if </span>!errors.is_empty() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(errors.swap_remove(<span class="number">0</span>));
                 }
+
                 push_arg(interpreter.evaluate(expr_id)<span class="question-mark">?</span>);
             };
         }

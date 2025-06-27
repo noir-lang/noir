@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FunctionCoercionResult","UnificationFlags"],"fn":["convert_array_expression_to_slice"],"struct":["UnificationError"]};
+window.SIDEBAR_ITEMS = {"enum":["FunctionCoercionResult","UnificationFlags"],"fn":["invoke_function_on_expression"],"struct":["UnificationError"]};

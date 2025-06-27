@@ -684,7 +684,8 @@
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
 <a href="#685" id="685">685</a>
-<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     DataType, Type,
@@ -693,6 +694,7 @@
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError,
             visibility::struct_member_is_visible,
@@ -805,11 +807,11 @@
         <span class="comment">// Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
         </span><span class="self">self</span>.unify_with_coercions(<span class="kw-2">&amp;</span>expr_type, <span class="kw-2">&amp;</span>annotated_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatch {
+            CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
                 expr_location,
-            }
+            })
         });
 
         <span class="kw">let </span>warn_if_unused =
@@ -848,12 +850,12 @@
         }
 
         <span class="self">self</span>.unify_with_coercions(<span class="kw-2">&amp;</span>expr_type, <span class="kw-2">&amp;</span>lvalue_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatchWithSource {
+            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
                 location: expr_location,
                 source: Source::Assignment,
-            }
+            })
         });
 
         <span class="kw">let </span>assign = HirAssignStatement { lvalue, expression };

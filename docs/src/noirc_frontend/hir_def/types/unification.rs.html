@@ -841,13 +841,49 @@
 <a href="#840" id="840">840</a>
 <a href="#841" id="841">841</a>
 <a href="#842" id="842">842</a>
-<a href="#843" id="843">843</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
-    BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, TypeVariable,
-    hir::type_check::TypeCheckError,
+    BinaryTypeOperator, Kind, QuotedType, Type, TypeBinding, TypeBindings, TypeVariable,
+    hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
         types,
@@ -1347,8 +1383,8 @@
         expression: ExprId,
         location: Location,
         interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-        errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
-        make_error: <span class="kw">impl </span>FnOnce() -&gt; TypeCheckError,
+        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+        make_error: <span class="kw">impl </span>FnOnce() -&gt; CompilationError,
     ) {
         <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
@@ -1358,6 +1394,10 @@
         }
 
         <span class="kw">if </span><span class="self">self</span>.try_array_to_slice_coercion(expected, expression, interner) {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">if </span><span class="self">self</span>.try_string_to_ctstring_coercion(expected, expression, interner) {
             <span class="kw">return</span>;
         }
 
@@ -1374,7 +1414,7 @@
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) =&gt; {
-                errors.push(TypeCheckError::UnsafeFn { location });
+                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
 
                 coerced_self.unify_with_coercions(
                     expected, expression, location, interner, errors, make_error,
@@ -1424,7 +1464,7 @@
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
                 <span class="kw">if </span>element1.try_unify(element2, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
-                    convert_array_expression_to_slice(expression, this, target, as_slice, interner);
+                    invoke_function_on_expression(expression, this, target, as_slice, interner);
                     <span class="self">Self</span>::apply_type_bindings(bindings);
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
@@ -1433,8 +1473,40 @@
         <span class="bool-val">false
     </span>}
 
+    <span class="kw">fn </span>try_string_to_ctstring_coercion(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        target: <span class="kw-2">&amp;</span>Type,
+        expression: ExprId,
+        interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    ) -&gt; bool {
+        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
+        <span class="kw">let </span>target = target.follow_bindings();
+
+        <span class="kw">let </span>Type::Quoted(QuotedType::CtString) = <span class="kw-2">&amp;</span>target <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+
+        <span class="kw">match </span><span class="kw-2">&amp;</span>this {
+            Type::String(..) | Type::FmtString(..) =&gt; {
+                <span class="comment">// as_ctstring is defined as a trait method
+                </span><span class="kw">for </span>(func_id, trait_id) <span class="kw">in </span>interner.lookup_trait_methods(<span class="kw-2">&amp;</span>this, <span class="string">"as_ctstring"</span>, <span class="bool-val">true</span>)
+                {
+                    <span class="comment">// Look up the one that's in the standard library.
+                    </span><span class="kw">let </span>trait_ = interner.get_trait(trait_id);
+                    <span class="kw">if </span>trait_.crate_id.is_stdlib() &amp;&amp; trait_.name.as_str() == <span class="string">"AsCtString" </span>{
+                        invoke_function_on_expression(expression, this, target, func_id, interner);
+                        <span class="kw">return </span><span class="bool-val">true</span>;
+                    }
+                }
+            }
+            <span class="kw">_ </span>=&gt; (),
+        }
+
+        <span class="bool-val">false
+    </span>}
+
     <span class="doccomment">/// Attempt to coerce `&amp;mut T` to `&amp;T`, returning true if this is possible.
-    </span><span class="kw">pub fn </span>try_reference_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_reference_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Type) -&gt; bool {
         <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
         <span class="kw">let </span>target = target.follow_bindings();
 
@@ -1453,24 +1525,24 @@
     </span>}
 }
 
-<span class="doccomment">/// Wraps a given `expression` in `expression.as_slice()`
-</span><span class="kw">fn </span>convert_array_expression_to_slice(
+<span class="doccomment">/// Wraps a given `expression` in `expression.method()`
+</span><span class="kw">fn </span>invoke_function_on_expression(
     expression: ExprId,
-    array_type: Type,
+    expression_type: Type,
     target_type: Type,
-    as_slice_method: <span class="kw">crate</span>::node_interner::FuncId,
+    method: <span class="kw">crate</span>::node_interner::FuncId,
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
 ) {
-    <span class="kw">let </span>as_slice_id = interner.function_definition_id(as_slice_method);
+    <span class="kw">let </span>method_id = interner.function_definition_id(method);
     <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expression);
-    <span class="kw">let </span>as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), <span class="prelude-val">None</span>);
+    <span class="kw">let </span>as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), <span class="prelude-val">None</span>);
     <span class="kw">let </span>func = interner.push_expr(as_slice);
 
     <span class="comment">// Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.
     </span><span class="kw">let </span>argument = interner.expression(<span class="kw-2">&amp;</span>expression);
     <span class="kw">let </span>argument = interner.push_expr(argument);
-    interner.push_expr_type(argument, array_type.clone());
+    interner.push_expr_type(argument, expression_type.clone());
     interner.push_expr_location(argument, location);
 
     <span class="kw">let </span>arguments = <span class="macro">vec!</span>[argument];
@@ -1482,7 +1554,7 @@
     interner.push_expr_type(expression, target_type.clone());
 
     <span class="kw">let </span>func_type =
-        Type::Function(<span class="macro">vec!</span>[array_type], Box::new(target_type), Box::new(Type::Unit), <span class="bool-val">false</span>);
+        Type::Function(<span class="macro">vec!</span>[expression_type], Box::new(target_type), Box::new(Type::Unit), <span class="bool-val">false</span>);
     interner.push_expr_type(func, func_type);
 }
 
