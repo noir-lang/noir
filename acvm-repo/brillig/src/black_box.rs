@@ -10,6 +10,8 @@ pub enum BlackBoxOp {
     AES128Encrypt { inputs: HeapVector, iv: HeapArray, key: HeapArray, outputs: HeapVector },
     /// Calculates the Blake2s hash of the inputs.
     Blake2s { message: HeapVector, output: HeapArray },
+    /// Calculates the Blake2b hash of the inputs.
+    Blake2b { message: HeapVector, output: HeapArray },
     /// Calculates the Blake3 hash of the inputs.
     Blake3 { message: HeapVector, output: HeapArray },
     /// Keccak Permutation function of 1600 width

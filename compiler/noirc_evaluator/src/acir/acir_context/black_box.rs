@@ -214,6 +214,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             BlackBoxFunc::MultiScalarMul
                 | BlackBoxFunc::Keccakf1600
                 | BlackBoxFunc::Blake2s
+                | BlackBoxFunc::Blake2b
                 | BlackBoxFunc::Blake3
                 | BlackBoxFunc::AND
                 | BlackBoxFunc::XOR

@@ -495,6 +495,10 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
                 message: Self::encode_some(message),
                 output: Self::encode_some(output),
             }),
+            brillig::BlackBoxOp::Blake2b { message, output } => Value::Blake2b(Blake2b {
+                message: Self::encode_some(message),
+                output: Self::encode_some(output),
+            }),
             brillig::BlackBoxOp::Blake3 { message, output } => Value::Blake3(Blake3 {
                 message: Self::encode_some(message),
                 output: Self::encode_some(output),
@@ -627,6 +631,10 @@ impl<F> ProtoCodec<brillig::BlackBoxOp, BlackBoxOp> for ProtoSchema<F> {
                 outputs: Self::decode_some_wrap(&v.outputs, "outputs")?,
             }),
             Value::Blake2s(v) => Ok(brillig::BlackBoxOp::Blake2s {
+                message: Self::decode_some_wrap(&v.message, "message")?,
+                output: Self::decode_some_wrap(&v.output, "output")?,
+            }),
+            Value::Blake2b(v) => Ok(brillig::BlackBoxOp::Blake2b {
                 message: Self::decode_some_wrap(&v.message, "message")?,
                 output: Self::decode_some_wrap(&v.output, "output")?,
             }),
