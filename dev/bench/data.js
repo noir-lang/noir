@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751015745957,
+  "lastUpdate": 1751028853301,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d1e55d93e31cefc8331d8f1174f56db87a995374",
-          "message": "fix: when macro parse error happens, discard warnings; also preserve unquoted token locations (#8944)",
-          "timestamp": "2025-06-17T15:34:03Z",
-          "tree_id": "b6efae8e9e8015972df3f684e9da3cd206af16af",
-          "url": "https://github.com/noir-lang/noir/commit/d1e55d93e31cefc8331d8f1174f56db87a995374"
-        },
-        "date": 1750175865862,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250403,
-            "range": "± 1031",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222785,
-            "range": "± 1991",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2791842,
-            "range": "± 1473",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779528,
             "range": "± 3688",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d8f14e3bfa0379c1aed2a8d3e32544c87cef101",
+          "message": "feat: implicit coercion of str and fmtstr into CtString (#9032)",
+          "timestamp": "2025-06-27T12:30:01Z",
+          "tree_id": "90a799332ad404e7c9b03219b8641d6d0744ceac",
+          "url": "https://github.com/noir-lang/noir/commit/2d8f14e3bfa0379c1aed2a8d3e32544c87cef101"
+        },
+        "date": 1751028840839,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253302,
+            "range": "± 402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223099,
+            "range": "± 3462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776577,
+            "range": "± 1567",
             "unit": "ns/iter"
           }
         ]
