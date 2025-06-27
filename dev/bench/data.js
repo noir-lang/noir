@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751043144245,
+  "lastUpdate": 1751043333803,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "670063c66c5327685def09bfc2563fccc9e7b267",
-          "message": "fix: Fix if/match tracking in last uses pass (#8935)",
-          "timestamp": "2025-06-17T17:32:29Z",
-          "tree_id": "06e1708119d5679ee281ccabae1e4d85ac31abab",
-          "url": "https://github.com/noir-lang/noir/commit/670063c66c5327685def09bfc2563fccc9e7b267"
-        },
-        "date": 1750182947460,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249420,
-            "range": "± 484",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221922,
-            "range": "± 4520",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2819295,
-            "range": "± 5512",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786645,
             "range": "± 1524",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "30a491dc54903658553b32906a9b2a510121a141",
+          "message": "feat: some `nargo expand` fixes related to function and method calls (#9038)",
+          "timestamp": "2025-06-27T16:28:38Z",
+          "tree_id": "a6ce3ece90aedecd8e0f82d0b1395feadcf74b33",
+          "url": "https://github.com/noir-lang/noir/commit/30a491dc54903658553b32906a9b2a510121a141"
+        },
+        "date": 1751043319355,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254294,
+            "range": "± 821",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223257,
+            "range": "± 3244",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790803,
+            "range": "± 5056",
             "unit": "ns/iter"
           }
         ]
