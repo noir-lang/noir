@@ -18,7 +18,7 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitItem},
         stmt::HirPattern,
     },
     node_interner::{
@@ -904,11 +904,11 @@ impl Elaborator<'_> {
                     trait_path_resolution.item,
                 ),
 
-                TraitPathResolutionMethod::TraitMethod(trait_method) => (
+                TraitPathResolutionMethod::TraitItem(item) => (
                     HirIdent {
                         location: path.location,
-                        id: self.interner.trait_method_id(trait_method.method_id),
-                        impl_kind: ImplKind::TraitMethod(trait_method),
+                        id: item.definition,
+                        impl_kind: ImplKind::TraitItem(item),
                     },
                     trait_path_resolution.item,
                 ),
@@ -1006,7 +1006,7 @@ impl Elaborator<'_> {
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(method) = &ident.impl_kind {
+        if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,
@@ -1053,7 +1053,7 @@ impl Elaborator<'_> {
             }
         }
 
-        if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
@@ -1196,11 +1196,11 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics, _) => {
+            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
+                    self.interner.get_trait(trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
-                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
+                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
 

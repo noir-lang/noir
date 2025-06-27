@@ -387,7 +387,7 @@ impl ItemPrinter<'_, '_> {
         };
 
         // Special case: assumed trait method
-        if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
+        if let ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
             if trait_method.assumed {
                 // Is this `self.foo()` where `self` is currently a trait?
                 // If so, show it as `self.foo()` instead of `Self::foo(self)`.
