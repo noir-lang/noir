@@ -963,10 +963,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: field_type.to_string(),
-                        expr_location: field_location,
+                    || {
+                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                            expected_typ: expected_type.to_string(),
+                            expr_typ: field_type.to_string(),
+                            expr_location: field_location,
+                        })
                     },
                 );
             } else if seen_fields.contains(&field_name) {
