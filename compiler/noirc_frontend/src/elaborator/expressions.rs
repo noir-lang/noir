@@ -1279,7 +1279,18 @@ impl Elaborator<'_> {
                 };
 
                 arg_types.push(typ.clone());
-                (self.elaborate_pattern(pattern, typ.clone(), parameter, true), typ)
+                let warn_if_unused = true;
+                let self_allowed = false;
+                (
+                    self.elaborate_pattern(
+                        pattern,
+                        typ.clone(),
+                        parameter,
+                        warn_if_unused,
+                        self_allowed,
+                    ),
+                    typ,
+                )
             });
 
         let return_type = self.resolve_inferred_type(lambda.return_type);

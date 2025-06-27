@@ -2711,12 +2711,15 @@ fn function_def_set_parameters(
             ElaborateReason::EvaluatingComptimeCall("FunctionDefinition::set_parameters", location);
         let reason = Some(reason);
         let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
+            let warn_if_unused = true;
+            let self_allowed = true;
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
-                true, // warn_if_unused
+                warn_if_unused,
+                self_allowed,
             )
         });
 

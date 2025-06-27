@@ -180,6 +180,8 @@ pub enum ResolverError {
     UnreachableStatement { location: Location, break_or_continue_location: Location },
     #[error("Associated item constraints are not allowed here")]
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
+    #[error("`self` value is a keyword and may not be bound to variables or shadowed")]
+    InvalidSelfPattern { location: Location },
 }
 
 impl ResolverError {
@@ -240,9 +242,8 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
-            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location } => {
-                *location
-            }
+            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
+            | ResolverError::InvalidSelfPattern { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -757,6 +758,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Associated item constraints are not allowed here".to_string(),
                     "Consider removing this associated item binding".to_string(),
+                    *location,
+                )
+            }
+            ResolverError::InvalidSelfPattern { location} => {
+                Diagnostic::simple_error(
+                    "`self` value is a keyword and may not be bound to variables or shadowed".to_string(),
+                    "".to_string(),
                     *location,
                 )
             }

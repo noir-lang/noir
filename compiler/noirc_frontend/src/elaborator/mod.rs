@@ -988,12 +988,15 @@ impl<'context> Elaborator<'context> {
                 self.mark_type_as_used(&typ);
             }
 
+            let warn_if_unused = true;
+            let self_allowed = true;
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
-                true, // warn_if_unused
+                warn_if_unused,
+                self_allowed,
             );
 
             parameters.push((pattern, typ.clone(), visibility));
