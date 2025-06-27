@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["used_functions"]};
+window.SIDEBAR_ITEMS = {"fn":["reachable_functions","remove_unreachable_functions_post_check","used_functions"]};
