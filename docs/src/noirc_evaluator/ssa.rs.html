@@ -1028,7 +1028,7 @@
         SsaPass::new(Ssa::fold_constants, <span class="string">"Constant Folding"</span>),
         SsaPass::new(Ssa::flatten_basic_conditionals, <span class="string">"Simplify conditionals for unconstrained"</span>),
         SsaPass::new(Ssa::remove_enable_side_effects, <span class="string">"EnableSideEffectsIf removal"</span>),
-        SsaPass::new(Ssa::fold_constants_using_constraints, <span class="string">"Constraint Folding"</span>),
+        SsaPass::new(Ssa::fold_constants_using_constraints, <span class="string">"Constraint Folding using constraints"</span>),
         SsaPass::new_try(
             <span class="kw">move </span>|ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             <span class="string">"Unrolling"</span>,

@@ -1222,7 +1222,10 @@
 <a href="#1221" id="1221">1221</a>
 <a href="#1222" id="1222">1222</a>
 <a href="#1223" id="1223">1223</a>
-<a href="#1224" id="1224">1224</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
@@ -2030,6 +2033,9 @@
                         <span class="self">self</span>.push_str(<span class="string">", "</span>);
                     }
                     <span class="self">self</span>.show_value(value);
+                }
+                <span class="kw">if </span>values.len() == <span class="number">1 </span>{
+                    <span class="self">self</span>.push(<span class="string">','</span>);
                 }
                 <span class="self">self</span>.push(<span class="string">')'</span>);
             }

@@ -610,9 +610,7 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1186,8 +1184,6 @@
         printer.show_type_in_let = <span class="bool-val">true</span>;
         <span class="comment">// Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        // Using it also inserts an extra `cast` in the SSA,
-        // which at the moment for example defeats loop unrolling.
         </span>printer.show_type_of_int_literal = <span class="bool-val">false</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
     }

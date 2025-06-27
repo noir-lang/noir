@@ -2028,7 +2028,28 @@
 <a href="#2027" id="2027">2027</a>
 <a href="#2028" id="2028">2028</a>
 <a href="#2029" id="2029">2029</a>
-<a href="#2030" id="2030">2030</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2745,15 +2766,16 @@
         }
     }
 
-    <span class="kw">fn </span>remove_possibly_mutated_cached_make_arrays(
+    <span class="doccomment">/// Remove previously cached instructions that created arrays,
+    /// if the current instruction is such that it could modify that array.
+    </span><span class="kw">fn </span>remove_possibly_mutated_cached_make_arrays(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         instruction: <span class="kw-2">&amp;</span>Instruction,
         function: <span class="kw-2">&amp;</span>Function,
     ) {
-        <span class="kw">use </span>Instruction::{ArraySet, Store};
+        <span class="kw">use </span>Instruction::{ArraySet, Call, MakeArray, Store};
 
-        <span class="comment">// Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        </span><span class="kw">if let </span>Store { value, .. } | ArraySet { array: value, .. } = instruction {
+        <span class="kw">let </span><span class="kw-2">mut </span>remove_if_array = |value: <span class="kw-2">&amp;</span>ValueId| {
             <span class="kw">if </span>function.dfg.is_global(<span class="kw-2">*</span>value) {
                 <span class="comment">// Early return as we expect globals to be immutable.
                 </span><span class="kw">return</span>;
@@ -2769,9 +2791,29 @@
                 <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
             };
 
-            <span class="kw">if </span><span class="macro">matches!</span>(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
+            <span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. } | Call { .. }) {
                 <span class="self">self</span>.cached_instruction_results.remove(instruction);
             }
+        };
+
+        <span class="comment">// Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        </span><span class="kw">match </span>instruction {
+            Store { value, .. } | ArraySet { array: value, .. } =&gt; {
+                remove_if_array(value);
+            }
+            Call { arguments, func } <span class="kw">if </span>function.runtime().is_brillig() =&gt; {
+                <span class="kw">let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>func] <span class="kw">else </span>{ <span class="kw">return </span>};
+                <span class="kw">if </span><span class="macro">matches!</span>(function.dfg.purity_of(<span class="kw-2">*</span>func_id), <span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(Purity::Impure)) {
+                    <span class="comment">// Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
+                    // placed *before* the call to protect them. Currently we don't track the ref count in this
+                    // context, so be conservative and do not reuse any array shared with a callee.
+                    // In ACIR we don't track refcounts, so it should be fine.
+                    </span><span class="kw">for </span>arg <span class="kw">in </span>arguments {
+                        remove_if_array(arg);
+                    }
+                }
+            }
+            <span class="kw">_ </span>=&gt; {}
         }
     }
 }
