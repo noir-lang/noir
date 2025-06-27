@@ -167,11 +167,11 @@ impl Comparable for NargoErrorWithTypes {
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.map_or(false, |msg| msg.contains("divide by zero")),
+            ) => msg2.is_some_and(|msg| msg.contains("divide by zero")),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
-            ) => msg1.map_or(false, |msg| msg.contains("divide by zero")),
+            ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
             _ => false,
         }
     }
