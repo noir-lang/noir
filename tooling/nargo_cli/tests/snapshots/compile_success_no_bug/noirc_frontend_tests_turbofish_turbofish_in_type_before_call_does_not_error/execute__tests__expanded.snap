@@ -13,5 +13,5 @@ impl<T> Foo<T> {
 }
 
 fn main() {
-    let _: Foo<i32> = Foo::new(1_i32);
+    let _: Foo<i32> = Foo::<i32>::new(1_i32);
 }

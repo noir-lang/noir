@@ -28,14 +28,14 @@ where
         T: Foo,
         <T as Foo>::Bar: Eq,
     {
-        Foo::foo(self.unwrap())
+        self.unwrap().foo()
     }
 }
 
 fn main() {
     let three: u64 = 3_u64;
     call_foo(three);
-    let x: Option<Option<u64>> = Option::some(Option::some(0_u64));
+    let x: Option<Option<u64>> = Option::<Option<u64>>::some(Option::<u64>::some(0_u64));
     let x_foo: u8 = x.foo();
     assert(x_foo == x_foo);
     assert(x.foo() == 0_u8);
@@ -46,6 +46,6 @@ where
     T: Foo,
     <T as Foo>::Bar: Eq,
 {
-    let y: <T as Foo>::Bar = Foo::foo(x);
+    let y: <T as Foo>::Bar = x.foo();
     assert(y == y);
 }

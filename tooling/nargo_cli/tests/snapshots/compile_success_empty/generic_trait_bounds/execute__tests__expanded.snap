@@ -10,7 +10,7 @@ pub fn foo<T>(x: T)
 where
     T: Trait,
 {
-    Trait::foo(x);
+    x.foo();
 }
 
 pub struct Foo {}
@@ -20,7 +20,7 @@ impl Foo {
     where
         T: Trait,
     {
-        Trait::foo(x);
+        x.foo();
     }
 }
 
@@ -29,7 +29,7 @@ impl Trait2 for Foo {
     where
         T: Trait,
     {
-        Trait::foo(x);
+        x.foo();
     }
 }
 
@@ -38,7 +38,7 @@ trait Trait2 {
     where
         T: Trait,
     {
-        Trait::foo(x);
+        x.foo();
     }
 }
 
@@ -49,7 +49,7 @@ impl<T> Bar<T> {
     where
         T: Trait,
     {
-        Trait::foo(x);
+        x.foo();
     }
 
     fn baz(self)
@@ -68,7 +68,7 @@ where
         U: Trait,
     {
         self.baz();
-        Trait::foo(x);
+        x.foo();
     }
 }
 
