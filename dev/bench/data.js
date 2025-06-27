@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1750965804317,
+  "lastUpdate": 1751014882499,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "51f6b7cc830c683846011c328239e4f14a7f5e32",
-          "message": "chore: disable noncritical workflow steps which fail on external prs (#8939)",
-          "timestamp": "2025-06-17T14:46:59Z",
-          "tree_id": "6fb79112bc289cb85ca25c7790b4d2659e5c15a1",
-          "url": "https://github.com/noir-lang/noir/commit/51f6b7cc830c683846011c328239e4f14a7f5e32"
-        },
-        "date": 1750173124719,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249503,
-            "range": "± 667",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221895,
-            "range": "± 1263",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786073,
-            "range": "± 2335",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2565222,
             "range": "± 11899",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2203e14f139db2264a9a87dea3a4822d1397e6e9",
+          "message": "chore: add idempotency check to `remove_unreachable_functions` (#9017)",
+          "timestamp": "2025-06-27T08:36:32Z",
+          "tree_id": "6151757fa693629a0292489d66ce9783b4e73f01",
+          "url": "https://github.com/noir-lang/noir/commit/2203e14f139db2264a9a87dea3a4822d1397e6e9"
+        },
+        "date": 1751014869502,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252941,
+            "range": "± 481",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224577,
+            "range": "± 1509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779528,
+            "range": "± 3688",
             "unit": "ns/iter"
           }
         ]
