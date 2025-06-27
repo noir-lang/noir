@@ -790,9 +790,13 @@ pub fn compile_no_check(
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         if options.minimal_ssa {
-            create_program_with_minimal_passes(program, &ssa_evaluator_options)?
+            create_program_with_minimal_passes(
+                program,
+                &ssa_evaluator_options,
+                &context.file_manager,
+            )?
         } else {
-            create_program(program, &ssa_evaluator_options)?
+            create_program(program, &ssa_evaluator_options, Some(&context.file_manager))?
         };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);

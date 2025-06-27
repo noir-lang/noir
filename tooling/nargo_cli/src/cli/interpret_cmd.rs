@@ -135,6 +135,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &ssa_args,
             &ssa_return,
             interpreter_options,
+            &file_manager,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -157,6 +158,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 &ssa_args,
                 &ssa_return,
                 interpreter_options,
+                &file_manager,
             )?;
         }
     }
@@ -243,7 +245,7 @@ fn msg_matches(patterns: &[String], msg: &str) -> bool {
     patterns.iter().any(|p| msg.contains(&p.to_lowercase()))
 }
 
-fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
+fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: &FileManager) {
     let print = match options.ssa_logging {
         SsaLogging::All => true,
         SsaLogging::None => false,
@@ -251,7 +253,7 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
     };
     if print {
         ssa.normalize_ids();
-        println!("After {msg}:\n{ssa}");
+        println!("After {msg}:\n{}", ssa.print_with(Some(fm)));
     }
 }
 
@@ -266,7 +268,7 @@ fn interpret_ssa(
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
-        let result = ssa.interpret_with_options(args, options);
+        let result = ssa.interpret_with_options(args, options, std::io::stdout());
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
@@ -281,6 +283,7 @@ fn interpret_ssa(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn print_and_interpret_ssa(
     options: &SsaEvaluatorOptions,
     passes_to_interpret: &[String],
@@ -289,8 +292,9 @@ fn print_and_interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     interpreter_options: InterpreterOptions,
+    fm: &FileManager,
 ) -> Result<(), CliError> {
-    print_ssa(options, ssa, msg);
+    print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
 
