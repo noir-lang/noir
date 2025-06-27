@@ -58,6 +58,8 @@ pub enum InterpreterError {
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
     BlackBoxError { name: String, reason: String },
+    #[error("Reached the unreachable")]
+    ReachedTheUnreachable,
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -155,7 +157,7 @@ pub enum InternalError {
         actual_type: String,
     },
     #[error(
-        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
     )]
     UnexpectedResultType {
         expected_type: &'static str,
@@ -163,11 +165,15 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
         actual_length: usize,
         instruction: &'static str,
     },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
 }

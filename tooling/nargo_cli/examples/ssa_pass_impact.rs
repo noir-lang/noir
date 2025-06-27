@@ -275,12 +275,17 @@ fn collect_ssa_before_and_after(
     let mut last_msg = "Initial";
 
     for (i, pass) in passes.iter().enumerate() {
-        let before = pass.msg().contains(name).then(|| format!("{ssa}"));
+        let before =
+            pass.msg().contains(name).then(|| format!("{}", ssa.print_without_locations()));
         ssa = pass.run(ssa)?;
         if let Some(before) = before {
             pairs.push(SsaBeforeAndAfter {
                 before: SsaPrint { step: i, msg: last_msg.to_string(), ssa: before },
-                after: SsaPrint { step: i + 1, msg: pass.msg().to_string(), ssa: format!("{ssa}") },
+                after: SsaPrint {
+                    step: i + 1,
+                    msg: pass.msg().to_string(),
+                    ssa: format!("{}", ssa.print_without_locations()),
+                },
             });
         }
         last_msg = pass.msg();

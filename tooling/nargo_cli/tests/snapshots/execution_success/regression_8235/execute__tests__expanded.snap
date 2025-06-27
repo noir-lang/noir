@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main(a: bool) -> pub bool {
     if a {
-        let b: u32 = func_4(1569582039);
+        let b: u32 = func_4(1569582039_u32);
         true
     } else {
         false

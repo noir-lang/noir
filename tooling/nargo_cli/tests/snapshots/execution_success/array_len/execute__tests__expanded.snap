@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn len_plus_1<T, let N: u32>(array: [T; N]) -> u32 {
-    array.len() + 1
+    array.len() + 1_u32
 }
 
 fn add_lens<T, let N: u32, let M: u32>(a: [T; N], b: [Field; M]) -> u32 {
@@ -15,10 +15,10 @@ fn nested_call<let N: u32>(b: [Field; N]) -> u32 {
 }
 
 fn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {
-    assert(len_plus_1(len3) == 4);
-    assert(len_plus_1(len4) == 5);
-    assert(add_lens(len3, len4) == 7);
-    assert(nested_call(len4) == 5);
-    assert(len4[len3.len()] == 4);
-    assert(x.to_le_bytes::<8>().len() != 0);
+    assert(len_plus_1(len3) == 4_u32);
+    assert(len_plus_1(len4) == 5_u32);
+    assert(add_lens(len3, len4) == 7_u32);
+    assert(nested_call(len4) == 5_u32);
+    assert(len4[len3.len()] == 4_Field);
+    assert(x.to_le_bytes::<8>().len() != 0_u32);
 }

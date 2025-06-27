@@ -7,7 +7,7 @@ struct Foo<T> {
 }
 
 fn main() {
-    let value: Field = 0;
+    let value: Field = 0_Field;
     let Foo::<Field> { x }: Foo<Field> = Foo::<Field> { x: value };
     let _: Field = x;
 }

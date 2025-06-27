@@ -44,10 +44,10 @@ impl Eq for PrivateCallRequest {
 impl Empty for PrivateCallRequest {
     fn empty() -> Self {
         Self {
-            args_hash: 0,
-            returns_hash: 0,
-            start_side_effect_counter: 0,
-            end_side_effect_counter: 0,
+            args_hash: 0_Field,
+            returns_hash: 0_Field,
+            start_side_effect_counter: 0_u32,
+            end_side_effect_counter: 0_u32,
         }
     }
 }
@@ -119,7 +119,9 @@ impl PrivateKernelInnerCircuitPrivateInputs {
         // Safety: comment added by `nargo expand`
         let output: PrivateKernelCircuitPublicInputs = unsafe { self.generate_output() };
         assert(
-            !is_empty(self.previous_kernel.public_inputs.end.private_call_stack[0]),
+            !is_empty(
+                self.previous_kernel.public_inputs.end.private_call_stack[0_u32],
+            ),
             "not empty after",
         );
         output
@@ -153,7 +155,7 @@ pub unconstrained fn find_index_hint<T, let N: u32, Env>(
     find: fn[Env](T) -> bool,
 ) -> u32 {
     let mut index: u32 = N;
-    for i in 0..N {
+    for i in 0_u32..N {
         if (index == N) & find(array[i]) {
             index = i;
         }

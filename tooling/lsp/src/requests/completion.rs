@@ -86,7 +86,7 @@ pub(crate) fn on_completion_request(
                     byte,
                     args.crate_id,
                     args.def_maps,
-                    args.dependencies,
+                    args.dependencies(),
                     args.interner,
                 );
                 finder.find(&parsed_module)

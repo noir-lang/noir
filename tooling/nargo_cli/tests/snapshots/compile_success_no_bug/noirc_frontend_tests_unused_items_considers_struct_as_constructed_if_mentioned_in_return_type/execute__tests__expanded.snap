@@ -5,7 +5,7 @@ expression: expanded_code
 struct Bar {}
 
 fn foo(array: [Bar; 1]) -> Bar {
-    array[0]
+    array[0_u32]
 }
 
 fn main() {

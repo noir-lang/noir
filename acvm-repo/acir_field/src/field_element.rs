@@ -364,9 +364,9 @@ struct BitCounter {
 impl BitCounter {
     fn bits(&self) -> u32 {
         // If we don't have a non-zero byte then the field element is zero,
-        // which we consider to require a single bit to represent.
+        // which we consider to require a zero bits to represent.
         if self.count == 0 {
-            return 1;
+            return 0;
         }
 
         let num_bits_for_head_byte = self.head_byte.ilog2();
@@ -403,8 +403,14 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn requires_one_bit_to_hold_zero() {
+    fn requires_zero_bit_to_hold_zero() {
         let field = FieldElement::<ark_bn254::Fr>::zero();
+        assert_eq!(field.num_bits(), 0);
+    }
+
+    #[test]
+    fn requires_one_bit_to_hold_one() {
+        let field = FieldElement::<ark_bn254::Fr>::one();
         assert_eq!(field.num_bits(), 1);
     }
 

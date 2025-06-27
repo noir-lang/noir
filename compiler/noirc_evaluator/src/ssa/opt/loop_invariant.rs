@@ -192,7 +192,7 @@ struct LoopInvariantContext<'f> {
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let reversed_cfg = cfg.reverse();
+        let reversed_cfg = ControlFlowGraph::extended_reverse(function);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);

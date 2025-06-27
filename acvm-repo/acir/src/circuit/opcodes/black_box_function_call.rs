@@ -121,6 +121,12 @@ pub enum BlackBoxFuncCall<F> {
     ///       For more context regarding malleability you can reference BIP 0062.
     ///     - the hash of the message, as a vector of bytes
     /// - output: 0 for failure and 1 for success
+    ///
+    /// Expected backend behavior:
+    /// - The backend MAY fail to prove this opcode if the public key is not on the secp256k1 curve.
+    ///    - Otherwise the backend MUST constrain the output to be false.
+    /// - The backend MUST constrain the output to be false if `s` is not normalized.
+    /// - The backend MUST constrain the output to match the signature's validity.
     EcdsaSecp256k1 {
         public_key_x: Box<[FunctionInput<F>; 32]>,
         public_key_y: Box<[FunctionInput<F>; 32]>,

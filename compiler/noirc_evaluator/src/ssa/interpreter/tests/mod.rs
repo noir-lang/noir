@@ -52,6 +52,16 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     results.pop().unwrap()
 }
 
+#[track_caller]
+fn expect_printed_output(src: &str) -> String {
+    let mut output = Vec::new();
+    let ssa = Ssa::from_str(src).unwrap();
+    let _ = ssa
+        .interpret_with_options(Vec::new(), Default::default(), &mut output)
+        .expect("interpret not expected to fail");
+    String::from_utf8(output).expect("not a UTF-8 string")
+}
+
 pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }

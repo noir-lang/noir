@@ -5,17 +5,17 @@ expression: expanded_code
 fn main() {
     let a: str<5> = "hello";
     let b: [u8; 5] = a.as_bytes();
-    assert(b[0] == 104);
-    assert(b[1] == 101);
-    assert(b[2] == 108);
-    assert(b[3] == 108);
-    assert(b[4] == 111);
-    assert(b.len() == 5);
+    assert(b[0_u32] == 104_u8);
+    assert(b[1_u32] == 101_u8);
+    assert(b[2_u32] == 108_u8);
+    assert(b[3_u32] == 108_u8);
+    assert(b[4_u32] == 111_u8);
+    assert(b.len() == 5_u32);
     let mut c: Vec<u8> = a.as_bytes_vec();
-    assert(c.get(0) == 104);
-    assert(c.get(1) == 101);
-    assert(c.get(2) == 108);
-    assert(c.get(3) == 108);
-    assert(c.get(4) == 111);
-    assert(c.len() == 5);
+    assert(c.get(0_u32) == 104_u8);
+    assert(c.get(1_u32) == 101_u8);
+    assert(c.get(2_u32) == 108_u8);
+    assert(c.get(3_u32) == 108_u8);
+    assert(c.get(4_u32) == 111_u8);
+    assert(c.len() == 5_u32);
 }

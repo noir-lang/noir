@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, io::Write};
 
 use super::{
     Ssa,
@@ -27,7 +27,7 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa> {
+struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
@@ -41,9 +41,11 @@ struct Interpreter<'ssa> {
     side_effects_enabled: bool,
 
     options: InterpreterOptions,
+    /// Print output.
+    output: W,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
@@ -74,33 +76,35 @@ type IResults = IResult<Vec<Value>>;
 #[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
-        self.interpret_with_options(args, InterpreterOptions::default())
+        self.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())
     }
 
-    pub fn interpret_with_options(
+    pub fn interpret_with_options<W: Write>(
         &self,
         args: Vec<Value>,
         options: InterpreterOptions,
+        output: W,
     ) -> IResults {
-        self.interpret_function(self.main_id, args, options)
+        self.interpret_function(self.main_id, args, options, output)
     }
 
-    fn interpret_function(
+    fn interpret_function<W: Write>(
         &self,
         function: FunctionId,
         args: Vec<Value>,
         options: InterpreterOptions,
+        output: W,
     ) -> IResults {
-        let mut interpreter = Interpreter::new(self, options);
+        let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
         interpreter.call_function(function, args)
     }
 }
 
-impl<'ssa> Interpreter<'ssa> {
-    fn new(ssa: &'ssa Ssa, options: InterpreterOptions) -> Self {
+impl<'ssa, W: Write> Interpreter<'ssa, W> {
+    fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true, options }
+        Self { ssa, call_stack, side_effects_enabled: true, options, output }
     }
 
     fn call_context(&self) -> &CallContext {
@@ -261,6 +265,9 @@ impl<'ssa> Interpreter<'ssa> {
                     }
 
                     break return_values;
+                }
+                Some(TerminatorInstruction::Unreachable { .. }) => {
+                    return Err(InterpreterError::ReachedTheUnreachable);
                 }
             }
         };
@@ -1155,7 +1162,7 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-impl Interpreter<'_> {
+impl<W: Write> Interpreter<'_, W> {
     fn interpret_binary(&mut self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
         let lhs_id = binary.lhs;
         let rhs_id = binary.rhs;
