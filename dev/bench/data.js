@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751029816629,
+  "lastUpdate": 1751042302574,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b891901edd36574c6e6817d1f6ca182a93830739",
-          "message": "fix(ssa): Swap Brillig index shift and DIE in minimal pipeline (#8946)",
-          "timestamp": "2025-06-17T16:51:44Z",
-          "tree_id": "0f92687a21d5543608397ac764a444a551f557e8",
-          "url": "https://github.com/noir-lang/noir/commit/b891901edd36574c6e6817d1f6ca182a93830739"
-        },
-        "date": 1750180903741,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251035,
-            "range": "± 2098",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223413,
-            "range": "± 5481",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787761,
-            "range": "± 5322",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776577,
             "range": "± 1567",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4f52a7a8a12cad6e810df4decb9a00d549e837f2",
+          "message": "feat(ssa_fuzzer): custom mutations (#8988)",
+          "timestamp": "2025-06-27T16:14:53Z",
+          "tree_id": "e53f75b97c6373196b210d689961a5b2eb5b520b",
+          "url": "https://github.com/noir-lang/noir/commit/4f52a7a8a12cad6e810df4decb9a00d549e837f2"
+        },
+        "date": 1751042289379,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253602,
+            "range": "± 725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222887,
+            "range": "± 3677",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786645,
+            "range": "± 1524",
             "unit": "ns/iter"
           }
         ]
