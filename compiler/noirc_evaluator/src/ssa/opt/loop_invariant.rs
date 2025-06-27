@@ -860,7 +860,7 @@ impl<'f> LoopInvariantContext<'f> {
                     });
                     return SimplifyResult::SimplifiedToInstruction(unchecked);
                 }
-                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure => {
                     return SimplifyResult::None;
                 }
             }

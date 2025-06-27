@@ -58,7 +58,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure => {
                 SimplifyResult::SimplifiedToInstruction(simplified)
             }
         };

@@ -95,7 +95,7 @@ pub(crate) enum BinaryEvaluationResult {
     Success(FieldElement, NumericType),
     /// The binary operation could be evaluated but it is guaranteed to fail
     /// (for example: overflow or division by zero).
-    Failure(String),
+    Failure,
 }
 
 /// Evaluate a binary operation with constant arguments.
@@ -113,7 +113,8 @@ pub(crate) fn eval_constant_binary_op(
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero() {
-                return Failure("attempt to divide by zero".to_string());
+                // attempt to divide by zero
+                return Failure;
             }
             let Some(function) = operator.get_field_function() else {
                 return CouldNotEvaluate;
@@ -139,7 +140,8 @@ pub(crate) fn eval_constant_binary_op(
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
-                return Failure("attempt to divide by zero".to_string());
+                // attempt to divide by zero
+                return Failure;
             }
 
             let Some(result) = function(lhs, rhs) else {
@@ -151,8 +153,8 @@ pub(crate) fn eval_constant_binary_op(
                     return Success(FieldElement::zero(), operand_type);
                 }
 
-                let op = binary_op_function_name(operator);
-                return Failure(format!("attempt to {op} with overflow"));
+                // overflow
+                return Failure;
             };
 
             // Check for overflow
@@ -168,8 +170,8 @@ pub(crate) fn eval_constant_binary_op(
                     return Success(FieldElement::zero(), operand_type);
                 }
 
-                let op = binary_op_function_name(operator);
-                return Failure(format!("attempt to {op} with overflow"));
+                // overflow
+                return Failure;
             }
 
             result.into()
@@ -192,7 +194,9 @@ pub(crate) fn eval_constant_binary_op(
                     // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
                     // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
                     // and the operation should be handled by ACIR generation.
-                    return Failure("attempt to divide by zero".to_string());
+
+                    // attempt to divide by zero
+                    return Failure;
                 }
                 BinaryOp::Shr => {
                     if rhs >= bit_size as i128 {
@@ -213,8 +217,8 @@ pub(crate) fn eval_constant_binary_op(
                             return CouldNotEvaluate;
                         }
 
-                        let op = binary_op_function_name(operator);
-                        return Failure(format!("attempt to {op} with overflow"));
+                        // overflow
+                        return Failure;
                     };
 
                     if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
@@ -223,8 +227,8 @@ pub(crate) fn eval_constant_binary_op(
                             return CouldNotEvaluate;
                         }
 
-                        let op = binary_op_function_name(operator);
-                        return Failure(format!("attempt to {op} with overflow"));
+                        // overflow
+                        return Failure;
                     }
 
                     result
@@ -239,21 +243,6 @@ pub(crate) fn eval_constant_binary_op(
     }
 
     Success(value, operand_type)
-}
-
-fn binary_op_function_name(op: BinaryOp) -> &'static str {
-    match op {
-        BinaryOp::Add { .. } => "add",
-        BinaryOp::Sub { .. } => "subtract",
-        BinaryOp::Mul { .. } => "multiply",
-        BinaryOp::Div => "divide",
-        BinaryOp::Mod => "modulo",
-        BinaryOp::Shl => "shift left",
-        BinaryOp::Shr => "shift right",
-        BinaryOp::Eq | BinaryOp::Lt | BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
-            panic!("Shouldn't need binary op function name of {op}")
-        }
-    }
 }
 
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers

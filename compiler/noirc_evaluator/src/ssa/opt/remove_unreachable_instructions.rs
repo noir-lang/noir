@@ -3,17 +3,13 @@
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
-//!
-//! This pass might also transform existing instuctions into a guaranteed `constrain`
-//! failure, for example binary operations that are guaranteed to overflow. After they
-//! have been replaced, any subsequent instructions will be removed as well.
 use acvm::AcirField;
 
 use crate::ssa::{
     ir::{
         function::Function,
         instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+            Binary, BinaryOp, Instruction, TerminatorInstruction,
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         types::{NumericType, Type},
@@ -104,26 +100,7 @@ impl Function {
                         }
                     }
 
-                    if let Some(message) =
-                        binary_operation_always_fails(*lhs, *operator, *rhs, context)
-                    {
-                        let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                        let one = context.dfg.make_constant(1_u128.into(), NumericType::bool());
-                        let message = Some(ConstrainError::StaticString(message));
-                        let instruction = Instruction::Constrain(zero, one, message);
-                        context.remove_current_instruction();
-                        let call_stack =
-                            context.dfg.get_instruction_call_stack_id(context.instruction_id);
-                        context.dfg.insert_instruction_and_results(
-                            instruction,
-                            block_id,
-                            None,
-                            call_stack,
-                        );
-                        true
-                    } else {
-                        false
-                    }
+                    binary_operation_always_fails(*lhs, *operator, *rhs, context)
                 }
                 _ => false,
             };
@@ -144,13 +121,13 @@ fn binary_operation_always_fails(
     lhs: ValueId,
     operator: BinaryOp,
     rhs: ValueId,
-    context: &mut SimpleOptimizationContext,
-) -> Option<String> {
+    context: &SimpleOptimizationContext,
+) -> bool {
     // Unchecked operations can never fail
     match operator {
         BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
             if unchecked {
-                return None;
+                return false;
             }
         }
         BinaryOp::Div
@@ -164,25 +141,31 @@ fn binary_operation_always_fails(
         | BinaryOp::Shr => (),
     };
 
-    let rhs_value = context.dfg.get_numeric_constant(rhs)?;
+    let Some(rhs_value) = context.dfg.get_numeric_constant(rhs) else {
+        return false;
+    };
 
     if matches!(operator, BinaryOp::Div) && rhs_value.is_zero() {
-        return Some("attempt to divide by zero".to_string());
+        // attempt to divide by zero
+        return true;
     }
 
     if matches!(operator, BinaryOp::Mod) && rhs_value.is_zero() {
-        return Some("attempt to calculate the remainder with a divisor of zero".to_string());
+        // attempt to calculate the remainder with a divisor of zero
+        return true;
     }
 
     let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
         panic!("Expected numeric type for binary operation");
     };
 
-    let lhs_value = context.dfg.get_numeric_constant(lhs)?;
+    let Some(lhs_value) = context.dfg.get_numeric_constant(lhs) else {
+        return false;
+    };
 
     match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
-        BinaryEvaluationResult::Failure(message) => Some(message),
-        BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
+        BinaryEvaluationResult::Failure => true,
+        BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => false,
     }
 }
 
@@ -256,13 +239,13 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            constrain u1 0 == u1 1, "attempt to subtract with overflow"
+            v2 = sub u32 0, u32 1
             unreachable
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -278,17 +261,17 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            constrain u1 0 == u1 1, "attempt to divide by zero"
+            v2 = div u32 1, u32 0
             unreachable
         }
-        "#);
+        ");
     }
 
     #[test]
-    fn does_not_replace_unchecked_sub_that_overflows() {
+    fn does_not_consider_unchecked_sub_that_overflows_as_always_failing() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -303,7 +286,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_replace_sub_that_overflows_but_is_disabled_because_of_unknown_side_effects_condition()
+    fn does_not_consider_sub_that_overflows_but_is_disabled_because_of_unknown_side_effects_condition_as_always_failing()
      {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -320,8 +303,8 @@ mod test {
     }
 
     #[test]
-    fn does_not_replace_sub_that_overflows_but_is_disabled_because_of_false_side_effects_condition()
-    {
+    fn does_not_consider_sub_that_overflows_but_is_disabled_because_of_false_side_effects_condition_as_always_failing()
+     {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
