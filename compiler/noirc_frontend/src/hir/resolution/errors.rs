@@ -185,7 +185,7 @@ pub enum ResolverError {
     #[error("unexpected `self` parameter in function")]
     SelfDisallowedInNonFirstParameter { location: Location },
     #[error("`self` parameter is only allowed in associated functions")]
-    SelfDisallowedInNonAssociatedFunction { location: Location},
+    SelfDisallowedInNonAssociatedFunction { location: Location },
 }
 
 impl ResolverError {
@@ -248,9 +248,8 @@ impl ResolverError {
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::SelfDisallowedInLetOrLambdaParameter { location }
-            | ResolverError::SelfDisallowedInNonFirstParameter { location } 
-            | ResolverError::SelfDisallowedInNonAssociatedFunction { location }
-            => *location,
+            | ResolverError::SelfDisallowedInNonFirstParameter { location }
+            | ResolverError::SelfDisallowedInNonAssociatedFunction { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -789,8 +788,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            
-            
         }
     }
 }
