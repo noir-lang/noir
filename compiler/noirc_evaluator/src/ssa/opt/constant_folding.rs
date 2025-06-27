@@ -751,16 +751,15 @@ impl<'brillig> Context<'brillig> {
                 remove_if_array(value);
             }
             Call { arguments, func } if function.runtime().is_brillig() => {
-                let func = &function.dfg[*func];
-                if matches!(func, Value::ForeignFunction(_) | Value::Intrinsic(_)) {
-                    return;
-                }
-                // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
-                // placed *before* the call to protect them. Currently we don't track the ref count in this
-                // context, so be conservative and do not reuse any array shared with a callee.
-                // In ACIR we don't track refcounts, so it should be fine.
-                for arg in arguments {
-                    remove_if_array(arg);
+                let Value::Function(func_id) = &function.dfg[*func] else { return };
+                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
+                    // placed *before* the call to protect them. Currently we don't track the ref count in this
+                    // context, so be conservative and do not reuse any array shared with a callee.
+                    // In ACIR we don't track refcounts, so it should be fine.
+                    for arg in arguments {
+                        remove_if_array(arg);
+                    }
                 }
             }
             _ => {}
