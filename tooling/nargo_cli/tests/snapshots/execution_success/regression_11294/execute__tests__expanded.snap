@@ -61,7 +61,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
         previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
     ) -> Self {
         let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = PrivateKernelCircuitPublicInputsBuilder {
-            end: PrivateAccumulatedDataBuilder { private_call_stack: BoundedVec::new() },
+            end: PrivateAccumulatedDataBuilder {
+                private_call_stack: BoundedVec::<PrivateCallRequest, 8>::new(),
+            },
         };
         let start: PrivateAccumulatedData = previous_kernel_public_inputs.end;
         public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
@@ -137,7 +139,7 @@ where
     T: Empty,
     T: Eq,
 {
-    Eq::eq(item, Empty::empty())
+    item.eq(T::empty())
 }
 
 pub fn array_length<T, let N: u32>(array: [T; N]) -> u32
@@ -169,5 +171,5 @@ where
     T: Eq,
 {
     let len: u32 = array_length(array);
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::<T, N>::from_parts_unchecked(array, len)
 }

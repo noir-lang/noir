@@ -24,7 +24,7 @@ impl Pair {
     }
 
     fn bar(self) -> Field {
-        self.foo().bar
+        Self::foo(self).bar
     }
 }
 

@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn new_concrete_c_over_d() -> C<D> {
     let d_method_interface: MethodInterface<D> = get_d_method_interface();
-    C::new(d_method_interface)
+    C::<D>::new(d_method_interface)
 }
 
 struct B<T_C> {
@@ -54,7 +54,7 @@ fn get_d_method_interface() -> MethodInterface<D> {
 }
 
 fn main(input: Field) -> pub Field {
-    let b: B<C<D>> = B::new(new_concrete_c_over_d);
+    let b: B<C<D>> = B::<C<D>>::new(new_concrete_c_over_d);
     let c: C<D> = b.get_t_c();
     let d: D = D { d: input };
     let output: Field = c.call_method_of_t_d(d);
