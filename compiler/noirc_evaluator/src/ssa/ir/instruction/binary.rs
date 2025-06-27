@@ -209,12 +209,20 @@ pub(crate) fn eval_constant_binary_op(
                     // Check for overflow
                     let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
                     let Some(result) = result else {
+                        if let BinaryOp::Shl = operator {
+                            return CouldNotEvaluate;
+                        }
+
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     };
 
                     if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
                     {
+                        if let BinaryOp::Shl = operator {
+                            return CouldNotEvaluate;
+                        }
+
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     }
