@@ -1610,20 +1610,19 @@ impl<'interner> Monomorphizer<'interner> {
         &mut self,
         expr_id: node_interner::ExprId,
         function_type: HirType,
-        method_id: TraitItemId,
+        method: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = resolve_trait_method(self.interner, method_id, expr_id)
+        let func_id = resolve_trait_method(self.interner, method, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
-        let trait_method = Some(method_id);
         let func_id =
-            match self.lookup_function(func_id, expr_id, &function_type, &[], trait_method) {
+            match self.lookup_function(func_id, expr_id, &function_type, &[], Some(method)) {
                 Definition::Function(func_id) => func_id,
                 _ => unreachable!(),
             };
 
         let location = self.interner.expr_location(&expr_id);
-        let name = self.interner.definition_name(method_id.item_id).to_string();
+        let name = self.interner.definition_name(method.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
@@ -2478,13 +2477,15 @@ pub fn perform_impl_bindings(
             interner.definition_type(trait_method.item_id).as_monotype().clone();
 
         let mut impl_method_type =
-            interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
+            interner.function_meta(&impl_method).typ.as_monotype().clone();
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id, binding.
         trait_method_type.replace_named_generics_with_type_variables();
         impl_method_type.replace_named_generics_with_type_variables();
 
+        eprintln!("Unifying {}", trait_method_type);
+        eprintln!("     and {}\n", impl_method_type);
         trait_method_type.try_unify(&impl_method_type, &mut bindings).map_err(|_| {
             InterpreterError::ImplMethodTypeMismatch {
                 expected: trait_method_type.follow_bindings(),
@@ -2547,7 +2548,7 @@ pub fn resolve_trait_method(
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        println!("monomorphization error2");
+                        panic!("monomorphization error2");
                         return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
                         return Err(InterpreterError::NoImpl { location });

@@ -1418,6 +1418,15 @@ impl NodeInterner {
         self.function_definition_ids[&function]
     }
 
+    /// Returns the definition id and trait id for a given trait function.
+    /// Note that this will return None for impl functions.
+    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
+        let function = self.function_meta(&function_id);
+        let trait_id = function.trait_id?;
+        let definition_id = self.function_definition_id(function_id);
+        Some(TraitItemId { item_id: definition_id, trait_id })
+    }
+
     /// Adds a non-trait method to a type.
     ///
     /// Returns `Some(duplicate)` if a matching method was already defined.
@@ -1904,15 +1913,6 @@ impl NodeInterner {
             .and_then(|h| h.get(method_name))
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
             .unwrap_or_default()
-    }
-
-    /// Returns the definition id and trait id for a given trait function.
-    /// Note that this will return None for impl functions.
-    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
-        let function = self.function_meta(&function_id);
-        let trait_id = function.trait_id?;
-        let definition_id = self.function_definition_id(function_id);
-        Some(TraitItemId { item_id: definition_id, trait_id })
     }
 
     /// Returns what the next trait impl id is expected to be.
