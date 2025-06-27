@@ -6,7 +6,7 @@ use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
@@ -84,6 +84,12 @@ pub struct TraitItem {
     pub assumed: bool,
 }
 
+impl TraitItem {
+    pub fn id(&self) -> TraitItemId {
+        TraitItemId { item_id: self.definition, trait_id: self.constraint.trait_bound.trait_id }
+    }
+}
+
 impl Eq for HirIdent {}
 impl PartialEq for HirIdent {
     fn eq(&self, other: &Self) -> bool {
@@ -135,7 +141,7 @@ pub struct HirPrefixExpression {
 
     /// The trait method id for the operator trait method that corresponds to this operator,
     /// if such a trait exists (for example, there's no trait for the dereference operator).
-    pub trait_method_id: Option<(DefinitionId, TraitId)>,
+    pub trait_method_id: Option<TraitItemId>,
 }
 
 #[derive(Debug, Clone)]
@@ -148,7 +154,7 @@ pub struct HirInfixExpression {
     /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
     /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
     /// after the call to `Eq::eq` to get the result of the `!=` operator.
-    pub trait_method_id: (DefinitionId, TraitId),
+    pub trait_method_id: TraitItemId,
 }
 
 /// This is always a struct field access `my_struct.field`

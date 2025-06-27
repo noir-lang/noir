@@ -1,10 +1,10 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -192,7 +192,11 @@ impl Trait {
         None
     }
 
-    pub fn find_method_or_constant(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+    pub fn find_method_or_constant(
+        &self,
+        name: &str,
+        interner: &NodeInterner,
+    ) -> Option<DefinitionId> {
         if let Some(method) = self.find_method(name, interner) {
             return Some(method);
         }

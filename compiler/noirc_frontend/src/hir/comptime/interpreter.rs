@@ -580,8 +580,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         })?;
 
         if let ImplKind::TraitItem(method) = ident.impl_kind {
-            let method_ids = (method.definition, method.constraint.trait_bound.trait_id);
-            let method_id = resolve_trait_method(self.elaborator.interner, method_ids, id)?;
+            let method_id = resolve_trait_method(self.elaborator.interner, method.id(), id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));

@@ -526,6 +526,13 @@ impl TraitId {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TraitItemId {
+    pub trait_id: TraitId,
+    /// This is the definition id of the method or associated constant in the trait, not an impl
+    pub item_id: DefinitionId,
+}
+
 macro_rules! into_index {
     ($id_type:ty) => {
         impl From<$id_type> for Index {
@@ -1472,10 +1479,17 @@ impl NodeInterner {
     }
 
     #[allow(unused)]
-    pub fn trait_constraint_string(&self, object_type: &Type, trait_id: TraitId, trait_generics: &[Type], trait_associated_types: &[NamedType]) -> String {
+    pub fn trait_constraint_string(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) -> String {
         let name = self.get_trait(trait_id).name.to_string();
         let mut generics = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
-        let associated = vecmap(trait_associated_types, |t| format!("{}: {:?}", t.name, t.typ)).join(", ");
+        let associated =
+            vecmap(trait_associated_types, |t| format!("{}: {:?}", t.name, t.typ)).join(", ");
 
         if !generics.is_empty() && !associated.is_empty() {
             generics += ", ";
@@ -1894,11 +1908,11 @@ impl NodeInterner {
 
     /// Returns the definition id and trait id for a given trait function.
     /// Note that this will return None for impl functions.
-    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<(DefinitionId, TraitId)> {
+    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
         let function = self.function_meta(&function_id);
         let trait_id = function.trait_id?;
         let definition_id = self.function_definition_id(function_id);
-        Some((definition_id, trait_id))
+        Some(TraitItemId { item_id: definition_id, trait_id })
     }
 
     /// Returns what the next trait impl id is expected to be.
@@ -1956,22 +1970,22 @@ impl NodeInterner {
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> (DefinitionId, TraitId) {
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitItemId {
         let trait_id = self.infix_operator_traits[&operator];
         let the_trait = self.get_trait(trait_id);
         let func_id = *the_trait.method_ids.values().next().unwrap();
-        (self.function_definition_id(func_id), trait_id)
+        TraitItemId { trait_id, item_id: self.function_definition_id(func_id) }
     }
 
     /// Retrieves the trait id for a given unary operator.
     /// Only some unary operators correspond to a trait: `-` and `!`, but for example `*` does not.
     /// `self.prefix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<(DefinitionId, TraitId)> {
+    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitItemId> {
         let trait_id = *self.prefix_operator_traits.get(operator)?;
         let the_trait = self.get_trait(trait_id);
         let func_id = *the_trait.method_ids.values().next().unwrap();
-        Some((self.function_definition_id(func_id), trait_id))
+        Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
     }
 
     /// Add the given trait as an operator trait if its name matches one of the

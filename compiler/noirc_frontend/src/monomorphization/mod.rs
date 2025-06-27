@@ -12,7 +12,7 @@ use crate::NamedGeneric;
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
-use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
@@ -113,9 +113,6 @@ pub(super) struct Monomorphizer<'interner> {
 
     in_unconstrained_function: bool,
 }
-
-/// Identify a trait method by the id within the trait (definition, not impl) and the trait itself
-type TraitItemId = (node_interner::DefinitionId, node_interner::TraitId);
 
 /// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
 type Functions = HashMap<
@@ -1051,8 +1048,7 @@ impl<'interner> Monomorphizer<'interner> {
         let typ = self.interner.id_type(expr_id);
 
         if let ImplKind::TraitItem(method) = ident.impl_kind {
-            let ids = (method.definition, method.constraint.trait_bound.trait_id);
-            return self.resolve_trait_method_expr(expr_id, typ, ids);
+            return self.resolve_trait_method_expr(expr_id, typ, method.id());
         }
 
         // Ensure all instantiation bindings are bound.
@@ -1627,7 +1623,7 @@ impl<'interner> Monomorphizer<'interner> {
             };
 
         let location = self.interner.expr_location(&expr_id);
-        let name = self.interner.definition_name(method_id.0).to_string();
+        let name = self.interner.definition_name(method_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
@@ -2479,7 +2475,7 @@ pub fn perform_impl_bindings(
 
     if let Some(trait_method) = trait_method {
         let mut trait_method_type =
-            interner.definition_type(trait_method.0).as_monotype().clone();
+            interner.definition_type(trait_method.item_id).as_monotype().clone();
 
         let mut impl_method_type =
             interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
@@ -2517,12 +2513,19 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
-            println!("resolve trait method: {}", interner.trait_constraint_string(
-                    &object_type,  method_id.1, &trait_generics.ordered, &trait_generics.named));
+            println!(
+                "resolve trait method: {}",
+                interner.trait_constraint_string(
+                    &object_type,
+                    method_id.trait_id,
+                    &trait_generics.ordered,
+                    &trait_generics.named
+                )
+            );
 
             match interner.lookup_trait_implementation(
                 &object_type,
-                method_id.1,
+                method_id.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
@@ -2561,7 +2564,7 @@ pub fn resolve_trait_method(
         }
     };
 
-    let name = interner.definition_name(method_id.0);
+    let name = interner.definition_name(method_id.item_id);
     let impl_ = interner.get_trait_implementation(impl_id);
     let impl_ = impl_.borrow();
 

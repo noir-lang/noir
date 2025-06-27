@@ -4,6 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -11,14 +12,16 @@ use crate::{
         Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
-    }, hir::{
+    },
+    hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{generics::TraitGenerics, Source, TypeCheckError},
-    }, hir_def::{
+        type_check::{Source, TypeCheckError, generics::TraitGenerics},
+    },
+    hir_def::{
         expr::{
             HirArrayLiteral, HirBinaryOp, HirBlockExpression, HirCallExpression, HirCastExpression,
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
@@ -28,9 +31,12 @@ use crate::{
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
-    }, node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitId,
-    }, shared::Signedness, token::{FmtStrFragment, IntegerTypeSuffix, Tokens}, DataType, Kind, QuotedType, Shared, Type, TypeVariable
+    },
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
+    },
+    shared::Signedness,
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
 use super::{
@@ -411,14 +417,18 @@ impl Elaborator<'_> {
             }
         }
 
-        let expr =
-            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
+        let expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location);
 
         let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
-        let typ =
-            self.handle_operand_type_rules_result(result, &rhs_type, trait_method_id, expr_id, location);
+        let typ = self.handle_operand_type_rules_result(
+            result,
+            &rhs_type,
+            trait_method_id,
+            expr_id,
+            location,
+        );
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -1070,15 +1080,15 @@ impl Elaborator<'_> {
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
         operand_type: &Type,
-        trait_id: Option<(DefinitionId, TraitId)>,
+        trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
-                    let (trait_method_id, trait_id) =
-                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+                    let trait_method_id =
+                        trait_method_id.expect("ice: expected some trait_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
@@ -1086,7 +1096,7 @@ impl Elaborator<'_> {
                     let constraint = TraitConstraint {
                         typ: operand_type.clone(),
                         trait_bound: ResolvedTraitBound {
-                            trait_id,
+                            trait_id: trait_method_id.trait_id,
                             trait_generics: TraitGenerics::default(),
                             location,
                         },
@@ -1095,7 +1105,12 @@ impl Elaborator<'_> {
                         constraint, expr_id,
                         true, // this constraint should lead to choosing a trait impl
                     );
-                    self.type_check_operator_method(expr_id, trait_method_id, trait_id, operand_type, location);
+                    self.type_check_operator_method(
+                        expr_id,
+                        trait_method_id,
+                        operand_type,
+                        location,
+                    );
                 }
                 typ
             }
@@ -1463,7 +1478,9 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(definition) = the_trait.find_method_or_constant(path.impl_item.as_str(), &self.interner) else {
+        let Some(definition) =
+            the_trait.find_method_or_constant(path.impl_item.as_str(), &self.interner)
+        else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
@@ -1472,8 +1489,7 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_item =
-            TraitItem { definition, constraint: constraint.clone(), assumed: true };
+        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: true };
 
         let ident = HirIdent {
             location: path.impl_item.location(),
