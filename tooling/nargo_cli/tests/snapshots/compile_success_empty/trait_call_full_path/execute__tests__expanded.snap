@@ -17,7 +17,7 @@ mod foo {
 }
 
 fn main(x: Field) {
-    let _: Field = Trait::me(x);
-    let _: Field = Trait::me(x);
-    let _: Field = Trait::me(x);
+    let _: Field = x.me();
+    let _: Field = x.me();
+    let _: Field = x.me();
 }

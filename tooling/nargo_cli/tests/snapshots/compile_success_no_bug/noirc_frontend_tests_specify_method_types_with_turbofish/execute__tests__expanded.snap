@@ -21,7 +21,7 @@ impl<T> Foo<T> {
     where
         U: Default2,
     {
-        Default2::default2()
+        U::default2()
     }
 }
 

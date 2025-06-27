@@ -807,6 +807,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     }
                     self.show_value(value);
                 }
+                if values.len() == 1 {
+                    self.push(',');
+                }
                 self.push(')');
             }
             Value::Struct(fields, typ) => {
@@ -1113,6 +1116,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             HirPattern::Identifier(ident) => {
                 let definition = self.interner.definition(ident.id);
                 definition.name == "self"
+            }
+            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
+    }
+
+    fn pattern_is_self_or_underscore_self(&self, pattern: &HirPattern) -> bool {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition = self.interner.definition(ident.id);
+                definition.name == "self" || definition.name == "_self"
             }
             HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
             HirPattern::Tuple(..) | HirPattern::Struct(..) => false,

@@ -572,8 +572,7 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_type_in_let = true;
         // Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        // Nevertheless it makes it easier to ensure we are testing the same Noir code.
-        printer.show_type_of_int_literal = true;
+        printer.show_type_of_int_literal = false;
         printer.print_program(self.0, f)
     }
 }
