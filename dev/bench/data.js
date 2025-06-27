@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751015213017,
+  "lastUpdate": 1751015220309,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "51f6b7cc830c683846011c328239e4f14a7f5e32",
-          "message": "chore: disable noncritical workflow steps which fail on external prs (#8939)",
-          "timestamp": "2025-06-17T14:46:59Z",
-          "tree_id": "6fb79112bc289cb85ca25c7790b4d2659e5c15a1",
-          "url": "https://github.com/noir-lang/noir/commit/51f6b7cc830c683846011c328239e4f14a7f5e32"
-        },
-        "date": 1750173435642,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.287,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.184,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.019,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2203e14f139db2264a9a87dea3a4822d1397e6e9",
+          "message": "chore: add idempotency check to `remove_unreachable_functions` (#9017)",
+          "timestamp": "2025-06-27T08:36:32Z",
+          "tree_id": "6151757fa693629a0292489d66ce9783b4e73f01",
+          "url": "https://github.com/noir-lang/noir/commit/2203e14f139db2264a9a87dea3a4822d1397e6e9"
+        },
+        "date": 1751015207727,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.027,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.288,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.188,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
