@@ -16,11 +16,5 @@ fn append_three<T>(one: T, two: T, three: T) -> T
 where
     T: Append,
 {
-    Append::append(
-        Append::append(
-            Append::append(Append::append(Append::empty(), one), two),
-            three,
-        ),
-        Append::empty(),
-    )
+    T::empty().append(one).append(two).append(three).append(T::empty())
 }

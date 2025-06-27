@@ -25,7 +25,7 @@ where
     where
         Self: One,
     {
-        One::one(self) + 1_i32
+        self.one() + 1_i32
     }
 }
 
@@ -37,7 +37,7 @@ impl Two for u32 {
 }
 
 pub fn use_it(t: u32) -> i32 {
-    Two::two(t)
+    t.two()
 }
 
 fn main() {}

@@ -1119,6 +1119,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
     }
 
+    fn pattern_is_self_or_underscore_self(&self, pattern: &HirPattern) -> bool {
+        match pattern {
+            HirPattern::Identifier(ident) => {
+                let definition = self.interner.definition(ident.id);
+                definition.name == "self" || definition.name == "_self"
+            }
+            HirPattern::Mutable(pattern, _) => self.pattern_is_self(pattern),
+            HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
+        }
+    }
+
     fn module_def_id_name(&self, module_def_id: ModuleDefId) -> String {
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
