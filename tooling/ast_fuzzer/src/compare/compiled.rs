@@ -137,7 +137,9 @@ impl Comparable for NargoErrorWithTypes {
         let msg1 = e1.user_defined_failure_message();
         let msg2 = e2.user_defined_failure_message();
         let equiv_msgs = if let (Some(msg1), Some(msg2)) = (msg1, msg2) {
-            msg1 == msg2 || msg1.contains("overflow") && msg2.contains("overflow")
+            msg1 == msg2
+                || msg1.contains("overflow") && msg2.contains("overflow")
+                || msg1.contains("divide by zero") && msg2.contains("divide by zero")
         } else {
             false
         };
