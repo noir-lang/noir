@@ -746,17 +746,24 @@ impl<'brillig> Context<'brillig> {
         };
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        if let Store { value, .. } | ArraySet { array: value, .. } = instruction {
-            remove_if_array(value);
-        } else if let Call { arguments, .. } = instruction {
-            // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
-            // placed *before* the call to protect them. Currently we don't track the ref count in this
-            // context, so be conservative and do not reuse any array shared with a function.
-            // Another information we could use if we call Brillig from ACIR, then we will make copies,
-            // but we don't have access to that information here at the moment (needs reference to the SSA).
-            for arg in arguments {
-                remove_if_array(arg);
+        match instruction {
+            Store { value, .. } | ArraySet { array: value, .. } => {
+                remove_if_array(value);
             }
+            Call { arguments, func } if function.runtime().is_brillig() => {
+                let func = &function.dfg[*func];
+                if matches!(func, Value::ForeignFunction(_) | Value::Intrinsic(_)) {
+                    return;
+                }
+                // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
+                // placed *before* the call to protect them. Currently we don't track the ref count in this
+                // context, so be conservative and do not reuse any array shared with a callee.
+                // In ACIR we don't track refcounts, so it should be fine.
+                for arg in arguments {
+                    remove_if_array(arg);
+                }
+            }
+            _ => {}
         }
     }
 }
