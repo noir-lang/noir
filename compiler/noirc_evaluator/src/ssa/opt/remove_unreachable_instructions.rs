@@ -7,6 +7,7 @@ use acvm::AcirField;
 
 use crate::ssa::{
     ir::{
+        dfg::DataFlowGraph,
         function::Function,
         instruction::{
             Binary, BinaryOp, Instruction, TerminatorInstruction,
@@ -15,7 +16,6 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::ValueId,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
     ssa_gen::Ssa,
 };
 
@@ -60,52 +60,7 @@ impl Function {
                 return;
             };
 
-            let always_fails = match instruction {
-                Instruction::Constrain(lhs, rhs, _) => {
-                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
-                        return;
-                    };
-                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
-                        return;
-                    };
-                    lhs_constant != rhs_constant
-                }
-                Instruction::ConstrainNotEqual(lhs, rhs, _) => {
-                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
-                        return;
-                    };
-                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
-                        return;
-                    };
-                    lhs_constant == rhs_constant
-                }
-                Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
-                    let requires_acir_gen_predicate =
-                        binary.requires_acir_gen_predicate(context.dfg);
-                    if requires_acir_gen_predicate {
-                        // If performing the binary operation depends on the side effects condition, then
-                        // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
-                        let predicate = context.dfg.get_numeric_constant(side_effects_condition);
-                        match predicate {
-                            Some(predicate) => {
-                                if predicate.is_zero() {
-                                    // The predicate is zero
-                                    return;
-                                }
-                            }
-                            None => {
-                                // The predicate is a variable
-                                return;
-                            }
-                        }
-                    }
-
-                    binary_operation_always_fails(*lhs, *operator, *rhs, context)
-                }
-                _ => false,
-            };
-
-            if always_fails {
+            if always_fails(instruction, side_effects_condition, context.dfg) {
                 current_block_instructions_are_unreachable = true;
 
                 let terminator = context.dfg[block_id].take_terminator();
@@ -117,11 +72,61 @@ impl Function {
     }
 }
 
+fn always_fails(
+    instruction: &Instruction,
+    side_effects_condition: ValueId,
+    dfg: &DataFlowGraph,
+) -> bool {
+    match instruction {
+        Instruction::Constrain(lhs, rhs, _) => {
+            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
+                return false;
+            };
+            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
+                return false;
+            };
+            lhs_constant != rhs_constant
+        }
+        Instruction::ConstrainNotEqual(lhs, rhs, _) => {
+            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
+                return false;
+            };
+            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
+                return false;
+            };
+            lhs_constant == rhs_constant
+        }
+        Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
+            let requires_acir_gen_predicate = binary.requires_acir_gen_predicate(dfg);
+            if requires_acir_gen_predicate {
+                // If performing the binary operation depends on the side effects condition, then
+                // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
+                let predicate = dfg.get_numeric_constant(side_effects_condition);
+                match predicate {
+                    Some(predicate) => {
+                        if predicate.is_zero() {
+                            // The predicate is zero
+                            return false;
+                        }
+                    }
+                    None => {
+                        // The predicate is a variable
+                        return false;
+                    }
+                }
+            }
+
+            binary_operation_always_fails(*lhs, *operator, *rhs, dfg)
+        }
+        _ => false,
+    }
+}
+
 fn binary_operation_always_fails(
     lhs: ValueId,
     operator: BinaryOp,
     rhs: ValueId,
-    context: &SimpleOptimizationContext,
+    dfg: &DataFlowGraph,
 ) -> bool {
     // Unchecked operations can never fail
     match operator {
@@ -141,7 +146,7 @@ fn binary_operation_always_fails(
         | BinaryOp::Shr => (),
     };
 
-    let Some(rhs_value) = context.dfg.get_numeric_constant(rhs) else {
+    let Some(rhs_value) = dfg.get_numeric_constant(rhs) else {
         return false;
     };
 
@@ -155,11 +160,11 @@ fn binary_operation_always_fails(
         return true;
     }
 
-    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
+    let Type::Numeric(numeric_type) = dfg.type_of_value(lhs) else {
         panic!("Expected numeric type for binary operation");
     };
 
-    let Some(lhs_value) = context.dfg.get_numeric_constant(lhs) else {
+    let Some(lhs_value) = dfg.get_numeric_constant(lhs) else {
         return false;
     };
 
