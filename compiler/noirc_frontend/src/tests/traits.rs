@@ -513,7 +513,6 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
             T: MarkerTrait,
         {
             fn foo(self) -> Field {
-                let _ = self;
                 42
             }
         }
@@ -941,7 +940,6 @@ fn type_checks_trait_default_method_and_errors() {
             fn foo(self) -> i32 {
                             ^^^ expected type i32, found type bool
                             ~~~ expected i32 because of return type
-                let _ = self;
                 true
                 ~~~~ bool returned here
             }
@@ -958,7 +956,6 @@ fn type_checks_trait_default_method_and_does_not_error() {
     let src = r#"
         pub trait Foo {
             fn foo(self) -> i32 {
-                let _ = self;
                 1
             }
         }
@@ -978,7 +975,6 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
             }
 
             fn bar(self) -> i32 {
-                let _ = self;
                 1
             }
         }
@@ -1222,7 +1218,7 @@ fn allows_renaming_trait_during_import() {
     let src = r#"
     mod trait_mod {
         pub trait Foo {
-            fn foo(_: Self) {}
+            fn foo(self) {}
         }
 
         impl Foo for Field {}
@@ -1244,7 +1240,7 @@ fn renaming_trait_avoids_name_collisions() {
     let src = r#"
     mod trait_mod {
         pub trait Foo {
-            fn foo(_: Self) {}
+            fn foo(self) {}
         }
 
         impl Foo for Field {}
@@ -1304,9 +1300,7 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
     pub struct Bar<T> {}
 
     impl<T> Bar<T> {
-        fn bar<U>(self) where U: Trait {
-            let _ = self;
-        }
+        fn bar<U>(self) where U: Trait { }
     }
 
     fn main() {
@@ -1639,13 +1633,9 @@ fn trait_impl_with_child_constraint() {
 fn trait_with_same_generic_in_different_default_methods() {
     let src = r#"
     pub trait Trait {
-        fn foo<let U: u32>(self, _msg: str<U>) { 
-            let _ = self; 
-        }
+        fn foo<let U: u32>(self, _msg: str<U>) { }
 
-        fn bar<let U: u32>(self, _msg: str<U>) {
-            let _ = self;
-        }
+        fn bar<let U: u32>(self, _msg: str<U>) { }
     }
 
     pub struct Struct {}

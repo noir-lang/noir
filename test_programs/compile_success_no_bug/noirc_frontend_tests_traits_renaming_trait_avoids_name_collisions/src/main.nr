@@ -1,7 +1,7 @@
 
     mod trait_mod {
         pub trait Foo {
-            fn foo(_: Self) {}
+            fn foo(self) {}
         }
 
         impl Foo for Field {}

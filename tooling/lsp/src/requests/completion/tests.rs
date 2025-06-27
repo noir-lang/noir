@@ -2941,17 +2941,17 @@ fn main() {
         }
 
         impl Foo<Field> {
-            fn bar_baz(_self: Self) -> Field {
+            fn bar_baz(self) -> Field {
                 5
             }
         }
 
         impl Foo<u32> {
-            fn bar(_self: Self) -> Field {
+            fn bar(self) -> Field {
                 5
             }
 
-            fn baz(_self: Self) -> Field {
+            fn baz(self) -> Field {
                 6
             }
         }

@@ -6,7 +6,7 @@ fn main() {
 trait Foo {
     let BAR: u32;
 
-    fn bar(_: Self) -> u32 {
+    fn bar(self) -> u32 {
         Foo::BAR
     }
 }

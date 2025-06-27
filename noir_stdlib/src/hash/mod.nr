@@ -153,8 +153,8 @@ pub trait Hash {
 // docs:start:derive_hash
 comptime fn derive_hash(s: TypeDefinition) -> Quoted {
     let name = quote { $crate::hash::Hash };
-    let signature = quote { fn hash<H>(_self: Self, _state: &mut H) where H: $crate::hash::Hasher };
-    let for_each_field = |name| quote { _self.$name.hash(_state); };
+    let signature = quote { fn hash<H>(self, _state: &mut H) where H: $crate::hash::Hasher };
+    let for_each_field = |name| quote { self.$name.hash(_state); };
     crate::meta::make_trait_impl(
         s,
         name,
@@ -189,7 +189,7 @@ where
 {
     type H = H;
 
-    fn build_hasher(_self: Self) -> H {
+    fn build_hasher(self) -> H {
         H::default()
     }
 }
@@ -312,7 +312,7 @@ impl Hash for bool {
 }
 
 impl Hash for () {
-    fn hash<H>(_self: Self, _state: &mut H)
+    fn hash<H>(self, _state: &mut H)
     where
         H: Hasher,
     {}

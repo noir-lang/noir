@@ -22,7 +22,6 @@
             T: MarkerTrait,
         {
             fn foo(self) -> Field {
-                let _ = self;
                 42
             }
         }

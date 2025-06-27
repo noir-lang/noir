@@ -17,7 +17,7 @@ struct Foo<T> {
 }
 
 impl<T> Foo<T> {
-    fn generic_method<U>(_self: Self) -> U
+    fn generic_method<U>(self) -> U
     where
         U: Default2,
     {

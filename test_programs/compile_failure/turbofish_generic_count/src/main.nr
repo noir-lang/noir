@@ -5,7 +5,7 @@ struct Bar<T> {
 }
 
 impl<T> Bar<T> {
-    fn zeroed<A>(_self: Self) -> A {
+    fn zeroed<A>(self) -> A {
         std::mem::zeroed()
     }
 }

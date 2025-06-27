@@ -8,8 +8,6 @@ contract Foo {
     }
 
     impl T {
-        fn t(self) {
-            let _: Self = self;
-        }
+        fn t(self) {}
     }
 }

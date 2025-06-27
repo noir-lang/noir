@@ -5,13 +5,13 @@ expression: expanded_code
 struct Foo<T> {}
 
 impl Foo<u32> {
-    fn foo(_self: Self) -> Field {
+    fn foo(self) -> Field {
         1_Field
     }
 }
 
 impl Foo<u64> {
-    fn foo(_self: Self) -> Field {
+    fn foo(self) -> Field {
         2_Field
     }
 }

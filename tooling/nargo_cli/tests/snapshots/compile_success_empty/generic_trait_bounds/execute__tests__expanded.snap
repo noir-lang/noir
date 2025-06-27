@@ -38,7 +38,6 @@ trait Trait2 {
     where
         T: Trait,
     {
-        let _: Self = self;
         Trait::foo(x);
     }
 }
@@ -56,9 +55,7 @@ impl<T> Bar<T> {
     fn baz(self)
     where
         T: Trait,
-    {
-        let _: Self = self;
-    }
+    {}
 }
 
 impl<U> Trait2 for Bar<U>

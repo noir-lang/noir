@@ -1,12 +1,8 @@
 
     pub trait Trait {
-        fn foo<let U: u32>(self, _msg: str<U>) { 
-            let _ = self; 
-        }
+        fn foo<let U: u32>(self, _msg: str<U>) { }
 
-        fn bar<let U: u32>(self, _msg: str<U>) {
-            let _ = self;
-        }
+        fn bar<let U: u32>(self, _msg: str<U>) { }
     }
 
     pub struct Struct {}

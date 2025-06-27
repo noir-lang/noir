@@ -8,8 +8,8 @@ struct Foo<let T: u32> {
 }
 
 impl<let T: u32> Eq for Foo<T> {
-    fn eq(_self: Self, _other: Self) -> bool {
-        (_self.a == _other.a) & (_self.b == _other.b)
+    fn eq(self, _other: Self) -> bool {
+        (self.a == _other.a) & (self.b == _other.b)
     }
 }
 

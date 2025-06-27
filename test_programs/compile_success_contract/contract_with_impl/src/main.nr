@@ -4,8 +4,6 @@ contract Foo {
     }
 
     impl T {
-        fn t(self) {
-            let _ = self;
-        }
+        fn t(self) {}
     }
 }

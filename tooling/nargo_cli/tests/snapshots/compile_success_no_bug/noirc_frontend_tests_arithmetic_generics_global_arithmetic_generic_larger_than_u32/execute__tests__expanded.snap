@@ -6,7 +6,6 @@ struct Foo<let F: Field> {}
 
 impl<let F: Field> Foo<F> {
     fn size(self) -> Field {
-        let _: Self = self;
         F
     }
 }

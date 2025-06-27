@@ -7,8 +7,7 @@ error: expected type i32, found type bool
   │
 3 │             fn foo(self) -> i32 {
   │                             --- expected i32 because of return type
-4 │                 let _ = self;
-5 │                 true
+4 │                 true
   │                 ---- bool returned here
   │
 

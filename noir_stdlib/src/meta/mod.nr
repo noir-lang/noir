@@ -260,7 +260,7 @@ mod tests {
     // docs:end:big-derive-usage-example
 
     impl DoNothing for Bar {
-        fn do_nothing(_: Self) {}
+        fn do_nothing(self) {}
     }
 
     // docs:start:concatenate-example

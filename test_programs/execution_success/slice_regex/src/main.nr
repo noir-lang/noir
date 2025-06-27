@@ -26,7 +26,7 @@ trait Regex {
 
 // Empty
 impl Regex for () {
-    fn find_match(_self: Self, input: [u8]) -> Match {
+    fn find_match(self, input: [u8]) -> Match {
         Match::empty(input)
     }
 }
@@ -392,7 +392,7 @@ fn main() {
 //
 // // Empty
 // impl Regex for () {
-//     fn find_match<let N: u32>(_self: Self, input: Bvec<u8, N>) -> Match<N> {
+//     fn find_match<let N: u32>(self, input: Bvec<u8, N>) -> Match<N> {
 //         Match::empty(input)
 //     }
 // }

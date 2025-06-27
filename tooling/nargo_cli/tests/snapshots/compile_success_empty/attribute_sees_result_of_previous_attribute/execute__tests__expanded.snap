@@ -5,7 +5,7 @@ expression: expanded_code
 pub struct Foo {}
 
 impl Eq for Foo {
-    fn eq(_self: Self, _other: Self) -> bool {
+    fn eq(self, _other: Self) -> bool {
         true
     }
 }

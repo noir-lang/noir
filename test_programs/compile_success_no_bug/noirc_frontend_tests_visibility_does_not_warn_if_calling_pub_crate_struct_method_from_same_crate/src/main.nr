@@ -3,9 +3,7 @@
         pub struct Foo {}
 
         impl Foo {
-            pub(crate) fn bar(self) {
-                let _ = self;
-            }
+            pub(crate) fn bar(self) { }
         }
     }
 

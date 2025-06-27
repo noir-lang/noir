@@ -7,8 +7,6 @@
     struct Bar {}
 
     impl Bar {
-        fn bar(&mut self) {
-            let _ = self;
-        }
+        fn bar(&mut self) { }
     }
     

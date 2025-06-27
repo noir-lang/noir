@@ -12,9 +12,7 @@
     pub struct Bar<T> {}
 
     impl<T> Bar<T> {
-        fn bar<U>(self) where U: Trait {
-            let _ = self;
-        }
+        fn bar<U>(self) where U: Trait { }
     }
 
     fn main() {

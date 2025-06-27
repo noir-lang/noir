@@ -13,7 +13,7 @@ struct MyStruct {
 }
 
 impl DoNothing for MyStruct {
-    fn do_nothing(_self: Self) {
+    fn do_nothing(self) {
         println("something");
     }
 }
@@ -24,7 +24,7 @@ comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
         s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { g }).join(quote { ,  });
     quote {
         impl < generics > DoNothing for typ {
-            fn do_nothing(_self: Self) {
+            fn do_nothing(self) {
                 // Traits can't tell us what to do
                 println("something");
             }
@@ -52,11 +52,11 @@ impl<T> Eq for MyOtherOtherStruct<T>
 where
     T: Eq,
 {
-    fn eq(_self: Self, _other: Self) -> bool
+    fn eq(self, _other: Self) -> bool
     where
         T: Eq,
     {
-        _self.x == _other.x
+        self.x == _other.x
     }
 }
 
@@ -64,12 +64,12 @@ impl<T> Hash for MyOtherOtherStruct<T>
 where
     T: Hash,
 {
-    fn hash<H>(_self: Self, _state: &mut H)
+    fn hash<H>(self, _state: &mut H)
     where
         H: Hasher,
         T: Hash,
     {
-        Hash::hash(_self.x, _state);
+        Hash::hash(self.x, _state);
     }
 }
 
@@ -77,13 +77,13 @@ impl<T> Ord for MyOtherOtherStruct<T>
 where
     T: Ord,
 {
-    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering
+    fn cmp(self, _other: Self) -> std::cmp::Ordering
     where
         T: Ord,
     {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.x, _other.x);
+            result = Ord::cmp(self.x, _other.x);
         };
         result
     }
@@ -114,13 +114,13 @@ where
     A: Eq,
     B: Eq,
 {
-    fn eq(_self: Self, _other: Self) -> bool
+    fn eq(self, _other: Self) -> bool
     where
         A: Eq,
         B: Eq,
     {
-        ((_self.field1 == _other.field1) & (_self.field2 == _other.field2))
-            & (_self.field3 == _other.field3)
+        ((self.field1 == _other.field1) & (self.field2 == _other.field2))
+            & (self.field3 == _other.field3)
     }
 }
 
@@ -129,15 +129,15 @@ where
     A: Hash,
     B: Hash,
 {
-    fn hash<H>(_self: Self, _state: &mut H)
+    fn hash<H>(self, _state: &mut H)
     where
         H: Hasher,
         A: Hash,
         B: Hash,
     {
-        Hash::hash(_self.field1, _state);
-        Hash::hash(_self.field2, _state);
-        _self.field3.hash(_state);
+        Hash::hash(self.field1, _state);
+        Hash::hash(self.field2, _state);
+        self.field3.hash(_state);
     }
 }
 
@@ -146,20 +146,20 @@ where
     A: Ord,
     B: Ord,
 {
-    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering
+    fn cmp(self, _other: Self) -> std::cmp::Ordering
     where
         A: Ord,
         B: Ord,
     {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field1, _other.field1);
+            result = Ord::cmp(self.field1, _other.field1);
         };
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field2, _other.field2);
+            result = Ord::cmp(self.field2, _other.field2);
         };
         if result == std::cmp::Ordering::equal() {
-            result = _self.field3.cmp(_other.field3);
+            result = self.field3.cmp(_other.field3);
         };
         result
     }
@@ -174,20 +174,20 @@ impl Default for EmptyStruct {
 }
 
 impl Eq for EmptyStruct {
-    fn eq(_self: Self, _other: Self) -> bool {
+    fn eq(self, _other: Self) -> bool {
         true
     }
 }
 
 impl Hash for EmptyStruct {
-    fn hash<H>(_self: Self, _state: &mut H)
+    fn hash<H>(self, _state: &mut H)
     where
         H: Hasher,
     {}
 }
 
 impl Ord for EmptyStruct {
-    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering {
+    fn cmp(self, _other: Self) -> std::cmp::Ordering {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         result
     }
