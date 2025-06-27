@@ -1537,9 +1537,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
@@ -1577,9 +1575,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();

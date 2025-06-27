@@ -1,6 +1,9 @@
+use std::io::Write;
+
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -15,7 +18,7 @@ use crate::ssa::{
 
 use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
 
-impl Interpreter<'_> {
+impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
@@ -621,8 +624,87 @@ impl Interpreter<'_> {
     }
 
     /// Print is not an intrinsic but it is treated like one.
-    pub(super) fn call_print(&mut self, _args: Vec<Value>) -> IResults {
-        // Stub the call for now
+    pub(super) fn call_print(&mut self, args: Vec<Value>) -> IResults {
+        fn get_arg<F, T>(
+            args: &[Value],
+            idx: usize,
+            name: &'static str,
+            typ: &'static str,
+            f: F,
+        ) -> IResult<T>
+        where
+            F: FnOnce(&Value) -> Option<T>,
+        {
+            let arg = &args[idx];
+            if let Some(v) = f(arg) {
+                Ok(v)
+            } else {
+                Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+                    name,
+                    expected_type: typ,
+                    value: arg.to_string(),
+                }))
+            }
+        }
+
+        let invalid_input_size = |expected_size| {
+            Err(InterpreterError::Internal(InternalError::InvalidInputSize {
+                expected_size,
+                size: args.len(),
+            }))
+        };
+
+        // We expect at least 4 arguments (tuples are passed as multiple values):
+        // * normal: newline, value.0, ..., value.i, meta, false
+        // * formatted: newline, msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+        if args.len() < 4 {
+            return invalid_input_size(4);
+        }
+
+        let print_newline = get_arg(&args, 0, "print_newline", "bool", |arg| arg.as_bool())?;
+        let is_fmt_str = get_arg(&args, args.len() - 1, "is_fmt_str", "bool", |arg| arg.as_bool())?;
+
+        let printable_display = if is_fmt_str {
+            let message = value_to_string("message", &args[1])?;
+            let num_values =
+                get_arg(&args, 2, "num_values", "Field", |arg| arg.as_field())?.to_u128() as usize;
+
+            // We expect at least 4 + num_values * 2 values, because each fragment will have 1 type descriptor, and at least 1 value.
+            let min_args = 4 + 2 * num_values;
+            if args.len() < min_args {
+                return invalid_input_size(min_args);
+            }
+
+            // Everything up to the first meta is part of _some_ value.
+            // We'll let each parser take as many fields as they need.
+            let meta_idx = args.len() - 1 - num_values;
+            let input_as_fields =
+                (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let field_iterator = &mut input_as_fields.into_iter();
+
+            let mut fragments = Vec::new();
+            for i in 0..num_values {
+                let printable_type = value_to_printable_type(&args[meta_idx + i])?;
+                let printable_value = decode_printable_value(field_iterator, &printable_type);
+                fragments.push((printable_value, printable_type));
+            }
+            PrintableValueDisplay::FmtString(message, fragments)
+        } else {
+            let meta_idx = args.len() - 2;
+            let input_as_fields =
+                (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let printable_type = value_to_printable_type(&args[meta_idx])?;
+            let printable_value =
+                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+            PrintableValueDisplay::Plain(printable_value, printable_type)
+        };
+
+        if print_newline {
+            writeln!(self.output, "{printable_display}").expect("writeln");
+        } else {
+            write!(self.output, "{printable_display}").expect("write");
+        }
+
         Ok(Vec::new())
     }
 }
@@ -689,4 +771,75 @@ fn new_embedded_curve_point(
             Type::Numeric(NumericType::bool()),
         ],
     ))
+}
+
+/// Convert a [Value] to a vector of [FieldElement] for printing.
+fn value_to_fields(value: &Value) -> Vec<FieldElement> {
+    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
+        match value {
+            Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+            Value::Reference(reference_value) => {
+                if let Some(value) = reference_value.element.borrow().as_ref() {
+                    go(value, fields);
+                }
+            }
+            Value::ArrayOrSlice(array_value) => {
+                for value in array_value.elements.borrow().iter() {
+                    go(value, fields);
+                }
+            }
+            Value::Function(id) => {
+                // Based on `decode_printable_value` it will expect consume the environment as well,
+                // but that's catered for the by the SSA generation: the env is passed as separate values.
+                fields.push(FieldElement::from(id.to_u32()));
+            }
+            Value::Intrinsic(x) => {
+                panic!("didn't expect to print intrinsics: {x}")
+            }
+            Value::ForeignFunction(x) => {
+                panic!("didn't expect to print foreign functions: {x}")
+            }
+        }
+    }
+
+    let mut fields = Vec::new();
+    go(value, &mut fields);
+    fields
+}
+
+/// Parse a [Value] as [PrintableType].
+fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
+    let name = "type_metadata";
+    let json = value_to_string(name, value)?;
+    let printable_type = serde_json::from_str::<PrintableType>(&json).map_err(|e| {
+        InterpreterError::Internal(InternalError::ParsingError {
+            name,
+            expected_type: "PrintableType",
+            value: json,
+            error: e.to_string(),
+        })
+    })?;
+    Ok(printable_type)
+}
+
+/// Parse a value as `[u8]` and convert to UTF-8 `String`.
+fn value_to_string(name: &'static str, value: &Value) -> IResult<String> {
+    let arr = value.as_array_or_slice().and_then(|arr| {
+        arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
+    });
+    let Some(bz) = arr else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "[u8]",
+            value: value.to_string(),
+        }));
+    };
+    let Some(s) = String::from_utf8(bz).ok() else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "String",
+            value: value.to_string(),
+        }));
+    };
+    Ok(s)
 }

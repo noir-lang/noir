@@ -34,7 +34,7 @@ fn baz<T>(x: T) -> T
 where
     T: Baz,
 {
-    Bar::bar(Foo::foo(x))
+    x.foo().bar()
 }
 
 fn main() {
