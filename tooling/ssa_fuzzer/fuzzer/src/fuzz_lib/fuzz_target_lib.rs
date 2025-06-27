@@ -1,20 +1,21 @@
-use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::base_context::FuzzerCommand;
 use super::fuzzer::Fuzzer;
 use super::instruction::InstructionBlock;
 use super::options::FuzzerOptions;
+use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
+use serde::{Deserialize, Serialize};
 
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
 /// field = low + high * 2^128
-#[derive(Debug, Clone, Hash, Arbitrary)]
+#[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {
-    high: u128,
-    low: u128,
+    pub(crate) high: u128,
+    pub(crate) low: u128,
 }
 
 impl From<&FieldRepresentation> for FieldElement {
@@ -25,7 +26,7 @@ impl From<&FieldRepresentation> for FieldElement {
     }
 }
 
-#[derive(Debug, Clone, Hash, Arbitrary)]
+#[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) enum WitnessValue {
     Field(FieldRepresentation),
     U64(u64),
@@ -37,15 +38,26 @@ pub(crate) enum WitnessValue {
 /// Represents the data for the fuzzer
 /// `methods` - sequence of instructions to be added to the program
 /// `initial_witness` - initial witness values for the program as `FieldRepresentation`
-#[derive(Arbitrary, Debug)]
+#[derive(Arbitrary, Debug, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
-    blocks: Vec<InstructionBlock>,
-    commands: Vec<FuzzerCommand>,
+    pub(crate) blocks: Vec<InstructionBlock>,
+    pub(crate) commands: Vec<FuzzerCommand>,
     /// initial witness values for the program as `WitnessValue`
-    /// last and last but one values are preserved for the boolean values (true, false)
-    ///                                                            ↓ we subtract 2, because [initialize_witness_map] func inserts two boolean variables itself
-    initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
-    return_instruction_block_idx: usize,
+    pub(crate) initial_witness:
+        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) return_instruction_block_idx: usize,
+}
+
+impl Default for FuzzerData {
+    fn default() -> Self {
+        Self {
+            blocks: vec![],
+            commands: vec![],
+            initial_witness: [const { WitnessValue::U64(0) };
+                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            return_instruction_block_idx: 0,
+        }
+    }
 }
 
 fn initialize_witness_map(
@@ -67,10 +79,16 @@ fn initialize_witness_map(
         types.push(type_);
     }
     // insert true and false boolean values
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 2), FieldElement::from(1_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES),
+        FieldElement::from(1_u32),
+    );
     values.push(FieldElement::from(1_u32));
     types.push(ValueType::Boolean);
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 1), FieldElement::from(0_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES + 1),
+        FieldElement::from(0_u32),
+    );
     values.push(FieldElement::from(0_u32));
     types.push(ValueType::Boolean);
     (witness_map, values, types)
