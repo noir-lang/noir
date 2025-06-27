@@ -34,6 +34,19 @@ use super::{
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
+/// When elaborating a pattern, determines how `self` should be handled.
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum SelfInPattern {
+    // `self` is allowed here
+    Allowed,
+    // `self` is not allowed here because we are not in the first parameter
+    DisallowedInNonFirstParameter,
+    // `self` is not allowed here because we are not inside an associated function
+    DisallowedInNonAssociatedFunction,
+    // `self` is not allowed here for other reasons (in a `let`, lambda parameter or struct pattern)
+    DisallowedInContext,
+}
+
 impl Elaborator<'_> {
     pub(super) fn elaborate_pattern(
         &mut self,
@@ -41,7 +54,7 @@ impl Elaborator<'_> {
         expected_type: Type,
         definition_kind: DefinitionKind,
         warn_if_unused: bool,
-        self_allowed: bool,
+        self_in_pattern: SelfInPattern,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -50,20 +63,20 @@ impl Elaborator<'_> {
             None,
             &mut Vec::new(),
             warn_if_unused,
-            self_allowed,
+            self_in_pattern,
         )
     }
 
     /// Equivalent to `elaborate_pattern`, this version just also
     /// adds any new DefinitionIds that were created to the given Vec.
-    pub fn elaborate_pattern_and_store_ids(
+    pub(crate) fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
         expected_type: Type,
         definition_kind: DefinitionKind,
         created_ids: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        self_allowed: bool,
+        self_in_pattern: SelfInPattern,
     ) -> HirPattern {
         self.elaborate_pattern_mut(
             pattern,
@@ -72,7 +85,7 @@ impl Elaborator<'_> {
             None,
             created_ids,
             warn_if_unused,
-            self_allowed,
+            self_in_pattern,
         )
     }
 
@@ -85,13 +98,30 @@ impl Elaborator<'_> {
         mutable: Option<Location>,
         new_definitions: &mut Vec<HirIdent>,
         warn_if_unused: bool,
-        self_allowed: bool,
+        self_in_pattern: SelfInPattern,
     ) -> HirPattern {
         match pattern {
             Pattern::Identifier(name) => {
                 let is_self = name.as_str() == "self";
-                if is_self && !self_allowed {
-                    self.push_err(ResolverError::InvalidSelfPattern { location: name.location() });
+                if is_self {
+                    match self_in_pattern {
+                        SelfInPattern::Allowed => (),
+                        SelfInPattern::DisallowedInContext => {
+                            self.push_err(ResolverError::SelfDisallowedInLetOrLambdaParameter {
+                                location: name.location(),
+                            });
+                        }
+                        SelfInPattern::DisallowedInNonFirstParameter => {
+                            self.push_err(ResolverError::SelfDisallowedInNonFirstParameter {
+                                location: name.location(),
+                            });
+                        }
+                        SelfInPattern::DisallowedInNonAssociatedFunction => {
+                            self.push_err(ResolverError::SelfDisallowedInNonAssociatedFunction {
+                                location: name.location(),
+                            });
+                        }
+                    }
                 }
 
                 // If this definition is mutable, do not store the rhs because it will
@@ -133,7 +163,7 @@ impl Elaborator<'_> {
                     Some(location),
                     new_definitions,
                     warn_if_unused,
-                    self_allowed,
+                    self_in_pattern,
                 );
                 HirPattern::Mutable(Box::new(pattern), location)
             }
@@ -172,7 +202,7 @@ impl Elaborator<'_> {
                         mutable,
                         new_definitions,
                         warn_if_unused,
-                        self_allowed,
+                        SelfInPattern::DisallowedInContext,
                     )
                 });
                 HirPattern::Tuple(fields, location)
@@ -196,7 +226,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
-                self_allowed,
+                self_in_pattern,
             ),
             Pattern::Interned(id, _) => {
                 let pattern = self.interner.get_pattern(id).clone();
@@ -207,7 +237,7 @@ impl Elaborator<'_> {
                     mutable,
                     new_definitions,
                     warn_if_unused,
-                    self_allowed,
+                    self_in_pattern,
                 )
             }
         }
@@ -318,7 +348,6 @@ impl Elaborator<'_> {
                 .get_field_type_and_visibility(field.as_str())
                 .unwrap_or((Type::Error, ItemVisibility::Public));
             let warn_if_unused = true;
-            let self_allowed = false;
             let resolved = self.elaborate_pattern_mut(
                 pattern,
                 field_type,
@@ -326,7 +355,7 @@ impl Elaborator<'_> {
                 mutable,
                 new_definitions,
                 warn_if_unused,
-                self_allowed,
+                SelfInPattern::DisallowedInContext,
             );
 
             if unseen_fields.contains(&field) {

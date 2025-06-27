@@ -6,6 +6,7 @@ use crate::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
+    elaborator::patterns::SelfInPattern,
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{
@@ -129,7 +130,6 @@ impl Elaborator<'_> {
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
-        let self_allowed = false;
 
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
@@ -138,7 +138,7 @@ impl Elaborator<'_> {
             definition,
             &mut Vec::new(),
             warn_if_unused,
-            self_allowed,
+            SelfInPattern::DisallowedInContext,
         );
 
         let attributes = let_stmt.attributes;

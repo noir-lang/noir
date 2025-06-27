@@ -82,6 +82,7 @@ use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
+pub(crate) use patterns::SelfInPattern;
 pub use primitive_types::PrimitiveType;
 
 /// ResolverMetas are tagged onto each definition to track how many times they are used
@@ -963,7 +964,12 @@ impl<'context> Elaborator<'context> {
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
 
-        for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
+        let is_associated_function =
+            self.self_type.is_some() || trait_id.is_some() || self.current_trait_impl.is_some();
+
+        for (index, Param { visibility, pattern, typ, location: _ }) in
+            func.parameters().iter().cloned().enumerate()
+        {
             self.run_lint(|_| {
                 lints::unnecessary_pub_argument(func, visibility, is_pub_allowed).map(Into::into)
             });
@@ -989,14 +995,22 @@ impl<'context> Elaborator<'context> {
             }
 
             let warn_if_unused = true;
-            let self_allowed = true;
+            let self_in_pattern = if is_associated_function {
+                if index == 0 {
+                    SelfInPattern::Allowed
+                } else {
+                    SelfInPattern::DisallowedInNonFirstParameter
+                }
+            } else {
+                SelfInPattern::DisallowedInNonAssociatedFunction
+            };
             let pattern = self.elaborate_pattern_and_store_ids(
                 pattern,
                 typ.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 warn_if_unused,
-                self_allowed,
+                self_in_pattern,
             );
 
             parameters.push((pattern, typ.clone(), visibility));

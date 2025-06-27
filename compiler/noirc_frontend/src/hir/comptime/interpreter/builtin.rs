@@ -24,7 +24,7 @@ use crate::{
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
         Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
     },
-    elaborator::{ElaborateReason, Elaborator, PrimitiveType},
+    elaborator::{ElaborateReason, Elaborator, PrimitiveType, SelfInPattern},
     hir::{
         comptime::{
             InterpreterError, Value,
@@ -2689,12 +2689,17 @@ fn function_def_set_parameters(
     let (input_parameters, _type) =
         get_slice(interpreter.elaborator.interner, parameters_argument)?;
 
+    let func_meta = interpreter.elaborator.interner.function_meta(&func_id);
+    let is_associated_function = func_meta.self_type.is_some()
+        || func_meta.trait_id.is_some()
+        || func_meta.trait_impl.is_some();
+
     // What follows is very similar to what happens in Elaborator::define_function_meta
     let mut parameters = Vec::new();
     let mut parameter_types = Vec::new();
     let mut parameter_idents = Vec::new();
 
-    for input_parameter in input_parameters {
+    for (index, input_parameter) in input_parameters.into_iter().enumerate() {
         let mut tuple = get_tuple(
             interpreter.elaborator.interner,
             (input_parameter, parameters_argument_location),
@@ -2712,14 +2717,22 @@ fn function_def_set_parameters(
         let reason = Some(reason);
         let hir_pattern = interpreter.elaborate_in_function(Some(func_id), reason, |elaborator| {
             let warn_if_unused = true;
-            let self_allowed = true;
+            let self_in_pattern = if is_associated_function {
+                if index == 0 {
+                    SelfInPattern::Allowed
+                } else {
+                    SelfInPattern::DisallowedInNonFirstParameter
+                }
+            } else {
+                SelfInPattern::DisallowedInNonAssociatedFunction
+            };
             elaborator.elaborate_pattern_and_store_ids(
                 parameter_pattern,
                 parameter_type.clone(),
                 DefinitionKind::Local(None),
                 &mut parameter_idents,
                 warn_if_unused,
-                self_allowed,
+                self_in_pattern,
             )
         });
 

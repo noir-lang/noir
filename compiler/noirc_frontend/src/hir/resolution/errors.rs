@@ -181,7 +181,11 @@ pub enum ResolverError {
     #[error("Associated item constraints are not allowed here")]
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     #[error("`self` value is a keyword and may not be bound to variables or shadowed")]
-    InvalidSelfPattern { location: Location },
+    SelfDisallowedInLetOrLambdaParameter { location: Location },
+    #[error("unexpected `self` parameter in function")]
+    SelfDisallowedInNonFirstParameter { location: Location },
+    #[error("`self` parameter is only allowed in associated functions")]
+    SelfDisallowedInNonAssociatedFunction { location: Location},
 }
 
 impl ResolverError {
@@ -243,7 +247,10 @@ impl ResolverError {
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
-            | ResolverError::InvalidSelfPattern { location } => *location,
+            | ResolverError::SelfDisallowedInLetOrLambdaParameter { location }
+            | ResolverError::SelfDisallowedInNonFirstParameter { location } 
+            | ResolverError::SelfDisallowedInNonAssociatedFunction { location }
+            => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -761,13 +768,29 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::InvalidSelfPattern { location} => {
+            ResolverError::SelfDisallowedInLetOrLambdaParameter { location} => {
                 Diagnostic::simple_error(
                     "`self` value is a keyword and may not be bound to variables or shadowed".to_string(),
                     "".to_string(),
                     *location,
                 )
             }
+            ResolverError::SelfDisallowedInNonFirstParameter { location} => {
+                Diagnostic::simple_error(
+                    "unexpected `self` parameter in function".to_string(),
+                    "must be the first parameter of an associated function".to_string(),
+                    *location,
+                )
+            }
+            ResolverError::SelfDisallowedInNonAssociatedFunction { location} => {
+                Diagnostic::simple_error(
+                    "`self` parameter is only allowed in associated functions".to_string(),
+                    "associated functions are those in `impl` or `trait` definitions".to_string(),
+                    *location,
+                )
+            }
+            
+            
         }
     }
 }

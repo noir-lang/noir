@@ -13,6 +13,7 @@ use crate::{
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
+    elaborator::patterns::SelfInPattern,
     hir::{
         comptime::{self, InterpreterError},
         def_collector::dc_crate::CompilationError,
@@ -1280,14 +1281,13 @@ impl Elaborator<'_> {
 
                 arg_types.push(typ.clone());
                 let warn_if_unused = true;
-                let self_allowed = false;
                 (
                     self.elaborate_pattern(
                         pattern,
                         typ.clone(),
                         parameter,
                         warn_if_unused,
-                        self_allowed,
+                        SelfInPattern::DisallowedInContext,
                     ),
                     typ,
                 )
