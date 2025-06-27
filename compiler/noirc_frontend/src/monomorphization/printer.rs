@@ -6,7 +6,8 @@ use crate::{
 };
 
 use super::ast::{
-    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
+    Definition, Expression, FuncId, Function, GlobalId, InlineType, LValue, LocalId, Program, Type,
+    While,
 };
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
@@ -112,6 +113,9 @@ impl AstPrinter {
         let name = self.fmt_func(&function.name, function.id);
         let return_type = &function.return_type;
 
+        if function.inline_type != InlineType::Inline {
+            writeln!(f, "#[{}]", function.inline_type)?;
+        }
         write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
         if options.comptime_wrap_body {
@@ -249,7 +253,7 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal {
-                    write!(f, "{x} as {typ}")
+                    write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
                 }

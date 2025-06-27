@@ -1,5 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stdout
----
-[1327_concrete_in_generic] Circuit output: Field(1)

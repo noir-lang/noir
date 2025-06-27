@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use std::{collections::BTreeMap, str};
 
@@ -333,11 +331,10 @@ pub fn decode_printable_value<F: AcirField>(
             PrintableValue::Struct(struct_map)
         }
         PrintableType::Function { env, .. } => {
-            let field_element = field_iterator.next().unwrap();
-            let func_ref = PrintableValue::Field(field_element);
             // we want to consume the fields from the environment, but for now they are not actually printed
-            decode_printable_value(field_iterator, env);
-            func_ref
+            let _env = decode_printable_value(field_iterator, env);
+            let func_id = field_iterator.next().unwrap();
+            PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing

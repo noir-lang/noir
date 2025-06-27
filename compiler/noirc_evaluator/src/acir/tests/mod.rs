@@ -560,7 +560,6 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     let ssa = builder.finish();
     // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    println!("{}", ssa);
 
     let (acir_functions, brillig_functions, _, _) = ssa
         .generate_entry_point_index()
@@ -645,7 +644,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     let ssa = builder.finish();
     // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    println!("{}", ssa);
 
     let (acir_functions, brillig_functions, _, _) = ssa
         .generate_entry_point_index()

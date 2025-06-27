@@ -7,13 +7,18 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-use noirc_evaluator::ssa::{self, interpreter::value::Value, ir::types::NumericType, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{
+    self,
+    interpreter::{InterpreterOptions, value::Value},
+    ir::types::NumericType,
+    ssa_gen::Ssa,
+};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 use regex::Regex;
 
 use crate::{Config, arb_program, input::arb_inputs_from_ssa, program_abi};
 
-use super::{Comparable, CompareOptions, CompareResult, ExecOutput};
+use super::{Comparable, CompareOptions, CompareResult, FailedOutput, PassedOutput};
 
 /// The state of the SSA after a particular pass in the pipeline.
 pub struct ComparePass {
@@ -74,7 +79,7 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // Debug prints up fron tin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        // Debug prints up front in case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
         log::debug!("Program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
         log::debug!(
             "ABI inputs: \n{}\n",
@@ -89,41 +94,81 @@ impl CompareInterpreted {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa1.step,
+            self.ssa1.msg,
+            self.ssa1.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
-        let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));
+        let interpret = |ssa: &Ssa| {
+            let mut output = Vec::new();
+            let res = ssa.interpret_with_options(
+                Value::snapshot_args(&self.ssa_args),
+                InterpreterOptions::default(),
+                &mut output,
+            );
+            (res, output)
+        };
 
-        let res1 = interpret(&self.ssa1.ssa);
-        let res2 = interpret(&self.ssa2.ssa);
-        Ok(CompareInterpretedResult::new(res1, res2))
+        Ok(CompareInterpretedResult::new(interpret(&self.ssa1.ssa), interpret(&self.ssa2.ssa)))
     }
 }
 
 impl CompareInterpretedResult {
-    pub fn new(res1: InterpretResult, res2: InterpretResult) -> Self {
-        let out = |ret| ExecOutput { return_value: Some(ret), print_output: Default::default() };
+    pub fn new(
+        (res1, print1): (InterpretResult, Vec<u8>),
+        (res2, print2): (InterpretResult, Vec<u8>),
+    ) -> Self {
+        let printed = |p| String::from_utf8(p).expect("from_utf8 of print");
+        let failed = |e, p| FailedOutput { error: e, print_output: printed(p) };
+        let passed = |ret, p| PassedOutput { return_value: Some(ret), print_output: printed(p) };
+
         match (res1, res2) {
-            (Ok(r1), Ok(e2)) => Self::BothPassed(out(r1), out(e2)),
-            (Ok(r1), Err(e2)) => Self::RightFailed(out(r1), e2),
-            (Err(e1), Ok(r2)) => Self::LeftFailed(e1, out(r2)),
-            (Err(e1), Err(e2)) => Self::BothFailed(e1, e2),
+            (Ok(r1), Ok(r2)) => Self::BothPassed(passed(r1, print1), passed(r2, print2)),
+            (Ok(r1), Err(e2)) => Self::RightFailed(passed(r1, print1), failed(e2, print2)),
+            (Err(e1), Ok(r2)) => Self::LeftFailed(failed(e1, print1), passed(r2, print2)),
+            (Err(e1), Err(e2)) => Self::BothFailed(failed(e1, print1), failed(e2, print2)),
         }
     }
 }
 
 impl Comparable for ssa::interpreter::errors::InterpreterError {
     fn equivalent(e1: &Self, e2: &Self) -> bool {
+        use ssa::interpreter::errors::InternalError;
         use ssa::interpreter::errors::InterpreterError::*;
 
         match (e1, e2) {
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c1, typ: t1 }),
+                Internal(InternalError::ConstantDoesNotFitInType { constant: c2, typ: t2 }),
+            ) => {
+                // The interpreter represents values in types where the result of some casts cannot be represented, while the ACIR and
+                // Brillig runtime can fit them into Fields, and defer validation later. We could promote this error to a non-internal one,
+                // but the fact remains that the interpreter would fail earlier than ACIR or Brillig.
+                // To deal with this we ignore these errors as long as both passes fail the same way.
+                c1 == c2 && t1 == t2
+            }
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+            )
+            | (
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+            ) => {
+                // The value should be a `NumericValue` display format, which is `<type> <value>`.
+                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                value == constant.to_string()
+            }
             (Internal(_), _) | (_, Internal(_)) => {
                 // We should not get, or ignore, internal errors.
                 // They mean the interpreter got something unexpected that we need to fix.
                 false
             }
             (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
-                // Overflows can occur or uncomparable instructions, but in a parentheses it contains the values that caused it.
+                // Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 fn details(s: &str) -> Option<&str> {
                     let start = s.find("(")?;
                     let end = s.find(")")?;
@@ -135,18 +180,16 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
             (
-                ConstrainEqFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainEqFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
-            )
-            | (
-                ConstrainNeFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainNeFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+                ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
+                ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },
             ) => {
-                // The sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`.
-                // Unfortunately we often see the type change as well, which makes it more difficult to compare,
-                // for example `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`,
-                // or `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
-                // (lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2) && msg1 == msg2
+                // The `lhs` and `rhs` might change during passes, making direct comparison difficult:
+                // * the sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`
+                // * the condition might be flipped: `u1 true != u1 false` vs `Field 0 == Field 0`
+                // * types could change:
+                //      * `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`
+                //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
+                // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 msg1 == msg2
             }
             (e1, e2) => {
@@ -193,19 +236,23 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
-/// Tuple types are returned flattened.
-fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+/// Tuple types and structs are flattened.
+pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+    let mut values = Vec::new();
+    append_input_value_to_ssa(typ, input, &mut values);
+    values
+}
+
+fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Vec<Value>>, types: Vec<Type>| {
-        let elements = elements.into_iter().flatten().collect();
-        let arr = Value::ArrayOrSlice(ArrayValue {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
+        Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
             is_slice: false,
-        });
-        vec![arr]
+        })
     };
     match input {
         InputValue::Field(f) => {
@@ -221,30 +268,28 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
-            vec![Value::Numeric(num_val)]
+            values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => array_value(
-            vec![vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b)))],
+        InputValue::String(s) => values.push(array_value(
+            vecmap(s.as_bytes(), |b| Value::Numeric(NumericValue::U8(*b))),
             vec![Type::unsigned(8)],
-        ),
+        )),
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
-                let elements = vecmap(input_values, |input| input_value_to_ssa(typ, input));
-                array_value(elements, vec![input_type_to_ssa(typ)])
+                let mut elements = Vec::with_capacity(*length as usize);
+                for input in input_values {
+                    append_input_value_to_ssa(typ, input, &mut elements);
+                }
+                values.push(array_value(elements, input_type_to_ssa(typ)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
-                let elements = vecmap(fields.iter().zip(input_values), |(typ, input)| {
-                    input_value_to_ssa(typ, input)
-                })
-                .into_iter()
-                .flatten()
-                .collect();
-
-                // Tuples are not wrapped into arrays, they are returned as a vector.
-                elements
+                // Tuples are flattened
+                for (typ, input) in fields.iter().zip(input_values) {
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for vector input: {other:?}")
@@ -253,11 +298,12 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
         InputValue::Struct(field_values) => match typ {
             AbiType::Struct { path: _, fields } => {
                 assert_eq!(fields.len(), field_values.len(), "struct size != input length");
-                let elements = vecmap(fields, |(name, typ)| {
+
+                // Structs are flattened
+                for (name, typ) in fields {
                     let input = &field_values[name];
-                    input_value_to_ssa(typ, input)
-                });
-                array_value(elements, vecmap(fields.iter().map(|(_, typ)| typ), input_type_to_ssa))
+                    append_input_value_to_ssa(typ, input, values);
+                }
             }
             other => {
                 panic!("unexpected ABI type for map input: {other:?}")
@@ -267,24 +313,37 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 }
 
 /// Convert an ABI type into SSA.
-fn input_type_to_ssa(typ: &AbiType) -> ssa::ir::types::Type {
+fn input_type_to_ssa(typ: &AbiType) -> Vec<ssa::ir::types::Type> {
+    let mut types = Vec::new();
+    append_input_type_to_ssa(typ, &mut types);
+    types
+}
+
+fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>) {
     use ssa::ir::types::Type;
     match typ {
-        AbiType::Field => Type::field(),
+        AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            Type::Array(Arc::new(vec![input_type_to_ssa(typ)]), *length)
+            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), *length));
         }
-        AbiType::Integer { sign: Sign::Signed, width } => Type::signed(*width),
-        AbiType::Integer { sign: Sign::Unsigned, width } => Type::unsigned(*width),
-        AbiType::Boolean => Type::bool(),
-        AbiType::Struct { path: _, fields } => Type::Array(
-            Arc::new(vecmap(fields, |(_, typ)| input_type_to_ssa(typ))),
-            fields.len() as u32,
-        ),
+        AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
+        AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
+        AbiType::Boolean => types.push(Type::bool()),
+        AbiType::Struct { path: _, fields } => {
+            // Structs are flattend
+            for (_, typ) in fields {
+                append_input_type_to_ssa(typ, types);
+            }
+        }
         AbiType::Tuple { fields } => {
-            Type::Array(Arc::new(vecmap(fields, input_type_to_ssa)), fields.len() as u32)
+            // Tuples are flattened
+            for typ in fields {
+                append_input_type_to_ssa(typ, types);
+            }
         }
-        AbiType::String { length } => Type::Array(Arc::new(vec![Type::unsigned(8)]), *length),
+        AbiType::String { length } => {
+            types.push(Type::Array(Arc::new(vec![Type::unsigned(8)]), *length));
+        }
     }
 }
 

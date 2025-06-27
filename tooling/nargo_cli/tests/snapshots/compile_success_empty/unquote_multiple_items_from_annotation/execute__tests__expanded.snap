@@ -5,8 +5,8 @@ expression: expanded_code
 pub struct Foo {}
 
 fn main() {
-    assert(ONE == 1);
-    assert(TWO == 2);
+    assert(ONE == 1_Field);
+    assert(TWO == 2_u32);
 }
 
 comptime fn foo(_: TypeDefinition) -> Quoted {

@@ -37,7 +37,7 @@ impl FromStr for Ssa {
     type Err = SsaErrorWithSource;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_impl(s, false)
+        Self::from_str_impl(s, false, true)
     }
 }
 
@@ -48,19 +48,24 @@ impl Ssa {
         FromStr::from_str(src)
     }
 
+    /// Creates an Ssa object from the given string without running SSA validation
+    pub fn from_str_no_validation(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, false, false)
+    }
+
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
     pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, true)
+        Self::from_str_impl(src, true, true)
     }
 
-    fn from_str_impl(src: &str, simplify: bool) -> Result<Ssa, SsaErrorWithSource> {
+    fn from_str_impl(src: &str, simplify: bool, validate: bool) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         let parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         parsed_ssa
-            .into_ssa(simplify)
+            .into_ssa(simplify, validate)
             .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }
@@ -684,6 +689,10 @@ impl<'a> Parser<'a> {
             return Ok(terminator);
         }
 
+        if let Some(terminator) = self.parse_unreachable()? {
+            return Ok(terminator);
+        }
+
         self.expected_instruction_or_terminator()
     }
 
@@ -735,6 +744,14 @@ impl<'a> Parser<'a> {
         let else_block = self.eat_identifier_or_error()?;
 
         Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
+    }
+
+    fn parse_unreachable(&mut self) -> ParseResult<Option<ParsedTerminator>> {
+        if !self.eat_keyword(Keyword::Unreachable)? {
+            return Ok(None);
+        }
+
+        Ok(Some(ParsedTerminator::Unreachable))
     }
 
     fn parse_arguments(&mut self) -> ParseResult<Vec<ParsedValue>> {

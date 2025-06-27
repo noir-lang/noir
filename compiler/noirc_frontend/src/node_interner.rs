@@ -176,7 +176,7 @@ pub struct NodeInterner {
     /// Map from ExprId (referring to a Function/Method call) to its corresponding TypeBindings,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
-    instantiation_bindings: HashMap<ExprId, TypeBindings>,
+    pub instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
     /// Remembers the field index a given HirMemberAccess expression was resolved to during type
     /// checking.
@@ -2426,6 +2426,16 @@ impl NodeInterner {
                 self.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
+    }
+
+    /// Gets the dependency graph from the node interner.
+    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
+        &self.dependency_graph
+    }
+
+    /// Gets the trait implementations from the node interner.
+    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
+        &self.trait_implementations
     }
 }
 

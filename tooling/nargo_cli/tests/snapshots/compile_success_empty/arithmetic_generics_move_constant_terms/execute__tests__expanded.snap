@@ -28,6 +28,6 @@ impl<let N: u32> FromCallData<N, N - 2> for Point {
 }
 
 fn main() {
-    let calldata: [Field; 2] = [1, 2];
+    let calldata: [Field; 2] = [1_Field, 2_Field];
     let _: (Point, [Field; 2 - 2]) = FromCallData::from_calldata(calldata);
 }

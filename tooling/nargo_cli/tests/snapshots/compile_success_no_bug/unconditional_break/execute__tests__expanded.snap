@@ -1,0 +1,95 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let x: bool = unsafe { break_in_if_body() };
+    assert(x);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        break_in_unary();
+        break_in_infix_lhs();
+        break_in_infix_rhs();
+        break_in_array_element();
+        break_in_if_condition();
+        break_in_while_condition();
+    };
+}
+
+unconstrained fn break_in_if_body() -> bool {
+    let mut x: bool = true;
+    loop {
+        if true { break; };
+        x = false;
+    }
+    x
+}
+
+unconstrained fn break_in_unary() {
+    let mut a: Field = 0_Field;
+    loop {
+        a = -{
+            break;
+            a
+        };
+    }
+}
+
+unconstrained fn break_in_infix_lhs() {
+    let mut a: Field = 0_Field;
+    loop {
+        a = {
+            break;
+            0_Field
+        }
+            - 0_Field;
+    }
+}
+
+unconstrained fn break_in_infix_rhs() {
+    let mut a: Field = 0_Field;
+    loop {
+        a = 0_Field
+            + {
+                break;
+                0_Field
+            };
+    }
+}
+
+unconstrained fn break_in_array_element() {
+    loop {
+        let _: [Field; 3] = [
+            1_Field,
+            {
+                break;
+                2_Field
+            },
+            3_Field,
+        ];
+    }
+}
+
+unconstrained fn break_in_if_condition() {
+    loop {
+        if {
+            break;
+            true
+        } {
+            let _: Field = 10_Field;
+        }
+    }
+}
+
+unconstrained fn break_in_while_condition() {
+    loop {
+        while {
+            break;
+            true
+        } {
+            let _: Field = 10_Field;
+        }
+        break;
+    }
+}

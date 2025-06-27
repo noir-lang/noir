@@ -131,6 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
+use std::sync::Arc;
+
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -464,6 +466,10 @@ impl<'f> Context<'f> {
                 let target = self.target_block;
 
                 self.inserter.function.dfg.set_block_terminator(target, new_return);
+                vec![]
+            }
+            TerminatorInstruction::Unreachable { .. } => {
+                // Nothing to do
                 vec![]
             }
         }
@@ -830,69 +836,162 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
-                    // If inputs are distinct curve points, then so is their predicate version.
-                    // If inputs are identical (point doubling), then so is their predicate version
-                    // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        #[cfg(feature = "bn254")]
-                        {
-                            let generators = Self::grumpkin_generators();
-                            // Convert the generators to ValueId
-                            let generators = generators
-                                .iter()
-                                .map(|v| {
-                                    self.inserter
-                                        .function
-                                        .dfg
-                                        .make_constant(*v, NumericType::NativeField)
-                                })
-                                .collect::<Vec<ValueId>>();
-                            let (point1_x, point2_x) = self.predicate_argument(
-                                &arguments,
-                                &generators,
-                                true,
-                                condition,
-                                call_stack,
-                            );
-                            let (point1_y, point2_y) = self.predicate_argument(
-                                &arguments,
-                                &generators,
-                                false,
-                                condition,
-                                call_stack,
-                            );
-                            arguments[0] = point1_x;
-                            arguments[1] = point1_y;
-                            arguments[3] = point2_x;
-                            arguments[4] = point2_y;
+
+                    Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => match blackbox {
+                        //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                        // If inputs are distinct curve points, then so is their predicate version.
+                        // If inputs are identical (point doubling), then so is their predicate version
+                        // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
+                        BlackBoxFunc::EmbeddedCurveAdd => {
+                            #[cfg(feature = "bn254")]
+                            {
+                                let generators = Self::grumpkin_generators();
+                                // Convert the generators to ValueId
+                                let generators = generators
+                                    .iter()
+                                    .map(|v| {
+                                        self.inserter
+                                            .function
+                                            .dfg
+                                            .make_constant(*v, NumericType::NativeField)
+                                    })
+                                    .collect::<Vec<ValueId>>();
+                                let (point1_x, point2_x) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    true,
+                                    condition,
+                                    call_stack,
+                                );
+                                let (point1_y, point2_y) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    false,
+                                    condition,
+                                    call_stack,
+                                );
+                                arguments[0] = point1_x;
+                                arguments[1] = point1_y;
+                                arguments[3] = point2_x;
+                                arguments[4] = point2_y;
+                            }
+
+                            Instruction::Call { func, arguments }
                         }
 
-                        Instruction::Call { func, arguments }
-                    }
-                    // For MSM, we also ensure the inputs are on the curve if the predicate is false.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let points_array_idx = if matches!(
-                            self.inserter.function.dfg.type_of_value(arguments[0]),
-                            Type::Array { .. }
-                        ) {
-                            0
-                        } else {
-                            // if the first argument is not an array, we assume it is a slice
-                            // which means the array is the second argument
-                            1
-                        };
-                        let (elements, typ) = self.apply_predicate_to_msm_argument(
-                            arguments[points_array_idx],
-                            condition,
-                            call_stack,
-                        );
+                        // For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                        BlackBoxFunc::MultiScalarMul => {
+                            let points_array_idx = if matches!(
+                                self.inserter.function.dfg.type_of_value(arguments[0]),
+                                Type::Array { .. }
+                            ) {
+                                0
+                            } else {
+                                // if the first argument is not an array, we assume it is a slice
+                                // which means the array is the second argument
+                                1
+                            };
+                            let (elements, typ) = self.apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack,
+                            );
 
-                        let instruction = Instruction::MakeArray { elements, typ };
-                        let array = self.insert_instruction(instruction, call_stack);
-                        arguments[points_array_idx] = array;
-                        Instruction::Call { func, arguments }
-                    }
+                            let instruction = Instruction::MakeArray { elements, typ };
+                            let array = self.insert_instruction(instruction, call_stack);
+                            arguments[points_array_idx] = array;
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
+                        // the public key doesn't not sit on the relevant curve.
+                        //
+                        // We then replace the public key with the generator point if the constraint is inactive to avoid
+                        // invalid public keys from causing constraints to fail.
+                        BlackBoxFunc::EcdsaSecp256k1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
+                            const GENERATOR_X: [u8; 32] = [
+                                0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
+                                0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
+                                0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
+                                0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
+                                0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+                        BlackBoxFunc::EcdsaSecp256r1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
+                            const GENERATOR_X: [u8; 32] = [
+                                0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
+                                0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
+                                0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+                                0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+                                0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // TODO: https://github.com/noir-lang/noir/issues/8998
+                        BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
+
+                        // These functions will always be satisfiable no matter the input so no modification is needed.
+                        BlackBoxFunc::AND
+                        | BlackBoxFunc::XOR
+                        | BlackBoxFunc::AES128Encrypt
+                        | BlackBoxFunc::Blake2s
+                        | BlackBoxFunc::Blake3
+                        | BlackBoxFunc::Keccakf1600
+                        | BlackBoxFunc::Poseidon2Permutation
+                        | BlackBoxFunc::Sha256Compression => Instruction::Call { func, arguments },
+
+                        BlackBoxFunc::RANGE => unreachable!(
+                            "RANGE should have been converted into `Instruction::RangeCheck`"
+                        ),
+
+                        BlackBoxFunc::BigIntAdd
+                        | BlackBoxFunc::BigIntSub
+                        | BlackBoxFunc::BigIntMul
+                        | BlackBoxFunc::BigIntDiv
+                        | BlackBoxFunc::BigIntFromLeBytes
+                        | BlackBoxFunc::BigIntToLeBytes => {
+                            todo!("BigInt opcodes are not supported yet")
+                        }
+                    },
+
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
@@ -916,6 +1015,45 @@ impl<'f> Context<'f> {
         )
         .unwrap();
         vec![g1_x, g1_y, g2_x, g2_y]
+    }
+
+    /// Merges the given array with a constant array of 32 elements of type `u8`.
+    ///
+    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
+    /// where the x and y coordinates of the generators are constant values.
+    fn merge_with_array_constant(
+        &mut self,
+        array: ValueId,
+        constant: [u8; 32],
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
+        let array_type = self.inserter.function.dfg.type_of_value(array);
+        assert_eq!(array_type, expected_array_type);
+
+        let elements = constant
+            .iter()
+            .map(|elem| {
+                self.inserter
+                    .function
+                    .dfg
+                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+            })
+            .collect();
+        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
+        let constant_array_value = self.insert_instruction(constant_array, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition: condition,
+                then_value: array,
+                else_condition: not_condition,
+                else_value: constant_array_value,
+            },
+            call_stack,
+        )
     }
 
     /// Returns the values corresponding to the given inputs by doing
@@ -1472,8 +1610,9 @@ mod test {
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
+            v10 = truncate v9 to 8 bits, max_bit_size: 254
+            v11 = cast v10 as u8
+            store v11 at v6
             jmp b3()
           b3():
             constrain v5 == u1 1
@@ -1485,7 +1624,6 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
 
@@ -1515,21 +1653,22 @@ mod test {
             enable_side_effects v5
             v8 = cast v2 as Field
             v10 = add v8, Field 1
-            v11 = cast v10 as u8
-            v12 = load v6 -> u8
-            v13 = not v5
-            v14 = cast v4 as u8
-            v15 = cast v13 as u8
-            v16 = unchecked_mul v14, v11
+            v11 = truncate v10 to 8 bits, max_bit_size: 254
+            v12 = cast v11 as u8
+            v13 = load v6 -> u8
+            v14 = not v5
+            v15 = cast v4 as u8
+            v16 = cast v14 as u8
             v17 = unchecked_mul v15, v12
-            v18 = unchecked_add v16, v17
-            store v18 at v6
-            enable_side_effects v13
-            v19 = load v6 -> u8
-            v20 = cast v13 as u8
-            v21 = cast v4 as u8
-            v22 = unchecked_mul v21, v19
-            store v22 at v6
+            v18 = unchecked_mul v16, v13
+            v19 = unchecked_add v17, v18
+            store v19 at v6
+            enable_side_effects v14
+            v20 = load v6 -> u8
+            v21 = cast v14 as u8
+            v22 = cast v4 as u8
+            v23 = unchecked_mul v22, v20
+            store v23 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return

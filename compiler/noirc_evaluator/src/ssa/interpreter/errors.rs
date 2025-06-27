@@ -58,6 +58,8 @@ pub enum InterpreterError {
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
     BlackBoxError { name: String, reason: String },
+    #[error("Reached the unreachable")]
+    ReachedTheUnreachable,
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -71,6 +73,10 @@ pub enum InternalError {
         "Argument count {arguments} to `{intrinsic}` does not match the expected parameter count {parameters}"
     )]
     IntrinsicArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
+    #[error(
+        "Argument count {arguments} to `{intrinsic}` does not match the expected minimum parameter count {parameters}"
+    )]
+    IntrinsicMinArgumentCountMismatch { intrinsic: Intrinsic, arguments: usize, parameters: usize },
     #[error("Block {block} is missing the terminator instruction")]
     BlockMissingTerminator { block: BasicBlockId },
     #[error("Cannot call non-function value {value_id} = {value}")]
@@ -142,4 +148,32 @@ pub enum InternalError {
     InvalidInputSize { expected_size: usize, size: usize },
     #[error("Constant `{constant}` does not fit in type `{typ}`")]
     ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
+    #[error(
+        "The value assigned to `{value_id}` expects a type `{expected_type}` but it got assigned a value with type `{actual_type}` "
+    )]
+    ValueTypeDoesNotMatchReturnType {
+        value_id: ValueId,
+        expected_type: String,
+        actual_type: String,
+    },
+    #[error(
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
+    )]
+    UnexpectedResultType {
+        expected_type: &'static str,
+        actual_type: String,
+        instruction: &'static str,
+    },
+    #[error(
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
+    )]
+    UnexpectedResultLength {
+        expected_length: usize,
+        actual_length: usize,
+        instruction: &'static str,
+    },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
 }

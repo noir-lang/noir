@@ -5,8 +5,8 @@ expression: expanded_code
 use poseidon::poseidon2;
 
 fn main() {
-    let digest: Field = poseidon::poseidon2::Poseidon2::hash([0], 1);
+    let digest: Field = poseidon2::Poseidon2::hash([0_Field], 1_u32);
     let expected_digest: Field =
-        -4219632353665391903210549416595966272614784286514361446092512556727311148272;
+        -4219632353665391903210549416595966272614784286514361446092512556727311148272_Field;
     assert(digest == expected_digest);
 }

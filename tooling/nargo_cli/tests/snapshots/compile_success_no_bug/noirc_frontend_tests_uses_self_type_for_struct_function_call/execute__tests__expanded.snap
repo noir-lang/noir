@@ -6,7 +6,7 @@ struct S {}
 
 impl S {
     fn one() -> Field {
-        1
+        1_Field
     }
 
     fn two() -> Field {

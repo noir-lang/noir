@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: Field, y: Field, z: Field) -> pub Field {
-    assert((y as u1) == 0);
+    assert((y as u1) == 0_u1);
     let a: Field = x + x;
     let b: Field = a - y;
     let c: Field = b * z;
