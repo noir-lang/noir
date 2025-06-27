@@ -390,11 +390,10 @@ where
                     outputs: Self::encode_vec(outputs),
                 })
             }
-            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
+            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     inputs: Self::encode_vec(inputs),
                     outputs: Self::encode_vec(outputs),
-                    len: *len,
                 })
             }
             opcodes::BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
@@ -530,7 +529,6 @@ where
                         Ok(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                             inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
                             outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
-                            len: v.len,
                         })
                     }
                     Value::Sha256Compression(v) => {

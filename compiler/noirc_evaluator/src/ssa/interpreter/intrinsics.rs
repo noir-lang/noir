@@ -342,15 +342,12 @@ impl Interpreter<'_> {
                     }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 2, intrinsic)?;
+                    check_argument_count(args, 1, intrinsic)?;
                     let inputs = self
                         .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
-                    let length =
-                        self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
-                    let result = solver
-                        .poseidon2_permutation(&inputs, length)
-                        .map_err(Self::convert_error)?;
+                    let result =
+                        solver.poseidon2_permutation(&inputs).map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }

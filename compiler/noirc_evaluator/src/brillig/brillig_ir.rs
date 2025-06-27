@@ -357,7 +357,6 @@ pub(crate) mod tests {
         fn poseidon2_permutation(
             &self,
             _inputs: &[FieldElement],
-            _len: u32,
         ) -> Result<Vec<FieldElement>, BlackBoxResolutionError> {
             Ok(vec![0_u128.into(), 1_u128.into(), 2_u128.into(), 3_u128.into()])
         }

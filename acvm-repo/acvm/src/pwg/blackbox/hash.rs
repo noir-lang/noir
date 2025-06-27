@@ -111,25 +111,14 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput<F>],
     outputs: &[Witness],
-    len: u32,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    if len as usize != inputs.len() {
+    if inputs.len() != outputs.len() {
         return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
             acir::BlackBoxFunc::Poseidon2Permutation,
             format!(
-                "the number of inputs does not match specified length. {} != {}",
+                "the input and output sizes are not consistent. {} != {}",
                 inputs.len(),
-                len
-            ),
-        ));
-    }
-    if len as usize != outputs.len() {
-        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-            acir::BlackBoxFunc::Poseidon2Permutation,
-            format!(
-                "the number of outputs does not match specified length. {} != {}",
-                outputs.len(),
-                len
+                outputs.len()
             ),
         ));
     }
@@ -140,7 +129,7 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
         .map(|input| input_to_value(initial_witness, *input))
         .collect::<Result<_, _>>()?;
 
-    let state = backend.poseidon2_permutation(&state, len)?;
+    let state = backend.poseidon2_permutation(&state)?;
 
     // Write witness assignments
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {

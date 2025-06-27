@@ -286,7 +286,6 @@ message BlackBoxOp {
   message Poseidon2Permutation {
     HeapVector message = 1;
     HeapArray output = 2;
-    MemoryAddress len = 3;
   }
   message Sha256Compression {
     HeapArray input = 1;

@@ -21,31 +21,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let (constant_inputs, constant_outputs) = match name {
-            BlackBoxFunc::Poseidon2Permutation => {
-                // The last argument is the state length, which must be a constant
-                let state_len = match inputs.pop() {
-                    Some(state_len) => state_len.into_var()?,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::MissingArg {
-                            name: "poseidon_2_permutation call".to_string(),
-                            arg: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                };
-
-                let state_len = match self.var_to_expression(state_len)?.to_const() {
-                    Some(state_len) => *state_len,
-                    None => {
-                        return Err(RuntimeError::InternalError(InternalError::NotAConstant {
-                            name: "length".to_string(),
-                            call_stack: self.get_call_stack(),
-                        }));
-                    }
-                };
-
-                (vec![state_len], Vec::new())
-            }
             BlackBoxFunc::BigIntAdd
             | BlackBoxFunc::BigIntSub
             | BlackBoxFunc::BigIntMul

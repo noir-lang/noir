@@ -336,7 +336,6 @@ impl<F: AcirField> GeneratedAcir<F> {
             BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
                 inputs: function_inputs[0].clone(),
                 outputs,
-                len: constant_inputs[0].to_u128() as u32,
             },
             BlackBoxFunc::Sha256Compression => BlackBoxFuncCall::Sha256Compression {
                 inputs: function_inputs[0]

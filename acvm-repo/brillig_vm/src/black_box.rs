@@ -268,11 +268,10 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             memory.write_slice(memory.read_ref(output.pointer), &values);
             Ok(())
         }
-        BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+        BlackBoxOp::Poseidon2Permutation { message, output } => {
             let input = read_heap_vector(memory, message);
             let input: Vec<F> = input.iter().map(|x| x.expect_field().unwrap()).collect();
-            let len = memory.read(*len).expect_u32().unwrap();
-            let result = solver.poseidon2_permutation(&input, len)?;
+            let result = solver.poseidon2_permutation(&input)?;
             let mut values = Vec::new();
             for i in result {
                 values.push(MemoryValue::new_field(i));

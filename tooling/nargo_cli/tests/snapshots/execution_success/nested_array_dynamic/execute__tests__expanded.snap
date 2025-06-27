@@ -31,13 +31,13 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(x[3].a == 50);
     if y == 2 {
         {
-            let i_3775: u32 = y - 1;
-            x[i_3775].b = [50, 51, 52];
+            let i_3778: u32 = y - 1;
+            x[i_3778].b = [50, 51, 52];
         }
     } else {
         {
-            let i_3776: u32 = y - 1;
-            x[i_3776].b = [100, 101, 102];
+            let i_3779: u32 = y - 1;
+            x[i_3779].b = [100, 101, 102];
         }
     };
     assert(x[2].b == [100, 101, 102]);
@@ -56,39 +56,39 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(foo_parents[1].foos[1].b == [5, 6, 21]);
     if y == 2 {
         {
-            let i_3780: u32 = y - 2;
-            let i_3781: u32 = y - 2;
-            foo_parents[i_3780].foos[i_3781].b = [10, 9, 8];
+            let i_3783: u32 = y - 2;
+            let i_3784: u32 = y - 2;
+            foo_parents[i_3783].foos[i_3784].b = [10, 9, 8];
         }
     } else {
         {
-            let i_3782: u32 = y - 2;
-            let i_3783: u32 = y - 2;
-            foo_parents[i_3782].foos[i_3783].b = [20, 19, 18];
+            let i_3785: u32 = y - 2;
+            let i_3786: u32 = y - 2;
+            foo_parents[i_3785].foos[i_3786].b = [20, 19, 18];
         }
     };
     assert(foo_parents[1].foos[1].b == [20, 19, 18]);
     assert(foo_parents[1].foos[1].b[2] == 18);
     if y == 3 {
         {
-            let i_3784: u32 = y - 2;
-            let i_3785: u32 = y - 2;
-            let i_3786: u32 = y - 1;
-            foo_parents[i_3784].foos[i_3785].b[i_3786] = 5000;
-        }
-    } else {
-        {
             let i_3787: u32 = y - 2;
             let i_3788: u32 = y - 2;
             let i_3789: u32 = y - 1;
-            foo_parents[i_3787].foos[i_3788].b[i_3789] = 1000;
+            foo_parents[i_3787].foos[i_3788].b[i_3789] = 5000;
+        }
+    } else {
+        {
+            let i_3790: u32 = y - 2;
+            let i_3791: u32 = y - 2;
+            let i_3792: u32 = y - 1;
+            foo_parents[i_3790].foos[i_3791].b[i_3792] = 1000;
         }
     };
     assert(foo_parents[1].foos[1].b[2] == 5000);
     {
-        let i_3790: u32 = y - 2;
-        let i_3791: u32 = y - 3;
-        foo_parents[i_3790].foos[i_3791].b = foo_parents[y - 2].foos[y - 2].b;
+        let i_3793: u32 = y - 2;
+        let i_3794: u32 = y - 3;
+        foo_parents[i_3793].foos[i_3794].b = foo_parents[y - 2].foos[y - 2].b;
     };
     assert(foo_parents[1].foos[0].b == [20, 19, 5000]);
 }

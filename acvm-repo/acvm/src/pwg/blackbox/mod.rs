@@ -166,8 +166,8 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(initial_witness, inputs, hash_values, outputs)
         }
-        BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
-            solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs, *len)
+        BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
+            solve_poseidon2_permutation_opcode(backend, initial_witness, inputs, outputs)
         }
     }
 }

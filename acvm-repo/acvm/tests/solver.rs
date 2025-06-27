@@ -1125,19 +1125,7 @@ fn poseidon2_permutation_op(
     function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
 ) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
     let (inputs, outputs) = function_inputs_and_outputs;
-    // let inputs = inputs.iter().map(|input| input.input()).collect::<Vec<_>>();
-    let len = inputs.len() as u32;
-    Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
-}
-
-// N inputs
-// N outputs
-fn poseidon2_permutation_invalid_len_op(
-    function_inputs_and_outputs: (Vec<FunctionInput<FieldElement>>, Vec<Witness>),
-) -> Result<BlackBoxFuncCall<FieldElement>, OpcodeResolutionError<FieldElement>> {
-    let (inputs, outputs) = function_inputs_and_outputs;
-    let len = (inputs.len() as u32) + 1;
-    Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len })
+    Ok(BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs })
 }
 
 // 24 inputs (16 + 8)
@@ -1732,11 +1720,11 @@ proptest! {
 
     // TODO(https://github.com/noir-lang/noir/issues/5699): wrong failure message
     #[test]
-    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the number of inputs does not match specified length. 6 != 7\"))")]
+    #[should_panic(expected = "Failure(BlackBoxFunctionFailed(Poseidon2Permutation, \"the input and output sizes are not consistent. 6 != 1\"))")]
     fn poseidon2_permutation_invalid_size_fails(inputs_distinct_inputs in any_distinct_inputs(None, 6, 6)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         let pedantic_solving = true;
-        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, pedantic_solving, poseidon2_permutation_invalid_len_op);
+        let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, pedantic_solving, poseidon2_permutation_op);
         prop_assert!(result, "{}", message);
     }
 
