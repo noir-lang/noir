@@ -180,12 +180,14 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span>libfuzzer_sys::arbitrary;
 <span class="kw">use </span>libfuzzer_sys::arbitrary::Arbitrary;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::{map::Id, value::Value};
+<span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="attr">#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+<span class="attr">#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>ValueType {
     Field,
     Boolean,
