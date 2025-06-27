@@ -206,6 +206,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
                 msg2.contains(msg1)
             }
+            (DivisionByZero { .. }, ConstrainEqFailed { msg, .. })
+            | (ConstrainEqFailed { msg, .. }, DivisionByZero { .. }) => {
+                msg == "attempt to divide by zero"
+            }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
                 // where the only difference might be the value ID.
