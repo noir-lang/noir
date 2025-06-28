@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751054810580,
+  "lastUpdate": 1751071122675,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18615,48 +18615,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "6b983cba60805222ffb7e61e333078c5312c89fa",
-          "message": "chore(fuzz): Use `nextest` to run nightly fuzz test (#8962)",
-          "timestamp": "2025-06-18T13:14:18Z",
-          "tree_id": "8ad9a3cd7a7bd8619be83914a78faf22246c4cd2",
-          "url": "https://github.com/noir-lang/noir/commit/6b983cba60805222ffb7e61e333078c5312c89fa"
-        },
-        "date": 1750253962660,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252080,
-            "range": "± 994",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223309,
-            "range": "± 1712",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790963,
-            "range": "± 3101",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "46abffdff8e42af7ae1e2477ff7493031739cc31",
           "message": "chore(fuzz): Consider `RangeCheckFailed` equivalent to `ConstantDoesNotFitType` if the value matches (#8958)",
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778759,
             "range": "± 3026",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f645c2892dff4b4a15d58cecfc4f7cc406424720",
+          "message": "fix: put constraint failure after binary operations that overflow (#9023)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-06-28T00:14:46Z",
+          "tree_id": "83e654682eaf7cd9a94a5014afe34f07fa3f15a7",
+          "url": "https://github.com/noir-lang/noir/commit/f645c2892dff4b4a15d58cecfc4f7cc406424720"
+        },
+        "date": 1751071109607,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253561,
+            "range": "± 394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222946,
+            "range": "± 3137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780489,
+            "range": "± 1772",
             "unit": "ns/iter"
           }
         ]
