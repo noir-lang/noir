@@ -134,13 +134,26 @@ impl Comparable for NargoErrorWithTypes {
         // we consider equivalents, but that's really just to stay on the conservative
         // side and give us a chance to inspect new kinds of test failures.
 
+        fn both<F: Fn(&str) -> bool>(s1: &str, s2: &str, f: F) -> bool {
+            f(s1) && f(s2)
+        }
+
         let msg1 = e1.user_defined_failure_message();
         let msg2 = e2.user_defined_failure_message();
-        let equiv_msgs = if let (Some(msg1), Some(msg2)) = (msg1, msg2) {
-            msg1 == msg2 || msg1.contains("overflow") && msg2.contains("overflow")
+        let equiv_msgs = if let (Some(msg1), Some(msg2)) = (&msg1, &msg2) {
+            msg1 == msg2
+                || both(msg1, msg2, |msg| msg.contains("overflow"))
+                || both(msg1, msg2, |msg| {
+                    msg.contains("divide by zero") || msg.contains("divisor of zero")
+                })
         } else {
             false
         };
+
+        if equiv_msgs {
+            return true;
+        }
+
         match (ee1, ee2) {
             (
                 AssertionFailed(ResolvedAssertionPayload::String(c), _, _),
@@ -149,16 +162,17 @@ impl Comparable for NargoErrorWithTypes {
                 // Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 true
             }
-            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2 || equiv_msgs,
+            (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
             (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
-            (SolvingError(s, _), AssertionFailed(p, _, _))
-            | (AssertionFailed(p, _, _), SolvingError(s, _)) => match (s, p) {
-                (
-                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
-                    ResolvedAssertionPayload::String(s),
-                ) => s == "Attempted to divide by zero",
-                _ => equiv_msgs,
-            },
+            (
+                SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
+                AssertionFailed(_, _, _),
+            ) => msg2.is_some_and(|msg| msg.contains("divide by zero")),
+            (
+                AssertionFailed(_, _, _),
+                SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
+            ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            _ => false,
         }
     }
 }

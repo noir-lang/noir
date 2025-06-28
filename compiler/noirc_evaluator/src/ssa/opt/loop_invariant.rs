@@ -55,7 +55,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::eval_constant_binary_op,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         integer::IntegerConstant,
         post_order::PostOrder,
@@ -847,20 +847,22 @@ impl<'f> LoopInvariantContext<'f> {
         } {
             // We evaluate this expression using the upper bounds (or lower in the case of sub)
             // of its inputs to check whether it will ever overflow.
-            // If so, this will cause `eval_constant_binary_op` to return `None`.
-            // Therefore a `Some` value shows that this operation is safe.
+            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
             let lhs = lhs.into_numeric_constant().0;
             let rhs = rhs.into_numeric_constant().0;
-            if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
-                // Unchecked version of the binary operation
-                let unchecked = Instruction::Binary(Binary {
-                    operator: binary.operator.into_unchecked(),
-                    lhs: binary.lhs,
-                    rhs: binary.rhs,
-                });
-                return SimplifyResult::SimplifiedToInstruction(unchecked);
-            } else {
-                return SimplifyResult::None;
+            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                BinaryEvaluationResult::Success(..) => {
+                    // Unchecked version of the binary operation
+                    let unchecked = Instruction::Binary(Binary {
+                        operator: binary.operator.into_unchecked(),
+                        lhs: binary.lhs,
+                        rhs: binary.rhs,
+                    });
+                    return SimplifyResult::SimplifiedToInstruction(unchecked);
+                }
+                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                    return SimplifyResult::None;
+                }
             }
         }
 
