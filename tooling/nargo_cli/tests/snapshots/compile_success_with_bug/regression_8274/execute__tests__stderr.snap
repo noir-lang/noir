@@ -9,11 +9,11 @@ warning: unused variable h
   │         - unused variable
   │
 
-bug: Assertion is always false: attempted to divide by constant larger than operand type: 128 > 64
-  ┌─ src/main.nr:2:14
+bug: Assertion is always false: attempt to multiply with overflow
+  ┌─ src/main.nr:2:35
   │
 2 │     let h = (((a as u64) >> b) % (11912905567223247326 * 14329851068374824036));
-  │              ----------------------------------------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │                                   ------------------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
   │
   = Call stack:
-    1. src/main.nr:2:14
+    1. src/main.nr:2:35
