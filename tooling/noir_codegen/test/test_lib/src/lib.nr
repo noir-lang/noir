@@ -36,3 +36,17 @@ fn exported_function_bar(my_struct: NestedStruct<1, 2, 3, u64>) -> (u64) {
 fn exported_function_baz() -> u64 {
     1
 }
+
+pub struct Parent<T> {
+    inner: T,
+    counter: u32,
+}
+
+pub struct Child {
+    value: u32,
+}
+
+#[export]
+fn exported_function_parent(a: Parent<Child>, b: Parent<u32>) -> u32 {
+    a.counter + a.inner.value + b.counter + b.inner
+}

@@ -60,44 +60,63 @@ export type AbiTypeWithGenerics =
  * Maps an ABI type to an ABI type with generics.
  * This performs pure type conversion, and does not generate any bindings.
  */
-export function mapAbiTypeToAbiTypeWithGenerics(abiType: AbiType): AbiTypeWithGenerics {
+export function mapAbiTypeToAbiTypeWithGenerics(
+  abiType: AbiType,
+  allTypes: AbiTypeWithGenerics[],
+): AbiTypeWithGenerics {
+  let returnedType: AbiTypeWithGenerics;
   switch (abiType.kind) {
     case 'field':
     case 'boolean':
     case 'string':
     case 'integer':
-      return abiType;
-    case 'array':
-      return {
+      returnedType = abiType;
+      break;
+    case 'array': {
+      const type = mapAbiTypeToAbiTypeWithGenerics(abiType.type, allTypes);
+      returnedType = {
         kind: 'array',
         length: abiType.length,
-        type: mapAbiTypeToAbiTypeWithGenerics(abiType.type),
+        type,
       };
+      break;
+    }
     case 'struct': {
       const structType = {
         path: abiType.path,
-        fields: abiType.fields.map((field) => ({
-          name: field.name,
-          type: mapAbiTypeToAbiTypeWithGenerics(field.type),
-        })),
+        fields: abiType.fields.map(function (field) {
+          const type = mapAbiTypeToAbiTypeWithGenerics(field.type, allTypes);
+          return {
+            name: field.name,
+            type,
+          };
+        }),
         generics: [],
       };
-      return {
+      returnedType = {
         kind: 'struct',
         structType,
         args: [],
       };
+      break;
     }
     case 'tuple':
-      return {
+      returnedType = {
         kind: 'tuple',
-        fields: abiType.fields.map(mapAbiTypeToAbiTypeWithGenerics),
+        fields: abiType.fields.map(function (field) {
+          const type = mapAbiTypeToAbiTypeWithGenerics(field, allTypes);
+          allTypes.push(type);
+          return type;
+        }),
       };
+      break;
     default: {
       const exhaustiveCheck: never = abiType;
       throw new Error(`Unhandled abi type: ${exhaustiveCheck}`);
     }
   }
+  allTypes.push(returnedType);
+  return returnedType;
 }
 
 /**
