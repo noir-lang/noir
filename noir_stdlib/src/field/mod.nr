@@ -27,7 +27,7 @@ impl Field {
     /// # Safety
     /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_le_bits
-    pub fn to_le_bits<let N: u32>(self: Self) -> [u1; N] {
+    pub fn to_le_bits<let N: u32>(self) -> [u1; N] {
         // docs:end:to_le_bits
         let bits = __to_le_bits(self);
 
@@ -59,7 +59,7 @@ impl Field {
     /// # Safety
     /// The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.
     // docs:start:to_be_bits
-    pub fn to_be_bits<let N: u32>(self: Self) -> [u1; N] {
+    pub fn to_be_bits<let N: u32>(self) -> [u1; N] {
         // docs:end:to_be_bits
         let bits = __to_be_bits(self);
 
@@ -91,7 +91,7 @@ impl Field {
     /// # Safety
     /// The result is ensured to be the canonical decomposition of the field element
     // docs:start:to_le_bytes
-    pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
+    pub fn to_le_bytes<let N: u32>(self) -> [u8; N] {
         // docs:end:to_le_bytes
         static_assert(
             N <= modulus_le_bytes().len(),
@@ -128,7 +128,7 @@ impl Field {
     /// # Safety
     /// The result is ensured to be the canonical decomposition of the field element
     // docs:start:to_be_bytes
-    pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
+    pub fn to_be_bytes<let N: u32>(self) -> [u8; N] {
         // docs:end:to_be_bytes
         static_assert(
             N <= modulus_le_bytes().len(),
@@ -155,7 +155,7 @@ impl Field {
         bytes
     }
 
-    fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    fn to_le_radix<let N: u32>(self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
             static_assert(1 < radix, "radix must be greater than 1");
@@ -165,7 +165,7 @@ impl Field {
         __to_le_radix(self, radix)
     }
 
-    fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    fn to_be_radix<let N: u32>(self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
             static_assert(1 < radix, "radix must be greater than 1");

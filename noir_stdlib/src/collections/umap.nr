@@ -271,7 +271,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     // Get the current capacity of the inner table.
     // docs:start:capacity
-    pub fn capacity(self: Self) -> u32 {
+    pub fn capacity(self) -> u32 {
         // docs:end:capacity
         self._table.len()
     }
@@ -399,7 +399,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     // We use 0.5 constant near variadic attempt and attempt^2 monomials.
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two.
-    fn quadratic_probe(self: Self, hash: u32, attempt: u32) -> u32 {
+    fn quadratic_probe(self, hash: u32, attempt: u32) -> u32 {
         (hash + (attempt + attempt * attempt) / 2) % self._table.len()
     }
 }

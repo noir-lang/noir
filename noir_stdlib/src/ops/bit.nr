@@ -1,6 +1,6 @@
 // docs:start:not-trait
 pub trait Not {
-    fn not(self: Self) -> Self;
+    fn not(self) -> Self;
 }
 // docs:end:not-trait
 

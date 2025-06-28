@@ -58,7 +58,7 @@ impl Neg for EmbeddedCurvePoint {
 
 impl Eq for EmbeddedCurvePoint {
     /// Checks whether two points are equal
-    fn eq(self: Self, b: EmbeddedCurvePoint) -> bool {
+    fn eq(self, b: EmbeddedCurvePoint) -> bool {
         (self.is_infinite & b.is_infinite)
             | ((self.is_infinite == b.is_infinite) & (self.x == b.x) & (self.y == b.y))
     }
