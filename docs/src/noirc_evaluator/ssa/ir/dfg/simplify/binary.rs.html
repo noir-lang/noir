@@ -306,11 +306,19 @@
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
 <a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField <span class="kw">as _</span>, FieldElement};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, binary::eval_constant_binary_op},
+    instruction::{
+        Binary, BinaryOp, Instruction,
+        binary::{BinaryEvaluationResult, eval_constant_binary_op},
+    },
     types::NumericType,
 };
 
@@ -359,11 +367,13 @@
 
     <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs_value, rhs_value) {
         <span class="kw">return match </span>eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-            <span class="prelude-val">Some</span>((result, result_type)) =&gt; {
+            BinaryEvaluationResult::Success(result, result_type) =&gt; {
                 <span class="kw">let </span>value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            <span class="prelude-val">None </span>=&gt; SimplifyResult::SimplifiedToInstruction(simplified),
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) =&gt; {
+                SimplifyResult::SimplifiedToInstruction(simplified)
+            }
         };
     }
 

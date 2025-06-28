@@ -365,7 +365,92 @@
 <a href="#364" id="364">364</a>
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
-<a href="#367" id="367">367</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -454,28 +539,51 @@
     }
 }
 
+<span class="attr">#[derive(Debug)]
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>BinaryEvaluationResult {
+    <span class="doccomment">/// The binary operation could not be evaluated
+    </span>CouldNotEvaluate,
+    <span class="doccomment">/// The binary operation could be evaluated and it was successful
+    </span>Success(FieldElement, NumericType),
+    <span class="doccomment">/// The binary operation could be evaluated but it is guaranteed to fail
+    /// (for example: overflow or division by zero).
+    </span>Failure(String),
+}
+
 <span class="doccomment">/// Evaluate a binary operation with constant arguments.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,
     <span class="kw-2">mut </span>operand_type: NumericType,
-) -&gt; <span class="prelude-ty">Option</span>&lt;(FieldElement, NumericType)&gt; {
+) -&gt; BinaryEvaluationResult {
+    <span class="kw">use </span>BinaryEvaluationResult::{CouldNotEvaluate, Failure, Success};
+
     <span class="kw">let </span>value = <span class="kw">match </span>operand_type {
         NumericType::NativeField =&gt; {
             <span class="comment">// If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             </span><span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Div | BinaryOp::Mod) &amp;&amp; rhs == FieldElement::zero() {
-                <span class="kw">return </span><span class="prelude-val">None</span>;
+                <span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
             }
-            operator.get_field_function()<span class="question-mark">?</span>(lhs, rhs)
+            <span class="kw">let </span><span class="prelude-val">Some</span>(function) = operator.get_field_function() <span class="kw">else </span>{
+                <span class="kw">return </span>CouldNotEvaluate;
+            };
+            function(lhs, rhs)
         }
         NumericType::Unsigned { bit_size } =&gt; {
             <span class="kw">let </span>function = operator.get_u128_function();
 
-            <span class="kw">let </span>lhs = truncate(lhs.try_into_u128()<span class="question-mark">?</span>, bit_size);
-            <span class="kw">let </span>rhs = truncate(rhs.try_into_u128()<span class="question-mark">?</span>, bit_size);
+            <span class="kw">let </span><span class="prelude-val">Some</span>(lhs) = lhs.try_into_u128() <span class="kw">else </span>{
+                <span class="kw">return </span>CouldNotEvaluate;
+            };
+            <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = rhs.try_into_u128() <span class="kw">else </span>{
+                <span class="kw">return </span>CouldNotEvaluate;
+            };
+
+            <span class="kw">let </span>lhs = truncate(lhs, bit_size);
+            <span class="kw">let </span>rhs = truncate(rhs, bit_size);
 
             <span class="comment">// The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
@@ -483,20 +591,50 @@
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             </span><span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Div | BinaryOp::Mod) &amp;&amp; rhs == <span class="number">0 </span>{
-                <span class="kw">return </span><span class="prelude-val">None</span>;
+                <span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
             }
-            <span class="kw">let </span>result = function(lhs, rhs)<span class="question-mark">?</span>;
+
+            <span class="kw">let </span><span class="prelude-val">Some</span>(result) = function(lhs, rhs) <span class="kw">else </span>{
+                <span class="kw">if let </span>BinaryOp::Shl = operator {
+                    <span class="kw">return </span>CouldNotEvaluate;
+                }
+
+                <span class="kw">if let </span>BinaryOp::Shr = operator {
+                    <span class="kw">return </span>Success(FieldElement::zero(), operand_type);
+                }
+
+                <span class="kw">let </span>op = binary_op_function_name(operator);
+                <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
+            };
+
             <span class="comment">// Check for overflow
             </span><span class="kw">if </span>result != <span class="number">0 </span>&amp;&amp; result.ilog2() &gt;= bit_size {
-                <span class="kw">return </span><span class="prelude-val">None</span>;
+                <span class="kw">if let </span>BinaryOp::Shl = operator {
+                    <span class="comment">// Right now `shl` might return zero or overflow depending on its values
+                    // so don't assume the final value here.
+                    // See https://github.com/noir-lang/noir/issues/9022
+                    </span><span class="kw">return </span>CouldNotEvaluate;
+                }
+
+                <span class="kw">if let </span>BinaryOp::Shr = operator {
+                    <span class="kw">return </span>Success(FieldElement::zero(), operand_type);
+                }
+
+                <span class="kw">let </span>op = binary_op_function_name(operator);
+                <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
             }
+
             result.into()
         }
         NumericType::Signed { bit_size } =&gt; {
             <span class="kw">let </span>function = operator.get_i128_function();
 
-            <span class="kw">let </span>lhs = try_convert_field_element_to_signed_integer(lhs, bit_size)<span class="question-mark">?</span>;
-            <span class="kw">let </span>rhs = try_convert_field_element_to_signed_integer(rhs, bit_size)<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="prelude-val">Some</span>(lhs) = try_convert_field_element_to_signed_integer(lhs, bit_size) <span class="kw">else </span>{
+                <span class="kw">return </span>CouldNotEvaluate;
+            };
+            <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) <span class="kw">else </span>{
+                <span class="kw">return </span>CouldNotEvaluate;
+            };
 
             <span class="kw">let </span>result = function(lhs, rhs);
             <span class="kw">let </span>result = <span class="kw">match </span>operator {
@@ -506,24 +644,41 @@
                     // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
                     // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
                     // and the operation should be handled by ACIR generation.
-                    </span><span class="kw">return </span><span class="prelude-val">None</span>;
+                    </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
                 }
                 BinaryOp::Shr =&gt; {
                     <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 {
                         <span class="kw">if </span>lhs &gt;= <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ -<span class="number">1 </span>}
                     } <span class="kw">else </span>{
-                        result<span class="question-mark">?
-                    </span>}
+                        <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
+                            <span class="kw">return </span>CouldNotEvaluate;
+                        };
+                        result
+                    }
                 }
 
                 <span class="kw">_ </span>=&gt; {
                     <span class="comment">// Check for overflow
                     </span><span class="kw">let </span>two_pow_bit_size_minus_one = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
-                    <span class="kw">let </span>result = result<span class="question-mark">?</span>;
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
+                        <span class="kw">if let </span>BinaryOp::Shl = operator {
+                            <span class="kw">return </span>CouldNotEvaluate;
+                        }
+
+                        <span class="kw">let </span>op = binary_op_function_name(operator);
+                        <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
+                    };
+
                     <span class="kw">if </span>result &gt;= two_pow_bit_size_minus_one || result &lt; -two_pow_bit_size_minus_one
                     {
-                        <span class="kw">return </span><span class="prelude-val">None</span>;
+                        <span class="kw">if let </span>BinaryOp::Shl = operator {
+                            <span class="kw">return </span>CouldNotEvaluate;
+                        }
+
+                        <span class="kw">let </span>op = binary_op_function_name(operator);
+                        <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                     }
+
                     result
                 }
             };
@@ -535,7 +690,22 @@
         operand_type = NumericType::bool();
     }
 
-    <span class="prelude-val">Some</span>((value, operand_type))
+    Success(value, operand_type)
+}
+
+<span class="kw">fn </span>binary_op_function_name(op: BinaryOp) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str {
+    <span class="kw">match </span>op {
+        BinaryOp::Add { .. } =&gt; <span class="string">"add"</span>,
+        BinaryOp::Sub { .. } =&gt; <span class="string">"subtract"</span>,
+        BinaryOp::Mul { .. } =&gt; <span class="string">"multiply"</span>,
+        BinaryOp::Div =&gt; <span class="string">"divide"</span>,
+        BinaryOp::Mod =&gt; <span class="string">"modulo"</span>,
+        BinaryOp::Shl =&gt; <span class="string">"shift left"</span>,
+        BinaryOp::Shr =&gt; <span class="string">"shift right"</span>,
+        BinaryOp::Eq | BinaryOp::Lt | BinaryOp::And | BinaryOp::Or | BinaryOp::Xor =&gt; {
+            <span class="macro">panic!</span>(<span class="string">"Shouldn't need binary op function name of {op}"</span>)
+        }
+    }
 }
 
 <span class="doccomment">/// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers

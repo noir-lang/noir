@@ -301,7 +301,21 @@
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
 <a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -437,13 +451,26 @@
         // we consider equivalents, but that's really just to stay on the conservative
         // side and give us a chance to inspect new kinds of test failures.
 
-        </span><span class="kw">let </span>msg1 = e1.user_defined_failure_message();
+        </span><span class="kw">fn </span>both&lt;F: Fn(<span class="kw-2">&amp;</span>str) -&gt; bool&gt;(s1: <span class="kw-2">&amp;</span>str, s2: <span class="kw-2">&amp;</span>str, f: F) -&gt; bool {
+            f(s1) &amp;&amp; f(s2)
+        }
+
+        <span class="kw">let </span>msg1 = e1.user_defined_failure_message();
         <span class="kw">let </span>msg2 = e2.user_defined_failure_message();
-        <span class="kw">let </span>equiv_msgs = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(msg1), <span class="prelude-val">Some</span>(msg2)) = (msg1, msg2) {
-            msg1 == msg2 || msg1.contains(<span class="string">"overflow"</span>) &amp;&amp; msg2.contains(<span class="string">"overflow"</span>)
+        <span class="kw">let </span>equiv_msgs = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(msg1), <span class="prelude-val">Some</span>(msg2)) = (<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2) {
+            msg1 == msg2
+                || both(msg1, msg2, |msg| msg.contains(<span class="string">"overflow"</span>))
+                || both(msg1, msg2, |msg| {
+                    msg.contains(<span class="string">"divide by zero"</span>) || msg.contains(<span class="string">"divisor of zero"</span>)
+                })
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>};
+
+        <span class="kw">if </span>equiv_msgs {
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        }
+
         <span class="kw">match </span>(ee1, ee2) {
             (
                 AssertionFailed(ResolvedAssertionPayload::String(c), <span class="kw">_</span>, <span class="kw">_</span>),
@@ -452,16 +479,17 @@
                 <span class="comment">// Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 </span><span class="bool-val">true
             </span>}
-            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2 || equiv_msgs,
+            (AssertionFailed(p1, <span class="kw">_</span>, <span class="kw">_</span>), AssertionFailed(p2, <span class="kw">_</span>, <span class="kw">_</span>)) =&gt; p1 == p2,
             (SolvingError(s1, <span class="kw">_</span>), SolvingError(s2, <span class="kw">_</span>)) =&gt; <span class="macro">format!</span>(<span class="string">"{s1}"</span>) == <span class="macro">format!</span>(<span class="string">"{s2}"</span>),
-            (SolvingError(s, <span class="kw">_</span>), AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>))
-            | (AssertionFailed(p, <span class="kw">_</span>, <span class="kw">_</span>), SolvingError(s, <span class="kw">_</span>)) =&gt; <span class="kw">match </span>(s, p) {
-                (
-                    OpcodeResolutionError::UnsatisfiedConstrain { .. },
-                    ResolvedAssertionPayload::String(s),
-                ) =&gt; s == <span class="string">"Attempted to divide by zero"</span>,
-                <span class="kw">_ </span>=&gt; equiv_msgs,
-            },
+            (
+                SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, <span class="kw">_</span>),
+                AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
+            ) =&gt; msg2.is_some_and(|msg| msg.contains(<span class="string">"divide by zero"</span>)),
+            (
+                AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
+                SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, <span class="kw">_</span>),
+            ) =&gt; msg1.is_some_and(|msg| msg.contains(<span class="string">"divide by zero"</span>)),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
 }

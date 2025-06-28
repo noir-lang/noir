@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["BinaryOp"],"fn":["convert_signed_integer_to_field_element","eval_constant_binary_op","truncate","truncate_field","try_convert_field_element_to_signed_integer"],"struct":["Binary"]};
+window.SIDEBAR_ITEMS = {"enum":["BinaryEvaluationResult","BinaryOp"],"fn":["binary_op_function_name","convert_signed_integer_to_field_element","eval_constant_binary_op","truncate","truncate_field","try_convert_field_element_to_signed_integer"],"struct":["Binary"]};

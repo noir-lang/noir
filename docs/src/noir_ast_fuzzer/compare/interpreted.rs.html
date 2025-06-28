@@ -399,7 +399,24 @@
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
 <a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -501,6 +518,12 @@
             <span class="self">self</span>.ssa1.msg,
             <span class="self">self</span>.ssa1.ssa.print_without_locations()
         );
+        <span class="macro">log::debug!</span>(
+            <span class="string">"SSA after step {} ({}):\n{}\n"</span>,
+            <span class="self">self</span>.ssa2.step,
+            <span class="self">self</span>.ssa2.msg,
+            <span class="self">self</span>.ssa2.ssa.print_without_locations()
+        );
 
         <span class="comment">// Interpret an SSA with a fresh copy of the input values.
         </span><span class="kw">let </span>interpret = |ssa: <span class="kw-2">&amp;</span>Ssa| {
@@ -592,6 +615,17 @@
                 //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
                 // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 </span>msg1 == msg2
+            }
+            (
+                RangeCheckFailedWithMessage { message: msg1, .. },
+                ConstrainEqFailed { msg: msg2, .. },
+            ) =&gt; {
+                <span class="comment">// The removal of unreachable instructions evaluates constant binary operations and can replace
+                // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
+                </span>msg2.contains(msg1)
+            }
+            (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
+                msg.contains(<span class="string">"attempt to divide by zero"</span>)
             }
             (e1, e2) =&gt; {
                 <span class="comment">// The format strings contain SSA instructions,

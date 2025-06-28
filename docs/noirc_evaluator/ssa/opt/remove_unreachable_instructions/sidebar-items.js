@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["always_fails"]};
+window.SIDEBAR_ITEMS = {"fn":["binary_operation_always_fails"]};
