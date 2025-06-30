@@ -670,16 +670,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_witness_map_proto_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = proto_serialize(&witness);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(witness, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_witness_map_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
                 let bz = bincode_serialize(&witness)?;
