@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use acvm::AcirField;
-use rustc_hash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     Ssa,

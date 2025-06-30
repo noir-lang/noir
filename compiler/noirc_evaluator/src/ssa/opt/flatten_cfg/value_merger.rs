@@ -1,6 +1,6 @@
 use acvm::{FieldElement, acir::AcirField};
-use rustc_hash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     errors::{RtResult, RuntimeError},

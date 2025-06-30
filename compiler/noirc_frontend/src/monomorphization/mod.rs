@@ -29,10 +29,10 @@ use crate::{
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,

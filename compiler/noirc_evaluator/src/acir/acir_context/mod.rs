@@ -19,11 +19,11 @@ use acvm::{
         native_types::{Expression, Witness},
     },
 };
-use rustc_hash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
+use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::ssa::ir::{instruction::Endian, types::NumericType};

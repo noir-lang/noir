@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use rustc_hash::FxHashMap as HashMap;
 use petgraph::visit::DfsPostOrder;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::{

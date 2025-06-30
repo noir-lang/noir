@@ -10,12 +10,12 @@
 //! and purity analysis which needs to unify the purities of all functions called within another function.
 use std::collections::{BTreeMap, BTreeSet};
 
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use petgraph::{
     algo::kosaraju_scc,
     graph::{DiGraph, NodeIndex as PetGraphIndex},
     visit::{Dfs, EdgeRef, Walker},
 };
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ssa_gen::Ssa;
 

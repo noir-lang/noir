@@ -18,9 +18,9 @@ use super::{
 };
 
 use acvm::{FieldElement, acir::AcirField};
-use rustc_hash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;

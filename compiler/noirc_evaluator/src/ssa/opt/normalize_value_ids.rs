@@ -10,8 +10,8 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use rustc_hash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// This is a debugging pass which re-inserts each instruction

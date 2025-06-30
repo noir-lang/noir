@@ -5,12 +5,12 @@ use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre;
 use fm::codespan_files::Files;
-use rustc_hash::FxHashMap as HashMap;
 use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
 use noirc_errors::Location;
 use noirc_errors::debug_info::DebugInfo;
 use noirc_errors::reporter::line_and_column_from_span;
 use noirc_evaluator::brillig::ProcedureId;
+use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) trait Sample {
     fn count(&self) -> usize;

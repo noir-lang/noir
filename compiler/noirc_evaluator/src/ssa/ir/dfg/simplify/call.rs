@@ -1,5 +1,5 @@
-use rustc_hash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
+use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};

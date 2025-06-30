@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use rustc_hash::FxHashSet as HashSet;
 use im::HashMap;
 use petgraph::graph::NodeIndex as PetGraphIndex;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{

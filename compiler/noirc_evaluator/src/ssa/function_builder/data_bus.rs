@@ -7,9 +7,9 @@ use crate::ssa::ir::{
     value::{ValueId, ValueMapping},
 };
 use acvm::FieldElement;
-use rustc_hash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;

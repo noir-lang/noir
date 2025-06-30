@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use acvm::acir::circuit::ErrorSelector;
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::btree_map;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 

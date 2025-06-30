@@ -9,10 +9,10 @@ use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
-use rustc_hash::FxHashMap as HashMap;
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::types::{
     Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,

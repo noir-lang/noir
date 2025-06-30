@@ -6,8 +6,8 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-use rustc_hash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStack;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 

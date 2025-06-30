@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use rustc_hash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use rangemap::StepLite;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     DataType, Kind, Shared, Type,

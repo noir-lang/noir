@@ -24,7 +24,6 @@ use async_lsp::{
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
-use rustc_hash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -44,6 +43,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashSet;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
