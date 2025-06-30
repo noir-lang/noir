@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751292900008,
+  "lastUpdate": 1751292902174,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "afb46c9143626900f6733fb00d3f7aa7f1b56a5c",
-          "message": "chore: address various clippy issues (#8942)",
-          "timestamp": "2025-06-18T14:22:33Z",
-          "tree_id": "93d66510192de402050cb98f0a034c91b902b067",
-          "url": "https://github.com/noir-lang/noir/commit/afb46c9143626900f6733fb00d3f7aa7f1b56a5c"
-        },
-        "date": 1750258308460,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.293,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.184,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 11.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.021,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "387e420667dc77b6ac70f3b28c047a5ce583b801",
+          "message": "chore: move a couple of test_utils functions into a module (#9052)",
+          "timestamp": "2025-06-30T13:40:31Z",
+          "tree_id": "3ec2691580151b1a8255d7272b32c047798f9704",
+          "url": "https://github.com/noir-lang/noir/commit/387e420667dc77b6ac70f3b28c047a5ce583b801"
+        },
+        "date": 1751292885984,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.026,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.29,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.191,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
             "unit": "s"
           }
         ]
