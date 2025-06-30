@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751292902174,
+  "lastUpdate": 1751293270339,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18606,48 +18606,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dfb244e69d19d9e5595368933dbc52e4d7f5f56a",
-          "message": "chore(validation): Ban function pointers in SSA globals  (#8947)",
-          "timestamp": "2025-06-18T15:46:13Z",
-          "tree_id": "41e46ba08f97d78cf3bc57e3e1d6ee332883dbc8",
-          "url": "https://github.com/noir-lang/noir/commit/dfb244e69d19d9e5595368933dbc52e4d7f5f56a"
-        },
-        "date": 1750262983222,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254190,
-            "range": "± 758",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228289,
-            "range": "± 3435",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787551,
-            "range": "± 1199",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20699,6 +20657,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779217,
             "range": "± 1347",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "93694204fd7e0e2730962694c1747fa01d630704",
+          "message": "fix(fuzz): enable print in comptime_vs_brillig_direct (#9045)",
+          "timestamp": "2025-06-30T13:53:34Z",
+          "tree_id": "857edd1eb73d85f1a76899729d260c0cd99ce263",
+          "url": "https://github.com/noir-lang/noir/commit/93694204fd7e0e2730962694c1747fa01d630704"
+        },
+        "date": 1751293257421,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253147,
+            "range": "± 752",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223345,
+            "range": "± 5080",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779892,
+            "range": "± 2312",
             "unit": "ns/iter"
           }
         ]
