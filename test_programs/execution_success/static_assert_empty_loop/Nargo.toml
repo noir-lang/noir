@@ -1,0 +1,6 @@
+[package]
+name = "static_assert_empty_loop"
+type = "bin"
+authors = [""]
+
+[dependencies]

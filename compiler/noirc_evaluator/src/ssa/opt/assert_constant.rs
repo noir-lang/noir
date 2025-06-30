@@ -1,4 +1,5 @@
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
+use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
 
@@ -6,14 +7,13 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
-            dfg::DataFlowGraph,
-            function::Function,
-            instruction::{Instruction, InstructionId, Intrinsic},
-            value::ValueId,
+            cfg::ControlFlowGraph, dfg::DataFlowGraph, function::Function, instruction::{Instruction, InstructionId, Intrinsic}, value::ValueId
         },
         ssa_gen::Ssa,
     },
 };
+
+use super::unrolling::Loops;
 
 impl Ssa {
     /// A simple SSA pass to go through each instruction and evaluate each call
@@ -41,11 +41,40 @@ impl Function {
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         &mut self,
     ) -> Result<(), RuntimeError> {
+        let loops = Loops::find_all(self);
+
+        let cfg = ControlFlowGraph::with_function(self);
+        let mut blocks_within_empty_loop = HashSet::default();
+        for loop_ in loops.yet_to_unroll {
+            let Ok(pre_header) = loop_.get_pre_header(self, &cfg) else {
+                // If the loop does not have a preheader we skip hoisting loop invariants for this loop
+                continue;
+            };
+            let const_bounds = loop_.get_const_bounds(self, pre_header);
+
+            let does_execute = const_bounds
+                .and_then(|(lower_bound, upper_bound)| {
+                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+                })
+                // We default to `true` if the bounds are dynamic so that we still
+                // evaluate static assertion in dynamic loops.
+                .unwrap_or(true);
+
+            if !does_execute {
+                blocks_within_empty_loop.extend(loop_.blocks);
+            }
+        }
+
         for block in self.reachable_blocks() {
             // Unfortunately we can't just use instructions.retain(...) here since
             // check_instruction can also return an error
             let instructions = self.dfg[block].take_instructions();
             let mut filtered_instructions = Vec::with_capacity(instructions.len());
+
+            if blocks_within_empty_loop.contains(&block) {
+                *self.dfg[block].instructions_mut() = instructions;
+                continue;
+            }
 
             for instruction in instructions {
                 if check_instruction(self, instruction)? {
@@ -167,5 +196,73 @@ fn append_foreign_call_param(
         foreign_call_params.push(ForeignCallParam::Array(values));
     } else {
         panic!("ICE: expected constant value");
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{errors::RuntimeError, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn do_not_fail_on_assert_constant_in_empty_loop() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            v4, v5 = call as_slice(v2) -> (u32, [Field])
+            v6 = make_array [] : [Field]
+            v7 = allocate -> &mut u32
+            store u32 0 at v7
+            v9 = allocate -> &mut [Field]
+            store v6 at v9
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v10 = lt v0, u32 0
+            jmpif v10 then: b2, else: b3
+          b2():
+            v13 = lt v0, u32 0
+            constrain v13 == u1 1
+            v15 = load v7 -> u32
+            v16 = load v9 -> [Field]
+            call assert_constant(v2)
+            v19, v20 = call slice_push_back(v15, v16) -> (u32, [Field])
+            store v19 at v7
+            store v20 at v9
+            v22 = unchecked_add v0, u32 1
+            jmp b1(v22)
+          b3():
+            v11 = load v7 -> u32
+            v12 = load v9 -> [Field]
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(ssa.evaluate_static_assert_and_assert_constant().is_ok());
+    }
+
+    #[test]
+    fn fail_on_assert_constant_in_dynamic_loop() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(v0)
+          b1(v2: u32):
+            v3 = lt v2, v1                                   
+            jmpif v3 then: b2, else: b3
+          b2():
+            call assert_constant(v0)                          
+            v6 = unchecked_add v2, u32 1                      
+            jmp b1(v6)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(ssa.evaluate_static_assert_and_assert_constant().err().unwrap(), RuntimeError::AssertConstantFailed { .. }));
     }
 }
