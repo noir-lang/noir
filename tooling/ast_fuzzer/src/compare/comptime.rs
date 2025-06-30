@@ -123,7 +123,7 @@ impl CompareComptime {
 
         // Log source code before interpreting
         log::debug!("comptime src:\n{}", self.source);
-        let comptime_expr = match interpret(&format!("comptime {}", source)) {
+        let comptime_expr = match interpret(source.as_str()) {
             Ok(expr) => expr,
             Err(e) => {
                 let assertion_diagnostic = match &e {
