@@ -73,9 +73,7 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
 //! (after converting the AST to Noir and running it through the comptime
 //! interpreter) vs when everything is forced to be Brillig.
 //! We choose Brillig here because it mostly matches comptime feature set
@@ -108,8 +106,6 @@
         </span>avoid_overflow: <span class="bool-val">true</span>,
         avoid_err_by_zero: <span class="bool-val">true</span>,
         avoid_constrain: <span class="bool-val">true</span>,
-        <span class="comment">// At the moment prints aren't recognized by elaborator
-        </span>avoid_print: <span class="bool-val">true</span>,
         <span class="comment">// Use lower limits because of the interpreter, to avoid stack overflow
         </span>max_loop_size: <span class="number">5</span>,
         max_recursive_calls: <span class="number">5</span>,

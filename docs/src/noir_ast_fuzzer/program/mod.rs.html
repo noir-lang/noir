@@ -610,7 +610,9 @@
 <a href="#609" id="609">609</a>
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1209,6 +1211,7 @@
         // for example `for i in (5 / 10) as u32 .. 2` is `0..2` or `1..2` depending on whether 5 and 10
         // were some number in the AST or `Field` when parsed by the test.
         </span>printer.show_type_of_int_literal = <span class="bool-val">true</span>;
+
         <span class="kw">for </span>function <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.functions {
             <span class="kw">if </span>function.id == Program::main_id() {
                 <span class="kw">let </span><span class="kw-2">mut </span>function = function.clone();
@@ -1219,6 +1222,7 @@
                 printer.print_function(function, f, FunctionPrintOptions::default())<span class="question-mark">?</span>;
             }
         }
+
         <span class="prelude-val">Ok</span>(())
     }
 }

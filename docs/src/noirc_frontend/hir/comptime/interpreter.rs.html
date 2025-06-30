@@ -1949,7 +1949,7 @@
     ) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>attributes = <span class="self">self</span>.elaborator.interner.function_attributes(<span class="kw-2">&amp;</span>function);
         <span class="kw">let </span>func_attrs = <span class="kw-2">&amp;</span>attributes.function()
-            .expect(<span class="string">"all builtin functions must contain a function  attribute which contains the opcode which it links to"</span>).kind;
+            .expect(<span class="string">"all builtin functions must contain a function attribute which contains the opcode which it links to"</span>).kind;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(builtin) = func_attrs.builtin() {
             <span class="self">self</span>.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
