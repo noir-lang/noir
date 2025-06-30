@@ -80,13 +80,13 @@ impl Fuzzer {
         inputs: Vec<impl Into<FieldElement> + Clone>,
     ) {
         if let Some(context) = &mut self.context_non_constant {
-            context.process_function(&function_data, &types, &inputs);
+            context.process_function(function_data.clone(), types.clone(), inputs.clone());
         }
         if let Some(context) = &mut self.context_non_constant_with_idempotent_morphing {
-            context.process_function(&function_data, &types, &inputs);
+            context.process_function(function_data.clone(), types.clone(), inputs.clone());
         }
         if let Some(context) = &mut self.context_constant {
-            context.process_function(&function_data, &types, &inputs);
+            context.process_function(function_data, types, inputs);
         }
     }
 
@@ -109,10 +109,12 @@ impl Fuzzer {
         mut self,
         initial_witness: WitnessMap<FieldElement>,
     ) -> Option<FieldElement> {
-        let non_constant_context = self.context_non_constant.take().unwrap();
+        let mut non_constant_context = self.context_non_constant.take().unwrap();
+        non_constant_context.finalize();
         let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
         if let Some(context) = self.context_constant.take() {
-            let constant_context = context;
+            let mut constant_context = context;
+            constant_context.finalize();
             let constant_result = self.run_context(constant_context, initial_witness.clone());
             assert_eq!(
                 non_constant_result, constant_result,
@@ -121,7 +123,8 @@ impl Fuzzer {
         }
 
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
-            let context_with_idempotent_morphing = context;
+            let mut context_with_idempotent_morphing = context;
+            context_with_idempotent_morphing.finalize();
             let result_with_constrains =
                 self.run_context(context_with_idempotent_morphing, initial_witness);
             assert_eq!(

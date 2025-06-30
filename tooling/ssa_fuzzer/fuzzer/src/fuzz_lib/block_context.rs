@@ -15,8 +15,6 @@ pub(crate) struct BlockContext {
     pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
     /// Ids of typed addresses of memory (mutable variables)
     pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
-    /// ACIR and Brillig last changed value, used to finalize the block with return
-    pub(crate) last_value: Option<TypedValue>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
@@ -59,7 +57,6 @@ impl BlockContext {
         Self {
             stored_values,
             memory_addresses,
-            last_value: None,
             parent_blocks_history,
             children_blocks: Vec::new(),
             options,
@@ -82,7 +79,6 @@ impl BlockContext {
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
         assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
-        self.last_value = Some(acir_result.clone());
         append_typed_value_to_map(
             &mut self.stored_values,
             &acir_result.to_value_type(),
@@ -109,8 +105,6 @@ impl BlockContext {
         let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
         // insert to brillig, assert id of return is the same
         assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
-
-        self.last_value = Some(result.clone());
         append_typed_value_to_map(&mut self.stored_values, &result.to_value_type(), result);
     }
 
@@ -201,7 +195,6 @@ impl BlockContext {
                 if self.stored_values.get(&value.to_value_type()).unwrap().contains(&acir_result) {
                     return;
                 }
-                self.last_value = Some(acir_result.clone());
                 append_typed_value_to_map(
                     &mut self.stored_values,
                     &acir_result.to_value_type(),
@@ -423,7 +416,6 @@ impl BlockContext {
                     &value.to_value_type(),
                     value.clone(),
                 );
-                self.last_value = Some(value.clone());
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
@@ -466,18 +458,26 @@ impl BlockContext {
         self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
+        return_type: ValueType,
     ) {
-        match self.last_value {
-            Some(last_value) => {
-                acir_builder.finalize_function(&last_value);
-                brillig_builder.finalize_function(&last_value);
+        let array_of_values_with_return_type = self.stored_values.get(&return_type);
+        let return_value = match array_of_values_with_return_type {
+            Some(arr) => arr.iter().last(),
+            _ => None,
+        };
+        match return_value {
+            Some(return_value) => {
+                acir_builder.finalize_function(&return_value);
+                brillig_builder.finalize_function(&return_value);
             }
             _ => {
-                // If no last value was set, we return boolean, that definitely  set
-                let last_value =
+                // If no last value was set, we take boolean, that definitely  set and cast it to the return type
+                let boolean_value =
                     get_typed_value_from_map(&self.stored_values, &ValueType::Boolean, 0).unwrap();
-                acir_builder.finalize_function(&last_value);
-                brillig_builder.finalize_function(&last_value);
+                let return_value = acir_builder.insert_cast(boolean_value.clone(), return_type);
+                assert_eq!(brillig_builder.insert_cast(boolean_value, return_type), return_value);
+                acir_builder.finalize_function(&return_value);
+                brillig_builder.finalize_function(&return_value);
             }
         }
     }

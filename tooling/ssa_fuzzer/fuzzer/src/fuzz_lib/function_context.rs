@@ -10,6 +10,7 @@ use noir_ssa_fuzzer::{
     typed_value::{TypedValue, ValueType},
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use noirc_evaluator::ssa::ir::{function::Function, map::Id};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
@@ -46,7 +47,7 @@ pub(crate) enum WitnessValue {
 
 /// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
-#[derive(Arbitrary, Debug)]
+#[derive(Arbitrary, Debug, Clone)]
 pub(crate) struct FunctionData {
     pub(crate) blocks: Vec<InstructionBlock>,
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
@@ -55,6 +56,13 @@ pub(crate) struct FunctionData {
     ///                                                            ↓ we subtract 2, because [initialize_witness_map] func inserts two boolean variables itself
     pub(crate) initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
     pub(crate) return_instruction_block_idx: usize,
+    pub(crate) return_type: ValueType,
+}
+
+#[derive(Clone)]
+pub(crate) struct FunctionSignature {
+    pub(crate) input_types: Vec<ValueType>,
+    pub(crate) return_type: ValueType,
 }
 
 /// Represents set of commands for the fuzzer
@@ -110,8 +118,6 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     stored_variables_for_block: HashMap<BasicBlockId, HashMap<ValueType, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
-    /// Whether the program is executed in constants
-    is_constant: bool,
     /// Options of the program context
     function_context_options: FunctionContextOptions,
     /// Number of instructions inserted in the program
@@ -123,6 +129,9 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     cycle_bodies_to_iters_ids: HashMap<BasicBlockId, CycleInfo>,
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
+
+    return_type: ValueType,
+    defined_functions: HashMap<Id<Function>, FunctionSignature>,
 }
 
 impl<'a> FuzzerFunctionContext<'a> {
@@ -132,6 +141,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         types: Vec<ValueType>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
+        return_type: ValueType,
+        defined_functions: HashMap<Id<Function>, FunctionSignature>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -162,12 +173,13 @@ impl<'a> FuzzerFunctionContext<'a> {
             instruction_blocks,
             stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
-            is_constant: false,
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
             cycle_bodies_to_iters_ids: HashMap::new(),
             parent_iterations_count: 1,
+            defined_functions,
+            return_type,
         }
     }
 
@@ -179,6 +191,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         types: Vec<ValueType>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
+        return_type: ValueType,
+        defined_functions: HashMap<Id<Function>, FunctionSignature>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -217,12 +231,13 @@ impl<'a> FuzzerFunctionContext<'a> {
             instruction_blocks,
             stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
-            is_constant: true,
             function_context_options: context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
             cycle_bodies_to_iters_ids: HashMap::new(),
             parent_iterations_count: 1,
+            defined_functions,
+            return_type,
         }
     }
     /// Inserts a new SSA block into both ACIR and Brillig builders and returns its id
@@ -903,7 +918,10 @@ impl<'a> FuzzerFunctionContext<'a> {
             &return_instruction_block.instructions,
         );
 
-        return_block_context
-            .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
+        return_block_context.finalize_block_with_return(
+            &mut self.acir_builder,
+            &mut self.brillig_builder,
+            self.return_type,
+        );
     }
 }

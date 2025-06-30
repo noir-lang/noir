@@ -9,6 +9,7 @@ use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
+use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
 use thiserror::Error;
@@ -37,7 +38,7 @@ impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
     pub fn new_acir() -> Self {
         let main_id: Id<Function> = Id::new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("trololo".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         Self { builder }
     }
@@ -45,7 +46,7 @@ impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in Brillig context
     pub fn new_brillig() -> Self {
         let main_id: Id<Function> = Id::new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        let mut builder = FunctionBuilder::new("trololo".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         Self { builder }
     }
@@ -344,5 +345,18 @@ impl FuzzerBuilder {
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
+    }
+
+    pub fn current_function_id(&mut self) -> Id<Function> {
+        self.builder.current_function.id()
+    }
+
+    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+        // maybe use different inline type
+        self.builder.new_function(name, function_id, InlineType::InlineAlways);
+    }
+
+    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
+        self.builder.new_brillig_function(name, function_id, InlineType::InlineAlways);
     }
 }

@@ -50,7 +50,7 @@ pub(crate) fn fuzz_target(data: Vec<FunctionData>, options: FuzzerOptions) -> Op
     }*/
 
     // to triage
-    let (witness_map, values, types) = initialize_witness_map(&data[0]);
+    let (witness_map, _values, _types) = initialize_witness_map(&data[0]);
 
     let mut fuzzer = Fuzzer::new(options);
     for func in data {
@@ -112,6 +112,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1, // ends with non-failing block
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         // we expect that this program executed successfully
@@ -134,6 +135,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1, // ends with non-failing block
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         // we expect that this program failed to execute
@@ -193,6 +195,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
@@ -240,6 +243,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
@@ -300,6 +304,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
@@ -367,6 +372,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
@@ -434,6 +440,7 @@ mod tests {
             commands: commands.clone(),
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
@@ -466,6 +473,7 @@ mod tests {
             commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 1,
+            return_type: ValueType::Field,
         };
         let result = fuzz_target(vec![data], FuzzerOptions::default());
         match result {
