@@ -95,12 +95,37 @@ impl CompareComptime {
         let initial_witness = self.input_witness()?;
         let (res2, _) = Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
-        // TODO(#8973): The print output is currently not captured by the elaborator, so we have to ignore it.
+        // Include the print part of stdlib for the elaborator to be able to use the print oracle
+        let import_print = r#"
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {{}}
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {{
+            print_oracle(with_newline, input);
+        }}
+
+        pub fn println<T>(input: T) {{
+            unsafe {{
+                print_unconstrained(true, input);
+            }}
+        }}
+
+        pub fn print<T>(input: T) {{
+            unsafe {{
+                print_unconstrained(false, input);
+            }}
+        }}
+        "#;
+
+        // Add comptime modifier for main
+        let source = format!("comptime {}{}", self.source, import_print);
+
+        // TODO(#9054): re-enable print output comparison
         let empty_print = "";
 
-        // log source code before interpreting
+        // Log source code before interpreting
         log::debug!("comptime src:\n{}", self.source);
-        let comptime_expr = match interpret(&format!("comptime {}", self.source)) {
+        let comptime_expr = match interpret(source.as_str()) {
             Ok(expr) => expr,
             Err(e) => {
                 let assertion_diagnostic = match &e {
