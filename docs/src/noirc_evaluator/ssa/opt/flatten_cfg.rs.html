@@ -1984,7 +1984,8 @@
 <a href="#1983" id="1983">1983</a>
 <a href="#1984" id="1984">1984</a>
 <a href="#1985" id="1985">1985</a>
-<a href="#1986" id="1986">1986</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a></pre></div><pre class="rust"><code><span class="doccomment">//! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
@@ -3059,8 +3060,9 @@
         call_stack: CallStackId,
     ) -&gt; (ValueId, ValueId) {
         <span class="kw">let </span>index = !abscissa <span class="kw">as </span>usize;
-        <span class="kw">if </span>inputs[<span class="number">3 </span>+ index] == inputs[index] {
-            <span class="kw">let </span>predicated_value =
+        <span class="kw">if </span>inputs[<span class="number">3</span>] == inputs[<span class="number">0</span>] &amp;&amp; inputs[<span class="number">4</span>] == inputs[<span class="number">1</span>] {
+            <span class="comment">// Point doubling
+            </span><span class="kw">let </span>predicated_value =
                 <span class="self">self</span>.var_or(inputs[index], condition, generators[index], call_stack);
             (predicated_value, predicated_value)
         } <span class="kw">else </span>{
