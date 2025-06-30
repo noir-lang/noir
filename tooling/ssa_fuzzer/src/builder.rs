@@ -38,7 +38,7 @@ impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
     pub fn new_acir() -> Self {
         let main_id: Id<Function> = Id::new(0);
-        let mut builder = FunctionBuilder::new("trololo".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         Self { builder }
     }
@@ -46,7 +46,7 @@ impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in Brillig context
     pub fn new_brillig() -> Self {
         let main_id: Id<Function> = Id::new(0);
-        let mut builder = FunctionBuilder::new("trololo".into(), main_id);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         Self { builder }
     }
@@ -358,5 +358,26 @@ impl FuzzerBuilder {
 
     pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
         self.builder.new_brillig_function(name, function_id, InlineType::InlineAlways);
+    }
+
+    pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
+        self.builder.import_function(function)
+    }
+
+    pub fn insert_call(
+        &mut self,
+        function: Id<Value>,
+        arguments: &Vec<TypedValue>,
+        result_type: ValueType,
+    ) -> Id<Value> {
+        *self
+            .builder
+            .insert_call(
+                function,
+                arguments.iter().map(|i| i.value_id).collect(),
+                vec![result_type.to_ssa_type()],
+            )
+            .first()
+            .unwrap()
     }
 }

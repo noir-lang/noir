@@ -75,3 +75,9 @@ pub(crate) enum Instruction {
 pub(crate) struct InstructionBlock {
     pub(crate) instructions: Vec<Instruction>,
 }
+
+#[derive(Clone)]
+pub(crate) struct FunctionSignature {
+    pub(crate) input_types: Vec<ValueType>,
+    pub(crate) return_type: ValueType,
+}

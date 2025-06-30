@@ -1,11 +1,16 @@
-use super::instruction::{Argument, Instruction};
+use super::instruction::{Argument, FunctionSignature, Instruction};
 use super::options::SsaBlockOptions;
+use acvm::acir;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use noirc_evaluator::ssa::ir::function::Function;
+use noirc_evaluator::ssa::ir::map::Id;
+use noirc_evaluator::ssa::ir::types::Type;
 use std::collections::{HashMap, VecDeque};
+use std::iter::zip;
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -513,5 +518,41 @@ impl BlockContext {
         brillig_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
         self.children_blocks.push(then_destination);
         self.children_blocks.push(else_destination);
+    }
+
+    pub(crate) fn process_function(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        function_id: Id<Function>,
+        function_signature: FunctionSignature,
+        args: &[usize],
+    ) {
+        let func_as_value_id = acir_builder.insert_import(function_id);
+        assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
+        let mut values = vec![];
+        for (value_type, index) in zip(function_signature.input_types, args) {
+            let value = match get_typed_value_from_map(&self.stored_values, &value_type, *index) {
+                Some(value) => value,
+                None => return,
+            };
+
+            values.push(value);
+        }
+        let ret_val =
+            acir_builder.insert_call(func_as_value_id, &values, function_signature.return_type);
+        assert_eq!(
+            ret_val,
+            brillig_builder.insert_call(func_as_value_id, &values, function_signature.return_type)
+        );
+        let typed_ret_val = TypedValue {
+            value_id: ret_val,
+            type_of_variable: function_signature.return_type.to_ssa_type(),
+        };
+        append_typed_value_to_map(
+            &mut self.stored_values,
+            &function_signature.return_type,
+            typed_ret_val,
+        );
     }
 }

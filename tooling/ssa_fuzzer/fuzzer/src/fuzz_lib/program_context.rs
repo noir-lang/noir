@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
-use super::function_context::{FunctionData, FunctionSignature, FuzzerFunctionContext};
+use super::function_context::{FunctionData, FuzzerFunctionContext};
+use super::instruction::FunctionSignature;
 use super::options::FunctionContextOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;

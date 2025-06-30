@@ -1,5 +1,6 @@
 use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::block_context::BlockContext;
+use super::instruction::FunctionSignature;
 use super::instruction::InstructionBlock;
 use super::options::{FunctionContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
@@ -59,12 +60,6 @@ pub(crate) struct FunctionData {
     pub(crate) return_type: ValueType,
 }
 
-#[derive(Clone)]
-pub(crate) struct FunctionSignature {
-    pub(crate) input_types: Vec<ValueType>,
-    pub(crate) return_type: ValueType,
-}
-
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
@@ -89,6 +84,9 @@ pub(crate) enum FuzzerFunctionCommand {
     /// Adds loop to the program.
     /// Switches context to the loop body block.
     InsertCycle { block_body_idx: usize, start_iter: u8, end_iter: u8 },
+
+    /// Inserts call to another function
+    InsertFunctionCall { function_idx: usize, args: [usize; NUMBER_OF_VARIABLES_INITIAL as usize] },
 }
 
 struct CycleInfo {
@@ -686,6 +684,24 @@ impl<'a> FuzzerFunctionContext<'a> {
                     *block_body_idx,
                     *start_iter as usize,
                     *end_iter as usize,
+                );
+            }
+            FuzzerFunctionCommand::InsertFunctionCall { function_idx, args } => {
+                let num_of_defined_functions = self.defined_functions.keys().len();
+                if num_of_defined_functions == 0 {
+                    return;
+                }
+                let function_id =
+                    *self.defined_functions.keys().into_iter().collect::<Vec<&Id<Function>>>()
+                        [function_idx % num_of_defined_functions];
+                let function_signature = self.defined_functions[&function_id].clone();
+
+                self.current_block.context.process_function(
+                    &mut self.acir_builder,
+                    &mut self.brillig_builder,
+                    function_id,
+                    function_signature,
+                    args,
                 );
             }
         }
