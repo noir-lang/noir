@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Type, TypeBindings, UnificationError,
+    Type, TypeBindings,
     ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
@@ -244,8 +244,7 @@ impl<'context> Elaborator<'context> {
             function,
             arguments,
             location,
-        )
-        .map_err(CompilationError::from)?;
+        )?;
 
         arguments.insert(0, (item, location));
 
@@ -271,7 +270,7 @@ impl<'context> Elaborator<'context> {
         function: FuncId,
         arguments: Vec<Expression>,
         location: Location,
-    ) -> Result<Vec<(Value, Location)>, InterpreterError> {
+    ) -> Result<Vec<(Value, Location)>, CompilationError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
@@ -281,7 +280,8 @@ impl<'context> Elaborator<'context> {
                 expected: 0,
                 actual: arguments.len() + 1,
                 location,
-            });
+            }
+            .into());
         }
 
         let expected_type = item.get_type();
@@ -292,7 +292,8 @@ impl<'context> Elaborator<'context> {
                 expected: parameters[0].clone(),
                 actual: expected_type.clone(),
                 location,
-            });
+            }
+            .into());
         }
 
         // Remove the initial parameter for the comptime item since that is not included
@@ -336,13 +337,26 @@ impl<'context> Elaborator<'context> {
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
-                if let Err(UnificationError) = expr_type.unify(param_type) {
-                    return Err(InterpreterError::TypeMismatch {
-                        expected: param_type.clone(),
-                        actual: expr_type,
-                        location: arg_location,
-                    });
+                let mut errors = Vec::new();
+                expr_type.clone().unify_with_coercions(
+                    param_type,
+                    expr_id,
+                    arg_location,
+                    interpreter.elaborator.interner,
+                    &mut errors,
+                    || {
+                        CompilationError::InterpreterError(InterpreterError::TypeMismatch {
+                            expected: param_type.clone(),
+                            actual: expr_type,
+                            location: arg_location,
+                        })
+                    },
+                );
+
+                if !errors.is_empty() {
+                    return Err(errors.swap_remove(0));
                 }
+
                 push_arg(interpreter.evaluate(expr_id)?);
             };
         }

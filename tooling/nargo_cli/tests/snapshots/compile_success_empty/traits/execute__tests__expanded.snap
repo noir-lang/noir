@@ -18,6 +18,6 @@ impl MyDefault for Foo {
 }
 
 fn main(x: Field, y: Field) {
-    let first: Foo = MyDefault::my_default(x, y);
+    let first: Foo = Foo::my_default(x, y);
     assert(first.bar == x);
 }

@@ -21,6 +21,8 @@
 
 use std::collections::BTreeSet;
 
+use fxhash::FxHashSet as HashSet;
+
 use crate::ssa::{
     ir::{
         call_graph::CallGraph,
@@ -34,27 +36,64 @@ use crate::ssa::{
 impl Ssa {
     /// See [`remove_unreachable`][self] module for more information.
     pub(crate) fn remove_unreachable_functions(mut self) -> Self {
-        // Identify entry points
-        let entry_points = self.functions.iter().filter_map(|(&id, func)| {
-            // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
-            // because it considers every Brillig function as an entry point.
-            let is_entry_point =
-                id == self.main_id || func.runtime().is_acir() && func.runtime().is_entry_point();
-            is_entry_point.then_some(id)
-        });
-
-        // Build call graph dependencies using this passes definition of reachability.
-        let dependencies =
-            self.functions.iter().map(|(&id, func)| (id, used_functions(func))).collect();
-        let call_graph = CallGraph::from_deps(dependencies);
-
-        // Traverse the call graph from all entry points
-        let reachable_functions = call_graph.reachable_from(entry_points);
+        let reachable_functions = reachable_functions(&self);
 
         // Discard all functions not marked as reachable
         self.functions.retain(|id, _| reachable_functions.contains(id));
+
+        #[cfg(debug_assertions)]
+        remove_unreachable_functions_post_check(&self);
+
         self
     }
+}
+
+/// Post-check condition for [Ssa::remove_unreachable_functions].
+///
+/// Succeeds if:
+///   - `ssa` contains no unreachable functions, i.e., all functions are reachable from the entry points.
+///
+/// Otherwise panics.
+///
+/// ## Note
+/// We reuse the same logic for checking reachability as in the main pass, so this function will not
+/// catch any bugs in the pass itself, but it will ensure that the pass is idempotent.
+#[cfg(debug_assertions)]
+fn remove_unreachable_functions_post_check(ssa: &Ssa) {
+    let reachable_functions = reachable_functions(ssa);
+
+    let has_unreachable_functions =
+        ssa.functions.keys().any(|id| !reachable_functions.contains(id));
+
+    assert!(!has_unreachable_functions, "SSA contains unreachable functions");
+}
+
+/// Identifies all reachable function IDs within the provided [Ssa].
+/// This includes:
+/// - Function calls (functions used via `Call` instructions)
+/// - Function references (functions stored via `Store` instructions)
+///
+/// # Arguments
+/// - `ssa`: The [Ssa] to analyze for usage
+///
+/// # Returns
+/// A sorted set of [`FunctionId`]s that are reachable from the entry points of the SSA.
+fn reachable_functions(ssa: &Ssa) -> HashSet<FunctionId> {
+    // Identify entry points
+    let entry_points = ssa.functions.iter().filter_map(|(&id, func)| {
+        // Not using `Ssa::is_entry_point` because it could leave Brillig functions that nobody calls in the SSA,
+        // because it considers every Brillig function as an entry point.
+        let is_entry_point =
+            id == ssa.main_id || func.runtime().is_acir() && func.runtime().is_entry_point();
+        is_entry_point.then_some(id)
+    });
+
+    // Build call graph dependencies using this passes definition of reachability.
+    let dependencies = ssa.functions.iter().map(|(&id, func)| (id, used_functions(func))).collect();
+    let call_graph = CallGraph::from_deps(dependencies);
+
+    // Traverse the call graph from all entry points
+    call_graph.reachable_from(entry_points)
 }
 
 /// Identifies all reachable function IDs within a given function.

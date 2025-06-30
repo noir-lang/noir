@@ -24,8 +24,9 @@ global V_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| -> bool a.lt(b);
 
 global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| -> bool a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP: fn() -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> =
-    || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> Default::default();
+global ALLOCATE_HASHMAP: fn() -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> = || -> UHashMap<K, V, BuildHasherDefault<Poseidon2Hasher>> {
+    UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::default()
+};
 
 unconstrained fn main(input: [Entry; 6]) {
     test_sequential(input[0_u32].key, input[0_u32].value);
@@ -201,13 +202,16 @@ type MyMap = UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>>;
 
 /// Tests examples from the stdlib cthashmap documentation
 unconstrained fn doc_tests() {
-    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    assert(hashmap.is_empty());
-    let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
     let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> =
-        UHashMap::with_hasher(my_hasher);
+        UHashMap::<u8, u32, BuildHasherDefault<Poseidon2Hasher>>::default();
     assert(hashmap.is_empty());
-    let mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
+    let my_hasher: BuildHasherDefault<Poseidon2Hasher> =
+        BuildHasherDefault::<Poseidon2Hasher>::default();
+    let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::<u8, u32, BuildHasherDefault<Poseidon2Hasher>>::with_hasher(my_hasher);
+    assert(hashmap.is_empty());
+    let mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::default();
     map.insert(12_Field, 42_Field);
     assert(map.len() == 1_u32);
     get_example(map);
@@ -229,7 +233,8 @@ unconstrained fn doc_tests() {
     assert(map.len() == 3_u32);
     map.remove(1_Field);
     assert(map.len() == 2_u32);
-    let empty_map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
+    let empty_map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::default();
     assert(empty_map.len() == 0_u32);
     println(empty_map.capacity());
     assert(!map.is_empty());
@@ -244,8 +249,10 @@ unconstrained fn doc_tests() {
     entries_examples(map);
     iter_examples(map);
     map.retain(|k: Field, v: Field| -> bool { (k != 0_Field) & (v != 0_Field) });
-    let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
+    let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::<Field, u64, BuildHasherDefault<Poseidon2Hasher>>::default();
+    let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> =
+        UHashMap::<Field, u64, BuildHasherDefault<Poseidon2Hasher>>::default();
     map1.insert(1_Field, 2_u64);
     map1.insert(3_Field, 4_u64);
     map2.insert(3_Field, 4_u64);
