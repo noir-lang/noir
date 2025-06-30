@@ -105,6 +105,28 @@ impl Context<'_> {
             unreachable!("ICE: expected array or slice type");
         };
 
+        match &array_typ {
+            // Replace Array operations on 0-length arrays by asserting that enable_side_effects are false
+            Type::Array(_, len) => {
+                let zero_var = self.acir_context.add_constant(FieldElement::zero());
+                let result_ids = dfg.instruction_results(instruction);
+                if result_ids.len() == 1 && *len == 0 {
+                    let acir_typ: AcirType = dfg.type_of_value(result_ids[0]).into();
+                    let zero_value = AcirValue::Var(zero_var, acir_typ);
+                    self.define_result(dfg, instruction, zero_value);
+                    let msg = format!("Index out of bounds, array has size 0");
+                    let msg = self.acir_context.generate_assertion_message_payload(msg);
+                    return self.acir_context.assert_eq_var(
+                        self.current_side_effects_enabled_var,
+                        zero_var,
+                        Some(msg),
+                    );
+                }
+            }
+            Type::Slice(_) => (),
+            _ => unreachable!("ICE: expected array or slice type"),
+        }
+
         if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
