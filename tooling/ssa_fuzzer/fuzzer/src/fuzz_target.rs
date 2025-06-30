@@ -1,11 +1,12 @@
 #![no_main]
 
 mod fuzz_lib;
-use fuzz_lib::fuzz_target_lib::{FuzzerData, fuzz_target};
+use fuzz_lib::function_context::FunctionData;
+use fuzz_lib::fuzz_target_lib::fuzz_target;
 use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
 use noirc_driver::CompileOptions;
 
-libfuzzer_sys::fuzz_target!(|data: FuzzerData| {
+libfuzzer_sys::fuzz_target!(|data: Vec<FunctionData>| {
     let _ = env_logger::try_init();
     let mut compile_options = CompileOptions::default();
     if let Ok(triage_value) = std::env::var("TRIAGE") {

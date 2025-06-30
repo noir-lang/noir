@@ -57,7 +57,7 @@ pub struct SsaBlockOptions {
 
 /// Options of the program context
 #[derive(Clone, Debug)]
-pub struct ProgramContextOptions {
+pub struct FunctionContextOptions {
     /// If false, we don't add constraints for idempotent morphing results
     pub idempotent_morphing_enabled: bool,
     /// Options for the program compilation
@@ -75,8 +75,8 @@ pub struct ProgramContextOptions {
     pub max_iterations_num: usize,
 }
 
-impl From<ProgramContextOptions> for SsaBlockOptions {
-    fn from(context_options: ProgramContextOptions) -> Self {
+impl From<FunctionContextOptions> for SsaBlockOptions {
+    fn from(context_options: FunctionContextOptions) -> Self {
         SsaBlockOptions {
             constrain_idempotent_enabled: context_options.idempotent_morphing_enabled,
             instruction_options: context_options.instruction_options,
@@ -87,8 +87,6 @@ impl From<ProgramContextOptions> for SsaBlockOptions {
 /// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
 pub struct FuzzerCommandOptions {
-    /// If false, we don't merge instruction blocks
-    pub merge_instruction_blocks_enabled: bool,
     /// If false, we don't insert jmp_if
     pub jmp_if_enabled: bool,
     /// If false, we don't insert jmp command
@@ -99,12 +97,7 @@ pub struct FuzzerCommandOptions {
 
 impl Default for FuzzerCommandOptions {
     fn default() -> Self {
-        Self {
-            merge_instruction_blocks_enabled: true,
-            jmp_if_enabled: true,
-            jmp_block_enabled: true,
-            switch_to_next_block_enabled: true,
-        }
+        Self { jmp_if_enabled: true, jmp_block_enabled: true, switch_to_next_block_enabled: true }
     }
 }
 
