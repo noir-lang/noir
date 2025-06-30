@@ -17,7 +17,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "16078247100671166886": {
+      "13825279388908862905": {
         "error_kind": "fmtstring",
         "length": 28,
         "item_types": []

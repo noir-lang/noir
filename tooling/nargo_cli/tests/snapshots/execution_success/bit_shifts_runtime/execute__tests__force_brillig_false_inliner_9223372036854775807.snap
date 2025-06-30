@@ -46,13 +46,13 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "14514982005979867414": {
+      "360331956598878543": {
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
+      },
+      "10419109383335261722": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
       }
     }
   },

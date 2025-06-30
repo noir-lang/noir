@@ -17,11 +17,11 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "6485997221020871071": {
+      "3924744033496944961": {
         "error_kind": "string",
         "string": "call to assert_max_bit_size"
       },
-      "17843811134343075018": {
+      "8305973397521126974": {
         "error_kind": "string",
         "string": "Stack too deep"
       }
@@ -42,7 +42,7 @@ expression: artifact
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(2, Witness(0)), (2, Witness(4))], q_c: 3 })], outputs: [Simple(Witness(6))]",
     "EXPR [ (2, _0, _6) (2, _4, _6) (3, _6) -1 ]",
     "unconstrained func 0",
-    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 13 }, Call { location: 14 }, Mov { destination: Direct(32837), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 18 }, Const { destination: Relative(2), bit_size: Field, value: 0 }, Mov { destination: Relative(1), source: Relative(2) }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 23 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 13 }, Call { location: 14 }, Mov { destination: Direct(32837), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 18 }, Const { destination: Relative(2), bit_size: Field, value: 0 }, Mov { destination: Relative(1), source: Relative(2) }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 23 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 8305973397521126974 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]",
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],

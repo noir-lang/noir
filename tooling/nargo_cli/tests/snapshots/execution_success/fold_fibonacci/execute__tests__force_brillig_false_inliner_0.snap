@@ -19,13 +19,13 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "5019202896831570965": {
+      "9579943917905940306": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
+      },
+      "10419109383335261722": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
       }
     }
   },

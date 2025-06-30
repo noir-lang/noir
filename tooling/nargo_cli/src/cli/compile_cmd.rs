@@ -465,7 +465,7 @@ mod tests {
                     // Just compare hashes, which would just state that the program failed.
                     // Then we can use the filter option to zoom in one one to see why.
                     assert!(
-                        rustc_hash::hash64(&program_1) == rustc_hash::hash64(&program_2),
+                        hash64::hash64(&program_1) == hash64::hash64(&program_2),
                         "optimization not idempotent for test program '{}'",
                         package.name
                     );

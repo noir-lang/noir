@@ -24,7 +24,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "11885038074309157496": {
+      "1276454403319381236": {
         "error_kind": "string",
         "string": "x and y are not equal"
       }
