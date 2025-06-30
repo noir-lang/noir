@@ -226,7 +226,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(10);
     /// assert(v.max_len() == 5);
     /// ```
-    pub fn max_len(self) -> u32 {
+    pub fn max_len(_self: Self) -> u32 {
         MaxLen
     }
 

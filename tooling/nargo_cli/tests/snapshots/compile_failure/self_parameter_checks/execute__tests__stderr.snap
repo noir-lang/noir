@@ -2,6 +2,62 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: unused variable self
+  ┌─ src/main.nr:1:12
+  │
+1 │ pub fn one(self: i32) {}
+  │            ---- unused variable
+  │
+
+warning: unused variable self
+   ┌─ src/main.nr:32:14
+   │
+32 │     let _ = |self| {};
+   │              ---- unused variable
+   │
+
+warning: unused variable self
+   ┌─ src/main.nr:31:13
+   │
+31 │     let mut self = 2;
+   │             ---- unused variable
+   │
+
+warning: unused variable self
+  ┌─ src/main.nr:6:21
+  │
+6 │     fn one(_x: i32, self) {}
+  │                     ---- unused variable
+  │
+
+warning: unused variable self
+  ┌─ src/main.nr:7:12
+  │
+7 │     fn two(self: i32) {}
+  │            ---- unused variable
+  │
+
+warning: unused variable self
+  ┌─ src/main.nr:8:14
+  │
+8 │     fn three(self) {}
+  │              ---- unused variable
+  │
+
+warning: unused variable self
+  ┌─ src/main.nr:9:13
+  │
+9 │     fn four(self: &mut Self) {}
+  │             ---- unused variable
+  │
+
+warning: unused variable self
+   ┌─ src/main.nr:10:18
+   │
+10 │     fn five((_x, self): (i32, Self)) {}
+   │                  ---- unused variable
+   │
+
 error: `self` parameter is only allowed in associated functions
   ┌─ src/main.nr:1:12
   │

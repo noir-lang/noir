@@ -140,7 +140,7 @@ impl Elaborator<'_> {
                         name,
                         mutable.is_some(),
                         true, // allow_shadowing
-                        warn_if_unused && !is_self,
+                        warn_if_unused,
                         definition,
                     )
                 };
