@@ -22,6 +22,7 @@ pub(crate) struct InlineInfo {
     is_acir_entry_point: bool,
     is_recursive: bool,
     pub(crate) should_inline: bool,
+    pub(super) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
@@ -189,6 +190,7 @@ fn compute_function_should_be_inlined(
     let runtime = function.runtime();
     let info = inline_infos.entry(func_id).or_default();
 
+    info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
 
