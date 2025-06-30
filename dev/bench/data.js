@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751300934308,
+  "lastUpdate": 1751300965341,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e43a7f4e8fd784aa75e1fd525f582d1373db6bb2",
-          "message": "fix: Match against all Value recursive types when checking for a function/closure in a global (#8967)",
-          "timestamp": "2025-06-18T17:40:32Z",
-          "tree_id": "dfc70d12634dee2d94f2e43cc015856983f255f4",
-          "url": "https://github.com/noir-lang/noir/commit/e43a7f4e8fd784aa75e1fd525f582d1373db6bb2"
-        },
-        "date": 1750271022756,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.64,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6d973cc432257c4379752ccd2442ef04d5efeeac"
         },
         "date": 1751295530624,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 441.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b8abf30ba853b26aabc9819d495c9dff7fc7cdc5",
+          "message": "fix: codegen generic type arguments (#9044)",
+          "timestamp": "2025-06-30T15:51:13Z",
+          "tree_id": "08e1220cead377888c02eb5e9293460abc10629e",
+          "url": "https://github.com/noir-lang/noir/commit/b8abf30ba853b26aabc9819d495c9dff7fc7cdc5"
+        },
+        "date": 1751300952559,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
