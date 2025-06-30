@@ -176,12 +176,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             "Preprocessing Functions",
         ),
+        // SsaPass::new(move |ssa| ssa.inline_until_fixed_point(options.inliner_aggressiveness, false), "Inlining"),
         SsaPass::new(move |ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining"),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
-            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
+        // .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",

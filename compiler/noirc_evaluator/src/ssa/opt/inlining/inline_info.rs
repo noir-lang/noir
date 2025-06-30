@@ -9,6 +9,7 @@ use crate::ssa::{
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -158,8 +159,22 @@ fn compute_function_should_be_inlined(
         return; // Already processed
     }
 
+    let function = &ssa.functions[&func_id];
+    let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
+        function.dfg[*block].instructions().iter().any(|instruction| {
+            let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+            let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+            match &function.dfg[*instruction] {
+                Instruction::Call { func, .. } => {
+                    Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                }
+                _ => false,
+            }
+        })
+    });
+
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(&ssa.functions[&func_id]) as i64;
+    let mut total_weight = compute_function_own_weight(function) as i64;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
@@ -167,11 +182,11 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(&ssa.functions[&func_id]) as i64;
+    let interface_cost = compute_function_interface_cost(function) as i64;
     let inline_cost = times.saturating_mul(total_weight);
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
-    let runtime = ssa.functions[&func_id].runtime();
+    let runtime = function.runtime();
     let info = inline_infos.entry(func_id).or_default();
 
     info.weight = total_weight;
@@ -183,7 +198,8 @@ fn compute_function_should_be_inlined(
 
     let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions);
+        || (runtime.is_no_predicates() && inline_no_predicates_functions)
+        || contains_static_assertion;
 
     info.should_inline = should_inline;
 }

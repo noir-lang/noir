@@ -7,7 +7,11 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
-            cfg::ControlFlowGraph, dfg::DataFlowGraph, function::Function, instruction::{Instruction, InstructionId, Intrinsic}, value::ValueId
+            cfg::ControlFlowGraph,
+            dfg::DataFlowGraph,
+            function::Function,
+            instruction::{Instruction, InstructionId, Intrinsic},
+            value::ValueId,
         },
         ssa_gen::Ssa,
     },
@@ -61,6 +65,7 @@ impl Function {
                 .unwrap_or(true);
 
             if !does_execute {
+                // let blocks_except_header
                 blocks_within_empty_loop.extend(loop_.blocks);
             }
         }
@@ -71,13 +76,14 @@ impl Function {
             let instructions = self.dfg[block].take_instructions();
             let mut filtered_instructions = Vec::with_capacity(instructions.len());
 
-            if blocks_within_empty_loop.contains(&block) {
-                *self.dfg[block].instructions_mut() = instructions;
-                continue;
-            }
+            // if blocks_within_empty_loop.contains(&block) {
+            //     *self.dfg[block].instructions_mut() = instructions;
+            //     continue;
+            // }
 
+            let inside_empty_loop = blocks_within_empty_loop.contains(&block);
             for instruction in instructions {
-                if check_instruction(self, instruction)? {
+                if check_instruction(self, instruction, inside_empty_loop)? {
                     filtered_instructions.push(instruction);
                 }
             }
@@ -97,14 +103,27 @@ impl Function {
 fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
+    inside_empty_loop: bool,
 ) -> Result<bool, RuntimeError> {
-    let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
-    let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant);
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert);
+    if assert_constant_id.is_none() && static_assert_id.is_none() {
+        return Ok(true);
+    }
+
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            if *func == assert_constant_id {
+            let is_assert_constant = Some(*func) == assert_constant_id.copied();
+            let is_static_assert = Some(*func) == static_assert_id.copied();
+
+            // Skip known assertions inside empty loops
+            if inside_empty_loop && (is_assert_constant || is_static_assert) {
+                return Ok(false);
+            }
+
+            if is_assert_constant {
                 evaluate_assert_constant(function, instruction, arguments)
-            } else if *func == static_assert_id {
+            } else if is_static_assert {
                 evaluate_static_assert(function, instruction, arguments)
             } else {
                 Ok(true)
@@ -201,7 +220,7 @@ fn append_foreign_call_param(
 
 #[cfg(test)]
 mod test {
-    use crate::{errors::RuntimeError, ssa::ssa_gen::Ssa};
+    use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::ssa_gen::Ssa};
 
     #[test]
     fn do_not_fail_on_assert_constant_in_empty_loop() {
@@ -242,7 +261,45 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        assert!(ssa.evaluate_static_assert_and_assert_constant().is_ok());
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        // We expected the assert constant which would have otherwise returned a runtime error
+        // to be removed from the SSA.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            v4, v5 = call as_slice(v2) -> (u32, [Field])
+            v6 = make_array [] : [Field]
+            v7 = allocate -> &mut u32
+            store u32 0 at v7
+            v9 = allocate -> &mut [Field]
+            store v6 at v9
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v10 = lt v0, u32 0
+            jmpif v10 then: b2, else: b3
+          b2():
+            v13 = lt v0, u32 0
+            constrain v13 == u1 1
+            v15 = load v7 -> u32
+            v16 = load v9 -> [Field]
+            v18, v19 = call slice_push_back(v15, v16) -> (u32, [Field])
+            store v18 at v7
+            store v19 at v9
+            v21 = unchecked_add v0, u32 1
+            jmp b1(v21)
+          b3():
+            v11 = load v7 -> u32
+            v12 = load v9 -> [Field]
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ");
     }
 
     #[test]
@@ -263,6 +320,9 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        assert!(matches!(ssa.evaluate_static_assert_and_assert_constant().err().unwrap(), RuntimeError::AssertConstantFailed { .. }));
+        assert!(matches!(
+            ssa.evaluate_static_assert_and_assert_constant().err().unwrap(),
+            RuntimeError::AssertConstantFailed { .. }
+        ));
     }
 }

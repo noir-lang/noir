@@ -126,12 +126,13 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
     "array_to_slice_constant_length",
+    "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
     "import",
