@@ -609,31 +609,6 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
             }
         }
 
-        // Include the print part of stdlib for the elaborator to be able to use the print oracle
-        write!(
-            f,
-            r#"
-        #[oracle(print)]
-        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {{}}
-
-        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {{
-            print_oracle(with_newline, input);
-        }}
-
-        pub fn println<T>(input: T) {{
-            unsafe {{
-                print_unconstrained(true, input);
-            }}
-        }}
-
-        pub fn print<T>(input: T) {{
-            unsafe {{
-                print_unconstrained(false, input);
-            }}
-        }}
-        "#
-        )?;
-
         Ok(())
     }
 }
