@@ -83,9 +83,7 @@ impl Function {
                     lhs_constant == rhs_constant
                 }
                 Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
-                    let requires_acir_gen_predicate =
-                        binary.requires_acir_gen_predicate(context.dfg);
-                    if requires_acir_gen_predicate {
+                    if binary.has_side_effects() {
                         // If performing the binary operation depends on the side effects condition, then
                         // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
                         let predicate = context.dfg.get_numeric_constant(side_effects_condition);

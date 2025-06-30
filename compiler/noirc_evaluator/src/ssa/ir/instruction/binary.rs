@@ -85,6 +85,26 @@ impl Binary {
             _ => InstructionResultType::Operand(self.lhs),
         }
     }
+
+    pub(crate) fn has_side_effects(&self) -> bool {
+        match self.operator {
+            BinaryOp::Add { unchecked: false }
+            | BinaryOp::Sub { unchecked: false }
+            | BinaryOp::Mul { unchecked: false }
+            | BinaryOp::Div
+            | BinaryOp::Mod => true,
+            BinaryOp::Add { unchecked: true }
+            | BinaryOp::Sub { unchecked: true }
+            | BinaryOp::Mul { unchecked: true }
+            | BinaryOp::Eq
+            | BinaryOp::Lt
+            | BinaryOp::And
+            | BinaryOp::Or
+            | BinaryOp::Xor
+            | BinaryOp::Shl
+            | BinaryOp::Shr => false,
+        }
+    }
 }
 
 #[derive(Debug)]

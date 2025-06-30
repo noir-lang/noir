@@ -439,23 +439,7 @@ impl Instruction {
             MakeArray { .. } | Noop => false,
 
             // Some binary math can overflow or underflow
-            Binary(binary) => match binary.operator {
-                BinaryOp::Add { unchecked: false }
-                | BinaryOp::Sub { unchecked: false }
-                | BinaryOp::Mul { unchecked: false }
-                | BinaryOp::Div
-                | BinaryOp::Mod => true,
-                BinaryOp::Add { unchecked: true }
-                | BinaryOp::Sub { unchecked: true }
-                | BinaryOp::Mul { unchecked: true }
-                | BinaryOp::Eq
-                | BinaryOp::Lt
-                | BinaryOp::And
-                | BinaryOp::Or
-                | BinaryOp::Xor
-                | BinaryOp::Shl
-                | BinaryOp::Shr => false,
-            },
+            Binary(binary) => binary.has_side_effects(),
 
             // These don't have side effects
             Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,

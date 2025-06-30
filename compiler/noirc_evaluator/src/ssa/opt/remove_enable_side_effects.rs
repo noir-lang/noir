@@ -89,7 +89,7 @@ impl Function {
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
             // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if instruction.requires_acir_gen_predicate(context.dfg) {
+            if instruction.has_side_effects(context.dfg) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
