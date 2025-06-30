@@ -65,7 +65,6 @@ impl Function {
                 .unwrap_or(true);
 
             if !does_execute {
-                // let blocks_except_header
                 blocks_within_empty_loop.extend(loop_.blocks);
             }
         }
@@ -75,11 +74,6 @@ impl Function {
             // check_instruction can also return an error
             let instructions = self.dfg[block].take_instructions();
             let mut filtered_instructions = Vec::with_capacity(instructions.len());
-
-            // if blocks_within_empty_loop.contains(&block) {
-            //     *self.dfg[block].instructions_mut() = instructions;
-            //     continue;
-            // }
 
             let inside_empty_loop = blocks_within_empty_loop.contains(&block);
             for instruction in instructions {
