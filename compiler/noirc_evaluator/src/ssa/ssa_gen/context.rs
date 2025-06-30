@@ -564,9 +564,18 @@ impl<'a> FunctionContext<'a> {
         mut rhs: ValueId,
         location: Location,
     ) -> Values {
-        let op = convert_operator(operator);
+        let mut op = convert_operator(operator);
         if operator_requires_swapped_operands(operator) {
             std::mem::swap(&mut lhs, &mut rhs);
+        }
+
+        if matches!(self.builder.type_of_value(lhs), Type::Numeric(NumericType::Signed { .. })) {
+            op = match op {
+                BinaryOp::Add { .. } => BinaryOp::Add { unchecked: true },
+                BinaryOp::Sub { .. } => BinaryOp::Sub { unchecked: true },
+                BinaryOp::Mul { .. } => BinaryOp::Mul { unchecked: true },
+                op => op,
+            };
         }
 
         let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
