@@ -145,7 +145,9 @@ export function resolveGithubCodeArchive(dependency: GitDependencyConfig, format
   }
 
   // Validate ref to prevent path traversal attacks
-  if (ref.includes('..') || ref.includes('/') || ref.includes('\\')) {
+  // First decode any URL encoding to catch encoded path traversal attempts
+  const decodedRef = decodeURIComponent(ref);
+  if (decodedRef.includes('..') || decodedRef.includes('/') || decodedRef.includes('\\')) {
     throw new Error('Invalid git reference. Git references cannot contain path traversal characters');
   }
 
