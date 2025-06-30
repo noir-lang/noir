@@ -597,6 +597,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         // for example `for i in (5 / 10) as u32 .. 2` is `0..2` or `1..2` depending on whether 5 and 10
         // were some number in the AST or `Field` when parsed by the test.
         printer.show_type_of_int_literal = true;
+
         for function in &self.0.functions {
             if function.id == Program::main_id() {
                 let mut function = function.clone();
@@ -607,6 +608,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
                 printer.print_function(function, f, FunctionPrintOptions::default())?;
             }
         }
+
         Ok(())
     }
 }
