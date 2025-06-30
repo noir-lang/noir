@@ -14,6 +14,7 @@ dependencies = [
  "color-eyre",
  "criterion",
  "flate2",
+ "hash64",
  "insta",
  "noir_protobuf",
  "num-bigint",
