@@ -332,7 +332,7 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod test {
-    use fxhash::FxHashSet;
+    use rustc_hash::FxHashSet;
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;

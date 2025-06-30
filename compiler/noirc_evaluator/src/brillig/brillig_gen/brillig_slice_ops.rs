@@ -160,7 +160,7 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
-    use fxhash::FxHashMap as HashMap;
+    use rustc_hash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::brillig::ValueId;
