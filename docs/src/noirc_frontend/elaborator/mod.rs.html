@@ -2504,7 +2504,23 @@
 <a href="#2503" id="2503">2503</a>
 <a href="#2504" id="2504">2504</a>
 <a href="#2505" id="2505">2505</a>
-<a href="#2506" id="2506">2506</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2506" id="2506">2506</a>
+<a href="#2507" id="2507">2507</a>
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2530,7 +2546,7 @@
     graph::CrateId,
     hir::{
         Context,
-        comptime::{ComptimeError, InterpreterError},
+        comptime::ComptimeError,
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ImplMap, UnresolvedEnum, UnresolvedFunctions,
@@ -4917,89 +4933,103 @@
     }
 }
 
-<span class="doccomment">/// The possible errors of interpreting given code
-/// into a monomorphized AST expression.
-</span><span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
-#[derive(Debug, Clone, PartialEq, Eq)]
-</span><span class="kw">pub enum </span>ElaboratorError {
-    Parse(Vec&lt;ParserError&gt;),
-    Compile(Vec&lt;CompilationError&gt;),
-    Interpret(InterpreterError),
-    HIRConvert(InterpreterError),
-}
+<span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
+</span><span class="kw">pub mod </span>test_utils {
+    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
+    <span class="kw">use crate</span>::{hir::def_collector::dc_crate::CompilationError, parser::ParserError};
 
-<span class="doccomment">/// Interpret source code using the elaborator, without
-/// parsing and compiling it with nargo, converting
-/// the result into a monomorphized AST expression.
-</span><span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
-</span><span class="kw">pub fn </span>interpret(src: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::monomorphization::ast::Expression, ElaboratorError&gt; {
-    <span class="kw">use </span><span class="kw">crate</span>::hir::{
-        Context, ParsedFiles,
-        def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
-        def_map::{CrateDefMap, ModuleData},
-    };
-    <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
-    <span class="kw">use </span><span class="kw">crate</span>::parse_program;
-    <span class="kw">use </span>fm::{FileId, FileManager};
-    <span class="kw">use </span>std::path::PathBuf;
-
-    <span class="kw">let </span>file = FileId::default();
-
-    <span class="kw">let </span>location = Location::new(Default::default(), file);
-    <span class="kw">let </span>root_module = ModuleData::new(
-        <span class="prelude-val">None</span>,
-        location,
-        Vec::new(),
-        Vec::new(),
-        <span class="bool-val">false</span>, <span class="comment">// is contract
-        </span><span class="bool-val">false</span>, <span class="comment">// is struct
-    </span>);
-
-    <span class="kw">let </span>file_manager = FileManager::new(<span class="kw-2">&amp;</span>PathBuf::new());
-    <span class="kw">let </span>parsed_files = ParsedFiles::new();
-    <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
-    context.def_interner.populate_dummy_operator_traits();
-
-    <span class="kw">let </span>krate = context.crate_graph.add_crate_root(FileId::dummy());
-
-    <span class="kw">let </span>(module, errors) = parse_program(src, file);
-    <span class="comment">// Skip parser warnings
-    </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
-    <span class="kw">if </span>!errors.is_empty() {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Parse(errors));
+    <span class="doccomment">/// The possible errors of interpreting given code
+    /// into a monomorphized AST expression.
+    </span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
+    </span><span class="kw">pub enum </span>ElaboratorError {
+        Parse(Vec&lt;ParserError&gt;),
+        Compile(Vec&lt;CompilationError&gt;),
+        Interpret(InterpreterError),
+        HIRConvert(InterpreterError),
     }
 
-    <span class="kw">let </span>ast = module.into_sorted();
+    <span class="doccomment">/// Interpret source code using the elaborator, without
+    /// parsing and compiling it with nargo, converting
+    /// the result into a monomorphized AST expression.
+    </span><span class="kw">pub fn </span>interpret(
+        src: <span class="kw-2">&amp;</span>str,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::monomorphization::ast::Expression, ElaboratorError&gt; {
+        <span class="kw">use </span><span class="kw">crate</span>::elaborator::ElaboratorOptions;
+        <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+        <span class="kw">use </span><span class="kw">crate</span>::parse_program;
+        <span class="kw">use crate</span>::{
+            elaborator::Elaborator,
+            hir::{
+                Context, ParsedFiles,
+                def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
+                def_map::{CrateDefMap, ModuleData},
+            },
+        };
+        <span class="kw">use </span>fm::{FileId, FileManager};
+        <span class="kw">use </span>noirc_errors::Location;
+        <span class="kw">use </span>std::path::PathBuf;
 
-    <span class="kw">let </span>def_map = CrateDefMap::new(krate, root_module);
-    <span class="kw">let </span>root_module_id = def_map.root();
-    <span class="kw">let </span><span class="kw-2">mut </span>collector = DefCollector::new(def_map);
+        <span class="kw">let </span>file = FileId::default();
 
-    collect_defs(<span class="kw-2">&amp;mut </span>collector, ast, FileId::dummy(), root_module_id, krate, <span class="kw-2">&amp;mut </span>context);
-    context.def_maps.insert(krate, collector.def_map);
+        <span class="kw">let </span>location = Location::new(Default::default(), file);
+        <span class="kw">let </span>root_module = ModuleData::new(
+            <span class="prelude-val">None</span>,
+            location,
+            Vec::new(),
+            Vec::new(),
+            <span class="bool-val">false</span>, <span class="comment">// is contract
+            </span><span class="bool-val">false</span>, <span class="comment">// is struct
+        </span>);
 
-    <span class="kw">let </span>main = context.get_main_function(<span class="kw-2">&amp;</span>krate).expect(<span class="string">"Expected 'main' function"</span>);
+        <span class="kw">let </span>file_manager = FileManager::new(<span class="kw-2">&amp;</span>PathBuf::new());
+        <span class="kw">let </span>parsed_files = ParsedFiles::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
+        context.def_interner.populate_dummy_operator_traits();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::elaborate_and_return_self(
-        <span class="kw-2">&amp;mut </span>context,
-        krate,
-        collector.items,
-        ElaboratorOptions::test_default(),
-    );
+        <span class="kw">let </span>krate = context.crate_graph.add_crate_root(FileId::dummy());
 
-    <span class="comment">// Skip the elaborator's compilation warnings
-    </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = elaborator.errors.iter().filter(|<span class="kw-2">&amp;</span>e| e.is_error()).cloned().collect();
-    <span class="kw">if </span>!errors.is_empty() {
-        <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Compile(errors));
-    }
+        <span class="kw">let </span>(module, errors) = parse_program(src, file);
+        <span class="comment">// Skip parser warnings
+        </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
+        <span class="kw">if </span>!errors.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Parse(errors));
+        }
 
-    <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
+        <span class="kw">let </span>ast = module.into_sorted();
 
-    <span class="comment">// The most straightforward way to convert the interpreter result into
-    // an acceptable monomorphized AST expression seems to be converting it
-    // into HIR first and then processing it with the monomorphizer
-    </span><span class="kw">let </span>expr_id =
-        <span class="kw">match </span>interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
+        <span class="kw">let </span>def_map = CrateDefMap::new(krate, root_module);
+        <span class="kw">let </span>root_module_id = def_map.root();
+        <span class="kw">let </span><span class="kw-2">mut </span>collector = DefCollector::new(def_map);
+
+        collect_defs(<span class="kw-2">&amp;mut </span>collector, ast, FileId::dummy(), root_module_id, krate, <span class="kw-2">&amp;mut </span>context);
+        context.def_maps.insert(krate, collector.def_map);
+
+        <span class="kw">let </span>main = context.get_main_function(<span class="kw-2">&amp;</span>krate).expect(<span class="string">"Expected 'main' function"</span>);
+
+        <span class="kw">let </span><span class="kw-2">mut </span>elaborator = Elaborator::elaborate_and_return_self(
+            <span class="kw-2">&amp;mut </span>context,
+            krate,
+            collector.items,
+            ElaboratorOptions::test_default(),
+        );
+
+        <span class="comment">// Skip the elaborator's compilation warnings
+        </span><span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = elaborator.errors.iter().filter(|<span class="kw-2">&amp;</span>e| e.is_error()).cloned().collect();
+        <span class="kw">if </span>!errors.is_empty() {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Compile(errors));
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = elaborator.setup_interpreter();
+
+        <span class="comment">// The most straightforward way to convert the interpreter result into
+        // an acceptable monomorphized AST expression seems to be converting it
+        // into HIR first and then processing it with the monomorphizer
+        </span><span class="kw">let </span>expr_id = <span class="kw">match </span>interpreter.call_function(
+            main,
+            Vec::new(),
+            Default::default(),
+            Location::dummy(),
+        ) {
             <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::Interpret(e)),
             <span class="prelude-val">Ok</span>(value) =&gt; <span class="kw">match </span>value.into_hir_expression(elaborator.interner, Location::dummy()) {
                 <span class="prelude-val">Err</span>(e) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(ElaboratorError::HIRConvert(e)),
@@ -5007,7 +5037,9 @@
             },
         };
 
-    <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
-    <span class="prelude-val">Ok</span>(monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>))
+        <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer =
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+        <span class="prelude-val">Ok</span>(monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>))
+    }
 }
 </code></pre></div></section></main></body></html>
