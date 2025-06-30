@@ -19,9 +19,11 @@ use noirc_driver::{
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::SsaProgramArtifact;
-use noirc_frontend::elaborator::ElaboratorError;
+use noirc_frontend::elaborator::test_utils::ElaboratorError;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
-use noirc_frontend::{elaborator::interpret, hir::Context, monomorphization::ast::Program};
+use noirc_frontend::{
+    elaborator::test_utils::interpret, hir::Context, monomorphization::ast::Program,
+};
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
 use crate::compare::compiled::ExecResult;
