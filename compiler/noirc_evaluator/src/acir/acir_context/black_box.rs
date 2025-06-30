@@ -223,9 +223,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // Convert `AcirVar` to `FunctionInput`
         let mut inputs =
             self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
-        if name == BlackBoxFunc::EmbeddedCurveAdd {
-            inputs = self.all_or_nothing_for_ec_add(inputs)?;
-        }
         Ok(inputs)
     }
 
@@ -267,40 +264,5 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             witnesses.push(single_val_witnesses);
         }
         Ok(witnesses)
-    }
-
-    /// EcAdd has 6 inputs representing the two points to add
-    /// Each point must be either all constant, or all witnesses
-    fn all_or_nothing_for_ec_add(
-        &mut self,
-        inputs: Vec<Vec<FunctionInput<F>>>,
-    ) -> Result<Vec<Vec<FunctionInput<F>>>, RuntimeError> {
-        let mut has_constant = false;
-        let mut has_witness = false;
-        let mut result = inputs.clone();
-        for (i, input) in inputs.iter().enumerate() {
-            if input[0].is_constant() {
-                has_constant = true;
-            } else {
-                has_witness = true;
-            }
-            if i % 3 == 2 {
-                if has_constant && has_witness {
-                    // Convert the constants to witness if mixed constant and witness,
-                    for j in i - 2..i + 1 {
-                        if let ConstantOrWitnessEnum::Constant(constant) = inputs[j][0].input() {
-                            let constant = self.add_constant(constant);
-                            let witness_var = self.get_or_create_witness_var(constant)?;
-                            let witness = self.var_to_witness(witness_var)?;
-                            result[j] =
-                                vec![FunctionInput::witness(witness, inputs[j][0].num_bits())];
-                        }
-                    }
-                }
-                has_constant = false;
-                has_witness = false;
-            }
-        }
-        Ok(result)
     }
 }
