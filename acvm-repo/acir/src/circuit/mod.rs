@@ -610,16 +610,6 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_proto_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = proto_serialize(&program);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
-        #[test]
         fn prop_program_bincode_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
                 let bz = bincode_serialize(&program)?;
@@ -645,16 +635,6 @@ mod tests {
                 let bz = Program::serialize_program(&program);
                 let de = Program::deserialize_program(&bz)?;
                 prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
-        #[test]
-        fn prop_witness_stack_proto_roundtrip() {
-            run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = proto_serialize(&witness);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(witness, de);
                 Ok(())
             });
         }

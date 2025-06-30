@@ -1,7 +1,6 @@
 # Bytecode Size Comparison
 
 These scripts can be used to compare the bytecode size of circuits in `aztec-packages` between two different versions of `nargo`.
-For example we can see what happens if we change the serialization format from `bincode` to `protobuf` in https://github.com/noir-lang/noir/pull/7513
 
 ## Compiling contracts
 

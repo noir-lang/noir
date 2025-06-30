@@ -46,7 +46,6 @@ members = [
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
     "tooling/ssa_executor",
-    "utils/protobuf",
 ]
 default-members = [
     "tooling/nargo_cli",
@@ -113,7 +112,6 @@ noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
-noir_protobuf = { path = "utils/protobuf" }
 noir_ssa_executor = { path = "tooling/ssa_executor" }
 noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
@@ -157,11 +155,6 @@ criterion = "0.5.1"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
 pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
-
-# Protobuf
-prost = "0.13"
-prost-build = "0.13"
-protoc-prebuilt = "0.3"
 
 # MessagePack
 rmp = "0.8.14"
