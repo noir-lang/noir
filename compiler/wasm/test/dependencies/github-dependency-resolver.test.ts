@@ -130,6 +130,20 @@ describe('GithubDependencyResolver', () => {
   });
 
   forEach([
+    { git: 'https://github.com/example/repo', tag: '../raw/malicious_file' },
+    { git: 'https://github.com/example/repo', tag: '../../etc/passwd' },
+    { git: 'https://github.com/example/repo', tag: 'valid/../invalid' },
+    { git: 'https://github.com/example/repo', tag: '/etc/passwd' },
+    { git: 'https://github.com/example/repo', tag: 'branch/with/slash' },
+    { git: 'https://github.com/example/repo', tag: 'windows\\path\\traversal' },
+    { git: 'https://github.com/example/repo', tag: '..\\windows\\path' },
+  ]).it('throws if the git tag contains path traversal characters %j', (dep) => {
+    expect(() => resolveGithubCodeArchive(dep, 'zip')).to.throw(
+      'Invalid git reference. Git references cannot contain path traversal characters',
+    );
+  });
+
+  forEach([
     ['main', 'main'],
     ['v1.0.0', 'v1.0.0'],
     ['../../../etc/passwd', '.._.._.._etc_passwd'],
