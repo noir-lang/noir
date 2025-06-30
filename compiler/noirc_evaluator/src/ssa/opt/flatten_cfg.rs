@@ -1073,7 +1073,8 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> (ValueId, ValueId) {
         let index = !abscissa as usize;
-        if inputs[3 + index] == inputs[index] {
+        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
+            // Point doubling
             let predicated_value =
                 self.var_or(inputs[index], condition, generators[index], call_stack);
             (predicated_value, predicated_value)
