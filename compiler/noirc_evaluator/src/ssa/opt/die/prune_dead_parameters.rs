@@ -39,7 +39,7 @@
 //! b1(v0: Field):
 //!   return v0
 //! ```
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{

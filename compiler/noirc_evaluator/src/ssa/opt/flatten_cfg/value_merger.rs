@@ -1,5 +1,5 @@
 use acvm::{FieldElement, acir::AcirField};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::{

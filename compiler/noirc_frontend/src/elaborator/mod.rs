@@ -68,7 +68,7 @@ pub mod types;
 mod unquote;
 
 use function_context::FunctionContext;
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};

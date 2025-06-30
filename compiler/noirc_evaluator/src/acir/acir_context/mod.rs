@@ -19,7 +19,7 @@ use acvm::{
         native_types::{Expression, Witness},
     },
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;

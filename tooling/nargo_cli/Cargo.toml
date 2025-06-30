@@ -30,7 +30,6 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
-fxhash.workspace = true
 iter-extended.workspace = true
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole
@@ -75,6 +74,7 @@ color-eyre.workspace = true
 tokio = { version = "1.0", features = ["io-std", "rt"] }
 dap.workspace = true
 clap-markdown = { git = "https://github.com/noir-lang/clap-markdown", rev = "450d759532c88f0dba70891ceecdbc9ff8f25d2b", optional = true }
+hash64.workspace = true
 
 notify = "6.1.1"
 notify-debouncer-full = "0.3.1"

@@ -24,7 +24,7 @@ use async_lsp::{
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
+use rustc_hash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -97,7 +97,7 @@ pub struct LspState {
     open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_lenses: HashMap<String, Vec<CodeLens>>,
-    cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
+    cached_parsed_files: HashMap<PathBuf, (u64, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
@@ -381,7 +381,7 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
                     Some((
                         file_id,
                         file_path.to_path_buf(),
-                        fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
+                        hash64::hash64(file_manager.fetch_file(file_id).expect("file must exist")),
                     ))
                 } else {
                     None

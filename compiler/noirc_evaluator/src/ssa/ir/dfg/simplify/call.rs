@@ -1,4 +1,4 @@
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
 use std::{collections::VecDeque, sync::Arc};
 

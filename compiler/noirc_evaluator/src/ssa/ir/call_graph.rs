@@ -10,7 +10,7 @@
 //! and purity analysis which needs to unify the purities of all functions called within another function.
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use petgraph::{
     algo::kosaraju_scc,
     graph::{DiGraph, NodeIndex as PetGraphIndex},

@@ -65,7 +65,7 @@ use crate::ssa::{
     opt::pure::Purity,
 };
 use acvm::{FieldElement, acir::AcirField};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStackId;
 
 use super::unrolling::{Loop, Loops};

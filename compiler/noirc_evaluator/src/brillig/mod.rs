@@ -23,7 +23,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;

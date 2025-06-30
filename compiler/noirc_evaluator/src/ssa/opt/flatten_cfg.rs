@@ -133,7 +133,7 @@
 //!   store v12 at v5         (new store)
 use std::sync::Arc;
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;

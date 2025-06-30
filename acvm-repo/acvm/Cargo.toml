@@ -17,10 +17,10 @@ workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
-fxhash.workspace = true
 acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
+hash64.workspace = true
 
 indexmap = "1.7.0"
 

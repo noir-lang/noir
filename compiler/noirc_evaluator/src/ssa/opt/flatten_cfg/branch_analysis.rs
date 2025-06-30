@@ -22,7 +22,7 @@
 //! the resulting map from each split block to each join block is returned.
 
 use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
 /// their corresponding blocks that end the branch.

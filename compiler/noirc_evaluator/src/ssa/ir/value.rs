@@ -1,4 +1,4 @@
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use acvm::FieldElement;

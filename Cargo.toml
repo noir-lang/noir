@@ -41,12 +41,13 @@ members = [
     "acvm-repo/bn254_blackbox_solver",
     # Utility crates
     "utils/iter-extended",
+    "utils/hash64",
 
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
     "tooling/ssa_executor",
-    "utils/protobuf",
+    "utils/protobuf", "utils/hash64",
 ]
 default-members = [
     "tooling/nargo_cli",
@@ -131,6 +132,7 @@ ark-std = { version = "^0.5.0", default-features = false }
 
 # Misc utils crates
 iter-extended = { path = "utils/iter-extended" }
+hash64 = { path = "utils/hash64" }
 
 # LSP
 async-lsp = { version = "0.2.2", default-features = false }
@@ -181,7 +183,7 @@ thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
 base64 = "0.21.2"
-fxhash = "0.2.1"
+rustc-hash = "2.1.1"
 build-data = "0.1.3"
 bincode = "1.3.3"
 hex = "0.4.2"

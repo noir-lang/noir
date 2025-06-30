@@ -24,9 +24,9 @@ acvm.workspace = true
 iter-extended.workspace = true
 fm.workspace = true
 serde.workspace = true
-fxhash.workspace = true
 rust-embed.workspace = true
 tracing.workspace = true
+hash64.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]

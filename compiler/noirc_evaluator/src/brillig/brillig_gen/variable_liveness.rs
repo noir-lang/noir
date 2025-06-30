@@ -12,7 +12,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::constant_allocation::ConstantAllocation;
 

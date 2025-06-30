@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use rangemap::StepLite;

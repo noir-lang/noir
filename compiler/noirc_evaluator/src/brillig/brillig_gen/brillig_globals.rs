@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::brillig_block::BrilligBlock;
 use super::{BrilligVariable, Function, FunctionContext, ValueId};

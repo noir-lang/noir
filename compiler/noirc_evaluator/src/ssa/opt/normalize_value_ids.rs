@@ -10,7 +10,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 
 impl Ssa {

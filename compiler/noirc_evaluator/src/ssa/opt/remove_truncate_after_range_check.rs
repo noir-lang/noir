@@ -1,4 +1,4 @@
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{function::Function, instruction::Instruction, value::ValueId},

@@ -24,7 +24,7 @@ use crate::ssa::ir::value::ValueId;
 
 use super::GlobalsGraph;
 use super::value::{Tree, Value, Values};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// The FunctionContext is the main context object for translating a
 /// function into SSA form during the SSA-gen pass.

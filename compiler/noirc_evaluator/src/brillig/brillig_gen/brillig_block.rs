@@ -20,7 +20,7 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{FieldElement, acir::AcirField};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;

@@ -13,7 +13,7 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use acvm::{AcirField, FieldElement};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 

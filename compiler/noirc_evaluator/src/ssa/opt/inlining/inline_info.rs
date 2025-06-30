@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use fxhash::FxHashSet as HashSet;
+use rustc_hash::FxHashSet as HashSet;
 use im::HashMap;
 use petgraph::graph::NodeIndex as PetGraphIndex;
 

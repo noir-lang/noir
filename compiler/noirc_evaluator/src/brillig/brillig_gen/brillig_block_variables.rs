@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use fxhash::FxHashSet as HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{

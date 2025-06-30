@@ -1,4 +1,4 @@
-use fxhash::FxHashMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::Location;
@@ -103,14 +103,14 @@ impl CallStackHelper {
 
     /// Adds a location to the call stack
     pub fn add_child(&mut self, call_stack: CallStackId, location: Location) -> CallStackId {
-        let key = fxhash::hash64(&location);
+        let key = hash64::hash64(&location);
         if let Some(result) = self.locations[call_stack.index()].children_hash.get(&key) {
             if self.locations[result.index()].value == location {
                 return *result;
             }
         }
         let new_location = LocationNode::new(Some(call_stack), location);
-        let key = fxhash::hash64(&new_location.value);
+        let key = hash64::hash64(&new_location.value);
         self.locations.push(new_location);
         let new_location_id = CallStackId::new(self.locations.len() - 1);
 

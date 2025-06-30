@@ -60,7 +60,7 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
                 continue;
             };
             let program = monomorphize(main, &mut context.def_interner, false).unwrap();
-            let hash = fxhash::hash64(&program);
+            let hash = hash64::hash64(&program);
             println!("{}: {:x}", package.name, hash);
             continue;
         }

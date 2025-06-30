@@ -5,7 +5,7 @@ use acir::circuit::brillig::BrilligFunctionId;
 use acir::circuit::{AcirOpcodeLocation, OpcodeLocation};
 use color_eyre::eyre;
 use fm::codespan_files::Files;
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use inferno::flamegraph::{Options, TextTruncateDirection, from_lines};
 use noirc_errors::Location;
 use noirc_errors::debug_info::DebugInfo;
