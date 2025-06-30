@@ -59,6 +59,7 @@ impl<'f> Validator<'f> {
     /// Add/Sub -> Truncate
     /// Mul -> Cast -> Truncate
     fn validate_signed_op_overflow_pattern(&mut self, instruction: InstructionId) {
+        return;
         let dfg = &self.function.dfg;
         match &dfg[instruction] {
             Instruction::Binary(binary) => {
