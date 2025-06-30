@@ -1,9 +1,6 @@
 use acvm::{
     BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::opcodes::FunctionInput,
-    },
+    acir::{AcirField, BlackBoxFunc, circuit::opcodes::FunctionInput},
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -221,8 +218,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 | BlackBoxFunc::EmbeddedCurveAdd
         );
         // Convert `AcirVar` to `FunctionInput`
-        let inputs =
-            self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
+        let inputs = self.prepare_inputs_for_black_box_func_call(inputs, allow_constant_inputs)?;
         Ok(inputs)
     }
 
