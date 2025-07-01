@@ -22,6 +22,10 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
+      "285656119219400463": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 32 limbs"
+      },
       "6485997221020871071": {
         "error_kind": "string",
         "string": "call to assert_max_bit_size"
