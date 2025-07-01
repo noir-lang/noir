@@ -1,12 +1,11 @@
 use super::NUMBER_OF_PREDEFINED_VARIABLES;
 use super::NUMBER_OF_VARIABLES_INITIAL;
-use super::function_context::{FunctionData, FuzzerFunctionCommand, WitnessValue};
+use super::function_context::{FunctionData, WitnessValue};
 use super::fuzzer::Fuzzer;
 use super::options::FuzzerOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::typed_value::ValueType;
-use serde::{Deserialize, Serialize};
 
 fn initialize_witness_map(
     data: &FunctionData,
@@ -649,6 +648,7 @@ mod tests {
     ///   }
     #[test]
     fn call_in_if_else() {
+        let _ = env_logger::try_init();
         let dummy_var = Argument { index: 2, value_type: ValueType::I64 };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_3_field = Argument { index: 3, value_type: ValueType::Field };
@@ -729,10 +729,12 @@ mod tests {
             0,
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
         ); // add true boolean
+        log::debug!("commands: {:?}", commands);
         blocks.push(add_boolean_block);
+        log::debug!("blocks: {:?}", blocks);
         let main_func = FunctionData {
             blocks: blocks.clone(),
-            commands: commands_for_main.clone(),
+            commands: commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 3,
             return_type: ValueType::Field,

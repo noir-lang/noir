@@ -26,7 +26,6 @@ pub(crate) struct Fuzzer {
     pub(crate) context_non_constant: Option<FuzzerProgramContext>,
     pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerProgramContext>,
     pub(crate) context_constant: Option<FuzzerProgramContext>,
-    options: FuzzerOptions,
 }
 
 impl Fuzzer {
@@ -69,7 +68,6 @@ impl Fuzzer {
             context_non_constant,
             context_non_constant_with_idempotent_morphing,
             context_constant,
-            options,
         }
     }
 

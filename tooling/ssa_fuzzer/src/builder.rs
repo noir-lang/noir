@@ -196,9 +196,6 @@ impl FuzzerBuilder {
                 init_bit_length,
             );
         }
-        if cast_type.bit_length() > value.to_value_type().bit_length() {
-            return value;
-        }
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())

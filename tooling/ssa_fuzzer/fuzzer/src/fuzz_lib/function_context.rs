@@ -681,9 +681,11 @@ impl<'a> FuzzerFunctionContext<'a> {
                 if num_of_defined_functions == 0 {
                     return;
                 }
-                let function_id =
-                    *self.defined_functions.keys().into_iter().collect::<Vec<&Id<Function>>>()
-                        [function_idx % num_of_defined_functions];
+                let mut function_ids =
+                    self.defined_functions.keys().into_iter().collect::<Vec<&Id<Function>>>();
+                function_ids.sort();
+
+                let function_id = *function_ids[function_idx % num_of_defined_functions];
                 let function_signature = self.defined_functions[&function_id].clone();
 
                 self.current_block.context.process_function(
