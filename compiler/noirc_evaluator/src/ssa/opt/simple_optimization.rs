@@ -1,3 +1,5 @@
+use noirc_errors::call_stack::CallStackId;
+
 use crate::{
     errors::RtResult,
     ssa::ir::{
@@ -68,9 +70,11 @@ impl Function {
                     instruction.replace_values(&values_to_replace);
                 }
 
+                let call_stack_id = self.dfg.get_instruction_call_stack_id(instruction_id);
                 let mut context = SimpleOptimizationContext {
                     block_id,
                     instruction_id,
+                    call_stack_id,
                     dfg: &mut self.dfg,
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
@@ -94,6 +98,7 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     #[allow(unused)]
     pub(crate) block_id: BasicBlockId,
     pub(crate) instruction_id: InstructionId,
+    pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,

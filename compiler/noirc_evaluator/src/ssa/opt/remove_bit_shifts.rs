@@ -1,7 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
@@ -60,7 +59,6 @@ impl Function {
 
             context.remove_current_instruction();
 
-            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
             let bit_size = match context.dfg.type_of_value(lhs) {
@@ -70,10 +68,10 @@ impl Function {
             };
 
             let new_result = if operator == BinaryOp::Shl {
-                let mut context = Context { context, call_stack };
+                let mut context = Context { context };
                 context.insert_wrapping_shift_left(lhs, rhs, bit_size)
             } else {
-                let mut context = Context { context, call_stack };
+                let mut context = Context { context };
                 context.insert_shift_right(lhs, rhs, bit_size)
             };
 
@@ -87,7 +85,6 @@ impl Function {
 
 struct Context<'m, 'dfg, 'mapping> {
     context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
-    call_stack: CallStackId,
 }
 
 impl Context<'_, '_, '_> {
@@ -382,7 +379,7 @@ impl Context<'_, '_, '_> {
             instruction,
             self.context.block_id,
             ctrl_typevars,
-            self.call_stack,
+            self.context.call_stack_id,
         )
     }
 }

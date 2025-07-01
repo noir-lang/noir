@@ -1,5 +1,4 @@
 use acvm::{FieldElement, acir::AcirField};
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
@@ -65,8 +64,7 @@ impl Function {
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
-            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-            let mut simple_context = Context { context, call_stack };
+            let mut simple_context = Context { context };
             let new_result = match operator {
                 BinaryOp::Add { .. } => simple_context.insert_add(lhs, rhs),
                 BinaryOp::Sub { .. } => simple_context.insert_sub(lhs, rhs),
@@ -81,7 +79,6 @@ impl Function {
 
 struct Context<'m, 'dfg, 'mapping> {
     context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
-    call_stack: CallStackId,
 }
 
 impl Context<'_, '_, '_> {
@@ -448,7 +445,7 @@ impl Context<'_, '_, '_> {
             instruction,
             self.context.block_id,
             ctrl_typevars,
-            self.call_stack,
+            self.context.call_stack_id,
         )
     }
 }
