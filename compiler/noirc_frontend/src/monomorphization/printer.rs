@@ -335,12 +335,20 @@ impl AstPrinter {
         unary: &super::ast::Unary,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "({}", unary.operator)?;
+        // "(-1)" parses back as the literal -1, so if we are printing with the intention of parsing, omit the (), to avoid ambiguity.
+        let print_parens = self.show_id || !matches!(unary.operator, UnaryOp::Minus);
+        if print_parens {
+            write!(f, "(")?;
+        }
+        write!(f, "{}", unary.operator)?;
         if matches!(&unary.operator, UnaryOp::Reference { mutable: true }) {
             write!(f, " ")?;
         }
         self.print_expr(&unary.rhs, f)?;
-        write!(f, ")")
+        if print_parens {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 
     fn print_binary(
