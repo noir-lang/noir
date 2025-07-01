@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751388908354,
+  "lastUpdate": 1751388955616,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2cfc7866b5a5e24829d4176e2aea897f72839674",
-          "message": "fix(expand): show references to ModuleDefId recursing on parents (#8977)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-06-19T14:43:28Z",
-          "tree_id": "18b3029c99086c5ab807ea9e56ca9d4fba29eaa3",
-          "url": "https://github.com/noir-lang/noir/commit/2cfc7866b5a5e24829d4176e2aea897f72839674"
-        },
-        "date": 1750346626264,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.64,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/de2a1bd493665d4d9b30bb1eb9e0f591ab3731de"
         },
         "date": 1751386830854,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 441.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3672e3e749035d532412d3001030f2033c51c8c1",
+          "message": "fix(fuzz): Assign to an index variable to sequence side effects (#9056)",
+          "timestamp": "2025-07-01T16:15:10Z",
+          "tree_id": "5c071c1203becfdb7cb38fe38138e2d6c85661b0",
+          "url": "https://github.com/noir-lang/noir/commit/3672e3e749035d532412d3001030f2033c51c8c1"
+        },
+        "date": 1751388942441,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
