@@ -6,8 +6,7 @@ use acir::{
 
 /// The bit size used for addressing memory within the Brillig VM.
 ///
-/// All memory pointers (e.g., `MemoryAddress::Direct` and `MemoryAddress::Relative`)
-/// are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
+/// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 
 /// A single typed value in the Brillig VM's memory.
@@ -303,7 +302,7 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
 /// We grow the memory when values past the end are set, extending with 0s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Memory<F> {
-    // Internal memory
+    // Internal memory representation
     inner: Vec<MemoryValue<F>>,
 }
 
