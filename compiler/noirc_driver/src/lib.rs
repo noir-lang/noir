@@ -81,7 +81,7 @@ pub struct CompileOptions {
 
     /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
     /// By default, source file locations will be shown.
-    #[arg(long)]
+    #[arg(long, hide = true)]
     pub no_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
