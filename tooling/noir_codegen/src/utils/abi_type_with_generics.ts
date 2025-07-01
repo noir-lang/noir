@@ -131,9 +131,12 @@ export function findAllStructsInType(abiType: AbiTypeWithGenerics): Struct[] {
   let lastStructs = findStructsInType(abiType);
   while (lastStructs.length > 0) {
     allStructs = allStructs.concat(lastStructs);
-    lastStructs = lastStructs.flatMap((struct) =>
-      struct.structType.fields.flatMap((field) => findStructsInType(field.type)),
-    );
+    lastStructs = lastStructs.flatMap(function (struct) {
+      const fieldStructTypes = struct.structType.fields.flatMap((field) => findStructsInType(field.type));
+      const argsStructTypes = struct.args.flatMap(findAllStructsInType);
+      const structTypes = fieldStructTypes.concat(argsStructTypes);
+      return structTypes;
+    });
   }
   return allStructs;
 }
