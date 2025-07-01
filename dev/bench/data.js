@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751403973843,
+  "lastUpdate": 1751404389215,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14814,50 +14814,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "94db39a1606129b1e4e220eb6e380b064d460af2",
-          "message": "chore: bump dependencies (#8838)",
-          "timestamp": "2025-06-10T14:08:44Z",
-          "tree_id": "0f6239e9bddcf226881a61d676c319d91ba50496",
-          "url": "https://github.com/noir-lang/noir/commit/94db39a1606129b1e4e220eb6e380b064d460af2"
-        },
-        "date": 1749566979446,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 44,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 71,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 30,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "teddav@users.noreply.github.com",
             "name": "teddav",
             "username": "teddav"
@@ -18632,6 +18588,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir-ecdsa_",
             "value": 122,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "077bb6d9cb08ef3f6c9eab33fef172c33f707f6e",
+          "message": "chore(docs): Brillig VM docs (#9078)",
+          "timestamp": "2025-07-01T20:19:03Z",
+          "tree_id": "79c2308931bd6b786296cb60dd0e0b4678ff66a9",
+          "url": "https://github.com/noir-lang/noir/commit/077bb6d9cb08ef3f6c9eab33fef172c33f707f6e"
+        },
+        "date": 1751404375638,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 102,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 155,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 160,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 212,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 568,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 92,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 379,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 256,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 15,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 95,
             "unit": "s"
           },
           {
