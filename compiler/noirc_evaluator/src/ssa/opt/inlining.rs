@@ -916,10 +916,9 @@ mod test {
     }
 
     #[test]
-    #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'foo':\nacir(inline) fn foo f1 {"
-    )]
     fn unconditional_recursion() {
+        // f1 is calling itself, which results in an infinite recursion
+        // it is expected that inlining this program returns an error.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -935,7 +934,11 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.functions.len(), 2);
 
-        let _ = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX);
+         let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
     }
 
     #[test]
@@ -1002,28 +1005,5 @@ mod test {
             return v0
         }
         ");
-    }
-
-    #[test]
-    fn err_on_infinite_recursion() {
-        // f1 is calling itself, which results in an infinite recursion
-        // it is expected that inline this program returns an error.
-        let src = "acir(inline) fn main f0 {
-        b0(v0: u32):
-            v1 = call f1(v0) -> u32
-            return v1
-        }
-        acir(inline) fn foo f1 {
-        b0(v0: u32):
-            v2 = call f1(v0) -> u32
-            v3 = add v2, v0
-            return v3
-        }";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN);
-        let Err(err) = ssa else {
-            panic!("inline_functions cannot inline recursive functions");
-        };
-        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
     }
 }
