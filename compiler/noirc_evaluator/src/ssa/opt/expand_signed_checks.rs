@@ -85,7 +85,7 @@ struct Context<'m, 'dfg, 'mapping> {
 }
 
 impl Context<'_, '_, '_> {
-    pub(crate) fn insert_add(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_add(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
         let unchecked_result = self.insert_binary(lhs, BinaryOp::Add { unchecked: true }, rhs);
         let truncated = self.insert_truncate(unchecked_result, bit_size, bit_size + 1);
@@ -101,7 +101,7 @@ impl Context<'_, '_, '_> {
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
     }
 
-    pub(crate) fn insert_sub(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_sub(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
         let unchecked_result = self.insert_binary(lhs, BinaryOp::Sub { unchecked: true }, rhs);
         let truncated = self.insert_truncate(unchecked_result, bit_size, bit_size + 1);
@@ -117,7 +117,7 @@ impl Context<'_, '_, '_> {
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
     }
 
-    pub(crate) fn insert_mul(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_mul(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let bit_size = self.context.dfg.type_of_value(lhs).bit_size();
         let unchecked_result = self.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, rhs);
         let unchecked_result_field =
@@ -461,8 +461,8 @@ mod tests {
     fn expands_checked_add_instruction() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = add v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = add v0, v1
             return v2
         }
         ";
@@ -470,18 +470,21 @@ mod tests {
         let ssa = ssa.expand_signed_checks();
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = unchecked_add v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_add v0, v1
             v3 = truncate v2 to 32 bits, max_bit_size: 33
             v4 = cast v3 as u32
             v5 = cast v0 as u32
-            v7 = lt v5, u32 2147483648
-            v8 = lt v4, u32 2147483648
-            v9 = eq v8, v7
-            v10 = unchecked_mul v9, v7
-            constrain v10 == v7, "attempt to add with overflow"
-            v11 = cast v3 as i32
-            return v11
+            v6 = cast v1 as u32
+            v8 = lt v5, u32 2147483648
+            v9 = lt v6, u32 2147483648
+            v10 = eq v8, v9
+            v11 = lt v4, u32 2147483648
+            v12 = eq v11, v8
+            v13 = unchecked_mul v12, v10
+            constrain v13 == v10, "attempt to add with overflow"
+            v14 = cast v3 as i32
+            return v14
         }
         "#);
     }
@@ -490,8 +493,8 @@ mod tests {
     fn expands_checked_sub_instruction() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = sub v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = sub v0, v1
             return v2
         }
         ";
@@ -499,19 +502,22 @@ mod tests {
         let ssa = ssa.expand_signed_checks();
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = unchecked_sub v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_sub v0, v1
             v3 = truncate v2 to 32 bits, max_bit_size: 33
             v4 = cast v3 as u32
             v5 = cast v0 as u32
-            v7 = lt v5, u32 2147483648
-            v8 = not v7
-            v9 = lt v4, u32 2147483648
-            v10 = eq v9, v7
-            v11 = unchecked_mul v10, v8
-            constrain v11 == v8, "attempt to subtract with overflow"
-            v12 = cast v3 as i32
-            return v12
+            v6 = cast v1 as u32
+            v8 = lt v5, u32 2147483648
+            v9 = lt v6, u32 2147483648
+            v10 = not v9
+            v11 = eq v8, v10
+            v12 = lt v4, u32 2147483648
+            v13 = eq v12, v8
+            v14 = unchecked_mul v13, v11
+            constrain v14 == v11, "attempt to subtract with overflow"
+            v15 = cast v3 as i32
+            return v15
         }
         "#);
     }
@@ -520,8 +526,8 @@ mod tests {
     fn expands_checked_mul_instruction() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = mul v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = mul v0, v1
             return v2
         }
         ";
@@ -529,31 +535,42 @@ mod tests {
         let ssa = ssa.expand_signed_checks();
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: i32):
-            v2 = unchecked_mul v0, i32 2
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_mul v0, v1
             v3 = cast v2 as u64
             v4 = truncate v3 to 32 bits, max_bit_size: 64
             v5 = cast v0 as u32
-            v7 = lt v5, u32 2147483648
-            v8 = not v7
-            v9 = cast v0 as Field
-            v10 = cast v7 as Field
-            v11 = mul v10, v9
-            v13 = sub Field 4294967296, v9
-            v14 = cast v8 as Field
-            v15 = mul v14, v13
-            v16 = add v11, v15
-            v18 = mul v16, Field 2
-            range_check v18 to 32 bits, "attempt to multiply with overflow"
-            v19 = truncate v18 to 32 bits, max_bit_size: 254
-            v20 = cast v19 as u32
-            v21 = not v7
-            v22 = cast v21 as u32
-            v23 = unchecked_add u32 2147483648, v22
-            v24 = lt v20, v23
-            constrain v24 == u1 1, "attempt to add with overflow"
-            v26 = cast v4 as i32
-            return v26
+            v6 = cast v1 as u32
+            v8 = lt v5, u32 2147483648
+            v9 = lt v6, u32 2147483648
+            v10 = eq v8, v9
+            v11 = not v8
+            v12 = cast v0 as Field
+            v13 = cast v8 as Field
+            v14 = mul v13, v12
+            v16 = sub Field 4294967296, v12
+            v17 = cast v11 as Field
+            v18 = mul v17, v16
+            v19 = add v14, v18
+            v20 = not v9
+            v21 = cast v1 as Field
+            v22 = cast v9 as Field
+            v23 = mul v22, v21
+            v24 = sub Field 4294967296, v21
+            v25 = cast v20 as Field
+            v26 = mul v25, v24
+            v27 = add v23, v26
+            v28 = mul v19, v27
+            range_check v28 to 32 bits, "attempt to multiply with overflow"
+            v29 = truncate v28 to 32 bits, max_bit_size: 254
+            v30 = cast v29 as u32
+            v31 = not v10
+            v32 = cast v31 as u32
+            v33 = unchecked_add u32 2147483648, v32
+            v34 = lt v30, v33
+            constrain v34 == u1 1, "attempt to add with overflow"
+            v36 = cast v4 as i32
+            return v36
         }
         "#);
     }
