@@ -6,6 +6,7 @@ use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::input_parser::InputValue;
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;
+use std::io::Write;
 
 use crate::{
     errors::CliError,
@@ -75,6 +76,20 @@ pub fn show_diagnostic(circuit: &CompiledProgram, err: &NargoError<FieldElement>
     }
 }
 
+/// Print the input to stdout, and exit gracefully if `SIGPIPE` is received.
+/// Rust ignores `SIGPIPE` by default, converting pipe errors into `ErrorKind::BrokenPipe`
+fn print_to_stdout(args: std::fmt::Arguments) {
+    let mut stdout = std::io::stdout();
+    if let Err(e) = stdout.write_fmt(args) {
+        if e.kind() == std::io::ErrorKind::BrokenPipe {
+            // Gracefully exit on broken pipe
+            std::process::exit(0);
+        } else {
+            panic!("Unexpected error: {e}");
+        }
+    }
+}
+
 /// Print some information and save the witness if an output directory is specified,
 /// then checks if the expected return values were the ones we expected.
 pub fn save_and_check_witness(
@@ -84,13 +99,13 @@ pub fn save_and_check_witness(
     witness_dir: Option<&Path>,
     witness_name: Option<&str>,
 ) -> Result<(), CliError> {
-    println!("[{}] Circuit witness successfully solved", circuit_name);
+    print_to_stdout(format_args!("[{}] Circuit witness successfully solved\n", circuit_name));
     // Save first, so that we can potentially look at the output if the expectations fail.
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
     if let Some(ref return_value) = results.return_values.actual_return {
-        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+        print_to_stdout(format_args!("[{}] Circuit output: {return_value:?}\n", circuit_name));
     }
     check_witness(circuit, results.return_values)
 }
@@ -112,7 +127,11 @@ pub fn save_witness(
         }
     }
 
-    println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
+    print_to_stdout(format_args!(
+        "[{}] Witness saved to {}\n",
+        circuit_name,
+        witness_path.display()
+    ));
     Ok(())
 }
 
