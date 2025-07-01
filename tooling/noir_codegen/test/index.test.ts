@@ -4,7 +4,10 @@ import { expect } from 'chai';
 import {
   exported_function_foo,
   exported_function_baz,
+  exported_function_parent,
   MyStruct,
+  Parent,
+  Child,
   u64,
   u32,
   ForeignCallHandler,
@@ -115,4 +118,20 @@ it('allows passing a custom foreign call handler', async () => {
 it('codegens a callable argless function', async () => {
   const val: u64 = await exported_function_baz();
   expect(val).to.be.eq('0x01');
+});
+
+
+it('codegens types for generic arguments', async () => {
+  const a: Parent<Child> = {
+    inner: {
+      value: '1',
+    },
+    counter: '2',
+  };
+  const b: Parent<u32> = {
+    inner: '3',
+    counter: '4',
+  };
+  const val: u32 = await exported_function_parent(a, b);
+  expect(val).to.be.eq('0x0a'); // 1 + 2 + 3 + 4 = 10
 });
