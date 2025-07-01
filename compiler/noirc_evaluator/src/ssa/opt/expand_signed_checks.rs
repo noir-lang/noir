@@ -2,7 +2,6 @@ use acvm::{FieldElement, acir::AcirField};
 
 use crate::ssa::{
     ir::{
-        dfg::InsertInstructionResult,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
         types::{NumericType, Type},
@@ -183,7 +182,7 @@ impl Context<'_, '_, '_> {
                     same_sign,
                     Some(message.into()),
                 );
-                self.insert_instruction(overflow_check, None);
+                self.context.insert_instruction(overflow_check, None);
             }
             BinaryOp::Mul { .. } => {
                 // Overflow check for the multiplication:
@@ -391,26 +390,27 @@ impl Context<'_, '_, '_> {
     /// Returns the result of the binary instruction.
     fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        self.context.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+        self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
     fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+        self.context
+            .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a [`Instruction::RangeCheck`] instruction at the end of the current block.
@@ -420,7 +420,7 @@ impl Context<'_, '_, '_> {
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
-        self.insert_instruction(
+        self.context.insert_instruction(
             Instruction::RangeCheck { value, max_bit_size, assert_message },
             None,
         );
@@ -433,20 +433,7 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
         assert_message: Option<ConstrainError>,
     ) {
-        self.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
-    }
-
-    fn insert_instruction(
-        &mut self,
-        instruction: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
-        self.context.dfg.insert_instruction_and_results(
-            instruction,
-            self.context.block_id,
-            ctrl_typevars,
-            self.context.call_stack_id,
-        )
+        self.context.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 }
 

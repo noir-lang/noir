@@ -4,9 +4,10 @@ use crate::{
     errors::RtResult,
     ssa::ir::{
         basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
+        types::Type,
         value::{ValueId, ValueMapping},
     },
 };
@@ -129,7 +130,21 @@ impl SimpleOptimizationContext<'_, '_> {
     }
 
     /// Inserts an instruction in the current block right away.
-    pub(crate) fn insert_instruction(&mut self, instruction_id: InstructionId) {
+    pub(crate) fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block_id,
+            ctrl_typevars,
+            self.call_stack_id,
+        )
+    }
+
+    /// Inserts an instruction by id in the current block right away.
+    pub(crate) fn insert_instruction_by_id(&mut self, instruction_id: InstructionId) {
         self.dfg[self.block_id].insert_instruction(instruction_id);
     }
 
