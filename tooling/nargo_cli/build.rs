@@ -213,7 +213,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 17] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 19] = [
     "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
@@ -232,6 +232,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+    // This creates a struct at comptime which, expanded, gives a visibility error
+    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime", // This creates a struct at comptime which, expanded, gives a visibility error
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =

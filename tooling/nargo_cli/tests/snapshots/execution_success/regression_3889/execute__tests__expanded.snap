@@ -9,12 +9,12 @@ mod Foo {
 }
 
 mod Bar {
-    pub(crate) use super::Foo::{NewType, NewType as BarStruct};
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
 
 }
 
 mod Baz {
-    pub(crate) use super::Foo::{NewType, NewType as BarStruct};
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
 
     pub(crate) struct Works {
         pub(crate) a: Field,
