@@ -1624,7 +1624,44 @@
 <a href="#1623" id="1623">1623</a>
 <a href="#1624" id="1624">1624</a>
 <a href="#1625" id="1625">1625</a>
-<a href="#1626" id="1626">1626</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2603,6 +2640,29 @@
         expr::let_var(id, mutable, name, expr)
     }
 
+    <span class="doccomment">/// Add a new local variable and return a `Let` expression along with an `Ident` to refer it by.
+    </span><span class="kw">fn </span>let_var_and_ident(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+        is_dynamic: bool,
+    ) -&gt; (Expression, Ident) {
+        <span class="kw">let </span>v = <span class="self">self</span>.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic);
+        <span class="kw">let </span>Expression::Let(Let { id, name, .. }) = <span class="kw-2">&amp;</span>v <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"expected to Let; got {v:?}"</span>);
+        };
+        <span class="kw">let </span>i = expr::ident_inner(
+            VariableId::Local(<span class="kw-2">*</span>id),
+            <span class="self">self</span>.next_ident_id(),
+            mutable,
+            name.clone(),
+            typ,
+        );
+        (v, i)
+    }
+
     <span class="doccomment">/// Assign to a mutable variable, if we have one in scope.
     ///
     /// It resets the dynamic flag of the assigned variable.
@@ -2627,24 +2687,35 @@
         <span class="kw">let </span>ident = LValue::Ident(ident);
 
         <span class="comment">// For arrays and tuples we can consider assigning to their items.
-        </span><span class="kw">let </span>(lvalue, typ, idx_dyn, is_compound) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
+        </span><span class="kw">let </span>(lvalue, typ, idx_dyn, is_compound, prefix) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
             Type::Array(len, typ) <span class="kw">if </span>len &gt; <span class="number">0 </span>&amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>(idx, idx_dyn) = <span class="self">self</span>.gen_index(u, len, <span class="self">self</span>.max_depth())<span class="question-mark">?</span>;
+
+                <span class="comment">// If the index expressions can have side effects, we need to assign it to a
+                // temporary variable to match the sequencing done by the frontend; see #8384.
+                </span><span class="kw">let </span>(idx, prefix) = <span class="kw">if </span>expr::has_side_effect(<span class="kw-2">&amp;</span>idx) {
+                    <span class="kw">let </span>(idx, idx_ident) =
+                        <span class="self">self</span>.let_var_and_ident(<span class="bool-val">false</span>, types::U32, idx, <span class="bool-val">false</span>, idx_dyn);
+                    (Expression::Ident(idx_ident), <span class="prelude-val">Some</span>(idx))
+                } <span class="kw">else </span>{
+                    (idx, <span class="prelude-val">None</span>)
+                };
+
                 <span class="kw">let </span>lvalue = LValue::Index {
                     array: Box::new(ident),
                     index: Box::new(idx),
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone(), idx_dyn, <span class="bool-val">true</span>)
+                (lvalue, typ.deref().clone(), idx_dyn, <span class="bool-val">true</span>, prefix)
             }
             Type::Tuple(items) <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>idx = u.choose_index(items.len())<span class="question-mark">?</span>;
                 <span class="kw">let </span>typ = items[idx].clone();
                 <span class="kw">let </span>lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ, <span class="bool-val">false</span>, <span class="bool-val">true</span>)
+                (lvalue, typ, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="prelude-val">None</span>)
             }
-            typ =&gt; (ident, typ, <span class="bool-val">false</span>, <span class="bool-val">false</span>),
+            typ =&gt; (ident, typ, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="prelude-val">None</span>),
         };
 
         <span class="comment">// Generate the assigned value.
@@ -2652,11 +2723,19 @@
 
         <span class="kw">if </span>idx_dyn || expr_dyn {
             <span class="self">self</span>.dynamics.insert(id);
-        } <span class="kw">else if </span>!is_compound &amp;&amp; !idx_dyn &amp;&amp; !expr_dyn {
-            <span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
+        } <span class="kw">else if </span>!idx_dyn &amp;&amp; !expr_dyn &amp;&amp; !is_compound {
+            <span class="comment">// This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+            // in which case we don't know if other members have dynamic properties.
+            </span><span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
         }
 
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+        <span class="kw">let </span>assign = Expression::Assign(Assign { lvalue, expression: Box::new(expr) });
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(prefix) = prefix {
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Block(<span class="macro">vec!</span>[prefix, assign])))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(assign))
+        }
     }
 
     <span class="doccomment">/// Generate a `println` statement, if there is some printable local variable.
@@ -3189,14 +3268,9 @@
     <span class="doccomment">/// Create a block with a let binding, then return a mutable reference to it.
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     </span><span class="kw">fn </span>indirect_ref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, (expr, is_dyn): TrackedExpression, typ: Type) -&gt; Expression {
-        <span class="self">self</span>.locals.enter();
-        <span class="kw">let </span>let_expr = <span class="self">self</span>.let_var(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">true</span>, is_dyn);
-        <span class="kw">let </span>Expression::Let(Let { id, .. }) = <span class="kw-2">&amp;</span>let_expr <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"expected Let; got {let_expr}"</span>);
-        };
-        <span class="kw">let </span>let_ident = <span class="self">self</span>.local_ident(<span class="kw-2">*</span>id);
+        <span class="kw">let </span>(let_expr, let_ident) =
+            <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">false</span>, is_dyn);
         <span class="kw">let </span>ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
-        <span class="self">self</span>.locals.exit();
         Expression::Block(<span class="macro">vec!</span>[let_expr, ref_expr])
     }
 }

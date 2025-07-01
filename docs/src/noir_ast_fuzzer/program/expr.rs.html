@@ -481,7 +481,19 @@
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
 <a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -860,6 +872,18 @@
             Definition::Builtin(<span class="kw">_</span>) | Definition::Oracle(<span class="kw">_</span>) | Definition::LowLevel(<span class="kw">_</span>)
         );
         !is_builtin_or_oracle
+    })
+}
+
+<span class="doccomment">/// Check if an expression can have a side effect, in which case duplicating or reordering it could
+/// change the behavior of the program.
+</span><span class="kw">pub fn </span>has_side_effect(expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+    exists(expr, |expr| {
+        <span class="macro">matches!</span>(
+            expr,
+            Expression::Call(<span class="kw">_</span>) <span class="comment">// Functions can have side effects, maybe mutating some reference, printing
+                </span>| Expression::Assign(<span class="kw">_</span>) <span class="comment">// Assignment to a mutable variable could double up effects
+        </span>)
     })
 }
 
