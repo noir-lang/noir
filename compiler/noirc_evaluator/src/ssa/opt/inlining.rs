@@ -75,13 +75,11 @@ impl Ssa {
                 inline_no_predicates_functions,
                 aggressiveness,
             );
-            let contains_static_assertion =
-                inline_infos.iter().any(|(_, info)| info.contains_static_assertion);
             self =
                 Self::inline_functions_inner(self, &inline_infos, inline_no_predicates_functions);
 
             let num_functions_after = self.functions.len();
-            if num_functions_after == num_functions_before || !contains_static_assertion {
+            if num_functions_after == num_functions_before {
                 break;
             }
         }
