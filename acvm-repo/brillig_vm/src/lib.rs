@@ -33,21 +33,44 @@ mod memory;
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
+/// Represents the reason why the Brillig VM failed during execution.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureReason {
-    Trap { revert_data_offset: usize, revert_data_size: usize },
+    /// A trap was encountered, which indicates an explicit failure from within the VM program.
+    ///
+    /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
+    /// The revert data is referenced by the offset and size in the VM memory.
+    Trap {
+        /// Offset in memory where the revert data begins.
+        revert_data_offset: usize,
+        /// Size of the revert data.
+        revert_data_size: usize,
+    },
+    /// A runtime failure during execution.
+    /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
+    /// For example a [binary operation][Opcode::BinaryIntOp] can trigger a [division by zero][BrilligArithmeticError::DivisionByZero].
     RuntimeError { message: String },
 }
 
+/// Represents the current execution status of the Brillig VM.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VMStatus<F> {
+    /// The VM has completed execution successfully.
+    /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
+        /// Offset in memory where the return data begins.
         return_data_offset: usize,
+        /// Size of the return data.
         return_data_size: usize,
     },
+    /// The VM is still in progress and has not yet completed execution.
+    /// This is used when simulating execution.
     InProgress,
+    /// The VM encountered a failure and halted execution.
     Failure {
+        /// The reason for the failure.
         reason: FailureReason,
+        /// The call stack at the time the failure occurred, useful for debugging nested calls.
         call_stack: ErrorCallStack,
     },
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
@@ -65,7 +88,7 @@ pub enum VMStatus<F> {
     },
 }
 
-// A sample for each opcode that was executed.
+/// All samples for each opcode that was executed
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
 /// The position of an opcode that is currently being executed in the bytecode
@@ -91,9 +114,10 @@ pub type UniqueFeatureIndex = usize;
 /// A map for translating encountered branching logic to features for fuzzing
 pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
 
+/// A sample for an executed opcode
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
-    // The call stack when processing a given opcode.
+    /// The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 

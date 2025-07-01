@@ -1,3 +1,4 @@
+//! Implementations for VM native [black box functions][acir::brillig::opcodes::BrilligOpcode::BlackBox].
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
@@ -10,6 +11,7 @@ use num_traits::Zero;
 use crate::Memory;
 use crate::memory::MemoryValue;
 
+/// Reads a dynamically-sized [vector][HeapVector] from memory.
 fn read_heap_vector<'a, F: AcirField>(
     memory: &'a Memory<F>,
     vector: &HeapVector,
@@ -18,6 +20,7 @@ fn read_heap_vector<'a, F: AcirField>(
     memory.read_slice(memory.read_ref(vector.pointer), size.to_usize())
 }
 
+/// Reads a fixed-size [array][HeapArray] from memory.
 fn read_heap_array<'a, F: AcirField>(
     memory: &'a Memory<F>,
     array: &HeapArray,
@@ -34,12 +37,33 @@ fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     result
 }
 
+/// Converts a slice of u8 values into a Vec<[MemoryValue<F>]>,
+/// wrapping each byte as a [MemoryValue::U8].
 fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()
 }
 
 pub(crate) type BrilligBigIntSolver = BigIntSolverWithId;
 
+/// Evaluates a black box function inside the VM, performing the actual native computation.
+///
+/// Delegates the execution to the corresponding cryptographic or arithmetic
+/// function, depending on the [BlackBoxOp] variant.
+/// Handles input conversion, writing the result to memory, and error propagation.
+///
+/// # Arguments
+/// - op: The black box operation to evaluate.
+/// - solver: An implementation of [BlackBoxFunctionSolver] providing external function behavior.
+/// - memory: The VM memory from which inputs are read and to which results are written.
+/// - bigint_solver: A solver used for big integer operations.
+///
+/// # Returns
+/// - Ok(()) if evaluation succeeds.
+/// - Err([BlackBoxResolutionError]) if an error occurs during execution or input is invalid.
+///
+/// # Panics
+/// If any required memory value cannot be converted to the expected type (e.g., [expect_u8][MemoryValue::expect_u8])
+/// or if the [radix decomposition][BlackBoxOp::ToRadix] constraints are violated internally, such as an invalid radix range (e.g., radix of 1).
 pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>>(
     op: &BlackBoxOp,
     solver: &Solver,
@@ -361,6 +385,11 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
     }
 }
 
+/// Maps a [BlackBoxOp] variant to its corresponding [BlackBoxFunc].
+/// Used primarily for error reporting and resolution purposes.
+///
+/// # Panics
+/// If called with a [BlackBoxOp::ToRadix] operation, which is not part of the [BlackBoxFunc] enum.
 fn black_box_function_from_op(op: &BlackBoxOp) -> BlackBoxFunc {
     match op {
         BlackBoxOp::AES128Encrypt { .. } => BlackBoxFunc::AES128Encrypt,
