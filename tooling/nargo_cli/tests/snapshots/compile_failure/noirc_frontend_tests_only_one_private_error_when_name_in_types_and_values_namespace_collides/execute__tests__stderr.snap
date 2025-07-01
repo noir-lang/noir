@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: foo is private and not visible from the current module
+error: foo is private and not visible from the current module
   ┌─ src/main.nr:9:22
   │
 9 │         let _ = moo::foo {};

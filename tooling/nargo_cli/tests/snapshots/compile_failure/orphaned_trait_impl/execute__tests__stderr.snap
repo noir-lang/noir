@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: MyTrait is private and not visible from the current module
+error: MyTrait is private and not visible from the current module
   ┌─ src/main.nr:1:14
   │
 1 │ impl crate1::MyTrait for crate2::MyStruct {
