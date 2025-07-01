@@ -715,15 +715,16 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
+    /// Remove previously cached instructions that created arrays,
+    /// if the current instruction is such that it could modify that array.
     fn remove_possibly_mutated_cached_make_arrays(
         &mut self,
         instruction: &Instruction,
         function: &Function,
     ) {
-        use Instruction::{ArraySet, Store};
+        use Instruction::{ArraySet, Call, MakeArray, Store};
 
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        if let Store { value, .. } | ArraySet { array: value, .. } = instruction {
+        let mut remove_if_array = |value: &ValueId| {
             if function.dfg.is_global(*value) {
                 // Early return as we expect globals to be immutable.
                 return;
@@ -739,9 +740,29 @@ impl<'brillig> Context<'brillig> {
                 _ => return,
             };
 
-            if matches!(instruction, Instruction::MakeArray { .. } | Instruction::Call { .. }) {
+            if matches!(instruction, MakeArray { .. } | Call { .. }) {
                 self.cached_instruction_results.remove(instruction);
             }
+        };
+
+        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        match instruction {
+            Store { value, .. } | ArraySet { array: value, .. } => {
+                remove_if_array(value);
+            }
+            Call { arguments, func } if function.runtime().is_brillig() => {
+                let Value::Function(func_id) = &function.dfg[*func] else { return };
+                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
+                    // placed *before* the call to protect them. Currently we don't track the ref count in this
+                    // context, so be conservative and do not reuse any array shared with a callee.
+                    // In ACIR we don't track refcounts, so it should be fine.
+                    for arg in arguments {
+                        remove_if_array(arg);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -1537,9 +1558,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
@@ -1577,9 +1596,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();

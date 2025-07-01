@@ -1,10 +1,12 @@
+use super::NUMBER_OF_PREDEFINED_VARIABLES;
 use super::NUMBER_OF_VARIABLES_INITIAL;
-use super::function_context::{FunctionData, WitnessValue};
+use super::function_context::{FunctionData, FuzzerFunctionCommand, WitnessValue};
 use super::fuzzer::Fuzzer;
 use super::options::FuzzerOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use noir_ssa_fuzzer::typed_value::ValueType;
+use serde::{Deserialize, Serialize};
 
 fn initialize_witness_map(
     data: &FunctionData,
@@ -25,10 +27,16 @@ fn initialize_witness_map(
         types.push(type_);
     }
     // insert true and false boolean values
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 2), FieldElement::from(1_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES),
+        FieldElement::from(1_u32),
+    );
     values.push(FieldElement::from(1_u32));
     types.push(ValueType::Boolean);
-    witness_map.insert(Witness(NUMBER_OF_VARIABLES_INITIAL - 1), FieldElement::from(0_u32));
+    witness_map.insert(
+        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES + 1),
+        FieldElement::from(0_u32),
+    );
     values.push(FieldElement::from(0_u32));
     types.push(ValueType::Boolean);
     (witness_map, values, types)
@@ -50,6 +58,9 @@ pub(crate) fn fuzz_target(data: Vec<FunctionData>, options: FuzzerOptions) -> Op
     }*/
 
     // to triage
+    if data.is_empty() {
+        return None;
+    }
     let (witness_map, _values, _types) = initialize_witness_map(&data[0]);
 
     let mut fuzzer = Fuzzer::new(options);
@@ -57,6 +68,9 @@ pub(crate) fn fuzz_target(data: Vec<FunctionData>, options: FuzzerOptions) -> Op
         let (witness_map, values, types) = initialize_witness_map(&func);
         log::debug!("initial_witness: {:?}", witness_map);
         log::debug!("commands: {:?}", func.commands);
+        if func.blocks.is_empty() {
+            return None;
+        }
         fuzzer.process_function(func, types, values);
     }
     fuzzer.finalize_and_run(witness_map)
@@ -396,8 +410,8 @@ mod tests {
     #[test]
     fn test_jmp_if_in_cycle() {
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
-        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
         let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+        let arg_7_field = Argument { index: 7, value_type: ValueType::Field };
         // v9 = allocate -> &mut Field
         // store v2 at v9
         let add_to_memory_block =
@@ -414,15 +428,15 @@ mod tests {
         let load_mul_set_block = InstructionBlock {
             instructions: vec![
                 Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v15 = load v9 -> Field (loaded value is 5th defined field in then block)
-                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v16 = mul v15, v2 (v16 -- 6th defined field in then block)
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v16 at v9
+                Instruction::MulChecked { lhs: arg_6_field, rhs: arg_2_field }, // v16 = mul v15, v2 (v16 -- 6th defined field in then block)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_7_field }, // store v16 at v9
             ],
         };
         let load_add_set_block = InstructionBlock {
             instructions: vec![
                 Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v17 = load v9 -> Field (loaded value is 5th defined field in else block)
-                Instruction::AddChecked { lhs: arg_5_field, rhs: arg_2_field }, // v18 = add v17, v2 (v18 -- 6th defined field in else block)
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v18 at v9
+                Instruction::AddChecked { lhs: arg_6_field, rhs: arg_2_field }, // v18 = add v17, v2 (v18 -- 6th defined field in else block)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_7_field }, // store v18 at v9
             ],
         };
         let commands = vec![

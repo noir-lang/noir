@@ -17,5 +17,5 @@ mod trait_mod {
 pub struct Foo {}
 
 fn main(x: Field) {
-    x.foo();
+    Field::foo(x);
 }

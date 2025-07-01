@@ -17,7 +17,7 @@ where
     T: Empty,
     T: Eq,
 {
-    Eq::eq(item, Empty::empty())
+    item.eq(T::empty())
 }
 
 pub fn array_to_bounded_vec<T, let N: u32>(array: [T; N]) -> BoundedVec<T, N>
@@ -37,7 +37,7 @@ where
             }
         }
     };
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::<T, N>::from_parts_unchecked(array, len)
 }
 
 global TX_SIZE: u32 = 5;

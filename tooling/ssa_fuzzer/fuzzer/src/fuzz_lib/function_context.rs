@@ -12,6 +12,7 @@ use noir_ssa_fuzzer::{
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
@@ -23,7 +24,7 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
 /// field = low + high * 2^128
-#[derive(Debug, Clone, Hash, Arbitrary)]
+#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {
     pub(crate) high: u128,
     pub(crate) low: u128,
@@ -37,7 +38,7 @@ impl From<&FieldRepresentation> for FieldElement {
     }
 }
 
-#[derive(Debug, Clone, Hash, Arbitrary)]
+#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) enum WitnessValue {
     Field(FieldRepresentation),
     U64(u64),
@@ -48,7 +49,7 @@ pub(crate) enum WitnessValue {
 
 /// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
-#[derive(Arbitrary, Debug, Clone)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
     pub(crate) blocks: Vec<InstructionBlock>,
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
@@ -60,10 +61,22 @@ pub(crate) struct FunctionData {
     pub(crate) return_type: ValueType,
 }
 
+impl Default for FunctionData {
+    fn default() -> Self {
+        FunctionData {
+            blocks: vec![],
+            commands: vec![],
+            initial_witness: [WitnessValue::Field(FieldRepresentation { high: 0, low: 0 }); 5],
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        }
+    }
+}
+
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
-#[derive(Arbitrary, Debug, Clone, Hash)]
+#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize)]
 pub(crate) enum FuzzerFunctionCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
@@ -285,59 +298,6 @@ impl<'a> FuzzerFunctionContext<'a> {
         let block_else_instruction_block =
             self.instruction_blocks[block_else_idx % self.instruction_blocks.len()].clone();
 
-        // TODO(sn): add support of nested jmp_if in cycles
-        // If the current block is a loop body
-        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
-            let CycleInfo { block_iter_id, block_end_id } =
-                self.cycle_bodies_to_iters_ids[&self.current_block.block_id];
-            let current_block = self.stored_blocks[&block_end_id].clone();
-
-            // init then branch
-            let block_then_id = self.insert_ssa_block();
-
-            self.switch_to_block(block_then_id);
-            // context of then branch is shared with predecessor (loop body)
-            current_block.context.clone().insert_instructions(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                &block_then_instruction_block.instructions,
-            );
-            // jump to the loop iter block
-            self.insert_jmp_instruction(block_iter_id, vec![]);
-
-            // init else branch
-            let block_else_id = self.insert_ssa_block();
-            self.switch_to_block(block_else_id);
-            // context of else branch is shared with predecessor (loop body)
-            current_block.context.clone().insert_instructions(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                &block_else_instruction_block.instructions,
-            );
-            // jump to the loop iter block
-            self.insert_jmp_instruction(block_iter_id, vec![]);
-
-            // finalize the loop body with jmp_if
-            self.switch_to_block(self.current_block.block_id);
-            self.current_block.context.finalize_block_with_jmp_if(
-                &mut self.acir_builder,
-                &mut self.brillig_builder,
-                block_then_id,
-                block_else_id,
-            );
-            // remove children blocks not to merge them (they already jumped to iter block)
-            self.current_block.context.children_blocks.pop();
-            self.current_block.context.children_blocks.pop();
-
-            // switch context to the loop end block
-            self.current_block =
-                StoredBlock { context: current_block.context, block_id: block_end_id };
-            self.switch_to_block(self.current_block.block_id);
-            // remove loop body from the map, we don't need it anymore
-            self.cycle_bodies_to_iters_ids.remove(&self.current_block.block_id);
-            return;
-        }
-
         self.store_variables();
 
         if block_then_instruction_block.instructions.len()
@@ -406,7 +366,25 @@ impl<'a> FuzzerFunctionContext<'a> {
             StoredBlock { context: block_then_context, block_id: block_then_id };
         let else_stored_block =
             StoredBlock { context: block_else_context, block_id: block_else_id };
-        self.not_terminated_blocks.push_back(else_stored_block);
+
+        // if current context is cycle body we define then and else branch as new bodies
+        if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+            let CycleInfo { block_iter_id, block_end_id } =
+                self.cycle_bodies_to_iters_ids[&self.current_block.block_id];
+            // block cannot have more than two predecessors
+            // so we create a join block that terminates with a jmp to iter block
+            // and then terminate then and else blocks with jmp join block in Self::finalize_cycles
+            let block_join_id = self.insert_ssa_block();
+            self.switch_to_block(block_join_id);
+            self.insert_jmp_instruction(block_iter_id, vec![]);
+            self.cycle_bodies_to_iters_ids
+                .insert(block_then_id, CycleInfo { block_iter_id: block_join_id, block_end_id });
+            self.cycle_bodies_to_iters_ids
+                .insert(block_else_id, CycleInfo { block_iter_id: block_join_id, block_end_id });
+            self.cycle_bodies_to_iters_ids.remove(&self.current_block.block_id);
+        } else {
+            self.not_terminated_blocks.push_back(else_stored_block);
+        }
         self.switch_to_block(then_stored_block.block_id);
         self.current_block = then_stored_block.clone();
     }
@@ -616,10 +594,19 @@ impl<'a> FuzzerFunctionContext<'a> {
             &block_body.instructions,
         );
 
+        let end_context =
+            if self.cycle_bodies_to_iters_ids.contains_key(&self.current_block.block_id) {
+                self.stored_blocks
+                    [&self.cycle_bodies_to_iters_ids[&self.current_block.block_id].block_end_id]
+                    .context
+                    .clone()
+            } else {
+                self.current_block.context.clone()
+            };
         // end block does not share variables with body block, so we copy them from the current block
         let block_end_context = BlockContext::new(
-            self.current_block.context.stored_values.clone(),
-            self.current_block.context.memory_addresses.clone(),
+            end_context.stored_values.clone(),
+            end_context.memory_addresses.clone(),
             block_body_context.parent_blocks_history.clone(),
             SsaBlockOptions::from(self.function_context_options.clone()),
         );
@@ -680,6 +667,9 @@ impl<'a> FuzzerFunctionContext<'a> {
                 self.switch_to_block(self.current_block.block_id);
             }
             FuzzerFunctionCommand::InsertCycle { block_body_idx, start_iter, end_iter } => {
+                if !self.function_context_options.fuzzer_command_options.loops_enabled {
+                    return;
+                }
                 self.process_cycle_command(
                     *block_body_idx,
                     *start_iter as usize,

@@ -44,7 +44,7 @@ where
     where
         T: Default,
     {
-        Self { x: Default::default() }
+        Self { x: T::default() }
     }
 }
 
@@ -69,7 +69,7 @@ where
         H: Hasher,
         T: Hash,
     {
-        Hash::hash(_self.x, _state);
+        _self.x.hash(_state);
     }
 }
 
@@ -83,7 +83,7 @@ where
     {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.x, _other.x);
+            result = _self.x.cmp(_other.x);
         };
         result
     }
@@ -105,7 +105,11 @@ where
         A: Default,
         B: Default,
     {
-        Self { field1: Default::default(), field2: Default::default(), field3: Default::default() }
+        Self {
+            field1: A::default(),
+            field2: B::default(),
+            field3: MyOtherOtherStruct::<B>::default(),
+        }
     }
 }
 
@@ -135,8 +139,8 @@ where
         A: Hash,
         B: Hash,
     {
-        Hash::hash(_self.field1, _state);
-        Hash::hash(_self.field2, _state);
+        _self.field1.hash(_state);
+        _self.field2.hash(_state);
         _self.field3.hash(_state);
     }
 }
@@ -153,10 +157,10 @@ where
     {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field1, _other.field1);
+            result = _self.field1.cmp(_other.field1);
         };
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field2, _other.field2);
+            result = _self.field2.cmp(_other.field2);
         };
         if result == std::cmp::Ordering::equal() {
             result = _self.field3.cmp(_other.field3);
@@ -196,9 +200,9 @@ impl Ord for EmptyStruct {
 fn main() {
     let s: MyStruct = MyStruct { my_field: 1_u32 };
     s.do_nothing();
-    let o: MyOtherStruct<Field, u32> = Default::default();
+    let o: MyOtherStruct<Field, u32> = MyOtherStruct::<Field, u32>::default();
     assert(o == o);
-    let o: MyOtherStruct<u8, [str<2>]> = Default::default();
+    let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::<u8, [str<2>]>::default();
     assert(o == o);
     let o1: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
         field1: 12_u32,

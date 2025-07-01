@@ -37,7 +37,7 @@ struct Foo {
 
 impl Default for Foo {
     fn default() -> Self {
-        Self { x: Default::default(), y: Default::default() }
+        Self { x: Field::default(), y: Bar::default() }
     }
 }
 
@@ -71,5 +71,5 @@ comptime fn join(slice: [Quoted]) -> Quoted {
 }
 
 fn main() {
-    let _foo: Foo = Default::default();
+    let _foo: Foo = Foo::default();
 }

@@ -93,11 +93,17 @@ pub struct FuzzerCommandOptions {
     pub jmp_block_enabled: bool,
     /// If false, we don't switch to the next block
     pub switch_to_next_block_enabled: bool,
+    pub loops_enabled: bool,
 }
 
 impl Default for FuzzerCommandOptions {
     fn default() -> Self {
-        Self { jmp_if_enabled: true, jmp_block_enabled: true, switch_to_next_block_enabled: true }
+        Self {
+            jmp_if_enabled: true,
+            jmp_block_enabled: true,
+            switch_to_next_block_enabled: true,
+            loops_enabled: false,
+        }
     }
 }
 

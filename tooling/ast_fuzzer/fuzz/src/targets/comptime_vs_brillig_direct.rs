@@ -31,8 +31,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         avoid_overflow: true,
         avoid_err_by_zero: true,
         avoid_constrain: true,
-        // At the moment prints aren't recognized by elaborator
-        avoid_print: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,

@@ -128,6 +128,32 @@ impl<'a> SsaPass<'a> {
     pub fn run(&self, ssa: Ssa) -> Result<Ssa, RuntimeError> {
         (self.run)(ssa)
     }
+
+    /// Follow up the pass with another one, without adding a separate message for it.
+    ///
+    /// This is useful for attaching cleanup passes that we don't want to appear on their
+    /// own in the pipeline, because it would just increase the noise.
+    pub fn and_then<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Ssa + 'a,
+    {
+        self.and_then_try(move |ssa| Ok(f(ssa)))
+    }
+
+    /// Same as `and_then` but for passes that can fail.
+    pub fn and_then_try<F>(self, f: F) -> Self
+    where
+        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
+    {
+        Self {
+            msg: self.msg,
+            run: Box::new(move |ssa| {
+                let ssa = self.run(ssa)?;
+                let ssa = f(ssa)?;
+                Ok(ssa)
+            }),
+        }
+    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -140,8 +166,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions")
+            .and_then(Ssa::remove_unreachable_functions),
         // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
@@ -154,8 +180,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization"),
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new_try(
             Ssa::evaluate_static_assert_and_assert_constant,
             "`static_assert` and `assert_constant`",
@@ -185,38 +211,36 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding"),
+        SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding using constraints"),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
         ),
         SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
+        // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
+        // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
+        // We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
+        // if they are unreachable and would cause the DIE post-checks to fail.
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
-        // The Brillig globals pass expected that we have the used globals map set for each function.
-        // The used globals map is determined during DIE, so we should duplicate entry points before a DIE pass run.
-        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis"),
-        // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
+            // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
-        // We can safely place the pass before DIE as that pass only removes instructions.
-        // We also need DIE's tracking of used globals in case the array get transformations
-        // end up using an existing constant from the globals space.
-        // This pass might result in otherwise unused global constant becoming used,
-        // because the creation of shifted index constants can reuse their IDs.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        // Perform another DIE pass to update the used globals after offsetting Brillig indexes.
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
-        // A function can be potentially unreachable post-DIE if all calls to that function were removed,
-        // or after the removal of unreachable instructions.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
+            // A function can be potentially unreachable post-DIE if all calls to that function were removed.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
@@ -231,10 +255,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
 pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
     vec![
         SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions"),
-        // It could happen that we inlined all calls to a given brillig function.
-        // In that case it's unused so we can remove it. This is what we check next.
-        SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            // It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
     ]
 }
@@ -259,8 +283,6 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
         // This can change which globals are used, because constant creation might result
         // in the (re)use of otherwise unused global values.
         SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
-        // We need a DIE pass to populate `used_globals`, otherwise it will panic later.
-        SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
     ]
 }
 
@@ -291,14 +313,13 @@ where
     let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
     let passed = std::mem::take(&mut builder.passed);
     let files = builder.files;
-    let mut ssa = builder.finish();
+    let ssa = builder.finish();
 
     let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
-    let used_globals_map = std::mem::take(&mut ssa.used_globals);
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig_with_globals(&options.brillig_options, used_globals_map)
+        ssa.to_brillig(&options.brillig_options)
     });
 
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");

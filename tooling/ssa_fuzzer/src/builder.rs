@@ -353,11 +353,11 @@ impl FuzzerBuilder {
 
     pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
-        self.builder.new_function(name, function_id, InlineType::InlineAlways);
+        self.builder.new_function(name, function_id, InlineType::Inline);
     }
 
     pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
-        self.builder.new_brillig_function(name, function_id, InlineType::InlineAlways);
+        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
     }
 
     pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
