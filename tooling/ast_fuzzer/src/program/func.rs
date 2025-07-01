@@ -341,9 +341,14 @@ impl<'a> FunctionContext<'a> {
         self.dynamics.contains(id)
     }
 
-    /// Check if a type can be used inside a dynamic input context.
-    fn can_be_used_in_dynamic(&self, typ: &Type) -> bool {
-        self.unconstrained() || !(types::contains_reference(typ) && types::is_array_or_slice(typ))
+    /// Check if a source type can be used inside a dynamic input context to produce some target type.
+    fn can_be_used_in_dynamic(&self, src_type: &Type, tgt_type: &Type) -> bool {
+        // Dynamic inputs are restricted only in ACIR
+        self.unconstrained()
+        // If we are looking for the exact type, it's okay.
+            || src_type == tgt_type
+            // But we can't index an array with references.
+            || !(types::is_array_or_slice(src_type) && types::contains_reference(src_type) )
     }
 
     /// Choose a producer for a type, preferring local variables over global ones.
@@ -355,10 +360,14 @@ impl<'a> FunctionContext<'a> {
         // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
             let producer = if self.in_no_dynamic || self.in_dynamic {
-                self.locals.current().choose_producer_filtered(u, typ, |id, _| {
-                    (!self.in_no_dynamic || !self.is_dynamic(id))
-                        && (!self.in_dynamic || self.can_be_used_in_dynamic(typ))
-                })?
+                self.locals.current().choose_producer_filtered(
+                    u,
+                    typ,
+                    |id, (_, _, producer_type)| {
+                        (!self.in_no_dynamic || !self.is_dynamic(id))
+                            && (!self.in_dynamic || self.can_be_used_in_dynamic(producer_type, typ))
+                    },
+                )?
             } else {
                 self.locals.current().choose_producer(u, typ)?
             };
@@ -375,11 +384,13 @@ impl<'a> FunctionContext<'a> {
             return self
                 .locals
                 .current()
-                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, prod)| {
+                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, producer_type)| {
                     *mutable
-                        && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                        && (typ.as_ref() == producer_type
+                            || !types::is_array_or_slice(producer_type))
                         && (!self.in_no_dynamic || !self.is_dynamic(id))
-                        && (!self.in_dynamic || self.can_be_used_in_dynamic(typ.as_ref()))
+                        && (!self.in_dynamic
+                            || self.can_be_used_in_dynamic(producer_type, typ.as_ref()))
                 })
                 .map(|id| id.map(VariableId::Local));
         }
@@ -585,7 +596,12 @@ impl<'a> FunctionContext<'a> {
             return Ok(Some((src_expr, src_dyn)));
         }
 
-        // Mutable references to array elements are currently unsupported
+        // Some types cannot be accessed in certain contexts.
+        if self.in_dynamic && !self.can_be_used_in_dynamic(src_type, tgt_type) {
+            return Ok(None);
+        }
+
+        // Mutable references to array elements are currently unsupported.
         if types::is_array_or_slice(src_type) {
             src_mutable = false;
         }
