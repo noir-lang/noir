@@ -120,7 +120,6 @@ it('codegens a callable argless function', async () => {
   expect(val).to.be.eq('0x01');
 });
 
-
 it('codegens types for generic arguments', async () => {
   const a: Parent<Child> = {
     inner: {
