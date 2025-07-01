@@ -15,9 +15,9 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// Performs constant folding on each instruction.
+    /// Expands signed arithmetic operations to include explicit overflow checks.
     ///
-    /// See [`constant_folding`][self] module for more information.
+    /// See [`expand_signed_checks`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn expand_signed_checks(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -29,31 +29,30 @@ impl Ssa {
 
 impl Function {
     /// The structure of this pass is simple:
-    /// Go through each block and re-insert all instructions.
+    /// Go through each block and re-insert all instructions, decomposing any checked signed arithmetic to have explicit
+    /// overflow checks.
     pub(crate) fn expand_signed_checks(&mut self) {
-        if self.runtime().is_brillig() {
-            return;
-        }
-
-        let block = self.entry_block();
-
-        // Make sure this optimization runs when there's only one block
-        assert_eq!(self.dfg[block].successors().count(), 0);
+        // TODO: consider whether we can implement this more efficiently in brillig.
 
         self.simple_reachable_blocks_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
-            let Instruction::Binary(Binary { lhs, rhs, operator }) = instruction else {
+            // We only care about binary instructions that are signed arithmetic operations...
+            let Instruction::Binary(Binary {
+                lhs,
+                rhs,
+                operator:
+                    operator @ (BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }),
+            }) = instruction
+            else {
                 return;
             };
 
-            if !matches!(
-                operator,
-                BinaryOp::Add { unchecked: false }
-                    | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false }
-            ) {
+            // ... and it must be a signed integer operation.
+            if !context.dfg.type_of_value(*lhs).is_signed() {
                 return;
             }
 
@@ -61,6 +60,7 @@ impl Function {
             let rhs = *rhs;
             let operator = *operator;
 
+            // We remove the current instruction, as we will need to replace it with multiple new instructions.
             context.remove_current_instruction();
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
