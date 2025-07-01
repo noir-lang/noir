@@ -1,3 +1,5 @@
+use std::hash::BuildHasher;
+
 use crate::errors::CliError;
 
 use clap::Args;
@@ -13,6 +15,7 @@ use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
 use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
 use noirc_frontend::{hir::ParsedFiles, monomorphization::monomorphize};
+use rustc_hash::FxBuildHasher;
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
 
@@ -60,7 +63,7 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
                 continue;
             };
             let program = monomorphize(main, &mut context.def_interner, false).unwrap();
-            let hash = hash64::hash64(&program);
+            let hash = FxBuildHasher.hash_one(&program);
             println!("{}: {:x}", package.name, hash);
             continue;
         }

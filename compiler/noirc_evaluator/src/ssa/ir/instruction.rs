@@ -1,6 +1,7 @@
 use noirc_errors::call_stack::CallStackId;
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash};
 
 use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
 use iter_extended::vecmap;
@@ -772,7 +773,7 @@ pub enum ErrorType {
 
 impl ErrorType {
     pub fn selector(&self) -> ErrorSelector {
-        ErrorSelector::new(hash64::hash64(self))
+        ErrorSelector::new(FxBuildHasher.hash_one(self))
     }
 }
 

@@ -24,7 +24,9 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
+use rustc_hash::FxBuildHasher;
 use std::collections::HashMap;
+use std::hash::BuildHasher;
 use std::path::Path;
 use tracing::info;
 
@@ -747,7 +749,7 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = hash64::hash64(&program);
+    let hash = FxBuildHasher.hash_one(&program);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {

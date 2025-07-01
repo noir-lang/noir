@@ -26,7 +26,7 @@ fm.workspace = true
 serde.workspace = true
 rust-embed.workspace = true
 tracing.workspace = true
-hash64.workspace = true
+rustc-hash.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254", "noirc_evaluator/bn254"]

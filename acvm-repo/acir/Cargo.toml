@@ -51,7 +51,6 @@ num-bigint.workspace = true
 regex.workspace = true
 rmpv.workspace = true
 insta.workspace = true
-hash64.workspace = true
 
 acir = { path = ".", features = ["arb"] } # Self to turn on `arb`.
 

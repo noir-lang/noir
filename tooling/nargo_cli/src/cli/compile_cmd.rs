@@ -1,3 +1,4 @@
+use std::hash::BuildHasher;
 use std::io::{Read, Write};
 use std::path::Path;
 use std::time::Duration;
@@ -20,6 +21,7 @@ use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
 use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
+use rustc_hash::FxBuildHasher;
 
 use crate::errors::CliError;
 
@@ -218,7 +220,7 @@ fn compile_programs(
 
         // Hash over the entire compiled program, including any post-compile transformations.
         // This is used to detect whether `cached_program` is returned by `compile_program`.
-        let cached_hash = cached_program.as_ref().map(hash64::hash64);
+        let cached_hash = cached_program.as_ref().map(|program| FxBuildHasher.hash_one(program));
 
         // Compile the program, or use the cached artifacts if it matches.
         let (program, warnings) = compile_program(
@@ -237,7 +239,7 @@ fn compile_programs(
         // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
         // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
         // based on which we might have generated a verifier already.
-        if cached_hash == Some(hash64::hash64(&program)) {
+        if cached_hash == Some(FxBuildHasher.hash_one(&program)) {
             let width_matches = program
                 .program
                 .functions
@@ -465,7 +467,7 @@ mod tests {
                     // Just compare hashes, which would just state that the program failed.
                     // Then we can use the filter option to zoom in one one to see why.
                     assert!(
-                        hash64::hash64(&program_1) == hash64::hash64(&program_2),
+                        FxBuildHasher.hash_one(&program_1) == FxBuildHasher.hash_one(&program_2),
                         "optimization not idempotent for test program '{}'",
                         package.name
                     );

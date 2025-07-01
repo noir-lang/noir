@@ -35,7 +35,6 @@ smallvec = { version = "1.13.2", features = ["serde"] }
 vec-collections = "0.4.3"
 petgraph.workspace = true
 fm.workspace = true
-hash64.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

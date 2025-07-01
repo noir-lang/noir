@@ -14,7 +14,6 @@ dependencies = [
  "color-eyre",
  "criterion",
  "flate2",
- "hash64",
  "insta",
  "noir_protobuf",
  "num-bigint",
@@ -69,11 +68,11 @@ dependencies = [
  "bn254_blackbox_solver",
  "brillig_vm",
  "criterion",
- "hash64",
  "indexmap 1.9.3",
  "num-bigint",
  "pprof",
  "proptest",
+ "rustc-hash",
  "serde",
  "thiserror 1.0.69",
  "tracing",
@@ -2109,9 +2108,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.10"
+version = "0.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9421a676d1b147b16b82c9225157dc629087ef8ec4d5e2960f9437a90dac0a5"
+checksum = "17da50a276f1e01e0ba6c029e47b7100754904ee8a278f886546e98575380785"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -2157,13 +2156,6 @@ dependencies = [
  "pasta_curves 0.4.1",
  "rand_core 0.6.4",
  "rayon",
-]
-
-[[package]]
-name = "hash64"
-version = "1.0.0-beta.7"
-dependencies = [
- "rustc-hash",
 ]
 
 [[package]]
@@ -3215,7 +3207,6 @@ dependencies = [
  "dirs",
  "fm",
  "fs2",
- "hash64",
  "iai",
  "insta",
  "iter-extended",
@@ -3245,6 +3236,7 @@ dependencies = [
  "proptest",
  "rayon",
  "regex",
+ "rustc-hash",
  "serde",
  "serde_json",
  "sha2",
@@ -3506,7 +3498,6 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
- "hash64",
  "iter-extended",
  "nargo",
  "nargo_expand",
@@ -3697,13 +3688,13 @@ dependencies = [
  "build-data",
  "clap",
  "fm",
- "hash64",
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rust-embed",
+ "rustc-hash",
  "serde",
  "tracing",
 ]
@@ -3718,7 +3709,6 @@ dependencies = [
  "codespan-reporting",
  "flate2",
  "fm",
- "hash64",
  "noirc_printable_type",
  "rustc-hash",
  "serde",
@@ -3736,7 +3726,6 @@ dependencies = [
  "chrono",
  "fm",
  "function_name",
- "hash64",
  "im",
  "insta",
  "iter-extended",
@@ -5176,6 +5165,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1375ba8ef45a6f15d83fa8748f1079428295d403d6ea991d09ab100155fbc06d"
+dependencies = [
+ "dyn-clone",
+ "ref-cast",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5312,16 +5313,17 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "3.13.0"
+version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf65a400f8f66fb7b0552869ad70157166676db75ed8181f8104ea91cf9d0b42"
+checksum = "f2c45cd61fefa9db6f254525d46e392b852e0e61d9a1fd36e5bd183450a556d5"
 dependencies = [
  "base64 0.22.1",
  "chrono",
  "hex",
  "indexmap 1.9.3",
  "indexmap 2.10.0",
- "schemars",
+ "schemars 0.9.0",
+ "schemars 1.0.3",
  "serde",
  "serde_derive",
  "serde_json",
@@ -5331,9 +5333,9 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "3.13.0"
+version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81679d9ed988d5e9a5e6531dc3f2c28efbd639cbd1dfb628df08edea6004da77"
+checksum = "de90945e6565ce0d9a25098082ed4ee4002e047cb59892c318d66821e14bb30f"
 dependencies = [
  "darling",
  "proc-macro2",
