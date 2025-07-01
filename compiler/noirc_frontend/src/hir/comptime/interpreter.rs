@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::sync::atomic::AtomicU32;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::AcirField;
@@ -71,6 +72,8 @@ pub struct Interpreter<'local, 'interner> {
     bigint_solver: BigIntSolverWithId,
 }
 
+static DEPTH: AtomicU32 = AtomicU32::new(0);
+
 #[allow(unused)]
 impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn new(
@@ -98,24 +101,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         location: Location,
     ) -> IResult<Value> {
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
+        DEPTH.fetch_add(2, std::sync::atomic::Ordering::SeqCst);
 
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, kind, binding) in instantiation_bindings.values_mut() {
+            //let depth = DEPTH.load(std::sync::atomic::Ordering::SeqCst);
+            //let depth = "-".repeat(depth as usize);
+        for (_tvar, kind, binding) in instantiation_bindings.values_mut() {
             *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
+
+            //println!("{depth}Binding {:?} := {:?}", _tvar, binding);
         }
 
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
-        let mut impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, kind, binding) in impl_bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        //println!("{depth}trait method = {:?}", trait_method);
+        let impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.interpreter_call_stack.push_back(location);
@@ -126,6 +131,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
+        DEPTH.fetch_sub(2, std::sync::atomic::Ordering::SeqCst);
         result
     }
 
@@ -172,7 +178,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
 
-        println!("Calling function {} : {:?}", self.elaborator.interner.function_name(&function), meta.typ);
+        //let depth = DEPTH.load(std::sync::atomic::Ordering::SeqCst);
+        //let depth = "-".repeat(depth as usize);
+        //println!("{depth}Calling function {} : {:?}", self.elaborator.interner.function_name(&function), meta.typ);
 
         let previous_state = self.enter_function();
 
@@ -193,7 +201,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         };
         let result = self.evaluate(function_body);
         self.exit_function(previous_state);
-        println!("        function {} returned", self.elaborator.interner.function_name(&function));
         result
     }
 
@@ -585,12 +592,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         if let ImplKind::TraitItem(method) = ident.impl_kind {
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
-            println!("Evaluating ident {} : {typ}", definition.name);
+        //let depth = DEPTH.load(std::sync::atomic::Ordering::SeqCst);
+        //let depth = "-".repeat(depth as usize);
+            //println!("{depth}Evaluating ident {} : {typ}", definition.name);
             let method_id = resolve_trait_method(self.elaborator.interner, method.id(), id)?;
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
-            println!("Got bindings:");
+            //println!("{depth}Got bindings:");
             for (a, (b, c, d)) in &bindings {
-                println!("  {:?} <- {}", b.borrow(), d);
+                //println!("{depth}{:?} <- {}", b.borrow(), d);
             }
 
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));

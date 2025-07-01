@@ -2473,7 +2473,7 @@ fn function_def_as_typed_expr(
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
-        let id = interpreter.elaborator.interner.function_definition_id(func_id);
+        let id = interpreter.elaborator.interner.get_trait_item_id(func_id).unwrap().item_id;
         let trait_method = TraitItem { definition: id, constraint, assumed: true };
         HirIdent { location, id, impl_kind: ImplKind::TraitItem(trait_method) }
     } else {

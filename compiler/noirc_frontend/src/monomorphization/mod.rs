@@ -2484,8 +2484,8 @@ pub fn perform_impl_bindings(
         trait_method_type.replace_named_generics_with_type_variables();
         impl_method_type.replace_named_generics_with_type_variables();
 
-        eprintln!("Unifying {}", trait_method_type);
-        eprintln!("     and {}\n", impl_method_type);
+        // println!("Unifying {:?}", trait_method_type);
+        // println!("     and {:?}\n", impl_method_type);
         trait_method_type.try_unify(&impl_method_type, &mut bindings).map_err(|_| {
             InterpreterError::ImplMethodTypeMismatch {
                 expected: trait_method_type.follow_bindings(),
@@ -2493,6 +2493,11 @@ pub fn perform_impl_bindings(
                 location,
             }
         })?;
+
+        for (_, kind, binding) in bindings.values_mut() {
+            *kind = kind.follow_bindings();
+            *binding = binding.follow_bindings();
+        }
 
         perform_instantiation_bindings(&bindings);
     }
@@ -2514,15 +2519,15 @@ pub fn resolve_trait_method(
         TraitImplKind::Normal(impl_id) => impl_id,
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
-            println!(
-                "resolve trait method: {}",
-                interner.trait_constraint_string(
-                    &object_type,
-                    method_id.trait_id,
-                    &trait_generics.ordered,
-                    &trait_generics.named
-                )
-            );
+            // println!(
+            //     "resolve trait method: {}",
+            //     interner.trait_constraint_string(
+            //         &object_type,
+            //         method_id.trait_id,
+            //         &trait_generics.ordered,
+            //         &trait_generics.named
+            //     )
+            // );
 
             match interner.lookup_trait_implementation(
                 &object_type,
@@ -2548,7 +2553,6 @@ pub fn resolve_trait_method(
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        panic!("monomorphization error2");
                         return Err(InterpreterError::NoMatchingImplFound { error });
                     } else {
                         return Err(InterpreterError::NoImpl { location });

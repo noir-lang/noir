@@ -1418,13 +1418,28 @@ impl NodeInterner {
         self.function_definition_ids[&function]
     }
 
-    /// Returns the definition id and trait id for a given trait function.
-    /// Note that this will return None for impl functions.
+    /// Returns the definition id and trait id for a given trait or impl function.
+    ///
+    /// If this is an impl function, the DefinitionId inside the TraitItemId will still
+    /// be that of the function in the parent trait.
     pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
         let function = self.function_meta(&function_id);
-        let trait_id = function.trait_id?;
-        let definition_id = self.function_definition_id(function_id);
-        Some(TraitItemId { item_id: definition_id, trait_id })
+
+        match function.trait_impl {
+            Some(impl_id) => {
+                let trait_id = self.get_trait_implementation(impl_id).borrow().trait_id;
+                let the_trait = self.get_trait(trait_id);
+                let name = self.definition_name(function.name.id);
+                let definition_id = the_trait.find_method_or_constant(name, self)
+                    .expect("Expected parent trait to have function from impl");
+                Some(TraitItemId { item_id: definition_id, trait_id })
+            }
+            None => {
+                let trait_id = function.trait_id?;
+                let definition_id = self.function_definition_id(function_id);
+                Some(TraitItemId { item_id: definition_id, trait_id })
+            }
+        }
     }
 
     /// Adds a non-trait method to a type.

@@ -79,6 +79,8 @@ pub enum ImplKind {
 /// A method or constant defined in a trait
 #[derive(Debug, Clone)]
 pub struct TraitItem {
+    /// Note that this _must_ be the id of the function or constant within the trait,
+    /// not the id within the impl.
     pub definition: DefinitionId,
     pub constraint: TraitConstraint,
     pub assumed: bool,
