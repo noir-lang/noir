@@ -2609,7 +2609,31 @@
 <a href="#2608" id="2608">2608</a>
 <a href="#2609" id="2609">2609</a>
 <a href="#2610" id="2610">2610</a>
-<a href="#2611" id="2611">2611</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -2644,22 +2668,45 @@
 <span class="doccomment">/// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 </span><span class="kw">pub type </span>ErrorCallStack = Vec&lt;usize&gt;;
 
-<span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
+<span class="doccomment">/// Represents the reason why the Brillig VM failed during execution.
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub enum </span>FailureReason {
-    Trap { revert_data_offset: usize, revert_data_size: usize },
-    RuntimeError { message: String },
+    <span class="doccomment">/// A trap was encountered, which indicates an explicit failure from within the VM program.
+    ///
+    /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
+    /// The revert data is referenced by the offset and size in the VM memory.
+    </span>Trap {
+        <span class="doccomment">/// Offset in memory where the revert data begins.
+        </span>revert_data_offset: usize,
+        <span class="doccomment">/// Size of the revert data.
+        </span>revert_data_size: usize,
+    },
+    <span class="doccomment">/// A runtime failure during execution.
+    /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
+    /// For example, a [binary operation][Opcode::BinaryIntOp] can trigger a division by zero error.
+    </span>RuntimeError { message: String },
 }
 
-<span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
+<span class="doccomment">/// Represents the current execution status of the Brillig VM.
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub enum </span>VMStatus&lt;F&gt; {
-    Finished {
-        return_data_offset: usize,
-        return_data_size: usize,
+    <span class="doccomment">/// The VM has completed execution successfully.
+    /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
+    </span>Finished {
+        <span class="doccomment">/// Offset in memory where the return data begins.
+        </span>return_data_offset: usize,
+        <span class="doccomment">/// Size of the return data.
+        </span>return_data_size: usize,
     },
-    InProgress,
-    Failure {
-        reason: FailureReason,
-        call_stack: ErrorCallStack,
+    <span class="doccomment">/// The VM is still in progress and has not yet completed execution.
+    /// This is used when simulating execution.
+    </span>InProgress,
+    <span class="doccomment">/// The VM encountered a failure and halted execution.
+    </span>Failure {
+        <span class="doccomment">/// The reason for the failure.
+        </span>reason: FailureReason,
+        <span class="doccomment">/// The call stack at the time the failure occurred, useful for debugging nested calls.
+        </span>call_stack: ErrorCallStack,
     },
     <span class="doccomment">/// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
     /// reached where the outputs are yet to be resolved.
@@ -2676,7 +2723,7 @@
     },
 }
 
-<span class="comment">// A sample for each opcode that was executed.
+<span class="doccomment">/// All samples for each opcode that was executed
 </span><span class="kw">pub type </span>BrilligProfilingSamples = Vec&lt;BrilligProfilingSample&gt;;
 
 <span class="doccomment">/// The position of an opcode that is currently being executed in the bytecode
@@ -2702,9 +2749,10 @@
 <span class="doccomment">/// A map for translating encountered branching logic to features for fuzzing
 </span><span class="kw">pub type </span>BranchToFeatureMap = HashMap&lt;Branch, UniqueFeatureIndex&gt;;
 
-<span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
+<span class="doccomment">/// A sample for an executed opcode
+</span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub struct </span>BrilligProfilingSample {
-    <span class="comment">// The call stack when processing a given opcode.
+    <span class="doccomment">/// The call stack when processing a given opcode.
     </span><span class="kw">pub </span>call_stack: Vec&lt;usize&gt;,
 }
 

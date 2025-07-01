@@ -1225,7 +1225,14 @@
 <a href="#1224" id="1224">1224</a>
 <a href="#1225" id="1225">1225</a>
 <a href="#1226" id="1226">1226</a>
-<a href="#1227" id="1227">1227</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
@@ -1459,6 +1466,7 @@
         <span class="kw">for </span>(index, field) <span class="kw">in </span>data_type.get_fields_as_written().unwrap().into_iter().enumerate() {
             <span class="self">self</span>.write_indent();
             <span class="self">self</span>.show_doc_comments(ReferenceId::StructMember(data_type.id, index));
+            <span class="self">self</span>.show_item_visibility(field.visibility);
             <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>field.name.to_string());
             <span class="self">self</span>.push_str(<span class="string">": "</span>);
             <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>field.typ);
@@ -2271,6 +2279,12 @@
         <span class="comment">// Check if module_def_id is the current module's parent
         </span><span class="kw">if let </span>ModuleDefId::ModuleId(module_id) = module_def_id {
             <span class="kw">if </span>current_module_parent_id == <span class="prelude-val">Some</span>(module_id) {
+                <span class="comment">// If the parent is actually the crate's root, use "crate"
+                </span><span class="kw">if </span>current_module_parent_id.unwrap().parent(<span class="self">self</span>.def_maps).is_none() {
+                    <span class="self">self</span>.push_str(<span class="string">"crate"</span>);
+                    <span class="kw">return </span><span class="string">"crate"</span>.to_string();
+                }
+
                 <span class="self">self</span>.push_str(<span class="string">"super"</span>);
                 <span class="kw">return </span><span class="string">"super"</span>.to_string();
             }
