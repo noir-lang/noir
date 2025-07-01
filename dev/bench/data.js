@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751374860095,
+  "lastUpdate": 1751376210579,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18625,48 +18625,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "f1a3938e429863a211a09a7cf1837dbe1b1320f4",
-          "message": "fix(fuzz): Avoid negating `i8::MIN` into `i8::MAX+1` which won't compile (#8972)",
-          "timestamp": "2025-06-19T10:57:50Z",
-          "tree_id": "6a9bc44d858675f29a6af4134aadf4006a65658b",
-          "url": "https://github.com/noir-lang/noir/commit/f1a3938e429863a211a09a7cf1837dbe1b1320f4"
-        },
-        "date": 1750332033700,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252289,
-            "range": "± 604",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223269,
-            "range": "± 20830",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779349,
-            "range": "± 1375",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "de51b8fa9633bd467cb42db5d242cbe72d6691e5",
           "message": "fix(fuzz): Do not take a mutable reference over immutable vars which contain a mutable ref (#8971)",
@@ -20709,6 +20667,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778760,
             "range": "± 2048",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b0f596b8dc153936f321e09adf2380d0ffeb845",
+          "message": "chore(debug): Toggle SSA locations when printing SSA  (#9066)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-07-01T12:57:53Z",
+          "tree_id": "6efc2475cddb610497f4a466ec04c58feef51ec7",
+          "url": "https://github.com/noir-lang/noir/commit/2b0f596b8dc153936f321e09adf2380d0ffeb845"
+        },
+        "date": 1751376197374,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255575,
+            "range": "± 1140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229044,
+            "range": "± 876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794291,
+            "range": "± 2953",
             "unit": "ns/iter"
           }
         ]
