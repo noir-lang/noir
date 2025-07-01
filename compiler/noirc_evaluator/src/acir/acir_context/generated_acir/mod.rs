@@ -378,6 +378,13 @@ impl<F: AcirField> GeneratedAcir<F> {
         }
 
         self.assert_is_zero(input_expr - &composed_limbs);
+        let assertion_payload = self.generate_assertion_message_payload(format!(
+                "Field does not decompose into specified {limb_count} limbs"
+            ));
+        self.assertion_payloads.insert(
+            self.last_acir_opcode_location(),
+            assertion_payload
+        );
 
         Ok(limb_witnesses)
     }
