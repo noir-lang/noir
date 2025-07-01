@@ -935,7 +935,7 @@ mod test {
         assert_eq!(ssa.functions.len(), 2);
 
         let ssa = ssa.inline_functions(i64::MAX);
-         let Err(err) = ssa else {
+        let Err(err) = ssa else {
             panic!("inline_functions cannot inline recursive functions");
         };
         insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
