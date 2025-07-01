@@ -997,15 +997,26 @@
 <a href="#996" id="996">996</a>
 <a href="#997" id="997">997</a>
 <a href="#998" id="998">998</a>
-<a href="#999" id="999">999</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
 </span><span class="kw">use </span>std::collections::{HashSet, VecDeque};
 
+<span class="kw">use </span><span class="kw">crate</span>::errors::RuntimeError;
 <span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>im::HashMap;
-<span class="kw">use </span>iter_extended::{btree_map, vecmap};
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -1049,14 +1060,17 @@
     ///
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions(<span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions(<span class="self">self</span>, aggressiveness: i64) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
         <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, aggressiveness);
         <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions_with_no_predicates(<span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions_with_no_predicates(
+        <span class="self">self</span>,
+        aggressiveness: i64,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
         <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, aggressiveness);
         <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">true</span>)
@@ -1066,7 +1080,7 @@
         <span class="kw-2">mut </span><span class="self">self</span>,
         inline_infos: <span class="kw-2">&amp;</span>InlineInfos,
         inline_no_predicates_functions: bool,
-    ) -&gt; Ssa {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
         <span class="kw">let </span>inline_targets = inline_infos.iter().filter_map(|(id, info)| {
             <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[id].dfg;
             info.is_inline_target(dfg).then_some(<span class="kw-2">*</span>id)
@@ -1090,14 +1104,16 @@
 
         <span class="comment">// NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
         // instead of inlining the "leaf" functions, moving up towards the entry point.
-        </span><span class="self">self</span>.functions = btree_map(inline_targets, |entry_point| {
+        </span><span class="kw">let </span><span class="kw-2">mut </span>new_functions = std::collections::BTreeMap::new();
+        <span class="kw">for </span>entry_point <span class="kw">in </span>inline_targets {
             <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>entry_point];
-            <span class="kw">let </span>new_function = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call);
-            (entry_point, new_function)
-        });
+            <span class="kw">let </span>inlined = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call)<span class="question-mark">?</span>;
+            new_functions.insert(entry_point, inlined);
+        }
+        <span class="self">self</span>.functions = new_functions;
 
-        <span class="self">self
-    </span>}
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>)
+    }
 }
 
 <span class="kw">impl </span>Function {
@@ -1106,7 +1122,7 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         ssa: <span class="kw-2">&amp;</span>Ssa,
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) -&gt; Function {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Function, RuntimeError&gt; {
         InlineContext::new(ssa, <span class="self">self</span>.id()).inline_all(ssa, <span class="kw-2">&amp;</span>should_inline_call)
     }
 }
@@ -1179,7 +1195,7 @@
         <span class="kw-2">mut </span><span class="self">self</span>,
         ssa: <span class="kw-2">&amp;</span>Ssa,
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) -&gt; Function {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Function, RuntimeError&gt; {
         <span class="kw">let </span>entry_point = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.entry_point];
 
         <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>entry_point.dfg.globals;
@@ -1203,7 +1219,7 @@
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(ssa, should_inline_call);
+        context.inline_blocks(ssa, should_inline_call)<span class="question-mark">?</span>;
         <span class="comment">// translate databus values
         </span><span class="kw">let </span>databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
@@ -1212,7 +1228,7 @@
         <span class="macro">assert_eq!</span>(new_ssa.functions.len(), <span class="number">1</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>new_func = new_ssa.functions.pop_first().unwrap().<span class="number">1</span>;
         new_func.dfg.data_bus = databus;
-        new_func
+        <span class="prelude-val">Ok</span>(new_func)
     }
 
     <span class="doccomment">/// Inlines a function into the current function and returns the translated return values
@@ -1223,17 +1239,16 @@
         id: FunctionId,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) -&gt; Vec&lt;ValueId&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ValueId&gt;, RuntimeError&gt; {
         <span class="self">self</span>.recursion_level += <span class="number">1</span>;
 
         <span class="kw">let </span>source_function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>id];
-
         <span class="kw">if </span><span class="self">self</span>.recursion_level &gt; RECURSION_LIMIT {
-            <span class="macro">panic!</span>(
-                <span class="string">"Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}"</span>,
-                source_function.name(),
-                source_function
-            );
+            <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::RecursionLimit {
+                function_name: source_function.name().to_string(),
+                limit: RECURSION_LIMIT,
+                call_stack: <span class="self">self</span>.builder.current_function.dfg.get_call_stack(<span class="self">self</span>.call_stack),
+            });
         }
 
         <span class="kw">let </span>entry_point = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.entry_point];
@@ -1247,9 +1262,9 @@
         <span class="kw">let </span>current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        <span class="kw">let </span>return_values = context.inline_blocks(ssa, should_inline_call);
+        <span class="kw">let </span>return_values = context.inline_blocks(ssa, should_inline_call)<span class="question-mark">?</span>;
         <span class="self">self</span>.recursion_level -= <span class="number">1</span>;
-        return_values
+        <span class="prelude-val">Ok</span>(return_values)
     }
 }
 
@@ -1391,7 +1406,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ssa: <span class="kw-2">&amp;</span>Ssa,
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) -&gt; Vec&lt;ValueId&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;ValueId&gt;, RuntimeError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>seen_blocks = HashSet::new();
         <span class="kw">let </span><span class="kw-2">mut </span>block_queue = VecDeque::new();
         block_queue.push_back(<span class="self">self</span>.source_function.entry_block());
@@ -1408,7 +1423,7 @@
             <span class="self">self</span>.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            <span class="self">self</span>.inline_block_instructions(ssa, source_block_id, should_inline_call);
+            <span class="self">self</span>.inline_block_instructions(ssa, source_block_id, should_inline_call)<span class="question-mark">?</span>;
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>((block, values)) =
                 <span class="self">self</span>.handle_terminator_instruction(source_block_id, <span class="kw-2">&amp;mut </span>block_queue)
@@ -1417,7 +1432,7 @@
             }
         }
 
-        <span class="self">self</span>.handle_function_returns(function_returns)
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.handle_function_returns(function_returns))
     }
 
     <span class="doccomment">/// Handle inlining a function's possibly multiple return instructions.
@@ -1457,7 +1472,7 @@
         ssa: <span class="kw-2">&amp;</span>Ssa,
         block_id: BasicBlockId,
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>side_effects_enabled: <span class="prelude-ty">Option</span>&lt;ValueId&gt; = <span class="prelude-val">None</span>;
 
         <span class="kw">let </span>block = <span class="kw-2">&amp;</span><span class="self">self</span>.source_function.dfg[block_id];
@@ -1473,7 +1488,7 @@
                                     func_id,
                                     arguments,
                                     should_inline_call,
-                                );
+                                )<span class="question-mark">?</span>;
 
                                 <span class="comment">// This is only relevant during handling functions with `InlineType::NoPredicates` as these
                                 // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
@@ -1502,6 +1517,7 @@
                 <span class="kw">_ </span>=&gt; <span class="self">self</span>.push_instruction(<span class="kw-2">*</span>id),
             }
         }
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>should_inline_call&lt;<span class="lifetime">'a</span>&gt;(
@@ -1544,7 +1560,7 @@
         function: FunctionId,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
         should_inline_call: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Function) -&gt; bool,
-    ) {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
         <span class="kw">let </span>old_results = <span class="self">self</span>.source_function.dfg.instruction_results(call_id);
         <span class="kw">let </span>arguments = vecmap(arguments, |arg| <span class="self">self</span>.translate_value(<span class="kw-2">*</span>arg));
 
@@ -1560,7 +1576,7 @@
 
         <span class="self">self</span>.context.call_stack = new_call_stack;
         <span class="kw">let </span>new_results =
-            <span class="self">self</span>.context.inline_function(ssa, function, <span class="kw-2">&amp;</span>arguments, should_inline_call);
+            <span class="self">self</span>.context.inline_function(ssa, function, <span class="kw-2">&amp;</span>arguments, should_inline_call)<span class="question-mark">?</span>;
         <span class="self">self</span>.context.call_stack = <span class="self">self
             </span>.context
             .builder
@@ -1571,6 +1587,7 @@
 
         <span class="kw">let </span>new_results = InsertInstructionResult::Results(call_id, <span class="kw-2">&amp;</span>new_results);
         <span class="self">Self</span>::insert_new_instruction_results(<span class="kw-2">&amp;mut </span><span class="self">self</span>.values, old_results, new_results);
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="doccomment">/// Push the given instruction from the source_function into the current block of the
@@ -1758,7 +1775,7 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX).unwrap();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn foo f0 {
           b0():
@@ -1797,7 +1814,7 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX).unwrap();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -1833,7 +1850,7 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX).unwrap();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0():
@@ -1891,7 +1908,7 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX).unwrap();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -1908,11 +1925,10 @@
     }
 
     <span class="attr">#[test]
-    #[should_panic(
-        expected = <span class="string">"Attempted to recur more than 1000 times during inlining function 'foo':\nacir(inline) fn foo f1 {"
-    </span>)]
     </span><span class="kw">fn </span>unconditional_recursion() {
-        <span class="kw">let </span>src = <span class="string">"
+        <span class="comment">// f1 is calling itself, which results in an infinite recursion
+        // it is expected that inlining this program returns an error.
+        </span><span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0():
             call f1()
@@ -1927,7 +1943,11 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="macro">assert_eq!</span>(ssa.functions.len(), <span class="number">2</span>);
 
-        <span class="kw">let _ </span>= ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MAX);
+        <span class="kw">let </span><span class="prelude-val">Err</span>(err) = ssa <span class="kw">else </span>{
+            <span class="macro">panic!</span>(<span class="string">"inline_functions cannot inline recursive functions"</span>);
+        };
+        <span class="macro">insta::assert_snapshot!</span>(err.to_string(), @<span class="string">"Attempted to recurse more than 1000 times during inlining function 'foo'"</span>);
     }
 
     <span class="attr">#[test]
@@ -1945,7 +1965,7 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MIN);
+        <span class="kw">let </span>ssa = ssa.inline_functions(i64::MIN).unwrap();
         <span class="comment">// No inlining has happened
         </span>assert_normalized_ssa_equals(ssa, src);
     }
@@ -1975,7 +1995,7 @@
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
-        <span class="kw">let </span>ssa = ssa.inline_functions(<span class="number">0</span>);
+        <span class="kw">let </span>ssa = ssa.inline_functions(<span class="number">0</span>).unwrap();
         <span class="comment">// No inlining has happened in f0
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn foo f0 {

@@ -137,7 +137,7 @@
 <a href="#136" id="136">136</a></pre></div><pre class="rust"><code><span class="doccomment">//! Pre-process functions before inlining them into others.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
-    Ssa,
+    RuntimeError, Ssa,
     ir::{
         call_graph::CallGraph,
         function::{Function, RuntimeType},
@@ -148,7 +148,7 @@
 
 <span class="kw">impl </span>Ssa {
     <span class="doccomment">/// Run pre-processing steps on functions in isolation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>preprocess_functions(<span class="kw-2">mut </span><span class="self">self</span>, aggressiveness: i64) -&gt; Ssa {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>preprocess_functions(<span class="kw-2">mut </span><span class="self">self</span>, aggressiveness: i64) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
         <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
         <span class="comment">// Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         </span><span class="kw">let </span>bottom_up = inlining::inline_info::compute_bottom_up_order(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph);
@@ -189,7 +189,7 @@
             }
 
             <span class="comment">// Start with an inline pass.
-            </span><span class="kw">let </span><span class="kw-2">mut </span>function = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call);
+            </span><span class="kw">let </span><span class="kw-2">mut </span>function = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call)<span class="question-mark">?</span>;
             <span class="comment">// Help unrolling determine bounds.
             </span>function.as_slice_optimization();
             <span class="comment">// Prepare for unrolling
@@ -209,7 +209,7 @@
         <span class="comment">// Remove any functions that have been inlined into others already.
         </span><span class="kw">let </span>ssa = <span class="self">self</span>.remove_unreachable_functions();
         <span class="comment">// Remove leftover instructions.
-        </span>ssa.dead_instruction_elimination_pre_flattening()
+        </span><span class="prelude-val">Ok</span>(ssa.dead_instruction_elimination_pre_flattening())
     }
 }
 
@@ -247,7 +247,7 @@
         "#</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.preprocess_functions(i64::MAX);
+        <span class="kw">let </span>ssa = ssa.preprocess_functions(i64::MAX).unwrap();
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
         acir(inline) fn main f0 {

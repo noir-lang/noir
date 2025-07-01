@@ -815,7 +815,10 @@
 <a href="#814" id="814">814</a>
 <a href="#815" id="815">815</a>
 <a href="#816" id="816">816</a>
-<a href="#817" id="817">817</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -989,11 +992,14 @@
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
         </span>SsaPass::new(Ssa::remove_paired_rc, <span class="string">"Removing Paired rc_inc &amp; rc_decs"</span>),
-        SsaPass::new(
+        SsaPass::new_try(
             <span class="kw">move </span>|ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             <span class="string">"Preprocessing Functions"</span>,
         ),
-        SsaPass::new(<span class="kw">move </span>|ssa| ssa.inline_functions(options.inliner_aggressiveness), <span class="string">"Inlining"</span>),
+        SsaPass::new_try(
+            <span class="kw">move </span>|ssa| ssa.inline_functions(options.inliner_aggressiveness),
+            <span class="string">"Inlining"</span>,
+        ),
         <span class="comment">// Run mem2reg with the CFG separated into blocks
         </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
@@ -1019,7 +1025,7 @@
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
-        </span>SsaPass::new(
+        </span>SsaPass::new_try(
             <span class="kw">move </span>|ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             <span class="string">"Inlining"</span>,
         ),
