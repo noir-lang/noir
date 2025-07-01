@@ -114,7 +114,7 @@ impl Context<'_> {
                     let acir_typ: AcirType = dfg.type_of_value(result_ids[0]).into();
                     let zero_value = AcirValue::Var(zero_var, acir_typ);
                     self.define_result(dfg, instruction, zero_value);
-                    let msg = format!("Index out of bounds, array has size 0");
+                    let msg = "Index out of bounds, array has size 0".to_string();
                     let msg = self.acir_context.generate_assertion_message_payload(msg);
                     return self.acir_context.assert_eq_var(
                         self.current_side_effects_enabled_var,
