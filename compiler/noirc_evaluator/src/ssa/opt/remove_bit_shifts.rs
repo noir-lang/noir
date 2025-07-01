@@ -67,12 +67,11 @@ impl Function {
                 _ => unreachable!("ICE: right-shift attempted on non-integer"),
             };
 
+            let mut bitshift_context = Context { context };
             let new_result = if operator == BinaryOp::Shl {
-                let mut context = Context { context };
-                context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+                bitshift_context.insert_wrapping_shift_left(lhs, rhs, bit_size)
             } else {
-                let mut context = Context { context };
-                context.insert_shift_right(lhs, rhs, bit_size)
+                bitshift_context.insert_shift_right(lhs, rhs, bit_size)
             };
 
             context.replace_value(old_result, new_result);
