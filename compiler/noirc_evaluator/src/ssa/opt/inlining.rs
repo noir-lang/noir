@@ -98,13 +98,8 @@ impl Ssa {
         let mut new_functions = std::collections::BTreeMap::new();
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
-            let inlined = function.inlined(&self, &should_inline_call);
-            if let Ok(inlined_function) = inlined {
-                new_functions.insert(entry_point, inlined_function);
-            } else {
-                let err = inlined.expect_err("");
-                return Err(err);
-            }
+            let inlined = function.inlined(&self, &should_inline_call)?;
+            new_functions.insert(entry_point, inlined);
         }
         self.functions = new_functions;
 
@@ -1026,6 +1021,9 @@ mod test {
         }";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN);
-        assert!(ssa.is_err());
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
     }
 }
