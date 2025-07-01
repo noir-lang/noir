@@ -12,6 +12,7 @@ use arbtest::arbtest;
 use nargo::parse_all;
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::Context,
     monomorphization::{ast::Program, monomorphize},
@@ -42,9 +43,9 @@ fn arb_ast_roundtrip() {
         };
         let program1 = arb_program(u, config)?;
         let src1 = format!("{}", DisplayAstAsNoir(&program1));
-        println!("{src1}");
-        let Some(program2) = monomorphize_snippet(src1.clone()) else { return Ok(()) };
-        println!("{program2}");
+        let program2 = monomorphize_snippet(src1.clone()).unwrap_or_else(|errors| {
+            panic!("the program did not compile:\n{src1}\n\n{errors:?}");
+        });
         let src2 = format!("{}", DisplayAstAsNoir(&program2));
         similar_asserts::assert_eq!(sanitize(&src1), sanitize(&src2));
         Ok(())
@@ -60,7 +61,7 @@ fn arb_ast_roundtrip() {
     prop.run();
 }
 
-fn monomorphize_snippet(source: String) -> Option<Program> {
+fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>> {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
     let mut file_manager = file_manager_with_stdlib(root);
@@ -74,18 +75,13 @@ fn monomorphize_snippet(source: String) -> Option<Program> {
 
     context.disable_comptime_printing();
 
-    // Things that generate compile-time rejections are possible, e.g. `--128`.
-    // In other tests we handle those already, so here we can just ignore them.
-    // We could also avoid generating them, but it would require avoiding all potential overflowing ops, or negative literals.
-    if let Err(_) = noirc_driver::check_crate(&mut context, crate_id, &CompileOptions::default()) {
-        return None;
-    }
+    let _ = noirc_driver::check_crate(&mut context, crate_id, &CompileOptions::default())?;
 
     let main_id = context.get_main_function(&crate_id).expect("get_main_function");
 
     let program = monomorphize(main_id, &mut context.def_interner, false).expect("monomorphize");
 
-    Some(program)
+    Ok(program)
 }
 
 fn sanitize(src: &str) -> String {
