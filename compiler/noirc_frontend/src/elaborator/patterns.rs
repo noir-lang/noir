@@ -1007,6 +1007,8 @@ impl Elaborator<'_> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
+            println!("bind_generics_from_trait_constraint with constraint:\n  {}",
+                method.constraint.to_string(self.interner));
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,

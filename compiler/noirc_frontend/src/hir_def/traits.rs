@@ -121,6 +121,11 @@ impl TraitConstraint {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
     }
+
+    pub fn to_string(&self, interner: &NodeInterner) -> String {
+        interner.trait_constraint_string(&self.typ, self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered, &self.trait_bound.trait_generics.named)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
