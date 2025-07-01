@@ -177,7 +177,24 @@
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
@@ -193,10 +210,22 @@
     <span class="doccomment">/// These errors are all the result from malformed input SSA
     </span><span class="attr">#[error(<span class="string">"{0}"</span>)]
     </span>Internal(InternalError),
-    <span class="attr">#[error(<span class="string">"constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}"</span>)]
-    </span>ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
-    <span class="attr">#[error(<span class="string">"constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}"</span>)]
-    </span>ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    <span class="attr">#[error(<span class="string">"constrain {lhs_id} == {rhs_id}{message} failed:\n    {lhs} != {rhs}"</span>, message = constraint_message(.msg))]
+    </span>ConstrainEqFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    },
+    <span class="attr">#[error(<span class="string">"constrain {lhs_id} != {rhs_id}{message} failed:\n    {lhs} == {rhs}"</span>, message = constraint_message(.msg))]
+    </span>ConstrainNeFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    },
     <span class="attr">#[error(<span class="string">"static_assert `{condition}` failed: {message}"</span>)]
     </span>StaticAssertFailed { condition: ValueId, message: String },
     <span class="attr">#[error(
@@ -355,5 +384,10 @@
     </span>UnexpectedInput { name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, expected_type: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, value: String },
     <span class="attr">#[error(<span class="string">"Error parsing `{name}` into `{expected_type}` from `{value}`: {error}"</span>)]
     </span>ParsingError { name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, expected_type: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, value: String, error: String },
+}
+
+<span class="doccomment">/// Format the message of a `constrain` instruction so that we can print it.
+</span><span class="kw">fn </span>constraint_message(msg: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;String&gt;) -&gt; String {
+    msg.as_ref().map(|msg| <span class="macro">format!</span>(<span class="string">", \"{msg}\""</span>)).unwrap_or_default()
 }
 </code></pre></div></section></main></body></html>

@@ -622,10 +622,10 @@
             ) =&gt; {
                 <span class="comment">// The removal of unreachable instructions evaluates constant binary operations and can replace
                 // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
-                </span>msg2.contains(msg1)
+                </span>msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
-                msg.contains(<span class="string">"attempt to divide by zero"</span>)
+                msg.as_ref().is_some_and(|msg| msg == <span class="string">"attempt to divide by zero"</span>)
             }
             (e1, e2) =&gt; {
                 <span class="comment">// The format strings contain SSA instructions,

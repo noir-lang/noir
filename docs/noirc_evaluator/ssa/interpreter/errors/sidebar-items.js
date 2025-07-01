@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_UNSIGNED_BIT_SIZE"],"enum":["InternalError","InterpreterError"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_UNSIGNED_BIT_SIZE"],"enum":["InternalError","InterpreterError"],"fn":["constraint_message"]};
