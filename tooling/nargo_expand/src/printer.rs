@@ -232,6 +232,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         for (index, field) in data_type.get_fields_as_written().unwrap().into_iter().enumerate() {
             self.write_indent();
             self.show_doc_comments(ReferenceId::StructMember(data_type.id, index));
+            self.show_item_visibility(field.visibility);
             self.push_str(&field.name.to_string());
             self.push_str(": ");
             self.show_type(&field.typ);
