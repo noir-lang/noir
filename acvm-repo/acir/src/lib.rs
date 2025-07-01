@@ -34,6 +34,7 @@ mod reflection {
     use std::{
         collections::BTreeMap,
         fs::File,
+        hash::BuildHasher,
         io::Write,
         path::{Path, PathBuf},
     };
