@@ -2,7 +2,14 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet}, future::Future, hash::BuildHasher, ops::{self, ControlFlow}, path::{Path, PathBuf}, pin::Pin, str::FromStr, task::{self, Poll}
+    collections::{BTreeMap, HashMap, HashSet},
+    future::Future,
+    hash::BuildHasher,
+    ops::{self, ControlFlow},
+    path::{Path, PathBuf},
+    pin::Pin,
+    str::FromStr,
+    task::{self, Poll},
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
@@ -375,7 +382,8 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
                     Some((
                         file_id,
                         file_path.to_path_buf(),
-                        FxBuildHasher.hash_one(file_manager.fetch_file(file_id).expect("file must exist")),
+                        FxBuildHasher
+                            .hash_one(file_manager.fetch_file(file_id).expect("file must exist")),
                     ))
                 } else {
                     None

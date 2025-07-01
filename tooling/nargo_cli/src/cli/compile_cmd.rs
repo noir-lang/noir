@@ -329,7 +329,9 @@ pub(crate) fn get_target_width(
 #[cfg(test)]
 mod tests {
     use std::{
-        hash::BuildHasher, path::{Path, PathBuf}, str::FromStr
+        hash::BuildHasher,
+        path::{Path, PathBuf},
+        str::FromStr,
     };
 
     use clap::Parser;
