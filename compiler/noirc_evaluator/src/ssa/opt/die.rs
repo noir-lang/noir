@@ -113,7 +113,7 @@ impl Ssa {
     /// concrete feedback about where the problem with the Noir code might be, such as
     /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
     /// of the offending instruction here as well, it's just not clear what error message
-    /// to say, besides the fact that mem2reg was unable to eliminate something.
+    /// to return, besides the fact that mem2reg was unable to eliminate something.
     #[cfg_attr(not(debug_assertions), allow(unused_variables))]
     pub(crate) fn dead_instruction_elimination_post_check(&self, flattened: bool) {
         #[cfg(debug_assertions)]
