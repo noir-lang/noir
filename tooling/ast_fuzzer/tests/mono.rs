@@ -47,7 +47,7 @@ fn arb_ast_roundtrip() {
             panic!("the program did not compile:\n{src1}\n\n{errors:?}");
         });
         let src2 = format!("{}", DisplayAstAsNoir(&program2));
-        similar_asserts::assert_eq!(sanitize(&src1), sanitize(&src2));
+        compare_sources(&src1, &src2);
         Ok(())
     })
     .budget(Duration::from_secs(10))
@@ -86,5 +86,27 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
 
 fn sanitize(src: &str) -> String {
     // Sometimes `;` is removed, or duplicated.
-    src.replace(";", "")
+    src.replace(";", "").replace("{}", "()")
+}
+
+fn split_functions(src: &str) -> Vec<String> {
+    // Split along the closing brace of the functions.
+    let sep = "\n}";
+    src.split(sep).into_iter().map(|f| format!("{f}{sep}")).collect()
+}
+
+fn compare_sources(src1: &str, src2: &str) {
+    let prepare = |src| {
+        let mut v = split_functions(src);
+        let main = v.remove(0);
+        // Unused globals are not rendered. Ignore all globals.
+        let (_globals, main) = main.split_once("unconstrained fn main").unwrap();
+        let main = format!("unconstrained fn main {main}");
+        // Sort the other functions alphabetically.
+        v.sort();
+        sanitize(&format!("{main}\n{}", v.join("\n")))
+    };
+    let src1 = prepare(src1);
+    let src2 = prepare(src2);
+    similar_asserts::assert_eq!(src1, src2);
 }
