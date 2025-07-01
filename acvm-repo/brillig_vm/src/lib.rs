@@ -48,7 +48,7 @@ pub enum FailureReason {
     },
     /// A runtime failure during execution.
     /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
-    /// For example a [binary operation][Opcode::BinaryIntOp] can trigger a [division by zero][BrilligArithmeticError::DivisionByZero].
+    /// For example, a [binary operation][Opcode::BinaryIntOp] can trigger a division by zero error.
     RuntimeError { message: String },
 }
 
