@@ -3584,6 +3584,7 @@ dependencies = [
  "noirc_evaluator",
  "noirc_frontend",
  "rand 0.8.5",
+ "serde",
  "thiserror 1.0.69",
 ]
 
@@ -5507,6 +5508,7 @@ name = "ssa_fuzzer_fuzz"
 version = "0.0.1"
 dependencies = [
  "acvm",
+ "bincode",
  "env_logger",
  "libfuzzer-sys",
  "log",
@@ -5514,6 +5516,8 @@ dependencies = [
  "noir_ssa_fuzzer",
  "noirc_driver",
  "noirc_evaluator",
+ "rand 0.8.5",
+ "serde",
 ]
 
 [[package]]

@@ -36,6 +36,10 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
+      "5795655218219125583": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 8 limbs"
+      },
       "7233212735005103307": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"
