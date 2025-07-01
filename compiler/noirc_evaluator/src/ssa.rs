@@ -790,7 +790,10 @@ impl<'local> SsaBuilder<'local> {
         };
 
         if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa.print_with(self.files));
+            noirc_errors::print_to_stdout(format_args!(
+                "After {msg}:\n{}",
+                self.ssa.print_with(self.files)
+            ));
         }
         self
     }
