@@ -171,6 +171,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
+
+        println!("Calling function {} : {:?}", self.elaborator.interner.function_name(&function), meta.typ);
+
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
@@ -190,6 +193,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         };
         let result = self.evaluate(function_body);
         self.exit_function(previous_state);
+        println!("        function {} returned", self.elaborator.interner.function_name(&function));
         result
     }
 
@@ -580,9 +584,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         })?;
 
         if let ImplKind::TraitItem(method) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method.id(), id)?;
             let typ = self.elaborator.interner.id_type(id).follow_bindings();
+            println!("Evaluating ident {} : {typ}", definition.name);
+            let method_id = resolve_trait_method(self.elaborator.interner, method.id(), id)?;
             let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+            println!("Got bindings:");
+            for (a, (b, c, d)) in &bindings {
+                println!("  {:?} <- {}", b.borrow(), d);
+            }
+
             return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
         }
 
