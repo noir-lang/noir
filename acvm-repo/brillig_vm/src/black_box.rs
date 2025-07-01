@@ -1,4 +1,4 @@
-//! Implementations for VM native [black box functions][acir::brillig::opcodes::BrilligOpcode::BlackBox].
+//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 use acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 use acir::{AcirField, BlackBoxFunc};
 use acvm_blackbox_solver::{
@@ -37,7 +37,7 @@ fn to_u8_vec<F: AcirField>(inputs: &[MemoryValue<F>]) -> Vec<u8> {
     result
 }
 
-/// Converts a slice of u8 values into a Vec<[MemoryValue<F>]>,
+/// Converts a slice of u8 values into a Vec<[`MemoryValue<F>`]>,
 /// wrapping each byte as a [MemoryValue::U8].
 fn to_value_vec<F: AcirField>(input: &[u8]) -> Vec<MemoryValue<F>> {
     input.iter().map(|&x| x.into()).collect()

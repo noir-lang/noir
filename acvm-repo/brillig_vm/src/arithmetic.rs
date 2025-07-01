@@ -1,5 +1,5 @@
-//! Implementations for [binary field operations][acir::brillig::opcodes::BrilligOpcode::BinaryFieldOp] and
-//! [binary integer operations][acir::brillig::opcodes::BrilligOpcode::BinaryIntOp].
+//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+//! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use acir::AcirField;
