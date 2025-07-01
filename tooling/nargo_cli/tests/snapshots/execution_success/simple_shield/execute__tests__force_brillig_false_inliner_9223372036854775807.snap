@@ -65,6 +65,10 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
+      "1454717921498295813": {
+        "error_kind": "string",
+        "string": "Field does not decompose into specified 3 limbs"
+      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"

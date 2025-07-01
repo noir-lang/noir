@@ -23,7 +23,16 @@ expression: artifact
       }
     ],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "427214086431425638": {
+        "error_kind": "string",
+        "string": "Field does not decompose into specified 31 limbs"
+      },
+      "17429699220114344853": {
+        "error_kind": "string",
+        "string": "Field does not decompose into specified 254 limbs"
+      }
+    }
   },
   "bytecode": [
     "func 0",

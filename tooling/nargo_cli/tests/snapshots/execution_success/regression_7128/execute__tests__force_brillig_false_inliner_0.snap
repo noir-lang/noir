@@ -26,6 +26,10 @@ expression: artifact
         "error_kind": "string",
         "string": "call to assert_max_bit_size"
       },
+      "7378118767180596001": {
+        "error_kind": "string",
+        "string": "Field does not decompose into specified 32 limbs"
+      },
       "12161114527103510886": {
         "error_kind": "string",
         "string": "completeness violation"
