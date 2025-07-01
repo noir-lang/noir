@@ -42,12 +42,12 @@ members = [
     # Utility crates
     "utils/iter-extended",
     "utils/hash64",
+    "utils/protobuf",
 
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
     "tooling/ssa_executor",
-    "utils/protobuf", "utils/hash64",
 ]
 default-members = [
     "tooling/nargo_cli",
