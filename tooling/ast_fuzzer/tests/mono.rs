@@ -36,6 +36,8 @@ fn arb_ast_roundtrip() {
             avoid_print: true,
             // Negative literals can cause problems: --128_i8 is a compile error; --100_i32 is printed back as 100_i32.
             avoid_negative_int_literals: true,
+            // Large ints are rejected in for loops, unless we use suffixes.
+            avoid_large_int_literals: true,
             // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
             // Let's stick to just Brillig so there is no need for `unsafe` at all.
             force_brillig: true,
@@ -86,7 +88,7 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
 
 fn sanitize(src: &str) -> String {
     // Sometimes `;` is removed, or duplicated.
-    src.replace(";", "").replace("{}", "()")
+    src.replace(";", "").replace("{}", "()").replace("--", "")
 }
 
 fn split_functions(src: &str) -> Vec<String> {
