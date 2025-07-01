@@ -329,8 +329,7 @@ pub(crate) fn get_target_width(
 #[cfg(test)]
 mod tests {
     use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
+        hash::BuildHasher, path::{Path, PathBuf}, str::FromStr
     };
 
     use clap::Parser;
@@ -338,6 +337,7 @@ mod tests {
     use nargo_toml::PackageSelection;
     use noirc_driver::{CompileOptions, CrateName};
     use noirc_frontend::elaborator::UnstableFeature;
+    use rustc_hash::FxBuildHasher;
 
     use crate::cli::test_cmd::formatters::diagnostic_to_string;
     use crate::cli::{

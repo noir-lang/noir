@@ -61,6 +61,10 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "8349242578811398898": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 32 limbs"
+      },
       "9579943917905940306": {
         "error_kind": "string",
         "string": "attempt to add with overflow"

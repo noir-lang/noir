@@ -18,7 +18,12 @@ expression: artifact
       }
     ],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "10228475841560878567": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 8 limbs"
+      }
+    }
   },
   "bytecode": [
     "func 0",

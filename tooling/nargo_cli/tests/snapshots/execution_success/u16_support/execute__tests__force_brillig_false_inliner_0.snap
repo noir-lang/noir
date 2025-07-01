@@ -26,6 +26,10 @@ expression: artifact
       "8305973397521126974": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "10228475841560878567": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 8 limbs"
       }
     }
   },

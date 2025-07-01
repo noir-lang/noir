@@ -50,6 +50,10 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
       },
+      "10228475841560878567": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 8 limbs"
+      },
       "10419109383335261722": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
