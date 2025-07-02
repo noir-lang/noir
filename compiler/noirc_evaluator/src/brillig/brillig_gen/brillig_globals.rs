@@ -46,7 +46,7 @@ pub(crate) struct BrilligGlobals {
 
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
-
+/// Mapping of constant values shared across functions hoisted to the global memory space
 pub(crate) type HoistedConstantsToBrilligGlobals =
     HashMap<(FieldElement, NumericType), BrilligVariable>;
 /// Mapping of a constant value and the number of functions in which it occurs

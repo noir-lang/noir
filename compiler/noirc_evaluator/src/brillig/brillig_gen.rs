@@ -1,3 +1,4 @@
+//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.  
 pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
