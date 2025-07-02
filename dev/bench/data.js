@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751404456053,
+  "lastUpdate": 1751452209536,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18681,48 +18681,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5845dc5aaf039d71d45700bb6784b4df7da03bae",
-          "message": "fix(LICM): Consider negative loop bounds before hoisting `div <const> <induction-var>` (#8986)",
-          "timestamp": "2025-06-20T15:23:43Z",
-          "tree_id": "76e81fdb0c31a247d609f46e04fe61f68e70a2a9",
-          "url": "https://github.com/noir-lang/noir/commit/5845dc5aaf039d71d45700bb6784b4df7da03bae"
-        },
-        "date": 1750434410415,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255947,
-            "range": "± 1103",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224694,
-            "range": "± 2439",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787518,
-            "range": "± 21554",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20774,6 +20732,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780590,
             "range": "± 3660",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "11e956e49efecad5af922649f0b247607619c8ab",
+          "message": "chore: bump some deps (#9076)",
+          "timestamp": "2025-07-02T10:04:23Z",
+          "tree_id": "04a3cf16f6797afc72069ba98e8e776d583fc1c0",
+          "url": "https://github.com/noir-lang/noir/commit/11e956e49efecad5af922649f0b247607619c8ab"
+        },
+        "date": 1751452195613,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250225,
+            "range": "± 1750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222386,
+            "range": "± 3991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782244,
+            "range": "± 1160",
             "unit": "ns/iter"
           }
         ]
