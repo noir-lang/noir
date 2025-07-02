@@ -110,7 +110,7 @@ fn check_instruction(
             let is_assert_constant = Some(*func) == assert_constant_id.copied();
             let is_static_assert = Some(*func) == static_assert_id.copied();
 
-            // Skip known assertions inside empty loops
+            // Skip assertions inside known empty loops
             if inside_empty_loop && (is_assert_constant || is_static_assert) {
                 return Ok(false);
             }
