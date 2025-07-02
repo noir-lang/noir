@@ -1007,7 +1007,31 @@
 <a href="#1006" id="1006">1006</a>
 <a href="#1007" id="1007">1007</a>
 <a href="#1008" id="1008">1008</a>
-<a href="#1009" id="1009">1009</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1061,9 +1085,7 @@
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_functions(<span class="self">self</span>, aggressiveness: i64) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
-        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
-        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">false</span>, aggressiveness);
-        <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">false</span>)
+        <span class="self">self</span>.inline_until_fixed_point(aggressiveness, <span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
@@ -1071,9 +1093,35 @@
         <span class="self">self</span>,
         aggressiveness: i64,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
-        <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
-        <span class="kw">let </span>inline_infos = compute_inline_infos(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>call_graph, <span class="bool-val">true</span>, aggressiveness);
-        <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, <span class="bool-val">true</span>)
+        <span class="self">self</span>.inline_until_fixed_point(aggressiveness, <span class="bool-val">true</span>)
+    }
+
+    <span class="doccomment">/// Inline functions repeatedly until no new functions are inlined.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>inline_until_fixed_point(
+        <span class="kw-2">mut </span><span class="self">self</span>,
+        aggressiveness: i64,
+        inline_no_predicates_functions: bool,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Ssa, RuntimeError&gt; {
+        <span class="kw">loop </span>{
+            <span class="kw">let </span>num_functions_before = <span class="self">self</span>.functions.len();
+
+            <span class="kw">let </span>call_graph = CallGraph::from_ssa_weighted(<span class="kw-2">&amp;</span><span class="self">self</span>);
+            <span class="kw">let </span>inline_infos = compute_inline_infos(
+                <span class="kw-2">&amp;</span><span class="self">self</span>,
+                <span class="kw-2">&amp;</span>call_graph,
+                inline_no_predicates_functions,
+                aggressiveness,
+            );
+            <span class="self">self </span>=
+                <span class="self">Self</span>::inline_functions_inner(<span class="self">self</span>, <span class="kw-2">&amp;</span>inline_infos, inline_no_predicates_functions)<span class="question-mark">?</span>;
+
+            <span class="kw">let </span>num_functions_after = <span class="self">self</span>.functions.len();
+            <span class="kw">if </span>num_functions_after == num_functions_before {
+                <span class="kw">break</span>;
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>)
     }
 
     <span class="kw">fn </span>inline_functions_inner(

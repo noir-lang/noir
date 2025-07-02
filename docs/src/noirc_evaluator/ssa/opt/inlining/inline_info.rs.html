@@ -436,7 +436,25 @@
 <a href="#435" id="435">435</a>
 <a href="#436" id="436">436</a>
 <a href="#437" id="437">437</a>
-<a href="#438" id="438">438</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
 
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 <span class="kw">use </span>im::HashMap;
@@ -447,6 +465,7 @@
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -459,6 +478,7 @@
     is_acir_entry_point: bool,
     is_recursive: bool,
     <span class="kw">pub</span>(<span class="kw">crate</span>) should_inline: bool,
+    <span class="kw">pub</span>(<span class="kw">super</span>) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
@@ -596,8 +616,22 @@
         <span class="kw">return</span>; <span class="comment">// Already processed
     </span>}
 
+    <span class="kw">let </span>function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>func_id];
+    <span class="kw">let </span>assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    <span class="kw">let </span>static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+    <span class="kw">let </span>contains_static_assertion = function.reachable_blocks().iter().any(|block| {
+        function.dfg[<span class="kw-2">*</span>block].instructions().iter().any(|instruction| {
+            <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
+                Instruction::Call { func, .. } =&gt; {
+                    <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == assert_constant_id || <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == static_assert_id
+                }
+                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            }
+        })
+    });
+
     <span class="kw">let </span>neighbors = call_graph.graph().neighbors(index);
-    <span class="kw">let </span><span class="kw-2">mut </span>total_weight = compute_function_own_weight(<span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>func_id]) <span class="kw">as </span>i64;
+    <span class="kw">let </span><span class="kw-2">mut </span>total_weight = compute_function_own_weight(function) <span class="kw">as </span>i64;
     <span class="kw">for </span>neighbor_index <span class="kw">in </span>neighbors {
         <span class="kw">let </span>callee = call_graph.indices_to_ids()[<span class="kw-2">&amp;</span>neighbor_index];
         <span class="kw">if </span>inline_infos.get(<span class="kw-2">&amp;</span>callee).is_some_and(|info| info.should_inline) {
@@ -605,13 +639,14 @@
         }
     }
     <span class="kw">let </span>times = times_called[<span class="kw-2">&amp;</span>func_id] <span class="kw">as </span>i64;
-    <span class="kw">let </span>interface_cost = compute_function_interface_cost(<span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>func_id]) <span class="kw">as </span>i64;
+    <span class="kw">let </span>interface_cost = compute_function_interface_cost(function) <span class="kw">as </span>i64;
     <span class="kw">let </span>inline_cost = times.saturating_mul(total_weight);
     <span class="kw">let </span>retain_cost = times.saturating_mul(interface_cost) + total_weight;
     <span class="kw">let </span>net_cost = inline_cost.saturating_sub(retain_cost);
-    <span class="kw">let </span>runtime = ssa.functions[<span class="kw-2">&amp;</span>func_id].runtime();
+    <span class="kw">let </span>runtime = function.runtime();
     <span class="kw">let </span>info = inline_infos.entry(func_id).or_default();
 
+    info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
 
@@ -621,7 +656,8 @@
 
     <span class="kw">let </span>should_inline = (net_cost &lt; aggressiveness)
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() &amp;&amp; inline_no_predicates_functions);
+        || (runtime.is_no_predicates() &amp;&amp; inline_no_predicates_functions)
+        || contains_static_assertion;
 
     info.should_inline = should_inline;
 }
