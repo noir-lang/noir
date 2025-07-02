@@ -234,7 +234,7 @@ mod test_as_typed_expr_5 {
             let _ = foo.get_trait_impl(t).unwrap().methods().filter(|method| {
                 method.name() == quote { pack }
             })[0]
-                = pack.as_typed_expr();
+                .as_typed_expr();
         }
     }
 }
