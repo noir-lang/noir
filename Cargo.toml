@@ -153,10 +153,10 @@ codespan-lsp = "0.11.1"
 codespan-reporting = "0.11.1"
 
 # Benchmarking
-criterion = "0.5.1"
+criterion = "^0.5.0"
 # Note that using the "frame-pointer" feature breaks framegraphs on linux
 # https://github.com/tikv/pprof-rs/pull/172
-pprof = { version = "0.14", features = ["flamegraph", "criterion"] }
+pprof = { version = "^0.15.0", features = ["flamegraph", "criterion"] }
 
 # Protobuf
 prost = "0.13"
@@ -180,10 +180,10 @@ smol_str = { version = "0.3.2", features = ["serde"] }
 thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
-base64 = "0.21.2"
+base64 = "^0.22.1"
 rustc-hash = "2.1.1"
-build-data = "0.1.3"
-bincode = "1.3.3"
+build-data = "^0.3.3"
+bincode =  { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 lazy_static = "1.4"
@@ -206,7 +206,7 @@ proptest = { version = "1.6.0", default-features = false, features = [
     "std",
     "bit-set",
 ] }
-proptest-derive = "0.5.0"
+proptest-derive = "^0.6.0"
 rayon = "1.8.0"
 sha2 = { version = "0.10.6", features = ["compress"] }
 sha3 = "0.10.6"
@@ -217,8 +217,8 @@ im = { version = "15.1", features = ["serde"] }
 tracing = "0.1.40"
 tracing-web = "0.1.3"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json"] }
-rust-embed = "6.6.0"
-petgraph = "0.6"
+rust-embed = "^8.7.2"
+petgraph = "^0.8.2"
 insta = "1.42.2"
 
 [profile.dev]

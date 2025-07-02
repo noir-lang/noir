@@ -99,11 +99,13 @@ export class TypingsGenerator {
     // Map all the types used in the ABIs to the demonomorphized types
     for (const { abi, circuitName, artifact } of circuits) {
       const params = abi.parameters.map((param) => {
-        const type = mapAbiTypeToAbiTypeWithGenerics(param.type, this.allTypes);
+        const type = mapAbiTypeToAbiTypeWithGenerics(param.type);
+        this.allTypes.push(type);
         return { name: param.name, type };
       });
       if (abi.return_type) {
-        const returnType = mapAbiTypeToAbiTypeWithGenerics(abi.return_type.abi_type, this.allTypes);
+        const returnType = mapAbiTypeToAbiTypeWithGenerics(abi.return_type.abi_type);
+        this.allTypes.push(returnType);
         this.demonomorphizedAbis.push({ circuitName, params, returnType, artifact });
       } else {
         this.demonomorphizedAbis.push({ circuitName, params, artifact });
