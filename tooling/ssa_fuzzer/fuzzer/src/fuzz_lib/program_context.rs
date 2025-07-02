@@ -15,22 +15,31 @@ use noirc_evaluator::ssa::ir::{function::Function, map::Id};
 struct StoredFunction {
     id: Id<Function>,
     function: FunctionData,
+    /// Types of inputs
     types: Vec<ValueType>,
     values: Vec<FieldElement>,
 }
 
+/// FuzzerProgramContext is a context for storing and processing SSA functions
 pub(crate) struct FuzzerProgramContext {
+    /// Builder for ACIR program
     acir_builder: FuzzerBuilder,
+    /// Builder for Brillig program
     brillig_builder: FuzzerBuilder,
+    /// Options for the program context
     program_context_options: FunctionContextOptions, // TODO
     /// Whether the program is executed in constants
     is_constant: bool,
+    /// Function signatures
     function_signatures: HashMap<Id<Function>, FunctionSignature>,
+    /// Stored functions
     stored_functions: Vec<StoredFunction>,
+    /// Current function id
     current_function_id: Id<Function>,
 }
 
 impl FuzzerProgramContext {
+    /// Creates a new FuzzerProgramContext
     pub(crate) fn new(program_context_options: FunctionContextOptions) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -45,6 +54,7 @@ impl FuzzerProgramContext {
         }
     }
 
+    /// Creates a new FuzzerProgramContext where all inputs are constants
     pub(crate) fn new_constant_context(program_context_options: FunctionContextOptions) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -79,7 +89,8 @@ impl FuzzerProgramContext {
         self.current_function_id = Id::new(self.current_function_id.to_u32() + 1);
     }
 
-    pub(crate) fn finalize(&mut self) {
+    /// Creates new ACIR and Brillig functions for each of stored functions and finalizes them
+    pub(crate) fn finalize_program(&mut self) {
         for i in 0..self.stored_functions.len() {
             let stored_function = &self.stored_functions[i];
             // use only functions defined after this one to avoid recursion

@@ -1,8 +1,8 @@
-use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::block_context::BlockContext;
 use super::instruction::FunctionSignature;
 use super::instruction::InstructionBlock;
 use super::options::{FunctionContextOptions, SsaBlockOptions};
+use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
@@ -55,8 +55,8 @@ pub(crate) struct FunctionData {
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
     /// initial witness values for the program as `WitnessValue`
     /// last and last but one values are preserved for the boolean values (true, false)
-    ///                                                            ↓ we subtract 2, because [initialize_witness_map] func inserts two boolean variables itself
-    pub(crate) initial_witness: [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize],
+    pub(crate) initial_witness:
+        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
     pub(crate) return_instruction_block_idx: usize,
     pub(crate) return_type: ValueType,
 }
@@ -688,7 +688,7 @@ impl<'a> FuzzerFunctionContext<'a> {
                 let function_id = *function_ids[function_idx % num_of_defined_functions];
                 let function_signature = self.defined_functions[&function_id].clone();
 
-                self.current_block.context.process_function(
+                self.current_block.context.process_function_call(
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
                     function_id,

@@ -518,7 +518,8 @@ impl BlockContext {
         self.children_blocks.push(else_destination);
     }
 
-    pub(crate) fn process_function(
+    /// Inserts a function call to the given function with the given arguments and result type
+    pub(crate) fn process_function_call(
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
@@ -526,8 +527,12 @@ impl BlockContext {
         function_signature: FunctionSignature,
         args: &[usize],
     ) {
+        // On SSA level you cannot just call a function by its id, you need to import it first
         let func_as_value_id = acir_builder.insert_import(function_id);
         assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
+
+        // Get values from stored_values map by indices
+        // If we don't have some value of type of the argument, we skip the function call
         let mut values = vec![];
         for (value_type, index) in zip(function_signature.input_types, args) {
             let value = match get_typed_value_from_map(&self.stored_values, &value_type, *index) {
@@ -537,6 +542,8 @@ impl BlockContext {
 
             values.push(value);
         }
+
+        // Insert a call to the function with the given arguments and result type
         let ret_val =
             acir_builder.insert_call(func_as_value_id, &values, function_signature.return_type);
         assert_eq!(
@@ -547,6 +554,7 @@ impl BlockContext {
             value_id: ret_val,
             type_of_variable: function_signature.return_type.to_ssa_type(),
         };
+        // Append the return value to stored_values map
         append_typed_value_to_map(
             &mut self.stored_values,
             &function_signature.return_type,

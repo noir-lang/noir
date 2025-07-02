@@ -126,7 +126,7 @@ impl Function {
     }
 
     /// The id of the function.
-    pub fn id(&self) -> FunctionId {
+    pub(crate) fn id(&self) -> FunctionId {
         self.id.expect("FunctionId should be initialized")
     }
 

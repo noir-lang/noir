@@ -108,11 +108,11 @@ impl Fuzzer {
         initial_witness: WitnessMap<FieldElement>,
     ) -> Option<FieldElement> {
         let mut non_constant_context = self.context_non_constant.take().unwrap();
-        non_constant_context.finalize();
+        non_constant_context.finalize_program();
         let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
         if let Some(context) = self.context_constant.take() {
             let mut constant_context = context;
-            constant_context.finalize();
+            constant_context.finalize_program();
             let constant_result = self.run_context(constant_context, initial_witness.clone());
             assert_eq!(
                 non_constant_result, constant_result,
@@ -122,7 +122,7 @@ impl Fuzzer {
 
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
             let mut context_with_idempotent_morphing = context;
-            context_with_idempotent_morphing.finalize();
+            context_with_idempotent_morphing.finalize_program();
             let result_with_constrains =
                 self.run_context(context_with_idempotent_morphing, initial_witness);
             assert_eq!(

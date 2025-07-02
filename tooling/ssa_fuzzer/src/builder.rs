@@ -344,23 +344,23 @@ impl FuzzerBuilder {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
-    pub fn current_function_id(&mut self) -> Id<Function> {
-        self.builder.current_function.id()
-    }
-
+    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
     pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
         self.builder.new_function(name, function_id, InlineType::Inline);
     }
 
+    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
     pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
         self.builder.new_brillig_function(name, function_id, InlineType::Inline);
     }
 
+    /// Inserts an import function with the given function id
     pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
         self.builder.import_function(function)
     }
 
+    /// Inserts a call to the given function with the given arguments and result type
     pub fn insert_call(
         &mut self,
         function: Id<Value>,
