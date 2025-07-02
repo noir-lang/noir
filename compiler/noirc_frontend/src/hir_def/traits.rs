@@ -4,6 +4,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::NodeInterner;
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
@@ -119,6 +120,15 @@ impl TraitConstraint {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
+    }
+
+    pub fn to_string(&self, interner: &NodeInterner) -> String {
+        interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
     }
 }
 
