@@ -185,22 +185,21 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
-            (Overflow { operator, .. }, RangeCheckFailedWithMessage { message, .. }) => {
-                // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
-                // pass. This results in the error changing from an overflow to a failed range constraint so we check
-                // that the message attached to the range check matches the operation which failed.
-                match operator {
-                    BinaryOp::Add { unchecked: false } => message == "attempt to add with overflow",
-                    BinaryOp::Sub { unchecked: false } => {
-                        message == "attempt to subtract with overflow"
-                    }
 
-                    BinaryOp::Mul { unchecked: false } => {
-                        message == "attempt to multiply with overflow"
-                    }
-                    _ => false,
-                }
-            }
+            // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
+            // pass. This results in the error changing from an `Overflow` into a different error type so we match
+            // on the attached error message.
+            (Overflow { operator, .. }, ConstrainEqFailed { msg, .. }) => match operator {
+                BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
+                BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
+
+                _ => false,
+            },
+            (
+                Overflow { operator: BinaryOp::Mul { unchecked: false }, .. },
+                RangeCheckFailedWithMessage { message, .. },
+            ) => message == "attempt to multiply with overflow",
+
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
                 ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },

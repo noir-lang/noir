@@ -14,9 +14,9 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
+    #[error("constrain {lhs_id} == {rhs_id}, {msg} failed:\n    {lhs} != {rhs}")]
     ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
-    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
+    #[error("constrain {lhs_id} != {rhs_id}, {msg} failed:\n    {lhs} == {rhs}")]
     ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },

@@ -511,7 +511,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        msg.to_string()
                     } else {
                         "".to_string()
                     };
@@ -534,7 +534,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        msg.to_string()
                     } else {
                         "".to_string()
                     };
