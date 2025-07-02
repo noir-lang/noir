@@ -22,6 +22,8 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_JMP: usize = 1;
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
 const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
+pub(crate) type ValuesTypes = (Vec<FieldElement>, Vec<ValueType>);
+
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
@@ -198,8 +200,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///
     /// Used for fuzzing constant folding SSA pass.
     pub(crate) fn new_constant_context(
-        values: Vec<impl Into<FieldElement>>,
-        types: Vec<ValueType>,
+        values_types: ValuesTypes,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
@@ -210,16 +211,16 @@ impl<'a> FuzzerFunctionContext<'a> {
         let mut acir_ids = HashMap::new();
         let mut brillig_ids = HashMap::new();
 
-        for (value, type_) in values.into_iter().zip(&types) {
-            let field_element = value.into();
+        for (value, type_) in values_types.0.into_iter().zip(values_types.1.into_iter()) {
+            let field_element = value;
             acir_ids
-                .entry(*type_)
+                .entry(type_)
                 .or_insert(Vec::new())
-                .push(acir_builder.insert_constant(field_element, *type_));
+                .push(acir_builder.insert_constant(field_element, type_));
             brillig_ids
-                .entry(*type_)
+                .entry(type_)
                 .or_insert(Vec::new())
-                .push(brillig_builder.insert_constant(field_element, *type_));
+                .push(brillig_builder.insert_constant(field_element, type_));
             assert_eq!(brillig_ids, acir_ids);
         }
 
@@ -339,23 +340,23 @@ impl<'a> FuzzerFunctionContext<'a> {
         // inserts instructions into created blocks
         self.switch_to_block(block_then_id);
         block_then_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             &block_then_instruction_block.instructions,
         );
 
         self.switch_to_block(block_else_id);
         block_else_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             &block_else_instruction_block.instructions,
         );
 
         // terminates current block with jmp_if
         self.switch_to_block(self.current_block.block_id);
         self.current_block.context.finalize_block_with_jmp_if(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             block_then_id,
             block_else_id,
         );
@@ -439,16 +440,16 @@ impl<'a> FuzzerFunctionContext<'a> {
 
         // inserts instructions into the new block
         destination_block_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             &block.instructions,
         );
 
         // switches to the current block and terminates it with jmp
         self.switch_to_block(self.current_block.block_id);
         self.current_block.context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             destination_block_id,
             vec![],
         );
@@ -589,8 +590,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         );
         self.switch_to_block(block_body_id);
         block_body_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             &block_body.instructions,
         );
 
@@ -636,8 +637,8 @@ impl<'a> FuzzerFunctionContext<'a> {
                     return;
                 }
                 self.current_block.context.insert_instructions(
-                    &mut self.acir_builder,
-                    &mut self.brillig_builder,
+                    self.acir_builder,
+                    self.brillig_builder,
                     &instruction_block.instructions,
                 );
                 self.inserted_instructions_count += instruction_block.instructions.len();
@@ -682,15 +683,15 @@ impl<'a> FuzzerFunctionContext<'a> {
                     return;
                 }
                 let mut function_ids =
-                    self.defined_functions.keys().into_iter().collect::<Vec<&Id<Function>>>();
+                    self.defined_functions.keys().collect::<Vec<&Id<Function>>>();
                 function_ids.sort();
 
                 let function_id = *function_ids[function_idx % num_of_defined_functions];
                 let function_signature = self.defined_functions[&function_id].clone();
 
                 self.current_block.context.process_function_call(
-                    &mut self.acir_builder,
-                    &mut self.brillig_builder,
+                    self.acir_builder,
+                    self.brillig_builder,
                     function_id,
                     function_signature,
                     args,
@@ -725,8 +726,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         );
         self.switch_to_block(first_block.block_id);
         first_block.context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             merged_block_id,
             vec![],
         );
@@ -734,8 +735,8 @@ impl<'a> FuzzerFunctionContext<'a> {
 
         self.switch_to_block(second_block.block_id);
         second_block.context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             merged_block_id,
             vec![],
         );
@@ -906,8 +907,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         let mut last_block = self.merge_main_block();
         self.switch_to_block(last_block.block_id);
         last_block.context.finalize_block_with_jmp(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             return_block_id,
             vec![],
         );
@@ -921,14 +922,14 @@ impl<'a> FuzzerFunctionContext<'a> {
             SsaBlockOptions::from(self.function_context_options.clone()),
         );
         return_block_context.insert_instructions(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             &return_instruction_block.instructions,
         );
 
         return_block_context.finalize_block_with_return(
-            &mut self.acir_builder,
-            &mut self.brillig_builder,
+            self.acir_builder,
+            self.brillig_builder,
             self.return_type,
         );
     }

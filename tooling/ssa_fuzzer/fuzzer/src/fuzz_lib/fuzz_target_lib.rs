@@ -734,7 +734,7 @@ mod tests {
         log::debug!("blocks: {:?}", blocks);
         let main_func = FunctionData {
             blocks: blocks.clone(),
-            commands: commands,
+            commands,
             initial_witness: default_witness(),
             return_instruction_block_idx: 3,
             return_type: ValueType::Field,

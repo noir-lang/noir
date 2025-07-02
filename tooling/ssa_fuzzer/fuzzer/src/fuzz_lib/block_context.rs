@@ -470,8 +470,8 @@ impl BlockContext {
         };
         match return_value {
             Some(return_value) => {
-                acir_builder.finalize_function(&return_value);
-                brillig_builder.finalize_function(&return_value);
+                acir_builder.finalize_function(return_value);
+                brillig_builder.finalize_function(return_value);
             }
             _ => {
                 // If no last value was set, we take boolean, that definitely  set and cast it to the return type

@@ -364,7 +364,7 @@ impl FuzzerBuilder {
     pub fn insert_call(
         &mut self,
         function: Id<Value>,
-        arguments: &Vec<TypedValue>,
+        arguments: &[TypedValue],
         result_type: ValueType,
     ) -> Id<Value> {
         *self
