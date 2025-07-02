@@ -80,6 +80,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa_pass: Vec<String>,
 
+    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations will be shown.
+    #[arg(long, hide = true)]
+    pub no_ssa_locations: bool,
+
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
     pub show_contract_fn: Option<String>,
@@ -803,7 +808,11 @@ pub fn compile_no_check(
                 &context.file_manager,
             )?
         } else {
-            create_program(program, &ssa_evaluator_options, Some(&context.file_manager))?
+            create_program(
+                program,
+                &ssa_evaluator_options,
+                if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+            )?
         };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);

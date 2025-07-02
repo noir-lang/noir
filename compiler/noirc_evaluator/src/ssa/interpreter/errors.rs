@@ -14,10 +14,22 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
-    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    #[error("constrain {lhs_id} == {rhs_id}{message} failed:\n    {lhs} != {rhs}", message = constraint_message(.msg))]
+    ConstrainEqFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
+    #[error("constrain {lhs_id} != {rhs_id}{message} failed:\n    {lhs} == {rhs}", message = constraint_message(.msg))]
+    ConstrainNeFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
@@ -157,7 +169,7 @@ pub enum InternalError {
         actual_type: String,
     },
     #[error(
-        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
     )]
     UnexpectedResultType {
         expected_type: &'static str,
@@ -165,11 +177,20 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
         actual_length: usize,
         instruction: &'static str,
     },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
+}
+
+/// Format the message of a `constrain` instruction so that we can print it.
+fn constraint_message(msg: &Option<String>) -> String {
+    msg.as_ref().map(|msg| format!(", \"{msg}\"")).unwrap_or_default()
 }

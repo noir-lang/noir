@@ -198,7 +198,7 @@ pub fn compare_results_interpreted(
             "---\nSSA 1 after step {} ({}):\n{}",
             inputs.ssa1.step,
             inputs.ssa1.msg,
-            inputs.ssa2.ssa.print_without_locations()
+            inputs.ssa1.ssa.print_without_locations()
         );
         eprintln!(
             "---\nSSA 2 after step {} ({}):\n{}",

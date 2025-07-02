@@ -87,28 +87,51 @@ impl Binary {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum BinaryEvaluationResult {
+    /// The binary operation could not be evaluated
+    CouldNotEvaluate,
+    /// The binary operation could be evaluated and it was successful
+    Success(FieldElement, NumericType),
+    /// The binary operation could be evaluated but it is guaranteed to fail
+    /// (for example: overflow or division by zero).
+    Failure(String),
+}
+
 /// Evaluate a binary operation with constant arguments.
 pub(crate) fn eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,
     mut operand_type: NumericType,
-) -> Option<(FieldElement, NumericType)> {
+) -> BinaryEvaluationResult {
+    use BinaryEvaluationResult::{CouldNotEvaluate, Failure, Success};
+
     let value = match operand_type {
         NumericType::NativeField => {
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero() {
-                return None;
+                return Failure("attempt to divide by zero".to_string());
             }
-            operator.get_field_function()?(lhs, rhs)
+            let Some(function) = operator.get_field_function() else {
+                return CouldNotEvaluate;
+            };
+            function(lhs, rhs)
         }
         NumericType::Unsigned { bit_size } => {
             let function = operator.get_u128_function();
 
-            let lhs = truncate(lhs.try_into_u128()?, bit_size);
-            let rhs = truncate(rhs.try_into_u128()?, bit_size);
+            let Some(lhs) = lhs.try_into_u128() else {
+                return CouldNotEvaluate;
+            };
+            let Some(rhs) = rhs.try_into_u128() else {
+                return CouldNotEvaluate;
+            };
+
+            let lhs = truncate(lhs, bit_size);
+            let rhs = truncate(rhs, bit_size);
 
             // The divisor is being truncated into the type of the operand, which can potentially
             // lead to the rhs being zero.
@@ -116,20 +139,50 @@ pub(crate) fn eval_constant_binary_op(
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
             if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == 0 {
-                return None;
+                return Failure("attempt to divide by zero".to_string());
             }
-            let result = function(lhs, rhs)?;
+
+            let Some(result) = function(lhs, rhs) else {
+                if let BinaryOp::Shl = operator {
+                    return CouldNotEvaluate;
+                }
+
+                if let BinaryOp::Shr = operator {
+                    return Success(FieldElement::zero(), operand_type);
+                }
+
+                let op = binary_op_function_name(operator);
+                return Failure(format!("attempt to {op} with overflow"));
+            };
+
             // Check for overflow
             if result != 0 && result.ilog2() >= bit_size {
-                return None;
+                if let BinaryOp::Shl = operator {
+                    // Right now `shl` might return zero or overflow depending on its values
+                    // so don't assume the final value here.
+                    // See https://github.com/noir-lang/noir/issues/9022
+                    return CouldNotEvaluate;
+                }
+
+                if let BinaryOp::Shr = operator {
+                    return Success(FieldElement::zero(), operand_type);
+                }
+
+                let op = binary_op_function_name(operator);
+                return Failure(format!("attempt to {op} with overflow"));
             }
+
             result.into()
         }
         NumericType::Signed { bit_size } => {
             let function = operator.get_i128_function();
 
-            let lhs = try_convert_field_element_to_signed_integer(lhs, bit_size)?;
-            let rhs = try_convert_field_element_to_signed_integer(rhs, bit_size)?;
+            let Some(lhs) = try_convert_field_element_to_signed_integer(lhs, bit_size) else {
+                return CouldNotEvaluate;
+            };
+            let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
+                return CouldNotEvaluate;
+            };
 
             let result = function(lhs, rhs);
             let result = match operator {
@@ -139,24 +192,41 @@ pub(crate) fn eval_constant_binary_op(
                     // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
                     // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
                     // and the operation should be handled by ACIR generation.
-                    return None;
+                    return Failure("attempt to divide by zero".to_string());
                 }
                 BinaryOp::Shr => {
                     if rhs >= bit_size as i128 {
                         if lhs >= 0 { 0 } else { -1 }
                     } else {
-                        result?
+                        let Some(result) = result else {
+                            return CouldNotEvaluate;
+                        };
+                        result
                     }
                 }
 
                 _ => {
                     // Check for overflow
                     let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
-                    let result = result?;
+                    let Some(result) = result else {
+                        if let BinaryOp::Shl = operator {
+                            return CouldNotEvaluate;
+                        }
+
+                        let op = binary_op_function_name(operator);
+                        return Failure(format!("attempt to {op} with overflow"));
+                    };
+
                     if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
                     {
-                        return None;
+                        if let BinaryOp::Shl = operator {
+                            return CouldNotEvaluate;
+                        }
+
+                        let op = binary_op_function_name(operator);
+                        return Failure(format!("attempt to {op} with overflow"));
                     }
+
                     result
                 }
             };
@@ -168,7 +238,22 @@ pub(crate) fn eval_constant_binary_op(
         operand_type = NumericType::bool();
     }
 
-    Some((value, operand_type))
+    Success(value, operand_type)
+}
+
+fn binary_op_function_name(op: BinaryOp) -> &'static str {
+    match op {
+        BinaryOp::Add { .. } => "add",
+        BinaryOp::Sub { .. } => "subtract",
+        BinaryOp::Mul { .. } => "multiply",
+        BinaryOp::Div => "divide",
+        BinaryOp::Mod => "modulo",
+        BinaryOp::Shl => "shift left",
+        BinaryOp::Shr => "shift right",
+        BinaryOp::Eq | BinaryOp::Lt | BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => {
+            panic!("Shouldn't need binary op function name of {op}")
+        }
+    }
 }
 
 /// Values in the range `[0, 2^(bit_size-1))` are interpreted as positive integers

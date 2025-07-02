@@ -4,8 +4,8 @@ expression: expanded_code
 ---
 mod baz {
     pub fn from_baz(x: [Field; 3]) {
-        for i in 0_u32..super::foo::MAGIC_NUMBER {
-            assert(x[i] == (super::foo::MAGIC_NUMBER as Field));
+        for i in 0_u32..crate::foo::MAGIC_NUMBER {
+            assert(x[i] == (crate::foo::MAGIC_NUMBER as Field));
         }
     }
 }

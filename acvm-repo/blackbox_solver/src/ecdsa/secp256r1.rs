@@ -20,6 +20,7 @@ pub(super) fn verify_signature(
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
+        log::warn!("Signature provided for ECDSA verification is zero");
         return false;
     };
 
@@ -49,6 +50,9 @@ pub(super) fn verify_signature(
 
     // Ensure signature is "low S" normalized ala BIP 0062
     if s.is_high().into() {
+        log::warn!(
+            "Signature provided for ECDSA verification is not properly normalized (high S value)"
+        );
         return false;
     }
 

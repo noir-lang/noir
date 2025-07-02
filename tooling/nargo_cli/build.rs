@@ -174,28 +174,16 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
-    // bug
-    "alias_trait_method_call_multiple_candidates",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     // bug
     "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
-    "primitive_trait_method_call_multiple_candidates",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "regression_7038",
-    // bug
-    "regression_7038_2",
-    // bug
-    "regression_7038_3",
-    // bug
-    "regression_7038_4",
     // bug
     "serialize_1",
     // bug
@@ -205,21 +193,11 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
     // bug
     "serialize_4",
     // bug
-    "trait_allowed_item_name_matches",
-    // bug
-    "trait_default_implementation",
-    // bug
     "trait_function_calls",
     // bug
     "trait_method_mut_self",
     // bug
-    "trait_override_implementation",
-    // bug
     "trait_static_methods",
-    // bug
-    "type_trait_method_call_multiple_candidates",
-    // bug
-    "type_trait_method_call_multiple_candidates_with_turbofish",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
@@ -695,7 +673,7 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_with_bug(nargo);",
+            "compile_success_with_bug(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }

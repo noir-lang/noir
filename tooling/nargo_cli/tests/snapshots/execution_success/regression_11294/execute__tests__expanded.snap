@@ -13,22 +13,22 @@ unconstrained fn main(
 }
 
 pub struct PrivateKernelCircuitPublicInputs {
-    end: PrivateAccumulatedData,
+    pub end: PrivateAccumulatedData,
 }
 
 pub struct PrivateKernelData {
-    public_inputs: PrivateKernelCircuitPublicInputs,
+    pub public_inputs: PrivateKernelCircuitPublicInputs,
 }
 
 pub struct PrivateAccumulatedData {
-    private_call_stack: [PrivateCallRequest; 8],
+    pub private_call_stack: [PrivateCallRequest; 8],
 }
 
 pub struct PrivateCallRequest {
-    args_hash: Field,
-    returns_hash: Field,
-    start_side_effect_counter: u32,
-    end_side_effect_counter: u32,
+    pub args_hash: Field,
+    pub returns_hash: Field,
+    pub start_side_effect_counter: u32,
+    pub end_side_effect_counter: u32,
 }
 
 impl Eq for PrivateCallRequest {
@@ -53,7 +53,7 @@ impl Empty for PrivateCallRequest {
 }
 
 pub struct PrivateKernelCircuitPublicInputsComposer {
-    public_inputs: PrivateKernelCircuitPublicInputsBuilder,
+    pub public_inputs: PrivateKernelCircuitPublicInputsBuilder,
 }
 
 impl PrivateKernelCircuitPublicInputsComposer {
@@ -61,7 +61,9 @@ impl PrivateKernelCircuitPublicInputsComposer {
         previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
     ) -> Self {
         let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = PrivateKernelCircuitPublicInputsBuilder {
-            end: PrivateAccumulatedDataBuilder { private_call_stack: BoundedVec::new() },
+            end: PrivateAccumulatedDataBuilder {
+                private_call_stack: BoundedVec::<PrivateCallRequest, 8>::new(),
+            },
         };
         let start: PrivateAccumulatedData = previous_kernel_public_inputs.end;
         public_inputs.end.private_call_stack = array_to_bounded_vec(start.private_call_stack);
@@ -79,7 +81,7 @@ impl PrivateKernelCircuitPublicInputsComposer {
 }
 
 pub struct PrivateKernelCircuitPublicInputsBuilder {
-    end: PrivateAccumulatedDataBuilder,
+    pub end: PrivateAccumulatedDataBuilder,
 }
 
 impl PrivateKernelCircuitPublicInputsBuilder {
@@ -89,7 +91,7 @@ impl PrivateKernelCircuitPublicInputsBuilder {
 }
 
 pub struct PrivateAccumulatedDataBuilder {
-    private_call_stack: BoundedVec<PrivateCallRequest, 8>,
+    pub private_call_stack: BoundedVec<PrivateCallRequest, 8>,
 }
 
 impl PrivateAccumulatedDataBuilder {
@@ -137,7 +139,7 @@ where
     T: Empty,
     T: Eq,
 {
-    Eq::eq(item, Empty::empty())
+    item.eq(T::empty())
 }
 
 pub fn array_length<T, let N: u32>(array: [T; N]) -> u32
@@ -169,5 +171,5 @@ where
     T: Eq,
 {
     let len: u32 = array_length(array);
-    BoundedVec::from_parts_unchecked(array, len)
+    BoundedVec::<T, N>::from_parts_unchecked(array, len)
 }
