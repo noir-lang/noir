@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 contract Foo {
-    use super::times_10;
+    use crate::times_10;
 
     fn double(x: Field) -> pub Field {
         x * 2_Field
