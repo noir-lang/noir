@@ -384,18 +384,6 @@ pub fn has_call(expr: &Expression) -> bool {
     })
 }
 
-/// Check if an expression can have a side effect, in which case duplicating or reordering it could
-/// change the behavior of the program.
-pub fn has_side_effect(expr: &Expression) -> bool {
-    exists(expr, |expr| {
-        matches!(
-            expr,
-            Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
-                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
-        )
-    })
-}
-
 /// Check if an `Expression` or any of its descendants match a predicate.
 pub fn exists(expr: &Expression, pred: impl Fn(&Expression) -> bool) -> bool {
     let mut exists = false;
