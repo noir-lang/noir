@@ -94,7 +94,7 @@ fn sanitize(src: &str) -> String {
 fn split_functions(src: &str) -> Vec<String> {
     // Split along the closing brace of the functions.
     let sep = "\n}";
-    src.split(sep).into_iter().map(|f| format!("{f}{sep}")).collect()
+    src.split(sep).map(|f| format!("{f}{sep}")).collect()
 }
 
 fn compare_sources(src1: &str, src2: &str) {

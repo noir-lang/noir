@@ -505,10 +505,8 @@ impl AstPrinter {
             _ => (false, false),
         };
         // If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        if print_oracle && self.show_print_as_std {
-            if self.print_println(&call.arguments, f)? {
-                return Ok(());
-            }
+        if print_oracle && self.show_print_as_std && self.print_println(&call.arguments, f)? {
+            return Ok(());
         }
         if print_unsafe {
             write!(f, "unsafe {{ ")?;
