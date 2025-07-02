@@ -173,7 +173,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 25] = [
     // bug
     "alias_trait_method_call_multiple_candidates",
     // bug
@@ -223,6 +223,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
     "workspace_reexport_bug",
     // bug
     "nested_trait_associated_type_regression_8252",
+    // bug: the `<T as Trait>::N` syntax is dropped and becomes just `N`.
+    "associated_constants_in_as_trait_expr",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
