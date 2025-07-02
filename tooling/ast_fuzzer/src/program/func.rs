@@ -2,7 +2,6 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
-    ops::Deref,
 };
 use strum::IntoEnumIterator;
 
@@ -1070,6 +1069,20 @@ impl<'a> FunctionContext<'a> {
         lvalue: LValue,
         typ: Type,
     ) -> arbitrary::Result<LValueWithMeta> {
+        /// Accumulate statements for sub-indexes of multi-dimensional arrays.
+        /// For example `a[1+2][3+4] = 5;` becomes `let i = 1+2; let j = 3+4; a[i][j] = 5;`
+        fn merge_statements(
+            a: Option<Vec<Expression>>,
+            b: Option<Vec<Expression>>,
+        ) -> Option<Vec<Expression>> {
+            match (a, b) {
+                (x, None) | (None, x) => x,
+                (Some(mut a), Some(mut b)) => {
+                    a.append(&mut b);
+                    Some(a)
+                }
+            }
+        }
         // For arrays and tuples we can consider assigning to their items.
         let lvalue = match typ {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
@@ -1080,43 +1093,35 @@ impl<'a> FunctionContext<'a> {
                 // In the compiler the `Elaborator::fresh_definition_for_lvalue_index` decides.
                 let needs_prefix = !matches!(idx, Expression::Ident(_) | Expression::Literal(_));
 
-                // We could consider 2D arrays here and pick indexes for sub-arrays.
-                // That is, even if we have `a: [[T; N]; M]` it currently only assigns
-                // to `a[i]`, not `a[i][j]`. Should we do that, instead of a single prefix,
-                // we would have to collect all index assignments in a list first.
-                let (idx, prefix) = if needs_prefix {
-                    let (idx, idx_ident) =
+                let (idx, statements) = if needs_prefix {
+                    let (let_idx, idx_ident) =
                         self.let_var_and_ident(false, types::U32, idx, false, idx_dyn);
-                    (Expression::Ident(idx_ident), Some(idx))
+                    (Expression::Ident(idx_ident), Some(vec![let_idx]))
                 } else {
                     (idx, None)
                 };
 
+                let typ = typ.as_ref().clone();
                 let index = LValue::Index {
                     array: Box::new(lvalue),
                     index: Box::new(idx),
-                    element_type: typ.as_ref().clone(),
+                    element_type: typ.clone(),
                     location: Location::dummy(),
                 };
-                LValueWithMeta {
-                    lvalue: index,
-                    typ: typ.deref().clone(),
-                    is_dyn: idx_dyn,
-                    is_compound: true,
-                    statements: prefix.map(|p| vec![p]),
-                }
+
+                let mut lvalue = self.gen_lvalue(u, index, typ)?;
+                lvalue.is_compound = true;
+                lvalue.is_dyn |= idx_dyn;
+                lvalue.statements = merge_statements(statements, lvalue.statements);
+                lvalue
             }
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
                 let member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
-                LValueWithMeta {
-                    lvalue: member,
-                    typ,
-                    is_dyn: false,
-                    is_compound: true,
-                    statements: None,
-                }
+                let mut lvalue = self.gen_lvalue(u, member, typ)?;
+                lvalue.is_compound = true;
+                lvalue
             }
             typ => {
                 LValueWithMeta { lvalue, typ, is_dyn: false, is_compound: false, statements: None }
