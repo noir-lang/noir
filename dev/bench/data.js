@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751455275672,
+  "lastUpdate": 1751460768778,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18691,48 +18691,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d7030e8c4e05dcba0eb30adac7f0f18458b306f0",
-          "message": "fix: increment reference counts when deduplicating calls which return arrays (#8757)",
-          "timestamp": "2025-06-20T17:36:02Z",
-          "tree_id": "26aacac43bc3690bae9dde250adfaee0c39326b5",
-          "url": "https://github.com/noir-lang/noir/commit/d7030e8c4e05dcba0eb30adac7f0f18458b306f0"
-        },
-        "date": 1750442357811,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253814,
-            "range": "± 494",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222370,
-            "range": "± 1670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784768,
-            "range": "± 1955",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -20784,6 +20742,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789306,
             "range": "± 20675",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3fa646c47723271392278f493e920861758a6e4d",
+          "message": "chore(fuzz): Capture printed output in `comptime_vs_brillig_direct` (#9090)",
+          "timestamp": "2025-07-02T12:27:00Z",
+          "tree_id": "e632ba1724ab4dc40788320261335f5080a01923",
+          "url": "https://github.com/noir-lang/noir/commit/3fa646c47723271392278f493e920861758a6e4d"
+        },
+        "date": 1751460754477,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253952,
+            "range": "± 800",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227153,
+            "range": "± 2476",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786068,
+            "range": "± 15318",
             "unit": "ns/iter"
           }
         ]
