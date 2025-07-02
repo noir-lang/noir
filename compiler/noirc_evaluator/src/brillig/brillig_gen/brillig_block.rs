@@ -51,7 +51,7 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) globals: &'block HashMap<ValueId, BrilligVariable>,
     /// Pre-instantiated constants values shared across functions which have hoisted to the global memory space.
     pub(crate) hoisted_global_constants: &'block HoistedConstantsToBrilligGlobals,
-    /// Status variable for whether we are generating Brillig bytecode for a function or the
+    /// Status variable for whether we are generating Brillig bytecode for a function or globals.
     /// This is primarily used for gating local variable specific logic.
     /// For example, liveness analysis for globals is unnecessary (and adds complexity),
     /// and instead globals live throughout the entirety of the program.
@@ -111,9 +111,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         brillig_block.convert_block(dfg, call_stacks);
     }
 
-    /// Converts SSA globals into Brillig global that initializing global constants
-    /// and computed globals values.
+    /// Converts SSA globals into Brillig global values.
     ///
+    /// Global values can be: 
     /// - Numeric constants
     /// - Instructions that compute global values
     /// - Pre-hoisted constants (shared across functions and stored in global memory)
