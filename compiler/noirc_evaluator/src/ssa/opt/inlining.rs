@@ -4,9 +4,10 @@
 //! be a single function remaining when the pass finishes.
 use std::collections::{HashSet, VecDeque};
 
+use crate::errors::RuntimeError;
 use acvm::acir::AcirField;
 use im::HashMap;
-use iter_extended::{btree_map, vecmap};
+use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -91,7 +92,7 @@ impl Ssa {
         mut self,
         inline_infos: &InlineInfos,
         inline_no_predicates_functions: bool,
-    ) -> Ssa {
+    ) -> Result<Ssa, RuntimeError> {
         let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
             let dfg = &self.functions[id].dfg;
             info.is_inline_target(dfg).then_some(*id)
@@ -115,13 +116,15 @@ impl Ssa {
 
         // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
         // instead of inlining the "leaf" functions, moving up towards the entry point.
-        self.functions = btree_map(inline_targets, |entry_point| {
+        let mut new_functions = std::collections::BTreeMap::new();
+        for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
-            let new_function = function.inlined(&self, &should_inline_call);
-            (entry_point, new_function)
-        });
+            let inlined = function.inlined(&self, &should_inline_call)?;
+            new_functions.insert(entry_point, inlined);
+        }
+        self.functions = new_functions;
 
-        self
+        Ok(self)
     }
 }
 
@@ -131,7 +134,7 @@ impl Function {
         &self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Function {
+    ) -> Result<Function, RuntimeError> {
         InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
     }
 }
@@ -204,7 +207,7 @@ impl InlineContext {
         mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Function {
+    ) -> Result<Function, RuntimeError> {
         let entry_point = &ssa.functions[&self.entry_point];
 
         let globals = &entry_point.dfg.globals;
@@ -228,7 +231,7 @@ impl InlineContext {
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(ssa, should_inline_call);
+        context.inline_blocks(ssa, should_inline_call)?;
         // translate databus values
         let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
@@ -237,7 +240,7 @@ impl InlineContext {
         assert_eq!(new_ssa.functions.len(), 1);
         let mut new_func = new_ssa.functions.pop_first().unwrap().1;
         new_func.dfg.data_bus = databus;
-        new_func
+        Ok(new_func)
     }
 
     /// Inlines a function into the current function and returns the translated return values
@@ -248,17 +251,16 @@ impl InlineContext {
         id: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Vec<ValueId> {
+    ) -> Result<Vec<ValueId>, RuntimeError> {
         self.recursion_level += 1;
 
         let source_function = &ssa.functions[&id];
-
         if self.recursion_level > RECURSION_LIMIT {
-            panic!(
-                "Attempted to recur more than {RECURSION_LIMIT} times during inlining function '{}':\n{}",
-                source_function.name(),
-                source_function
-            );
+            return Err(RuntimeError::RecursionLimit {
+                function_name: source_function.name().to_string(),
+                limit: RECURSION_LIMIT,
+                call_stack: self.builder.current_function.dfg.get_call_stack(self.call_stack),
+            });
         }
 
         let entry_point = &ssa.functions[&self.entry_point];
@@ -272,9 +274,9 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        let return_values = context.inline_blocks(ssa, should_inline_call);
+        let return_values = context.inline_blocks(ssa, should_inline_call)?;
         self.recursion_level -= 1;
-        return_values
+        Ok(return_values)
     }
 }
 
@@ -416,7 +418,7 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) -> Vec<ValueId> {
+    ) -> Result<Vec<ValueId>, RuntimeError> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
         block_queue.push_back(self.source_function.entry_block());
@@ -433,7 +435,7 @@ impl<'function> PerFunctionContext<'function> {
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            self.inline_block_instructions(ssa, source_block_id, should_inline_call);
+            self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
 
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
@@ -442,7 +444,7 @@ impl<'function> PerFunctionContext<'function> {
             }
         }
 
-        self.handle_function_returns(function_returns)
+        Ok(self.handle_function_returns(function_returns))
     }
 
     /// Handle inlining a function's possibly multiple return instructions.
@@ -482,7 +484,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         block_id: BasicBlockId,
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) {
+    ) -> Result<(), RuntimeError> {
         let mut side_effects_enabled: Option<ValueId> = None;
 
         let block = &self.source_function.dfg[block_id];
@@ -498,7 +500,7 @@ impl<'function> PerFunctionContext<'function> {
                                     func_id,
                                     arguments,
                                     should_inline_call,
-                                );
+                                )?;
 
                                 // This is only relevant during handling functions with `InlineType::NoPredicates` as these
                                 // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
@@ -527,6 +529,7 @@ impl<'function> PerFunctionContext<'function> {
                 _ => self.push_instruction(*id),
             }
         }
+        Ok(())
     }
 
     fn should_inline_call<'a>(
@@ -569,7 +572,7 @@ impl<'function> PerFunctionContext<'function> {
         function: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
-    ) {
+    ) -> Result<(), RuntimeError> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
 
@@ -585,7 +588,7 @@ impl<'function> PerFunctionContext<'function> {
 
         self.context.call_stack = new_call_stack;
         let new_results =
-            self.context.inline_function(ssa, function, &arguments, should_inline_call);
+            self.context.inline_function(ssa, function, &arguments, should_inline_call)?;
         self.context.call_stack = self
             .context
             .builder
@@ -596,6 +599,7 @@ impl<'function> PerFunctionContext<'function> {
 
         let new_results = InsertInstructionResult::Results(call_id, &new_results);
         Self::insert_new_instruction_results(&mut self.values, old_results, new_results);
+        Ok(())
     }
 
     /// Push the given instruction from the source_function into the current block of the
@@ -783,7 +787,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn foo f0 {
           b0():
@@ -822,7 +826,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -858,7 +862,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
@@ -916,7 +920,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -933,10 +937,9 @@ mod test {
     }
 
     #[test]
-    #[should_panic(
-        expected = "Attempted to recur more than 1000 times during inlining function 'foo':\nacir(inline) fn foo f1 {"
-    )]
     fn unconditional_recursion() {
+        // f1 is calling itself, which results in an infinite recursion
+        // it is expected that inlining this program returns an error.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -952,7 +955,11 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.functions.len(), 2);
 
-        let _ = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX);
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'foo'");
     }
 
     #[test]
@@ -970,7 +977,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN);
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -1000,7 +1007,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(0);
+        let ssa = ssa.inline_functions(0).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
