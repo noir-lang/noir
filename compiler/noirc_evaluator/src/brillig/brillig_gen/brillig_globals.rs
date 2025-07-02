@@ -1,3 +1,4 @@
+//! Codegen for converting SSA globals to Brillig bytecode.
 use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;

@@ -1,3 +1,4 @@
+//! Codegen for native (black box) function calls.
 use acvm::{
     AcirField,
     acir::{
@@ -424,6 +425,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
     }
 }
 
+/// Converts a Brillig array or vector into a heap-allocated [HeapVector]
+/// suitable for use as an input to a Brillig [BlackBoxOp].
 fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     array_or_vector: BrilligVariable,
