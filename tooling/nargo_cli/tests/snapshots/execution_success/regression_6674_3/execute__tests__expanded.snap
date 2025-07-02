@@ -5,13 +5,13 @@ expression: expanded_code
 use std::mem::zeroed;
 
 pub struct PrivateAccumulatedData {
-    public_call_requests: [Counted<Field>; 4],
+    pub public_call_requests: [Counted<Field>; 4],
 }
 
 pub struct PrivateAccumulatedDataBuilder {
-    l2_to_l1_msgs: BoundedVec<Field, 4>,
-    public_call_requests: BoundedVec<Counted<Field>, 4>,
-    private_call_stack: BoundedVec<Field, 4>,
+    pub l2_to_l1_msgs: BoundedVec<Field, 4>,
+    pub public_call_requests: BoundedVec<Counted<Field>, 4>,
+    pub private_call_stack: BoundedVec<Field, 4>,
 }
 
 impl PrivateAccumulatedDataBuilder {
@@ -21,8 +21,8 @@ impl PrivateAccumulatedDataBuilder {
 }
 
 pub struct Counted<T> {
-    inner: T,
-    counter: u32,
+    pub inner: T,
+    pub counter: u32,
 }
 
 impl<T> Counted<T> {
@@ -32,18 +32,18 @@ impl<T> Counted<T> {
 }
 
 pub struct PrivateKernelCircuitPublicInputs {
-    end: PrivateAccumulatedData,
+    pub end: PrivateAccumulatedData,
 }
 
 pub struct PrivateKernelData {
-    public_inputs: PrivateKernelCircuitPublicInputs,
+    pub public_inputs: PrivateKernelCircuitPublicInputs,
 }
 
 pub struct FixtureBuilder2 {
-    public_teardown_call_request: Field,
-    private_call_requests: BoundedVec<Field, 4>,
-    public_call_requests: BoundedVec<Counted<Field>, 4>,
-    counter: u32,
+    pub public_teardown_call_request: Field,
+    pub private_call_requests: BoundedVec<Field, 4>,
+    pub public_call_requests: BoundedVec<Counted<Field>, 4>,
+    pub counter: u32,
 }
 
 impl FixtureBuilder2 {

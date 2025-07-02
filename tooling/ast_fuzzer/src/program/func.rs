@@ -1004,6 +1004,29 @@ impl<'a> FunctionContext<'a> {
         expr::let_var(id, mutable, name, expr)
     }
 
+    /// Add a new local variable and return a `Let` expression along with an `Ident` to refer it by.
+    fn let_var_and_ident(
+        &mut self,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+        is_dynamic: bool,
+    ) -> (Expression, Ident) {
+        let v = self.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic);
+        let Expression::Let(Let { id, name, .. }) = &v else {
+            unreachable!("expected to Let; got {v:?}");
+        };
+        let i = expr::ident_inner(
+            VariableId::Local(*id),
+            self.next_ident_id(),
+            mutable,
+            name.clone(),
+            typ,
+        );
+        (v, i)
+    }
+
     /// Assign to a mutable variable, if we have one in scope.
     ///
     /// It resets the dynamic flag of the assigned variable.
@@ -1028,24 +1051,35 @@ impl<'a> FunctionContext<'a> {
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.
-        let (lvalue, typ, idx_dyn, is_compound) = match self.local_type(id).clone() {
+        let (lvalue, typ, idx_dyn, is_compound, prefix) = match self.local_type(id).clone() {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
                 let (idx, idx_dyn) = self.gen_index(u, len, self.max_depth())?;
+
+                // If the index expressions can have side effects, we need to assign it to a
+                // temporary variable to match the sequencing done by the frontend; see #8384.
+                let (idx, prefix) = if expr::has_side_effect(&idx) {
+                    let (idx, idx_ident) =
+                        self.let_var_and_ident(false, types::U32, idx, false, idx_dyn);
+                    (Expression::Ident(idx_ident), Some(idx))
+                } else {
+                    (idx, None)
+                };
+
                 let lvalue = LValue::Index {
                     array: Box::new(ident),
                     index: Box::new(idx),
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone(), idx_dyn, true)
+                (lvalue, typ.deref().clone(), idx_dyn, true, prefix)
             }
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
                 let lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ, false, true)
+                (lvalue, typ, false, true, None)
             }
-            typ => (ident, typ, false, false),
+            typ => (ident, typ, false, false, None),
         };
 
         // Generate the assigned value.
@@ -1053,11 +1087,19 @@ impl<'a> FunctionContext<'a> {
 
         if idx_dyn || expr_dyn {
             self.dynamics.insert(id);
-        } else if !is_compound && !idx_dyn && !expr_dyn {
+        } else if !idx_dyn && !expr_dyn && !is_compound {
+            // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+            // in which case we don't know if other members have dynamic properties.
             self.dynamics.remove(&id);
         }
 
-        Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+        let assign = Expression::Assign(Assign { lvalue, expression: Box::new(expr) });
+
+        if let Some(prefix) = prefix {
+            Ok(Some(Expression::Block(vec![prefix, assign])))
+        } else {
+            Ok(Some(assign))
+        }
     }
 
     /// Generate a `println` statement, if there is some printable local variable.
@@ -1597,14 +1639,9 @@ impl<'a> FunctionContext<'a> {
     /// Create a block with a let binding, then return a mutable reference to it.
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     fn indirect_ref_mut(&mut self, (expr, is_dyn): TrackedExpression, typ: Type) -> Expression {
-        self.locals.enter();
-        let let_expr = self.let_var(true, typ.clone(), expr.clone(), true, is_dyn);
-        let Expression::Let(Let { id, .. }) = &let_expr else {
-            unreachable!("expected Let; got {let_expr}");
-        };
-        let let_ident = self.local_ident(*id);
+        let (let_expr, let_ident) =
+            self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
-        self.locals.exit();
         Expression::Block(vec![let_expr, ref_expr])
     }
 }
