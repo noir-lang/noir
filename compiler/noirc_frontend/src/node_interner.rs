@@ -1487,6 +1487,30 @@ impl NodeInterner {
         trait_impls.collect()
     }
 
+    #[allow(unused)]
+    pub fn trait_constraint_string(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &[Type],
+        trait_associated_types: &[NamedType],
+    ) -> String {
+        let name = self.get_trait(trait_id).name.to_string();
+        let mut generics = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
+        let associated =
+            vecmap(trait_associated_types, |t| format!("{}: {:?}", t.name, t.typ)).join(", ");
+
+        if !generics.is_empty() && !associated.is_empty() {
+            generics += ", ";
+            generics += &associated;
+        }
+
+        if !generics.is_empty() {
+            generics = format!("<{generics}>");
+        }
+        format!("{object_type:?}: {name}{generics}")
+    }
+
     /// If the given function belongs to a trait impl, return its trait method id.
     /// Otherwise, return None.
     pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {

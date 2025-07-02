@@ -2413,6 +2413,10 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
 
 #[cfg(feature = "test_utils")]
 pub mod test_utils {
+    use std::cell::RefCell;
+    use std::io::Write;
+    use std::rc::Rc;
+
     use crate::hir::comptime::InterpreterError;
     use crate::{hir::def_collector::dc_crate::CompilationError, parser::ParserError};
 
@@ -2429,8 +2433,9 @@ pub mod test_utils {
     /// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
-    pub fn interpret(
+    pub fn interpret<W: Write + 'static>(
         src: &str,
+        output: Rc<RefCell<W>>,
     ) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
         use crate::elaborator::ElaboratorOptions;
         use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
@@ -2463,6 +2468,7 @@ pub mod test_utils {
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
         context.def_interner.populate_dummy_operator_traits();
+        context.set_comptime_printing(output);
 
         let krate = context.crate_graph.add_crate_root(FileId::dummy());
 
