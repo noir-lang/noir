@@ -1889,15 +1889,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "format_trace"
-version = "1.0.0-beta.7"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "fs2"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3242,7 +3233,6 @@ dependencies = [
  "dap",
  "dirs",
  "fm",
- "format_trace",
  "fs2",
  "fxhash",
  "iai",
@@ -5323,7 +5313,6 @@ version = "1.0.140"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20068b6e96dc6c9bd23e01df8827e6c7e1f2fddd43c21810382803c136b99373"
 dependencies = [
- "indexmap 2.9.0",
  "itoa",
  "memchr",
  "ryu",
