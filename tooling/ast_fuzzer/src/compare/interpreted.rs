@@ -204,10 +204,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             ) => {
                 // The removal of unreachable instructions evaluates constant binary operations and can replace
                 // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
-                msg2.contains(msg1)
+                msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
-                msg.contains("attempt to divide by zero")
+                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,

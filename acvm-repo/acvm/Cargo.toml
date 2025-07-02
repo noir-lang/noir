@@ -22,7 +22,7 @@ acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 
-indexmap = "1.7.0"
+indexmap = "^2.10.0"
 
 [features]
 bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]

@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -67,6 +67,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
