@@ -59,7 +59,7 @@ impl FuzzerProgramContext {
         }
     }
 
-    /// Stores function signatures and its ids
+    /// Stores function and its signature
     pub(crate) fn process_function(
         &mut self,
         function: FunctionData,
