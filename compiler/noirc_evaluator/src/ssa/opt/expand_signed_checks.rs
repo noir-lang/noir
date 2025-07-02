@@ -439,7 +439,10 @@ impl Context<'_, '_, '_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn expands_checked_add_instruction() {
@@ -557,5 +560,47 @@ mod tests {
             return v36
         }
         "#);
+    }
+
+    #[test]
+    fn ignores_unchecked_add() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_add v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_checks();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn ignores_unchecked_sub() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_sub v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_checks();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn ignores_unchecked_mul() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v2 = unchecked_mul v0, v1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_signed_checks();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
