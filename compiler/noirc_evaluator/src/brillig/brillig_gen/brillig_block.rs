@@ -113,7 +113,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     /// Converts SSA globals into Brillig global values.
     ///
-    /// Global values can be: 
+    /// Global values can be:
     /// - Numeric constants
     /// - Instructions that compute global values
     /// - Pre-hoisted constants (shared across functions and stored in global memory)
