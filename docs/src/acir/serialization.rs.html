@@ -431,7 +431,9 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a></pre></div><pre class="rust"><code><span class="doccomment">//! Serialization formats we consider using for the bytecode and the witness stack.
 
 </span><span class="kw">use </span><span class="kw">crate</span>::proto::convert::ProtoSchema;
 <span class="kw">use </span>acir_field::AcirField;
@@ -481,12 +483,14 @@
 ///
 /// This format is compact, but provides no backwards compatibility.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bincode_serialize&lt;T: Serialize&gt;(value: <span class="kw-2">&amp;</span>T) -&gt; std::io::Result&lt;Vec&lt;u8&gt;&gt; {
-    bincode::serialize(value).map_err(std::io::Error::other)
+    bincode::serde::encode_to_vec(value, bincode::config::legacy()).map_err(std::io::Error::other)
 }
 
 <span class="doccomment">/// Deserialize a value using `bincode`, based on `serde`.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bincode_deserialize&lt;T: <span class="kw">for</span>&lt;<span class="lifetime">'a</span>&gt; Deserialize&lt;<span class="lifetime">'a</span>&gt;&gt;(buf: <span class="kw-2">&amp;</span>[u8]) -&gt; std::io::Result&lt;T&gt; {
-    bincode::deserialize(buf).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+    bincode::serde::borrow_decode_from_slice(buf, bincode::config::legacy())
+        .map(|(result, <span class="kw">_</span>)| result)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
 }
 
 <span class="doccomment">/// Serialize a value using MessagePack, based on `serde`.
