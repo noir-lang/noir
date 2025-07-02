@@ -413,10 +413,7 @@
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a>
-<a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#415" id="415">415</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -576,10 +573,10 @@
             }
             (
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
             )
             | (
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) =&gt; {
                 <span class="comment">// The value should be a `NumericValue` display format, which is `&lt;type&gt; &lt;value&gt;`.
@@ -616,10 +613,7 @@
                 // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 </span>msg1 == msg2
             }
-            (
-                RangeCheckFailedWithMessage { message: msg1, .. },
-                ConstrainEqFailed { msg: msg2, .. },
-            ) =&gt; {
+            (RangeCheckFailed { msg: <span class="prelude-val">Some</span>(msg1), .. }, ConstrainEqFailed { msg: msg2, .. }) =&gt; {
                 <span class="comment">// The removal of unreachable instructions evaluates constant binary operations and can replace
                 // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
                 </span>msg2.as_ref().is_some_and(|msg| msg == msg1)

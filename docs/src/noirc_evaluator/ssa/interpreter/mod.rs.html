@@ -1490,11 +1490,7 @@
 <a href="#1489" id="1489">1489</a>
 <a href="#1490" id="1490">1490</a>
 <a href="#1491" id="1491">1491</a>
-<a href="#1492" id="1492">1492</a>
-<a href="#1493" id="1493">1493</a>
-<a href="#1494" id="1494">1494</a>
-<a href="#1495" id="1495">1495</a>
-<a href="#1496" id="1496">1496</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1492" id="1492">1492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2210,17 +2206,13 @@
             <span class="kw">let </span>actual_bits = bit_count;
             <span class="kw">let </span>max_bits = max_bit_size;
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(message) = error_message {
-                <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } <span class="kw">else </span>{
-                <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            <span class="prelude-val">Err</span>(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } <span class="kw">else </span>{
             <span class="prelude-val">Ok</span>(())
         }

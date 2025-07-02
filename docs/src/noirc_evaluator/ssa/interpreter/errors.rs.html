@@ -190,11 +190,7 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
@@ -229,18 +225,14 @@
     <span class="attr">#[error(<span class="string">"static_assert `{condition}` failed: {message}"</span>)]
     </span>StaticAssertFailed { condition: ValueId, message: String },
     <span class="attr">#[error(
-        <span class="string">"Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}"
-    </span>)]
-    </span>RangeCheckFailed { value: String, value_id: ValueId, actual_bits: u32, max_bits: u32 },
-    <span class="attr">#[error(
-        <span class="string">"Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}\n  {message}"
-    </span>)]
-    </span>RangeCheckFailedWithMessage {
+        <span class="string">"Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}{message}"</span>, message = constraint_message(.msg)
+    )]
+    </span>RangeCheckFailed {
         value: String,
         value_id: ValueId,
         actual_bits: u32,
         max_bits: u32,
-        message: String,
+        msg: <span class="prelude-ty">Option</span>&lt;String&gt;,
     },
     <span class="doccomment">/// This is not an internal error since the SSA is still valid. We're just not able to
     /// interpret it since we lack the context of what the external function is.
