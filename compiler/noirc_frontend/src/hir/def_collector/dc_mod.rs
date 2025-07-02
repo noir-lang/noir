@@ -630,8 +630,10 @@ impl ModCollector<'_> {
                             let type_var =
                                 TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
-                            let definition =
-                                DefinitionKind::NumericGeneric(type_var.clone(), Box::new(typ.clone()));
+                            let definition = DefinitionKind::NumericGeneric(
+                                type_var.clone(),
+                                Box::new(typ.clone()),
+                            );
 
                             let location = name.location();
                             let definition_id = context.def_interner.push_definition(

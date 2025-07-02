@@ -1131,13 +1131,11 @@ impl<'interner> Monomorphizer<'interner> {
                         let value = SignedField::positive(value);
                         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
-                    Err(err) => {
-                        Err(MonomorphizationError::CannotComputeAssociatedConstant {
-                            name: name.clone(),
-                            err,
-                            location,
-                        })
-                    }
+                    Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                        name: name.clone(),
+                        err,
+                        location,
+                    }),
                 }
             }
         }
@@ -1145,12 +1143,14 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Monomorphize a numeric generic as a numeric constant.
     /// Expects arguments to correspond to `let N: $expected_type = $value;`
-    fn numeric_generic(&self, value: Type, expected_type: Type, location: Location) -> Result<ast::Expression, MonomorphizationError> {
+    fn numeric_generic(
+        &self,
+        value: Type,
+        expected_type: Type,
+        location: Location,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         let value = value
-            .evaluate_to_field_element(
-                &Kind::Numeric(Box::new(expected_type.clone())),
-                location,
-            )
+            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected_type.clone())), location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength {
                 length: value,
                 err,
@@ -1614,7 +1614,7 @@ impl<'interner> Monomorphizer<'interner> {
             TraitItem::Constant { id, expected_type, value } => {
                 let location = self.interner.definition(id).location;
                 return self.numeric_generic(value, expected_type, location);
-            },
+            }
         };
 
         let func_id =
@@ -2602,7 +2602,9 @@ impl TraitItem {
     pub fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,
-            TraitItem::Constant { .. } => panic!("Expected `TraitItem::Method`, but found `TraitItem::Constant`"),
+            TraitItem::Constant { .. } => {
+                panic!("Expected `TraitItem::Method`, but found `TraitItem::Constant`")
+            }
         }
     }
 }

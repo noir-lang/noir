@@ -8,13 +8,13 @@ use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::hir_def::expr::TraitItem;
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::expr::TraitItem;
 use crate::monomorphization::{
     perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
     undo_instantiation_bindings,
@@ -628,7 +628,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let value = Type::TypeVariable(type_variable.clone());
-                self.evaluate_numeric_generic(value, &numeric_typ, id)
+                self.evaluate_numeric_generic(value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let associated_types =
@@ -661,10 +661,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(
-                &Kind::Numeric(Box::new(expected.clone())),
-                location,
-            )
+            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
@@ -681,10 +678,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             crate::monomorphization::TraitItem::Method(func_id) => {
                 let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
-            },
+            }
             crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
                 self.evaluate_numeric_generic(value, &expected_type, id)
-            },
+            }
         }
     }
 

@@ -1479,7 +1479,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
         let Some(definition) =
-            the_trait.find_method_or_constant(path.impl_item.as_str(), &self.interner)
+            the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
         else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
