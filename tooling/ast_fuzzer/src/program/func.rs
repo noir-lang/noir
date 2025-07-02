@@ -146,6 +146,16 @@ pub(super) fn can_call(
     !callee_has_refs
 }
 
+/// Make a name for a local variable.
+fn local_name(id: LocalId) -> String {
+    make_name(id.0 as usize, false)
+}
+
+/// Make a name for a local index variable.
+fn index_name(id: LocalId) -> String {
+    format!("idx_{}", local_name(id))
+}
+
 /// Control what kind of expressions we can generate, depending on the surrounding context.
 #[derive(Debug, Clone, Copy)]
 struct Flags {
@@ -962,7 +972,7 @@ impl<'a> FunctionContext<'a> {
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
-        Ok(self.let_var(mutable, typ, expr, true, is_dyn))
+        Ok(self.let_var(mutable, typ, expr, true, is_dyn, local_name))
     }
 
     /// Add a new local variable and return a `Let` expression.
@@ -975,9 +985,10 @@ impl<'a> FunctionContext<'a> {
         expr: Expression,
         add_to_scope: bool,
         is_dynamic: bool,
+        make_name: impl Fn(LocalId) -> String,
     ) -> Expression {
         let id = self.next_local_id();
-        let name = make_name(id.0 as usize, false);
+        let name = make_name(id);
 
         // Add the variable so we can use it in subsequent expressions.
         if add_to_scope {
@@ -999,8 +1010,9 @@ impl<'a> FunctionContext<'a> {
         expr: Expression,
         add_to_scope: bool,
         is_dynamic: bool,
+        make_name: impl Fn(LocalId) -> String,
     ) -> (Expression, Ident) {
-        let v = self.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic);
+        let v = self.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic, make_name);
         let Expression::Let(Let { id, name, .. }) = &v else {
             unreachable!("expected to Let; got {v:?}");
         };
@@ -1095,7 +1107,7 @@ impl<'a> FunctionContext<'a> {
 
                 let (idx, statements) = if needs_prefix {
                     let (let_idx, idx_ident) =
-                        self.let_var_and_ident(false, types::U32, idx, false, idx_dyn);
+                        self.let_var_and_ident(false, types::U32, idx, false, idx_dyn, index_name);
                     (Expression::Ident(idx_ident), Some(vec![let_idx]))
                 } else {
                     (idx, None)
@@ -1287,7 +1299,7 @@ impl<'a> FunctionContext<'a> {
 
         // Declare index variable, but only visible in the loop body, not the range.
         let idx_id = self.next_local_id();
-        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_name = index_name(idx_id);
 
         // Add a scope which will hold the index variable.
         self.locals.enter();
@@ -1522,7 +1534,7 @@ impl<'a> FunctionContext<'a> {
             let typ = (*u.choose_iter(opts.iter())?).clone();
             // Assign the result of the call to a variable we won't use.
             if let Some((call, is_dyn)) = self.gen_call(u, &typ, self.max_depth())? {
-                return Ok(Some(self.let_var(false, typ, call, false, is_dyn)));
+                return Ok(Some(self.let_var(false, typ, call, false, is_dyn, local_name)));
             }
         }
         Ok(None)
@@ -1662,7 +1674,7 @@ impl<'a> FunctionContext<'a> {
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     fn indirect_ref_mut(&mut self, (expr, is_dyn): TrackedExpression, typ: Type) -> Expression {
         let (let_expr, let_ident) =
-            self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn);
+            self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn, local_name);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(vec![let_expr, ref_expr])
     }
