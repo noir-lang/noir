@@ -16,3 +16,4 @@ array_rc_regression_7842
 mutate_array_copy
 regression_8229
 regression_8926
+to_radix_error

@@ -511,9 +511,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        msg.to_string()
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -534,9 +534,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        msg.to_string()
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,

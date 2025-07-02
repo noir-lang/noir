@@ -173,11 +173,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
         //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
-        SsaPass::new(
+        SsaPass::new_try(
             move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             "Preprocessing Functions",
         ),
-        SsaPass::new(move |ssa| ssa.inline_functions(options.inliner_aggressiveness), "Inlining"),
+        SsaPass::new_try(
+            move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+            "Inlining",
+        ),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
@@ -203,7 +206,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         // Before flattening is run, we treat functions marked with the `InlineType::NoPredicates` as an entry point.
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
-        SsaPass::new(
+        SsaPass::new_try(
             move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
             "Inlining",
         ),
