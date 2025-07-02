@@ -161,10 +161,10 @@ fn compute_function_should_be_inlined(
     }
 
     let function = &ssa.functions[&func_id];
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
     let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
         function.dfg[*block].instructions().iter().any(|instruction| {
-            let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
-            let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
             match &function.dfg[*instruction] {
                 Instruction::Call { func, .. } => {
                     Some(*func) == assert_constant_id || Some(*func) == static_assert_id

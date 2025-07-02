@@ -51,7 +51,7 @@ impl Function {
         let mut blocks_within_empty_loop = HashSet::default();
         for loop_ in loops.yet_to_unroll {
             let Ok(pre_header) = loop_.get_pre_header(self, &cfg) else {
-                // If the loop does not have a preheader we skip hoisting loop invariants for this loop
+                // If the loop does not have a preheader we skip checking whether the loop is empty
                 continue;
             };
             let const_bounds = loop_.get_const_bounds(self, pre_header);
@@ -222,30 +222,15 @@ mod test {
         acir(inline) fn main f0 {
           b0():
             v2 = call f1() -> [Field; 0]
-            v4, v5 = call as_slice(v2) -> (u32, [Field])
-            v6 = make_array [] : [Field]
-            v7 = allocate -> &mut u32
-            store u32 0 at v7
-            v9 = allocate -> &mut [Field]
-            store v6 at v9
             jmp b1(u32 0)
           b1(v0: u32):
-            v10 = lt v0, u32 0
-            jmpif v10 then: b2, else: b3
+            v4 = lt v0, u32 0
+            jmpif v4 then: b2, else: b3
           b2():
-            v13 = lt v0, u32 0
-            constrain v13 == u1 1
-            v15 = load v7 -> u32
-            v16 = load v9 -> [Field]
             call assert_constant(v2)
-            v19, v20 = call slice_push_back(v15, v16) -> (u32, [Field])
-            store v19 at v7
-            store v20 at v9
-            v22 = unchecked_add v0, u32 1
-            jmp b1(v22)
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
           b3():
-            v11 = load v7 -> u32
-            v12 = load v9 -> [Field]
             return
         }
         brillig(inline) fn foo f1 {
@@ -263,29 +248,14 @@ mod test {
         acir(inline) fn main f0 {
           b0():
             v2 = call f1() -> [Field; 0]
-            v4, v5 = call as_slice(v2) -> (u32, [Field])
-            v6 = make_array [] : [Field]
-            v7 = allocate -> &mut u32
-            store u32 0 at v7
-            v9 = allocate -> &mut [Field]
-            store v6 at v9
             jmp b1(u32 0)
           b1(v0: u32):
-            v10 = lt v0, u32 0
-            jmpif v10 then: b2, else: b3
+            v4 = lt v0, u32 0
+            jmpif v4 then: b2, else: b3
           b2():
-            v13 = lt v0, u32 0
-            constrain v13 == u1 1
-            v15 = load v7 -> u32
-            v16 = load v9 -> [Field]
-            v18, v19 = call slice_push_back(v15, v16) -> (u32, [Field])
-            store v18 at v7
-            store v19 at v9
-            v21 = unchecked_add v0, u32 1
-            jmp b1(v21)
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
           b3():
-            v11 = load v7 -> u32
-            v12 = load v9 -> [Field]
             return
         }
         brillig(inline) fn foo f1 {
