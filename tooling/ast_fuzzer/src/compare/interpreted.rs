@@ -198,8 +198,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             },
             (
                 Overflow { operator: BinaryOp::Mul { unchecked: false }, .. },
-                RangeCheckFailedWithMessage { message, .. },
-            ) => message == "attempt to multiply with overflow",
+                RangeCheckFailed { msg: Some(msg), .. },
+            ) => msg == "attempt to multiply with overflow",
 
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
