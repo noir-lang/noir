@@ -169,6 +169,21 @@ impl Flags {
     const CALL: Self = Self { allow_blocks: false, allow_if_then: true };
 }
 
+/// Helper data structure for generating the lvalue of assignments.
+struct LValueWithMeta {
+    /// The lvalue to assign to, e.g. `a[i]`.
+    lvalue: LValue,
+    /// The type of the value that needs to be assigned, e.g. an array item type.
+    typ: Type,
+    /// Indicate whether any dynamic input was used to generate the lvalue, e.g. for an array index.
+    /// This does not depend on whether the variable that we assign to was dynamic *before* the assignment.
+    is_dyn: bool,
+    /// Indicate whether the lvalue is a complex type like an array or a tuple.
+    is_compound: bool,
+    /// Any statements that had to be broken out to control the side effects of indexing.
+    statements: Option<Vec<Expression>>,
+}
+
 /// Context used during the generation of a function body.
 pub(super) struct FunctionContext<'a> {
     /// Top level context, to access global variables and other functions.
@@ -1020,11 +1035,41 @@ impl<'a> FunctionContext<'a> {
         }
 
         let id = *u.choose_iter(opts)?;
+        let lvalue = self.gen_lvalue(u, id)?;
+
+        // Generate the assigned value.
+        let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
+
+        if lvalue.is_dyn || expr_dyn {
+            self.dynamics.insert(id);
+        } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
+            // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+            // in which case we don't know if other members have dynamic properties.
+            self.dynamics.remove(&id);
+        }
+
+        let assign =
+            Expression::Assign(Assign { lvalue: lvalue.lvalue, expression: Box::new(expr) });
+
+        if let Some(mut statements) = lvalue.statements {
+            statements.push(assign);
+            Ok(Some(Expression::Block(statements)))
+        } else {
+            Ok(Some(assign))
+        }
+    }
+
+    /// Generate an lvalue to assign to a local variable, or some part of it, if it's a compound type.
+    fn gen_lvalue(
+        &mut self,
+        u: &mut Unstructured,
+        id: LocalId,
+    ) -> arbitrary::Result<LValueWithMeta> {
         let ident = self.local_ident(id);
         let ident = LValue::Ident(ident);
 
         // For arrays and tuples we can consider assigning to their items.
-        let (lvalue, typ, idx_dyn, is_compound, prefix) = match self.local_type(id).clone() {
+        let lvalue = match self.local_type(id).clone() {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
                 let (idx, idx_dyn) = self.gen_index(u, len, self.max_depth())?;
 
@@ -1045,41 +1090,42 @@ impl<'a> FunctionContext<'a> {
                     (idx, None)
                 };
 
-                let lvalue = LValue::Index {
+                let index = LValue::Index {
                     array: Box::new(ident),
                     index: Box::new(idx),
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone(), idx_dyn, true, prefix)
+                LValueWithMeta {
+                    lvalue: index,
+                    typ: typ.deref().clone(),
+                    is_dyn: idx_dyn,
+                    is_compound: true,
+                    statements: prefix.map(|p| vec![p]),
+                }
             }
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
-                let lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ, false, true, None)
+                let member = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
+                LValueWithMeta {
+                    lvalue: member,
+                    typ,
+                    is_dyn: false,
+                    is_compound: true,
+                    statements: None,
+                }
             }
-            typ => (ident, typ, false, false, None),
+            typ => LValueWithMeta {
+                lvalue: ident,
+                typ,
+                is_dyn: false,
+                is_compound: false,
+                statements: None,
+            },
         };
 
-        // Generate the assigned value.
-        let (expr, expr_dyn) = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
-
-        if idx_dyn || expr_dyn {
-            self.dynamics.insert(id);
-        } else if !idx_dyn && !expr_dyn && !is_compound {
-            // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
-            // in which case we don't know if other members have dynamic properties.
-            self.dynamics.remove(&id);
-        }
-
-        let assign = Expression::Assign(Assign { lvalue, expression: Box::new(expr) });
-
-        if let Some(prefix) = prefix {
-            Ok(Some(Expression::Block(vec![prefix, assign])))
-        } else {
-            Ok(Some(assign))
-        }
+        Ok(lvalue)
     }
 
     /// Generate a `println` statement, if there is some printable local variable.
