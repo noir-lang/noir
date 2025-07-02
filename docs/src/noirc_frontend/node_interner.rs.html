@@ -2610,7 +2610,31 @@
 <a href="#2609" id="2609">2609</a>
 <a href="#2610" id="2610">2610</a>
 <a href="#2611" id="2611">2611</a>
-<a href="#2612" id="2612">2612</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -4097,6 +4121,30 @@
             <span class="kw">if </span>trait_impl.borrow().crate_id == crate_id { <span class="prelude-val">Some</span>(<span class="kw-2">*</span>id) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
         });
         trait_impls.collect()
+    }
+
+    <span class="attr">#[allow(unused)]
+    </span><span class="kw">pub fn </span>trait_constraint_string(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        object_type: <span class="kw-2">&amp;</span>Type,
+        trait_id: TraitId,
+        trait_generics: <span class="kw-2">&amp;</span>[Type],
+        trait_associated_types: <span class="kw-2">&amp;</span>[NamedType],
+    ) -&gt; String {
+        <span class="kw">let </span>name = <span class="self">self</span>.get_trait(trait_id).name.to_string();
+        <span class="kw">let </span><span class="kw-2">mut </span>generics = vecmap(trait_generics, |t| <span class="macro">format!</span>(<span class="string">"{t:?}"</span>)).join(<span class="string">", "</span>);
+        <span class="kw">let </span>associated =
+            vecmap(trait_associated_types, |t| <span class="macro">format!</span>(<span class="string">"{}: {:?}"</span>, t.name, t.typ)).join(<span class="string">", "</span>);
+
+        <span class="kw">if </span>!generics.is_empty() &amp;&amp; !associated.is_empty() {
+            generics += <span class="string">", "</span>;
+            generics += <span class="kw-2">&amp;</span>associated;
+        }
+
+        <span class="kw">if </span>!generics.is_empty() {
+            generics = <span class="macro">format!</span>(<span class="string">"&lt;{generics}&gt;"</span>);
+        }
+        <span class="macro">format!</span>(<span class="string">"{object_type:?}: {name}{generics}"</span>)
     }
 
     <span class="doccomment">/// If the given function belongs to a trait impl, return its trait method id.
