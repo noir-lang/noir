@@ -1612,52 +1612,60 @@ impl<'a> FunctionContext<'a> {
     }
 }
 
-#[test]
-fn test_loop() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+#[cfg(test)]
+mod tests {
+    use arbitrary::Unstructured;
+    use noirc_frontend::monomorphization::ast::FuncId;
 
-    assert!(
-        loop_code.starts_with(
-            &r#"{
+    use crate::program::{Context, FunctionContext};
+
+    #[test]
+    fn test_loop() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+        assert!(
+            loop_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1);"#
-                .replace(" ", "")
-        )
-    );
-}
+                    .replace(" ", "")
+            )
+        );
+    }
 
-#[test]
-fn test_while() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+    #[test]
+    fn test_while() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
-    assert!(
-        while_code.starts_with(
-            &r#"{
+        assert!(
+            while_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     while (!false) {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1)"#
-                .replace(" ", "")
-        )
-    );
+                    .replace(" ", "")
+            )
+        );
+    }
 }
