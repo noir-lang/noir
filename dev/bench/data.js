@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751475088552,
+  "lastUpdate": 1751475125398,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "309d44549e225be52ce070802875650300619298",
-          "message": "chore: remove unreachable functions after inlining simple functions (#8987)",
-          "timestamp": "2025-06-23T12:23:36Z",
-          "tree_id": "3d3c7fdb771610f16588a9db5b4ccd316972d204",
-          "url": "https://github.com/noir-lang/noir/commit/309d44549e225be52ce070802875650300619298"
-        },
-        "date": 1750683255421,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.476,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.098,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 19.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 177,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 179,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.302,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.778,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7896,6 +7817,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 1.442,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.765,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0098c45d5997ea70df22c98efec83c60ab578869",
+          "message": "fix(ssa): Do not fail for static assertions in a map over empty dynamic slices (#9060)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-07-02T16:20:32Z",
+          "tree_id": "a660a3ff2b476c7df9ba2d33b8091473618ff33d",
+          "url": "https://github.com/noir-lang/noir/commit/0098c45d5997ea70df22c98efec83c60ab578869"
+        },
+        "date": 1751475098895,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.438,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.224,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.164,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 203,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.43,
             "unit": "s"
           },
           {
