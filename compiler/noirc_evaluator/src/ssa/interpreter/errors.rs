@@ -33,7 +33,7 @@ pub enum InterpreterError {
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
-        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}\n  {message}", message = constraint_message(.msg)
+        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}{message}", message = constraint_message(.msg)
     )]
     RangeCheckFailed {
         value: String,
