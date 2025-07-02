@@ -1939,10 +1939,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// uniform arrays.
     ///
     /// # Example
-    /// ```ignore
-    /// // For an array like [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], a runtime loop will be used
-    /// // For an array like [1, 2, 3, 4], each element will be set explicitly
-    /// ```
+    /// For an array like [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], a runtime loop will be used
+    /// For an array like [1, 2, 3, 4], each element will be set explicitly
     fn initialize_constant_array(
         &mut self,
         data: &im::Vector<ValueId>,
