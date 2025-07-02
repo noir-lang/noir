@@ -68,7 +68,12 @@ impl Ssa {
         };
 
         self.functions = btree_map(&self.functions, |(id, function)| {
-            (*id, function.inlined(&self, &should_inline_call))
+            (
+                *id,
+                function
+                    .inlined(&self, &should_inline_call)
+                    .expect("simple function should not be recursive"),
+            )
         });
 
         self

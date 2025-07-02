@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 pub struct Context {
-    get_field: fn() -> Field,
+    pub get_field: fn() -> Field,
 }
 
 pub struct ContextWrapper {

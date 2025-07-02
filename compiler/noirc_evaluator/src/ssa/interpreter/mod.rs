@@ -511,9 +511,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -534,9 +534,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,
@@ -714,17 +714,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_bits = bit_count;
             let max_bits = max_bit_size;
 
-            if let Some(message) = error_message {
-                Err(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } else {
-                Err(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            Err(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } else {
             Ok(())
         }

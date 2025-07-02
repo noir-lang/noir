@@ -24,13 +24,13 @@ impl BoundedVec4 {
 }
 
 pub struct PrivateKernelCircuitPublicInputs {
-    l2_to_l1_msgs: [Field; 4],
-    public_call_requests: [Field; 4],
+    pub l2_to_l1_msgs: [Field; 4],
+    pub public_call_requests: [Field; 4],
 }
 
 pub struct FixtureBuilder {
-    public_call_requests: BoundedVec4,
-    counter: Field,
+    pub public_call_requests: BoundedVec4,
+    pub counter: Field,
 }
 
 impl FixtureBuilder {
@@ -52,8 +52,8 @@ impl FixtureBuilder {
 }
 
 pub struct PrivateKernelCircuitPublicInputsComposer {
-    l2_to_l1_msgs: [Field; 4],
-    public_call_requests: [Field; 4],
+    pub l2_to_l1_msgs: [Field; 4],
+    pub public_call_requests: [Field; 4],
 }
 
 impl PrivateKernelCircuitPublicInputsComposer {
