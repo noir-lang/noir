@@ -633,7 +633,9 @@
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
+</span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -681,8 +683,8 @@
 
 <span class="doccomment">/// Mapping of SSA value ids to their Brillig allocations
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>SsaToBrilligGlobals = HashMap&lt;ValueId, BrilligVariable&gt;;
-
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>HoistedConstantsToBrilligGlobals =
+<span class="doccomment">/// Mapping of constant values shared across functions hoisted to the global memory space
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>HoistedConstantsToBrilligGlobals =
     HashMap&lt;(FieldElement, NumericType), BrilligVariable&gt;;
 <span class="doccomment">/// Mapping of a constant value and the number of functions in which it occurs
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>ConstantCounterMap = HashMap&lt;(FieldElement, NumericType), usize&gt;;

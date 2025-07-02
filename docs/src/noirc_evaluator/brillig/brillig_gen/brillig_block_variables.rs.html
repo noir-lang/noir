@@ -153,7 +153,40 @@
 <a href="#152" id="152">152</a>
 <a href="#153" id="153">153</a>
 <a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a>
+<a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module handles allocation, tracking, and lifetime management of variables
+//! within a Brillig compiled SSA basic block.
+//!
+//! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
+//! during the compilation of a single SSA block into Brillig instructions. It cooperates
+//! with the [FunctionContext] to manage the mapping from SSA values to [BrilligVariable]s
+//! and with the [BrilligContext] for allocating registers.
+//!
+//! Variables are:
+//! - Allocated when first defined in a block (if not already global or hoisted to the global space).
+//! - Cached for reuse to avoid redundant register allocation.
+//! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
+</span><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 
 <span class="kw">use crate</span>::{
@@ -174,7 +207,16 @@
 
 <span class="kw">use </span><span class="kw">super</span>::brillig_fn::FunctionContext;
 
-<span class="attr">#[derive(Debug, Default)]
+<span class="doccomment">/// Tracks SSA variables that are live and usable during Brillig compilation of a block.
+///
+/// This structure is meant to be instantiated per SSA basic block and initialized using the
+/// the set of live variables that must be available at the block's entry.
+///
+/// It implements:
+/// - A set of active [ValueId]s that are allocated and usable.
+/// - The interface to define new variables as needed for instructions within the block.
+/// - Utilities to remove, check, and retrieve variables during Brillig codegen.
+</span><span class="attr">#[derive(Debug, Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BlockVariables {
     available_variables: HashSet&lt;ValueId&gt;,
 }

@@ -92,7 +92,21 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+</span><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
     brillig::brillig_ir::{
@@ -111,10 +125,15 @@
 
 <span class="kw">use super</span>::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
-<span class="attr">#[derive(Default)]
+<span class="doccomment">/// Information required to compile an SSA [Function] into Brillig bytecode.
+///
+/// This structure is instantiated once per function and used throughout basic block code generation.
+/// It can also represent a non-function context (e.g., global instantiation) to reuse block codegen logic
+/// by leaving its `function_id` field unset.
+</span><span class="attr">#[derive(Default)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>FunctionContext {
     <span class="doccomment">/// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
-    /// such as with globals, we are not within a function and do not have a function id.
+    /// such as with globals, we are not within a function and do not have a [FunctionId].
     </span>function_id: <span class="prelude-ty">Option</span>&lt;FunctionId&gt;,
     <span class="doccomment">/// Map from SSA values its allocation. Since values can be only defined once in SSA form, we insert them here on when we allocate them at their definition.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) ssa_value_allocations: HashMap&lt;ValueId, BrilligVariable&gt;,
@@ -154,7 +173,14 @@
         <span class="self">self</span>.function_id.expect(<span class="string">"ICE: function_id should already be set"</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ssa_type_to_parameter(typ: <span class="kw-2">&amp;</span>Type) -&gt; BrilligParameter {
+    <span class="doccomment">/// Converts an SSA [Type] into a corresponding [BrilligParameter].
+    ///
+    /// This conversion defines the calling convention for Brillig functions,
+    /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
+    ///
+    /// # Panics
+    /// Panics if called with a slice type, as a slice's memory layout cannot be inferred without runtime data.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ssa_type_to_parameter(typ: <span class="kw-2">&amp;</span>Type) -&gt; BrilligParameter {
         <span class="kw">match </span>typ {
             Type::Numeric(<span class="kw">_</span>) | Type::Reference(<span class="kw">_</span>) =&gt; {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))

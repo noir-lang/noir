@@ -180,7 +180,21 @@
 <a href="#179" id="179">179</a>
 <a href="#180" id="180">180</a>
 <a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+//! for generating Brillig bytecode from [Ssa].
+//!
+//! # Usage
+//!
+//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>brillig_gen;
 <span class="kw">pub mod </span>brillig_ir;
 
 <span class="kw">use </span>acvm::FieldElement;

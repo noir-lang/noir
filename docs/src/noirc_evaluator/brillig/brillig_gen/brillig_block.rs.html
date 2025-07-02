@@ -2199,7 +2199,119 @@
 <a href="#2198" id="2198">2198</a>
 <a href="#2199" id="2199">2199</a>
 <a href="#2200" id="2200">2200</a>
-<a href="#2201" id="2201">2201</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
+<a href="#2201" id="2201">2201</a>
+<a href="#2202" id="2202">2202</a>
+<a href="#2203" id="2203">2203</a>
+<a href="#2204" id="2204">2204</a>
+<a href="#2205" id="2205">2205</a>
+<a href="#2206" id="2206">2206</a>
+<a href="#2207" id="2207">2207</a>
+<a href="#2208" id="2208">2208</a>
+<a href="#2209" id="2209">2209</a>
+<a href="#2210" id="2210">2210</a>
+<a href="#2211" id="2211">2211</a>
+<a href="#2212" id="2212">2212</a>
+<a href="#2213" id="2213">2213</a>
+<a href="#2214" id="2214">2214</a>
+<a href="#2215" id="2215">2215</a>
+<a href="#2216" id="2216">2216</a>
+<a href="#2217" id="2217">2217</a>
+<a href="#2218" id="2218">2218</a>
+<a href="#2219" id="2219">2219</a>
+<a href="#2220" id="2220">2220</a>
+<a href="#2221" id="2221">2221</a>
+<a href="#2222" id="2222">2222</a>
+<a href="#2223" id="2223">2223</a>
+<a href="#2224" id="2224">2224</a>
+<a href="#2225" id="2225">2225</a>
+<a href="#2226" id="2226">2226</a>
+<a href="#2227" id="2227">2227</a>
+<a href="#2228" id="2228">2228</a>
+<a href="#2229" id="2229">2229</a>
+<a href="#2230" id="2230">2230</a>
+<a href="#2231" id="2231">2231</a>
+<a href="#2232" id="2232">2232</a>
+<a href="#2233" id="2233">2233</a>
+<a href="#2234" id="2234">2234</a>
+<a href="#2235" id="2235">2235</a>
+<a href="#2236" id="2236">2236</a>
+<a href="#2237" id="2237">2237</a>
+<a href="#2238" id="2238">2238</a>
+<a href="#2239" id="2239">2239</a>
+<a href="#2240" id="2240">2240</a>
+<a href="#2241" id="2241">2241</a>
+<a href="#2242" id="2242">2242</a>
+<a href="#2243" id="2243">2243</a>
+<a href="#2244" id="2244">2244</a>
+<a href="#2245" id="2245">2245</a>
+<a href="#2246" id="2246">2246</a>
+<a href="#2247" id="2247">2247</a>
+<a href="#2248" id="2248">2248</a>
+<a href="#2249" id="2249">2249</a>
+<a href="#2250" id="2250">2250</a>
+<a href="#2251" id="2251">2251</a>
+<a href="#2252" id="2252">2252</a>
+<a href="#2253" id="2253">2253</a>
+<a href="#2254" id="2254">2254</a>
+<a href="#2255" id="2255">2255</a>
+<a href="#2256" id="2256">2256</a>
+<a href="#2257" id="2257">2257</a>
+<a href="#2258" id="2258">2258</a>
+<a href="#2259" id="2259">2259</a>
+<a href="#2260" id="2260">2260</a>
+<a href="#2261" id="2261">2261</a>
+<a href="#2262" id="2262">2262</a>
+<a href="#2263" id="2263">2263</a>
+<a href="#2264" id="2264">2264</a>
+<a href="#2265" id="2265">2265</a>
+<a href="#2266" id="2266">2266</a>
+<a href="#2267" id="2267">2267</a>
+<a href="#2268" id="2268">2268</a>
+<a href="#2269" id="2269">2269</a>
+<a href="#2270" id="2270">2270</a>
+<a href="#2271" id="2271">2271</a>
+<a href="#2272" id="2272">2272</a>
+<a href="#2273" id="2273">2273</a>
+<a href="#2274" id="2274">2274</a>
+<a href="#2275" id="2275">2275</a>
+<a href="#2276" id="2276">2276</a>
+<a href="#2277" id="2277">2277</a>
+<a href="#2278" id="2278">2278</a>
+<a href="#2279" id="2279">2279</a>
+<a href="#2280" id="2280">2280</a>
+<a href="#2281" id="2281">2281</a>
+<a href="#2282" id="2282">2282</a>
+<a href="#2283" id="2283">2283</a>
+<a href="#2284" id="2284">2284</a>
+<a href="#2285" id="2285">2285</a>
+<a href="#2286" id="2286">2286</a>
+<a href="#2287" id="2287">2287</a>
+<a href="#2288" id="2288">2288</a>
+<a href="#2289" id="2289">2289</a>
+<a href="#2290" id="2290">2290</a>
+<a href="#2291" id="2291">2291</a>
+<a href="#2292" id="2292">2292</a>
+<a href="#2293" id="2293">2293</a>
+<a href="#2294" id="2294">2294</a>
+<a href="#2295" id="2295">2295</a>
+<a href="#2296" id="2296">2296</a>
+<a href="#2297" id="2297">2297</a>
+<a href="#2298" id="2298">2298</a>
+<a href="#2299" id="2299">2299</a>
+<a href="#2300" id="2300">2300</a>
+<a href="#2301" id="2301">2301</a>
+<a href="#2302" id="2302">2302</a>
+<a href="#2303" id="2303">2303</a>
+<a href="#2304" id="2304">2304</a>
+<a href="#2305" id="2305">2305</a>
+<a href="#2306" id="2306">2306</a>
+<a href="#2307" id="2307">2307</a>
+<a href="#2308" id="2308">2308</a>
+<a href="#2309" id="2309">2309</a>
+<a href="#2310" id="2310">2310</a>
+<a href="#2311" id="2311">2311</a>
+<a href="#2312" id="2312">2312</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+</span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
 };
@@ -2234,9 +2346,10 @@
 <span class="kw">use </span><span class="kw">super</span>::brillig_globals::HoistedConstantsToBrilligGlobals;
 <span class="kw">use </span><span class="kw">super</span>::constant_allocation::InstructionLocation;
 
-<span class="doccomment">/// Generate the compilation artifacts for compiling a function into brillig bytecode.
+<span class="doccomment">/// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligBlock&lt;<span class="lifetime">'block</span>, Registers: RegisterAllocator&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) function_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>FunctionContext,
+    <span class="doccomment">/// Per-function context shared across all of a function's blocks
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) function_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>FunctionContext,
     <span class="doccomment">/// The basic block that is being converted
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) block_id: BasicBlockId,
     <span class="doccomment">/// Context for creating brillig opcodes
@@ -2246,14 +2359,22 @@
     <span class="doccomment">/// For each instruction, the set of values that are not used anymore after it.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) last_uses: HashMap&lt;InstructionId, HashSet&lt;ValueId&gt;&gt;,
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) globals: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HashMap&lt;ValueId, BrilligVariable&gt;,
-    <span class="kw">pub</span>(<span class="kw">crate</span>) hoisted_global_constants: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HoistedConstantsToBrilligGlobals,
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) building_globals: bool,
+    <span class="doccomment">/// Mapping of SSA [ValueId]s to their already instantiated values in the Brillig IR.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) globals: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HashMap&lt;ValueId, BrilligVariable&gt;,
+    <span class="doccomment">/// Pre-instantiated constants values shared across functions which have hoisted to the global memory space.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) hoisted_global_constants: <span class="kw-2">&amp;</span><span class="lifetime">'block </span>HoistedConstantsToBrilligGlobals,
+    <span class="doccomment">/// Status variable for whether we are generating Brillig bytecode for a function or globals.
+    /// This is primarily used for gating local variable specific logic.
+    /// For example, liveness analysis for globals is unnecessary (and adds complexity),
+    /// and instead globals live throughout the entirety of the program.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) building_globals: bool,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'block</span>, Registers: RegisterAllocator&gt; BrilligBlock&lt;<span class="lifetime">'block</span>, Registers&gt; {
     <span class="doccomment">/// Converts an SSA Basic block into a sequence of Brillig opcodes
+    ///
+    /// This method contains the necessary initial variable and register setup for compiling
+    /// an SSA block by accessing the pre-computed liveness context.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile(
         function_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>FunctionContext,
         brillig_context: <span class="kw-2">&amp;</span><span class="lifetime">'block </span><span class="kw-2">mut </span>BrilligContext&lt;FieldElement, Registers&gt;,
@@ -2302,7 +2423,26 @@
         brillig_block.convert_block(dfg, call_stacks);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_globals(
+    <span class="doccomment">/// Converts SSA globals into Brillig global values.
+    ///
+    /// Global values can be:
+    /// - Numeric constants
+    /// - Instructions that compute global values
+    /// - Pre-hoisted constants (shared across functions and stored in global memory)
+    ///
+    /// This method expects SSA globals to already be converted to a [DataFlowGraph]
+    /// as to share codegen logic with standard SSA function blocks.
+    ///
+    /// This method also emits any necessary debugging initialization logic (e.g., allocating a counter used
+    /// to track array copies).
+    ///
+    /// # Returns
+    /// A map of hoisted (constant, type) pairs to their allocated Brillig variables,
+    /// which are used to resolve references to these constants throughout Brillig lowering.
+    ///
+    /// # Panics
+    /// - Globals graph contains values other than a [constant][Value::NumericConstant] or [instruction][Value::Instruction]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>compile_globals(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         globals: <span class="kw-2">&amp;</span>DataFlowGraph,
         used_globals: <span class="kw-2">&amp;</span>HashSet&lt;ValueId&gt;,
@@ -2351,7 +2491,11 @@
         new_hoisted_constants
     }
 
-    <span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper) {
+    <span class="doccomment">/// Internal method for [BrilligBlock::compile] that actually kicks off the Brillig compilation process
+    ///
+    /// At this point any Brillig context, should be contained in [BrilligBlock] and this function should
+    /// only need to accept external SSA and debugging structures.
+    </span><span class="kw">fn </span>convert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, call_stacks: <span class="kw-2">&amp;mut </span>CallStackHelper) {
         <span class="comment">// Add a label for this block
         </span><span class="kw">let </span>block_label = <span class="self">self</span>.create_block_label_for_current_function(<span class="self">self</span>.block_id);
         <span class="self">self</span>.brillig_context.enter_context(block_label);
@@ -2398,9 +2542,6 @@
     }
 
     <span class="doccomment">/// Converts an SSA terminator instruction into the necessary opcodes.
-    ///
-    /// TODO: document why the TerminatorInstruction::Return includes a stop instruction
-    /// TODO along with the `Self::compile`
     </span><span class="kw">fn </span>convert_ssa_terminator(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         terminator_instruction: <span class="kw-2">&amp;</span>TerminatorInstruction,
@@ -3254,7 +3395,12 @@
         <span class="self">self</span>.brillig_context.set_call_stack(CallStackId::root());
     }
 
-    <span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
+    <span class="doccomment">/// Debug utility method to determine whether an array's reference count (RC) is zero.
+    /// If RC's have drifted down to zero it means the RC increment/decrement instructions
+    /// have been written incorrectly.
+    ///
+    /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
+    </span><span class="kw">fn </span>assert_rc_neq_zero(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rc_register: MemoryAddress) {
         <span class="kw">let </span>zero = SingleAddrVariable::new(<span class="self">self</span>.brillig_context.allocate_register(), <span class="number">32</span>);
 
         <span class="self">self</span>.brillig_context.const_instruction(zero, FieldElement::zero());
@@ -3273,7 +3419,8 @@
         <span class="self">self</span>.brillig_context.deallocate_single_addr(condition);
     }
 
-    <span class="kw">fn </span>convert_ssa_function_call(
+    <span class="doccomment">/// Internal method to codegen an [Instruction::Call] to a [Value::Function]
+    </span><span class="kw">fn </span>convert_ssa_function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: FunctionId,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
@@ -3317,7 +3464,11 @@
         }
     }
 
-    <span class="kw">fn </span>convert_ssa_array_get(
+    <span class="doccomment">/// Load from an array variable at a specific index into a specified destination
+    ///
+    /// # Panics
+    /// - The array variable is not a [BrilligVariable::BrilligArray] or [BrilligVariable::BrilligVector] when `has_offset` is false
+    </span><span class="kw">fn </span>convert_ssa_array_get(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         array_variable: BrilligVariable,
         index_variable: SingleAddrVariable,
@@ -3341,11 +3492,13 @@
         }
     }
 
-    <span class="doccomment">/// Array set operation in SSA returns a new array or slice that is a copy of the parameter array or slice
-    /// With a specific value changed.
+    <span class="doccomment">/// Array set operation in SSA returns a new array or vector that is a copy of the parameter array or vector
+    /// with a specific value changed.
     ///
-    /// Returns `source_size_as_register`, which is expected to be deallocated with:
-    /// `self.brillig_context.deallocate_register(source_size_as_register)`
+    /// Whether an actual copy other the array occurs or we write into the same source array is determined by the
+    /// [call into the array copy procedure][BrilligContext::call_array_copy_procedure].
+    /// If the reference count of an array pointer is one, we write directly to the array.
+    /// Look at the [procedure compilation][crate::brillig::brillig_ir::procedures::compile_procedure] for the exact procedure's codegen.
     </span><span class="kw">fn </span>convert_ssa_array_set(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         source_variable: BrilligVariable,
@@ -3905,7 +4058,9 @@
         <span class="self">self</span>.brillig_context.deallocate_single_addr(left_is_negative);
     }
 
-    <span class="attr">#[allow(clippy::too_many_arguments)]
+    <span class="doccomment">/// Overflow checks for the following unsigned binary operations
+    /// - Checked Add/Sub/Mul
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
     </span><span class="kw">fn </span>add_overflow_check(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         left: SingleAddrVariable,
@@ -3991,13 +4146,23 @@
         }
     }
 
-    <span class="kw">fn </span>initialize_constants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constants: <span class="kw-2">&amp;</span>[ValueId], dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
+    <span class="doccomment">/// Accepts a list of constant values to be initialized
+    ///
+    /// This method does no checks as to whether the supplied constants are actually constants.
+    /// It is expected that this method is called before converting an SSA instruction to Brillig
+    /// and the constants to be initialized have been precomputed and stored in [FunctionContext::constant_allocation].
+    </span><span class="kw">fn </span>initialize_constants(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constants: <span class="kw-2">&amp;</span>[ValueId], dfg: <span class="kw-2">&amp;</span>DataFlowGraph) {
         <span class="kw">for </span><span class="kw-2">&amp;</span>constant_id <span class="kw">in </span>constants {
             <span class="self">self</span>.convert_ssa_value(constant_id, dfg);
         }
     }
 
-    <span class="doccomment">/// Converts an SSA `ValueId` into a `RegisterOrMemory`. Initializes if necessary.
+    <span class="doccomment">/// Converts an SSA [ValueId] into a [BrilligVariable]. Initializes if necessary.
+    ///
+    /// This method also first checks whether the SSA value is a hoisted global constant.
+    /// If it has already been initialized in the global space, we return the already existing variable.
+    /// If an SSA value is a [Value::Global], we check whether the value exists in the [BrilligBlock::globals] map,
+    /// otherwise the method panics.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_ssa_value(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value_id: ValueId,
@@ -4070,7 +4235,25 @@
         }
     }
 
-    <span class="kw">fn </span>initialize_constant_array(
+    <span class="doccomment">/// Initializes a constant array in Brillig memory.
+    ///
+    /// This method is responsible for writing a constant array's contents into memory, starting
+    /// from the given `pointer`. It chooses between compile-time or runtime initialization
+    /// depending on the data pattern and size.
+    ///
+    /// If the array is large (`&gt;10` items), its elements are all numeric, and all items are identical,
+    /// a **runtime loop** is generated to perform the initialization more efficiently.
+    ///
+    /// Otherwise, the method falls back to a straightforward **compile-time** initialization, where
+    /// each array element is emitted explicitly.
+    ///
+    /// This optimization helps reduce Brillig bytecode size and runtime cost when initializing large,
+    /// uniform arrays.
+    ///
+    /// # Example
+    /// For an array like [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5], a runtime loop will be used
+    /// For an array like [1, 2, 3, 4], each element will be set explicitly
+    </span><span class="kw">fn </span>initialize_constant_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         data: <span class="kw-2">&amp;</span>im::Vector&lt;ValueId&gt;,
         typ: <span class="kw-2">&amp;</span>Type,
@@ -4110,7 +4293,15 @@
         }
     }
 
-    <span class="kw">fn </span>initialize_constant_array_runtime(
+    <span class="doccomment">/// Codegens Brillig instructions to initialize a large, constant array using a runtime loop.
+    ///
+    /// This method assumes the array consists of identical items repeated multiple times.
+    /// It generates a Brillig loop that writes the repeated item into memory efficiently,
+    /// reducing bytecode size and instruction count compared to unrolling each element.
+    ///
+    /// For complex types (e.g., tuples), multiple memory writes happen per loop iteration.
+    /// For primitive type (e.g., u32, Field), a single memory write happens per loop iteration.
+    </span><span class="kw">fn </span>initialize_constant_array_runtime(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         item_types: Arc&lt;Vec&lt;Type&gt;&gt;,
         item_to_repeat: Vec&lt;ValueId&gt;,
@@ -4192,7 +4383,15 @@
         <span class="self">self</span>.brillig_context.deallocate_single_addr(end_pointer_variable);
     }
 
-    <span class="kw">fn </span>initialize_constant_array_comptime(
+    <span class="doccomment">/// Codegens Brillig instructions to initialize a constant array at compile time.
+    ///
+    /// This method generates one `store` instruction per array element, writing each
+    /// value from the SSA into consecutive memory addresses starting at `pointer`.
+    ///
+    /// Unlike [initialize_constant_array_runtime][Self::initialize_constant_array_runtime], this
+    /// does not use loops and emits one instruction per write, which can increase bytecode size
+    /// but provides fine-grained control.
+    </span><span class="kw">fn </span>initialize_constant_array_comptime(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         data: <span class="kw-2">&amp;</span>im::Vector&lt;<span class="kw">crate</span>::ssa::ir::map::Id&lt;Value&gt;&gt;,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -4233,7 +4432,21 @@
         variable.extract_single_addr()
     }
 
-    <span class="kw">fn </span>allocate_external_call_result(
+    <span class="doccomment">/// Allocates a variable to hold the result of an external function call (e.g., foreign or black box).
+    /// For more information about foreign function calls in Brillig take a look at the [foreign call opcode][acvm::acir::brillig::Opcode::ForeignCall].
+    ///
+    /// This is typically used during Brillig codegen for calls to [Value::ForeignFunction], where
+    /// external host functions return values back into the program.
+    ///
+    /// Numeric types and fixed-sized array results are directly allocated.
+    /// As vector's are determined at runtime they are allocated differently.
+    /// - Allocates memory for a [BrilligVector], which holds a pointer and dynamic size.
+    /// - Initializes the pointer using the free memory pointer.
+    /// - The actual size will be updated after the foreign function call returns.
+    ///
+    /// # Returns
+    /// A [BrilligVariable] representing the allocated memory structure to store the foreign call's result.
+    </span><span class="kw">fn </span>allocate_external_call_result(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         result: ValueId,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
@@ -4281,7 +4494,13 @@
         }
     }
 
-    <span class="kw">fn </span>allocate_foreign_call_result_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, array: BrilligArray) {
+    <span class="doccomment">/// Recursively allocates memory for a nested array returned from a foreign function call.
+    ///
+    /// # Panics
+    /// - If the provided `typ` is not an array.
+    /// - If any slice types are encountered within the nested structure, since slices
+    ///   require runtime size information and cannot be allocated statically here.
+    </span><span class="kw">fn </span>allocate_foreign_call_result_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type, array: BrilligArray) {
         <span class="kw">let </span>Type::Array(types, size) = typ <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"ICE: allocate_foreign_call_array() expects an array, got {typ:?}"</span>)
         };
@@ -4357,7 +4576,10 @@
         }
     }
 
-    <span class="kw">fn </span>get_hoisted_global(
+    <span class="doccomment">/// If the supplied value is a numeric constant check whether it is exists within
+    /// the precomputed [hoisted globals map][Self::hoisted_global_constants].
+    /// If the variable exists as a hoisted global return that value, otherwise return `None`.
+    </span><span class="kw">fn </span>get_hoisted_global(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         value_id: ValueId,
