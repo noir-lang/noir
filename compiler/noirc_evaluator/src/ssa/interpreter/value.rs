@@ -81,7 +81,11 @@ impl Value {
             }
             Value::ArrayOrSlice(array) => Type::Array(
                 array.element_types.clone(),
-                (array.elements.borrow().len() / array.element_types.len()) as u32,
+                if array.element_types.len() == 0 {
+                    0
+                } else {
+                    (array.elements.borrow().len() / array.element_types.len()) as u32
+                },
             ),
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }

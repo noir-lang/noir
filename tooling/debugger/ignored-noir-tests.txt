@@ -12,3 +12,4 @@ test_add
 test_add_and_show
 test_sort
 test_sort_comptime
+test_acir_field_too_big

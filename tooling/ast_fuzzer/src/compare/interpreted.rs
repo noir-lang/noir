@@ -7,7 +7,12 @@ use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
-use noirc_evaluator::ssa::{self, interpreter::value::Value, ir::types::NumericType, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{
+    self,
+    interpreter::{InterpreterOptions, value::Value},
+    ir::types::NumericType,
+    ssa_gen::Ssa,
+};
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 use regex::Regex;
 
@@ -74,7 +79,7 @@ impl CompareInterpreted {
     }
 
     pub fn exec(&self) -> eyre::Result<CompareInterpretedResult> {
-        // Debug prints up frontin case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
+        // Debug prints up front in case the interpreter panics. Turn them on with `RUST_LOG=debug cargo test ...`
         log::debug!("Program: \n{}\n", crate::DisplayAstAsNoir(&self.program));
         log::debug!(
             "ABI inputs: \n{}\n",
@@ -95,28 +100,42 @@ impl CompareInterpreted {
             self.ssa1.msg,
             self.ssa1.ssa.print_without_locations()
         );
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa2.step,
+            self.ssa2.msg,
+            self.ssa2.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
-        let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));
+        let interpret = |ssa: &Ssa| {
+            let mut output = Vec::new();
+            let res = ssa.interpret_with_options(
+                Value::snapshot_args(&self.ssa_args),
+                InterpreterOptions::default(),
+                &mut output,
+            );
+            (res, output)
+        };
 
-        let res1 = interpret(&self.ssa1.ssa);
-        let res2 = interpret(&self.ssa2.ssa);
-        Ok(CompareInterpretedResult::new(res1, res2))
+        Ok(CompareInterpretedResult::new(interpret(&self.ssa1.ssa), interpret(&self.ssa2.ssa)))
     }
 }
 
 impl CompareInterpretedResult {
-    pub fn new(res1: InterpretResult, res2: InterpretResult) -> Self {
-        // Currently the SSA interpreter `call_print` doesn't do anything, so we cannot capture the print output.
-        let failed = |e| FailedOutput { error: e, print_output: Default::default() };
-        let passed =
-            |ret| PassedOutput { return_value: Some(ret), print_output: Default::default() };
+    pub fn new(
+        (res1, print1): (InterpretResult, Vec<u8>),
+        (res2, print2): (InterpretResult, Vec<u8>),
+    ) -> Self {
+        let printed = |p| String::from_utf8(p).expect("from_utf8 of print");
+        let failed = |e, p| FailedOutput { error: e, print_output: printed(p) };
+        let passed = |ret, p| PassedOutput { return_value: Some(ret), print_output: printed(p) };
 
         match (res1, res2) {
-            (Ok(r1), Ok(r2)) => Self::BothPassed(passed(r1), passed(r2)),
-            (Ok(r1), Err(e2)) => Self::RightFailed(passed(r1), failed(e2)),
-            (Err(e1), Ok(r2)) => Self::LeftFailed(failed(e1), passed(r2)),
-            (Err(e1), Err(e2)) => Self::BothFailed(failed(e1), failed(e2)),
+            (Ok(r1), Ok(r2)) => Self::BothPassed(passed(r1, print1), passed(r2, print2)),
+            (Ok(r1), Err(e2)) => Self::RightFailed(passed(r1, print1), failed(e2, print2)),
+            (Err(e1), Ok(r2)) => Self::LeftFailed(failed(e1, print1), passed(r2, print2)),
+            (Err(e1), Err(e2)) => Self::BothFailed(failed(e1, print1), failed(e2, print2)),
         }
     }
 }
@@ -139,10 +158,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             }
             (
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
             )
             | (
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
@@ -167,19 +186,25 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
             (
-                ConstrainEqFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainEqFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
-            )
-            | (
-                ConstrainNeFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainNeFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+                ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
+                ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },
             ) => {
-                // The sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`.
-                // Unfortunately we often see the type change as well, which makes it more difficult to compare,
-                // for example `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`,
-                // or `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
-                // (lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2) && msg1 == msg2
+                // The `lhs` and `rhs` might change during passes, making direct comparison difficult:
+                // * the sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`
+                // * the condition might be flipped: `u1 true != u1 false` vs `Field 0 == Field 0`
+                // * types could change:
+                //      * `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`
+                //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
+                // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 msg1 == msg2
+            }
+            (RangeCheckFailed { msg: Some(msg1), .. }, ConstrainEqFailed { msg: msg2, .. }) => {
+                // The removal of unreachable instructions evaluates constant binary operations and can replace
+                // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
+                msg2.as_ref().is_some_and(|msg| msg == msg1)
+            }
+            (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
+                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,

@@ -5,7 +5,7 @@ expression: expanded_code
 mod moo {
     pub struct Bar {}
 
-    impl super::Foo for Bar {
+    impl crate::Foo for Bar {
         fn foo(self) {}
     }
 }

@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -67,6 +67,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -126,12 +128,13 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
     "array_to_slice_constant_length",
+    "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
     "import",
@@ -173,28 +176,16 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 25] = [
-    // bug
-    "alias_trait_method_call_multiple_candidates",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
     // bug
     "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
-    "primitive_trait_method_call_multiple_candidates",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "regression_7038",
-    // bug
-    "regression_7038_2",
-    // bug
-    "regression_7038_3",
-    // bug
-    "regression_7038_4",
     // bug
     "serialize_1",
     // bug
@@ -204,21 +195,11 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 25] = [
     // bug
     "serialize_4",
     // bug
-    "trait_allowed_item_name_matches",
-    // bug
-    "trait_default_implementation",
-    // bug
     "trait_function_calls",
     // bug
     "trait_method_mut_self",
     // bug
-    "trait_override_implementation",
-    // bug
     "trait_static_methods",
-    // bug
-    "type_trait_method_call_multiple_candidates",
-    // bug
-    "type_trait_method_call_multiple_candidates_with_turbofish",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug

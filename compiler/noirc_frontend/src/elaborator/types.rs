@@ -934,7 +934,7 @@ impl Elaborator<'_> {
         expected: &Type,
         expression: ExprId,
         location: Location,
-        make_error: impl FnOnce() -> TypeCheckError,
+        make_error: impl FnOnce() -> CompilationError,
     ) {
         let mut errors = Vec::new();
         actual.unify_with_coercions(
@@ -945,7 +945,7 @@ impl Elaborator<'_> {
             &mut errors,
             make_error,
         );
-        self.push_errors(errors.into_iter().map(|error| error.into()));
+        self.push_errors(errors);
     }
 
     /// Return a fresh integer or field type variable and log it
@@ -1047,11 +1047,11 @@ impl Elaborator<'_> {
 
         for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
             self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
-                TypeCheckError::TypeMismatch {
+                CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
                     expr_typ: arg.to_string(),
                     expr_location: *arg_location,
-                }
+                })
             });
         }
 
@@ -2116,7 +2116,7 @@ impl Elaborator<'_> {
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
                     }
-                    error
+                    CompilationError::TypeError(error)
                 },
             );
         }
