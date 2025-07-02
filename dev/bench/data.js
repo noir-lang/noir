@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751452905075,
+  "lastUpdate": 1751453082324,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5845dc5aaf039d71d45700bb6784b4df7da03bae",
-          "message": "fix(LICM): Consider negative loop bounds before hoisting `div <const> <induction-var>` (#8986)",
-          "timestamp": "2025-06-20T15:23:43Z",
-          "tree_id": "76e81fdb0c31a247d609f46e04fe61f68e70a2a9",
-          "url": "https://github.com/noir-lang/noir/commit/5845dc5aaf039d71d45700bb6784b4df7da03bae"
-        },
-        "date": 1750435234990,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.12,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 534.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1530,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 344.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 354.62,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.45,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3899,6 +3820,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 280.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 333.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 343.59,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "11e956e49efecad5af922649f0b247607619c8ab",
+          "message": "chore: bump some deps (#9076)",
+          "timestamp": "2025-07-02T10:04:23Z",
+          "tree_id": "04a3cf16f6797afc72069ba98e8e776d583fc1c0",
+          "url": "https://github.com/noir-lang/noir/commit/11e956e49efecad5af922649f0b247607619c8ab"
+        },
+        "date": 1751453068769,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 280.09,
             "unit": "MB"
           },
           {
