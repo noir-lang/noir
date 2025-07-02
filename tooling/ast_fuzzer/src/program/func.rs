@@ -178,7 +178,7 @@ struct LValueWithMeta {
     /// Indicate whether any dynamic input was used to generate the lvalue, e.g. for an array index.
     /// This does not depend on whether the variable that we assign to was dynamic *before* the assignment.
     is_dyn: bool,
-    /// Indicate whether the lvalue is a complex type like an array or a tuple.
+    /// Indicate whether we are assigning to just a part of a complex type.
     is_compound: bool,
     /// Any statements that had to be broken out to control the side effects of indexing.
     statements: Option<Vec<Expression>>,
@@ -1035,7 +1035,9 @@ impl<'a> FunctionContext<'a> {
         }
 
         let id = *u.choose_iter(opts)?;
-        let lvalue = self.gen_lvalue(u, id)?;
+        let ident = LValue::Ident(self.local_ident(id));
+        let typ = self.local_type(id).clone();
+        let lvalue = self.gen_lvalue(u, ident, typ)?;
 
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
@@ -1060,16 +1062,16 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Generate an lvalue to assign to a local variable, or some part of it, if it's a compound type.
+    ///
+    /// Say we have an array: `a: [[u32; 2]; 3]`; we call it with `a`, and it might return `a`, `a[i]`, or `a[i][j]`.
     fn gen_lvalue(
         &mut self,
         u: &mut Unstructured,
-        id: LocalId,
+        lvalue: LValue,
+        typ: Type,
     ) -> arbitrary::Result<LValueWithMeta> {
-        let ident = self.local_ident(id);
-        let ident = LValue::Ident(ident);
-
         // For arrays and tuples we can consider assigning to their items.
-        let lvalue = match self.local_type(id).clone() {
+        let lvalue = match typ {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
                 let (idx, idx_dyn) = self.gen_index(u, len, self.max_depth())?;
 
@@ -1091,7 +1093,7 @@ impl<'a> FunctionContext<'a> {
                 };
 
                 let index = LValue::Index {
-                    array: Box::new(ident),
+                    array: Box::new(lvalue),
                     index: Box::new(idx),
                     element_type: typ.as_ref().clone(),
                     location: Location::dummy(),
@@ -1107,7 +1109,7 @@ impl<'a> FunctionContext<'a> {
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
-                let member = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
+                let member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
                 LValueWithMeta {
                     lvalue: member,
                     typ,
@@ -1116,13 +1118,9 @@ impl<'a> FunctionContext<'a> {
                     statements: None,
                 }
             }
-            typ => LValueWithMeta {
-                lvalue: ident,
-                typ,
-                is_dyn: false,
-                is_compound: false,
-                statements: None,
-            },
+            typ => {
+                LValueWithMeta { lvalue, typ, is_dyn: false, is_compound: false, statements: None }
+            }
         };
 
         Ok(lvalue)
