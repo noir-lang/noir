@@ -189,7 +189,8 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
             // pass. This results in the error changing from an `Overflow` into a different error type so we match
             // on the attached error message.
-            (Overflow { operator, .. }, ConstrainEqFailed { msg, .. }) => match operator {
+            (Overflow { operator, .. }, ConstrainEqFailed { msg: Some(msg), .. }) => match operator
+            {
                 BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
                 BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
 
