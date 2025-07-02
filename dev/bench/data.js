@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751475572696,
+  "lastUpdate": 1751475607380,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "309d44549e225be52ce070802875650300619298",
-          "message": "chore: remove unreachable functions after inlining simple functions (#8987)",
-          "timestamp": "2025-06-23T12:23:36Z",
-          "tree_id": "3d3c7fdb771610f16588a9db5b4ccd316972d204",
-          "url": "https://github.com/noir-lang/noir/commit/309d44549e225be52ce070802875650300619298"
-        },
-        "date": 1750683736303,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.36,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.11,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.62,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.81,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d12ebe77725cfcdeed3ba0c52f408c92b6233aba"
         },
         "date": 1751464582933,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 441.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0098c45d5997ea70df22c98efec83c60ab578869",
+          "message": "fix(ssa): Do not fail for static assertions in a map over empty dynamic slices (#9060)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-07-02T16:20:32Z",
+          "tree_id": "a660a3ff2b476c7df9ba2d33b8091473618ff33d",
+          "url": "https://github.com/noir-lang/noir/commit/0098c45d5997ea70df22c98efec83c60ab578869"
+        },
+        "date": 1751475594235,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
