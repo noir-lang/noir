@@ -659,13 +659,7 @@
 <a href="#658" id="658">658</a>
 <a href="#659" id="659">659</a>
 <a href="#660" id="660">660</a>
-<a href="#661" id="661">661</a>
-<a href="#662" id="662">662</a>
-<a href="#663" id="663">663</a>
-<a href="#664" id="664">664</a>
-<a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a>
-<a href="#667" id="667">667</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#661" id="661">661</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -674,7 +668,7 @@
 };
 
 <span class="kw">use crate</span>::{
-    ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
+    ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
@@ -748,13 +742,7 @@
                 }),
             },
             Expression::Block(xs) =&gt; xs.last().and_then(|x| x.return_type()),
-            Expression::Unary(unary) =&gt; {
-                <span class="kw">if let </span>UnaryOp::Reference { mutable } = unary.operator {
-                    owned(Type::Reference(Box::new(unary.result_type.clone()), mutable))
-                } <span class="kw">else </span>{
-                    borrowed(<span class="kw-2">&amp;</span>unary.result_type)
-                }
-            }
+            Expression::Unary(unary) =&gt; borrowed(<span class="kw-2">&amp;</span>unary.result_type),
             Expression::Binary(binary) =&gt; {
                 <span class="kw">if </span>binary.operator.is_comparator() {
                     borrowed(<span class="kw-2">&amp;</span>Type::Bool)

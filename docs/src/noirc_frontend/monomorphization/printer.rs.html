@@ -567,7 +567,23 @@
 <a href="#566" id="566">566</a>
 <a href="#567" id="567">567</a>
 <a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -904,12 +920,20 @@
         unary: <span class="kw-2">&amp;</span><span class="kw">super</span>::ast::Unary,
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">"({}"</span>, unary.operator)<span class="question-mark">?</span>;
+        <span class="comment">// "(-1)" parses back as the literal -1, so if we are printing with the intention of parsing, omit the (), to avoid ambiguity.
+        </span><span class="kw">let </span>print_parens = <span class="self">self</span>.show_id || !<span class="macro">matches!</span>(unary.operator, UnaryOp::Minus);
+        <span class="kw">if </span>print_parens {
+            <span class="macro">write!</span>(f, <span class="string">"("</span>)<span class="question-mark">?</span>;
+        }
+        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, unary.operator)<span class="question-mark">?</span>;
         <span class="kw">if </span><span class="macro">matches!</span>(<span class="kw-2">&amp;</span>unary.operator, UnaryOp::Reference { mutable: <span class="bool-val">true </span>}) {
             <span class="macro">write!</span>(f, <span class="string">" "</span>)<span class="question-mark">?</span>;
         }
         <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>unary.rhs, f)<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(f, <span class="string">")"</span>)
+        <span class="kw">if </span>print_parens {
+            <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
+        }
+        <span class="prelude-val">Ok</span>(())
     }
 
     <span class="kw">fn </span>print_binary(
@@ -1066,8 +1090,8 @@
             <span class="kw">_ </span>=&gt; (<span class="bool-val">false</span>, <span class="bool-val">false</span>),
         };
         <span class="comment">// If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        </span><span class="kw">if </span>print_oracle &amp;&amp; <span class="self">self</span>.show_print_as_std {
-            <span class="kw">return </span><span class="self">self</span>.print_println(<span class="kw-2">&amp;</span>call.arguments, f);
+        </span><span class="kw">if </span>print_oracle &amp;&amp; <span class="self">self</span>.show_print_as_std &amp;&amp; <span class="self">self</span>.print_println(<span class="kw-2">&amp;</span>call.arguments, f)<span class="question-mark">? </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
         <span class="kw">if </span>print_unsafe {
             <span class="macro">write!</span>(f, <span class="string">"unsafe {{ "</span>)<span class="question-mark">?</span>;
@@ -1085,10 +1109,18 @@
     <span class="doccomment">/// Instead of printing a call to the print oracle as a regular function,
     /// print it in a way that makes it look like Noir: without the type
     /// information and bool flags.
-    </span><span class="kw">fn </span>print_println(<span class="kw-2">&amp;mut </span><span class="self">self</span>, args: <span class="kw-2">&amp;</span>[Expression], f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
+    ///
+    /// This will only work if the AST bypassed the proxy functions created by
+    /// the monomorphizer. The returned flag indicates whether it managed to
+    /// do so, or false if the arguments were not as expected.
+    </span><span class="kw">fn </span>print_println(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        args: <span class="kw-2">&amp;</span>[Expression],
+        f: <span class="kw-2">&amp;mut </span>Formatter,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, std::fmt::Error&gt; {
         <span class="macro">assert_eq!</span>(args.len(), <span class="number">4</span>, <span class="string">"print has 4 arguments"</span>);
         <span class="kw">let </span>Expression::Literal(Literal::Bool(with_newline)) = args[<span class="number">0</span>] <span class="kw">else </span>{
-            <span class="macro">unreachable!</span>(<span class="string">"the first arg of print is a bool"</span>);
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
         };
         <span class="kw">if </span>with_newline {
             <span class="macro">write!</span>(f, <span class="string">"println"</span>)<span class="question-mark">?</span>;
@@ -1100,7 +1132,7 @@
         // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         </span><span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>args[<span class="number">1</span>], f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(())
+        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
     }
 
     <span class="kw">fn </span>print_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>LValue, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
