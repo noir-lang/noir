@@ -82,6 +82,9 @@ pub struct Trait {
     pub where_clause: Vec<TraitConstraint>,
 
     pub all_generics: Generics,
+
+    /// Map from each associated constant's name to a unique DefinitionId for that constant.
+    pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
 #[derive(Debug)]
@@ -123,8 +126,12 @@ impl TraitConstraint {
     }
 
     pub fn to_string(&self, interner: &NodeInterner) -> String {
-        interner.trait_constraint_string(&self.typ, self.trait_bound.trait_id,
-            &self.trait_bound.trait_generics.ordered, &self.trait_bound.trait_generics.named)
+        interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
     }
 }
 
@@ -205,7 +212,7 @@ impl Trait {
         if let Some(method) = self.find_method(name, interner) {
             return Some(method);
         }
-        None
+        self.associated_constant_ids.get(name).copied()
     }
 
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {

@@ -377,10 +377,6 @@ pub struct ResolvedGeneric {
     pub name: Rc<String>,
     pub type_var: TypeVariable,
     pub location: Location,
-    // If this is an associated constant it will have a DefinitionId
-    // to refer to it within an expression. This could be expanded
-    // to all numeric generics in the future.
-    //pub definition_id: Option<DefinitionId>,
 }
 
 impl ResolvedGeneric {

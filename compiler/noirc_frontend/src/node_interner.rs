@@ -774,6 +774,7 @@ impl NodeInterner {
         unresolved_trait: &UnresolvedTrait,
         generics: Generics,
         associated_types: Generics,
+        associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
             id: type_id,
@@ -790,6 +791,7 @@ impl NodeInterner {
             trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
+            associated_constant_ids,
         };
 
         self.traits.insert(type_id, new_trait);
@@ -1430,7 +1432,8 @@ impl NodeInterner {
                 let trait_id = self.get_trait_implementation(impl_id).borrow().trait_id;
                 let the_trait = self.get_trait(trait_id);
                 let name = self.definition_name(function.name.id);
-                let definition_id = the_trait.find_method_or_constant(name, self)
+                let definition_id = the_trait
+                    .find_method_or_constant(name, self)
                     .expect("Expected parent trait to have function from impl");
                 Some(TraitItemId { item_id: definition_id, trait_id })
             }
