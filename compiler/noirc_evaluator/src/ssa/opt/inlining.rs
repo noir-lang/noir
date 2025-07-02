@@ -51,12 +51,15 @@ impl Ssa {
     ///
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_functions(self, aggressiveness: i64) -> Ssa {
+    pub(crate) fn inline_functions(self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
         self.inline_until_fixed_point(aggressiveness, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
-    pub(crate) fn inline_functions_with_no_predicates(self, aggressiveness: i64) -> Ssa {
+    pub(crate) fn inline_functions_with_no_predicates(
+        self,
+        aggressiveness: i64,
+    ) -> Result<Ssa, RuntimeError> {
         self.inline_until_fixed_point(aggressiveness, true)
     }
 
@@ -65,7 +68,7 @@ impl Ssa {
         mut self,
         aggressiveness: i64,
         inline_no_predicates_functions: bool,
-    ) -> Ssa {
+    ) -> Result<Ssa, RuntimeError> {
         loop {
             let num_functions_before = self.functions.len();
 
@@ -77,7 +80,7 @@ impl Ssa {
                 aggressiveness,
             );
             self =
-                Self::inline_functions_inner(self, &inline_infos, inline_no_predicates_functions);
+                Self::inline_functions_inner(self, &inline_infos, inline_no_predicates_functions)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -85,7 +88,7 @@ impl Ssa {
             }
         }
 
-        self
+        Ok(self)
     }
 
     fn inline_functions_inner(
