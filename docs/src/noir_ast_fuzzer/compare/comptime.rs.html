@@ -376,7 +376,8 @@
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -471,7 +472,8 @@
         f_comptime: <span class="kw">impl </span>FnOnce(Program) -&gt; arbitrary::Result&lt;(SsaProgramArtifact, CompareOptions)&gt;,
     ) -&gt; eyre::Result&lt;CompareCompiledResult&gt; {
         <span class="kw">let </span>initial_witness = <span class="self">self</span>.input_witness()<span class="question-mark">?</span>;
-        <span class="kw">let </span>(res2, <span class="kw">_</span>) = <span class="self">Self</span>::exec_bytecode(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program, initial_witness.clone());
+        <span class="kw">let </span>(res2, print2) =
+            <span class="self">Self</span>::exec_bytecode(<span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.program, initial_witness.clone());
 
         <span class="comment">// Include the print part of stdlib for the elaborator to be able to use the print oracle
         </span><span class="kw">let </span>import_print = <span class="string">r#"
@@ -497,13 +499,17 @@
 
         <span class="comment">// Add comptime modifier for main
         </span><span class="kw">let </span>source = <span class="macro">format!</span>(<span class="string">"comptime {}{}"</span>, <span class="self">self</span>.source, import_print);
+        <span class="kw">let </span>output = Rc::new(RefCell::new(Vec::new()));
 
-        <span class="comment">// TODO(#9054): re-enable print output comparison
-        </span><span class="kw">let </span>empty_print = <span class="string">""</span>;
+        <span class="comment">// Take the printed output.
+        </span><span class="kw">let </span>printed = |output: Rc&lt;RefCell&lt;Vec&lt;u8&gt;&gt;&gt;| {
+            <span class="kw">let </span>output = Rc::into_inner(output).expect(<span class="string">"context is gone"</span>).into_inner();
+            String::from_utf8(output).expect(<span class="string">"not UTF-8"</span>)
+        };
 
         <span class="comment">// Log source code before interpreting
         </span><span class="macro">log::debug!</span>(<span class="string">"comptime src:\n{}"</span>, <span class="self">self</span>.source);
-        <span class="kw">let </span>comptime_expr = <span class="kw">match </span>interpret(source.as_str()) {
+        <span class="kw">let </span>comptime_expr = <span class="kw">match </span>interpret(source.as_str(), output.clone()) {
             <span class="prelude-val">Ok</span>(expr) =&gt; expr,
             <span class="prelude-val">Err</span>(e) =&gt; {
                 <span class="kw">let </span>assertion_diagnostic = <span class="kw">match </span><span class="kw-2">&amp;</span>e {
@@ -521,11 +527,7 @@
                 };
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(e) = assertion_diagnostic {
-                    <span class="kw">return </span><span class="self">self</span>.comptime_failure(
-                        <span class="kw-2">&amp;</span>e,
-                        empty_print.into(),
-                        (res2, empty_print.into()),
-                    );
+                    <span class="kw">return </span><span class="self">self</span>.comptime_failure(<span class="kw-2">&amp;</span>e, printed(output), (res2, print2));
                 } <span class="kw">else </span>{
                     <span class="macro">panic!</span>(
                         <span class="string">"elaborator error while interpreting generated comptime code: {e:?}\n{}"</span>,
@@ -545,8 +547,8 @@
             <span class="kw-2">&amp;</span><span class="self">self</span>.abi,
             <span class="kw-2">&amp;</span>Default::default(),
             <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.artifact.error_types,
-            (res1, empty_print.into()),
-            (res2, empty_print.into()),
+            (res1, printed(output)),
+            (res2, print2),
         )
     }
 

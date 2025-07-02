@@ -2520,7 +2520,13 @@
 <a href="#2519" id="2519">2519</a>
 <a href="#2520" id="2520">2520</a>
 <a href="#2521" id="2521">2521</a>
-<a href="#2522" id="2522">2522</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -4935,6 +4941,10 @@
 
 <span class="attr">#[cfg(feature = <span class="string">"test_utils"</span>)]
 </span><span class="kw">pub mod </span>test_utils {
+    <span class="kw">use </span>std::cell::RefCell;
+    <span class="kw">use </span>std::io::Write;
+    <span class="kw">use </span>std::rc::Rc;
+
     <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
     <span class="kw">use crate</span>::{hir::def_collector::dc_crate::CompilationError, parser::ParserError};
 
@@ -4951,8 +4961,9 @@
     <span class="doccomment">/// Interpret source code using the elaborator, without
     /// parsing and compiling it with nargo, converting
     /// the result into a monomorphized AST expression.
-    </span><span class="kw">pub fn </span>interpret(
+    </span><span class="kw">pub fn </span>interpret&lt;W: Write + <span class="lifetime">'static</span>&gt;(
         src: <span class="kw-2">&amp;</span>str,
+        output: Rc&lt;RefCell&lt;W&gt;&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">crate</span>::monomorphization::ast::Expression, ElaboratorError&gt; {
         <span class="kw">use </span><span class="kw">crate</span>::elaborator::ElaboratorOptions;
         <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
@@ -4985,6 +4996,7 @@
         <span class="kw">let </span>parsed_files = ParsedFiles::new();
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(file_manager, parsed_files);
         context.def_interner.populate_dummy_operator_traits();
+        context.set_comptime_printing(output);
 
         <span class="kw">let </span>krate = context.crate_graph.add_crate_root(FileId::dummy());
 
