@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751475607380,
+  "lastUpdate": 1751475610361,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "309d44549e225be52ce070802875650300619298",
-          "message": "chore: remove unreachable functions after inlining simple functions (#8987)",
-          "timestamp": "2025-06-23T12:23:36Z",
-          "tree_id": "3d3c7fdb771610f16588a9db5b4ccd316972d204",
-          "url": "https://github.com/noir-lang/noir/commit/309d44549e225be52ce070802875650300619298"
-        },
-        "date": 1750683739856,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 534.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1530,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 344.78,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 354.78,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.46,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3944,6 +3865,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 343.59,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.39,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0098c45d5997ea70df22c98efec83c60ab578869",
+          "message": "fix(ssa): Do not fail for static assertions in a map over empty dynamic slices (#9060)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-07-02T16:20:32Z",
+          "tree_id": "a660a3ff2b476c7df9ba2d33b8091473618ff33d",
+          "url": "https://github.com/noir-lang/noir/commit/0098c45d5997ea70df22c98efec83c60ab578869"
+        },
+        "date": 1751475595107,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 280.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 534.01,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 184.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 333.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 343.58,
             "unit": "MB"
           },
           {
