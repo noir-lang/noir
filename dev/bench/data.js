@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751461656925,
+  "lastUpdate": 1751461661932,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d7030e8c4e05dcba0eb30adac7f0f18458b306f0",
-          "message": "fix: increment reference counts when deduplicating calls which return arrays (#8757)",
-          "timestamp": "2025-06-20T17:36:02Z",
-          "tree_id": "26aacac43bc3690bae9dde250adfaee0c39326b5",
-          "url": "https://github.com/noir-lang/noir/commit/d7030e8c4e05dcba0eb30adac7f0f18458b306f0"
-        },
-        "date": 1750443175838,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.19,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.45,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.64,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6a68ca14022fee9c033b7c9dc765fd8b58241bfe"
         },
         "date": 1751455259887,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 226.5,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 508.01,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 441.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.7,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 71.01,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3fa646c47723271392278f493e920861758a6e4d",
+          "message": "chore(fuzz): Capture printed output in `comptime_vs_brillig_direct` (#9090)",
+          "timestamp": "2025-07-02T12:27:00Z",
+          "tree_id": "e632ba1724ab4dc40788320261335f5080a01923",
+          "url": "https://github.com/noir-lang/noir/commit/3fa646c47723271392278f493e920861758a6e4d"
+        },
+        "date": 1751461648480,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
