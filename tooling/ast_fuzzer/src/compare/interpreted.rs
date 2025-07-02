@@ -10,7 +10,7 @@ use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
-    ir::types::NumericType,
+    ir::{instruction::BinaryOp, types::NumericType},
     ssa_gen::Ssa,
 };
 use noirc_frontend::{Shared, monomorphization::ast::Program};
@@ -173,7 +173,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // They mean the interpreter got something unexpected that we need to fix.
                 false
             }
-            (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
+            (Overflow { instruction: i1, .. }, Overflow { instruction: i2, .. }) => {
                 // Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 fn details(s: &str) -> Option<&str> {
                     let start = s.find("(")?;
@@ -184,6 +184,22 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
+            }
+            (Overflow { operator, .. }, RangeCheckFailedWithMessage { message, .. }) => {
+                // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
+                // pass. This results in the error changing from an overflow to a failed range constraint so we check
+                // that the message attached to the range check matches the operation which failed.
+                match operator {
+                    BinaryOp::Add { unchecked: false } => message == "attempt to add with overflow",
+                    BinaryOp::Sub { unchecked: false } => {
+                        message == "attempt to subtract with overflow"
+                    }
+
+                    BinaryOp::Mul { unchecked: false } => {
+                        message == "attempt to multiply with overflow"
+                    }
+                    _ => false,
+                }
             }
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
