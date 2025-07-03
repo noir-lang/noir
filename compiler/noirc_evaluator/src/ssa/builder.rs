@@ -73,20 +73,20 @@ impl<'a> SsaPass<'a> {
 // This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
 pub struct SsaBuilder<'local> {
     /// The SSA being built; it is the input and the output of every pass ran by the builder.
-    pub ssa: Ssa,
+    ssa: Ssa,
     /// Options to control which SSA passes to print.
-    pub ssa_logging: SsaLogging,
+    ssa_logging: SsaLogging,
     /// Whether to print the amount of time it took to run individual SSA passes.
-    pub print_codegen_timings: bool,
+    print_codegen_timings: bool,
     /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
     /// runs of the same pass in the printed messages.
-    pub passed: HashMap<String, usize>,
+    passed: HashMap<String, usize>,
     /// List of SSA pass message fragments that we want to skip, for testing purposes.
-    pub skip_passes: Vec<String>,
+    skip_passes: Vec<String>,
 
     /// Providing a file manager is optional - if provided it can be used to print source
     /// locations along with each ssa instructions when debugging.
-    pub files: Option<&'local fm::FileManager>,
+    files: Option<&'local fm::FileManager>,
 }
 
 impl<'local> SsaBuilder<'local> {
@@ -124,6 +124,10 @@ impl<'local> SsaBuilder<'local> {
             passed: Default::default(),
             skip_passes: Default::default(),
         }
+    }
+
+    pub fn ssa(&self) -> &Ssa {
+        &self.ssa
     }
 
     pub fn with_passed(mut self, passed: HashMap<String, usize>) -> Self {

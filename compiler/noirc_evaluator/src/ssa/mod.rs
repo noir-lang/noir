@@ -257,32 +257,20 @@ where
 {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
-    let passed = std::mem::take(&mut builder.passed);
-    let files = builder.files;
-    let ssa = builder.finish();
+    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
 
-    let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
+    let ssa = builder.ssa();
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(&options.brillig_options)
     });
 
-    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
-    let mut ssa = SsaBuilder::from_ssa(
-        ssa,
-        options.ssa_logging.clone(),
-        options.print_codegen_timings,
-        files,
-    )
-    .with_passed(passed)
-    .with_skip_passes(options.skip_passes.clone())
-    .run_passes(&secondary(&brillig))?
-    .finish();
+    let mut ssa = builder.run_passes(&secondary(&brillig))?.finish();
 
+    let mut ssa_level_warnings = vec![];
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
             "After Check for Underconstrained Values",

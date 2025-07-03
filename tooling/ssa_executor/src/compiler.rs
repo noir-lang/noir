@@ -51,14 +51,12 @@ pub fn optimize_ssa_into_acir(
     }));
     let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
         validate_ssa(&ssa);
-        let builder = SsaBuilder {
+        let builder = SsaBuilder::from_ssa(
             ssa,
-            ssa_logging: options.ssa_logging.clone(),
-            print_codegen_timings: options.print_codegen_timings,
-            passed: HashMap::new(),
-            skip_passes: vec![],
-            files: None,
-        };
+            options.ssa_logging.clone(),
+            options.print_codegen_timings,
+            None,
+        );
         optimize_ssa_builder_into_acir(
             builder,
             &options,
