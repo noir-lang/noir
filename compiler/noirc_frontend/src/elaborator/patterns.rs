@@ -679,14 +679,8 @@ impl Elaborator<'_> {
 
         let location = variable.location;
         let name = variable.segments[1].ident.as_str();
-
-        let Some(self_type) = &self.self_type else {
-            return None;
-        };
-
-        let Some(trait_impl_id) = &self.current_trait_impl else {
-            return None;
-        };
+        let self_type = self.self_type.as_ref()?;
+        let trait_impl_id = &self.current_trait_impl?;
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
         if let Some((definition_id, numeric_type)) =
