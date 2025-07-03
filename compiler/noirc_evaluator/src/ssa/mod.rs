@@ -393,12 +393,6 @@ where
         func_sigs.len(),
         "The generated ACIRs should match the supplied function signatures"
     );
-
-    let error_types = error_types
-        .into_iter()
-        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
-        .collect();
-
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
         .zip(func_sigs)
@@ -413,6 +407,11 @@ where
                 debug_types.clone(),
             )
         })
+        .collect();
+
+    let error_types = error_types
+        .into_iter()
+        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
     let program_artifact = SsaProgramArtifact::new(
