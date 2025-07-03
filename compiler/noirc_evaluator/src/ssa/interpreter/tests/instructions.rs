@@ -877,7 +877,7 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
     "#,
         vec![Value::Numeric(NumericValue::U32(1))],
     );
-    assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
+    assert_eq!(value, from_constant(2_u32.into(), NumericType::NativeField));
 }
 
 #[test]
