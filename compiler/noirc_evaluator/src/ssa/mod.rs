@@ -381,26 +381,44 @@ where
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
 
-    let func_sigs = program.function_signatures.clone();
+    let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
+        program.function_signatures.iter().map(resolve_function_signature).collect();
 
+    let artifacts = optimize_into_acir(program, options, primary, secondary, files)?;
+
+    Ok(combine_artifacts(
+        artifacts,
+        &arg_size_and_visibilities,
+        debug_variables,
+        debug_functions,
+        debug_types,
+    ))
+}
+
+pub fn combine_artifacts(
+    artifacts: ArtifactsAndWarnings,
+    arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
+    debug_variables: DebugVariables,
+    debug_functions: DebugFunctions,
+    debug_types: DebugTypes,
+) -> SsaProgramArtifact {
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
-    ) = optimize_into_acir(program, options, primary, secondary, files)?;
+    ) = artifacts;
 
     assert_eq!(
         generated_acirs.len(),
-        func_sigs.len(),
+        arg_size_and_visibilities.len(),
         "The generated ACIRs should match the supplied function signatures"
     );
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
-        .zip(func_sigs)
-        .map(|(acir, func_sig)| {
-            let args_info = resolve_function_signature(&func_sig);
+        .zip(arg_size_and_visibilities)
+        .map(|(acir, arg_size_and_visibility)| {
             convert_generated_acir_into_circuit(
                 acir,
-                &args_info,
+                arg_size_and_visibility,
                 // TODO: get rid of these clones
                 debug_variables.clone(),
                 debug_functions.clone(),
@@ -414,15 +432,13 @@ where
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    let program_artifact = SsaProgramArtifact::new(
+    SsaProgramArtifact::new(
         functions,
         brillig_function_names,
         generated_brillig,
         error_types,
         ssa_level_warnings,
-    );
-
-    Ok(program_artifact)
+    )
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {

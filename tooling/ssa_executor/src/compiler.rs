@@ -2,18 +2,16 @@ use acvm::acir::circuit::ExpressionWidth;
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
-use noirc_evaluator::ssa::convert_generated_acir_into_circuit;
 use noirc_evaluator::{
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
-        ArtifactsAndWarnings, SsaBuilder, SsaCircuitArtifact, SsaEvaluatorOptions, SsaLogging,
-        SsaProgramArtifact,
-        ir::instruction::ErrorType,
-        optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
+        ArtifactsAndWarnings, SsaBuilder, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
+        combine_artifacts, optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
         ssa_gen::{Ssa, validate_ssa},
     },
 };
+use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 use std::panic::AssertUnwindSafe;
 
@@ -70,56 +68,26 @@ pub fn optimize_ssa_into_acir(
     }
 }
 
-/// Creates a program artifact from the given FunctionBuilder
-/// its taken from noirc_evaluator::ssa::create_program, but modified to accept FunctionBuilder
-fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact, RuntimeError> {
-    let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
-        ssa_level_warnings,
-    ) = artifacts;
-
-    let error_types = error_types
-        .into_iter()
-        .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
-        .collect();
-
-    let functions: Vec<SsaCircuitArtifact> = generated_acirs
-        .into_iter()
-        .map(|acir| {
-            let dummy_arg_info = vec![(
-                acir.input_witnesses.len() as u32,
-                noirc_frontend::shared::Visibility::Private,
-            )];
-            convert_generated_acir_into_circuit(
-                acir,
-                &dummy_arg_info,
-                BTreeMap::new(),
-                BTreeMap::new(),
-                BTreeMap::new(),
-            )
-        })
-        .collect();
-
-    let program_artifact = SsaProgramArtifact::new(
-        functions,
-        brillig_function_names,
-        generated_brillig,
-        error_types,
-        ssa_level_warnings,
-    );
-
-    Ok(program_artifact)
-}
-
 /// Compiles the given FunctionBuilder into a CompiledProgram
 /// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
-pub fn compile_from_artifacts(
-    artifacts: ArtifactsAndWarnings,
-) -> Result<CompiledProgram, CompileError> {
+pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgram {
+    let dummy_arg_info: Vec<Vec<(u32, Visibility)>> = artifacts
+        .0
+        .0
+        .iter()
+        .map(|acir| vec![(acir.input_witnesses.len() as u32, Visibility::Private)])
+        .collect();
+
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
-        create_program(artifacts)?;
+        combine_artifacts(
+            artifacts,
+            &dummy_arg_info,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        );
     let file_map = BTreeMap::new();
-    Ok(CompiledProgram {
+    CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case
         program,
         debug,
@@ -129,7 +97,7 @@ pub fn compile_from_artifacts(
         warnings,
         names,
         brillig_names,
-    })
+    }
 }
 
 pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
@@ -160,5 +128,5 @@ pub(crate) fn compile_from_ssa(
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let artifacts = optimize_ssa_into_acir(ssa, evaluator_options(options))?;
-    compile_from_artifacts(artifacts)
+    Ok(compile_from_artifacts(artifacts))
 }

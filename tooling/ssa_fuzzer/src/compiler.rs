@@ -26,5 +26,5 @@ pub fn compile_from_builder(
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let artifacts = optimize_into_acir_and_validate(builder, evaluator_options(options))?;
-    compile_from_artifacts(artifacts)
+    Ok(compile_from_artifacts(artifacts))
 }
