@@ -11,6 +11,13 @@ fn main() {
     assert_eq(x, 1);
     assert_eq(get_n_1::<Field>(), 1);
     assert_eq(get_n_2::<Field>(), 1);
+
+    comptime {
+        let x = <Field as Serialize>::N;
+        assert_eq(x, 1);
+        assert_eq(get_n_1::<Field>(), 1);
+        assert_eq(get_n_2::<Field>(), 1);
+    }
 }
 
 fn get_n_1<T: Serialize>() -> u32 {
