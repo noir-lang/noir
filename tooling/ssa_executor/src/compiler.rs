@@ -21,7 +21,7 @@ use noirc_evaluator::{
         ssa_gen::{Ssa, validate_ssa},
     },
 };
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given SSA into ACIR
