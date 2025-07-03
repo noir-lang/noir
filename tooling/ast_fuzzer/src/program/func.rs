@@ -13,8 +13,8 @@ use noirc_frontend::{
         append_printable_type_info_for_type,
         ast::{
             ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
-            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-            Type, While,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, Parameters,
+            Program, Type, While,
         },
     },
     node_interner::DefinitionId,
@@ -492,6 +492,15 @@ impl<'a> FunctionContext<'a> {
             return self.gen_if(u, typ, max_depth, flags);
         }
 
+        // Match expressions, returning a value.
+        // Treating them similarly to if-then-else.
+        if freq.enabled_when("match", allow_if_then) {
+            // It might not be able to generate the type, if we don't have a suitable variable to match on.
+            if let Some(expr) = self.gen_match(u, typ, max_depth)? {
+                return Ok(expr);
+            }
+        }
+
         // Block of statements returning a value
         if freq.enabled_when("block", allow_blocks) {
             return self.gen_block(u, typ);
@@ -511,8 +520,6 @@ impl<'a> FunctionContext<'a> {
                 return Ok(expr);
             }
         }
-
-        // TODO(#7926): Match
 
         // If nothing else worked out we can always produce a random literal.
         expr::gen_literal(u, typ).map(|expr| (expr, false))
@@ -1519,6 +1526,65 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Generate a `match` expression, returning a given type.
+    ///
+    /// Check the `MatchCompiler::compile_rows` for which types of variables are supported.
+    fn gen_match(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<TrackedExpression>> {
+        // Decrease the budget so we avoid a potential infinite nesting of match expressions in the rows.
+        self.decrease_budget(1);
+
+        // Pick a variable that can produce the type we are looking for.
+        let Some(id) = self.choose_producer(u, typ)? else {
+            return Ok(None);
+        };
+
+        // If we picked a global variable, we need to create a local binding first,
+        // because the match only works with local variable IDs.
+        let (src_id, src_typ, mut is_dyn, let_expr) = match id {
+            VariableId::Local(id) => {
+                let typ = self.local_type(id).clone();
+                let is_dyn = self.is_dynamic(&id);
+                (id, typ, is_dyn, None)
+            }
+            VariableId::Global(id) => {
+                let typ = self.globals.get_variable(&id).2.clone();
+                // The source is a technical variable that we don't want to access in the match rows.
+                let (id, let_expr) = self.indirect_global(id, false, false);
+                (id, typ, false, Some(let_expr))
+            }
+        };
+
+        let mut match_expr = Match {
+            variable_to_match: src_id,
+            cases: vec![],
+            default_case: None,
+            typ: typ.clone(),
+        };
+
+        // Generate a number of rows, depending on what we can do with the source type.
+
+        // Optionally generate a default case.
+        if match_expr.cases.is_empty() || bool::arbitrary(u)? {
+            let (default_expr, default_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+            is_dyn |= default_dyn;
+            match_expr.default_case = Some(Box::new(default_expr));
+        }
+
+        let match_expr = Expression::Match(match_expr);
+        let expr = if let Some(let_expr) = let_expr {
+            Expression::Block(vec![let_expr, match_expr])
+        } else {
+            match_expr
+        };
+
+        Ok(Some((expr, is_dyn)))
+    }
+
     /// If this is main, and we could have made a call to another function, but we didn't,
     /// ensure we do, so as not to let all the others we generate go to waste.
     fn gen_guaranteed_call_from_main(
@@ -1677,6 +1743,25 @@ impl<'a> FunctionContext<'a> {
             self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn, local_name);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(vec![let_expr, ref_expr])
+    }
+
+    /// Create a local let binding over a global variable.
+    ///
+    /// Returns the local ID and the `Let` expression.
+    fn indirect_global(
+        &mut self,
+        id: GlobalId,
+        mutable: bool,
+        add_to_scope: bool,
+    ) -> (LocalId, Expression) {
+        let (_, name, typ) = self.globals.get_variable(&id).clone();
+        let ident_id = self.next_ident_id();
+        let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
+        let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
+        let Expression::Let(Let { id, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr:?}");
+        };
+        (*id, let_expr)
     }
 }
 
