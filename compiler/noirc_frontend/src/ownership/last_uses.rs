@@ -381,7 +381,7 @@ impl LastUseContext {
         let match_id = self.next_if_or_match_id();
 
         for (i, case) in match_expr.cases.iter().enumerate() {
-            for argument in &case.arguments {
+            for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
 

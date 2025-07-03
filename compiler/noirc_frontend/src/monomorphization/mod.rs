@@ -2170,16 +2170,18 @@ impl<'interner> Monomorphizer<'interner> {
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) => {
-                let variable_to_match = match self.lookup_local(variable_to_match) {
+                let variable_name = self.interner.definition(variable_to_match).name.clone();
+                let variable_id = match self.lookup_local(variable_to_match) {
                     Some(Definition::Local(id)) => id,
                     other => unreachable!("Expected match variable to be defined. Found {other:?}"),
                 };
 
                 let cases = try_vecmap(cases, |case| {
                     let arguments = vecmap(case.arguments, |arg| {
+                        let arg_name = self.interner.definition(arg).name.clone();
                         let new_id = self.next_local_id();
                         self.define_local(arg, new_id);
-                        new_id
+                        (new_id, arg_name)
                     });
                     let branch = self.match_expr(case.body, expr_id)?;
                     Ok(ast::MatchCase { constructor: case.constructor, arguments, branch })
@@ -2192,7 +2194,7 @@ impl<'interner> Monomorphizer<'interner> {
 
                 let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::Match(ast::Match {
-                    variable_to_match,
+                    variable_to_match: (variable_id, variable_name),
                     cases,
                     default_case,
                     typ,

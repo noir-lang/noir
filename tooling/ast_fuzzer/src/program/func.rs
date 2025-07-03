@@ -1571,17 +1571,17 @@ impl<'a> FunctionContext<'a> {
 
         // If we picked a global variable, we need to create a local binding first,
         // because the match only works with local variable IDs.
-        let (src_id, src_typ, src_dyn, src_expr) = match id {
+        let (src_id, src_name, src_typ, src_dyn, src_expr) = match id {
             VariableId::Local(id) => {
-                let typ = self.local_type(id).clone();
+                let (_, name, typ) = self.locals.current().get_variable(&id);
                 let is_dyn = self.is_dynamic(&id);
-                (id, typ, is_dyn, None)
+                (id, name.clone(), typ.clone(), is_dyn, None)
             }
             VariableId::Global(id) => {
                 let typ = self.globals.get_variable(&id).2.clone();
                 // The source is a technical variable that we don't want to access in the match rows.
-                let (id, let_expr) = self.indirect_global(id, false, false);
-                (id, typ, false, Some(let_expr))
+                let (id, name, let_expr) = self.indirect_global(id, false, false);
+                (id, name, typ, false, Some(let_expr))
             }
         };
 
@@ -1603,7 +1603,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         let mut match_expr = Match {
-            variable_to_match: src_id,
+            variable_to_match: (src_id, src_name),
             cases: vec![],
             default_case: None,
             typ: typ.clone(),
@@ -1657,8 +1657,8 @@ impl<'a> FunctionContext<'a> {
                 for item_type in item_types {
                     let item_id = self.next_local_id();
                     let item_name = format!("item_{}", local_name(item_id));
-                    self.locals.add(item_id, false, item_name, item_type.clone());
-                    arguments.push(item_id);
+                    self.locals.add(item_id, false, item_name.clone(), item_type.clone());
+                    arguments.push((item_id, item_name));
                 }
                 // Generate the original expression we wanted with the new arguments in scope.
                 let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
@@ -1858,15 +1858,15 @@ impl<'a> FunctionContext<'a> {
         id: GlobalId,
         mutable: bool,
         add_to_scope: bool,
-    ) -> (LocalId, Expression) {
+    ) -> (LocalId, String, Expression) {
         let (_, name, typ) = self.globals.get_variable(&id).clone();
         let ident_id = self.next_ident_id();
         let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
         let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
-        let Expression::Let(Let { id, .. }) = &let_expr else {
+        let Expression::Let(Let { id, name, .. }) = &let_expr else {
             unreachable!("expected Let; got {let_expr:?}");
         };
-        (*id, let_expr)
+        (*id, name.clone(), let_expr)
     }
 }
 
