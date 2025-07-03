@@ -18,10 +18,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // It's easy to overflow.
         avoid_overflow: u.arbitrary()?,
-        // Avoid using large integers in for loops that the frontend would reject.
-        avoid_large_int_literals: true,
-        // Also avoid negative integers, because the frontend rejects them for loops.
-        avoid_negative_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
         // Has to only use expressions valid in comptime

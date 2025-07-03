@@ -572,7 +572,9 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_type_in_let = true;
         // Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        printer.show_type_of_int_literal = false;
+        // But printing ints with their type makes it much easier to replicate errors in integration tests,
+        // otherwise the frontend rejects negative or large numbers in many contexts.
+        printer.show_type_of_int_literal = true;
         printer.print_program(self.0, f)
     }
 }

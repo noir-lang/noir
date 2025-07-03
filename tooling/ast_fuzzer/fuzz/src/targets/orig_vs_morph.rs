@@ -18,11 +18,7 @@ use noirc_frontend::monomorphization::ast::{
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
-    let config = Config {
-        avoid_overflow: u.arbitrary()?,
-        avoid_large_int_literals: true,
-        ..Default::default()
-    };
+    let config = Config { avoid_overflow: u.arbitrary()?, ..Default::default() };
     let inputs = CompareMorph::arb(
         u,
         config,

@@ -13,7 +13,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         // Overflows can be triggered easily, so in half the cases we avoid them,
         // to make sure they don't mask other errors.
         avoid_overflow: u.arbitrary()?,
-        avoid_large_int_literals: true,
         ..Default::default()
     };
 
