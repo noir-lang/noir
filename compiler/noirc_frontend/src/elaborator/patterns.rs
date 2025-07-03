@@ -18,14 +18,13 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitItem},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem},
         stmt::HirPattern,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
         TypeAliasId, TypeId,
     },
-    signed_field::SignedField,
 };
 
 use super::{
@@ -681,20 +680,6 @@ impl Elaborator<'_> {
         let location = variable.location;
         let name = variable.segments[1].ident.as_str();
 
-        // Check the `Self::AssociatedConstant` case when inside a trait
-        if let Some(trait_id) = &self.current_trait {
-            let trait_ = self.interner.get_trait(*trait_id);
-            if let Some(associated_type) = trait_.get_associated_type(name) {
-                if let Kind::Numeric(numeric_type) = associated_type.kind() {
-                    // We can produce any value here because this trait method is never going to
-                    // produce code (only trait impl methods do)
-                    let numeric_type: Type = *numeric_type.clone();
-                    let value = SignedField::zero();
-                    return Some(self.constant_integer(numeric_type, value, location));
-                }
-            }
-        }
-
         let Some(self_type) = &self.self_type else {
             return None;
         };
@@ -751,19 +736,6 @@ impl Elaborator<'_> {
             })
         });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
-    }
-
-    fn constant_integer(
-        &mut self,
-        numeric_type: Type,
-        value: SignedField,
-        location: Location,
-    ) -> (ExprId, Type) {
-        let hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, location);
-        self.interner.push_expr_type(id, numeric_type.clone());
-        (id, numeric_type)
     }
 
     /// Solve any generics that are part of the path before the function, for example:
