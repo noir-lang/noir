@@ -84,13 +84,19 @@ pub fn save_and_check_witness(
     witness_dir: Option<&Path>,
     witness_name: Option<&str>,
 ) -> Result<(), CliError> {
-    println!("[{}] Circuit witness successfully solved", circuit_name);
+    noirc_errors::print_to_stdout(format_args!(
+        "[{}] Circuit witness successfully solved\n",
+        circuit_name
+    ));
     // Save first, so that we can potentially look at the output if the expectations fail.
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
     if let Some(ref return_value) = results.return_values.actual_return {
-        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+        noirc_errors::print_to_stdout(format_args!(
+            "[{}] Circuit output: {return_value:?}\n",
+            circuit_name
+        ));
     }
     check_witness(circuit, results.return_values)
 }
@@ -112,7 +118,11 @@ pub fn save_witness(
         }
     }
 
-    println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
+    noirc_errors::print_to_stdout(format_args!(
+        "[{}] Witness saved to {}\n",
+        circuit_name,
+        witness_path.display()
+    ));
     Ok(())
 }
 
