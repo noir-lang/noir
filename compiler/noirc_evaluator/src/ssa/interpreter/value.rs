@@ -79,14 +79,11 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => Type::Array(
-                array.element_types.clone(),
-                if array.element_types.len() == 0 {
-                    0
-                } else {
-                    (array.elements.borrow().len() / array.element_types.len()) as u32
-                },
-            ),
+            Value::ArrayOrSlice(array) => {
+                let len = array.elements.borrow().len().checked_div(array.element_types.len());
+                let len = len.unwrap_or(0) as u32;
+                Type::Array(array.element_types.clone(), len)
+            }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
