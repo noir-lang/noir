@@ -2075,11 +2075,13 @@ impl NodeInterner {
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
-        // Populate a dummy trait with a single method
+        // Populate a dummy trait with a single method, as the trait, and its single methods,
+        // are looked up during `get_operator_trait`.
         let mut usize_arena = Arena::default();
         let index = usize_arena.insert(0);
         let stdlib = CrateId::Stdlib(0);
         let func_id = FuncId::dummy_id();
+        // Use a definition ID that won't clash with anything else, and isn't the dummy one
         let definition_id = DefinitionId(usize::MAX - 1);
         self.function_definition_ids.insert(func_id, definition_id);
         let module_id = ModuleId { krate: stdlib, local_id: LocalModuleId::new(index) };
@@ -2125,6 +2127,8 @@ impl NodeInterner {
             BinaryOpKind::ShiftLeft,
             BinaryOpKind::ShiftRight,
         ];
+
+        // It's fine to use the same trait for all operators, at least in tests
         for operator in operators {
             self.infix_operator_traits.insert(operator, trait_id);
         }
