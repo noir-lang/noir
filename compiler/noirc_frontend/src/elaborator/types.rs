@@ -1909,12 +1909,10 @@ impl Elaborator<'_> {
         starting_trait_id: TraitId,
     ) -> Option<HirMethodReference> {
         if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
-            return Some(HirMethodReference::TraitItemId(
-                trait_method,
-                the_trait.id,
-                trait_bound.trait_generics.clone(),
-                false,
-            ));
+            let trait_generics = trait_bound.trait_generics.clone();
+            let trait_item_id =
+                HirMethodReference::TraitItemId(trait_method, the_trait.id, trait_generics, false);
+            return Some(trait_item_id);
         }
 
         // Search in the parent traits, if any
