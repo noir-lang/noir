@@ -403,9 +403,10 @@ where
         .into_iter()
         .zip(func_sigs)
         .map(|(acir, func_sig)| {
+            let args_info = resolve_function_signature(&func_sig);
             convert_generated_acir_into_circuit(
                 acir,
-                func_sig,
+                &args_info,
                 // TODO: get rid of these clones
                 debug_variables.clone(),
                 debug_functions.clone(),
@@ -425,9 +426,17 @@ where
     Ok(program_artifact)
 }
 
+fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
+    func_sig
+        .0
+        .iter()
+        .map(|(pattern, typ, visibility)| (typ.field_count(&pattern.location()), *visibility))
+        .collect()
+}
+
 pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
-    func_sig: FunctionSignature,
+    arg_size_and_visibility: &[(u32, Visibility)],
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -447,7 +456,7 @@ pub fn convert_generated_acir_into_circuit(
     } = generated_acir;
 
     let (public_parameter_witnesses, private_parameters) =
-        split_public_and_private_inputs(&func_sig, &input_witnesses);
+        split_public_and_private_inputs(arg_size_and_visibility, &input_witnesses);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
@@ -494,7 +503,7 @@ pub fn convert_generated_acir_into_circuit(
 
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
-    func_sig: &FunctionSignature,
+    argument_sizes: &[(u32, Visibility)],
     input_witnesses: &[Witness],
 ) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
     let mut idx = 0_usize;
@@ -502,13 +511,12 @@ fn split_public_and_private_inputs(
         return (BTreeSet::new(), BTreeSet::new());
     }
 
-    func_sig
-        .0
+    argument_sizes
         .iter()
-        .map(|(pattern, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count(&pattern.location()) as usize;
-            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
-            idx += num_field_elements_needed;
+        .map(|(arg_size, visibility)| {
+            let arg_size = *arg_size as usize;
+            let witnesses = input_witnesses[idx..idx + arg_size].to_vec();
+            idx += arg_size;
             (visibility, witnesses)
         })
         .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {

@@ -1,16 +1,9 @@
-use acvm::acir::circuit::PublicInputs;
-use acvm::{
-    FieldElement,
-    acir::circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation},
-};
+use acvm::acir::circuit::ExpressionWidth;
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
-use noirc_errors::{
-    call_stack::{CallStack, CallStackId},
-    debug_info::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables},
-};
+use noirc_errors::call_stack::CallStack;
+use noirc_evaluator::ssa::convert_generated_acir_into_circuit;
 use noirc_evaluator::{
-    acir::GeneratedAcir,
     brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
@@ -21,7 +14,7 @@ use noirc_evaluator::{
         ssa_gen::{Ssa, validate_ssa},
     },
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::panic::AssertUnwindSafe;
 
 /// Optimizes the given SSA into ACIR
@@ -77,76 +70,6 @@ pub fn optimize_ssa_into_acir(
     }
 }
 
-/// Converts the generated ACIR into a circuit artifact
-/// its taken from noirc_evaluator::ssa::convert_generated_acir_into_circuit,
-/// but modified not to use signature
-/// in initial function signature used to split public, private and return witnesses
-/// but now we don't need it, because we don't have any public inputs in SSA context,
-/// so we just use all witnesses as private inputs and return witnesses
-fn convert_generated_acir_into_circuit_without_signature(
-    mut generated_acir: GeneratedAcir<FieldElement>,
-    debug_variables: DebugVariables,
-    debug_functions: DebugFunctions,
-    debug_types: DebugTypes,
-) -> SsaCircuitArtifact {
-    let opcodes = generated_acir.take_opcodes();
-    let current_witness_index = generated_acir.current_witness_index().0;
-    let GeneratedAcir {
-        return_witnesses,
-        location_map,
-        brillig_locations,
-        input_witnesses,
-        assertion_payloads: assert_messages,
-        warnings,
-        name,
-        brillig_procedure_locs,
-        ..
-    } = generated_acir;
-
-    let private_parameters = BTreeSet::from_iter(input_witnesses.iter().copied());
-    let public_parameters = PublicInputs(BTreeSet::new());
-    let return_values = PublicInputs(return_witnesses.iter().copied().collect());
-
-    let circuit = Circuit {
-        current_witness_index,
-        expression_width: ExpressionWidth::Unbounded,
-        opcodes,
-        private_parameters,
-        public_parameters,
-        return_values,
-        assert_messages: assert_messages.into_iter().collect(),
-    };
-
-    let acir_location_map: BTreeMap<AcirOpcodeLocation, CallStackId> = location_map
-        .iter()
-        .map(|(k, v)| match k {
-            OpcodeLocation::Acir(index) => (AcirOpcodeLocation::new(*index), *v),
-            OpcodeLocation::Brillig { .. } => unreachable!("Expected ACIR opcode"),
-        })
-        .collect();
-    let location_tree = generated_acir.call_stacks.to_location_tree();
-    let mut debug_info = DebugInfo::new(
-        brillig_locations,
-        acir_location_map,
-        location_tree,
-        debug_variables,
-        debug_functions,
-        debug_types,
-        brillig_procedure_locs,
-    );
-    // Perform any ACIR-level optimizations
-    let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
-    debug_info.update_acir(transformation_map);
-
-    SsaCircuitArtifact {
-        name,
-        circuit: optimized_circuit,
-        debug_info,
-        warnings,
-        error_types: generated_acir.error_types,
-    }
-}
-
 /// Creates a program artifact from the given FunctionBuilder
 /// its taken from noirc_evaluator::ssa::create_program, but modified to accept FunctionBuilder
 fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact, RuntimeError> {
@@ -163,8 +86,13 @@ fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact,
     let functions: Vec<SsaCircuitArtifact> = generated_acirs
         .into_iter()
         .map(|acir| {
-            convert_generated_acir_into_circuit_without_signature(
+            let dummy_arg_info = vec![(
+                acir.input_witnesses.len() as u32,
+                noirc_frontend::shared::Visibility::Private,
+            )];
+            convert_generated_acir_into_circuit(
                 acir,
+                &dummy_arg_info,
                 BTreeMap::new(),
                 BTreeMap::new(),
                 BTreeMap::new(),

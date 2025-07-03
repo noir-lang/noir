@@ -3566,6 +3566,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
+ "noirc_frontend",
  "thiserror 1.0.69",
 ]
 
