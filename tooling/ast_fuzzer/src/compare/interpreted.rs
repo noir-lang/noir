@@ -10,7 +10,7 @@ use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
-    ir::types::NumericType,
+    ir::{instruction::BinaryOp, types::NumericType},
     ssa_gen::Ssa,
 };
 use noirc_frontend::{Shared, monomorphization::ast::Program};
@@ -173,7 +173,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // They mean the interpreter got something unexpected that we need to fix.
                 false
             }
-            (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
+            (Overflow { instruction: i1, .. }, Overflow { instruction: i2, .. }) => {
                 // Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 fn details(s: &str) -> Option<&str> {
                     let start = s.find("(")?;
@@ -185,6 +185,22 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
+
+            // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
+            // pass. This results in the error changing from an `Overflow` into a different error type so we match
+            // on the attached error message.
+            (Overflow { operator, .. }, ConstrainEqFailed { msg: Some(msg), .. }) => match operator
+            {
+                BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
+                BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
+
+                _ => false,
+            },
+            (
+                Overflow { operator: BinaryOp::Mul { unchecked: false }, .. },
+                RangeCheckFailed { msg: Some(msg), .. },
+            ) => msg == "attempt to multiply with overflow",
+
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
                 ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },

@@ -239,62 +239,6 @@ mod tests {
     }
 
     #[test]
-    fn regression_multiplication_without_range_check() {
-        let mut acir_builder = FuzzerBuilder::new_acir();
-        let mut brillig_builder = FuzzerBuilder::new_brillig();
-
-        let field_acir_var = acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-        let field_brillig_var =
-            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-
-        let truncated_acir = acir_builder.builder.insert_truncate(field_acir_var, 16, 254);
-        let truncated_brillig = brillig_builder.builder.insert_truncate(field_brillig_var, 16, 254);
-
-        let field_casted_i16_acir =
-            acir_builder.builder.insert_cast(truncated_acir, NumericType::Signed { bit_size: 16 });
-        let field_casted_i16_brillig = brillig_builder
-            .builder
-            .insert_cast(truncated_brillig, NumericType::Signed { bit_size: 16 });
-
-        let casted_pow_2_acir = acir_builder.builder.insert_binary(
-            field_casted_i16_acir,
-            BinaryOp::Mul { unchecked: false },
-            field_casted_i16_acir,
-        );
-        let casted_pow_2_brillig = brillig_builder.builder.insert_binary(
-            field_casted_i16_brillig,
-            BinaryOp::Mul { unchecked: false },
-            field_casted_i16_brillig,
-        );
-
-        let last_var = acir_builder.builder.insert_binary(
-            casted_pow_2_acir,
-            BinaryOp::Div,
-            field_casted_i16_acir,
-        );
-        let last_var_brillig = brillig_builder.builder.insert_binary(
-            casted_pow_2_brillig,
-            BinaryOp::Div,
-            field_casted_i16_brillig,
-        );
-
-        acir_builder.builder.terminate_with_return(vec![last_var]);
-        brillig_builder.builder.terminate_with_return(vec![last_var_brillig]);
-
-        let acir_result = acir_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            acir_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
-
-        let brillig_result = brillig_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            brillig_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
-    }
-
-    #[test]
     fn regression_cast_without_truncate() {
         let mut acir_builder = FuzzerBuilder::new_acir();
         let mut brillig_builder = FuzzerBuilder::new_brillig();
@@ -337,44 +281,6 @@ mod tests {
         check_expected_validation_error(
             brillig_result,
             "Invalid cast from Field, not preceded by valid truncation or known safe value",
-        );
-    }
-
-    #[test]
-    fn regression_signed_sub() {
-        let mut acir_builder = FuzzerBuilder::new_acir();
-        let mut brillig_builder = FuzzerBuilder::new_brillig();
-
-        let i16_acir_var_1 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_acir_var_2 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_brillig_var_1 =
-            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_brillig_var_2 =
-            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-
-        let sub_acir = acir_builder.builder.insert_binary(
-            i16_acir_var_1,
-            BinaryOp::Sub { unchecked: false },
-            i16_acir_var_2,
-        );
-        let sub_brillig = brillig_builder.builder.insert_binary(
-            i16_brillig_var_1,
-            BinaryOp::Sub { unchecked: false },
-            i16_brillig_var_2,
-        );
-
-        acir_builder.builder.terminate_with_return(vec![sub_acir]);
-        brillig_builder.builder.terminate_with_return(vec![sub_brillig]);
-
-        let acir_result = acir_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            acir_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
-        let brillig_result = brillig_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            brillig_result,
-            "Signed binary operation does not follow overflow pattern",
         );
     }
 }

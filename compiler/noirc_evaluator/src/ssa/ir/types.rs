@@ -155,6 +155,11 @@ impl Type {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
     }
 
+    /// Returns whether the `Type` represents an signed numeric type.
+    pub fn is_signed(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Signed { .. }))
+    }
+
     /// Create a new signed integer type with the given amount of bits.
     pub fn signed(bit_size: u32) -> Type {
         Type::Numeric(NumericType::Signed { bit_size })
