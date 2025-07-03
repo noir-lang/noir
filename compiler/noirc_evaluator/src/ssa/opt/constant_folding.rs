@@ -651,7 +651,8 @@ impl<'brillig> Context<'brillig> {
         let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
         let profiling_active = false;
         let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active, None);
-        let vm_status: VMStatus<_> = vm.process_opcodes();
+        let vm_status: VMStatus<_> =
+            vm.process_opcodes(Some(acvm::brillig_vm::DEFAULT_EXECUTION_LIMIT));
         let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
             return EvaluationResult::CannotEvaluate;
         };
