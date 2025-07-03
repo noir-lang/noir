@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -67,6 +67,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -126,12 +128,13 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
     "array_to_slice_constant_length",
+    "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
     "import",

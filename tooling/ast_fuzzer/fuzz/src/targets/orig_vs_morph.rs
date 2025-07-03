@@ -297,9 +297,12 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use crate::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
+    use crate::targets::orig_vs_morph::{
+        VariableContext,
+        helpers::{has_side_effect, reassign_ids},
+    };
 
-    use super::helpers::{gen_expr, has_side_effect};
+    use super::helpers::gen_expr;
     use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{expr, types};
