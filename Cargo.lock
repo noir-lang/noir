@@ -3578,7 +3578,6 @@ dependencies = [
  "libfuzzer-sys",
  "log",
  "noir_ssa_executor",
- "noirc_abi",
  "noirc_driver",
  "noirc_evaluator",
  "noirc_frontend",

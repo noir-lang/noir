@@ -115,7 +115,6 @@ fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact,
 /// its taken from noirc_driver::compile_no_check, but modified to accept ArtifactsAndWarnings
 pub fn compile_from_artifacts(
     artifacts: ArtifactsAndWarnings,
-    abi: Abi,
 ) -> Result<CompiledProgram, CompileError> {
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
         create_program(artifacts)?;
@@ -124,7 +123,7 @@ pub fn compile_from_artifacts(
         hash: 1, // const hash, doesn't matter in this case
         program,
         debug,
-        abi,
+        abi: Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
@@ -161,9 +160,5 @@ pub(crate) fn compile_from_ssa(
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let artifacts = optimize_ssa_into_acir(ssa, evaluator_options(options))?;
-    // ABI is not used during SSA execution, but its needed for compile function
-    compile_from_artifacts(
-        artifacts,
-        Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
-    )
+    compile_from_artifacts(artifacts)
 }
