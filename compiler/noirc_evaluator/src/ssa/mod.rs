@@ -40,7 +40,8 @@ use tracing::{Level, span};
 
 use crate::acir::GeneratedAcir;
 
-use builder::{SsaBuilder, SsaPass, time};
+use builder::time;
+pub use builder::{SsaBuilder, SsaPass};
 
 mod builder;
 mod checks;
