@@ -168,7 +168,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         let meta = self.elaborator.interner.function_meta(&function);
         let parameters = meta.parameters.0.clone();
-
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip(arguments) {
