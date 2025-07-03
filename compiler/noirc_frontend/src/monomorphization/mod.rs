@@ -1110,7 +1110,7 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
                 let location = self.interner.id_location(expr_id);
                 let value = Type::TypeVariable(type_variable.clone());
-                self.numeric_generic(value, numeric_typ.as_ref().clone(), location)
+                self.numeric_generic(value, numeric_typ.as_ref().clone(), typ, location)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
@@ -1147,20 +1147,23 @@ impl<'interner> Monomorphizer<'interner> {
         &self,
         value: Type,
         expected_type: Type,
+        expr_type: Type,
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let value = value
-            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected_type.clone())), location)
-            .map_err(|err| MonomorphizationError::UnknownArrayLength {
+        let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
+        let value = value.evaluate_to_field_element(&expected_kind, location).map_err(|err| {
+            MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
                 location,
-            })?;
+            }
+        })?;
 
-        // if !Kind::Numeric(numeric_typ.clone()).unifies(expected_type) {
-        //     let message = "ICE: Generic's kind does not match expected type";
-        //     return Err(MonomorphizationError::InternalError { location, message });
-        // }
+        let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        if !expected_kind.unifies(&expr_kind) {
+            let message = "ICE: Generic's kind does not match expected type";
+            return Err(MonomorphizationError::InternalError { location, message });
+        }
 
         let typ = Self::convert_type(&expected_type, location)?;
         let value = SignedField::positive(value);
@@ -1613,7 +1616,8 @@ impl<'interner> Monomorphizer<'interner> {
             TraitItem::Method(func_id) => func_id,
             TraitItem::Constant { id, expected_type, value } => {
                 let location = self.interner.definition(id).location;
-                return self.numeric_generic(value, expected_type, location);
+                let expr_type = self.interner.id_type(expr_id);
+                return self.numeric_generic(value, expected_type, expr_type, location);
             }
         };
 
