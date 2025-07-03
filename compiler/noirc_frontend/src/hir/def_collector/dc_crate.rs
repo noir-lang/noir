@@ -75,8 +75,7 @@ pub struct UnresolvedEnum {
 #[derive(Clone)]
 pub struct UnresolvedTrait {
     pub file_id: FileId,
-    pub module_id: LocalModuleId,
-    pub crate_id: CrateId,
+    pub module_id: ModuleId,
     pub trait_def: NoirTrait,
     pub method_ids: HashMap<String, FuncId>,
     pub fns_with_default_impl: UnresolvedFunctions,

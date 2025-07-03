@@ -684,8 +684,7 @@ impl ModCollector<'_> {
 
             let unresolved = UnresolvedTrait {
                 file_id: self.file_id,
-                module_id: self.module_id,
-                crate_id: krate,
+                module_id: ModuleId { krate, local_id: self.module_id },
                 trait_def: trait_definition,
                 method_ids,
                 fns_with_default_impl: unresolved_functions,

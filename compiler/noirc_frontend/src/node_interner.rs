@@ -779,7 +779,7 @@ impl NodeInterner {
         let new_trait = Trait {
             id: type_id,
             name: unresolved_trait.trait_def.name.clone(),
-            crate_id: unresolved_trait.crate_id,
+            crate_id: unresolved_trait.module_id.krate,
             location: unresolved_trait.trait_def.name.location(),
             generics,
             visibility: ItemVisibility::Private,
