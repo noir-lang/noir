@@ -1717,6 +1717,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let bit_size = left.bit_size;
 
         if bit_size == FieldElement::max_num_bits() || is_signed {
+            if is_signed
+                && matches!(
+                    binary.operator,
+                    BinaryOp::Add { unchecked: false }
+                        | BinaryOp::Sub { unchecked: false }
+                        | BinaryOp::Mul { unchecked: false }
+                )
+            {
+                panic!("Checked signed operations should all be removed before brilliggen")
+            }
             return;
         }
 
