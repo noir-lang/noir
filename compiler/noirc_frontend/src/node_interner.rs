@@ -2075,25 +2075,59 @@ impl NodeInterner {
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
-        let dummy_trait = TraitId(ModuleId::dummy_id());
-        self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Less, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::And, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Or, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
-        self.prefix_operator_traits.insert(UnaryOp::Minus, dummy_trait);
-        self.prefix_operator_traits.insert(UnaryOp::Not, dummy_trait);
+        // Populate a dummy trait with a single method
+        let mut usize_arena = Arena::default();
+        let index = usize_arena.insert(0);
+        let stdlib = CrateId::Stdlib(0);
+        let func_id = FuncId::dummy_id();
+        let definition_id = DefinitionId(usize::MAX - 1);
+        self.function_definition_ids.insert(func_id, definition_id);
+        let module_id = ModuleId { krate: stdlib, local_id: LocalModuleId::new(index) };
+        let trait_id = TraitId(module_id);
+        let self_type_typevar = self.next_type_variable_id();
+        let mut method_ids: HashMap<String, FuncId> = Default::default();
+        method_ids.insert("dummy_method".to_string(), func_id);
+
+        let trait_ = Trait {
+            id: trait_id,
+            crate_id: stdlib,
+            methods: vec![],
+            method_ids,
+            associated_types: vec![],
+            associated_type_bounds: Default::default(),
+            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            generics: vec![],
+            location: Location::dummy(),
+            visibility: ItemVisibility::Public,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
+            trait_bounds: vec![],
+            where_clause: vec![],
+            all_generics: vec![],
+            associated_constant_ids: Default::default(),
+        };
+        self.traits.insert(trait_id, trait_);
+
+        let operators = [
+            BinaryOpKind::Add,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Modulo,
+            BinaryOpKind::Equal,
+            BinaryOpKind::NotEqual,
+            BinaryOpKind::Less,
+            BinaryOpKind::LessEqual,
+            BinaryOpKind::Greater,
+            BinaryOpKind::GreaterEqual,
+            BinaryOpKind::And,
+            BinaryOpKind::Or,
+            BinaryOpKind::Xor,
+            BinaryOpKind::ShiftLeft,
+            BinaryOpKind::ShiftRight,
+        ];
+        for operator in operators {
+            self.infix_operator_traits.insert(operator, trait_id);
+        }
     }
 
     pub(crate) fn ordering_type(&self) -> Type {
