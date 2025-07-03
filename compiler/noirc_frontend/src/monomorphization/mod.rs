@@ -2608,7 +2608,7 @@ pub enum TraitItem {
 }
 
 impl TraitItem {
-    pub fn unwrap_method(&self) -> node_interner::FuncId {
+    pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
         match self {
             TraitItem::Method(func_id) => *func_id,
             TraitItem::Constant { .. } => {
