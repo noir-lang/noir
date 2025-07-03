@@ -17,7 +17,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "6485997221020871071": {
+      "3924744033496944961": {
         "error_kind": "string",
         "string": "call to assert_max_bit_size"
       }

@@ -9,7 +9,7 @@ expression: artifact
     "parameters": [],
     "return_type": null,
     "error_types": {
-      "17167622452885735733": {
+      "14214351551106953252": {
         "error_kind": "fmtstring",
         "length": 19,
         "item_types": []

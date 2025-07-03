@@ -161,8 +161,8 @@ mod tests {
     use std::vec;
 
     use acvm::FieldElement;
-    use fxhash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
+    use rustc_hash::FxHashMap as HashMap;
 
     use crate::brillig::ValueId;
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;

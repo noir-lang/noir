@@ -19,17 +19,17 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
+      "1534749929587795882": {
         "error_kind": "string",
-        "string": "attempt to subtract with overflow"
+        "string": "Index out of bounds"
       },
-      "5019202896831570965": {
+      "9579943917905940306": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "14225679739041873922": {
+      "10419109383335261722": {
         "error_kind": "string",
-        "string": "Index out of bounds"
+        "string": "attempt to subtract with overflow"
       }
     }
   },

@@ -1,5 +1,5 @@
 use acvm::AcirField as _;
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{

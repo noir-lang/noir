@@ -11,7 +11,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
     /// Map arrays with the last instruction that uses it

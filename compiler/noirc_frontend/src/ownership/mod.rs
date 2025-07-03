@@ -42,7 +42,7 @@ use crate::{
     },
 };
 
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
 mod tests;

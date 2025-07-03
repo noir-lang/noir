@@ -4,7 +4,7 @@ use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.

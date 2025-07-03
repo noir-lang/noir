@@ -34,6 +34,7 @@ mod reflection {
     use std::{
         collections::BTreeMap,
         fs::File,
+        hash::BuildHasher,
         io::Write,
         path::{Path, PathBuf},
     };
@@ -44,6 +45,7 @@ mod reflection {
         MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
     };
     use regex::Regex;
+    use rustc_hash::FxBuildHasher;
     use serde::{Deserialize, Serialize};
     use serde_generate::CustomCode;
     use serde_reflection::{
@@ -143,7 +145,7 @@ mod reflection {
         let old_hash = if path.is_file() {
             let old_source = std::fs::read(path).expect("failed to read existing code");
             let old_source = String::from_utf8(old_source).expect("old source not UTF-8");
-            Some(fxhash::hash64(&old_source))
+            Some(FxBuildHasher.hash_one(&old_source))
         } else {
             None
         };
@@ -166,7 +168,7 @@ mod reflection {
 
         if !should_overwrite() {
             if let Some(old_hash) = old_hash {
-                let new_hash = fxhash::hash64(&source);
+                let new_hash = FxBuildHasher.hash_one(&source);
                 assert_eq!(new_hash, old_hash, "Serialization format has changed",);
             }
         }

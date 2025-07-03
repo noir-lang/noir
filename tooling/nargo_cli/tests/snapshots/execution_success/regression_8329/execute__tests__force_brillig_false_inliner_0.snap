@@ -44,7 +44,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "2920182694213909827": {
+      "10419109383335261722": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       }

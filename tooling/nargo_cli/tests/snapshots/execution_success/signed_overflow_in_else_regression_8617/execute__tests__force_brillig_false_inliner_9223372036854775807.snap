@@ -33,17 +33,17 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "2920182694213909827": {
+      "9029823910880483185": {
         "error_kind": "string",
-        "string": "attempt to subtract with overflow"
+        "string": "attempt to multiply with overflow"
       },
-      "5019202896831570965": {
+      "9579943917905940306": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "7233212735005103307": {
+      "10419109383335261722": {
         "error_kind": "string",
-        "string": "attempt to multiply with overflow"
+        "string": "attempt to subtract with overflow"
       }
     }
   },
