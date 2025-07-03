@@ -594,7 +594,7 @@ impl ModCollector<'_> {
                             }
                             Err((first_def, second_def)) => {
                                 let error = DefCollectorErrorKind::Duplicate {
-                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    typ: DuplicateType::TraitAssociatedItem,
                                     first_def,
                                     second_def,
                                 };
@@ -619,7 +619,7 @@ impl ModCollector<'_> {
                             .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedConst,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };
@@ -659,7 +659,7 @@ impl ModCollector<'_> {
                             )
                         {
                             let error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedType,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };
