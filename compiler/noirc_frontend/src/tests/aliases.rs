@@ -1,4 +1,6 @@
 use crate::assert_no_errors;
+use crate::check_errors;
+use crate::get_program_errors;
 
 #[named]
 #[test]
@@ -91,6 +93,20 @@ fn double_generic_alias_in_path() {
     fn main() {
         let _ = FooAlias2::new();
     }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+#[should_panic]
+fn self_referring_type_alias_is_not_allowed() {
+    let src = r#"
+        pub type X = X;
+
+        fn main() {
+            let x: X = 1;
+        }
     "#;
     assert_no_errors!(src);
 }

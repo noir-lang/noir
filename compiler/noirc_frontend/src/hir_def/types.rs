@@ -1,6 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use fxhash::FxHashMap as HashMap;
+use im::HashSet;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -1498,6 +1499,36 @@ impl Type {
             | Type::Forall(..)
             | Type::Quoted(..) => Kind::Normal,
             Type::Error => Kind::Any,
+        }
+    }
+
+    /// Determines if a type contains a self referring alias by tracking visited TypeAliasId.
+    ///
+    /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
+    /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match self {
+            Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
+            }
+            Type::TypeVariable(var) => match &*var.borrow() {
+                TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+                TypeBinding::Unbound(_, _) => false,
+            },
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+            }
+            Type::Alias(def, generics) => {
+                let alias_id = def.borrow().id;
+                if aliases.contains(&alias_id) {
+                    true
+                } else {
+                    aliases.insert(alias_id);
+                    def.borrow().get_type(generics).has_cyclic_alias(aliases)
+                }
+            }
+            _ => false,
         }
     }
 

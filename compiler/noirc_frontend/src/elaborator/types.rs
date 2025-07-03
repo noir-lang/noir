@@ -650,6 +650,9 @@ impl Elaborator<'_> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
+        if typ.has_cyclic_alias(&mut HashSet::default()) {
+            return Type::Error;
+        }
         if !typ.kind().unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
