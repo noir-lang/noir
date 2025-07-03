@@ -1095,18 +1095,12 @@ impl Elaborator<'_> {
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
-                    let constraint = TraitConstraint {
-                        typ: operand_type.clone(),
-                        trait_bound: ResolvedTraitBound {
-                            trait_id: trait_method_id.trait_id,
-                            trait_generics: TraitGenerics::default(),
-                            location,
-                        },
-                    };
-                    self.push_trait_constraint(
-                        constraint, expr_id,
-                        true, // this constraint should lead to choosing a trait impl
-                    );
+                    let trait_id = trait_method_id.trait_id;
+                    let trait_generics = TraitGenerics::default();
+                    let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                    let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+                    let select_impl = true; // this constraint should lead to choosing a trait impl
+                    self.push_trait_constraint(constraint, expr_id, select_impl);
                     self.type_check_operator_method(
                         expr_id,
                         trait_method_id,
