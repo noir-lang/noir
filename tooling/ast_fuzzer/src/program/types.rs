@@ -52,6 +52,11 @@ pub fn can_be_main(typ: &Type) -> bool {
     }
 }
 
+/// Check if a variable with a given type can be used in a match.
+pub fn can_be_matched(typ: &Type) -> bool {
+    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
+}
+
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.

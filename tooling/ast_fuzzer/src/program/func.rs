@@ -1585,6 +1585,11 @@ impl<'a> FunctionContext<'a> {
             }
         };
 
+        // We could add some filtering to `choose_producer`, but it's already complicated; maybe next time.
+        if !types::can_be_matched(&src_typ) {
+            return Ok(None);
+        }
+
         /// Generate a random field that can be used in the constructor of a numeric type.
         fn gen_field(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
             let literal = expr::gen_literal(u, typ)?;
@@ -1610,12 +1615,11 @@ impl<'a> FunctionContext<'a> {
         };
 
         let num_cases = u.int_in_range(0..=self.ctx.config.max_match_cases)?;
-        let mut needs_default = false;
         let mut is_dyn = src_dyn;
 
         // Generate a number of rows, depending on what we can do with the source type.
         // See `MatchCompiler::compile_rows` for what is currently supported.
-        match &src_typ {
+        let gen_default = match &src_typ {
             Type::Bool => {
                 // There are only two possible values. Repeating one of them results in a warning,
                 // but let's allow it just so we cover that case, since it's not an error.
@@ -1626,15 +1630,13 @@ impl<'a> FunctionContext<'a> {
                     let case = MatchCase { constructor, arguments: Vec::new(), branch };
                     match_expr.cases.push(case);
                 }
-                needs_default = {
-                    #[allow(clippy::mutable_key_type)]
-                    let cs = match_expr
-                        .cases
-                        .iter()
-                        .map(|c| c.constructor.clone())
-                        .collect::<HashSet<_>>();
-                    cs.len() < 2
-                };
+
+                // If we have a non-exhaustive match we have to have a default; otherwise it's optional.
+                #[allow(clippy::mutable_key_type)]
+                let cs =
+                    match_expr.cases.iter().map(|c| c.constructor.clone()).collect::<HashSet<_>>();
+
+                if cs.len() < 2 { true } else { bool::arbitrary(u)? }
             }
             Type::Field | Type::Integer(_, _) => {
                 for _ in 0..num_cases {
@@ -1644,8 +1646,8 @@ impl<'a> FunctionContext<'a> {
                     let case = MatchCase { constructor, arguments: Vec::new(), branch };
                     match_expr.cases.push(case);
                 }
-                // The compiler would complain if we don't have a default case for a non-exhaustive match.
-                needs_default = true;
+                // We won't have an exhaustive match with random integers, so we need a default.
+                true
             }
             Type::Tuple(item_types) => {
                 // There is only one case in the AST that we can generate, which is to unpack the tuple
@@ -1666,15 +1668,16 @@ impl<'a> FunctionContext<'a> {
                 let case = MatchCase { constructor, arguments, branch };
                 match_expr.cases.push(case);
                 self.locals.exit();
+                // We must not generate a default, or the compiler will panic.
+                false
             }
-            _ => {
-                // We could add some filtering to `choose_producer`, but it's already complicated; maybe next time.
-                return Ok(None);
+            other => {
+                unreachable!("unexpected type to generate match for: ${other}");
             }
-        }
+        };
 
         // Optionally generate a default case.
-        if needs_default || match_expr.cases.is_empty() || bool::arbitrary(u)? {
+        if gen_default {
             let (default_expr, default_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
             is_dyn |= default_dyn;
             match_expr.default_case = Some(Box::new(default_expr));
