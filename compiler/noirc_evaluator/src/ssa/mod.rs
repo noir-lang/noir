@@ -399,25 +399,28 @@ where
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
+    let functions: Vec<SsaCircuitArtifact> = generated_acirs
+        .into_iter()
+        .zip(func_sigs)
+        .map(|(acir, func_sig)| {
+            convert_generated_acir_into_circuit(
+                acir,
+                func_sig,
+                // TODO: get rid of these clones
+                debug_variables.clone(),
+                debug_functions.clone(),
+                debug_types.clone(),
+            )
+        })
+        .collect();
 
-    // Add warnings collected at the Ssa stage
-    program_artifact.add_warnings(ssa_level_warnings);
-    // For setting up the ABI we need separately specify main's input and return witnesses
-    let mut is_main = true;
-    for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
-        let circuit_artifact = convert_generated_acir_into_circuit(
-            acir,
-            func_sig,
-            // TODO: get rid of these clones
-            debug_variables.clone(),
-            debug_functions.clone(),
-            debug_types.clone(),
-        );
-        program_artifact.add_circuit(circuit_artifact, is_main);
-        is_main = false;
-    }
-    program_artifact.brillig_names = brillig_function_names;
+    let program_artifact = SsaProgramArtifact::new(
+        functions,
+        brillig_function_names,
+        generated_brillig,
+        error_types,
+        ssa_level_warnings,
+    );
 
     Ok(program_artifact)
 }
@@ -485,8 +488,6 @@ pub fn convert_generated_acir_into_circuit(
         circuit: optimized_circuit,
         debug_info,
         warnings,
-        input_witnesses,
-        return_witnesses,
         error_types: generated_acir.error_types,
     }
 }

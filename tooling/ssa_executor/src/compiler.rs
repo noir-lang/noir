@@ -143,8 +143,6 @@ fn convert_generated_acir_into_circuit_without_signature(
         circuit: optimized_circuit,
         debug_info,
         warnings,
-        input_witnesses,
-        return_witnesses,
         error_types: generated_acir.error_types,
     }
 }
@@ -154,28 +152,33 @@ fn convert_generated_acir_into_circuit_without_signature(
 fn create_program(artifacts: ArtifactsAndWarnings) -> Result<SsaProgramArtifact, RuntimeError> {
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
-        _ssa_level_warnings,
+        ssa_level_warnings,
     ) = artifacts;
 
     let error_types = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
-    let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
-    let mut is_main = true;
-    // without func_sig
-    for acir in generated_acirs.into_iter() {
-        let circuit_artifact = convert_generated_acir_into_circuit_without_signature(
-            acir,
-            // TODO: get rid of these clones
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-        );
-        program_artifact.add_circuit(circuit_artifact, is_main);
-        is_main = false;
-    }
-    program_artifact.brillig_names = brillig_function_names;
+
+    let functions: Vec<SsaCircuitArtifact> = generated_acirs
+        .into_iter()
+        .map(|acir| {
+            convert_generated_acir_into_circuit_without_signature(
+                acir,
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+            )
+        })
+        .collect();
+
+    let program_artifact = SsaProgramArtifact::new(
+        functions,
+        brillig_function_names,
+        generated_brillig,
+        error_types,
+        ssa_level_warnings,
+    );
 
     Ok(program_artifact)
 }
