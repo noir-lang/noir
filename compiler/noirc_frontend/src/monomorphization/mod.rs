@@ -537,7 +537,7 @@ impl<'interner> Monomorphizer<'interner> {
                     let method = prefix
                         .trait_method_id
                         .expect("ice: missing trait method if when impl was found");
-                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
+                    let func = self.resolve_trait_item_expr(expr, function_type, method)?;
                     self.create_prefix_operator_impl_call(func, rhs, ret, location)?
                 } else {
                     let operator = prefix.operator;
@@ -559,7 +559,7 @@ impl<'interner> Monomorphizer<'interner> {
                         self.interner.get_infix_operator_type(infix.lhs, operator, expr);
 
                     let method = infix.trait_method_id;
-                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
+                    let func = self.resolve_trait_item_expr(expr, function_type, method)?;
                     let operator = infix.operator;
                     self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
                 } else {
@@ -1047,8 +1047,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
-        if let ImplKind::TraitItem(method) = ident.impl_kind {
-            return self.resolve_trait_method_expr(expr_id, typ, method.id());
+        if let ImplKind::TraitItem(item) = ident.impl_kind {
+            return self.resolve_trait_item_expr(expr_id, typ, item.id());
         }
 
         // Ensure all instantiation bindings are bound.
@@ -1603,13 +1603,13 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn resolve_trait_method_expr(
+    fn resolve_trait_item_expr(
         &mut self,
         expr_id: node_interner::ExprId,
         function_type: HirType,
-        method: TraitItemId,
+        trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let item = resolve_trait_item(self.interner, method, expr_id)
+        let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
         let func_id = match item {
@@ -1621,14 +1621,19 @@ impl<'interner> Monomorphizer<'interner> {
             }
         };
 
-        let func_id =
-            match self.lookup_function(func_id, expr_id, &function_type, &[], Some(method)) {
-                Definition::Function(func_id) => func_id,
-                _ => unreachable!(),
-            };
+        let func_id = match self.lookup_function(
+            func_id,
+            expr_id,
+            &function_type,
+            &[],
+            Some(trait_item_id),
+        ) {
+            Definition::Function(func_id) => func_id,
+            _ => unreachable!(),
+        };
 
         let location = self.interner.expr_location(&expr_id);
-        let name = self.interner.definition_name(method.item_id).to_string();
+        let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
