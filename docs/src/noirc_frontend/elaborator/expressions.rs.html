@@ -1499,7 +1499,9 @@
 <a href="#1498" id="1498">1498</a>
 <a href="#1499" id="1499">1499</a>
 <a href="#1500" id="1500">1500</a>
-<a href="#1501" id="1501">1501</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1528,13 +1530,13 @@
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
-            TraitMethod,
+            TraitItem,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
@@ -1906,7 +1908,7 @@
         <span class="kw">let </span>rhs_location = prefix.rhs.location;
 
         <span class="kw">let </span>(rhs, rhs_type) = <span class="self">self</span>.elaborate_expression(prefix.rhs);
-        <span class="kw">let </span>trait_id = <span class="self">self</span>.interner.get_prefix_operator_trait_method(<span class="kw-2">&amp;</span>prefix.operator);
+        <span class="kw">let </span>trait_method_id = <span class="self">self</span>.interner.get_prefix_operator_trait_method(<span class="kw-2">&amp;</span>prefix.operator);
 
         <span class="kw">let </span>operator = prefix.operator;
 
@@ -1918,14 +1920,18 @@
             }
         }
 
-        <span class="kw">let </span>expr =
-            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
+        <span class="kw">let </span>expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
         <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(expr);
         <span class="self">self</span>.interner.push_expr_location(expr_id, location);
 
         <span class="kw">let </span>result = <span class="self">self</span>.prefix_operand_type_rules(<span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
-        <span class="kw">let </span>typ =
-            <span class="self">self</span>.handle_operand_type_rules_result(result, <span class="kw-2">&amp;</span>rhs_type, trait_id, expr_id, location);
+        <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
+            result,
+            <span class="kw-2">&amp;</span>rhs_type,
+            trait_method_id,
+            expr_id,
+            location,
+        );
 
         <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -2579,32 +2585,31 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         result: <span class="prelude-ty">Result</span>&lt;(Type, bool), TypeCheckError&gt;,
         operand_type: <span class="kw-2">&amp;</span>Type,
-        trait_id: <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt;,
+        trait_method_id: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
         expr_id: ExprId,
         location: Location,
     ) -&gt; Type {
         <span class="kw">match </span>result {
             <span class="prelude-val">Ok</span>((typ, use_impl)) =&gt; {
                 <span class="kw">if </span>use_impl {
-                    <span class="kw">let </span>trait_id =
-                        trait_id.expect(<span class="string">"ice: expected some trait_id when use_impl is true"</span>);
+                    <span class="kw">let </span>trait_method_id = trait_method_id
+                        .expect(<span class="string">"ice: expected some trait_method_id when use_impl is true"</span>);
 
                     <span class="comment">// Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
-                    </span><span class="kw">let </span>constraint = TraitConstraint {
-                        typ: operand_type.clone(),
-                        trait_bound: ResolvedTraitBound {
-                            trait_id: trait_id.trait_id,
-                            trait_generics: TraitGenerics::default(),
-                            location,
-                        },
-                    };
-                    <span class="self">self</span>.push_trait_constraint(
-                        constraint, expr_id,
-                        <span class="bool-val">true</span>, <span class="comment">// this constraint should lead to choosing a trait impl
-                    </span>);
-                    <span class="self">self</span>.type_check_operator_method(expr_id, trait_id, operand_type, location);
+                    </span><span class="kw">let </span>trait_id = trait_method_id.trait_id;
+                    <span class="kw">let </span>trait_generics = TraitGenerics::default();
+                    <span class="kw">let </span>trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                    <span class="kw">let </span>constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+                    <span class="kw">let </span>select_impl = <span class="bool-val">true</span>; <span class="comment">// this constraint should lead to choosing a trait impl
+                    </span><span class="self">self</span>.push_trait_constraint(constraint, expr_id, select_impl);
+                    <span class="self">self</span>.type_check_operator_method(
+                        expr_id,
+                        trait_method_id,
+                        operand_type,
+                        location,
+                    );
                 }
                 typ
             }
@@ -2972,7 +2977,9 @@
         <span class="kw">let </span>constraint = TraitConstraint { typ, trait_bound };
 
         <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-        <span class="kw">let </span><span class="prelude-val">Some</span>(method) = the_trait.find_method(path.impl_item.as_str()) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(definition) =
+            the_trait.find_method_or_constant(path.impl_item.as_str(), <span class="self">self</span>.interner)
+        <span class="kw">else </span>{
             <span class="kw">let </span>trait_name = the_trait.name.to_string();
             <span class="kw">let </span>method_name = path.impl_item.to_string();
             <span class="kw">let </span>location = path.impl_item.location();
@@ -2981,15 +2988,12 @@
             <span class="kw">return </span>(error, Type::Error);
         };
 
-        <span class="kw">let </span>trait_method =
-            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: <span class="bool-val">true </span>};
-
-        <span class="kw">let </span>definition_id = <span class="self">self</span>.interner.trait_method_id(trait_method.method_id);
+        <span class="kw">let </span>trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: <span class="bool-val">true </span>};
 
         <span class="kw">let </span>ident = HirIdent {
             location: path.impl_item.location(),
-            id: definition_id,
-            impl_kind: ImplKind::TraitMethod(trait_method),
+            id: definition,
+            impl_kind: ImplKind::TraitItem(trait_item),
         };
 
         <span class="kw">let </span>id = <span class="self">self</span>.interner.push_expr(HirExpression::Ident(ident.clone(), <span class="prelude-val">None</span>));

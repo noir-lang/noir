@@ -269,17 +269,32 @@
 <a href="#268" id="268">268</a>
 <a href="#269" id="269">269</a>
 <a href="#270" id="270">270</a>
-<a href="#271" id="271">271</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ResolvedGeneric;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, NoirFunction};
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::NodeInterner;
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, NodeInterner};
 <span class="kw">use crate</span>::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
-    node_interner::{FuncId, TraitId, TraitMethodId},
+    node_interner::{FuncId, TraitId},
 };
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -353,6 +368,9 @@
     <span class="kw">pub </span>where_clause: Vec&lt;TraitConstraint&gt;,
 
     <span class="kw">pub </span>all_generics: Generics,
+
+    <span class="doccomment">/// Map from each associated constant's name to a unique DefinitionId for that constant.
+    </span><span class="kw">pub </span>associated_constant_ids: HashMap&lt;String, DefinitionId&gt;,
 }
 
 <span class="attr">#[derive(Debug)]
@@ -462,14 +480,26 @@
         <span class="self">self</span>.associated_type_bounds = associated_type_bounds;
     }
 
-    <span class="kw">pub fn </span>find_method(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt; {
-        <span class="kw">for </span>(idx, method) <span class="kw">in </span><span class="self">self</span>.methods.iter().enumerate() {
+    <span class="kw">pub fn </span>find_method(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
+        <span class="kw">for </span>method <span class="kw">in </span><span class="self">self</span>.methods.iter() {
             <span class="kw">if </span><span class="kw-2">&amp;</span>method.name == name {
-                <span class="kw">return </span><span class="prelude-val">Some</span>(TraitMethodId { trait_id: <span class="self">self</span>.id, method_index: idx });
+                <span class="kw">let </span>id = <span class="kw-2">*</span><span class="self">self</span>.method_ids.get(name).unwrap();
+                <span class="kw">return </span><span class="prelude-val">Some</span>(interner.function_definition_id(id));
             }
         }
         <span class="prelude-val">None
     </span>}
+
+    <span class="kw">pub fn </span>find_method_or_constant(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        name: <span class="kw-2">&amp;</span>str,
+        interner: <span class="kw-2">&amp;</span>NodeInterner,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.find_method(name, interner) {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(method);
+        }
+        <span class="self">self</span>.associated_constant_ids.get(name).copied()
+    }
 
     <span class="kw">pub fn </span>get_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, last_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
         <span class="self">self</span>.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)

@@ -1339,7 +1339,7 @@
         };
 
         <span class="comment">// Special case: assumed trait method
-        </span><span class="kw">if let </span>ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
+        </span><span class="kw">if let </span>ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
             <span class="kw">if </span>trait_method.assumed {
                 <span class="comment">// Is this `self.foo()` where `self` is currently a trait?
                 // If so, show it as `self.foo()` instead of `Self::foo(self)`.

@@ -1245,7 +1245,7 @@
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitItem},
         stmt::HirPattern,
     },
     node_interner::{
@@ -2131,11 +2131,11 @@
                     trait_path_resolution.item,
                 ),
 
-                TraitPathResolutionMethod::TraitMethod(trait_method) =&gt; (
+                TraitPathResolutionMethod::TraitItem(item) =&gt; (
                     HirIdent {
                         location: path.location,
-                        id: <span class="self">self</span>.interner.trait_method_id(trait_method.method_id),
-                        impl_kind: ImplKind::TraitMethod(trait_method),
+                        id: item.definition,
+                        impl_kind: ImplKind::TraitItem(item),
                     },
                     trait_path_resolution.item,
                 ),
@@ -2233,7 +2233,7 @@
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        </span><span class="kw">if let </span>ImplKind::TraitMethod(method) = <span class="kw-2">&amp;</span>ident.impl_kind {
+        </span><span class="kw">if let </span>ImplKind::TraitItem(method) = <span class="kw-2">&amp;</span>ident.impl_kind {
             <span class="self">self</span>.bind_generics_from_trait_constraint(
                 <span class="kw-2">&amp;</span>method.constraint,
                 method.assumed,
@@ -2280,7 +2280,7 @@
             }
         }
 
-        <span class="kw">if let </span>ImplKind::TraitMethod(<span class="kw-2">mut </span>method) = ident.impl_kind {
+        <span class="kw">if let </span>ImplKind::TraitItem(<span class="kw-2">mut </span>method) = ident.impl_kind {
             method.constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
             <span class="kw">if </span>method.assumed {
                 <span class="kw">let </span>trait_generics = method.constraint.trait_bound.trait_generics.clone();
@@ -2423,11 +2423,11 @@
 
         <span class="kw">let </span>impl_kind = <span class="kw">match </span>method {
             HirMethodReference::FuncId(<span class="kw">_</span>) =&gt; ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics, <span class="kw">_</span>) =&gt; {
+            HirMethodReference::TraitItemId(definition, trait_id, generics, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span><span class="kw-2">mut </span>constraint =
-                    <span class="self">self</span>.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
+                    <span class="self">self</span>.interner.get_trait(trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
-                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: <span class="bool-val">false </span>})
+                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>})
             }
         };
 

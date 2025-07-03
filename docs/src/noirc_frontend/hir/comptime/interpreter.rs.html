@@ -1698,7 +1698,9 @@
 <a href="#1697" id="1697">1697</a>
 <a href="#1698" id="1698">1698</a>
 <a href="#1699" id="1699">1699</a>
-<a href="#1700" id="1700">1700</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -1714,8 +1716,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::ModuleId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::TypeCheckError;
+<span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::TraitItem;
 <span class="kw">use </span><span class="kw">crate</span>::monomorphization::{
-    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
     undo_instantiation_bindings,
 };
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::GlobalValue;
@@ -1723,7 +1726,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::{FmtStrFragment, Tokens};
 <span class="kw">use crate</span>::{
-    Shared, Type, TypeBinding, TypeBindings,
+    Shared, Type, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -1797,25 +1800,21 @@
         <span class="kw-2">mut </span>instantiation_bindings: TypeBindings,
         location: Location,
     ) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>trait_method = <span class="self">self</span>.elaborator.interner.get_trait_method_id(function);
+        <span class="kw">let </span>trait_method = <span class="self">self</span>.elaborator.interner.get_trait_item_id(function);
 
         <span class="comment">// To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        </span><span class="kw">for </span>(<span class="kw">_</span>, kind, binding) <span class="kw">in </span>instantiation_bindings.values_mut() {
+        </span><span class="kw">for </span>(_tvar, kind, binding) <span class="kw">in </span>instantiation_bindings.values_mut() {
             <span class="kw-2">*</span>kind = kind.follow_bindings();
             <span class="kw-2">*</span>binding = binding.follow_bindings();
         }
 
         <span class="self">self</span>.unbind_generics_from_previous_function();
         perform_instantiation_bindings(<span class="kw-2">&amp;</span>instantiation_bindings);
-        <span class="kw">let </span><span class="kw-2">mut </span>impl_bindings =
-            perform_impl_bindings(<span class="self">self</span>.elaborator.interner, trait_method, function, location)<span class="question-mark">?</span>;
 
-        <span class="kw">for </span>(<span class="kw">_</span>, kind, binding) <span class="kw">in </span>impl_bindings.values_mut() {
-            <span class="kw-2">*</span>kind = kind.follow_bindings();
-            <span class="kw-2">*</span>binding = binding.follow_bindings();
-        }
+        <span class="kw">let </span>impl_bindings =
+            perform_impl_bindings(<span class="self">self</span>.elaborator.interner, trait_method, function, location)<span class="question-mark">?</span>;
 
         <span class="self">self</span>.remember_bindings(<span class="kw-2">&amp;</span>instantiation_bindings, <span class="kw-2">&amp;</span>impl_bindings);
         <span class="self">self</span>.elaborator.interpreter_call_stack.push_back(location);
@@ -2279,11 +2278,8 @@
             InterpreterError::VariableNotInScope { location }
         })<span class="question-mark">?</span>;
 
-        <span class="kw">if let </span>ImplKind::TraitMethod(method) = ident.impl_kind {
-            <span class="kw">let </span>method_id = resolve_trait_method(<span class="self">self</span>.elaborator.interner, method.method_id, id)<span class="question-mark">?</span>;
-            <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id).follow_bindings();
-            <span class="kw">let </span>bindings = <span class="self">self</span>.elaborator.interner.get_instantiation_bindings(id).clone();
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Function(method_id, typ, Rc::new(bindings)));
+        <span class="kw">if let </span>ImplKind::TraitItem(item) = ident.impl_kind {
+            <span class="kw">return </span><span class="self">self</span>.evaluate_trait_item(item, id);
         }
 
         <span class="kw">match </span><span class="kw-2">&amp;</span>definition.kind {
@@ -2332,29 +2328,8 @@
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) =&gt; {
-                <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                        <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id);
-                        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-                        <span class="prelude-val">Err</span>(InterpreterError::NonIntegerArrayLength { typ, err: <span class="prelude-val">None</span>, location })
-                    }
-                    TypeBinding::Bound(binding) =&gt; {
-                        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.id_location(id);
-                        binding
-                            .evaluate_to_field_element(
-                                <span class="kw-2">&amp;</span>Kind::Numeric(numeric_typ.clone()),
-                                location,
-                            )
-                            .map_err(|err| {
-                                <span class="kw">let </span>typ = Type::TypeVariable(type_variable.clone());
-                                <span class="kw">let </span>err = <span class="prelude-val">Some</span>(Box::new(err));
-                                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-                                InterpreterError::NonIntegerArrayLength { typ, err, location }
-                            })
-                    }
-                }<span class="question-mark">?</span>;
-
-                <span class="self">self</span>.evaluate_integer(value.into(), id)
+                <span class="kw">let </span>value = Type::TypeVariable(type_variable.clone());
+                <span class="self">self</span>.evaluate_numeric_generic(value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) =&gt; {
                 <span class="kw">let </span>associated_types =
@@ -2378,6 +2353,35 @@
                         location,
                     }),
                 }
+            }
+        }
+    }
+
+    <span class="doccomment">/// Evaluates a numeric generic with the value `value` (expected to be `Type::Constant`)
+    /// and an expected integer type `expected`.
+    </span><span class="kw">fn </span>evaluate_numeric_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, value: Type, expected: <span class="kw-2">&amp;</span>Type, id: ExprId) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.id_location(id);
+        <span class="kw">let </span>value = value
+            .evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::Numeric(Box::new(expected.clone())), location)
+            .map_err(|err| {
+                <span class="kw">let </span>typ = value;
+                <span class="kw">let </span>err = <span class="prelude-val">Some</span>(Box::new(err));
+                <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
+                InterpreterError::NonIntegerArrayLength { typ, err, location }
+            })<span class="question-mark">?</span>;
+
+        <span class="self">self</span>.evaluate_integer(value.into(), id)
+    }
+
+    <span class="kw">fn </span>evaluate_trait_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: TraitItem, id: ExprId) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>typ = <span class="self">self</span>.elaborator.interner.id_type(id).follow_bindings();
+        <span class="kw">match </span>resolve_trait_item(<span class="self">self</span>.elaborator.interner, item.id(), id)<span class="question-mark">? </span>{
+            <span class="kw">crate</span>::monomorphization::TraitItem::Method(func_id) =&gt; {
+                <span class="kw">let </span>bindings = <span class="self">self</span>.elaborator.interner.get_instantiation_bindings(id).clone();
+                <span class="prelude-val">Ok</span>(Value::Function(func_id, typ, Rc::new(bindings)))
+            }
+            <span class="kw">crate</span>::monomorphization::TraitItem::Constant { id: <span class="kw">_</span>, expected_type, value } =&gt; {
+                <span class="self">self</span>.evaluate_numeric_generic(value, <span class="kw-2">&amp;</span>expected_type, id)
             }
         }
     }
@@ -2550,7 +2554,7 @@
         <span class="kw">let </span>method = infix.trait_method_id;
         <span class="kw">let </span>operator = infix.operator.kind;
 
-        <span class="kw">let </span>method_id = resolve_trait_method(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>;
+        <span class="kw">let </span>method_id = resolve_trait_item(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>.unwrap_method();
         <span class="kw">let </span>type_bindings = <span class="self">self</span>.elaborator.interner.get_instantiation_bindings(id).clone();
 
         <span class="kw">let </span>lhs = (lhs, <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>infix.lhs));
@@ -2580,7 +2584,7 @@
             prefix.trait_method_id.expect(<span class="string">"ice: expected prefix operator trait at this point"</span>);
         <span class="kw">let </span>operator = prefix.operator;
 
-        <span class="kw">let </span>method_id = resolve_trait_method(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>;
+        <span class="kw">let </span>method_id = resolve_trait_item(<span class="self">self</span>.elaborator.interner, method, id)<span class="question-mark">?</span>.unwrap_method();
         <span class="kw">let </span>type_bindings = <span class="self">self</span>.elaborator.interner.get_instantiation_bindings(id).clone();
 
         <span class="kw">let </span>rhs = (rhs, <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>prefix.rhs));

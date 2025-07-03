@@ -3125,10 +3125,7 @@
 <a href="#3124" id="3124">3124</a>
 <a href="#3125" id="3125">3125</a>
 <a href="#3126" id="3126">3126</a>
-<a href="#3127" id="3127">3127</a>
-<a href="#3128" id="3128">3128</a>
-<a href="#3129" id="3129">3129</a>
-<a href="#3130" id="3130">3130</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3127" id="3127">3127</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3168,11 +3165,11 @@
     },
     hir_def::{
         <span class="self">self</span>,
-        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
@@ -5603,12 +5600,9 @@
         <span class="kw">let </span>trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         <span class="kw">let </span>constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
-        <span class="kw">let </span>method_index = trait_impl.methods.iter().position(|id| <span class="kw-2">*</span>id == func_id);
-        <span class="kw">let </span>method_index = method_index.expect(<span class="string">"Expected to find the method"</span>);
-        <span class="kw">let </span>method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
-        <span class="kw">let </span>trait_method = TraitMethod { method_id, constraint, assumed: <span class="bool-val">true </span>};
-        <span class="kw">let </span>id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
-        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+        <span class="kw">let </span>id = interpreter.elaborator.interner.get_trait_item_id(func_id).unwrap().item_id;
+        <span class="kw">let </span>trait_method = TraitItem { definition: id, constraint, assumed: <span class="bool-val">true </span>};
+        HirIdent { location, id, impl_kind: ImplKind::TraitItem(trait_method) }
     } <span class="kw">else </span>{
         HirIdent::non_trait_method(definition_id, location)
     };

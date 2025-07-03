@@ -1755,7 +1755,21 @@
 <a href="#1754" id="1754">1754</a>
 <a href="#1755" id="1755">1755</a>
 <a href="#1756" id="1756">1756</a>
-<a href="#1757" id="1757">1757</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -1775,7 +1789,7 @@
 };
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::PrimitiveType;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::token::{SecondaryAttribute, TestScope};
 <span class="kw">use </span><span class="kw">crate</span>::usage_tracker::{UnusedItem, UsageTracker};
 <span class="kw">use crate</span>::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
@@ -2270,6 +2284,7 @@
 
             <span class="kw">let </span><span class="kw-2">mut </span>method_ids = HashMap::default();
             <span class="kw">let </span><span class="kw-2">mut </span>associated_types = Generics::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>associated_constant_ids = HashMap::default();
 
             <span class="kw">for </span>item <span class="kw">in </span><span class="kw-2">&amp;mut </span>trait_definition.items {
                 <span class="kw">if let </span>TraitItem::Function { generics, where_clause, .. } = <span class="kw-2">&amp;mut </span>item.item {
@@ -2383,15 +2398,27 @@
                         } <span class="kw">else </span>{
                             <span class="kw">let </span>type_variable_id = context.def_interner.next_type_variable_id();
                             <span class="kw">let </span>typ = <span class="self">self</span>.resolve_associated_constant_type(typ, <span class="kw-2">&amp;mut </span>errors);
+                            <span class="kw">let </span>type_var =
+                                TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
-                            associated_types.push(ResolvedGeneric {
-                                name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(
-                                    type_variable_id,
-                                    Kind::numeric(typ),
-                                ),
-                                location: name.location(),
-                            });
+                            <span class="kw">let </span>definition = DefinitionKind::NumericGeneric(
+                                type_var.clone(),
+                                Box::new(typ.clone()),
+                            );
+
+                            <span class="kw">let </span>location = name.location();
+                            <span class="kw">let </span>definition_id = context.def_interner.push_definition(
+                                name.to_string(),
+                                <span class="bool-val">false</span>,
+                                <span class="bool-val">false</span>,
+                                definition,
+                                location,
+                            );
+                            context.def_interner.push_definition_type(definition_id, typ);
+
+                            associated_constant_ids.insert(name.to_string(), definition_id);
+                            <span class="kw">let </span>name = Rc::new(name.to_string());
+                            associated_types.push(ResolvedGeneric { name, type_var, location });
                         }
                     }
                     TraitItem::Type { name, bounds: <span class="kw">_ </span>} =&gt; {
@@ -2439,6 +2466,7 @@
                 <span class="kw-2">&amp;</span>unresolved,
                 resolved_generics,
                 associated_types,
+                associated_constant_ids,
             );
 
             <span class="kw">if </span>context.def_interner.is_in_lsp_mode() {

@@ -2341,7 +2341,10 @@
 <a href="#2340" id="2340">2340</a>
 <a href="#2341" id="2341">2341</a>
 <a href="#2342" id="2342">2342</a>
-<a href="#2343" id="2343">2343</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2343" id="2343">2343</a>
+<a href="#2344" id="2344">2344</a>
+<a href="#2345" id="2345">2345</a>
+<a href="#2346" id="2346">2346</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2369,7 +2372,7 @@
     hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression, TraitMethod,
+            HirMethodReference, HirPrefixExpression, TraitItem,
         },
         function::FuncMeta,
         stmt::HirStatement,
@@ -2377,7 +2380,7 @@
     },
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
-        TraitMethodId,
+        TraitItemId,
     },
     shared::Signedness,
     token::SecondaryAttributeKind,
@@ -2398,7 +2401,7 @@
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
-    TraitMethod(TraitMethod),
+    TraitItem(TraitItem),
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
@@ -3077,10 +3080,12 @@
 
             <span class="kw">if </span>name == SELF_TYPE_NAME {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
-                <span class="kw">let </span>method = the_trait.find_method(method.as_str())<span class="question-mark">?</span>;
+                <span class="comment">// Allow referring to trait constants via Self:: as well
+                </span><span class="kw">let </span>definition =
+                    the_trait.find_method_or_constant(method.as_str(), <span class="self">self</span>.interner)<span class="question-mark">?</span>;
                 <span class="kw">let </span>constraint = the_trait.as_constraint(path.location);
-                <span class="kw">let </span>trait_method = TraitMethod { method_id: method, constraint, assumed: <span class="bool-val">true </span>};
-                <span class="kw">let </span>method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                <span class="kw">let </span>trait_method = TraitItem { definition, constraint, assumed: <span class="bool-val">true </span>};
+                <span class="kw">let </span>method = TraitPathResolutionMethod::TraitItem(trait_method);
                 <span class="kw">return </span><span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">None</span>, errors: Vec::new() });
             }
         }
@@ -3096,10 +3101,10 @@
         <span class="kw">let </span>func_id = path_resolution.item.function_id()<span class="question-mark">?</span>;
         <span class="kw">let </span>meta = <span class="self">self</span>.interner.try_function_meta(<span class="kw-2">&amp;</span>func_id)<span class="question-mark">?</span>;
         <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(meta.trait_id<span class="question-mark">?</span>);
-        <span class="kw">let </span>method = the_trait.find_method(path.last_name())<span class="question-mark">?</span>;
+        <span class="kw">let </span>method = the_trait.find_method(path.last_name(), <span class="self">self</span>.interner)<span class="question-mark">?</span>;
         <span class="kw">let </span>constraint = the_trait.as_constraint(path.location);
-        <span class="kw">let </span>trait_method = TraitMethod { method_id: method, constraint, assumed: <span class="bool-val">false </span>};
-        <span class="kw">let </span>method = TraitPathResolutionMethod::TraitMethod(trait_method);
+        <span class="kw">let </span>trait_method = TraitItem { definition: method, constraint, assumed: <span class="bool-val">false </span>};
+        <span class="kw">let </span>method = TraitPathResolutionMethod::TraitItem(trait_method);
         <span class="kw">let </span>item = <span class="prelude-val">Some</span>(path_resolution.item);
         <span class="prelude-val">Some</span>(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
@@ -3125,9 +3130,11 @@
                 }
 
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(method) = the_trait.find_method(path.last_name()) {
-                    <span class="kw">let </span>trait_method = TraitMethod { method_id: method, constraint, assumed: <span class="bool-val">true </span>};
-                    <span class="kw">let </span>method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(definition) =
+                    the_trait.find_method_or_constant(path.last_name(), <span class="self">self</span>.interner)
+                {
+                    <span class="kw">let </span>trait_item = TraitItem { definition, constraint, assumed: <span class="bool-val">true </span>};
+                    <span class="kw">let </span>method = TraitPathResolutionMethod::TraitItem(trait_item);
                     <span class="kw">return </span><span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">None</span>, errors: Vec::new() });
                 }
             }
@@ -3206,14 +3213,12 @@
                 <span class="kw">let </span>method = TraitPathResolutionMethod::NotATraitMethod(func_id);
                 <span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">None</span>, errors })
             }
-            HirMethodReference::TraitMethodId(trait_method_id, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>trait_id = trait_method_id.trait_id;
+            HirMethodReference::TraitItemId(definition, trait_id, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="kw">let </span><span class="kw-2">mut </span>constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
 
-                <span class="kw">let </span>trait_method =
-                    TraitMethod { method_id: trait_method_id, constraint, assumed: <span class="bool-val">false </span>};
+                <span class="kw">let </span>trait_method = TraitItem { definition, constraint, assumed: <span class="bool-val">false </span>};
                 <span class="kw">let </span>item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>errors = path_resolution.errors;
@@ -3221,7 +3226,7 @@
                     errors.push(error);
                 }
 
-                <span class="kw">let </span>method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                <span class="kw">let </span>method = TraitPathResolutionMethod::TraitItem(trait_method);
                 <span class="prelude-val">Some</span>(TraitPathResolution { method, item: <span class="prelude-val">Some</span>(item), errors })
             }
         }
@@ -3858,14 +3863,12 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>type_check_operator_method(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr_id: ExprId,
-        trait_method_id: TraitMethodId,
+        trait_method_id: TraitItemId,
         object_type: <span class="kw-2">&amp;</span>Type,
         location: Location,
     ) {
-        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_method_id.trait_id);
-
-        <span class="kw">let </span>method = <span class="kw-2">&amp;</span>the_trait.methods[trait_method_id.method_index];
-        <span class="kw">let </span>(method_type, <span class="kw-2">mut </span>bindings) = method.typ.clone().instantiate(<span class="self">self</span>.interner);
+        <span class="kw">let </span>method_type = <span class="self">self</span>.interner.definition_type(trait_method_id.item_id);
+        <span class="kw">let </span>(method_type, <span class="kw-2">mut </span>bindings) = method_type.instantiate(<span class="self">self</span>.interner);
 
         <span class="kw">match </span>method_type {
             Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
@@ -4172,8 +4175,8 @@
         <span class="comment">// Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         </span><span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
         <span class="kw">let </span>generics = trait_.get_trait_generics(location);
-        <span class="kw">let </span>trait_method_id = trait_.find_method(method_name).unwrap();
-        HirMethodReference::TraitMethodId(trait_method_id, generics, <span class="bool-val">false</span>)
+        <span class="kw">let </span>trait_method_id = trait_.find_method(method_name, <span class="self">self</span>.interner).unwrap();
+        HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, <span class="bool-val">false</span>)
     }
 
     <span class="kw">fn </span>lookup_method_in_trait_constraints(
@@ -4194,8 +4197,8 @@
             <span class="kw">if </span><span class="prelude-val">Some</span>(object_type) == <span class="self">self</span>.self_type.as_ref() {
                 <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_id);
                 <span class="kw">let </span>constraint = the_trait.as_constraint(the_trait.name.location());
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(HirMethodReference::TraitMethodId(method_id, generics, <span class="kw">_</span>)) = <span class="self">self
-                    </span>.lookup_method_in_trait(
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(HirMethodReference::TraitItemId(method_id, trait_id, generics, <span class="kw">_</span>)) =
+                    <span class="self">self</span>.lookup_method_in_trait(
                         the_trait,
                         method_name,
                         <span class="kw-2">&amp;</span>constraint.trait_bound,
@@ -4203,7 +4206,11 @@
                     )
                 {
                     <span class="comment">// If it is, it's an assumed trait
-                    </span><span class="kw">return </span><span class="prelude-val">Some</span>(HirMethodReference::TraitMethodId(method_id, generics, <span class="bool-val">true</span>));
+                    // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
+                    // might return a method on a parent trait.
+                    </span><span class="kw">return </span><span class="prelude-val">Some</span>(HirMethodReference::TraitItemId(
+                        method_id, trait_id, generics, <span class="bool-val">true</span>,
+                    ));
                 }
             }
         }
@@ -4247,12 +4254,11 @@
         trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_method) = the_trait.find_method(method_name) {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(HirMethodReference::TraitMethodId(
-                trait_method,
-                trait_bound.trait_generics.clone(),
-                <span class="bool-val">false</span>,
-            ));
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_method) = the_trait.find_method(method_name, <span class="self">self</span>.interner) {
+            <span class="kw">let </span>trait_generics = trait_bound.trait_generics.clone();
+            <span class="kw">let </span>trait_item_id =
+                HirMethodReference::TraitItemId(trait_method, the_trait.id, trait_generics, <span class="bool-val">false</span>);
+            <span class="kw">return </span><span class="prelude-val">Some</span>(trait_item_id);
         }
 
         <span class="comment">// Search in the parent traits, if any

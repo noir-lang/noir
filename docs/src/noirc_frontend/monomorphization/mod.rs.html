@@ -2600,7 +2600,67 @@
 <a href="#2599" id="2599">2599</a>
 <a href="#2600" id="2600">2600</a>
 <a href="#2601" id="2601">2601</a>
-<a href="#2602" id="2602">2602</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a>
+<a href="#2637" id="2637">2637</a>
+<a href="#2638" id="2638">2638</a>
+<a href="#2639" id="2639">2639</a>
+<a href="#2640" id="2640">2640</a>
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a>
+<a href="#2645" id="2645">2645</a>
+<a href="#2646" id="2646">2646</a>
+<a href="#2647" id="2647">2647</a>
+<a href="#2648" id="2648">2648</a>
+<a href="#2649" id="2649">2649</a>
+<a href="#2650" id="2650">2650</a>
+<a href="#2651" id="2651">2651</a>
+<a href="#2652" id="2652">2652</a>
+<a href="#2653" id="2653">2653</a>
+<a href="#2654" id="2654">2654</a>
+<a href="#2655" id="2655">2655</a>
+<a href="#2656" id="2656">2656</a>
+<a href="#2657" id="2657">2657</a>
+<a href="#2658" id="2658">2658</a>
+<a href="#2659" id="2659">2659</a>
+<a href="#2660" id="2660">2660</a>
+<a href="#2661" id="2661">2661</a>
+<a href="#2662" id="2662">2662</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2614,7 +2674,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::InterpreterError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 <span class="kw">use </span><span class="kw">crate</span>::shared::{Signedness, Visibility};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::FmtStrFragment;
@@ -2627,7 +2687,7 @@
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{<span class="self">self</span>, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
+    node_interner::{<span class="self">self</span>, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>ast::{GlobalId, IdentId, While};
@@ -2688,7 +2748,7 @@
         node_interner::FuncId,
         FuncId,
         TypeBindings,
-        <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt;,
+        <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
         bool,
         Location,
     )&gt;,
@@ -2865,7 +2925,7 @@
         expr_id: node_interner::ExprId,
         typ: <span class="kw-2">&amp;</span>HirType,
         turbofish_generics: <span class="kw-2">&amp;</span>[HirType],
-        trait_method: <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt;,
+        trait_method: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
     ) -&gt; Definition {
         <span class="kw">let </span>typ = typ.follow_bindings();
         <span class="kw">let </span>turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
@@ -3139,7 +3199,7 @@
                     <span class="kw">let </span>method = prefix
                         .trait_method_id
                         .expect(<span class="string">"ice: missing trait method if when impl was found"</span>);
-                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_method_expr(expr, function_type, method)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method)<span class="question-mark">?</span>;
                     <span class="self">self</span>.create_prefix_operator_impl_call(func, rhs, ret, location)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
                     <span class="kw">let </span>operator = prefix.operator;
@@ -3161,7 +3221,7 @@
                         <span class="self">self</span>.interner.get_infix_operator_type(infix.lhs, operator, expr);
 
                     <span class="kw">let </span>method = infix.trait_method_id;
-                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_method_expr(expr, function_type, method)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method)<span class="question-mark">?</span>;
                     <span class="kw">let </span>operator = infix.operator;
                     <span class="self">self</span>.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
@@ -3649,8 +3709,8 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(expr_id);
 
-        <span class="kw">if let </span>ImplKind::TraitMethod(method) = ident.impl_kind {
-            <span class="kw">return </span><span class="self">self</span>.resolve_trait_method_expr(expr_id, typ, method.method_id);
+        <span class="kw">if let </span>ImplKind::TraitItem(item) = ident.impl_kind {
+            <span class="kw">return </span><span class="self">self</span>.resolve_trait_item_expr(expr_id, typ, item.id());
         }
 
         <span class="comment">// Ensure all instantiation bindings are bound.
@@ -3669,7 +3729,7 @@
         }
 
         <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
-        <span class="kw">let </span>ident = <span class="kw">match </span><span class="kw-2">&amp;</span>definition.kind {
+        <span class="kw">match </span><span class="kw-2">&amp;</span>definition.kind {
             DefinitionKind::Function(func_id) =&gt; {
                 <span class="kw">let </span>mutable = definition.mutable;
                 <span class="kw">let </span>location = <span class="prelude-val">Some</span>(ident.location);
@@ -3687,60 +3747,32 @@
                     ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
                 <span class="kw">let </span>ident_expression = ast::Expression::Ident(ident);
                 <span class="kw">if </span><span class="self">self</span>.is_function_closure_type(<span class="kw-2">&amp;</span>typ) {
-                    ast::Expression::Tuple(<span class="macro">vec!</span>[
-                        ast::Expression::ExtractTupleField(
-                            Box::new(ident_expression.clone()),
-                            <span class="number">0usize</span>,
-                        ),
-                        ast::Expression::ExtractTupleField(Box::new(ident_expression), <span class="number">1usize</span>),
-                    ])
+                    <span class="kw">let </span>ident_clone = Box::new(ident_expression.clone());
+                    <span class="kw">let </span>function = ast::Expression::ExtractTupleField(ident_clone, <span class="number">0</span>);
+                    <span class="kw">let </span>env = ast::Expression::ExtractTupleField(Box::new(ident_expression), <span class="number">1</span>);
+                    <span class="prelude-val">Ok</span>(ast::Expression::Tuple(<span class="macro">vec!</span>[function, env]))
                 } <span class="kw">else </span>{
-                    ident_expression
+                    <span class="prelude-val">Ok</span>(ident_expression)
                 }
             }
             DefinitionKind::Global(global_id) =&gt; {
-                <span class="self">self</span>.global_ident(<span class="kw-2">*</span>global_id, definition.name.clone(), <span class="kw-2">&amp;</span>typ, ident.location)<span class="question-mark">?
-            </span>}
+                <span class="self">self</span>.global_ident(<span class="kw-2">*</span>global_id, definition.name.clone(), <span class="kw-2">&amp;</span>typ, ident.location)
+            }
             DefinitionKind::Local(<span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="self">self</span>.lookup_captured_expr(ident.id) {
-                <span class="prelude-val">Some</span>(expr) =&gt; expr,
+                <span class="prelude-val">Some</span>(expr) =&gt; <span class="prelude-val">Ok</span>(expr),
                 <span class="prelude-val">None </span>=&gt; {
                     <span class="kw">let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.local_ident(<span class="kw-2">&amp;</span>ident, <span class="kw-2">&amp;</span>typ)<span class="question-mark">? </span><span class="kw">else </span>{
                         <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(expr_id);
                         <span class="kw">let </span>message = <span class="string">"ICE: Variable not found during monomorphization"</span>;
                         <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::InternalError { location, message });
                     };
-                    ast::Expression::Ident(ident)
+                    <span class="prelude-val">Ok</span>(ast::Expression::Ident(ident))
                 }
             },
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) =&gt; {
-                <span class="kw">let </span>value = <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
-                    TypeBinding::Unbound(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                        <span class="macro">unreachable!</span>(<span class="string">"Unbound type variable used in expression"</span>)
-                    }
-                    TypeBinding::Bound(binding) =&gt; {
-                        <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(expr_id);
-                        binding
-                            .evaluate_to_field_element(
-                                <span class="kw-2">&amp;</span>Kind::Numeric(numeric_typ.clone()),
-                                location,
-                            )
-                            .map_err(|err| MonomorphizationError::UnknownArrayLength {
-                                length: binding.clone(),
-                                err,
-                                location,
-                            })<span class="question-mark">?
-                    </span>}
-                };
                 <span class="kw">let </span>location = <span class="self">self</span>.interner.id_location(expr_id);
-
-                <span class="kw">if </span>!Kind::Numeric(numeric_typ.clone()).unifies(<span class="kw-2">&amp;</span>Kind::numeric(typ.clone())) {
-                    <span class="kw">let </span>message = <span class="string">"ICE: Generic's kind does not match expected type"</span>;
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::InternalError { location, message });
-                }
-
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>typ, ident.location)<span class="question-mark">?</span>;
-                <span class="kw">let </span>value = SignedField::positive(value);
-                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                <span class="kw">let </span>value = Type::TypeVariable(type_variable.clone());
+                <span class="self">self</span>.numeric_generic(value, numeric_typ.as_ref().clone(), typ, location)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) =&gt; {
                 <span class="kw">let </span>location = ident.location;
@@ -3759,20 +3791,45 @@
                     <span class="prelude-val">Ok</span>(value) =&gt; {
                         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>numeric_type, location)<span class="question-mark">?</span>;
                         <span class="kw">let </span>value = SignedField::positive(value);
-                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                        <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
-                    <span class="prelude-val">Err</span>(err) =&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::CannotComputeAssociatedConstant {
-                            name: name.clone(),
-                            err,
-                            location,
-                        });
-                    }
+                    <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(MonomorphizationError::CannotComputeAssociatedConstant {
+                        name: name.clone(),
+                        err,
+                        location,
+                    }),
                 }
             }
-        };
+        }
+    }
 
-        <span class="prelude-val">Ok</span>(ident)
+    <span class="doccomment">/// Monomorphize a numeric generic as a numeric constant.
+    /// Expects arguments to correspond to `let N: $expected_type = $value;`
+    </span><span class="kw">fn </span>numeric_generic(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        value: Type,
+        expected_type: Type,
+        expr_type: Type,
+        location: Location,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="kw">let </span>expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
+        <span class="kw">let </span>value = value.evaluate_to_field_element(<span class="kw-2">&amp;</span>expected_kind, location).map_err(|err| {
+            MonomorphizationError::UnknownArrayLength {
+                length: value.follow_bindings(),
+                err,
+                location,
+            }
+        })<span class="question-mark">?</span>;
+
+        <span class="kw">let </span>expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        <span class="kw">if </span>!expected_kind.unifies(<span class="kw-2">&amp;</span>expr_kind) {
+            <span class="kw">let </span>message = <span class="string">"ICE: Generic's kind does not match expected type"</span>;
+            <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::InternalError { location, message });
+        }
+
+        <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>expected_type, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>value = SignedField::positive(value);
+        <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 
     <span class="kw">fn </span>global_ident(
@@ -4208,29 +4265,43 @@
         </span>}
     }
 
-    <span class="kw">fn </span>resolve_trait_method_expr(
+    <span class="kw">fn </span>resolve_trait_item_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         expr_id: node_interner::ExprId,
         function_type: HirType,
-        method: TraitMethodId,
+        trait_item_id: TraitItemId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
-        <span class="kw">let </span>func_id = resolve_trait_method(<span class="self">self</span>.interner, method, expr_id)
+        <span class="kw">let </span>item = resolve_trait_item(<span class="self">self</span>.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>func_id =
-            <span class="kw">match </span><span class="self">self</span>.lookup_function(func_id, expr_id, <span class="kw-2">&amp;</span>function_type, <span class="kw-2">&amp;</span>[], <span class="prelude-val">Some</span>(method)) {
-                Definition::Function(func_id) =&gt; func_id,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-            };
+        <span class="kw">let </span>func_id = <span class="kw">match </span>item {
+            TraitItem::Method(func_id) =&gt; func_id,
+            TraitItem::Constant { id, expected_type, value } =&gt; {
+                <span class="kw">let </span>location = <span class="self">self</span>.interner.definition(id).location;
+                <span class="kw">let </span>expr_type = <span class="self">self</span>.interner.id_type(expr_id);
+                <span class="kw">return </span><span class="self">self</span>.numeric_generic(value, expected_type, expr_type, location);
+            }
+        };
 
-        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(method.trait_id);
+        <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.lookup_function(
+            func_id,
+            expr_id,
+            <span class="kw-2">&amp;</span>function_type,
+            <span class="kw-2">&amp;</span>[],
+            <span class="prelude-val">Some</span>(trait_item_id),
+        ) {
+            Definition::Function(func_id) =&gt; func_id,
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        };
+
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
+        <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(trait_item_id.item_id).to_string();
 
         <span class="prelude-val">Ok</span>(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
             mutable: <span class="bool-val">false</span>,
             location: <span class="prelude-val">None</span>,
-            name: the_trait.methods[method.method_index].name.to_string(),
+            name,
             typ: <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>function_type, location)<span class="question-mark">?</span>,
             id: <span class="self">self</span>.next_ident_id(),
         }))
@@ -4449,7 +4520,7 @@
         expr_id: node_interner::ExprId,
         function_type: HirType,
         turbofish_generics: Vec&lt;HirType&gt;,
-        trait_method: <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt;,
+        trait_method: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
     ) -&gt; FuncId {
         <span class="kw">let </span>new_id = <span class="self">self</span>.next_function_id();
         <span class="kw">let </span>is_unconstrained = <span class="self">self</span>.is_unconstrained(id);
@@ -5068,20 +5139,17 @@
 /// the correct type bindings during monomorphization.
 </span><span class="kw">pub fn </span>perform_impl_bindings(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
-    trait_method: <span class="prelude-ty">Option</span>&lt;TraitMethodId&gt;,
+    trait_method: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
     impl_method: node_interner::FuncId,
     location: Location,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;TypeBindings, InterpreterError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_method) = trait_method {
-        <span class="kw">let </span>the_trait = interner.get_trait(trait_method.trait_id);
-
         <span class="kw">let </span><span class="kw-2">mut </span>trait_method_type =
-            the_trait.methods[trait_method.method_index].typ.as_monotype().clone();
+            interner.definition_type(trait_method.item_id).as_monotype().clone();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>impl_method_type =
-            interner.function_meta(<span class="kw-2">&amp;</span>impl_method).typ.unwrap_forall().<span class="number">1</span>.clone();
+        <span class="kw">let </span><span class="kw-2">mut </span>impl_method_type = interner.function_meta(<span class="kw-2">&amp;</span>impl_method).typ.as_monotype().clone();
 
         <span class="comment">// Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id, binding.
@@ -5096,30 +5164,36 @@
             }
         })<span class="question-mark">?</span>;
 
+        <span class="kw">for </span>(<span class="kw">_</span>, kind, binding) <span class="kw">in </span>bindings.values_mut() {
+            <span class="kw-2">*</span>kind = kind.follow_bindings();
+            <span class="kw-2">*</span>binding = binding.follow_bindings();
+        }
+
         perform_instantiation_bindings(<span class="kw-2">&amp;</span>bindings);
     }
 
     <span class="prelude-val">Ok</span>(bindings)
 }
 
-<span class="kw">pub fn </span>resolve_trait_method(
+<span class="doccomment">/// Resolve a trait item to a particular impl
+</span><span class="kw">fn </span>resolve_trait_item_impl(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-    method: TraitMethodId,
+    method_id: TraitItemId,
     expr_id: ExprId,
-) -&gt; <span class="prelude-ty">Result</span>&lt;node_interner::FuncId, InterpreterError&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;node_interner::TraitImplId, InterpreterError&gt; {
     <span class="kw">let </span>trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
         InterpreterError::NoImpl { location }
     })<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>impl_id = <span class="kw">match </span>trait_impl {
-        TraitImplKind::Normal(impl_id) =&gt; impl_id,
+    <span class="kw">match </span>trait_impl {
+        TraitImplKind::Normal(impl_id) =&gt; <span class="prelude-val">Ok</span>(impl_id),
         TraitImplKind::Assumed { object_type, trait_generics } =&gt; {
             <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
 
             <span class="kw">match </span>interner.lookup_trait_implementation(
                 <span class="kw-2">&amp;</span>object_type,
-                method.trait_id,
+                method_id.trait_id,
                 <span class="kw-2">&amp;</span>trait_generics.ordered,
                 <span class="kw-2">&amp;</span>trait_generics.named,
             ) {
@@ -5129,35 +5203,81 @@
                     </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = interner.get_instantiation_bindings(expr_id).clone();
                     bindings.extend(instantiation_bindings);
                     interner.store_instantiation_bindings(expr_id, bindings);
-                    impl_id
+                    <span class="prelude-val">Ok</span>(impl_id)
                 }
                 <span class="prelude-val">Ok</span>((TraitImplKind::Assumed { .. }, _instantiation_bindings)) =&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NoImpl { location });
+                    <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
                 }
                 <span class="prelude-val">Err</span>(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) =&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+                    <span class="prelude-val">Err</span>(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
                 }
                 <span class="prelude-val">Err</span>(ImplSearchErrorKind::Nested(constraints)) =&gt; {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NoMatchingImplFound { error });
+                        <span class="prelude-val">Err</span>(InterpreterError::NoMatchingImplFound { error })
                     } <span class="kw">else </span>{
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NoImpl { location });
+                        <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
                     }
                 }
                 <span class="prelude-val">Err</span>(ImplSearchErrorKind::MultipleMatching(candidates)) =&gt; {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::MultipleMatchingImpls {
+                    <span class="prelude-val">Err</span>(InterpreterError::MultipleMatchingImpls {
                         object_type,
                         location,
                         candidates,
-                    });
+                    })
                 }
             }
         }
-    };
+    }
+}
 
-    <span class="prelude-val">Ok</span>(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_trait_item(
+    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    method_id: TraitItemId,
+    expr_id: ExprId,
+) -&gt; <span class="prelude-ty">Result</span>&lt;TraitItem, InterpreterError&gt; {
+    <span class="kw">let </span>impl_id = resolve_trait_item_impl(interner, method_id, expr_id)<span class="question-mark">?</span>;
+
+    <span class="kw">let </span>name = interner.definition_name(method_id.item_id);
+    <span class="kw">let </span>impl_ = interner.get_trait_implementation(impl_id);
+    <span class="kw">let </span>impl_ = impl_.borrow();
+
+    <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>impl_.methods {
+        <span class="kw">if </span>interner.function_name(method) == name {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(TraitItem::Method(<span class="kw-2">*</span>method));
+        }
+    }
+
+    <span class="kw">if let </span><span class="prelude-val">Some</span>((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
+        <span class="comment">// The lookup above returns the expected type but not the value that
+        // is expected to resolve to a Type::Constant - we have to look that up separately.
+        </span><span class="kw">for </span>item <span class="kw">in </span>interner.get_associated_types_for_impl(impl_id) {
+            <span class="kw">if </span>item.name.as_str() == name {
+                <span class="kw">let </span>expected_type = expected_type.clone();
+                <span class="kw">let </span>id = <span class="kw-2">*</span>id;
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(TraitItem::Constant { id, expected_type, value: item.typ.clone() });
+            }
+        }
+    }
+
+    <span class="macro">unreachable!</span>(<span class="string">"No method named `{name}` in impl"</span>)
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TraitItem {
+    Method(node_interner::FuncId),
+    Constant { id: node_interner::DefinitionId, expected_type: Type, value: Type },
+}
+
+<span class="kw">impl </span>TraitItem {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; node_interner::FuncId {
+        <span class="kw">match </span><span class="self">self </span>{
+            TraitItem::Method(func_id) =&gt; <span class="kw-2">*</span>func_id,
+            TraitItem::Constant { .. } =&gt; {
+                <span class="macro">panic!</span>(<span class="string">"Expected `TraitItem::Method`, but found `TraitItem::Constant`"</span>)
+            }
+        }
+    }
 }
 
 <span class="doccomment">/// Extend the arguments to `print` (which is a `bool` to show if newline is needed and
