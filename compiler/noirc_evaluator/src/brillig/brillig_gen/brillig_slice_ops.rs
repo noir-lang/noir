@@ -1,3 +1,4 @@
+//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
 use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
