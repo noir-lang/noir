@@ -1,19 +1,17 @@
-use acvm::acir::circuit::ExpressionWidth;
 use noirc_abi::Abi;
 use noirc_driver::{CompileError, CompileOptions, CompiledProgram, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::call_stack::CallStack;
 use noirc_evaluator::{
-    brillig::BrilligOptions,
     errors::{InternalError, RuntimeError},
     ssa::{
-        ArtifactsAndWarnings, SsaBuilder, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
+        ArtifactsAndWarnings, SsaBuilder, SsaEvaluatorOptions, SsaProgramArtifact,
         combine_artifacts, optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
         ssa_gen::{Ssa, validate_ssa},
     },
 };
 use noirc_frontend::shared::Visibility;
-use std::collections::BTreeMap;
 use std::panic::AssertUnwindSafe;
+use std::{collections::BTreeMap, path::PathBuf};
 
 /// Optimizes the given SSA into ACIR
 pub fn optimize_ssa_into_acir(
@@ -100,33 +98,10 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
     }
 }
 
-pub fn evaluator_options(options: &CompileOptions) -> SsaEvaluatorOptions {
-    SsaEvaluatorOptions {
-        ssa_logging: if !options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } else if options.show_ssa {
-            SsaLogging::All
-        } else {
-            SsaLogging::None
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        brillig_options: BrilligOptions::default(),
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_passes: options.skip_ssa_pass.clone(),
-    }
-}
-
-pub(crate) fn compile_from_ssa(
+pub fn compile_from_ssa(
     ssa: Ssa,
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
-    let artifacts = optimize_ssa_into_acir(ssa, evaluator_options(options))?;
+    let artifacts = optimize_ssa_into_acir(ssa, options.as_ssa_options(PathBuf::new()))?;
     Ok(compile_from_artifacts(artifacts))
 }
