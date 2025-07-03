@@ -1152,7 +1152,7 @@ impl<'interner> Monomorphizer<'interner> {
         let value = value
             .evaluate_to_field_element(&Kind::Numeric(Box::new(expected_type.clone())), location)
             .map_err(|err| MonomorphizationError::UnknownArrayLength {
-                length: value,
+                length: value.follow_bindings(),
                 err,
                 location,
             })?;
