@@ -1,8 +1,8 @@
 //! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
-use acvm::acir::circuit::ExpressionWidth;
 use fm::{FileId, FileManager};
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::report_errors;
@@ -14,7 +14,6 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -70,10 +69,13 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
     let (file_manager, parsed_files) = parse_workspace(&workspace, None);
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-    let ssa_options = to_ssa_options(&args.compile_options);
-    let ssa_passes = primary_passes(&ssa_options);
+    let opts = args.compile_options.as_ssa_options(PathBuf::new());
+    let ssa_passes = primary_passes(&opts);
 
     for package in binary_packages {
+        let ssa_options =
+            &args.compile_options.as_ssa_options(workspace.package_build_path(package));
+
         // Compile into monomorphized AST
         let program_result = compile_into_program(
             &file_manager,
@@ -128,7 +130,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let interpreter_options = InterpreterOptions { trace: args.trace };
 
         print_and_interpret_ssa(
-            &ssa_options,
+            ssa_options,
             &args.ssa_pass,
             &mut ssa,
             "Initial SSA",
@@ -151,7 +153,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
             print_and_interpret_ssa(
-                &ssa_options,
+                ssa_options,
                 &args.ssa_pass,
                 &mut ssa,
                 &msg,
@@ -216,28 +218,6 @@ fn compile_into_program(
     let abi = gen_abi(&context, &main_id, program.return_visibility(), error_types);
 
     Ok(((program, abi), warnings))
-}
-
-fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
-    SsaEvaluatorOptions {
-        ssa_logging: if !options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } else if options.show_ssa {
-            SsaLogging::All
-        } else {
-            SsaLogging::None
-        },
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: None,
-        skip_underconstrained_check: true,
-        enable_brillig_constraints_check_lookback: false,
-        skip_brillig_constraints_check: true,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    }
 }
 
 fn msg_matches(patterns: &[String], msg: &str) -> bool {
