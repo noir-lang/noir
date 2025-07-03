@@ -2365,7 +2365,7 @@
                             }
                             <span class="prelude-val">Err</span>((first_def, second_def)) =&gt; {
                                 <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
-                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    typ: DuplicateType::TraitAssociatedItem,
                                     first_def,
                                     second_def,
                                 };
@@ -2390,7 +2390,7 @@
                             .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedConst,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };
@@ -2430,7 +2430,7 @@
                             )
                         {
                             <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedType,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };

@@ -361,7 +361,7 @@
 
                 <span class="kw">if </span>overrides.len() &gt; <span class="number">1 </span>{
                     <span class="self">self</span>.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
+                        typ: DuplicateType::TraitAssociatedItem,
                         first_def: overrides[<span class="number">0</span>].<span class="number">2</span>.name_ident().clone(),
                         second_def: overrides[<span class="number">1</span>].<span class="number">2</span>.name_ident().clone(),
                     });

@@ -2,7 +2,7 @@
     interner: &amp;<a class="struct" href="../../node_interner/struct.NodeInterner.html" title="struct noirc_frontend::node_interner::NodeInterner">NodeInterner</a>,
     called_func: &amp;<a class="struct" href="../../node_interner/struct.FuncId.html" title="struct noirc_frontend::node_interner::FuncId">FuncId</a>,
     calling_from_constrained_runtime: <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>,
-    location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
+    location: Location,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../hir/resolution/errors/enum.ResolverError.html" title="enum noirc_frontend::hir::resolution::errors::ResolverError">ResolverError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Oracle functions may not be called by constrained functions directly.</p>
 <p>In order for a constrained function to call an oracle it must first call through an unconstrained function.</p>
 </div></details></section></div></main></body></html>

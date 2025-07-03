@@ -298,11 +298,7 @@
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
 <a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
@@ -321,9 +317,7 @@
     Import,
     Trait,
     TraitImplementation,
-    TraitAssociatedType,
-    TraitAssociatedConst,
-    TraitAssociatedFunction,
+    TraitAssociatedItem,
     StructField,
     EnumVariant,
 }
@@ -449,9 +443,7 @@
             DuplicateType::Trait =&gt; <span class="macro">write!</span>(f, <span class="string">"trait definition"</span>),
             DuplicateType::TraitImplementation =&gt; <span class="macro">write!</span>(f, <span class="string">"trait implementation"</span>),
             DuplicateType::Import =&gt; <span class="macro">write!</span>(f, <span class="string">"import"</span>),
-            DuplicateType::TraitAssociatedType =&gt; <span class="macro">write!</span>(f, <span class="string">"trait associated type"</span>),
-            DuplicateType::TraitAssociatedConst =&gt; <span class="macro">write!</span>(f, <span class="string">"trait associated constant"</span>),
-            DuplicateType::TraitAssociatedFunction =&gt; <span class="macro">write!</span>(f, <span class="string">"trait associated function"</span>),
+            DuplicateType::TraitAssociatedItem =&gt; <span class="macro">write!</span>(f, <span class="string">"trait associated item"</span>),
             DuplicateType::StructField =&gt; <span class="macro">write!</span>(f, <span class="string">"struct field"</span>),
             DuplicateType::EnumVariant =&gt; <span class="macro">write!</span>(f, <span class="string">"enum variant"</span>),
         }
