@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751565101593,
+  "lastUpdate": 1751565456134,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f8c71c261bfe2d4dc5d5d25db3d587c4463862a6",
-          "message": "fix: recover generics when defining trait impl function (#9009)",
-          "timestamp": "2025-06-24T13:19:18Z",
-          "tree_id": "bb6c4d0f1c4e958cb6fd6109fb6834bd2374aac0",
-          "url": "https://github.com/noir-lang/noir/commit/f8c71c261bfe2d4dc5d5d25db3d587c4463862a6"
-        },
-        "date": 1750772953615,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.374,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.936,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.084,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 19.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 180,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 182,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.28,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.336,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.77,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.789,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e64ae7df47d10faeb82368604df83a5a2689eba0",
+          "message": "feat: Allow TraitAsType syntax to refer to associated constants in expressions (#9041)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-03T17:23:06Z",
+          "tree_id": "20cd95cc72d186b24abff7b72d72a13a514c5531",
+          "url": "https://github.com/noir-lang/noir/commit/e64ae7df47d10faeb82368604df83a5a2689eba0"
+        },
+        "date": 1751565442436,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.458,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.82,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.162,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 195,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 197,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.724,
             "unit": "s"
           }
         ]
