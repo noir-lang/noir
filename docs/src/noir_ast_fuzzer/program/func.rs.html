@@ -1676,11 +1676,71 @@
 <a href="#1675" id="1675">1675</a>
 <a href="#1676" id="1676">1676</a>
 <a href="#1677" id="1677">1677</a>
-<a href="#1678" id="1678">1678</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
-    ops::Deref,
 };
 <span class="kw">use </span>strum::IntoEnumIterator;
 
@@ -1825,6 +1885,16 @@
     </span>!callee_has_refs
 }
 
+<span class="doccomment">/// Make a name for a local variable.
+</span><span class="kw">fn </span>local_name(id: LocalId) -&gt; String {
+    make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>)
+}
+
+<span class="doccomment">/// Make a name for a local index variable.
+</span><span class="kw">fn </span>index_name(id: LocalId) -&gt; String {
+    <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, local_name(id))
+}
+
 <span class="doccomment">/// Control what kind of expressions we can generate, depending on the surrounding context.
 </span><span class="attr">#[derive(Debug, Clone, Copy)]
 </span><span class="kw">struct </span>Flags {
@@ -1845,6 +1915,21 @@
     <span class="doccomment">/// In call arguments we can use `if` expressions, but avoid blocks.
     /// The arg expressions themselves might call other functions.
     </span><span class="kw">const </span>CALL: <span class="self">Self </span>= <span class="self">Self </span>{ allow_blocks: <span class="bool-val">false</span>, allow_if_then: <span class="bool-val">true </span>};
+}
+
+<span class="doccomment">/// Helper data structure for generating the lvalue of assignments.
+</span><span class="kw">struct </span>LValueWithMeta {
+    <span class="doccomment">/// The lvalue to assign to, e.g. `a[i]`.
+    </span>lvalue: LValue,
+    <span class="doccomment">/// The type of the value that needs to be assigned, e.g. an array item type.
+    </span>typ: Type,
+    <span class="doccomment">/// Indicate whether any dynamic input was used to generate the lvalue, e.g. for an array index.
+    /// This does not depend on whether the variable that we assign to was dynamic *before* the assignment.
+    </span>is_dyn: bool,
+    <span class="doccomment">/// Indicate whether we are assigning to just a part of a complex type.
+    </span>is_compound: bool,
+    <span class="doccomment">/// Any statements that had to be broken out to control the side effects of indexing.
+    </span>statements: <span class="prelude-ty">Option</span>&lt;Vec&lt;Expression&gt;&gt;,
 }
 
 <span class="doccomment">/// Context used during the generation of a function body.
@@ -2626,7 +2711,7 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.ctx.gen_type(u, max_depth, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="bool-val">true</span>, comptime_friendly)<span class="question-mark">?</span>;
         <span class="kw">let </span>(expr, is_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
         <span class="kw">let </span>mutable = bool::arbitrary(u)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>, is_dyn))
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.let_var(mutable, typ, expr, <span class="bool-val">true</span>, is_dyn, local_name))
     }
 
     <span class="doccomment">/// Add a new local variable and return a `Let` expression.
@@ -2639,9 +2724,10 @@
         expr: Expression,
         add_to_scope: bool,
         is_dynamic: bool,
+        make_name: <span class="kw">impl </span>Fn(LocalId) -&gt; String,
     ) -&gt; Expression {
         <span class="kw">let </span>id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>name = make_name(id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>);
+        <span class="kw">let </span>name = make_name(id);
 
         <span class="comment">// Add the variable so we can use it in subsequent expressions.
         </span><span class="kw">if </span>add_to_scope {
@@ -2663,8 +2749,9 @@
         expr: Expression,
         add_to_scope: bool,
         is_dynamic: bool,
+        make_name: <span class="kw">impl </span>Fn(LocalId) -&gt; String,
     ) -&gt; (Expression, Ident) {
-        <span class="kw">let </span>v = <span class="self">self</span>.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic);
+        <span class="kw">let </span>v = <span class="self">self</span>.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic, make_name);
         <span class="kw">let </span>Expression::Let(Let { id, name, .. }) = <span class="kw-2">&amp;</span>v <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"expected to Let; got {v:?}"</span>);
         };
@@ -2698,11 +2785,57 @@
         }
 
         <span class="kw">let </span>id = <span class="kw-2">*</span>u.choose_iter(opts)<span class="question-mark">?</span>;
-        <span class="kw">let </span>ident = <span class="self">self</span>.local_ident(id);
-        <span class="kw">let </span>ident = LValue::Ident(ident);
+        <span class="kw">let </span>ident = LValue::Ident(<span class="self">self</span>.local_ident(id));
+        <span class="kw">let </span>typ = <span class="self">self</span>.local_type(id).clone();
+        <span class="kw">let </span>lvalue = <span class="self">self</span>.gen_lvalue(u, ident, typ)<span class="question-mark">?</span>;
 
+        <span class="comment">// Generate the assigned value.
+        </span><span class="kw">let </span>(expr, expr_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lvalue.typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
+
+        <span class="kw">if </span>lvalue.is_dyn || expr_dyn {
+            <span class="self">self</span>.dynamics.insert(id);
+        } <span class="kw">else if </span>!lvalue.is_dyn &amp;&amp; !expr_dyn &amp;&amp; !lvalue.is_compound {
+            <span class="comment">// This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+            // in which case we don't know if other members have dynamic properties.
+            </span><span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
+        }
+
+        <span class="kw">let </span>assign =
+            Expression::Assign(Assign { lvalue: lvalue.lvalue, expression: Box::new(expr) });
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">mut </span>statements) = lvalue.statements {
+            statements.push(assign);
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Block(statements)))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(assign))
+        }
+    }
+
+    <span class="doccomment">/// Generate an lvalue to assign to a local variable, or some part of it, if it's a compound type.
+    ///
+    /// Say we have an array: `a: [[u32; 2]; 3]`; we call it with `a`, and it might return `a`, `a[i]`, or `a[i][j]`.
+    </span><span class="kw">fn </span>gen_lvalue(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        lvalue: LValue,
+        typ: Type,
+    ) -&gt; arbitrary::Result&lt;LValueWithMeta&gt; {
+        <span class="doccomment">/// Accumulate statements for sub-indexes of multi-dimensional arrays.
+        /// For example `a[1+2][3+4] = 5;` becomes `let i = 1+2; let j = 3+4; a[i][j] = 5;`
+        </span><span class="kw">fn </span>merge_statements(
+            a: <span class="prelude-ty">Option</span>&lt;Vec&lt;Expression&gt;&gt;,
+            b: <span class="prelude-ty">Option</span>&lt;Vec&lt;Expression&gt;&gt;,
+        ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;Expression&gt;&gt; {
+            <span class="kw">match </span>(a, b) {
+                (x, <span class="prelude-val">None</span>) | (<span class="prelude-val">None</span>, x) =&gt; x,
+                (<span class="prelude-val">Some</span>(<span class="kw-2">mut </span>a), <span class="prelude-val">Some</span>(<span class="kw-2">mut </span>b)) =&gt; {
+                    a.append(<span class="kw-2">&amp;mut </span>b);
+                    <span class="prelude-val">Some</span>(a)
+                }
+            }
+        }
         <span class="comment">// For arrays and tuples we can consider assigning to their items.
-        </span><span class="kw">let </span>(lvalue, typ, idx_dyn, is_compound, prefix) = <span class="kw">match </span><span class="self">self</span>.local_type(id).clone() {
+        </span><span class="kw">let </span>lvalue = <span class="kw">match </span>typ {
             Type::Array(len, typ) <span class="kw">if </span>len &gt; <span class="number">0 </span>&amp;&amp; bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>(idx, idx_dyn) = <span class="self">self</span>.gen_index(u, len, <span class="self">self</span>.max_depth())<span class="question-mark">?</span>;
 
@@ -2711,53 +2844,42 @@
                 // In the compiler the `Elaborator::fresh_definition_for_lvalue_index` decides.
                 </span><span class="kw">let </span>needs_prefix = !<span class="macro">matches!</span>(idx, Expression::Ident(<span class="kw">_</span>) | Expression::Literal(<span class="kw">_</span>));
 
-                <span class="comment">// We could consider 2D arrays here and pick indexes for sub-arrays.
-                // That is, even if we have `a: [[T; N]; M]` it currently only assigns
-                // to `a[i]`, not `a[i][j]`. Should we do that, instead of a single prefix,
-                // we would have to collect all index assignments in a list first.
-                </span><span class="kw">let </span>(idx, prefix) = <span class="kw">if </span>needs_prefix {
-                    <span class="kw">let </span>(idx, idx_ident) =
-                        <span class="self">self</span>.let_var_and_ident(<span class="bool-val">false</span>, types::U32, idx, <span class="bool-val">false</span>, idx_dyn);
-                    (Expression::Ident(idx_ident), <span class="prelude-val">Some</span>(idx))
+                <span class="kw">let </span>(idx, statements) = <span class="kw">if </span>needs_prefix {
+                    <span class="kw">let </span>(let_idx, idx_ident) =
+                        <span class="self">self</span>.let_var_and_ident(<span class="bool-val">false</span>, types::U32, idx, <span class="bool-val">false</span>, idx_dyn, index_name);
+                    (Expression::Ident(idx_ident), <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[let_idx]))
                 } <span class="kw">else </span>{
                     (idx, <span class="prelude-val">None</span>)
                 };
 
-                <span class="kw">let </span>lvalue = LValue::Index {
-                    array: Box::new(ident),
+                <span class="kw">let </span>typ = typ.as_ref().clone();
+                <span class="kw">let </span>index = LValue::Index {
+                    array: Box::new(lvalue),
                     index: Box::new(idx),
-                    element_type: typ.as_ref().clone(),
+                    element_type: typ.clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone(), idx_dyn, <span class="bool-val">true</span>, prefix)
+
+                <span class="kw">let </span><span class="kw-2">mut </span>lvalue = <span class="self">self</span>.gen_lvalue(u, index, typ)<span class="question-mark">?</span>;
+                lvalue.is_compound = <span class="bool-val">true</span>;
+                lvalue.is_dyn |= idx_dyn;
+                lvalue.statements = merge_statements(statements, lvalue.statements);
+                lvalue
             }
             Type::Tuple(items) <span class="kw">if </span>bool::arbitrary(u)<span class="question-mark">? </span>=&gt; {
                 <span class="kw">let </span>idx = u.choose_index(items.len())<span class="question-mark">?</span>;
                 <span class="kw">let </span>typ = items[idx].clone();
-                <span class="kw">let </span>lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ, <span class="bool-val">false</span>, <span class="bool-val">true</span>, <span class="prelude-val">None</span>)
+                <span class="kw">let </span>member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
+                <span class="kw">let </span><span class="kw-2">mut </span>lvalue = <span class="self">self</span>.gen_lvalue(u, member, typ)<span class="question-mark">?</span>;
+                lvalue.is_compound = <span class="bool-val">true</span>;
+                lvalue
             }
-            typ =&gt; (ident, typ, <span class="bool-val">false</span>, <span class="bool-val">false</span>, <span class="prelude-val">None</span>),
+            typ =&gt; {
+                LValueWithMeta { lvalue, typ, is_dyn: <span class="bool-val">false</span>, is_compound: <span class="bool-val">false</span>, statements: <span class="prelude-val">None </span>}
+            }
         };
 
-        <span class="comment">// Generate the assigned value.
-        </span><span class="kw">let </span>(expr, expr_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
-
-        <span class="kw">if </span>idx_dyn || expr_dyn {
-            <span class="self">self</span>.dynamics.insert(id);
-        } <span class="kw">else if </span>!idx_dyn &amp;&amp; !expr_dyn &amp;&amp; !is_compound {
-            <span class="comment">// This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
-            // in which case we don't know if other members have dynamic properties.
-            </span><span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
-        }
-
-        <span class="kw">let </span>assign = Expression::Assign(Assign { lvalue, expression: Box::new(expr) });
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(prefix) = prefix {
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(Expression::Block(<span class="macro">vec!</span>[prefix, assign])))
-        } <span class="kw">else </span>{
-            <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(assign))
-        }
+        <span class="prelude-val">Ok</span>(lvalue)
     }
 
     <span class="doccomment">/// Generate a `println` statement, if there is some printable local variable.
@@ -2916,7 +3038,7 @@
 
         <span class="comment">// Declare index variable, but only visible in the loop body, not the range.
         </span><span class="kw">let </span>idx_id = <span class="self">self</span>.next_local_id();
-        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
+        <span class="kw">let </span>idx_name = index_name(idx_id);
 
         <span class="comment">// Add a scope which will hold the index variable.
         </span><span class="self">self</span>.locals.enter();
@@ -3151,7 +3273,7 @@
             <span class="kw">let </span>typ = (<span class="kw-2">*</span>u.choose_iter(opts.iter())<span class="question-mark">?</span>).clone();
             <span class="comment">// Assign the result of the call to a variable we won't use.
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>((call, is_dyn)) = <span class="self">self</span>.gen_call(u, <span class="kw-2">&amp;</span>typ, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
-                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.let_var(<span class="bool-val">false</span>, typ, call, <span class="bool-val">false</span>, is_dyn)));
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="self">self</span>.let_var(<span class="bool-val">false</span>, typ, call, <span class="bool-val">false</span>, is_dyn, local_name)));
             }
         }
         <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
@@ -3291,7 +3413,7 @@
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     </span><span class="kw">fn </span>indirect_ref_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, (expr, is_dyn): TrackedExpression, typ: Type) -&gt; Expression {
         <span class="kw">let </span>(let_expr, let_ident) =
-            <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">false</span>, is_dyn);
+            <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">false</span>, is_dyn, local_name);
         <span class="kw">let </span>ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(<span class="macro">vec!</span>[let_expr, ref_expr])
     }
