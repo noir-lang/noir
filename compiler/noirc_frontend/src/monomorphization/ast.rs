@@ -7,7 +7,7 @@ use noirc_errors::{
 };
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, UnaryOp},
+    ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
@@ -81,13 +81,7 @@ impl Expression {
                 }),
             },
             Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
-            Expression::Unary(unary) => {
-                if let UnaryOp::Reference { mutable } = unary.operator {
-                    owned(Type::Reference(Box::new(unary.result_type.clone()), mutable))
-                } else {
-                    borrowed(&unary.result_type)
-                }
-            }
+            Expression::Unary(unary) => borrowed(&unary.result_type),
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {
                     borrowed(&Type::Bool)

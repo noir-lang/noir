@@ -1030,7 +1030,14 @@ impl<'a> FunctionContext<'a> {
 
                 // If the index expressions can have side effects, we need to assign it to a
                 // temporary variable to match the sequencing done by the frontend; see #8384.
-                let (idx, prefix) = if expr::has_side_effect(&idx) {
+                // In the compiler the `Elaborator::fresh_definition_for_lvalue_index` decides.
+                let needs_prefix = !matches!(idx, Expression::Ident(_) | Expression::Literal(_));
+
+                // We could consider 2D arrays here and pick indexes for sub-arrays.
+                // That is, even if we have `a: [[T; N]; M]` it currently only assigns
+                // to `a[i]`, not `a[i][j]`. Should we do that, instead of a single prefix,
+                // we would have to collect all index assignments in a list first.
+                let (idx, prefix) = if needs_prefix {
                     let (idx, idx_ident) =
                         self.let_var_and_ident(false, types::U32, idx, false, idx_dyn);
                     (Expression::Ident(idx_ident), Some(idx))
@@ -1612,52 +1619,60 @@ impl<'a> FunctionContext<'a> {
     }
 }
 
-#[test]
-fn test_loop() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+#[cfg(test)]
+mod tests {
+    use arbitrary::Unstructured;
+    use noirc_frontend::monomorphization::ast::FuncId;
 
-    assert!(
-        loop_code.starts_with(
-            &r#"{
+    use crate::program::{Context, FunctionContext};
+
+    #[test]
+    fn test_loop() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+        assert!(
+            loop_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1);"#
-                .replace(" ", "")
-        )
-    );
-}
+                    .replace(" ", "")
+            )
+        );
+    }
 
-#[test]
-fn test_while() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+    #[test]
+    fn test_while() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
-    assert!(
-        while_code.starts_with(
-            &r#"{
+        assert!(
+            while_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     while (!false) {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1)"#
-                .replace(" ", "")
-        )
-    );
+                    .replace(" ", "")
+            )
+        );
+    }
 }
