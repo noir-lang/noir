@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751578267777,
+  "lastUpdate": 1751578324498,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14814,85 +14814,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "35ac5b5acbe71bdf419b58ffac21de23ea992384",
-          "message": "chore: test noir-ecdsa library in CI (#8859)",
-          "timestamp": "2025-06-12T09:32:25Z",
-          "tree_id": "de6d17a30a903e5b445493b677d3041e64f8db3a",
-          "url": "https://github.com/noir-lang/noir/commit/35ac5b5acbe71bdf419b58ffac21de23ea992384"
-        },
-        "date": 1749722478478,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
-            "value": 69,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
-            "value": 110,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
-            "value": 45,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 207,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
-            "value": 257,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
-            "value": 71,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 376,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 236,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 30,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 100,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -18722,6 +18643,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir_rsa_",
             "value": 0,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f69354be3db5367729628f56cf4c21634f6358e",
+          "message": "chore: remove redundant associated constant lookup (#9114)",
+          "timestamp": "2025-07-03T20:51:03Z",
+          "tree_id": "77386e210add94467a6721150b71f348e3ba3ce0",
+          "url": "https://github.com/noir-lang/noir/commit/4f69354be3db5367729628f56cf4c21634f6358e"
+        },
+        "date": 1751578311061,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_aztec-nr",
+            "value": 100,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-contracts",
+            "value": 146,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_blob",
+            "value": 184,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 217,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_rollup-lib",
+            "value": 823,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_noir-protocol-circuits_crates_types",
+            "value": 92,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 389,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 298,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 15,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 99,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 1,
             "unit": "s"
           }
         ]
