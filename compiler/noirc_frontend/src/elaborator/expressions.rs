@@ -1089,8 +1089,8 @@ impl Elaborator<'_> {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
-                    let trait_method_id =
-                        trait_method_id.expect("ice: expected some trait_id when use_impl is true");
+                    let trait_method_id = trait_method_id
+                        .expect("ice: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
