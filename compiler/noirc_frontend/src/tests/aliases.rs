@@ -1,6 +1,4 @@
 use crate::assert_no_errors;
-use crate::check_errors;
-use crate::get_program_errors;
 
 #[named]
 #[test]
