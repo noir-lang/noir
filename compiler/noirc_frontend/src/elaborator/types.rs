@@ -1851,8 +1851,8 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirMethodReference::TraitItemId(method_id, _, generics, _)) = self
-                    .lookup_method_in_trait(
+                if let Some(HirMethodReference::TraitItemId(method_id, trait_id, generics, _)) =
+                    self.lookup_method_in_trait(
                         the_trait,
                         method_name,
                         &constraint.trait_bound,
@@ -1860,6 +1860,8 @@ impl Elaborator<'_> {
                     )
                 {
                     // If it is, it's an assumed trait
+                    // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
+                    // might return a method on a parent trait.
                     return Some(HirMethodReference::TraitItemId(
                         method_id, trait_id, generics, true,
                     ));
