@@ -45,6 +45,8 @@ pub struct Config {
     pub vary_loop_size: bool,
     /// Maximum number of recursive calls to make at runtime.
     pub max_recursive_calls: usize,
+    /// Maximum number of match cases.
+    pub max_match_cases: usize,
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
@@ -80,6 +82,7 @@ impl Default for Config {
             ("unary", 10),
             ("binary", 20),
             ("if", 15),
+            ("match", 15),
             ("block", 30),
             ("vars", 25),
             ("literal", 5),
@@ -88,6 +91,7 @@ impl Default for Config {
         let stmt_freqs_acir = Freqs::new(&[
             ("assign", 30),
             ("if", 10),
+            ("match", 10),
             ("for", 22),
             ("let", 25),
             ("call", 5),
@@ -98,6 +102,7 @@ impl Default for Config {
             ("continue", 20),
             ("assign", 30),
             ("if", 10),
+            ("match", 10),
             ("for", 15),
             ("loop", 15),
             ("while", 15),
@@ -119,6 +124,7 @@ impl Default for Config {
             max_loop_size: 10,
             vary_loop_size: true,
             max_recursive_calls: 25,
+            max_match_cases: 3,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,

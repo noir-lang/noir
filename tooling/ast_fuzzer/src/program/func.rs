@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -8,17 +9,22 @@ use strum::IntoEnumIterator;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
-    hir_def::{self, expr::HirIdent, stmt::HirPattern},
+    hir_def::{
+        self,
+        expr::{Constructor, HirIdent},
+        stmt::HirPattern,
+    },
     monomorphization::{
         append_printable_type_info_for_type,
         ast::{
             ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
-            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, Parameters,
-            Program, Type, While,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, MatchCase,
+            Parameters, Program, Type, While,
         },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
+    signed_field::SignedField,
 };
 
 use super::{
@@ -472,7 +478,7 @@ impl<'a> FunctionContext<'a> {
         let allow_if_then = flags.allow_if_then
             && allow_nested
             && self.budget > 0
-            && !types::contains_reference(typ);
+            && (self.unconstrained() || !types::contains_reference(typ));
 
         if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
@@ -924,6 +930,12 @@ impl<'a> FunctionContext<'a> {
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
+        }
+
+        if freq.enabled_when("match", self.budget > 1) {
+            if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
+                return Ok(e);
+            }
         }
 
         if freq.enabled_when("for", self.budget > 1) {
@@ -1528,7 +1540,8 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `match` expression, returning a given type.
     ///
-    /// Check the `MatchCompiler::compile_rows` for which types of variables are supported.
+    /// Match needs a variable; if we don't have one to produce the target type from,
+    /// it returns `None`.
     fn gen_match(
         &mut self,
         u: &mut Unstructured,
@@ -1539,13 +1552,26 @@ impl<'a> FunctionContext<'a> {
         self.decrease_budget(1);
 
         // Pick a variable that can produce the type we are looking for.
-        let Some(id) = self.choose_producer(u, typ)? else {
+        let id = if types::is_unit(typ) {
+            // If we are generating a statement (return unit), then let's just pick any local variable.
+            if self.locals.current().is_empty() {
+                None
+            } else {
+                let id = u.choose_iter(self.locals.current().variable_ids())?;
+                Some(VariableId::Local(*id))
+            }
+        } else {
+            self.choose_producer(u, typ)?
+        };
+
+        // If we have no viable candidate then do something else.
+        let Some(id) = id else {
             return Ok(None);
         };
 
         // If we picked a global variable, we need to create a local binding first,
         // because the match only works with local variable IDs.
-        let (src_id, src_typ, mut is_dyn, let_expr) = match id {
+        let (src_id, src_typ, src_dyn, src_expr) = match id {
             VariableId::Local(id) => {
                 let typ = self.local_type(id).clone();
                 let is_dyn = self.is_dynamic(&id);
@@ -1559,6 +1585,23 @@ impl<'a> FunctionContext<'a> {
             }
         };
 
+        /// Generate a random field that can be used in the constructor of a numeric type.
+        fn gen_field(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
+            let literal = expr::gen_literal(u, typ)?;
+            let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
+                unreachable!("expected Literal::Integer; got {literal:?}");
+            };
+            Ok(field)
+        }
+
+        /// Generate a constructor for a numeric type.
+        fn gen_num_constructor(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Constructor> {
+            // TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
+            // When it does, we should generate either a field, or a range.
+            let constructor = Constructor::Int(gen_field(u, typ)?);
+            Ok(constructor)
+        }
+
         let mut match_expr = Match {
             variable_to_match: src_id,
             cases: vec![],
@@ -1566,18 +1609,80 @@ impl<'a> FunctionContext<'a> {
             typ: typ.clone(),
         };
 
+        let num_cases = u.int_in_range(0..=self.ctx.config.max_match_cases)?;
+        let mut needs_default = false;
+        let mut is_dyn = src_dyn;
+
         // Generate a number of rows, depending on what we can do with the source type.
+        // See `MatchCompiler::compile_rows` for what is currently supported.
+        match &src_typ {
+            Type::Bool => {
+                // There are only two possible values. Repeating one of them results in a warning,
+                // but let's allow it just so we cover that case, since it's not an error.
+                for _ in 0..num_cases {
+                    let constructor = u.choose_iter([Constructor::True, Constructor::False])?;
+                    let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                    is_dyn |= branch_dyn;
+                    let case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+                needs_default = {
+                    #[allow(clippy::mutable_key_type)]
+                    let cs = match_expr
+                        .cases
+                        .iter()
+                        .map(|c| c.constructor.clone())
+                        .collect::<HashSet<_>>();
+                    cs.len() < 2
+                };
+            }
+            Type::Field | Type::Integer(_, _) => {
+                for _ in 0..num_cases {
+                    let constructor = gen_num_constructor(u, &src_typ)?;
+                    let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                    is_dyn |= branch_dyn;
+                    let case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+                // The compiler would complain if we don't have a default case for a non-exhaustive match.
+                needs_default = true;
+            }
+            Type::Tuple(item_types) => {
+                // There is only one case in the AST that we can generate, which is to unpack the tuple
+                // into its constituent fields. The compiler would do this, and then generate further
+                // matches on individual fields. We don't do that here, just make the fields available.
+                let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
+                let mut arguments = Vec::new();
+                self.locals.enter();
+                for item_type in item_types {
+                    let item_id = self.next_local_id();
+                    let item_name = format!("item_{}", local_name(item_id));
+                    self.locals.add(item_id, false, item_name, item_type.clone());
+                    arguments.push(item_id);
+                }
+                // Generate the original expression we wanted with the new arguments in scope.
+                let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                is_dyn |= branch_dyn;
+                let case = MatchCase { constructor, arguments, branch };
+                match_expr.cases.push(case);
+                self.locals.exit();
+            }
+            _ => {
+                // We could add some filtering to `choose_producer`, but it's already complicated; maybe next time.
+                return Ok(None);
+            }
+        }
 
         // Optionally generate a default case.
-        if match_expr.cases.is_empty() || bool::arbitrary(u)? {
+        if needs_default || match_expr.cases.is_empty() || bool::arbitrary(u)? {
             let (default_expr, default_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
             is_dyn |= default_dyn;
             match_expr.default_case = Some(Box::new(default_expr));
         }
 
         let match_expr = Expression::Match(match_expr);
-        let expr = if let Some(let_expr) = let_expr {
-            Expression::Block(vec![let_expr, match_expr])
+        let expr = if let Some(src_expr) = src_expr {
+            Expression::Block(vec![src_expr, match_expr])
         } else {
             match_expr
         };
