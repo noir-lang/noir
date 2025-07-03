@@ -2570,7 +2570,7 @@ fn resolve_trait_item_impl(
     }
 }
 
-pub fn resolve_trait_item(
+pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
@@ -2602,7 +2602,7 @@ pub fn resolve_trait_item(
     unreachable!("No method named `{name}` in impl")
 }
 
-pub enum TraitItem {
+pub(crate) enum TraitItem {
     Method(node_interner::FuncId),
     Constant { id: node_interner::DefinitionId, expected_type: Type, value: Type },
 }
