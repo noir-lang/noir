@@ -32,19 +32,34 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 }
 
-/// Mutations config for single mutation
+/// Mutations config for single FuzzerData mutations
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum MutationOptions {
+pub(crate) enum FuzzerDataMutationOptions {
+    Functions,
     InstructionBlocks,
-    FuzzerCommands,
     Witnesses,
 }
+pub(crate) type FuzzerDataMutationConfig = WeightedSelectionConfig<FuzzerDataMutationOptions, 3>;
+pub(crate) const BASIC_FUZZER_DATA_MUTATION_CONFIGURATION: FuzzerDataMutationConfig =
+    FuzzerDataMutationConfig::new([
+        (FuzzerDataMutationOptions::Functions, 1),
+        (FuzzerDataMutationOptions::InstructionBlocks, 1),
+        (FuzzerDataMutationOptions::Witnesses, 4),
+    ]);
 
-pub(crate) type MutationConfig = WeightedSelectionConfig<MutationOptions, 3>;
+/// Mutations config for function mutations
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FunctionMutationOptions {
+    ReturnBlockIdx,
+    FunctionFuzzerCommands,
+    ReturnType,
+}
+
+pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 3>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
-    (MutationOptions::InstructionBlocks, 1),
-    (MutationOptions::FuzzerCommands, 1),
-    (MutationOptions::Witnesses, 1),
+    (FunctionMutationOptions::ReturnBlockIdx, 0), // TODO(sn): change when implemented
+    (FunctionMutationOptions::FunctionFuzzerCommands, 1),
+    (FunctionMutationOptions::ReturnType, 0), // TODO(sn): change when implemented
 ]);
 
 /// Mutations of witness values

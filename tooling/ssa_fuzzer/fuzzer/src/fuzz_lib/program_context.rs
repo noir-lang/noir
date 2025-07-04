@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::function_context::{FunctionData, FuzzerFunctionContext};
-use super::instruction::FunctionSignature;
+use super::instruction::{FunctionSignature, InstructionBlock};
 use super::options::FunctionContextOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::Witness;
@@ -36,11 +36,16 @@ pub(crate) struct FuzzerProgramContext {
     stored_functions: Vec<StoredFunction>,
     /// Current function id
     current_function_id: Id<Function>,
+    /// Instruction blocks
+    instruction_blocks: Vec<InstructionBlock>,
 }
 
 impl FuzzerProgramContext {
     /// Creates a new FuzzerProgramContext
-    pub(crate) fn new(program_context_options: FunctionContextOptions) -> Self {
+    pub(crate) fn new(
+        program_context_options: FunctionContextOptions,
+        instruction_blocks: Vec<InstructionBlock>,
+    ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
         Self {
@@ -51,11 +56,15 @@ impl FuzzerProgramContext {
             function_signatures: BTreeMap::new(),
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
+            instruction_blocks,
         }
     }
 
     /// Creates a new FuzzerProgramContext where all inputs are constants
-    pub(crate) fn new_constant_context(program_context_options: FunctionContextOptions) -> Self {
+    pub(crate) fn new_constant_context(
+        program_context_options: FunctionContextOptions,
+        instruction_blocks: Vec<InstructionBlock>,
+    ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
         Self {
@@ -66,6 +75,7 @@ impl FuzzerProgramContext {
             function_signatures: BTreeMap::new(),
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
+            instruction_blocks,
         }
     }
 
@@ -106,9 +116,9 @@ impl FuzzerProgramContext {
                         .values
                         .iter()
                         .zip(stored_function.types.iter())
-                        .map(|(value, type_)| (value.clone(), type_.clone()))
+                        .map(|(value, type_)| (*value, *type_))
                         .collect(),
-                    &stored_function.function.blocks,
+                    &self.instruction_blocks,
                     self.program_context_options.clone(),
                     stored_function.function.return_type,
                     defined_functions,
@@ -118,7 +128,7 @@ impl FuzzerProgramContext {
             } else {
                 FuzzerFunctionContext::new(
                     stored_function.types.to_vec(),
-                    &stored_function.function.blocks,
+                    &self.instruction_blocks,
                     self.program_context_options.clone(),
                     stored_function.function.return_type,
                     defined_functions,

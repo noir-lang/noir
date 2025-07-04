@@ -141,7 +141,7 @@ impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
     }
 }
 
-pub(crate) fn witness_mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
+pub(crate) fn mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
     match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
         WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),
         WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(rng, witness_value),

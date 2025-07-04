@@ -1,8 +1,8 @@
+use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::block_context::BlockContext;
 use super::instruction::FunctionSignature;
 use super::instruction::InstructionBlock;
 use super::options::{FunctionContextOptions, SsaBlockOptions};
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
@@ -50,16 +50,17 @@ pub(crate) enum WitnessValue {
     I32(u32),
 }
 
+impl Default for WitnessValue {
+    fn default() -> Self {
+        WitnessValue::Field(FieldRepresentation { high: 0, low: 0 })
+    }
+}
+
 /// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
-    pub(crate) blocks: Vec<InstructionBlock>,
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
-    /// initial witness values for the program as `WitnessValue`
-    /// last and last but one values are preserved for the boolean values (true, false)
-    pub(crate) initial_witness:
-        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
     pub(crate) return_instruction_block_idx: usize,
     pub(crate) return_type: ValueType,
 }
@@ -67,10 +68,7 @@ pub(crate) struct FunctionData {
 impl Default for FunctionData {
     fn default() -> Self {
         FunctionData {
-            blocks: vec![],
             commands: vec![],
-            initial_witness: [WitnessValue::Field(FieldRepresentation { high: 0, low: 0 });
-                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
             return_instruction_block_idx: 0,
             return_type: ValueType::Field,
         }

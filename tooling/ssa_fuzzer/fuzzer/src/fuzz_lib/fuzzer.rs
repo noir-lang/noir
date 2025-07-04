@@ -13,14 +13,37 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use super::function_context::FunctionData;
+use super::function_context::{FunctionData, WitnessValue};
+use super::instruction::InstructionBlock;
 use super::options::{FunctionContextOptions, FuzzerOptions};
 use super::program_context::FuzzerProgramContext;
+use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
+use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
+use serde::{Deserialize, Serialize};
+
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct FuzzerData {
+    pub(crate) functions: Vec<FunctionData>,
+    pub(crate) initial_witness:
+        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) instruction_blocks: Vec<InstructionBlock>,
+}
+
+impl Default for FuzzerData {
+    fn default() -> Self {
+        FuzzerData {
+            functions: vec![FunctionData::default()],
+            initial_witness: [WitnessValue::default();
+                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            instruction_blocks: vec![],
+        }
+    }
+}
 
 pub(crate) struct Fuzzer {
     pub(crate) context_non_constant: Option<FuzzerProgramContext>,
@@ -29,9 +52,24 @@ pub(crate) struct Fuzzer {
 }
 
 impl Fuzzer {
-    pub(crate) fn new(options: FuzzerOptions) -> Self {
+    pub(crate) fn new(instruction_blocks: Vec<InstructionBlock>, options: FuzzerOptions) -> Self {
         let context_constant = match options.constant_execution_enabled {
-            true => Some(FuzzerProgramContext::new_constant_context(FunctionContextOptions {
+            true => Some(FuzzerProgramContext::new_constant_context(
+                FunctionContextOptions {
+                    idempotent_morphing_enabled: false,
+                    compile_options: options.compile_options.clone(),
+                    max_ssa_blocks_num: options.max_ssa_blocks_num,
+                    max_instructions_num: options.max_instructions_num,
+                    instruction_options: options.instruction_options,
+                    fuzzer_command_options: options.fuzzer_command_options,
+                    max_iterations_num: options.max_iterations_num,
+                },
+                instruction_blocks.clone(),
+            )),
+            false => None,
+        };
+        let context_non_constant = Some(FuzzerProgramContext::new(
+            FunctionContextOptions {
                 idempotent_morphing_enabled: false,
                 compile_options: options.compile_options.clone(),
                 max_ssa_blocks_num: options.max_ssa_blocks_num,
@@ -39,29 +77,23 @@ impl Fuzzer {
                 instruction_options: options.instruction_options,
                 fuzzer_command_options: options.fuzzer_command_options,
                 max_iterations_num: options.max_iterations_num,
-            })),
-            false => None,
-        };
-        let context_non_constant = Some(FuzzerProgramContext::new(FunctionContextOptions {
-            idempotent_morphing_enabled: false,
-            compile_options: options.compile_options.clone(),
-            max_ssa_blocks_num: options.max_ssa_blocks_num,
-            max_instructions_num: options.max_instructions_num,
-            instruction_options: options.instruction_options,
-            fuzzer_command_options: options.fuzzer_command_options,
-            max_iterations_num: options.max_iterations_num,
-        }));
+            },
+            instruction_blocks.clone(),
+        ));
         let context_non_constant_with_idempotent_morphing =
             match options.constrain_idempotent_morphing_enabled {
-                true => Some(FuzzerProgramContext::new(FunctionContextOptions {
-                    idempotent_morphing_enabled: true,
-                    compile_options: options.compile_options.clone(),
-                    max_ssa_blocks_num: options.max_ssa_blocks_num,
-                    max_instructions_num: options.max_instructions_num,
-                    instruction_options: options.instruction_options,
-                    fuzzer_command_options: options.fuzzer_command_options,
-                    max_iterations_num: options.max_iterations_num,
-                })),
+                true => Some(FuzzerProgramContext::new(
+                    FunctionContextOptions {
+                        idempotent_morphing_enabled: true,
+                        compile_options: options.compile_options.clone(),
+                        max_ssa_blocks_num: options.max_ssa_blocks_num,
+                        max_instructions_num: options.max_instructions_num,
+                        instruction_options: options.instruction_options,
+                        fuzzer_command_options: options.fuzzer_command_options,
+                        max_iterations_num: options.max_iterations_num,
+                    },
+                    instruction_blocks,
+                )),
                 false => None,
             };
         Self {

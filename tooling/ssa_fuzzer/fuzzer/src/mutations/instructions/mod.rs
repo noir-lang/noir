@@ -83,10 +83,7 @@ impl MutateVecInstructionBlock for InstructionBlockInstructionSwapMutation {
     }
 }
 
-pub(crate) fn mutate_vec_instruction_block(
-    vec_instruction_block: &mut Vec<InstructionBlock>,
-    rng: &mut StdRng,
-) {
+pub(crate) fn mutate(vec_instruction_block: &mut Vec<InstructionBlock>, rng: &mut StdRng) {
     match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
         VectorOfInstructionBlocksMutationOptions::Random => {
             RandomMutation::mutate(rng, vec_instruction_block)
