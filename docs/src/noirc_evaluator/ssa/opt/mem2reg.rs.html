@@ -1583,7 +1583,26 @@
 <a href="#1582" id="1582">1582</a>
 <a href="#1583" id="1583">1583</a>
 <a href="#1584" id="1584">1584</a>
-<a href="#1585" id="1585">1585</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1766,14 +1785,31 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>all_terminator_values = HashSet::default();
         <span class="kw">let </span><span class="kw-2">mut </span>per_func_block_params: HashSet&lt;ValueId&gt; = HashSet::default();
-        <span class="kw">for </span>(block_id, <span class="kw">_</span>) <span class="kw">in </span><span class="self">self</span>.blocks.iter() {
+        <span class="kw">for </span>(block_id, references) <span class="kw">in </span><span class="self">self</span>.blocks.iter_mut() {
             <span class="kw">let </span>block_params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block_id);
             per_func_block_params.extend(block_params.iter());
             <span class="kw">let </span>terminator = <span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>block_id].unwrap_terminator();
-            terminator.for_each_value(|value| all_terminator_values.insert(value));
+            terminator.for_each_value(|value| {
+                all_terminator_values.insert(value);
+                <span class="comment">// Also insert all the aliases of this value as being used in the terminator,
+                // so that for example if the value is an array and contains a reference,
+                // then that reference gets to keep its last store.
+                </span><span class="kw">let </span>typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(value);
+                <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>typ) {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                all_terminator_values.insert(alias);
+                            });
+                        }
+                    }
+                }
+            });
         }
 
-        <span class="comment">// If we never load from an address within a function we can remove all stores to that address.
+        <span class="comment">// Add all the aliases of values used in the terminators.
+
+        // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         </span><span class="kw">for </span>(<span class="kw">_</span>, block) <span class="kw">in </span><span class="self">self</span>.blocks.iter() {
             <span class="kw">for </span>(store_address, store_instruction) <span class="kw">in </span>block.last_stores.iter() {
@@ -1826,13 +1862,15 @@
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>allocation_aliases_instr_input =
+                <span class="comment">// Is any alias of this address an input to some function call, or a return value?
+                </span><span class="kw">let </span>allocation_aliases_instr_input =
                     aliases.any(|alias| <span class="self">self</span>.instruction_input_references.contains(<span class="kw-2">&amp;</span>alias));
                 <span class="kw">if </span>allocation_aliases_instr_input == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
 
-                <span class="kw">let </span>allocation_aliases_terminator_args =
+                <span class="comment">// Is any alias of this address used in a block terminator?
+                </span><span class="kw">let </span>allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(<span class="kw-2">&amp;</span>alias));
                 <span class="kw">if </span>allocation_aliases_terminator_args == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
