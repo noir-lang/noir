@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751639613470,
+  "lastUpdate": 1751640034653,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "38088d96f88b4c1790654926bf35dffb00f9efab",
-          "message": "fix(mem2reg): Add the value in `ArraySet` to `aliased_references` (#8976)",
-          "timestamp": "2025-06-24T16:58:51Z",
-          "tree_id": "c6d5c5654c9ea4c1b8bc5795ee4aea5938cbe797",
-          "url": "https://github.com/noir-lang/noir/commit/38088d96f88b4c1790654926bf35dffb00f9efab"
-        },
-        "date": 1750786691950,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/cc54d86285da4477125dc5412426ba14229c7334"
         },
         "date": 1751615045075,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 198.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 222.69,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 174.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 433.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 325.35,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3beb8f5456df2ecc9dbf6a415ba47663fa100dfc",
+          "message": "fix: use enable_side_effects for u128 multiplication overflow checks (#9115)",
+          "timestamp": "2025-07-04T14:00:38Z",
+          "tree_id": "b542a6a303c9d628961bc3fea4c635ff4d730003",
+          "url": "https://github.com/noir-lang/noir/commit/3beb8f5456df2ecc9dbf6a415ba47663fa100dfc"
+        },
+        "date": 1751640021278,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
