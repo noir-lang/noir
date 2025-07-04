@@ -2,6 +2,8 @@
 use rand::{Rng, rngs::StdRng};
 
 pub(crate) const MAX_NUMBER_OF_MUTATIONS: usize = 25;
+pub(crate) const SIZE_OF_SMALL_ARBITRARY_BUFFER: usize = 25;
+pub(crate) const SIZE_OF_LARGE_ARBITRARY_BUFFER: usize = 1024;
 
 pub(crate) struct WeightedSelectionConfig<T, const N: usize> {
     pub(crate) options_with_weights: [(T, usize); N],
@@ -168,7 +170,7 @@ pub(crate) type InstructionArgumentMutationConfig =
     WeightedSelectionConfig<InstructionArgumentMutationOptions, 2>;
 pub(crate) const BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION:
     InstructionArgumentMutationConfig = InstructionArgumentMutationConfig::new([
-    (InstructionArgumentMutationOptions::Left, 1),
+    (InstructionArgumentMutationOptions::Left, 5),
     (InstructionArgumentMutationOptions::Right, 1),
 ]);
 
@@ -202,19 +204,19 @@ pub(crate) const BASIC_VALUE_TYPE_MUTATION_CONFIGURATION: ValueTypeMutationConfi
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum FunctionVecMutationOptions {
-    Random,
+    CopyFunction,
     Insertion,
     Remove,
-    Replace,
-    MutateFunc,
+    InsertEmpty,
+    MutateFunction,
 }
 pub(crate) type FunctionVecMutationConfig = WeightedSelectionConfig<FunctionVecMutationOptions, 5>;
 
 pub(crate) const BASIC_FUNCTION_VEC_MUTATION_CONFIGURATION: FunctionVecMutationConfig =
     FunctionVecMutationConfig::new([
-        (FunctionVecMutationOptions::Random, 1),
-        (FunctionVecMutationOptions::Insertion, 10),
-        (FunctionVecMutationOptions::Remove, 1),
-        (FunctionVecMutationOptions::Replace, 1),
-        (FunctionVecMutationOptions::MutateFunc, 40),
+        (FunctionVecMutationOptions::CopyFunction, 5),
+        (FunctionVecMutationOptions::Insertion, 6),
+        (FunctionVecMutationOptions::Remove, 10),
+        (FunctionVecMutationOptions::InsertEmpty, 15),
+        (FunctionVecMutationOptions::MutateFunction, 40),
     ]);

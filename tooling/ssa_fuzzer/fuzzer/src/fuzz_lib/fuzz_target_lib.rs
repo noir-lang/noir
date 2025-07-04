@@ -50,11 +50,11 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
     }
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
 
-    let mut fuzzer = Fuzzer::new(data.instruction_blocks, options);
+    let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
     for func in data.functions {
         log::debug!("initial_witness: {:?}", witness_map);
         log::debug!("commands: {:?}", func.commands);
-        fuzzer.process_function(func, types.clone(), values.clone());
+        fuzzer.process_function(func, types.clone());
     }
     fuzzer.finalize_and_run(witness_map)
 }

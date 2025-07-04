@@ -52,7 +52,11 @@ pub(crate) struct Fuzzer {
 }
 
 impl Fuzzer {
-    pub(crate) fn new(instruction_blocks: Vec<InstructionBlock>, options: FuzzerOptions) -> Self {
+    pub(crate) fn new(
+        instruction_blocks: Vec<InstructionBlock>,
+        values: Vec<FieldElement>,
+        options: FuzzerOptions,
+    ) -> Self {
         let context_constant = match options.constant_execution_enabled {
             true => Some(FuzzerProgramContext::new_constant_context(
                 FunctionContextOptions {
@@ -65,6 +69,7 @@ impl Fuzzer {
                     max_iterations_num: options.max_iterations_num,
                 },
                 instruction_blocks.clone(),
+                values.clone(),
             )),
             false => None,
         };
@@ -79,6 +84,7 @@ impl Fuzzer {
                 max_iterations_num: options.max_iterations_num,
             },
             instruction_blocks.clone(),
+            values.clone(),
         ));
         let context_non_constant_with_idempotent_morphing =
             match options.constrain_idempotent_morphing_enabled {
@@ -93,6 +99,7 @@ impl Fuzzer {
                         max_iterations_num: options.max_iterations_num,
                     },
                     instruction_blocks,
+                    values,
                 )),
                 false => None,
             };
@@ -103,20 +110,15 @@ impl Fuzzer {
         }
     }
 
-    pub(crate) fn process_function(
-        &mut self,
-        function_data: FunctionData,
-        types: Vec<ValueType>,
-        inputs: Vec<impl Into<FieldElement> + Clone>,
-    ) {
+    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<ValueType>) {
         if let Some(context) = &mut self.context_non_constant {
-            context.process_function(function_data.clone(), types.clone(), inputs.clone());
+            context.process_function(function_data.clone(), types.clone());
         }
         if let Some(context) = &mut self.context_non_constant_with_idempotent_morphing {
-            context.process_function(function_data.clone(), types.clone(), inputs.clone());
+            context.process_function(function_data.clone(), types.clone());
         }
         if let Some(context) = &mut self.context_constant {
-            context.process_function(function_data, types, inputs);
+            context.process_function(function_data, types);
         }
     }
 

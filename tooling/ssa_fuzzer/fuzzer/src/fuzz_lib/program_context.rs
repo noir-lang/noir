@@ -15,9 +15,7 @@ use noirc_evaluator::ssa::ir::{function::Function, map::Id};
 struct StoredFunction {
     id: Id<Function>,
     function: FunctionData,
-    /// Types of inputs
     types: Vec<ValueType>,
-    values: Vec<FieldElement>,
 }
 
 /// FuzzerProgramContext is a context for storing and processing SSA functions
@@ -38,6 +36,12 @@ pub(crate) struct FuzzerProgramContext {
     current_function_id: Id<Function>,
     /// Instruction blocks
     instruction_blocks: Vec<InstructionBlock>,
+    /// Main initialized
+    is_main_initialized: bool,
+    /// Values of the inputs
+    ///
+    /// Used for the constant mode (to replace variables in the main function with constants)
+    values: Vec<FieldElement>,
 }
 
 impl FuzzerProgramContext {
@@ -45,6 +49,7 @@ impl FuzzerProgramContext {
     pub(crate) fn new(
         program_context_options: FunctionContextOptions,
         instruction_blocks: Vec<InstructionBlock>,
+        values: Vec<FieldElement>,
     ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -57,6 +62,8 @@ impl FuzzerProgramContext {
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
             instruction_blocks,
+            is_main_initialized: false,
+            values,
         }
     }
 
@@ -64,6 +71,7 @@ impl FuzzerProgramContext {
     pub(crate) fn new_constant_context(
         program_context_options: FunctionContextOptions,
         instruction_blocks: Vec<InstructionBlock>,
+        values: Vec<FieldElement>,
     ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -76,25 +84,17 @@ impl FuzzerProgramContext {
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
             instruction_blocks,
+            is_main_initialized: false,
+            values,
         }
     }
 
     /// Stores function and its signature
-    pub(crate) fn process_function(
-        &mut self,
-        function: FunctionData,
-        types: Vec<ValueType>,
-        values: Vec<impl Into<FieldElement> + Clone>,
-    ) {
+    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<ValueType>) {
         let signature =
             FunctionSignature { input_types: types.clone(), return_type: function.return_type };
         self.function_signatures.insert(self.current_function_id, signature);
-        let stored_function = StoredFunction {
-            id: self.current_function_id,
-            function,
-            types,
-            values: values.into_iter().map(|i| -> FieldElement { i.into() }).collect(),
-        };
+        let stored_function = StoredFunction { id: self.current_function_id, function, types };
         self.stored_functions.push(stored_function);
         self.current_function_id = Id::new(self.current_function_id.to_u32() + 1);
     }
@@ -110,10 +110,9 @@ impl FuzzerProgramContext {
                 .into_iter()
                 .filter(|func_id| func_id.0.to_u32() > stored_function.id.to_u32())
                 .collect();
-            let mut function_context = if self.is_constant {
+            let mut function_context = if self.is_constant && !self.is_main_initialized {
                 FuzzerFunctionContext::new_constant_context(
-                    stored_function
-                        .values
+                    self.values
                         .iter()
                         .zip(stored_function.types.iter())
                         .map(|(value, type_)| (*value, *type_))
@@ -136,6 +135,7 @@ impl FuzzerProgramContext {
                     &mut self.brillig_builder,
                 )
             };
+            self.is_main_initialized = true;
             for command in &stored_function.function.commands {
                 function_context.process_fuzzer_command(command);
             }

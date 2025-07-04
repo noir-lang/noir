@@ -7,11 +7,14 @@ use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::fuzz_target_lib::fuzz_target;
 use fuzz_lib::fuzzer::FuzzerData;
 use fuzz_lib::options::{FuzzerOptions, InstructionOptions};
+use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
 
-libfuzzer_sys::fuzz_target!(|data: &[u8]| {
+const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
+
+libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
     let mut compile_options = CompileOptions::default();
     if let Ok(triage_value) = std::env::var("TRIAGE") {
@@ -42,7 +45,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
+    let start = std::time::Instant::now();
     fuzz_target(data, options);
+    if start.elapsed().as_secs() > MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS {
+        return Corpus::Reject;
+    }
+    Corpus::Keep
 });
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
