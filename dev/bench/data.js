@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751578324498,
+  "lastUpdate": 1751614250471,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18731,48 +18731,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "759dc5719c283326a04ab37503853e654637887f",
-          "message": "feat(debug): Print ssa locations along with ssa (#9001)",
-          "timestamp": "2025-06-24T16:39:24Z",
-          "tree_id": "b996f7be6e4b7c2808e20b736429ff321d660e4b",
-          "url": "https://github.com/noir-lang/noir/commit/759dc5719c283326a04ab37503853e654637887f"
-        },
-        "date": 1750784662425,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255901,
-            "range": "± 325",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226213,
-            "range": "± 6446",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790836,
-            "range": "± 1660",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20824,6 +20782,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2807583,
             "range": "± 1613",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc54d86285da4477125dc5412426ba14229c7334",
+          "message": "chore: clean up interface to SSA passes + artifact creation (#9110)",
+          "timestamp": "2025-07-04T07:05:25Z",
+          "tree_id": "683cb782a8c340e5c0380419b16da3a9a60096b4",
+          "url": "https://github.com/noir-lang/noir/commit/cc54d86285da4477125dc5412426ba14229c7334"
+        },
+        "date": 1751614236629,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254080,
+            "range": "± 676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224961,
+            "range": "± 6238",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783312,
+            "range": "± 1302",
             "unit": "ns/iter"
           }
         ]
