@@ -69,6 +69,7 @@ pub fn create_ssa_with_passes_or_die<S>(
 where
     S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
 {
+    eprintln!("{program}");
     // Unfortunately we can't use `std::panic::catch_unwind`
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because

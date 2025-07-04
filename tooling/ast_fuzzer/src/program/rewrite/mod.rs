@@ -29,11 +29,11 @@ pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
 
     visit_expr(&func.body, &mut |expr| {
         match expr {
-            Expression::Let(let_) => acc_local_id(let_.id),
-            Expression::For(for_) => acc_local_id(for_.index_variable),
             Expression::Ident(ident) => {
                 next_ident_id = next_ident_id.max(ident.id.0 + 1);
             }
+            Expression::Let(let_) => acc_local_id(let_.id),
+            Expression::For(for_) => acc_local_id(for_.index_variable),
             Expression::Match(match_) => {
                 for case in &match_.cases {
                     for (id, _) in &case.arguments {
