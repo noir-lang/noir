@@ -39,6 +39,10 @@ fn arb_ast_roundtrip() {
             avoid_negative_int_literals: true,
             // Large ints are rejected in for loops, unless we use suffixes.
             avoid_large_int_literals: true,
+            // The compiler introduces "internal variable" even if it's not needed,
+            // and also rationalizes removes branches that can never be matched,
+            // (like repeated patterns, superfluous defaults). For now ignore these.
+            avoid_match: true,
             // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
             // Let's stick to just Brillig so there is no need for `unsafe` at all.
             force_brillig: true,
