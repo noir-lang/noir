@@ -24,7 +24,7 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
 pub(crate) type ValuesTypes = (Vec<FieldElement>, Vec<ValueType>);
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
+/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {
