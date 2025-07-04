@@ -300,31 +300,11 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a>
-<a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
+<span class="kw">use </span>std::path::PathBuf;
 
-<span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>fm::{FileId, FileManager};
 <span class="kw">use </span>nargo::constants::PROVER_INPUT_FILE;
 <span class="kw">use </span>nargo::ops::report_errors;
@@ -336,7 +316,6 @@
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
-<span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
 <span class="kw">use </span>noirc_evaluator::ssa::interpreter::InterpreterOptions;
 <span class="kw">use </span>noirc_evaluator::ssa::interpreter::value::Value;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -392,10 +371,13 @@
     <span class="kw">let </span>(file_manager, parsed_files) = parse_workspace(<span class="kw-2">&amp;</span>workspace, <span class="prelude-val">None</span>);
     <span class="kw">let </span>binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-    <span class="kw">let </span>ssa_options = to_ssa_options(<span class="kw-2">&amp;</span>args.compile_options);
-    <span class="kw">let </span>ssa_passes = primary_passes(<span class="kw-2">&amp;</span>ssa_options);
+    <span class="kw">let </span>opts = args.compile_options.as_ssa_options(PathBuf::new());
+    <span class="kw">let </span>ssa_passes = primary_passes(<span class="kw-2">&amp;</span>opts);
 
     <span class="kw">for </span>package <span class="kw">in </span>binary_packages {
+        <span class="kw">let </span>ssa_options =
+            <span class="kw-2">&amp;</span>args.compile_options.as_ssa_options(workspace.package_build_path(package));
+
         <span class="comment">// Compile into monomorphized AST
         </span><span class="kw">let </span>program_result = compile_into_program(
             <span class="kw-2">&amp;</span>file_manager,
@@ -450,7 +432,7 @@
         <span class="kw">let </span>interpreter_options = InterpreterOptions { trace: args.trace };
 
         print_and_interpret_ssa(
-            <span class="kw-2">&amp;</span>ssa_options,
+            ssa_options,
             <span class="kw-2">&amp;</span>args.ssa_pass,
             <span class="kw-2">&amp;mut </span>ssa,
             <span class="string">"Initial SSA"</span>,
@@ -473,7 +455,7 @@
                 .map_err(|e| CliError::Generic(<span class="macro">format!</span>(<span class="string">"failed to run SSA pass {msg}: {e}"</span>)))<span class="question-mark">?</span>;
 
             print_and_interpret_ssa(
-                <span class="kw-2">&amp;</span>ssa_options,
+                ssa_options,
                 <span class="kw-2">&amp;</span>args.ssa_pass,
                 <span class="kw-2">&amp;mut </span>ssa,
                 <span class="kw-2">&amp;</span>msg,
@@ -538,28 +520,6 @@
     <span class="kw">let </span>abi = gen_abi(<span class="kw-2">&amp;</span>context, <span class="kw-2">&amp;</span>main_id, program.return_visibility(), error_types);
 
     <span class="prelude-val">Ok</span>(((program, abi), warnings))
-}
-
-<span class="kw">fn </span>to_ssa_options(options: <span class="kw-2">&amp;</span>CompileOptions) -&gt; SsaEvaluatorOptions {
-    SsaEvaluatorOptions {
-        ssa_logging: <span class="kw">if </span>!options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } <span class="kw">else if </span>options.show_ssa {
-            SsaLogging::All
-        } <span class="kw">else </span>{
-            SsaLogging::None
-        },
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: <span class="bool-val">false</span>,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: <span class="prelude-val">None</span>,
-        skip_underconstrained_check: <span class="bool-val">true</span>,
-        enable_brillig_constraints_check_lookback: <span class="bool-val">false</span>,
-        skip_brillig_constraints_check: <span class="bool-val">true</span>,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    }
 }
 
 <span class="kw">fn </span>msg_matches(patterns: <span class="kw-2">&amp;</span>[String], msg: <span class="kw-2">&amp;</span>str) -&gt; bool {

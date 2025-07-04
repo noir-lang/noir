@@ -849,7 +849,12 @@
 <a href="#848" id="848">848</a>
 <a href="#849" id="849">849</a>
 <a href="#850" id="850">850</a>
-<a href="#851" id="851">851</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
@@ -876,7 +881,7 @@
 <span class="kw">use </span>noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 <span class="kw">use </span>noirc_frontend::token::SecondaryAttributeKind;
 <span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::path::Path;
+<span class="kw">use </span>std::path::{Path, PathBuf};
 <span class="kw">use </span>tracing::info;
 
 <span class="kw">mod </span>abi_gen;
@@ -1061,6 +1066,40 @@
     <span class="doccomment">/// Used internally to avoid comptime println from producing output
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>disable_comptime_printing: bool,
+}
+
+<span class="kw">impl </span>CompileOptions {
+    <span class="kw">pub fn </span>as_ssa_options(<span class="kw-2">&amp;</span><span class="self">self</span>, package_build_path: PathBuf) -&gt; SsaEvaluatorOptions {
+        SsaEvaluatorOptions {
+            ssa_logging: <span class="kw">if </span>!<span class="self">self</span>.show_ssa_pass.is_empty() {
+                SsaLogging::Contains(<span class="self">self</span>.show_ssa_pass.clone())
+            } <span class="kw">else if </span><span class="self">self</span>.show_ssa {
+                SsaLogging::All
+            } <span class="kw">else </span>{
+                SsaLogging::None
+            },
+            brillig_options: BrilligOptions {
+                enable_debug_trace: <span class="self">self</span>.show_brillig,
+                enable_debug_assertions: <span class="self">self</span>.enable_brillig_debug_assertions,
+                enable_array_copy_counter: <span class="self">self</span>.count_array_copies,
+            },
+            print_codegen_timings: <span class="self">self</span>.benchmark_codegen,
+            expression_width: <span class="kw">if </span><span class="self">self</span>.bounded_codegen {
+                <span class="self">self</span>.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+            } <span class="kw">else </span>{
+                ExpressionWidth::default()
+            },
+            emit_ssa: <span class="kw">if </span><span class="self">self</span>.emit_ssa { <span class="prelude-val">Some</span>(package_build_path) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
+            skip_underconstrained_check: !<span class="self">self</span>.silence_warnings &amp;&amp; <span class="self">self</span>.skip_underconstrained_check,
+            enable_brillig_constraints_check_lookback: <span class="self">self
+                </span>.enable_brillig_constraints_check_lookback,
+            skip_brillig_constraints_check: !<span class="self">self</span>.silence_warnings
+                &amp;&amp; <span class="self">self</span>.skip_brillig_constraints_check,
+            inliner_aggressiveness: <span class="self">self</span>.inliner_aggressiveness,
+            max_bytecode_increase_percent: <span class="self">self</span>.max_bytecode_increase_percent,
+            skip_passes: <span class="self">self</span>.skip_ssa_pass.clone(),
+        }
+    }
 }
 
 <span class="kw">pub fn </span>parse_expression_width(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;ExpressionWidth, std::io::Error&gt; {
@@ -1613,36 +1652,7 @@
     }
 
     <span class="kw">let </span>return_visibility = program.return_visibility();
-    <span class="kw">let </span>ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: <span class="kw">if </span>!options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } <span class="kw">else if </span>options.show_ssa {
-            SsaLogging::All
-        } <span class="kw">else </span>{
-            SsaLogging::None
-        },
-        brillig_options: BrilligOptions {
-            enable_debug_trace: options.show_brillig,
-            enable_debug_assertions: options.enable_brillig_debug_assertions,
-            enable_array_copy_counter: options.count_array_copies,
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: <span class="kw">if </span>options.bounded_codegen {
-            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-        } <span class="kw">else </span>{
-            ExpressionWidth::default()
-        },
-        emit_ssa: <span class="kw">if </span>options.emit_ssa { <span class="prelude-val">Some</span>(context.package_build_path.clone()) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
-        skip_underconstrained_check: !options.silence_warnings
-            &amp;&amp; options.skip_underconstrained_check,
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: !options.silence_warnings
-            &amp;&amp; options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    };
+    <span class="kw">let </span>ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
 
     <span class="kw">let </span>SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         <span class="kw">if </span>options.minimal_ssa {

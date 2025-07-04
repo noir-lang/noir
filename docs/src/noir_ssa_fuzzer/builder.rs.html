@@ -346,9 +346,9 @@
 <a href="#345" id="345">345</a>
 <a href="#346" id="346">346</a>
 <a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::compiler::compile_from_builder;
-<span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
+<a href="#348" id="348">348</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
 <span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
 <span class="kw">use </span>noirc_evaluator::ssa::function_builder::FunctionBuilder;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
@@ -403,9 +403,9 @@
         <span class="self">self</span>,
         compile_options: CompileOptions,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;CompiledProgram, FuzzerBuilderError&gt; {
-        <span class="kw">let </span>result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile_from_builder(<span class="self">self</span>.builder, <span class="kw-2">&amp;</span>compile_options)
-        }));
+        <span class="kw">let </span>ssa = <span class="self">self</span>.builder.finish();
+        <span class="kw">let </span>result =
+            std::panic::catch_unwind(AssertUnwindSafe(|| compile_from_ssa(ssa, <span class="kw-2">&amp;</span>compile_options)));
         <span class="kw">match </span>result {
             <span class="prelude-val">Ok</span>(result) =&gt; <span class="kw">match </span>result {
                 <span class="prelude-val">Ok</span>(result) =&gt; <span class="prelude-val">Ok</span>(result),

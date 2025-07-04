@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["compile_from_builder","optimize_into_acir_and_validate"]};

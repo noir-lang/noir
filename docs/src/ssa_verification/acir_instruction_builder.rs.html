@@ -339,15 +339,7 @@
 <a href="#338" id="338">338</a>
 <a href="#339" id="339">339</a>
 <a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a>
-<a href="#342" id="342">342</a>
-<a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a>
-<a href="#345" id="345">345</a>
-<a href="#346" id="346">346</a>
-<a href="#347" id="347">347</a>
-<a href="#348" id="348">348</a>
-<a href="#349" id="349">349</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#341" id="341">341</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::{Circuit, ExpressionWidth, Program <span class="kw">as </span>AcirProgram},
@@ -362,7 +354,6 @@
     secondary_passes,
 };
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-<span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>noirc_evaluator::brillig::BrilligOptions;
 <span class="kw">use </span>noirc_evaluator::ssa::{
@@ -582,14 +573,7 @@
 <span class="doccomment">/// Converts SSA to ACIR program
 </span><span class="kw">fn </span>ssa_to_acir_program(ssa: Ssa) -&gt; AcirProgram&lt;FieldElement&gt; {
     <span class="comment">// third brillig names, fourth errors
-    </span><span class="kw">let </span>builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::None,
-        print_codegen_timings: <span class="bool-val">false</span>,
-        passed: HashMap::default(),
-        skip_passes: <span class="macro">vec!</span>[],
-        files: <span class="prelude-val">None</span>,
-    };
+    </span><span class="kw">let </span>builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, <span class="bool-val">false</span>, <span class="prelude-val">None</span>);
     <span class="kw">let </span>ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: <span class="bool-val">false</span>,
