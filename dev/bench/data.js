@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751660953600,
+  "lastUpdate": 1751662020083,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18731,48 +18731,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d735bee0da737d2904872d7a44f903857698c24",
-          "message": "chore(ssa): Add `SsaPass:and_then` (#9016)",
-          "timestamp": "2025-06-25T11:36:50Z",
-          "tree_id": "aa160a3afa48ff3f2efd20f437a89153ddf61eca",
-          "url": "https://github.com/noir-lang/noir/commit/6d735bee0da737d2904872d7a44f903857698c24"
-        },
-        "date": 1750852766113,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254734,
-            "range": "± 434",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228015,
-            "range": "± 3360",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784856,
-            "range": "± 3487",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20824,6 +20782,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2806408,
             "range": "± 12398",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6392ced4385678e82a64d96ac37efc40b8e2bc3a",
+          "message": "fix(mem2reg): Look for aliases in `jmp` arguments (#9120)",
+          "timestamp": "2025-07-04T20:22:25Z",
+          "tree_id": "6f531d0922fe54964d393032bfeecf0e3e00a3e4",
+          "url": "https://github.com/noir-lang/noir/commit/6392ced4385678e82a64d96ac37efc40b8e2bc3a"
+        },
+        "date": 1751662006331,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248753,
+            "range": "± 954",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218925,
+            "range": "± 1621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782772,
+            "range": "± 1987",
             "unit": "ns/iter"
           }
         ]
