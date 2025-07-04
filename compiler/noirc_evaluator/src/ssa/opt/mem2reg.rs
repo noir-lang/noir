@@ -181,14 +181,29 @@ impl<'f> PerFunctionContext<'f> {
 
         let mut all_terminator_values = HashSet::default();
         let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
+        for (block_id, references) in self.blocks.iter_mut() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
                 all_terminator_values.insert(value);
+                // Also insert all the aliases of this value as being used in the terminator,
+                // so that for example if the value is an array and contains a reference,
+                // then that reference gets to keep its last store.
+                let typ = self.inserter.function.dfg.type_of_value(value);
+                if Self::contains_references(&typ) {
+                    if let Some(expression) = references.expressions.get(&value) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                all_terminator_values.insert(alias);
+                            });
+                        }
+                    }
+                }
             });
         }
+
+        // Add all the aliases of values used in the terminators.
 
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
@@ -269,23 +284,6 @@ impl<'f> PerFunctionContext<'f> {
 
                 if has_alias_not_marked_for_removal == Some(true) {
                     return true;
-                }
-            }
-        }
-
-        // Is this address an alias of anything that that is passed in a terminator?
-        for terminator_value in all_terminator_values.iter() {
-            let typ = self.inserter.function.dfg.type_of_value(*terminator_value);
-            if Self::contains_references(&typ) {
-                if let Some(expression) = block.expressions.get(terminator_value) {
-                    if let Some(aliases) = block.aliases.get(expression) {
-                        let address_is_alias_of_terminator_value =
-                            aliases.any(|alias| alias == *store_address);
-
-                        if address_is_alias_of_terminator_value == Some(true) {
-                            return true;
-                        }
-                    }
                 }
             }
         }
