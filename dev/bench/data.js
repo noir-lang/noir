@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751660950916,
+  "lastUpdate": 1751660953600,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9fc413d9ac940b4f8e130aa6d874cf8e0efabde2",
-          "message": "fix: Add a remove_unreachable_instructions SSA pass (with unreachable terminator) (#9008)",
-          "timestamp": "2025-06-24T19:45:20Z",
-          "tree_id": "dc44b3490d719b214c04307390c1a9d66e162d3e",
-          "url": "https://github.com/noir-lang/noir/commit/9fc413d9ac940b4f8e130aa6d874cf8e0efabde2"
-        },
-        "date": 1750796725939,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 533.88,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1530,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 344.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 354.77,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.38,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3899,6 +3820,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 276.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 530.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1080,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.25,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b6f0dee1a9264865283e478b4ff06cac65590966",
+          "message": "fix: enum match on integer type variable (#9122)",
+          "timestamp": "2025-07-04T19:49:27Z",
+          "tree_id": "43a25a0194bc2402903984e0a93c95187cc30301",
+          "url": "https://github.com/noir-lang/noir/commit/b6f0dee1a9264865283e478b4ff06cac65590966"
+        },
+        "date": 1751660938784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 276.35,
             "unit": "MB"
           },
           {
