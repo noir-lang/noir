@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Serialize {
+    let N: u32;
+}
+
+impl Serialize for Field {
+    let N: u32 = 1;
+}
+
+fn main() {
+    let x: u32 = N;
+    assert(x == 1_u32);
+}
