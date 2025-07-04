@@ -99,6 +99,7 @@ fn simple_brillig_foreign_call() {
     let one_usize = MemoryAddress::direct(2);
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             brillig::Opcode::Const {
                 destination: zero_usize,
@@ -172,6 +173,7 @@ fn complex_brillig_foreign_call() {
     let a_plus_b_plus_c_times_2 = Witness(8);
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             brillig::Opcode::Const {
                 destination: MemoryAddress::direct(0),

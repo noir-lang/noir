@@ -19,6 +19,7 @@ use super::ProtoSchema;
 impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
     fn encode(value: &circuit::Circuit<F>) -> Circuit {
         Circuit {
+            name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::encode_vec(&value.opcodes),
             expression_width: Self::encode_some(&value.expression_width),
@@ -31,6 +32,7 @@ impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
 
     fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
         Ok(circuit::Circuit {
+            name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::decode_vec_wrap(&value.opcodes, "opcodes")?,
             expression_width: Self::decode_some_wrap(&value.expression_width, "expression_width")?,

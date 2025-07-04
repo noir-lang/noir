@@ -234,7 +234,7 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit::default()],
+                functions: vec![Circuit { name: "main".to_string(), ..Default::default() }],
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),
@@ -242,8 +242,6 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            names: vec!["main".to_string()],
-            brillig_names: Vec::new(),
         };
 
         // Write the artifact to a file

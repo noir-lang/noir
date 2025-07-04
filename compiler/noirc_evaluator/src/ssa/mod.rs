@@ -402,10 +402,8 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
-        ssa_level_warnings,
-    ) = artifacts;
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -432,13 +430,7 @@ pub fn combine_artifacts(
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    SsaProgramArtifact::new(
-        functions,
-        brillig_function_names,
-        generated_brillig,
-        error_types,
-        ssa_level_warnings,
-    )
+    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
@@ -477,6 +469,7 @@ pub fn convert_generated_acir_into_circuit(
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
+        name,
         current_witness_index,
         expression_width: ExpressionWidth::Unbounded,
         opcodes,
@@ -508,7 +501,6 @@ pub fn convert_generated_acir_into_circuit(
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {
-        name,
         circuit: optimized_circuit,
         debug_info,
         warnings,

@@ -129,6 +129,7 @@ fn inversion_brillig_oracle_equivalence() {
     let three_usize = MemoryAddress::direct(5);
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             BrilligOpcode::Const {
                 destination: zero_usize,
@@ -281,6 +282,7 @@ fn double_inversion_brillig_oracle() {
     };
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             BrilligOpcode::Const {
                 destination: zero_usize,
@@ -405,6 +407,7 @@ fn oracle_dependent_execution() {
     let four_usize = MemoryAddress::direct(6);
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             BrilligOpcode::Const {
                 destination: zero_usize,
@@ -548,6 +551,7 @@ fn brillig_oracle_predicate() {
     };
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             BrilligOpcode::Const {
                 destination: MemoryAddress::direct(0),
@@ -696,6 +700,7 @@ fn unsatisfied_opcode_resolved_brillig() {
     };
 
     let brillig_bytecode = BrilligBytecode {
+        name: "main".to_string(),
         bytecode: vec![
             BrilligOpcode::Const {
                 destination: MemoryAddress::direct(0),
