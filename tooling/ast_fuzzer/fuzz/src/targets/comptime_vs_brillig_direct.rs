@@ -22,6 +22,8 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         avoid_negative_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
+        // Match is not yet implemented in comptime.
+        avoid_match: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.

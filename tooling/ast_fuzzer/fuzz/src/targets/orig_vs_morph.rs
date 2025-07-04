@@ -554,6 +554,7 @@ mod rules {
 
                 // Duplicate the expression, then assign new IDs to all variables created in it.
                 let mut alt = expr.clone();
+
                 reassign_ids(vars, &mut alt);
 
                 expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
@@ -762,6 +763,7 @@ mod helpers {
     /// Types we can consider using in this context.
     static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 
+    /// Assign new IDs to variables and identifiers created in the expression.
     pub(super) fn reassign_ids(vars: &mut VariableContext, expr: &mut Expression) {
         fn replace_local_id(
             vars: &mut VariableContext,
@@ -780,6 +782,9 @@ mod helpers {
             expr,
             &mut |expr| {
                 match expr {
+                    Expression::Ident(ident) => {
+                        ident.id = vars.next_ident_id();
+                    }
                     Expression::Let(let_) => {
                         replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id)
                     }
@@ -788,8 +793,13 @@ mod helpers {
                         &mut replacements.borrow_mut(),
                         &mut for_.index_variable,
                     ),
-                    Expression::Ident(ident) => {
-                        ident.id = vars.next_ident_id();
+                    Expression::Match(match_) => {
+                        let mut replacements = replacements.borrow_mut();
+                        for case in match_.cases.iter_mut() {
+                            for (arg, _) in case.arguments.iter_mut() {
+                                replace_local_id(vars, &mut replacements, arg);
+                            }
+                        }
                     }
                     _ => (),
                 }

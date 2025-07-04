@@ -774,7 +774,7 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
-        let variable = self.lookup(match_expr.variable_to_match);
+        let variable = self.lookup(match_expr.variable_to_match.0);
 
         // Any matches with only a single case we don't need to check the tag at all.
         // Note that this includes all matches on struct / tuple values.
@@ -962,7 +962,7 @@ impl FunctionContext<'_> {
             "Expected enum variant to contain a value for each variant argument"
         );
 
-        for (value, arg) in variant.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in variant.into_iter().zip(&case.arguments) {
             self.define(*arg, value);
         }
     }
@@ -978,7 +978,7 @@ impl FunctionContext<'_> {
             "Expected field length to match constructor argument count"
         );
 
-        for (value, arg) in fields.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in fields.into_iter().zip(&case.arguments) {
             self.define(*arg, value);
         }
     }
