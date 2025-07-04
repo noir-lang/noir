@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751639172943,
+  "lastUpdate": 1751639547863,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18741,48 +18741,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "4fb8d367129689d177e233877763c03ee24171f4",
-          "message": "feat: `nargo expand` for LSP (#9012)",
-          "timestamp": "2025-06-24T19:41:52Z",
-          "tree_id": "d11e11d3ec575d22d1ea1dcd0f901483b48aa446",
-          "url": "https://github.com/noir-lang/noir/commit/4fb8d367129689d177e233877763c03ee24171f4"
-        },
-        "date": 1750795530513,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253786,
-            "range": "± 1154",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224380,
-            "range": "± 3624",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779723,
-            "range": "± 1025",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "9fc413d9ac940b4f8e130aa6d874cf8e0efabde2",
           "message": "fix: Add a remove_unreachable_instructions SSA pass (with unreachable terminator) (#9008)",
           "timestamp": "2025-06-24T19:45:20Z",
@@ -20824,6 +20782,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790419,
             "range": "± 8506",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8988213085075ee6c5f8843f767ae9a9a204e2cf",
+          "message": "fix: apply instantiation bindings to associated constants (#9117)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-04T14:05:24Z",
+          "tree_id": "e514a46bb844f9a8e0f0dfcf17aac606c4d7fe45",
+          "url": "https://github.com/noir-lang/noir/commit/8988213085075ee6c5f8843f767ae9a9a204e2cf"
+        },
+        "date": 1751639534193,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254928,
+            "range": "± 1122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222445,
+            "range": "± 1650",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787017,
+            "range": "± 1202",
             "unit": "ns/iter"
           }
         ]
