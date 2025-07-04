@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 447
 expression: expanded_code
 ---
 trait Serialize {
