@@ -300,12 +300,24 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::PathBuf;
 
 <span class="kw">use </span>fm::{FileId, FileManager};
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::constants::PROVER_INPUT_FILE;
 <span class="kw">use </span>nargo::ops::report_errors;
 <span class="kw">use </span>nargo::package::Package;
@@ -551,12 +563,22 @@
         <span class="comment">// We need to give a fresh copy of arrays each time, because the shared structures are modified.
         </span><span class="kw">let </span>args = Value::snapshot_args(args);
         <span class="kw">let </span>result = ssa.interpret_with_options(args, options, std::io::stdout());
-        <span class="macro">println!</span>(<span class="string">"--- Interpreter result after {msg}:\n{result:?}\n---"</span>);
+        <span class="kw">match </span><span class="kw-2">&amp;</span>result {
+            <span class="prelude-val">Ok</span>(value) =&gt; {
+                <span class="kw">let </span>value_as_string = vecmap(value, ToString::to_string).join(<span class="string">", "</span>);
+                <span class="macro">println!</span>(<span class="string">"--- Interpreter result after {msg}:\nOk({value_as_string})\n---"</span>);
+            }
+            <span class="prelude-val">Err</span>(err) =&gt; {
+                <span class="macro">println!</span>(<span class="string">"--- Interpreter result after {msg}:\nErr({err})\n---"</span>);
+            }
+        }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(return_value) = return_value {
             <span class="kw">let </span>result = result.expect(<span class="string">"Expected a non-error result"</span>);
             <span class="kw">if </span><span class="kw-2">&amp;</span>result != return_value {
+                <span class="kw">let </span>result_as_string = vecmap(<span class="kw-2">&amp;</span>result, ToString::to_string).join(<span class="string">", "</span>);
+                <span class="kw">let </span>return_value_as_string = vecmap(return_value, ToString::to_string).join(<span class="string">", "</span>);
                 <span class="kw">let </span>error = <span class="macro">format!</span>(
-                    <span class="string">"Error: interpreter produced an unexpected result.\nExpected result: {return_value:?}\nActual result:   {result:?}"
+                    <span class="string">"Error: interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result:   {result_as_string}"
                 </span>);
                 <span class="kw">return </span><span class="prelude-val">Err</span>(CliError::Generic(error));
             }
