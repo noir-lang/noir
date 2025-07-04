@@ -2540,7 +2540,7 @@ fn resolve_trait_item_impl(
                     // This is similar to what's done in `verify_trait_constraint` in the frontend.
                     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
                     bindings.extend(instantiation_bindings);
-                    interner.store_instantiation_bindings(expr_id, bindings);
+                    interner.store_instantiation_bindings(expr_id, bindings.clone());
                     Ok(impl_id)
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
@@ -2592,9 +2592,18 @@ pub(crate) fn resolve_trait_item(
         // is expected to resolve to a Type::Constant - we have to look that up separately.
         for item in interner.get_associated_types_for_impl(impl_id) {
             if item.name.as_str() == name {
-                let expected_type = expected_type.clone();
                 let id = *id;
-                return Ok(TraitItem::Constant { id, expected_type, value: item.typ.clone() });
+                let expected_type = expected_type.clone();
+
+                // We also need to apply any instantiation bindings if the expression has any
+                let instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
+                let value = if let Some(instantiation_bindings) = instantiation_bindings {
+                    item.typ.substitute(instantiation_bindings)
+                } else {
+                    item.typ.clone()
+                };
+
+                return Ok(TraitItem::Constant { id, expected_type, value });
             }
         }
     }
