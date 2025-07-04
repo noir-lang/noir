@@ -23,7 +23,7 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_JMP: usize = 1;
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
 const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
-pub(crate) type ValuesTypes = (Vec<FieldElement>, Vec<ValueType>);
+pub(crate) type ValueWithType = (FieldElement, ValueType);
 
 /// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
 /// field = low + high * 2^128
@@ -202,7 +202,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     ///
     /// Used for fuzzing constant folding SSA pass.
     pub(crate) fn new_constant_context(
-        values_types: ValuesTypes,
+        values_types: Vec<ValueWithType>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
@@ -213,7 +213,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         let mut acir_ids = HashMap::new();
         let mut brillig_ids = HashMap::new();
 
-        for (value, type_) in values_types.0.into_iter().zip(values_types.1.into_iter()) {
+        for (value, type_) in values_types.into_iter() {
             let field_element = value;
             acir_ids
                 .entry(type_)

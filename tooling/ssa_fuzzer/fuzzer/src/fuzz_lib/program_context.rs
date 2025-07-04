@@ -102,7 +102,12 @@ impl FuzzerProgramContext {
                 .collect();
             let mut function_context = if self.is_constant {
                 FuzzerFunctionContext::new_constant_context(
-                    (stored_function.values.to_vec(), stored_function.types.to_vec()),
+                    stored_function
+                        .values
+                        .iter()
+                        .zip(stored_function.types.iter())
+                        .map(|(value, type_)| (value.clone(), type_.clone()))
+                        .collect(),
                     &stored_function.function.blocks,
                     self.program_context_options.clone(),
                     stored_function.function.return_type,
