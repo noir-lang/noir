@@ -397,12 +397,11 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
+            BlackBoxOp::Poseidon2Permutation { message, output } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  POSEIDON2_PERMUTATION {} {} -> {}",
+                    "  POSEIDON2_PERMUTATION {} -> {}",
                     message,
-                    len,
                     output
                 );
             }

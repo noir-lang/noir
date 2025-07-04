@@ -33,7 +33,7 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : [_1, _2, _3]",
-    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [_0]:1 bits []",
     "EXPR [ (1, _1) -1 ]",
     "EXPR [ (1, _0, _0) (-1, _0) (1, _2) 0 ]",
     "EXPR [ (1, _3) -1 ]"
