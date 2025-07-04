@@ -480,6 +480,8 @@ impl<'a> FunctionContext<'a> {
             && self.budget > 0
             && (self.unconstrained() || !types::contains_reference(typ));
 
+        let allow_match = allow_if_then && !self.ctx.config.avoid_match;
+
         if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
                 return Ok(expr);
@@ -500,7 +502,7 @@ impl<'a> FunctionContext<'a> {
 
         // Match expressions, returning a value.
         // Treating them similarly to if-then-else.
-        if freq.enabled_when("match", allow_if_then) {
+        if freq.enabled_when("match", allow_match) {
             // It might not be able to generate the type, if we don't have a suitable variable to match on.
             if let Some(expr) = self.gen_match(u, typ, max_depth)? {
                 return Ok(expr);
@@ -932,7 +934,7 @@ impl<'a> FunctionContext<'a> {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
         }
 
-        if freq.enabled_when("match", self.budget > 1) {
+        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match) {
             if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
                 return Ok(e);
             }
