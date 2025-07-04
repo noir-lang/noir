@@ -198,8 +198,8 @@ pub(crate) type FunctionVecMutationConfig = WeightedSelectionConfig<FunctionVecM
 pub(crate) const BASIC_FUNCTION_VEC_MUTATION_CONFIGURATION: FunctionVecMutationConfig =
     FunctionVecMutationConfig::new([
         (FunctionVecMutationOptions::Random, 1),
-        (FunctionVecMutationOptions::Insertion, 1),
+        (FunctionVecMutationOptions::Insertion, 10),
         (FunctionVecMutationOptions::Remove, 1),
         (FunctionVecMutationOptions::Replace, 1),
-        (FunctionVecMutationOptions::MutateFunc, 2),
+        (FunctionVecMutationOptions::MutateFunc, 40),
     ]);

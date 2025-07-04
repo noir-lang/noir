@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use super::function_context::{FunctionData, FuzzerFunctionContext};
 use super::instruction::FunctionSignature;
@@ -31,7 +31,7 @@ pub(crate) struct FuzzerProgramContext {
     /// Whether the program is executed in constants
     is_constant: bool,
     /// Function signatures
-    function_signatures: HashMap<Id<Function>, FunctionSignature>,
+    function_signatures: BTreeMap<Id<Function>, FunctionSignature>,
     /// Stored functions
     stored_functions: Vec<StoredFunction>,
     /// Current function id
@@ -48,7 +48,7 @@ impl FuzzerProgramContext {
             brillig_builder,
             program_context_options,
             is_constant: false,
-            function_signatures: HashMap::new(),
+            function_signatures: BTreeMap::new(),
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
         }
@@ -63,7 +63,7 @@ impl FuzzerProgramContext {
             brillig_builder,
             program_context_options,
             is_constant: true,
-            function_signatures: HashMap::new(),
+            function_signatures: BTreeMap::new(),
             stored_functions: Vec::new(),
             current_function_id: Id::new(0),
         }
@@ -94,7 +94,7 @@ impl FuzzerProgramContext {
         for i in 0..self.stored_functions.len() {
             let stored_function = &self.stored_functions[i];
             // use only functions defined after this one to avoid recursion
-            let defined_functions: HashMap<Id<Function>, FunctionSignature> = self
+            let defined_functions: BTreeMap<Id<Function>, FunctionSignature> = self
                 .function_signatures
                 .clone()
                 .into_iter()

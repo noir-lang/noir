@@ -13,6 +13,7 @@ use noir_ssa_fuzzer::{
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     hash::Hash,
@@ -68,7 +69,8 @@ impl Default for FunctionData {
         FunctionData {
             blocks: vec![],
             commands: vec![],
-            initial_witness: [WitnessValue::Field(FieldRepresentation { high: 0, low: 0 }); 5],
+            initial_witness: [WitnessValue::Field(FieldRepresentation { high: 0, low: 0 });
+                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
             return_instruction_block_idx: 0,
             return_type: ValueType::Field,
         }
@@ -144,7 +146,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     parent_iterations_count: usize,
 
     return_type: ValueType,
-    defined_functions: HashMap<Id<Function>, FunctionSignature>,
+    defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
 }
 
 impl<'a> FuzzerFunctionContext<'a> {
@@ -155,7 +157,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
-        defined_functions: HashMap<Id<Function>, FunctionSignature>,
+        defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -204,7 +206,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
-        defined_functions: HashMap<Id<Function>, FunctionSignature>,
+        defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -682,11 +684,11 @@ impl<'a> FuzzerFunctionContext<'a> {
                 if num_of_defined_functions == 0 {
                     return;
                 }
-                let mut function_ids =
-                    self.defined_functions.keys().collect::<Vec<&Id<Function>>>();
-                function_ids.sort();
-
-                let function_id = *function_ids[function_idx % num_of_defined_functions];
+                let function_id = *self
+                    .defined_functions
+                    .keys()
+                    .nth(function_idx % num_of_defined_functions)
+                    .unwrap();
                 let function_signature = self.defined_functions[&function_id].clone();
 
                 self.current_block.context.process_function_call(

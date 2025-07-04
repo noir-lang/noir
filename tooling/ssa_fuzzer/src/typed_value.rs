@@ -135,7 +135,6 @@ impl ValueType {
     }
 
     /// Helper to check if this type could be used for casts into it
-    /// Signed types are not supported right now
     pub fn can_be_used_for_casts(&self) -> bool {
         true
     }
