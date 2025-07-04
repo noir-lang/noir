@@ -133,13 +133,23 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+
+<span class="kw">use crate</span>::{
     errors::RtResult,
     ssa::ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
         instruction::{Instruction, InstructionId},
+        types::NumericType,
         value::{ValueId, ValueMapping},
     },
 };
@@ -191,24 +201,27 @@
         </span>F: FnMut(<span class="kw-2">&amp;mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt;) -&gt; RtResult&lt;()&gt;,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
-
+        <span class="kw">let </span><span class="kw-2">mut </span>enable_side_effects =
+            <span class="self">self</span>.dfg.make_constant(FieldElement::from(<span class="number">1_u128</span>), NumericType::bool());
         <span class="kw">for </span>block_id <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
             <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block_id].take_instructions();
             <span class="self">self</span>.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
                 <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
-
+                <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[instruction_id];
                 <span class="kw">if </span>!values_to_replace.is_empty() {
-                    <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[instruction_id];
                     instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
                 }
-
+                <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
+                    enable_side_effects = <span class="kw-2">*</span>condition;
+                }
                 <span class="kw">let </span><span class="kw-2">mut </span>context = SimpleOptimizationContext {
                     block_id,
                     instruction_id,
                     dfg: <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg,
                     values_to_replace: <span class="kw-2">&amp;mut </span>values_to_replace,
                     insert_current_instruction_at_callback_end: <span class="bool-val">true</span>,
+                    enable_side_effects,
                 };
                 f(<span class="kw-2">&amp;mut </span>context)<span class="question-mark">?</span>;
 
@@ -230,6 +243,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) block_id: BasicBlockId,
     <span class="kw">pub</span>(<span class="kw">crate</span>) instruction_id: InstructionId,
     <span class="kw">pub</span>(<span class="kw">crate</span>) dfg: <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span><span class="kw-2">mut </span>DataFlowGraph,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) enable_side_effects: ValueId,
     values_to_replace: <span class="kw-2">&amp;</span><span class="lifetime">'mapping </span><span class="kw-2">mut </span>ValueMapping,
     insert_current_instruction_at_callback_end: bool,
 }

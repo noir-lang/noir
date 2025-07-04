@@ -279,7 +279,42 @@
 <a href="#278" id="278">278</a>
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
-<a href="#281" id="281">281</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -371,6 +406,7 @@
 
     <span class="kw">let </span>u128 = NumericType::unsigned(<span class="number">128</span>);
     <span class="kw">let </span>two_pow_64 = dfg.make_constant(two_pow_64.into(), u128);
+    <span class="kw">let </span>mul = BinaryOp::Mul { unchecked: <span class="bool-val">true </span>};
 
     <span class="kw">let </span>res = <span class="kw">if </span>lhs_value.is_some() &amp;&amp; rhs_value.is_some() {
         <span class="comment">// If both values are known at compile time, at this point we know it overflows
@@ -399,13 +435,17 @@
             dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first();
 
         <span class="comment">// Unchecked as operands are restricted to be less than 2^64 so multiplying them cannot overflow.
-        </span><span class="kw">let </span>mul = BinaryOp::Mul { unchecked: <span class="bool-val">true </span>};
-        <span class="kw">let </span>instruction =
+        </span><span class="kw">let </span>instruction =
             Instruction::Binary(Binary { lhs: divided_lhs, rhs: divided_rhs, operator: mul });
         dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first()
     };
 
     <span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), u128);
+    <span class="kw">let </span>instruction = Instruction::Cast(context.enable_side_effects, u128);
+    <span class="kw">let </span>predicate =
+        dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first();
+    <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs: res, rhs: predicate, operator: mul });
+    <span class="kw">let </span>res = dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first();
     <span class="kw">let </span>instruction = Instruction::Constrain(
         res,
         zero,
@@ -558,6 +598,36 @@
 
         <span class="kw">let </span>ssa = ssa.check_u128_mul_overflow();
         assert_normalized_ssa_equals(ssa, src);
+    }
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>predicate_overflow() {
+        <span class="comment">// This code performs a u128 multiplication that overflows, under a condition.
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+        b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+        b1():
+            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455	// src/main.nr:17:13
+            jmp b2()
+        b2():
+            return v0
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.flatten_cfg().check_u128_mul_overflow();
+        <span class="comment">// Below, the overflow check takes the 'enable_side_effects' value into account
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455
+            v3 = cast v0 as u128
+            constrain v3 == u128 0, "attempt to multiply with overflow"
+            v5 = not v0
+            enable_side_effects u1 1
+            return v0
+        }
+        "#</span>);
     }
 }
 </code></pre></div></section></main></body></html>
