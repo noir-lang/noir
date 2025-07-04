@@ -24,11 +24,8 @@ fn turbofish_numeric_generic_nested_function_call() {
     assert_no_errors!(src);
 }
 
-// TODO: this test should pass, but it doesn't because of this issue:
-// https://github.com/noir-lang/noir/issues/8900
 #[named]
 #[test]
-#[should_panic]
 fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
     let src = r#"
