@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751640659284,
+  "lastUpdate": 1751640661680,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4fb8d367129689d177e233877763c03ee24171f4",
-          "message": "feat: `nargo expand` for LSP (#9012)",
-          "timestamp": "2025-06-24T19:41:52Z",
-          "tree_id": "d11e11d3ec575d22d1ea1dcd0f901483b48aa446",
-          "url": "https://github.com/noir-lang/noir/commit/4fb8d367129689d177e233877763c03ee24171f4"
-        },
-        "date": 1750796361190,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 293.29,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 534.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1530,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9410,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 344.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 354.76,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.44,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3944,6 +3865,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 336.23,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8988213085075ee6c5f8843f767ae9a9a204e2cf",
+          "message": "fix: apply instantiation bindings to associated constants (#9117)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-04T14:05:24Z",
+          "tree_id": "e514a46bb844f9a8e0f0dfcf17aac606c4d7fe45",
+          "url": "https://github.com/noir-lang/noir/commit/8988213085075ee6c5f8843f767ae9a9a204e2cf"
+        },
+        "date": 1751640646127,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 276.37,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 530.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 180.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1390,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1080,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9380,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.25,
             "unit": "MB"
           },
           {
