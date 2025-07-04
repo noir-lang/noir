@@ -1106,6 +1106,7 @@ mod tests {
         let w_x = Witness(1);
 
         let brillig_bytecode = BrilligBytecode {
+            name: "main".to_string(),
             bytecode: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(1),
@@ -1262,6 +1263,7 @@ mod tests {
 
         // This Brillig block is equivalent to: z = x + y
         let brillig_bytecode = BrilligBytecode {
+            name: "main".to_string(),
             bytecode: vec![
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(0),
@@ -1379,9 +1381,12 @@ mod tests {
     #[test]
     fn test_address_debug_location_mapping() {
         let solver = StubbedBlackBoxSolver::default();
-        let brillig_one =
-            BrilligBytecode { bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return] };
+        let brillig_one = BrilligBytecode {
+            name: "one".to_string(),
+            bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return],
+        };
         let brillig_two = BrilligBytecode {
+            name: "two".to_string(),
             bytecode: vec![BrilligOpcode::Return, BrilligOpcode::Return, BrilligOpcode::Return],
         };
 

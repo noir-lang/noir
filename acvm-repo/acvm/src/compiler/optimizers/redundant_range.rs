@@ -252,6 +252,7 @@ mod tests {
             .collect();
 
         Circuit {
+            name: "main".to_string(),
             current_witness_index: 1,
             expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,

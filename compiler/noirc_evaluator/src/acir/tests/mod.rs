@@ -118,7 +118,7 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
 
     let ssa = builder.finish().generate_entry_point_index();
 
-    let (acir_functions, _, _, _) = ssa
+    let (acir_functions, _, _) = ssa
         .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     // Expected result:
@@ -223,7 +223,7 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
 
     let ssa = builder.finish();
 
-    let (acir_functions, _, _, _) = ssa
+    let (acir_functions, _, _) = ssa
         .generate_entry_point_index()
         .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
@@ -325,7 +325,7 @@ fn basic_nested_call(inline_type: InlineType) {
 
     let ssa = builder.finish().generate_entry_point_index();
 
-    let (acir_functions, _, _, _) = ssa
+    let (acir_functions, _, _) = ssa
         .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -445,7 +445,7 @@ fn multiple_brillig_calls_one_bytecode() {
     let ssa = builder.finish();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
@@ -493,7 +493,7 @@ fn multiple_brillig_stdlib_calls() {
 
     // The Brillig bytecode we insert for the stdlib is hardcoded so we do not need to provide any
     // Brillig artifacts to the ACIR gen pass.
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
         .into_acir(&Brillig::default(), &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
@@ -561,7 +561,7 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
@@ -645,7 +645,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .generate_entry_point_index()
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
@@ -749,7 +749,7 @@ fn unchecked_mul_should_not_have_range_check() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (mut acir_functions, _brillig_functions, _, _) = ssa
+    let (mut acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -787,7 +787,7 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
@@ -873,7 +873,7 @@ fn properly_constrains_quotient_when_truncating_fields() {
     let malicious_brillig_stdlib =
         BrilligStdLib { quotient: malicious_quotient, ..BrilligStdLib::default() };
 
-    let (acir_functions, brillig_functions, _, _) = codegen_acir(
+    let (acir_functions, brillig_functions, _) = codegen_acir(
         ssa,
         &Brillig::default(),
         malicious_brillig_stdlib,
@@ -917,7 +917,7 @@ fn do_not_overflow_with_constant_constrain_neq() {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 

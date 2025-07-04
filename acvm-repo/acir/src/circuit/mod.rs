@@ -54,6 +54,7 @@ pub struct Program<F: AcirField> {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
+    pub name: String,
     /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     /// will take on this value. (The value is cached here as an optimization.)
     pub current_witness_index: u32,
@@ -445,6 +446,7 @@ mod tests {
     #[test]
     fn serialization_roundtrip() {
         let circuit = Circuit {
+            name: "main".to_string(),
             current_witness_index: 5,
             expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
@@ -470,6 +472,7 @@ mod tests {
     #[test]
     fn test_serialize() {
         let circuit = Circuit {
+            name: "main".to_string(),
             current_witness_index: 0,
             expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
@@ -516,6 +519,7 @@ mod tests {
     #[test]
     fn circuit_display_snapshot() {
         let circuit = Circuit {
+            name: "main".to_string(),
             current_witness_index: 3,
             expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
