@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751640205092,
+  "lastUpdate": 1751640659284,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,75 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "4fb8d367129689d177e233877763c03ee24171f4",
-          "message": "feat: `nargo expand` for LSP (#9012)",
-          "timestamp": "2025-06-24T19:41:52Z",
-          "tree_id": "d11e11d3ec575d22d1ea1dcd0f901483b48aa446",
-          "url": "https://github.com/noir-lang/noir/commit/4fb8d367129689d177e233877763c03ee24171f4"
-        },
-        "date": 1750796370244,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "9fc413d9ac940b4f8e130aa6d874cf8e0efabde2",
           "message": "fix: Add a remove_unreachable_instructions SSA pass (with unreachable terminator) (#9008)",
           "timestamp": "2025-06-24T19:45:20Z",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3beb8f5456df2ecc9dbf6a415ba47663fa100dfc"
         },
         "date": 1751640021278,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 198.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 222.69,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 174.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 433.86,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 322.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 325.35,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8988213085075ee6c5f8843f767ae9a9a204e2cf",
+          "message": "fix: apply instantiation bindings to associated constants (#9117)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-04T14:05:24Z",
+          "tree_id": "e514a46bb844f9a8e0f0dfcf17aac606c4d7fe45",
+          "url": "https://github.com/noir-lang/noir/commit/8988213085075ee6c5f8843f767ae9a9a204e2cf"
+        },
+        "date": 1751640645356,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
