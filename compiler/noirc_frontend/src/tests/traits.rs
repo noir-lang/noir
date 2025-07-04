@@ -1658,3 +1658,38 @@ fn trait_with_same_generic_in_different_default_methods() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn associated_constant_of_generic_type_used_in_another_associated_constant() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [Field; N];
+    }
+
+    impl<let M: u32> Serialize for [Field; M] {
+        let N: u32 = M;
+
+        fn serialize(self) -> [Field; Self::N] {
+            self
+        }
+    }
+
+    struct Foo {}
+
+    impl Serialize for Foo {
+        let N: u32 = <[Field; 3] as Serialize>::N;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.serialize();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
