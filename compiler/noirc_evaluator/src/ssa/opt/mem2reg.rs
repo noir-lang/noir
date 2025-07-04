@@ -680,6 +680,16 @@ impl<'f> PerFunctionContext<'f> {
                     }
                 }
 
+                // Treat parameters passed to another block as if they were return values.
+                for arg in arguments {
+                    let arg_type = self.inserter.function.dfg.type_of_value(*arg);
+                    if Self::contains_references(&arg_type) {
+                        references.for_each_alias_of(*arg, |_, alias| {
+                            self.instruction_input_references.insert(alias);
+                        });
+                    }
+                }
+
                 // Set the aliases of the parameters
                 for (_, aliased_params) in arg_set {
                     for param in aliased_params.iter() {
