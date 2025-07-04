@@ -2313,7 +2313,7 @@
                 <span class="kw">let </span>(cases, fallback) = <span class="self">self</span>.compile_int_cases(rows, branch_var)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, <span class="prelude-val">Some</span>(fallback)))
             }
-            Type::TypeVariable(typevar) <span class="kw">if </span>typevar.is_integer_or_field() =&gt; {
+            Type::TypeVariable(typevar) <span class="kw">if </span>typevar.is_integer() || typevar.is_integer_or_field() =&gt; {
                 <span class="kw">let </span>(cases, fallback) = <span class="self">self</span>.compile_int_cases(rows, branch_var)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(HirMatch::Switch(branch_var, cases, <span class="prelude-val">Some</span>(fallback)))
             }
