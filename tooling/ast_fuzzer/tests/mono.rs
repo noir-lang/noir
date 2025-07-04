@@ -14,6 +14,7 @@ use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_program};
 use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
+    elaborator::UnstableFeature,
     hir::Context,
     monomorphization::{ast::Program, monomorphize},
 };
@@ -77,7 +78,10 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
 
     context.disable_comptime_printing();
 
-    let _ = noirc_driver::check_crate(&mut context, crate_id, &CompileOptions::default())?;
+    let options =
+        CompileOptions { unstable_features: vec![UnstableFeature::Enums], ..Default::default() };
+
+    let _ = noirc_driver::check_crate(&mut context, crate_id, &options)?;
 
     let main_id = context.get_main_function(&crate_id).expect("get_main_function");
 
