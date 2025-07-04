@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -67,6 +67,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -126,12 +128,13 @@ const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
     "array_to_slice_constant_length",
+    "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
     "import",
@@ -151,12 +154,14 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 7] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
+    // bug
+    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
@@ -173,28 +178,16 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
-    // bug
-    "alias_trait_method_call_multiple_candidates",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
     // bug
     "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
-    "primitive_trait_method_call_multiple_candidates",
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "regression_7038",
-    // bug
-    "regression_7038_2",
-    // bug
-    "regression_7038_3",
-    // bug
-    "regression_7038_4",
     // bug
     "serialize_1",
     // bug
@@ -204,30 +197,22 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 24] = [
     // bug
     "serialize_4",
     // bug
-    "trait_allowed_item_name_matches",
-    // bug
-    "trait_default_implementation",
-    // bug
     "trait_function_calls",
     // bug
     "trait_method_mut_self",
     // bug
-    "trait_override_implementation",
-    // bug
     "trait_static_methods",
-    // bug
-    "type_trait_method_call_multiple_candidates",
-    // bug
-    "type_trait_method_call_multiple_candidates_with_turbofish",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
     "nested_trait_associated_type_regression_8252",
+    // bug: the `<T as Trait>::N` syntax is dropped and becomes just `N`.
+    "associated_constants_in_as_trait_expr",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 19] = [
     "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
@@ -246,6 +231,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+    "noirc_frontend_tests_traits_associated_constant_of_generic_type_used_in_expression",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =

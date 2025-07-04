@@ -14,7 +14,7 @@ where
     where
         T: Greeter,
     {
-        Greeter::greet(object);
+        object.greet();
     }
 }
 
@@ -28,7 +28,7 @@ where
     where
         T: Greeter,
     {
-        Greeter::greet(object);
+        object.greet();
     }
 }
 

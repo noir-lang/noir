@@ -18,7 +18,7 @@ pub fn foo<T>(baz: T) -> (Field, Field, Field)
 where
     T: Baz,
 {
-    (Foo::foo(baz), Bar::bar(baz), Baz::baz(baz))
+    (baz.foo(), baz.bar(), baz.baz())
 }
 
 fn main() {}

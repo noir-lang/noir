@@ -1,4 +1,4 @@
-//! This module is an abstraction layer over `Brillig`
+//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both

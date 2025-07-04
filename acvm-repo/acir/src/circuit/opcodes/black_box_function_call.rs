@@ -521,9 +521,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
+        use crate::serialization::{bincode_deserialize, bincode_serialize};
+
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode::serialize(&opcode).unwrap();
-        let recovered_opcode = bincode::deserialize(&buf).unwrap();
+        let buf = bincode_serialize(&opcode).unwrap();
+        let recovered_opcode = bincode_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }

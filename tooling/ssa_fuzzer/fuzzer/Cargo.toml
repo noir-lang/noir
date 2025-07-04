@@ -16,6 +16,9 @@ acvm.workspace = true
 noir_ssa_executor.workspace = true
 log.workspace = true
 env_logger.workspace = true
+bincode.workspace = true
+rand.workspace = true
+serde.workspace = true
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"

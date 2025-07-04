@@ -453,13 +453,13 @@ fn check_trait_implementation_duplicate_method() {
     impl Default2 for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ~~~~~~~ First trait associated function found here
+           ~~~~~~~ First trait associated item found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ^^^^^^^ Duplicate definitions of trait associated function with name default found
-           ~~~~~~~ Second trait associated function found here
+           ^^^^^^^ Duplicate definitions of trait associated item with name default found
+           ~~~~~~~ Second trait associated item found here
             x + 2 * y
         }
     }

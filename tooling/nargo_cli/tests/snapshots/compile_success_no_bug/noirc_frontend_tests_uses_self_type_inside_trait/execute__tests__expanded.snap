@@ -21,5 +21,5 @@ impl Foo for Field {
 }
 
 fn main() {
-    let _: Field = Foo::foo();
+    let _: Field = Field::foo();
 }
