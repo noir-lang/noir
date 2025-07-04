@@ -474,7 +474,7 @@ impl BlockContext {
                 brillig_builder.finalize_function(return_value);
             }
             _ => {
-                // If no last value was set, we take boolean, that definitely  set and cast it to the return type
+                // If no last value was set, we take a boolean that is definitely set and cast it to the return type
                 let boolean_value =
                     get_typed_value_from_map(&self.stored_values, &ValueType::Boolean, 0).unwrap();
                 let return_value = acir_builder.insert_cast(boolean_value.clone(), return_type);
