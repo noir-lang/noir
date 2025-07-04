@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main() {
-    let mut a: [Field; 2] = [1, 2];
+    let mut a: [Field; 2] = [1_Field, 2_Field];
     foo(&mut a);
 }
 
 unconstrained fn foo(a: &mut [Field; 2]) {
     let a_copy: [Field; 2] = *a;
-    a[0] = 100;
-    assert(a_copy == [1, 2]);
-    assert(*a == [100, 2]);
+    a[0_u32] = 100_Field;
+    assert(a_copy == [1_Field, 2_Field]);
+    assert(*a == [100_Field, 2_Field]);
 }

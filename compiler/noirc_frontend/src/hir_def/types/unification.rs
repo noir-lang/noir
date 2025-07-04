@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use noirc_errors::Location;
 
 use crate::{
-    BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, TypeVariable,
-    hir::type_check::TypeCheckError,
+    BinaryTypeOperator, Kind, QuotedType, Type, TypeBinding, TypeBindings, TypeVariable,
+    hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
         types,
@@ -504,8 +504,8 @@ impl Type {
         expression: ExprId,
         location: Location,
         interner: &mut NodeInterner,
-        errors: &mut Vec<TypeCheckError>,
-        make_error: impl FnOnce() -> TypeCheckError,
+        errors: &mut Vec<CompilationError>,
+        make_error: impl FnOnce() -> CompilationError,
     ) {
         let mut bindings = TypeBindings::default();
 
@@ -515,6 +515,10 @@ impl Type {
         }
 
         if self.try_array_to_slice_coercion(expected, expression, interner) {
+            return;
+        }
+
+        if self.try_string_to_ctstring_coercion(expected, expression, interner) {
             return;
         }
 
@@ -531,7 +535,7 @@ impl Type {
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
-                errors.push(TypeCheckError::UnsafeFn { location });
+                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
 
                 coerced_self.unify_with_coercions(
                     expected, expression, location, interner, errors, make_error,
@@ -581,7 +585,7 @@ impl Type {
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::default();
                 if element1.try_unify(element2, &mut bindings).is_ok() {
-                    convert_array_expression_to_slice(expression, this, target, as_slice, interner);
+                    invoke_function_on_expression(expression, this, target, as_slice, interner);
                     Self::apply_type_bindings(bindings);
                     return true;
                 }
@@ -590,8 +594,40 @@ impl Type {
         false
     }
 
+    fn try_string_to_ctstring_coercion(
+        &self,
+        target: &Type,
+        expression: ExprId,
+        interner: &mut NodeInterner,
+    ) -> bool {
+        let this = self.follow_bindings();
+        let target = target.follow_bindings();
+
+        let Type::Quoted(QuotedType::CtString) = &target else {
+            return false;
+        };
+
+        match &this {
+            Type::String(..) | Type::FmtString(..) => {
+                // as_ctstring is defined as a trait method
+                for (func_id, trait_id) in interner.lookup_trait_methods(&this, "as_ctstring", true)
+                {
+                    // Look up the one that's in the standard library.
+                    let trait_ = interner.get_trait(trait_id);
+                    if trait_.crate_id.is_stdlib() && trait_.name.as_str() == "AsCtString" {
+                        invoke_function_on_expression(expression, this, target, func_id, interner);
+                        return true;
+                    }
+                }
+            }
+            _ => (),
+        }
+
+        false
+    }
+
     /// Attempt to coerce `&mut T` to `&T`, returning true if this is possible.
-    pub fn try_reference_coercion(&self, target: &Type) -> bool {
+    pub(crate) fn try_reference_coercion(&self, target: &Type) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
 
@@ -610,24 +646,24 @@ impl Type {
     }
 }
 
-/// Wraps a given `expression` in `expression.as_slice()`
-fn convert_array_expression_to_slice(
+/// Wraps a given `expression` in `expression.method()`
+fn invoke_function_on_expression(
     expression: ExprId,
-    array_type: Type,
+    expression_type: Type,
     target_type: Type,
-    as_slice_method: crate::node_interner::FuncId,
+    method: crate::node_interner::FuncId,
     interner: &mut NodeInterner,
 ) {
-    let as_slice_id = interner.function_definition_id(as_slice_method);
+    let method_id = interner.function_definition_id(method);
     let location = interner.expr_location(&expression);
-    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(as_slice_id, location), None);
+    let as_slice = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), None);
     let func = interner.push_expr(as_slice);
 
     // Copy the expression and give it a new ExprId. The old one
     // will be mutated in place into a Call expression.
     let argument = interner.expression(&expression);
     let argument = interner.push_expr(argument);
-    interner.push_expr_type(argument, array_type.clone());
+    interner.push_expr_type(argument, expression_type.clone());
     interner.push_expr_location(argument, location);
 
     let arguments = vec![argument];
@@ -639,7 +675,7 @@ fn convert_array_expression_to_slice(
     interner.push_expr_type(expression, target_type.clone());
 
     let func_type =
-        Type::Function(vec![array_type], Box::new(target_type), Box::new(Type::Unit), false);
+        Type::Function(vec![expression_type], Box::new(target_type), Box::new(Type::Unit), false);
     interner.push_expr_type(func, func_type);
 }
 

@@ -1,6 +1,6 @@
-use crate::compiler::compile_from_builder;
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
+use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
@@ -55,9 +55,9 @@ impl FuzzerBuilder {
         self,
         compile_options: CompileOptions,
     ) -> Result<CompiledProgram, FuzzerBuilderError> {
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile_from_builder(self.builder, &compile_options)
-        }));
+        let ssa = self.builder.finish();
+        let result =
+            std::panic::catch_unwind(AssertUnwindSafe(|| compile_from_ssa(ssa, &compile_options)));
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
@@ -91,6 +91,11 @@ impl FuzzerBuilder {
             BinaryOp::Add { unchecked: false },
             rhs.value_id,
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -105,6 +110,11 @@ impl FuzzerBuilder {
             BinaryOp::Sub { unchecked: false },
             rhs.value_id,
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -131,6 +141,11 @@ impl FuzzerBuilder {
             init_bit_length,
             Some("Attempt to multiply with overflow".to_string()),
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size * 2);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -278,6 +293,14 @@ impl FuzzerBuilder {
     /// Inserts a new basic block and returns its index
     pub fn insert_block(&mut self) -> BasicBlockId {
         self.builder.insert_block()
+    }
+
+    /// Inserts a new parameter to the current SSA block and returns its value
+    ///
+    /// b0() -> b0(new_parameter: parameter_type)
+    pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: ValueType) -> TypedValue {
+        let id = self.builder.add_block_parameter(block, typ.to_ssa_type());
+        TypedValue::new(id, typ.to_ssa_type())
     }
 
     /// Inserts a return instruction with the given value

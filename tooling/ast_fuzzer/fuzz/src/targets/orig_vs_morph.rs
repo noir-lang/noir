@@ -297,9 +297,13 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use crate::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
+    use crate::targets::orig_vs_morph::{
+        VariableContext,
+        helpers::{has_side_effect, reassign_ids},
+    };
 
-    use super::helpers::{gen_expr, has_side_effect};
+    use super::helpers::gen_expr;
+    use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{expr, types};
     use noirc_frontend::{
@@ -429,7 +433,7 @@ mod rules {
                 if a.is_negative() && !b.is_negative() {
                     *b = SignedField::negative(b.absolute_value());
                 } else if !a.is_negative() && b.is_negative() {
-                    *b = SignedField::positive(b.absolute_value());
+                    *b = SignedField::positive(b.absolute_value() - FieldElement::one()); // -1 just to avoid the potential of going from e.g. i8 -128 to 128 where the maximum is 127.
                 }
 
                 let (op, c) = if *a >= *b {

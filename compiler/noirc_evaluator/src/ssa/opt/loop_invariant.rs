@@ -55,7 +55,7 @@ use crate::ssa::{
         function_inserter::FunctionInserter,
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::eval_constant_binary_op,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         integer::IntegerConstant,
         post_order::PostOrder,
@@ -192,7 +192,7 @@ struct LoopInvariantContext<'f> {
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let reversed_cfg = cfg.reverse();
+        let reversed_cfg = ControlFlowGraph::extended_reverse(function);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
@@ -791,9 +791,11 @@ impl<'f> LoopInvariantContext<'f> {
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(rhs)),
         ) {
+            // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
             (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
                 Some((false, lhs, *lower_bound, *upper_bound))
             }
+            // RHS is a constant, LHS is the induction variable with a known lower an upper bound
             (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
                 Some((true, rhs, *lower_bound, *upper_bound))
             }
@@ -845,20 +847,22 @@ impl<'f> LoopInvariantContext<'f> {
         } {
             // We evaluate this expression using the upper bounds (or lower in the case of sub)
             // of its inputs to check whether it will ever overflow.
-            // If so, this will cause `eval_constant_binary_op` to return `None`.
-            // Therefore a `Some` value shows that this operation is safe.
+            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
             let lhs = lhs.into_numeric_constant().0;
             let rhs = rhs.into_numeric_constant().0;
-            if eval_constant_binary_op(lhs, rhs, binary.operator, operand_type).is_some() {
-                // Unchecked version of the binary operation
-                let unchecked = Instruction::Binary(Binary {
-                    operator: binary.operator.into_unchecked(),
-                    lhs: binary.lhs,
-                    rhs: binary.rhs,
-                });
-                return SimplifyResult::SimplifiedToInstruction(unchecked);
-            } else {
-                return SimplifyResult::None;
+            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                BinaryEvaluationResult::Success(..) => {
+                    // Unchecked version of the binary operation
+                    let unchecked = Instruction::Binary(Binary {
+                        operator: binary.operator.into_unchecked(),
+                        lhs: binary.lhs,
+                        rhs: binary.rhs,
+                    });
+                    return SimplifyResult::SimplifiedToInstruction(unchecked);
+                }
+                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                    return SimplifyResult::None;
+                }
             }
         }
 
@@ -896,17 +900,28 @@ impl<'f> LoopInvariantContext<'f> {
             | BinaryOp::Sub { unchecked: true } => true,
             BinaryOp::Div | BinaryOp::Mod => {
                 // Division can be evaluated if we ensure that the divisor cannot be zero
-                let Some((left, value, lower, _)) =
+                let Some((left, value, lower, upper)) =
                     self.match_induction_and_constant(&binary.lhs, &binary.rhs, true)
                 else {
+                    // Not a constant vs non-constant case, we cannot evaluate it.
                     return false;
                 };
+
                 if left {
+                    // If the induction variable is on the LHS, we're dividing with a constant.
                     if !value.is_zero() {
                         return true;
                     }
-                } else if !lower.is_zero() {
-                    return true;
+                } else {
+                    // Otherwise we are dividing a constant with the induction variable, and we have to check whether
+                    // at any point in the loop the induction variable can be zero.
+                    let can_be_zero = lower.is_negative() && !upper.is_negative()
+                        || lower.is_zero()
+                        || upper.is_zero();
+
+                    if !can_be_zero {
+                        return true;
+                    }
                 }
 
                 false

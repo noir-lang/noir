@@ -161,8 +161,8 @@ mod tests {
                     snapshot_path => format!("./snapshots/execution_success/{test_name}")
                 },
                 {
-                insta::assert_snapshot!(snapshot_name, stdout)
-            })
+                insta::assert_snapshot!(snapshot_name, stdout);
+            });
         }
 
         if has_circuit_output {
@@ -299,8 +299,23 @@ mod tests {
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());
     }
 
-    fn compile_success_with_bug(mut nargo: Command) {
+    fn compile_success_with_bug(mut nargo: Command, test_program_dir: PathBuf) {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
+
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_success_with_bug/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
@@ -321,8 +336,8 @@ mod tests {
                 snapshot_path => format!("./snapshots/compile_failure/{test_name}")
             },
             {
-            insta::assert_snapshot!(snapshot_name, stderr)
-        })
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn interpret_execution_success(mut nargo: Command) {
@@ -368,7 +383,7 @@ mod tests {
             snapshot_path => format!("./snapshots/execution_success/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
@@ -429,7 +444,7 @@ mod tests {
             snapshot_path => format!("./snapshots/{prefix}/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
@@ -506,8 +521,8 @@ mod tests {
                     Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn check_contract_artifact(
@@ -537,8 +552,8 @@ mod tests {
                 ".noir_version" => "[noir_version]",
                 ".functions[].hash" => "[hash]",
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn file_map_path_redaction() -> Redaction {

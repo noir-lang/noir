@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
@@ -27,7 +25,7 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -80,6 +78,11 @@ pub struct CompileOptions {
     /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
     pub show_ssa_pass: Vec<String>,
+
+    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations will be shown.
+    #[arg(long, hide = true)]
+    pub no_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -209,6 +212,40 @@ pub struct CompileOptions {
     pub disable_comptime_printing: bool,
 }
 
+impl CompileOptions {
+    pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
+        SsaEvaluatorOptions {
+            ssa_logging: if !self.show_ssa_pass.is_empty() {
+                SsaLogging::Contains(self.show_ssa_pass.clone())
+            } else if self.show_ssa {
+                SsaLogging::All
+            } else {
+                SsaLogging::None
+            },
+            brillig_options: BrilligOptions {
+                enable_debug_trace: self.show_brillig,
+                enable_debug_assertions: self.enable_brillig_debug_assertions,
+                enable_array_copy_counter: self.count_array_copies,
+            },
+            print_codegen_timings: self.benchmark_codegen,
+            expression_width: if self.bounded_codegen {
+                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+            } else {
+                ExpressionWidth::default()
+            },
+            emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
+            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
+            enable_brillig_constraints_check_lookback: self
+                .enable_brillig_constraints_check_lookback,
+            skip_brillig_constraints_check: !self.silence_warnings
+                && self.skip_brillig_constraints_check,
+            inliner_aggressiveness: self.inliner_aggressiveness,
+            max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            skip_passes: self.skip_ssa_pass.clone(),
+        }
+    }
+}
+
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
     use std::io::{Error, ErrorKind};
     let width = input
@@ -236,6 +273,7 @@ impl CompileOptions {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum CompileError {
     MonomorphizationError(MonomorphizationError),
     RuntimeError(RuntimeError),
@@ -710,6 +748,7 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 /// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
+#[allow(clippy::result_large_err)]
 pub fn compile_no_check(
     context: &mut Context,
     options: &CompileOptions,
@@ -757,42 +796,21 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: if !options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } else if options.show_ssa {
-            SsaLogging::All
-        } else {
-            SsaLogging::None
-        },
-        brillig_options: BrilligOptions {
-            enable_debug_trace: options.show_brillig,
-            enable_debug_assertions: options.enable_brillig_debug_assertions,
-            enable_array_copy_counter: options.count_array_copies,
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: if options.bounded_codegen {
-            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-        } else {
-            ExpressionWidth::default()
-        },
-        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: !options.silence_warnings
-            && options.skip_underconstrained_check,
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: !options.silence_warnings
-            && options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    };
+    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         if options.minimal_ssa {
-            create_program_with_minimal_passes(program, &ssa_evaluator_options)?
+            create_program_with_minimal_passes(
+                program,
+                &ssa_evaluator_options,
+                &context.file_manager,
+            )?
         } else {
-            create_program(program, &ssa_evaluator_options)?
+            create_program(
+                program,
+                &ssa_evaluator_options,
+                if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+            )?
         };
 
     let abi = gen_abi(context, &main_function, return_visibility, error_types);

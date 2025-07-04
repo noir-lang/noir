@@ -85,7 +85,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let mut string = String::new();
 
     if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)?;
+        let dep = args.dependencies().iter().find(|dep| dep.crate_id == id.krate)?;
         string.push_str("    crate ");
         string.push_str(&dep.name.to_string());
     } else {
@@ -682,8 +682,13 @@ fn format_parent_module_from_module_id(
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let full_path =
-        module_full_path(module, args.interner, args.crate_id, &args.crate_name, args.dependencies);
+    let full_path = module_full_path(
+        module,
+        args.interner,
+        args.crate_id,
+        &args.crate_name,
+        args.dependencies(),
+    );
     if full_path.is_empty() {
         return false;
     }

@@ -7,15 +7,15 @@ mod foo {
         global N: Field = 2;
 
         pub(crate) struct barStruct {
-            val: Field,
-            array: [Field; 2],
-            message: str<5>,
+            pub(crate) val: Field,
+            pub(crate) array: [Field; 2],
+            pub(crate) message: str<5>,
         }
     }
 
     pub(crate) struct fooStruct {
-        bar_struct: bar::barStruct,
-        baz: Field,
+        pub(crate) bar_struct: bar::barStruct,
+        pub(crate) baz: Field,
     }
 }
 
@@ -27,9 +27,9 @@ struct myStruct {
 
 fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {
     let struct_from_bar: foo::bar::barStruct =
-        foo::bar::barStruct { val: 1, array: [0, 1], message: "hello" };
+        foo::bar::barStruct { val: 1_Field, array: [0_Field, 1_Field], message: "hello" };
     check_inner_struct(a, z);
-    for i in 0..struct_from_bar.array.len() {
+    for i in 0_u32..struct_from_bar.array.len() {
         assert(struct_from_bar.array[i] == z.array[i]);
     }
     assert(z.val == struct_from_bar.val);
@@ -37,12 +37,12 @@ fn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooSt
     assert(x != y.bar);
     assert(y.message == "hello");
     assert(a.bar_struct.message == struct_from_bar.message);
-    a.bar_struct.array[1]
+    a.bar_struct.array[1_u32]
 }
 
 fn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {
     assert(a.bar_struct.val == z.val);
-    for i in 0..a.bar_struct.array.len() {
+    for i in 0_u32..a.bar_struct.array.len() {
         assert(a.bar_struct.array[i] == z.array[i]);
     }
 }

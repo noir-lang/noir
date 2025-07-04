@@ -41,13 +41,14 @@ impl<let N: u32> BigInt<N> {
 }
 
 fn main(x: Field, y: Field) {
-    let bar1: Bar<Field> = Bar::<Field> { one: x, two: y, other: 0 };
-    let bar2: Bar<[Field; 1]> = Bar::<[Field; 1]> { one: x, two: y, other: [0] };
+    let bar1: Bar<Field> = Bar::<Field> { one: x, two: y, other: 0_Field };
+    let bar2: Bar<[Field; 1]> = Bar::<[Field; 1]> { one: x, two: y, other: [0_Field] };
     foo(bar1);
     foo(bar2);
-    let int1: BigInt<1> = BigInt::<1> { limbs: [1] };
-    let int2: BigInt<1> = BigInt::<1> { limbs: [2] };
-    let BigInt::<1> { limbs }: BigInt<1> = int1.second(int2).first(int1);
+    let int1: BigInt<1> = BigInt::<1> { limbs: [1_u32] };
+    let int2: BigInt<1> = BigInt::<1> { limbs: [2_u32] };
+    let BigInt::<1> { limbs }: BigInt<1> =
+        BigInt::<1>::first(BigInt::<1>::second(int1, int2), int1);
     assert(limbs == int2.limbs);
     assert(bar1.get_other() == bar1.other);
     let one: Field = x;
@@ -55,22 +56,22 @@ fn main(x: Field, y: Field) {
     let nested_generics: Bar<Bar<Field>> = Bar::<Bar<Field>> {
         one: one,
         two: two,
-        other: Bar::<Field> { one: one, two: two, other: 0 },
+        other: Bar::<Field> { one: one, two: two, other: 0_Field },
     };
     assert(nested_generics.other.other == bar1.get_other());
     foo::<Field>(bar1);
-    assert(bar1.zeroed::<u32>() == 0);
-    let _: Field = regression_2055([1, 2, 3]);
+    assert(bar1.zeroed::<u32>() == 0_u32);
+    let _: Field = regression_2055([1_u8, 2_u8, 3_u8]);
 }
 
 fn regression_2055<let LEN: u32>(bytes: [u8; LEN]) -> Field {
-    let mut f: Field = 0;
-    let mut b: Field = 1;
-    let mut len: u32 = LEN - 1;
-    for i in 0..LEN {
+    let mut f: Field = 0_Field;
+    let mut b: Field = 1_Field;
+    let mut len: u32 = LEN - 1_u32;
+    for i in 0_u32..LEN {
         let j: u32 = len - i;
         f = f + ((bytes[j] as Field) * b);
-        b = b * 256;
+        b = b * 256_Field;
     }
     f
 }

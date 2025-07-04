@@ -8,22 +8,22 @@ trait Read {
 
 impl Read for Field {
     fn read(data: [Self; 1]) -> Self {
-        data[0] * 10
+        data[0_u32] * 10_Field
     }
 }
 
 impl Read for u32 {
     fn read(data: [Field; 1]) -> Self {
-        data[0] as Self
+        data[0_u32] as Self
     }
 }
 
 fn main() {
-    let data: [Field; 1] = [1];
-    let value: u32 = Read::read(data);
-    assert(value == 1);
-    let value: Field = Read::read(data);
-    assert(value == 10);
+    let data: [Field; 1] = [1_Field];
+    let value: u32 = u32::read(data);
+    assert(value == 1_u32);
+    let value: Field = Field::read(data);
+    assert(value == 10_Field);
 }
 
 pub fn foo() {}

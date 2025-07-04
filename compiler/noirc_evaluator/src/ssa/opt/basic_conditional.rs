@@ -361,6 +361,9 @@ impl Context<'_> {
                 let return_values = vecmap(return_values, |value| self.inserter.resolve(value));
                 TerminatorInstruction::Return { return_values, call_stack }
             }
+            TerminatorInstruction::Unreachable { call_stack } => {
+                TerminatorInstruction::Unreachable { call_stack }
+            }
         };
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);
         self.inserter.map_data_bus_in_place();

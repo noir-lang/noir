@@ -6,6 +6,6 @@ fn main(a: i32, b: i32, condition: bool) -> pub i32 {
     if condition {
         a / b
     } else {
-        0
+        0_i32
     }
 }

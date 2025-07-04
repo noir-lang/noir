@@ -27,16 +27,16 @@ use crate::{
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
-            TraitMethod,
+            TraitItem,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
-    token::{FmtStrFragment, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
 use super::{
@@ -55,7 +55,7 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(_)));
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
@@ -254,8 +254,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer) => {
-                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
+            Literal::Integer(integer, suffix) => {
+                (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -268,6 +268,24 @@ impl Elaborator<'_> {
             Literal::Slice(array_literal) => {
                 self.elaborate_array_literal(array_literal, location, false)
             }
+        }
+    }
+
+    fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
+        use {Signedness::*, Type::Integer};
+        match suffix {
+            Some(IntegerTypeSuffix::I8) => Integer(Signed, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
+            Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::U64) => Integer(Unsigned, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U128) => Integer(Unsigned, IntegerBitSize::HundredTwentyEight),
+            Some(IntegerTypeSuffix::Field) => Type::FieldElement,
+            None => self.polymorphic_integer_or_field(),
         }
     }
 
@@ -317,7 +335,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
@@ -387,7 +405,7 @@ impl Elaborator<'_> {
         let rhs_location = prefix.rhs.location;
 
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-        let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
+        let trait_method_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
         let operator = prefix.operator;
 
@@ -399,14 +417,18 @@ impl Elaborator<'_> {
             }
         }
 
-        let expr =
-            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
+        let expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location);
 
         let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
-        let typ =
-            self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, location);
+        let typ = self.handle_operand_type_rules_result(
+            result,
+            &rhs_type,
+            trait_method_id,
+            expr_id,
+            location,
+        );
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -945,10 +967,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: field_type.to_string(),
-                        expr_location: field_location,
+                    || {
+                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                            expected_typ: expected_type.to_string(),
+                            expr_typ: field_type.to_string(),
+                            expr_location: field_location,
+                        })
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -1058,32 +1082,31 @@ impl Elaborator<'_> {
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
         operand_type: &Type,
-        trait_id: Option<TraitMethodId>,
+        trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
-                    let trait_id =
-                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+                    let trait_method_id = trait_method_id
+                        .expect("ice: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
-                    let constraint = TraitConstraint {
-                        typ: operand_type.clone(),
-                        trait_bound: ResolvedTraitBound {
-                            trait_id: trait_id.trait_id,
-                            trait_generics: TraitGenerics::default(),
-                            location,
-                        },
-                    };
-                    self.push_trait_constraint(
-                        constraint, expr_id,
-                        true, // this constraint should lead to choosing a trait impl
+                    let trait_id = trait_method_id.trait_id;
+                    let trait_generics = TraitGenerics::default();
+                    let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                    let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+                    let select_impl = true; // this constraint should lead to choosing a trait impl
+                    self.push_trait_constraint(constraint, expr_id, select_impl);
+                    self.type_check_operator_method(
+                        expr_id,
+                        trait_method_id,
+                        operand_type,
+                        location,
                     );
-                    self.type_check_operator_method(expr_id, trait_id, operand_type, location);
                 }
                 typ
             }
@@ -1451,7 +1474,9 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
+        let Some(definition) =
+            the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
+        else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
@@ -1460,15 +1485,12 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_method =
-            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
-
-        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: true };
 
         let ident = HirIdent {
             location: path.impl_item.location(),
-            id: definition_id,
-            impl_kind: ImplKind::TraitMethod(trait_method),
+            id: definition,
+            impl_kind: ImplKind::TraitItem(trait_item),
         };
 
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));

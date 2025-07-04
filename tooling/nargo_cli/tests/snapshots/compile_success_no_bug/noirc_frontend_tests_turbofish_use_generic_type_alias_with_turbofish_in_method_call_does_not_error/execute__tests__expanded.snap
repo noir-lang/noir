@@ -13,7 +13,7 @@ impl<T> Foo<T> {
 type Bar<T> = Foo<T>;
 
 fn foo() -> Foo<i32> {
-    Foo::new()
+    Foo::<i32>::new()
 }
 
 fn main() {

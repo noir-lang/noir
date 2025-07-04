@@ -11,7 +11,7 @@ use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
-use crate::token::{Attributes, FmtStrFragment, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -180,14 +180,16 @@ impl ExpressionKind {
         match (operator, &rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
-            ) => ExpressionKind::Literal(Literal::Integer(-*field)),
+                Expression {
+                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
+                },
+            ) => ExpressionKind::Literal(Literal::Integer(-*field, *suffix)),
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
-    pub fn integer(contents: FieldElement) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents)))
+    pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -375,7 +377,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(SignedField),
+    Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
@@ -634,9 +636,8 @@ impl Display for Literal {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
-            Literal::Integer(signed_field) => {
-                write!(f, "{signed_field}")
-            }
+            Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),
+            Literal::Integer(signed_field, None) => write!(f, "{signed_field}"),
             Literal::Str(string) => write!(f, "\"{string}\""),
             Literal::RawStr(string, num_hashes) => {
                 let hashes: String =

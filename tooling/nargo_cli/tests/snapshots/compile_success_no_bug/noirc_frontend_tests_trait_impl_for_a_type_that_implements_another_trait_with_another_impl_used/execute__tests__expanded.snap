@@ -9,7 +9,7 @@ trait One {
 impl One for i32 {
     fn one(self) -> Self {
         let _: Self = self;
-        1
+        1_i32
     }
 }
 
@@ -25,19 +25,19 @@ where
     where
         Self: One,
     {
-        One::one(self) + 1
+        self.one() + 1_i32
     }
 }
 
 impl Two for u32 {
     fn two(self) -> i32 {
         let _: Self = self;
-        0
+        0_i32
     }
 }
 
 pub fn use_it(t: u32) -> i32 {
-    Two::two(t)
+    t.two()
 }
 
 fn main() {}

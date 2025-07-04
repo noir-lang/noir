@@ -4,6 +4,7 @@ fn main() {
     let (protoc_bin, include_dir) =
         protoc_prebuilt::init("29.3").expect("failed to initialize protoc");
 
+    #[allow(unsafe_code)]
     unsafe {
         std::env::set_var("PROTOC", protoc_bin);
     }

@@ -14,25 +14,33 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
-    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    #[error("constrain {lhs_id} == {rhs_id}{message} failed:\n    {lhs} != {rhs}", message = constraint_message(.msg))]
+    ConstrainEqFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
+    #[error("constrain {lhs_id} != {rhs_id}{message} failed:\n    {lhs} == {rhs}", message = constraint_message(.msg))]
+    ConstrainNeFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
-        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}"
+        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}{message}", message = constraint_message(.msg)
     )]
-    RangeCheckFailed { value: String, value_id: ValueId, actual_bits: u32, max_bits: u32 },
-    #[error(
-        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}\n  {message}"
-    )]
-    RangeCheckFailedWithMessage {
+    RangeCheckFailed {
         value: String,
         value_id: ValueId,
         actual_bits: u32,
         max_bits: u32,
-        message: String,
+        msg: Option<String>,
     },
     /// This is not an internal error since the SSA is still valid. We're just not able to
     /// interpret it since we lack the context of what the external function is.
@@ -58,6 +66,8 @@ pub enum InterpreterError {
     ToRadixFailed { field_id: ValueId, field: FieldElement, radix: u32 },
     #[error("Failed to solve blackbox function {name}: {reason}")]
     BlackBoxError { name: String, reason: String },
+    #[error("Reached the unreachable")]
+    ReachedTheUnreachable,
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -155,7 +165,7 @@ pub enum InternalError {
         actual_type: String,
     },
     #[error(
-        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
     )]
     UnexpectedResultType {
         expected_type: &'static str,
@@ -163,11 +173,20 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
         actual_length: usize,
         instruction: &'static str,
     },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
+}
+
+/// Format the message of a `constrain` instruction so that we can print it.
+fn constraint_message(msg: &Option<String>) -> String {
+    msg.as_ref().map(|msg| format!(", \"{msg}\"")).unwrap_or_default()
 }

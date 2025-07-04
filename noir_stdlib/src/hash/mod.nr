@@ -125,17 +125,6 @@ fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
-pub fn hash_to_field(inputs: [Field]) -> Field {
-    let mut sum = 0;
-
-    for input in inputs {
-        let input_bytes: [u8; 32] = input.to_le_bytes();
-        sum += crate::field::bytes32_to_field(blake2s(input_bytes));
-    }
-
-    sum
-}
-
 #[foreign(poseidon2_permutation)]
 pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
 

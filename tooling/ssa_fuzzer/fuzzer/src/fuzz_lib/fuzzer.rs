@@ -47,6 +47,7 @@ impl Fuzzer {
                     max_instructions_num: options.max_instructions_num,
                     instruction_options: options.instruction_options,
                     fuzzer_command_options: options.fuzzer_command_options,
+                    max_iterations_num: options.max_iterations_num,
                 },
             )),
             false => None,
@@ -61,6 +62,7 @@ impl Fuzzer {
                 max_instructions_num: options.max_instructions_num,
                 instruction_options: options.instruction_options,
                 fuzzer_command_options: options.fuzzer_command_options,
+                max_iterations_num: options.max_iterations_num,
             },
         ));
         let context_non_constant_with_idempotent_morphing =
@@ -75,6 +77,7 @@ impl Fuzzer {
                         max_instructions_num: options.max_instructions_num,
                         instruction_options: options.instruction_options,
                         fuzzer_command_options: options.fuzzer_command_options,
+                        max_iterations_num: options.max_iterations_num,
                     },
                 )),
                 false => None,
@@ -121,7 +124,6 @@ impl Fuzzer {
         let mut non_constant_context = self.context_non_constant.take().unwrap();
         non_constant_context.finalize(return_instruction_block_idx);
         let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
-
         if let Some(context) = self.context_constant.take() {
             let mut constant_context = context;
             constant_context.finalize(return_instruction_block_idx);
@@ -158,6 +160,7 @@ impl Fuzzer {
             (Err(acir_error), Err(brillig_error)) => {
                 log::debug!("ACIR compilation error: {:?}", acir_error);
                 log::debug!("Brillig compilation error: {:?}", brillig_error);
+                log::debug!("ACIR and Brillig compilation failed");
                 return None;
             }
             (Ok(acir), Err(brillig_error)) => {

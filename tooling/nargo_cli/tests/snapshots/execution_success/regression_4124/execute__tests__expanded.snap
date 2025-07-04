@@ -10,7 +10,7 @@ trait MyDeserialize<let N: u32> {
 
 impl MyDeserialize<1> for Field {
     fn deserialize(fields: [Self; 1]) -> Self {
-        fields[0]
+        fields[0_u32]
     }
 }
 
@@ -24,7 +24,10 @@ struct PublicMutable<T> {
 
 impl<T> PublicMutable<T> {
     pub fn new(storage_slot: Field) -> Self {
-        assert(storage_slot != 0, "Storage slot 0 not allowed. Storage slots must start from 1.");
+        assert(
+            storage_slot != 0_Field,
+            "Storage slot 0 not allowed. Storage slots must start from 1.",
+        );
         Self { storage_slot: storage_slot }
     }
 
@@ -38,6 +41,6 @@ impl<T> PublicMutable<T> {
 }
 
 fn main(value: Field) {
-    let ps: PublicMutable<Field> = PublicMutable::new(27);
+    let ps: PublicMutable<Field> = PublicMutable::<Field>::new(27_Field);
     assert(ps.read() == value);
 }

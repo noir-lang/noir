@@ -9,5 +9,5 @@ pub struct Foo {
 type Alias = (fn(Foo) -> Field, Field);
 
 fn main() {
-    let _: Alias = (|foo: Foo| -> Field foo.value, 1);
+    let _: Alias = (|foo: Foo| -> Field foo.value, 1_Field);
 }

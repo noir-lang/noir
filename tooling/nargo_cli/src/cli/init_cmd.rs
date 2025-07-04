@@ -37,7 +37,7 @@ pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError
         Some(name) => name,
         None => {
             let name = config.program_dir.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+            name.parse().map_err(CliError::InvalidPackageName)?
         }
     };
 
@@ -48,8 +48,7 @@ pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError
     } else {
         PackageType::Binary
     };
-    initialize_project(config.program_dir, package_name, package_type);
-    Ok(())
+    initialize_project(config.program_dir, package_name, package_type)
 }
 
 /// Initializes a new Noir project in `package_dir`.
@@ -57,8 +56,14 @@ pub(crate) fn initialize_project(
     package_dir: PathBuf,
     package_name: CrateName,
     package_type: PackageType,
-) {
+) -> Result<(), CliError> {
     let src_dir = package_dir.join(SRC_DIR);
+    let toml_path = package_dir.join(PKG_FILE);
+
+    // We don't want to accidentally overwrite an existing Nargo.toml file
+    if toml_path.exists() {
+        return Err(CliError::NargoInitCannotBeRunOnExistingPackages);
+    }
 
     let toml_contents = format!(
         r#"[package]
@@ -69,18 +74,22 @@ authors = [""]
 [dependencies]"#
     );
 
-    write_to_file(toml_contents.as_bytes(), &package_dir.join(PKG_FILE)).unwrap();
-    // This uses the `match` syntax instead of `if` so we get a compile error when we add new package types (which likely need new template files)
-    match package_type {
-        PackageType::Binary => {
-            write_to_file(BIN_EXAMPLE.as_bytes(), &src_dir.join("main.nr")).unwrap();
-        }
-        PackageType::Contract => {
-            write_to_file(CONTRACT_EXAMPLE.as_bytes(), &src_dir.join("main.nr")).unwrap();
-        }
-        PackageType::Library => {
-            write_to_file(LIB_EXAMPLE.as_bytes(), &src_dir.join("lib.nr")).unwrap();
-        }
+    write_to_file(toml_contents.as_bytes(), &toml_path).unwrap();
+
+    let (example, entry_name) = match package_type {
+        PackageType::Binary => (BIN_EXAMPLE, "main.nr"),
+        PackageType::Contract => (CONTRACT_EXAMPLE, "main.nr"),
+        PackageType::Library => (LIB_EXAMPLE, "lib.nr"),
     };
+    let entry_path = src_dir.join(entry_name);
+
+    // It's fine to run `nargo init` if a source directory exists:
+    // it might be that the source is already there and the user just wants to create the Nargo.toml file.
+    if !entry_path.exists() {
+        write_to_file(example.as_bytes(), &entry_path).unwrap();
+    }
+
     println!("Project successfully created! It is located at {}", package_dir.display());
+
+    Ok(())
 }

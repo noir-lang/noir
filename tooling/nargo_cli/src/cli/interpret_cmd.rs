@@ -1,8 +1,8 @@
 //! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
-use acvm::acir::circuit::ExpressionWidth;
 use fm::{FileId, FileManager};
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::report_errors;
@@ -14,7 +14,6 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
-use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -70,10 +69,13 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
     let (file_manager, parsed_files) = parse_workspace(&workspace, None);
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
-    let ssa_options = to_ssa_options(&args.compile_options);
-    let ssa_passes = primary_passes(&ssa_options);
+    let opts = args.compile_options.as_ssa_options(PathBuf::new());
+    let ssa_passes = primary_passes(&opts);
 
     for package in binary_packages {
+        let ssa_options =
+            &args.compile_options.as_ssa_options(workspace.package_build_path(package));
+
         // Compile into monomorphized AST
         let program_result = compile_into_program(
             &file_manager,
@@ -128,13 +130,14 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let interpreter_options = InterpreterOptions { trace: args.trace };
 
         print_and_interpret_ssa(
-            &ssa_options,
+            ssa_options,
             &args.ssa_pass,
             &mut ssa,
             "Initial SSA",
             &ssa_args,
             &ssa_return,
             interpreter_options,
+            &file_manager,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -150,13 +153,14 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
             print_and_interpret_ssa(
-                &ssa_options,
+                ssa_options,
                 &args.ssa_pass,
                 &mut ssa,
                 &msg,
                 &ssa_args,
                 &ssa_return,
                 interpreter_options,
+                &file_manager,
             )?;
         }
     }
@@ -216,34 +220,12 @@ fn compile_into_program(
     Ok(((program, abi), warnings))
 }
 
-fn to_ssa_options(options: &CompileOptions) -> SsaEvaluatorOptions {
-    SsaEvaluatorOptions {
-        ssa_logging: if !options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } else if options.show_ssa {
-            SsaLogging::All
-        } else {
-            SsaLogging::None
-        },
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: None,
-        skip_underconstrained_check: true,
-        enable_brillig_constraints_check_lookback: false,
-        skip_brillig_constraints_check: true,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    }
-}
-
 fn msg_matches(patterns: &[String], msg: &str) -> bool {
     let msg = msg.to_lowercase();
     patterns.iter().any(|p| msg.contains(&p.to_lowercase()))
 }
 
-fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
+fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: &FileManager) {
     let print = match options.ssa_logging {
         SsaLogging::All => true,
         SsaLogging::None => false,
@@ -251,7 +233,7 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str) {
     };
     if print {
         ssa.normalize_ids();
-        println!("After {msg}:\n{ssa}");
+        println!("After {msg}:\n{}", ssa.print_with(Some(fm)));
     }
 }
 
@@ -266,7 +248,7 @@ fn interpret_ssa(
     if passes_to_interpret.is_empty() || msg_matches(passes_to_interpret, msg) {
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
-        let result = ssa.interpret_with_options(args, options);
+        let result = ssa.interpret_with_options(args, options, std::io::stdout());
         println!("--- Interpreter result after {msg}:\n{result:?}\n---");
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
@@ -281,6 +263,7 @@ fn interpret_ssa(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn print_and_interpret_ssa(
     options: &SsaEvaluatorOptions,
     passes_to_interpret: &[String],
@@ -289,8 +272,9 @@ fn print_and_interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     interpreter_options: InterpreterOptions,
+    fm: &FileManager,
 ) -> Result<(), CliError> {
-    print_ssa(options, ssa, msg);
+    print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
 

@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
@@ -81,6 +79,8 @@ mod test_utils;
 use solver::WrapperSolver;
 use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 use with_file::parsed_module_with_file;
+
+use crate::{requests::on_expand_request, types::request::NargoExpand};
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -172,6 +172,7 @@ impl NargoLspService {
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .request::<CodeActionRequest, _>(on_code_action_request)
             .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
+            .request::<NargoExpand, _>(on_expand_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)

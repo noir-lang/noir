@@ -12,7 +12,7 @@ impl<T> MyStruct<T> {
     where
         T: MyEq,
     {
-        (self.a == other.a) & MyEq::my_eq(self.b, other.b)
+        (self.a == other.a) & self.b.my_eq(other.b)
     }
 }
 
@@ -32,10 +32,10 @@ trait MyEq {
 }
 
 fn main() {
-    let inner: InnerStruct = InnerStruct { a: 1, b: 2 };
-    let my_struct: MyStruct<InnerStruct> = MyStruct::<InnerStruct> { a: 5, b: inner };
+    let inner: InnerStruct = InnerStruct { a: 1_Field, b: 2_Field };
+    let my_struct: MyStruct<InnerStruct> = MyStruct::<InnerStruct> { a: 5_u32, b: inner };
     assert(my_struct.my_eq(my_struct));
     let mut my_struct_new: MyStruct<InnerStruct> =
-        MyStruct::<InnerStruct> { a: 5, b: InnerStruct { a: 10, b: 15 } };
+        MyStruct::<InnerStruct> { a: 5_u32, b: InnerStruct { a: 10_Field, b: 15_Field } };
     assert(my_struct_new.my_eq(my_struct_new));
 }

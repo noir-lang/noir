@@ -253,9 +253,7 @@ impl AstPrinter {
             }
             super::ast::Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal {
-                    // Unfortunately this doesn't work: `-128 as i8` panics with `attempt to negate with overflow` because it first treats `128` as `u8`.
-                    //write!(f, "{x} as {typ}")
-                    write!(f, "{{ let x: {typ} = {x}; x }}")
+                    write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
                 }
@@ -337,12 +335,20 @@ impl AstPrinter {
         unary: &super::ast::Unary,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "({}", unary.operator)?;
+        // "(-1)" parses back as the literal -1, so if we are printing with the intention of parsing, omit the (), to avoid ambiguity.
+        let print_parens = self.show_id || !matches!(unary.operator, UnaryOp::Minus);
+        if print_parens {
+            write!(f, "(")?;
+        }
+        write!(f, "{}", unary.operator)?;
         if matches!(&unary.operator, UnaryOp::Reference { mutable: true }) {
             write!(f, " ")?;
         }
         self.print_expr(&unary.rhs, f)?;
-        write!(f, ")")
+        if print_parens {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 
     fn print_binary(
@@ -499,8 +505,8 @@ impl AstPrinter {
             _ => (false, false),
         };
         // If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        if print_oracle && self.show_print_as_std {
-            return self.print_println(&call.arguments, f);
+        if print_oracle && self.show_print_as_std && self.print_println(&call.arguments, f)? {
+            return Ok(());
         }
         if print_unsafe {
             write!(f, "unsafe {{ ")?;
@@ -518,10 +524,18 @@ impl AstPrinter {
     /// Instead of printing a call to the print oracle as a regular function,
     /// print it in a way that makes it look like Noir: without the type
     /// information and bool flags.
-    fn print_println(&mut self, args: &[Expression], f: &mut Formatter) -> std::fmt::Result {
+    ///
+    /// This will only work if the AST bypassed the proxy functions created by
+    /// the monomorphizer. The returned flag indicates whether it managed to
+    /// do so, or false if the arguments were not as expected.
+    fn print_println(
+        &mut self,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
         assert_eq!(args.len(), 4, "print has 4 arguments");
         let Expression::Literal(Literal::Bool(with_newline)) = args[0] else {
-            unreachable!("the first arg of print is a bool");
+            return Ok(false);
         };
         if with_newline {
             write!(f, "println")?;
@@ -533,7 +547,7 @@ impl AstPrinter {
         // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         self.print_expr(&args[1], f)?;
         write!(f, ")")?;
-        Ok(())
+        Ok(true)
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {

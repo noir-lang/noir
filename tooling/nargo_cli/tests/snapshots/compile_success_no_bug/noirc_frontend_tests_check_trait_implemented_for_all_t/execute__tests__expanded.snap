@@ -8,7 +8,7 @@ trait Default2 {
 
 impl Default2 for u64 {
     fn default2() -> Self {
-        0
+        0_u64
     }
 }
 
@@ -30,7 +30,7 @@ where
         Self: Default2,
         Self: Eq2,
     {
-        Eq2::eq2(self, Default2::default2())
+        self.eq2(Self::default2())
     }
 }
 
@@ -46,7 +46,7 @@ impl Eq2 for Foo {
 
 impl Default2 for Foo {
     fn default2() -> Self {
-        Self { a: Default2::default2() }
+        Self { a: u64::default2() }
     }
 }
 

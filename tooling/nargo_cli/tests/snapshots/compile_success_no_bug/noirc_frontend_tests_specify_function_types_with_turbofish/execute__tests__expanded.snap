@@ -8,13 +8,13 @@ trait Default2 {
 
 impl Default2 for Field {
     fn default2() -> Self {
-        0
+        0_Field
     }
 }
 
 impl Default2 for u64 {
     fn default2() -> Self {
-        0
+        0_u64
     }
 }
 
@@ -23,7 +23,7 @@ where
     T: Default2,
     U: Default2,
 {
-    (Default2::default2(), Default2::default2())
+    (T::default2(), U::default2())
 }
 
 fn main() {

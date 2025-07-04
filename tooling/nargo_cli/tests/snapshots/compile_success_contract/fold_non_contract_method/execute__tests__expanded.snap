@@ -3,22 +3,22 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 contract Foo {
-    use super::times_10;
+    use crate::times_10;
 
     fn double(x: Field) -> pub Field {
-        x * 2
+        x * 2_Field
     }
 
     fn triple(x: Field) -> pub Field {
-        x * 3
+        x * 3_Field
     }
 
     fn times_40(x: Field) -> pub Field {
-        times_10(x) * 4
+        times_10(x) * 4_Field
     }
 }
 
 #[fold]
 fn times_10(x: Field) -> Field {
-    x * 10
+    x * 10_Field
 }

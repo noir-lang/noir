@@ -6,7 +6,7 @@ use crate::Shared;
 use crate::ast::{BinaryOp, BinaryOpKind, Ident, UnaryOp};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
-    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitMethodId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitItemId,
 };
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
@@ -64,6 +64,7 @@ impl HirIdent {
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ImplKind {
     /// This ident is not a trait method
     NotATraitMethod,
@@ -72,14 +73,23 @@ pub enum ImplKind {
     /// and eventually linked to this id. The boolean indicates whether the impl
     /// is already assumed to exist - e.g. when resolving a path such as `T::default`
     /// when there is a corresponding `T: Default` constraint in scope.
-    TraitMethod(TraitMethod),
+    TraitItem(TraitItem),
 }
 
+/// A method or constant defined in a trait
 #[derive(Debug, Clone)]
-pub struct TraitMethod {
-    pub method_id: TraitMethodId,
+pub struct TraitItem {
+    /// Note that this _must_ be the id of the function or constant within the trait,
+    /// not the id within the impl.
+    pub definition: DefinitionId,
     pub constraint: TraitConstraint,
     pub assumed: bool,
+}
+
+impl TraitItem {
+    pub fn id(&self) -> TraitItemId {
+        TraitItemId { item_id: self.definition, trait_id: self.constraint.trait_bound.trait_id }
+    }
 }
 
 impl Eq for HirIdent {}
@@ -133,7 +143,7 @@ pub struct HirPrefixExpression {
 
     /// The trait method id for the operator trait method that corresponds to this operator,
     /// if such a trait exists (for example, there's no trait for the dereference operator).
-    pub trait_method_id: Option<TraitMethodId>,
+    pub trait_method_id: Option<TraitItemId>,
 }
 
 #[derive(Debug, Clone)]
@@ -146,7 +156,7 @@ pub struct HirInfixExpression {
     /// For derived operators like `!=`, this will lead to the method `Eq::eq`. For these
     /// cases, it is up to the monomorphization pass to insert the appropriate `not` operation
     /// after the call to `Eq::eq` to get the result of the `!=` operator.
-    pub trait_method_id: TraitMethodId,
+    pub trait_method_id: TraitItemId,
 }
 
 /// This is always a struct field access `my_struct.field`
@@ -218,16 +228,15 @@ pub enum HirMethodReference {
     /// Or a method can come from a Trait impl block, in which case
     /// the actual function called will depend on the instantiated type,
     /// which can be only known during monomorphization.
-    TraitMethodId(TraitMethodId, TraitGenerics, bool /* assumed */),
+    TraitItemId(DefinitionId, TraitId, TraitGenerics, bool /* assumed */),
 }
 
 impl HirMethodReference {
     pub fn func_id(&self, interner: &NodeInterner) -> Option<FuncId> {
         match self {
             HirMethodReference::FuncId(func_id) => Some(*func_id),
-            HirMethodReference::TraitMethodId(method_id, _, _) => {
-                let id = interner.trait_method_id(*method_id);
-                match &interner.try_definition(id)?.kind {
+            HirMethodReference::TraitItemId(method_id, _, _, _) => {
+                match &interner.try_definition(*method_id)?.kind {
                     DefinitionKind::Function(func_id) => Some(*func_id),
                     _ => None,
                 }
@@ -246,15 +255,13 @@ impl HirMethodReference {
             HirMethodReference::FuncId(func_id) => {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
-            HirMethodReference::TraitMethodId(method_id, trait_generics, assumed) => {
-                let id = interner.trait_method_id(method_id);
-                let trait_id = method_id.trait_id;
+            HirMethodReference::TraitItemId(definition, trait_id, trait_generics, assumed) => {
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
-                (id, ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed }))
+                (definition, ImplKind::TraitItem(TraitItem { definition, constraint, assumed }))
             }
         };
         let func_var = HirIdent { location, id, impl_kind };

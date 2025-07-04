@@ -11,6 +11,6 @@ impl<let N: u32, let NumSegments: u32> U60Repr<N, NumSegments> {
 }
 
 fn main() {
-    let input: [Field; 6] = [0; 6];
-    let _: U60Repr<3, 6> = U60Repr::new(input);
+    let input: [Field; 6] = [0_Field; 6];
+    let _: U60Repr<3, 6> = U60Repr::<6 / 2, 6>::new(input);
 }

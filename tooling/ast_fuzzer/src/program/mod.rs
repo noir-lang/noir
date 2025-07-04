@@ -70,6 +70,28 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     Ok(program)
 }
 
+/// Build a program with the single `main` function returning
+/// the result of a given expression (used for conversion of the
+/// comptime interpreter execution results for comparison)
+pub fn program_wrap_expression(expr: Expression) -> Program {
+    let mut ctx = Context::new(Config::default());
+
+    let decl_main = FunctionDeclaration {
+        name: "main".into(),
+        params: vec![],
+        return_type: expr.return_type().unwrap().into_owned(),
+        return_visibility: Visibility::Public,
+        inline_type: InlineType::default(),
+        unconstrained: true,
+    };
+
+    ctx.set_function_decl(FuncId(0), decl_main);
+    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _fctx| Ok(expr))
+        .expect("shouldn't access any randomness");
+
+    ctx.finalize()
+}
+
 /// ID of variables in scope.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum VariableId {
@@ -320,7 +342,7 @@ impl Context {
         &mut self,
         u: &mut Unstructured,
         id: FuncId,
-        f: impl Fn(&mut Unstructured, FunctionContext) -> arbitrary::Result<Expression>,
+        f: impl FnOnce(&mut Unstructured, FunctionContext) -> arbitrary::Result<Expression>,
     ) -> arbitrary::Result<()> {
         let fctx = FunctionContext::new(self, id);
         let body = f(u, fctx)?;
@@ -550,8 +572,6 @@ impl std::fmt::Display for DisplayAstAsNoir<'_> {
         printer.show_type_in_let = true;
         // Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        // Using it also inserts an extra `cast` in the SSA,
-        // which at the moment for example defeats loop unrolling.
         printer.show_type_of_int_literal = false;
         printer.print_program(self.0, f)
     }
@@ -577,6 +597,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
         // for example `for i in (5 / 10) as u32 .. 2` is `0..2` or `1..2` depending on whether 5 and 10
         // were some number in the AST or `Field` when parsed by the test.
         printer.show_type_of_int_literal = true;
+
         for function in &self.0.functions {
             if function.id == Program::main_id() {
                 let mut function = function.clone();
@@ -587,6 +608,7 @@ impl std::fmt::Display for DisplayAstAsNoirComptime<'_> {
                 printer.print_function(function, f, FunctionPrintOptions::default())?;
             }
         }
+
         Ok(())
     }
 }
