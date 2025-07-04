@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
+use iter_extended::vecmap;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::report_errors;
 use nargo::package::Package;
@@ -249,12 +250,22 @@ fn interpret_ssa(
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
         let result = ssa.interpret_with_options(args, options, std::io::stdout());
-        println!("--- Interpreter result after {msg}:\n{result:?}\n---");
+        match &result {
+            Ok(value) => {
+                let value_as_string = vecmap(value, ToString::to_string).join(", ");
+                println!("--- Interpreter result after {msg}:\nOk({value_as_string})\n---");
+            }
+            Err(err) => {
+                println!("--- Interpreter result after {msg}:\nErr({err})\n---");
+            }
+        }
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
             if &result != return_value {
+                let result_as_string = vecmap(&result, ToString::to_string).join(", ");
+                let return_value_as_string = vecmap(return_value, ToString::to_string).join(", ");
                 let error = format!(
-                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value:?}\nActual result:   {result:?}"
+                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result:   {result_as_string}"
                 );
                 return Err(CliError::Generic(error));
             }
