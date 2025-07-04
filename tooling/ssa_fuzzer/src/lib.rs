@@ -2,7 +2,6 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 pub mod builder;
-pub mod compiler;
 pub mod runner;
 pub mod typed_value;
 
