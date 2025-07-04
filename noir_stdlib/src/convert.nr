@@ -169,7 +169,6 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
         quote { i16 },
         quote { i32 },
         quote { i64 },
-        quote { Field },
     ];
 
     let mut impls = &[];
@@ -194,5 +193,41 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
             );
         }
     }
+
+    let u_types =
+        [quote { bool }, quote { u8 }, quote { u16 }, quote { u32 }, quote { u64 }, quote { u128 }];
+
+    for type2 in u_types {
+        let body = quote { self as Field };
+
+        impls = impls.push_back(
+            quote {
+                impl AsPrimitive<Field> for $type2 {
+                    fn as_(self) -> Field {
+                        $body
+                    }
+                }
+            },
+        );
+    }
+
+    for type1 in u_types {
+        let body = if type1 == quote { bool } {
+            quote { self != 0 }
+        } else {
+            quote { self as $type1 }
+        };
+
+        impls = impls.push_back(
+            quote {
+                impl AsPrimitive<$type1> for Field {
+                    fn as_(self) -> $type1 {
+                        $body
+                    }
+                }
+            },
+        );
+    }
+
     impls.join(quote {})
 }
