@@ -185,7 +185,9 @@ impl<'f> PerFunctionContext<'f> {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| all_terminator_values.insert(value));
+            terminator.for_each_value(|value| {
+                all_terminator_values.insert(value);
+            });
         }
 
         // If we never load from an address within a function we can remove all stores to that address.
@@ -241,12 +243,14 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
+                // Is any alias of this address an input to some function call, or a return value?
                 let allocation_aliases_instr_input =
                     aliases.any(|alias| self.instruction_input_references.contains(&alias));
                 if allocation_aliases_instr_input == Some(true) {
                     return true;
                 }
 
+                // Is any alias of this address used in a block terminator?
                 let allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(&alias));
                 if allocation_aliases_terminator_args == Some(true) {
@@ -265,6 +269,23 @@ impl<'f> PerFunctionContext<'f> {
 
                 if has_alias_not_marked_for_removal == Some(true) {
                     return true;
+                }
+            }
+        }
+
+        // Is this address an alias of anything that that is passed in a terminator?
+        for terminator_value in all_terminator_values.iter() {
+            let typ = self.inserter.function.dfg.type_of_value(*terminator_value);
+            if Self::contains_references(&typ) {
+                if let Some(expression) = block.expressions.get(terminator_value) {
+                    if let Some(aliases) = block.aliases.get(expression) {
+                        let address_is_alias_of_terminator_value =
+                            aliases.any(|alias| alias == *store_address);
+
+                        if address_is_alias_of_terminator_value == Some(true) {
+                            return true;
+                        }
+                    }
                 }
             }
         }
@@ -677,16 +698,6 @@ impl<'f> PerFunctionContext<'f> {
                                 seen_parameters.insert(*parameter);
                             }
                         }
-                    }
-                }
-
-                // Treat parameters passed to another block as if they were return values.
-                for arg in arguments {
-                    let arg_type = self.inserter.function.dfg.type_of_value(*arg);
-                    if Self::contains_references(&arg_type) {
-                        references.for_each_alias_of(*arg, |_, alias| {
-                            self.instruction_input_references.insert(alias);
-                        });
                     }
                 }
 
