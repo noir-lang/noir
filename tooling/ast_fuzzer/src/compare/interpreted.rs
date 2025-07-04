@@ -100,6 +100,12 @@ impl CompareInterpreted {
             self.ssa1.msg,
             self.ssa1.ssa.print_without_locations()
         );
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa2.step,
+            self.ssa2.msg,
+            self.ssa2.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| {
@@ -152,10 +158,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             }
             (
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
             )
             | (
-                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                RangeCheckFailed { value, .. },
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
@@ -191,6 +197,14 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
                 // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 msg1 == msg2
+            }
+            (RangeCheckFailed { msg: Some(msg1), .. }, ConstrainEqFailed { msg: msg2, .. }) => {
+                // The removal of unreachable instructions evaluates constant binary operations and can replace
+                // e.g. a `mul` followed by a `range_check` with a `constrain true == false, "attempt to multiple with overflow"`
+                msg2.as_ref().is_some_and(|msg| msg == msg1)
+            }
+            (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
+                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,

@@ -14,8 +14,9 @@ use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::expr::TraitItem;
 use crate::monomorphization::{
-    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
@@ -23,7 +24,7 @@ use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Shared, Type, TypeBinding, TypeBindings,
+    Shared, Type, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -97,25 +98,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
-        let trait_method = self.elaborator.interner.get_trait_method_id(function);
+        let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, kind, binding) in instantiation_bindings.values_mut() {
+        for (_tvar, kind, binding) in instantiation_bindings.values_mut() {
             *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
-        let mut impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, kind, binding) in impl_bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        let impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.interpreter_call_stack.push_back(location);
@@ -249,7 +246,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         let attributes = self.elaborator.interner.function_attributes(&function);
         let func_attrs = &attributes.function()
-            .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to").kind;
+            .expect("all builtin functions must contain a function attribute which contains the opcode which it links to").kind;
 
         if let Some(builtin) = func_attrs.builtin() {
             self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
@@ -579,11 +576,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
-            let typ = self.elaborator.interner.id_type(id).follow_bindings();
-            let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
-            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        if let ImplKind::TraitItem(item) = ident.impl_kind {
+            return self.evaluate_trait_item(item, id);
         }
 
         match &definition.kind {
@@ -632,29 +626,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
-                let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_, _) => {
-                        let typ = self.elaborator.interner.id_type(id);
-                        let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ, err: None, location })
-                    }
-                    TypeBinding::Bound(binding) => {
-                        let location = self.elaborator.interner.id_location(id);
-                        binding
-                            .evaluate_to_field_element(
-                                &Kind::Numeric(numeric_typ.clone()),
-                                location,
-                            )
-                            .map_err(|err| {
-                                let typ = Type::TypeVariable(type_variable.clone());
-                                let err = Some(Box::new(err));
-                                let location = self.elaborator.interner.expr_location(&id);
-                                InterpreterError::NonIntegerArrayLength { typ, err, location }
-                            })
-                    }
-                }?;
-
-                self.evaluate_integer(value.into(), id)
+                let value = Type::TypeVariable(type_variable.clone());
+                self.evaluate_numeric_generic(value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let associated_types =
@@ -678,6 +651,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         location,
                     }),
                 }
+            }
+        }
+    }
+
+    /// Evaluates a numeric generic with the value `value` (expected to be `Type::Constant`)
+    /// and an expected integer type `expected`.
+    fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
+        let location = self.elaborator.interner.id_location(id);
+        let value = value
+            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
+            .map_err(|err| {
+                let typ = value;
+                let err = Some(Box::new(err));
+                let location = self.elaborator.interner.expr_location(&id);
+                InterpreterError::NonIntegerArrayLength { typ, err, location }
+            })?;
+
+        self.evaluate_integer(value.into(), id)
+    }
+
+    fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
+            crate::monomorphization::TraitItem::Method(func_id) => {
+                let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+                Ok(Value::Function(func_id, typ, Rc::new(bindings)))
+            }
+            crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
+                self.evaluate_numeric_generic(value, &expected_type, id)
             }
         }
     }
@@ -850,7 +852,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let method = infix.trait_method_id;
         let operator = infix.operator.kind;
 
-        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
         let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
         let lhs = (lhs, self.elaborator.interner.expr_location(&infix.lhs));
@@ -880,7 +882,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
         let operator = prefix.operator;
 
-        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
         let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
         let rhs = (rhs, self.elaborator.interner.expr_location(&prefix.rhs));

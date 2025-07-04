@@ -2,7 +2,6 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
-    ops::Deref,
 };
 use strum::IntoEnumIterator;
 
@@ -147,6 +146,16 @@ pub(super) fn can_call(
     !callee_has_refs
 }
 
+/// Make a name for a local variable.
+fn local_name(id: LocalId) -> String {
+    make_name(id.0 as usize, false)
+}
+
+/// Make a name for a local index variable.
+fn index_name(id: LocalId) -> String {
+    format!("idx_{}", local_name(id))
+}
+
 /// Control what kind of expressions we can generate, depending on the surrounding context.
 #[derive(Debug, Clone, Copy)]
 struct Flags {
@@ -167,6 +176,21 @@ impl Flags {
     /// In call arguments we can use `if` expressions, but avoid blocks.
     /// The arg expressions themselves might call other functions.
     const CALL: Self = Self { allow_blocks: false, allow_if_then: true };
+}
+
+/// Helper data structure for generating the lvalue of assignments.
+struct LValueWithMeta {
+    /// The lvalue to assign to, e.g. `a[i]`.
+    lvalue: LValue,
+    /// The type of the value that needs to be assigned, e.g. an array item type.
+    typ: Type,
+    /// Indicate whether any dynamic input was used to generate the lvalue, e.g. for an array index.
+    /// This does not depend on whether the variable that we assign to was dynamic *before* the assignment.
+    is_dyn: bool,
+    /// Indicate whether we are assigning to just a part of a complex type.
+    is_compound: bool,
+    /// Any statements that had to be broken out to control the side effects of indexing.
+    statements: Option<Vec<Expression>>,
 }
 
 /// Context used during the generation of a function body.
@@ -948,7 +972,7 @@ impl<'a> FunctionContext<'a> {
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
-        Ok(self.let_var(mutable, typ, expr, true, is_dyn))
+        Ok(self.let_var(mutable, typ, expr, true, is_dyn, local_name))
     }
 
     /// Add a new local variable and return a `Let` expression.
@@ -961,9 +985,10 @@ impl<'a> FunctionContext<'a> {
         expr: Expression,
         add_to_scope: bool,
         is_dynamic: bool,
+        make_name: impl Fn(LocalId) -> String,
     ) -> Expression {
         let id = self.next_local_id();
-        let name = make_name(id.0 as usize, false);
+        let name = make_name(id);
 
         // Add the variable so we can use it in subsequent expressions.
         if add_to_scope {
@@ -975,6 +1000,30 @@ impl<'a> FunctionContext<'a> {
         }
 
         expr::let_var(id, mutable, name, expr)
+    }
+
+    /// Add a new local variable and return a `Let` expression along with an `Ident` to refer it by.
+    fn let_var_and_ident(
+        &mut self,
+        mutable: bool,
+        typ: Type,
+        expr: Expression,
+        add_to_scope: bool,
+        is_dynamic: bool,
+        make_name: impl Fn(LocalId) -> String,
+    ) -> (Expression, Ident) {
+        let v = self.let_var(mutable, typ.clone(), expr, add_to_scope, is_dynamic, make_name);
+        let Expression::Let(Let { id, name, .. }) = &v else {
+            unreachable!("expected to Let; got {v:?}");
+        };
+        let i = expr::ident_inner(
+            VariableId::Local(*id),
+            self.next_ident_id(),
+            mutable,
+            name.clone(),
+            typ,
+        );
+        (v, i)
     }
 
     /// Assign to a mutable variable, if we have one in scope.
@@ -997,40 +1046,101 @@ impl<'a> FunctionContext<'a> {
         }
 
         let id = *u.choose_iter(opts)?;
-        let ident = self.local_ident(id);
-        let ident = LValue::Ident(ident);
+        let ident = LValue::Ident(self.local_ident(id));
+        let typ = self.local_type(id).clone();
+        let lvalue = self.gen_lvalue(u, ident, typ)?;
 
+        // Generate the assigned value.
+        let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
+
+        if lvalue.is_dyn || expr_dyn {
+            self.dynamics.insert(id);
+        } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
+            // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
+            // in which case we don't know if other members have dynamic properties.
+            self.dynamics.remove(&id);
+        }
+
+        let assign =
+            Expression::Assign(Assign { lvalue: lvalue.lvalue, expression: Box::new(expr) });
+
+        if let Some(mut statements) = lvalue.statements {
+            statements.push(assign);
+            Ok(Some(Expression::Block(statements)))
+        } else {
+            Ok(Some(assign))
+        }
+    }
+
+    /// Generate an lvalue to assign to a local variable, or some part of it, if it's a compound type.
+    ///
+    /// Say we have an array: `a: [[u32; 2]; 3]`; we call it with `a`, and it might return `a`, `a[i]`, or `a[i][j]`.
+    fn gen_lvalue(
+        &mut self,
+        u: &mut Unstructured,
+        lvalue: LValue,
+        typ: Type,
+    ) -> arbitrary::Result<LValueWithMeta> {
+        /// Accumulate statements for sub-indexes of multi-dimensional arrays.
+        /// For example `a[1+2][3+4] = 5;` becomes `let i = 1+2; let j = 3+4; a[i][j] = 5;`
+        fn merge_statements(
+            a: Option<Vec<Expression>>,
+            b: Option<Vec<Expression>>,
+        ) -> Option<Vec<Expression>> {
+            match (a, b) {
+                (x, None) | (None, x) => x,
+                (Some(mut a), Some(mut b)) => {
+                    a.append(&mut b);
+                    Some(a)
+                }
+            }
+        }
         // For arrays and tuples we can consider assigning to their items.
-        let (lvalue, typ, idx_dyn, is_compound) = match self.local_type(id).clone() {
+        let lvalue = match typ {
             Type::Array(len, typ) if len > 0 && bool::arbitrary(u)? => {
                 let (idx, idx_dyn) = self.gen_index(u, len, self.max_depth())?;
-                let lvalue = LValue::Index {
-                    array: Box::new(ident),
+
+                // If the index expressions can have side effects, we need to assign it to a
+                // temporary variable to match the sequencing done by the frontend; see #8384.
+                // In the compiler the `Elaborator::fresh_definition_for_lvalue_index` decides.
+                let needs_prefix = !matches!(idx, Expression::Ident(_) | Expression::Literal(_));
+
+                let (idx, statements) = if needs_prefix {
+                    let (let_idx, idx_ident) =
+                        self.let_var_and_ident(false, types::U32, idx, false, idx_dyn, index_name);
+                    (Expression::Ident(idx_ident), Some(vec![let_idx]))
+                } else {
+                    (idx, None)
+                };
+
+                let typ = typ.as_ref().clone();
+                let index = LValue::Index {
+                    array: Box::new(lvalue),
                     index: Box::new(idx),
-                    element_type: typ.as_ref().clone(),
+                    element_type: typ.clone(),
                     location: Location::dummy(),
                 };
-                (lvalue, typ.deref().clone(), idx_dyn, true)
+
+                let mut lvalue = self.gen_lvalue(u, index, typ)?;
+                lvalue.is_compound = true;
+                lvalue.is_dyn |= idx_dyn;
+                lvalue.statements = merge_statements(statements, lvalue.statements);
+                lvalue
             }
             Type::Tuple(items) if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
-                let lvalue = LValue::MemberAccess { object: Box::new(ident), field_index: idx };
-                (lvalue, typ, false, true)
+                let member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
+                let mut lvalue = self.gen_lvalue(u, member, typ)?;
+                lvalue.is_compound = true;
+                lvalue
             }
-            typ => (ident, typ, false, false),
+            typ => {
+                LValueWithMeta { lvalue, typ, is_dyn: false, is_compound: false, statements: None }
+            }
         };
 
-        // Generate the assigned value.
-        let (expr, expr_dyn) = self.gen_expr(u, &typ, self.max_depth(), Flags::TOP)?;
-
-        if idx_dyn || expr_dyn {
-            self.dynamics.insert(id);
-        } else if !is_compound && !idx_dyn && !expr_dyn {
-            self.dynamics.remove(&id);
-        }
-
-        Ok(Some(Expression::Assign(Assign { lvalue, expression: Box::new(expr) })))
+        Ok(lvalue)
     }
 
     /// Generate a `println` statement, if there is some printable local variable.
@@ -1189,7 +1299,7 @@ impl<'a> FunctionContext<'a> {
 
         // Declare index variable, but only visible in the loop body, not the range.
         let idx_id = self.next_local_id();
-        let idx_name = format!("idx_{}", make_name(idx_id.0 as usize, false));
+        let idx_name = index_name(idx_id);
 
         // Add a scope which will hold the index variable.
         self.locals.enter();
@@ -1424,7 +1534,7 @@ impl<'a> FunctionContext<'a> {
             let typ = (*u.choose_iter(opts.iter())?).clone();
             // Assign the result of the call to a variable we won't use.
             if let Some((call, is_dyn)) = self.gen_call(u, &typ, self.max_depth())? {
-                return Ok(Some(self.let_var(false, typ, call, false, is_dyn)));
+                return Ok(Some(self.let_var(false, typ, call, false, is_dyn, local_name)));
             }
         }
         Ok(None)
@@ -1563,64 +1673,67 @@ impl<'a> FunctionContext<'a> {
     /// Create a block with a let binding, then return a mutable reference to it.
     /// This is used as a workaround when we need a mutable reference over an immutable value.
     fn indirect_ref_mut(&mut self, (expr, is_dyn): TrackedExpression, typ: Type) -> Expression {
-        self.locals.enter();
-        let let_expr = self.let_var(true, typ.clone(), expr.clone(), true, is_dyn);
-        let Expression::Let(Let { id, .. }) = &let_expr else {
-            unreachable!("expected Let; got {let_expr}");
-        };
-        let let_ident = self.local_ident(*id);
+        let (let_expr, let_ident) =
+            self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn, local_name);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
-        self.locals.exit();
         Expression::Block(vec![let_expr, ref_expr])
     }
 }
 
-#[test]
-fn test_loop() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+#[cfg(test)]
+mod tests {
+    use arbitrary::Unstructured;
+    use noirc_frontend::monomorphization::ast::FuncId;
 
-    assert!(
-        loop_code.starts_with(
-            &r#"{
+    use crate::program::{Context, FunctionContext};
+
+    #[test]
+    fn test_loop() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+
+        assert!(
+            loop_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     loop {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1);"#
-                .replace(" ", "")
-        )
-    );
-}
+                    .replace(" ", "")
+            )
+        );
+    }
 
-#[test]
-fn test_while() {
-    let mut u = Unstructured::new(&[0u8; 1]);
-    let mut ctx = Context::default();
-    ctx.config.max_loop_size = 10;
-    ctx.config.vary_loop_size = false;
-    ctx.gen_main_decl(&mut u);
-    let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-    fctx.budget = 2;
-    let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+    #[test]
+    fn test_while() {
+        let mut u = Unstructured::new(&[0u8; 1]);
+        let mut ctx = Context::default();
+        ctx.config.max_loop_size = 10;
+        ctx.config.vary_loop_size = false;
+        ctx.gen_main_decl(&mut u);
+        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
+        fctx.budget = 2;
+        let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
-    assert!(
-        while_code.starts_with(
-            &r#"{
+        assert!(
+            while_code.starts_with(
+                &r#"{
     let mut idx_a$l0 = 0;
     while (!false) {
         if (idx_a$l0 == 10) {
             break
         } else {
             idx_a$l0 = (idx_a$l0 + 1)"#
-                .replace(" ", "")
-        )
-    );
+                    .replace(" ", "")
+            )
+        );
+    }
 }

@@ -232,6 +232,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         for (index, field) in data_type.get_fields_as_written().unwrap().into_iter().enumerate() {
             self.write_indent();
             self.show_doc_comments(ReferenceId::StructMember(data_type.id, index));
+            self.show_item_visibility(field.visibility);
             self.push_str(&field.name.to_string());
             self.push_str(": ");
             self.show_type(&field.typ);
@@ -807,6 +808,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     }
                     self.show_value(value);
                 }
+                if values.len() == 1 {
+                    self.push(',');
+                }
                 self.push(')');
             }
             Value::Struct(fields, typ) => {
@@ -1041,6 +1045,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         // Check if module_def_id is the current module's parent
         if let ModuleDefId::ModuleId(module_id) = module_def_id {
             if current_module_parent_id == Some(module_id) {
+                // If the parent is actually the crate's root, use "crate"
+                if current_module_parent_id.unwrap().parent(self.def_maps).is_none() {
+                    self.push_str("crate");
+                    return "crate".to_string();
+                }
+
                 self.push_str("super");
                 return "super".to_string();
             }
