@@ -58,12 +58,9 @@ struct Foo {
     y: [Field; 3],
 }
 
-
 fn main() {
-    let foo: Foo = Foo { x: 0, y: [1, 2, 3]};
+    let foo: Foo = Foo { x: 0, y: [1, 2, 3] };
     let serialized = foo.serialize();
     let deserialized: Foo = Deserialize::deserialize(serialized);
     assert_eq(foo, deserialized);
 }
-
-

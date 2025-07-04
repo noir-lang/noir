@@ -1,4 +1,3 @@
-
 pub comptime fn derive_serialize(s: TypeDefinition) -> Quoted {
     let typ = s.as_type();
     let nested_struct = typ.as_data_type().unwrap();
@@ -94,5 +93,3 @@ pub(crate) comptime fn derive_deserialize(s: TypeDefinition) -> Quoted {
         }
     }
 }
-
-
