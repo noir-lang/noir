@@ -1380,11 +1380,11 @@ fn find_module(
 
     // Check "mod_name.nr"
     let mod_name_candidate = start_dir.join(format!("{mod_name_str}.{FILE_EXTENSION}"));
-    let mod_name_result = file_manager.name_to_id(mod_name_candidate.clone());
+    let mod_name_result = file_manager.name_to_id(mod_name_candidate.as_path());
 
     // Check "mod_name/mod.nr"
     let mod_nr_candidate = start_dir.join(mod_name_str).join(format!("mod.{FILE_EXTENSION}"));
-    let mod_nr_result = file_manager.name_to_id(mod_nr_candidate.clone());
+    let mod_nr_result = file_manager.name_to_id(mod_nr_candidate.as_path());
 
     match (mod_nr_result, mod_name_result) {
         (Some(_), Some(_)) => Err(DefCollectorErrorKind::OverlappingModuleDecls {
