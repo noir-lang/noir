@@ -351,10 +351,10 @@ fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
 /// in the stdlib, getting LSP stuff for the stdlib, etc.).
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
+    let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file.as_path());
     let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
-    let root_file_id = context.file_manager.name_to_id(file_name.to_path_buf()).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
+    let root_file_id = context.file_manager.name_to_id(file_name).unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
     if let Some(std_crate_id) = std_crate_id {
         let root_crate_id = context.crate_graph.add_crate_root(root_file_id);
@@ -377,7 +377,7 @@ pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
 pub fn prepare_dependency(context: &mut Context, file_name: &Path) -> CrateId {
     let root_file_id = context
         .file_manager
-        .name_to_id(file_name.to_path_buf())
+        .name_to_id(file_name)
         .unwrap_or_else(|| panic!("files are expected to be added to the FileManager before reaching the compiler file_path: {file_name:?}"));
 
     let crate_id = context.crate_graph.add_crate(root_file_id);
