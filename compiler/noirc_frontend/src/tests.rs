@@ -2040,7 +2040,7 @@ fn cast_negative_one_to_u8_size_checks() {
 
 #[named]
 #[test]
-fn cast_signed_integer_to_field_must_error() {
+fn cast_signed_i8_to_field_must_error() {
     let src = r#"
         fn main() {
             assert((-1 as i8) as Field != 0);
@@ -2048,6 +2048,11 @@ fn cast_signed_integer_to_field_must_error() {
         }
     "#;
     check_errors(src, Some(&format!("{}_1", function_path!())));
+}
+
+#[named]
+#[test]
+fn cast_signed_i32_to_field_must_error() {
     let src = r#"
         fn main(x: i32) {
             assert(x as Field != 0);
