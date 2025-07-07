@@ -377,7 +377,9 @@
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
 </span><span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
@@ -648,8 +650,10 @@
     <span class="doccomment">/// Check if a comptime error is due to some kind of arithmetic or constraint failure.
     </span><span class="kw">fn </span>is_assertion_diagnostic(e: <span class="kw-2">&amp;</span>CustomDiagnostic) -&gt; bool {
         e.secondaries.iter().any(|s| s.message == <span class="string">"Assertion failed"</span>)
-            || e.message.contains(<span class="string">"overflow"</span>)
-            || e.message.contains(<span class="string">"divide by zero"</span>)
+            || e.message.to_lowercase().contains(<span class="string">"overflow"</span>)
+            || e.message.to_lowercase().contains(<span class="string">"cannot fit into"</span>) <span class="comment">// covers signed overflows
+            </span>|| e.message.to_lowercase().contains(<span class="string">"divide by zero"</span>)
+            || e.message.to_lowercase().contains(<span class="string">"division by zero"</span>)
     }
 
     <span class="doccomment">/// Fabricate a result from a comptime `CustomDiagnostic` on the 1st side,

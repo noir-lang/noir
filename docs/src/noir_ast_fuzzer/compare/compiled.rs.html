@@ -315,7 +315,13 @@
 <a href="#314" id="314">314</a>
 <a href="#315" id="315">315</a>
 <a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -458,10 +464,16 @@
         <span class="kw">let </span>msg1 = e1.user_defined_failure_message();
         <span class="kw">let </span>msg2 = e2.user_defined_failure_message();
         <span class="kw">let </span>equiv_msgs = <span class="kw">if let </span>(<span class="prelude-val">Some</span>(msg1), <span class="prelude-val">Some</span>(msg2)) = (<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2) {
+            <span class="kw">let </span>msg1 = msg1.to_lowercase();
+            <span class="kw">let </span>msg2 = msg2.to_lowercase();
             msg1 == msg2
-                || both(msg1, msg2, |msg| msg.contains(<span class="string">"overflow"</span>))
-                || both(msg1, msg2, |msg| {
-                    msg.contains(<span class="string">"divide by zero"</span>) || msg.contains(<span class="string">"divisor of zero"</span>)
+                || both(<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2, |msg| {
+                    msg.contains(<span class="string">"overflow"</span>) || msg.contains(<span class="string">"cannot fit into"</span>)
+                })
+                || both(<span class="kw-2">&amp;</span>msg1, <span class="kw-2">&amp;</span>msg2, |msg| {
+                    msg.contains(<span class="string">"divide by zero"</span>)
+                        || msg.contains(<span class="string">"divisor of zero"</span>)
+                        || msg.contains(<span class="string">"division by zero"</span>)
                 })
         } <span class="kw">else </span>{
             <span class="bool-val">false
