@@ -377,7 +377,46 @@
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">pub mod </span>builder;
@@ -392,12 +431,10 @@
     <span class="kw">use </span>acvm::FieldElement;
     <span class="kw">use </span>acvm::acir::native_types::{Witness, WitnessMap};
     <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
-    <span class="kw">use </span>rand::RngCore;
+    <span class="kw">use </span>rand::Rng;
 
     <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
     <span class="kw">use </span>noirc_evaluator::ssa::ir::types::NumericType;
-
-    <span class="kw">const </span>NUMBER_OF_VARIABLES_INITIAL: u32 = <span class="number">7</span>;
 
     <span class="kw">struct </span>TestHelper {
         acir_builder: FuzzerBuilder,
@@ -405,14 +442,18 @@
     }
 
     <span class="kw">impl </span>TestHelper {
-        <span class="kw">fn </span>new(types: Vec&lt;ValueType&gt;) -&gt; <span class="self">Self </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>acir_builder = FuzzerBuilder::new_acir();
-            <span class="kw">let </span><span class="kw-2">mut </span>brillig_builder = FuzzerBuilder::new_brillig();
-            <span class="kw">for </span>type_ <span class="kw">in </span>types {
-                acir_builder.insert_variable(type_.to_ssa_type());
-                brillig_builder.insert_variable(type_.to_ssa_type());
-            }
+        <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+            <span class="kw">let </span>acir_builder = FuzzerBuilder::new_acir();
+            <span class="kw">let </span>brillig_builder = FuzzerBuilder::new_brillig();
+
             <span class="self">Self </span>{ acir_builder, brillig_builder }
+        }
+
+        <span class="kw">fn </span>insert_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable_type: ValueType) -&gt; TypedValue {
+            <span class="kw">let </span>acir_param = <span class="self">self</span>.acir_builder.insert_variable(variable_type.to_ssa_type());
+            <span class="kw">let </span>brillig_param = <span class="self">self</span>.brillig_builder.insert_variable(variable_type.to_ssa_type());
+            <span class="macro">assert_eq!</span>(acir_param, brillig_param);
+            acir_param
         }
 
         <span class="kw">fn </span>insert_instruction_double_arg(
@@ -433,21 +474,11 @@
         }
     }
 
-    <span class="doccomment">/// Generates a random array with config::NUMBER_OF_VARIABLES_INITIAL elements
-    </span><span class="kw">fn </span>generate_values() -&gt; Vec&lt;u64&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
-        <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::with_capacity(NUMBER_OF_VARIABLES_INITIAL <span class="kw">as </span>usize);
-        <span class="kw">for _ in </span><span class="number">0</span>..NUMBER_OF_VARIABLES_INITIAL {
-            values.push(rng.next_u64());
-        }
-        values
-    }
-
-    <span class="kw">fn </span>get_witness_map(values: Vec&lt;u64&gt;) -&gt; WitnessMap&lt;FieldElement&gt; {
+    <span class="kw">fn </span>get_witness_map(values: <span class="kw-2">&amp;</span>[FieldElement]) -&gt; WitnessMap&lt;FieldElement&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..NUMBER_OF_VARIABLES_INITIAL {
-            <span class="kw">let </span>witness = Witness(i);
-            <span class="kw">let </span>value = FieldElement::from(values[i <span class="kw">as </span>usize]);
+        <span class="kw">for </span>(i, value) <span class="kw">in </span>values.iter().enumerate() {
+            <span class="kw">let </span>witness = Witness(i <span class="kw">as </span>u32);
+            <span class="kw">let </span>value = <span class="kw-2">*</span>value;
             witness_map.insert(witness, value);
         }
         witness_map
@@ -459,56 +490,55 @@
     }
 
     <span class="doccomment">/// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
-    /// Instruction runned with first and second witness given
     </span><span class="kw">fn </span>run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
-        values: Vec&lt;u64&gt;,
+        lhs: (FieldElement, ValueType),
+        rhs: (FieldElement, ValueType),
     ) -&gt; FieldElement {
-        <span class="kw">let </span>lhs = TypedValue::from_value_type(<span class="number">0</span>, <span class="kw-2">&amp;</span>ValueType::U64);
-        <span class="kw">let </span>rhs = TypedValue::from_value_type(<span class="number">1</span>, <span class="kw-2">&amp;</span>ValueType::U64);
-        <span class="kw">let </span><span class="kw-2">mut </span>test_helper = TestHelper::new(<span class="macro">vec!</span>[ValueType::U64; <span class="number">7</span>]);
-        <span class="kw">let </span>witness_map = get_witness_map(values.clone());
-        <span class="kw">let </span>initial_witness = witness_map;
+        <span class="kw">let </span><span class="kw-2">mut </span>test_helper = TestHelper::new();
+        <span class="kw">let </span>lhs_val = test_helper.insert_variable(lhs.<span class="number">1</span>);
+        <span class="kw">let </span>rhs_val = test_helper.insert_variable(rhs.<span class="number">1</span>);
+        <span class="kw">let </span>lhs = lhs.<span class="number">0</span>;
+        <span class="kw">let </span>rhs = rhs.<span class="number">0</span>;
+
         <span class="kw">let </span>(acir_result, brillig_result) =
-            test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
+            test_helper.insert_instruction_double_arg(instruction, lhs_val, rhs_val);
         test_helper.finalize_function(acir_result);
         test_helper.finalize_function(brillig_result);
-        <span class="kw">let </span>acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
-        <span class="kw">let </span>brillig_program =
-            test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
-        <span class="kw">let </span>result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-        <span class="kw">let </span>compare_results = run_and_compare(
-            <span class="kw-2">&amp;</span>acir_program.program,
-            <span class="kw-2">&amp;</span>brillig_program.program,
-            initial_witness,
-            result_witness,
-            result_witness,
-        );
+
+        <span class="kw">let </span>compile_options = CompileOptions::default();
+        <span class="kw">let </span>acir_program = test_helper.acir_builder.compile(compile_options.clone()).unwrap();
+        <span class="kw">let </span>brillig_program = test_helper.brillig_builder.compile(compile_options).unwrap();
+
+        <span class="kw">let </span>witness_map = get_witness_map(<span class="kw-2">&amp;</span>[lhs, rhs]);
+        <span class="kw">let </span>initial_witness = witness_map;
+        <span class="kw">let </span>compare_results =
+            run_and_compare(<span class="kw-2">&amp;</span>acir_program.program, <span class="kw-2">&amp;</span>brillig_program.program, initial_witness);
         <span class="comment">// If not agree throw panic, it is not intended to happen in tests
         </span><span class="kw">match </span>compare_results {
             CompareResults::Agree(result) =&gt; result,
             CompareResults::Disagree(acir_result, brillig_result) =&gt; {
                 <span class="macro">panic!</span>(
-                    <span class="string">"ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_result, brillig_result, <span class="kw-2">&amp;</span>values
+                    <span class="string">"ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}"</span>,
+                    acir_result, brillig_result, lhs, rhs
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) =&gt; {
                 <span class="macro">panic!</span>(
-                    <span class="string">"Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_error, brillig_error, <span class="kw-2">&amp;</span>values
+                    <span class="string">"Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}"</span>,
+                    acir_error, brillig_error, lhs, rhs
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) =&gt; {
                 <span class="macro">panic!</span>(
-                    <span class="string">"ACIR failed: ACIR: {}, Brillig: {}, values: {:?}"</span>,
-                    acir_error, brillig_result, <span class="kw-2">&amp;</span>values
+                    <span class="string">"ACIR failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}"</span>,
+                    acir_error, brillig_result, lhs, rhs
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) =&gt; {
                 <span class="macro">panic!</span>(
-                    <span class="string">"Brillig failed: Brillig: {}, ACIR: {}, values: {:?}"</span>,
-                    brillig_error, acir_result, <span class="kw-2">&amp;</span>values
+                    <span class="string">"Brillig failed: Brillig: {}, ACIR: {}, lhs: {}, rhs: {}"</span>,
+                    brillig_error, acir_result, lhs, rhs
                 );
             }
         }
@@ -516,92 +546,140 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_add() {
-        <span class="kw">let </span><span class="kw-2">mut </span>values = generate_values();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+
         <span class="comment">// to prevent `attempt to add with overflow`
-        </span>values[<span class="number">0</span>] %= <span class="number">12341234</span>;
+        </span>lhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[<span class="number">0</span>] + values[<span class="number">1</span>], noir_res);
+        compare_results(lhs + rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_sub() {
-        <span class="kw">let </span><span class="kw-2">mut </span>values = generate_values();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+
         <span class="comment">// to prevent `attempt to subtract with overflow`
-        </span><span class="kw">if </span>values[<span class="number">0</span>] &lt; values[<span class="number">1</span>] {
-            values.swap(<span class="number">0</span>, <span class="number">1</span>);
+        </span><span class="kw">if </span>lhs &lt; rhs {
+            (lhs, rhs) = (rhs, lhs);
         }
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[<span class="number">0</span>] - values[<span class="number">1</span>], noir_res);
+        compare_results(lhs - rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_mul() {
-        <span class="kw">let </span><span class="kw-2">mut </span>values = generate_values();
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span><span class="kw-2">mut </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+
         <span class="comment">// to prevent `attempt to multiply with overflow`
-        </span>values[<span class="number">0</span>] %= <span class="number">12341234</span>;
-        values[<span class="number">1</span>] %= <span class="number">12341234</span>;
+        </span>lhs %= <span class="number">12341234</span>;
+        rhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[<span class="number">0</span>] * values[<span class="number">1</span>], noir_res);
+        compare_results(lhs * rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_div() {
-        <span class="kw">let </span><span class="kw-2">mut </span>values = generate_values();
-        <span class="kw">if </span>values[<span class="number">1</span>] == <span class="number">0 </span>{
-            values[<span class="number">1</span>] = <span class="number">1</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+
+        <span class="kw">if </span>rhs == <span class="number">0 </span>{
+            rhs = <span class="number">1</span>;
         }
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_div_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] / values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_div_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs / rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_mod() {
-        <span class="kw">let </span>values = generate_values();
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_mod_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] % values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_mod_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs % rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_and() {
-        <span class="kw">let </span>values = generate_values();
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_and_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] &amp; values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_and_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs &amp; rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_or() {
-        <span class="kw">let </span>values = generate_values();
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_or_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] | values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_or_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs | rhs, noir_res);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_xor() {
-        <span class="kw">let </span>values = generate_values();
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_xor_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] ^ values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span>rhs: u64 = rng.r#gen();
+
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_xor_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs ^ rhs, noir_res);
     }
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_shr() {
-        <span class="kw">let </span><span class="kw-2">mut </span>values = generate_values();
-        values[<span class="number">1</span>] %= <span class="number">64</span>;
-        <span class="kw">let </span>noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_shr_instruction, values.clone());
-        compare_results(values[<span class="number">0</span>] &gt;&gt; values[<span class="number">1</span>], noir_res);
+        <span class="kw">let </span><span class="kw-2">mut </span>rng = rand::thread_rng();
+        <span class="kw">let </span>lhs: u64 = rng.r#gen();
+        <span class="kw">let </span><span class="kw-2">mut </span>rhs: u64 = rng.r#gen();
+
+        rhs %= <span class="number">64</span>;
+        <span class="kw">let </span>noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_shr_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs &gt;&gt; rhs, noir_res);
     }
 
     <span class="kw">fn </span>check_expected_validation_error(

@@ -57,7 +57,12 @@
 <a href="#56" id="56">56</a>
 <a href="#57" id="57">57</a>
 <a href="#58" id="58">58</a>
-<a href="#59" id="59">59</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#59" id="59">59</a>
+<a href="#60" id="60">60</a>
+<a href="#61" id="61">61</a>
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::Program,
@@ -82,11 +87,16 @@
     acir_program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
     brillig_program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
     initial_witness: WitnessMap&lt;FieldElement&gt;,
-    return_witness_acir: Witness,
-    return_witness_brillig: Witness,
 ) -&gt; CompareResults {
     <span class="kw">let </span>acir_result = execute_single(acir_program, initial_witness.clone());
     <span class="kw">let </span>brillig_result = execute_single(brillig_program, initial_witness);
+
+    <span class="kw">let </span>return_witnesses_acir = <span class="kw-2">&amp;</span>acir_program.functions[<span class="number">0</span>].return_values;
+    <span class="kw">let </span>return_witnesses_brillig = <span class="kw-2">&amp;</span>brillig_program.functions[<span class="number">0</span>].return_values;
+    <span class="macro">assert_eq!</span>(return_witnesses_acir.<span class="number">0</span>.len(), <span class="number">1</span>, <span class="string">"Multiple return value witnesses encountered"</span>);
+    <span class="macro">assert_eq!</span>(return_witnesses_brillig.<span class="number">0</span>.len(), <span class="number">1</span>, <span class="string">"Multiple return value witnesses encountered"</span>);
+    <span class="kw">let </span>return_witness_acir: <span class="kw-2">&amp;</span>Witness = return_witnesses_acir.<span class="number">0</span>.first().unwrap();
+    <span class="kw">let </span>return_witness_brillig: <span class="kw-2">&amp;</span>Witness = return_witnesses_brillig.<span class="number">0</span>.first().unwrap();
 
     <span class="comment">// we found bug in case of
     // 1) acir_result != brillig_result
@@ -95,8 +105,8 @@
     // it has depth 2, because nargo can panic or return NargoError
     </span><span class="kw">match </span>(acir_result, brillig_result) {
         (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; {
-            <span class="kw">let </span>acir_result = acir_result[<span class="kw-2">&amp;</span>return_witness_acir];
-            <span class="kw">let </span>brillig_result = brillig_result[<span class="kw-2">&amp;</span>return_witness_brillig];
+            <span class="kw">let </span>acir_result = acir_result[return_witness_acir];
+            <span class="kw">let </span>brillig_result = brillig_result[return_witness_brillig];
             <span class="kw">if </span>acir_result == brillig_result {
                 CompareResults::Agree(acir_result)
             } <span class="kw">else </span>{
@@ -104,11 +114,11 @@
             }
         }
         (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; {
-            <span class="kw">let </span>brillig_result = brillig_result[<span class="kw-2">&amp;</span>return_witness_brillig];
+            <span class="kw">let </span>brillig_result = brillig_result[return_witness_brillig];
             CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
         }
         (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Err</span>(brillig_error)) =&gt; {
-            <span class="kw">let </span>acir_result = acir_result[<span class="kw-2">&amp;</span>return_witness_acir];
+            <span class="kw">let </span>acir_result = acir_result[return_witness_acir];
             CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
         }
         (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Err</span>(brillig_error)) =&gt; {
