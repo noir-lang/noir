@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751899147984,
+  "lastUpdate": 1751899150944,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53",
-          "message": "fix: compute the dominance frontier of the reverse cfg using the extended cfg (#9019)",
-          "timestamp": "2025-06-25T15:37:12Z",
-          "tree_id": "a370fbd7d82b102aab1ade20cf83dc19a223a4e6",
-          "url": "https://github.com/noir-lang/noir/commit/d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53"
-        },
-        "date": 1750867586937,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.376,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.814,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 19.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 180,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 190,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.224,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.314,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.756,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.772,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2f11e87c99ad954f105484771aa647ff459dde3e",
+          "message": "fix(ssa): Recursively invalidate cached array instruction in constant folding (#9128)",
+          "timestamp": "2025-07-07T14:04:02Z",
+          "tree_id": "061eeb67c2d65fb8d9ca9dcb8d838b349b0bf849",
+          "url": "https://github.com/noir-lang/noir/commit/2f11e87c99ad954f105484771aa647ff459dde3e"
+        },
+        "date": 1751899135915,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.914,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.884,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.444,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 15.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 192,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.43,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.512,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.781,
             "unit": "s"
           }
         ]
