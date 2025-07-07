@@ -921,7 +921,85 @@
 <a href="#920" id="920">920</a>
 <a href="#921" id="921">921</a>
 <a href="#922" id="922">922</a>
-<a href="#923" id="923">923</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -940,7 +1018,7 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>dynamic_array_indices;
 
-<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::instruction::TerminatorInstruction;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{ir::instruction::TerminatorInstruction, ssa_gen::Ssa};
 
 <span class="kw">use </span><span class="kw">super</span>::ir::{
     function::Function,
@@ -953,6 +1031,7 @@
 /// during instruction visitation to track patterns that span multiple instructions.
 </span><span class="kw">struct </span>Validator&lt;<span class="lifetime">'f</span>&gt; {
     function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Function,
+    ssa: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Ssa,
     <span class="comment">// State for truncate-after-signed-sub validation
     // Stores: Option&lt;(bit_size, result)&gt;
     </span>signed_binary_op: <span class="prelude-ty">Option</span>&lt;PendingSignedOverflowOp&gt;,
@@ -971,8 +1050,8 @@
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; Validator&lt;<span class="lifetime">'f</span>&gt; {
-    <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Function) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ function, signed_binary_op: <span class="prelude-val">None</span>, range_checks: HashMap::default() }
+    <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Function, ssa: <span class="kw-2">&amp;</span><span class="lifetime">'f </span>Ssa) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ function, ssa, signed_binary_op: <span class="prelude-val">None</span>, range_checks: HashMap::default() }
     }
 
     <span class="doccomment">/// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -1213,28 +1292,67 @@
                 }
             }
             Instruction::Call { func, arguments } =&gt; {
-                <span class="kw">if let </span>Value::Intrinsic(intrinsic) = <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
-                    <span class="kw">match </span>intrinsic {
-                        Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; {
-                            <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
+                <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
+                    Value::Intrinsic(intrinsic) =&gt; {
+                        <span class="kw">match </span>intrinsic {
+                            Intrinsic::ToRadix(<span class="kw">_</span>) =&gt; {
+                                <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">2</span>);
 
-                            <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                            <span class="macro">assert!</span>(<span class="macro">matches!</span>(value_typ, Type::Numeric(NumericType::NativeField)));
+                                <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
+                                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+                                    value_typ,
+                                    Type::Numeric(NumericType::NativeField)
+                                ));
 
-                            <span class="kw">let </span>radix_typ = dfg.type_of_value(arguments[<span class="number">1</span>]);
-                            <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                                radix_typ,
-                                Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})
-                            ));
+                                <span class="kw">let </span>radix_typ = dfg.type_of_value(arguments[<span class="number">1</span>]);
+                                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+                                    radix_typ,
+                                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})
+                                ));
+                            }
+                            Intrinsic::ToBits(<span class="kw">_</span>) =&gt; {
+                                <span class="comment">// Intrinsic::ToBits always has a set radix
+                                </span><span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
+                                <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
+                                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
+                                    value_typ,
+                                    Type::Numeric(NumericType::NativeField)
+                                ));
+                            }
+                            <span class="kw">_ </span>=&gt; {}
                         }
-                        Intrinsic::ToBits(<span class="kw">_</span>) =&gt; {
-                            <span class="comment">// Intrinsic::ToBits always has a set radix
-                            </span><span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
-                            <span class="kw">let </span>value_typ = dfg.type_of_value(arguments[<span class="number">0</span>]);
-                            <span class="macro">assert!</span>(<span class="macro">matches!</span>(value_typ, Type::Numeric(NumericType::NativeField)));
-                        }
-                        <span class="kw">_ </span>=&gt; {}
                     }
+                    Value::Function(func_id) =&gt; {
+                        <span class="kw">let </span>called_function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[func_id];
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(returns) = called_function.returns() {
+                            <span class="kw">let </span>instruction_results = dfg.instruction_results(instruction);
+                            <span class="kw">if </span>instruction_results.len() != returns.len() {
+                                <span class="macro">panic!</span>(
+                                    <span class="string">"Function call to {} expected {} return values, but got {}"</span>,
+                                    func_id,
+                                    instruction_results.len(),
+                                    returns.len(),
+                                );
+                            }
+                            <span class="kw">for </span>(index, (instruction_result, return_value)) <span class="kw">in
+                                </span>instruction_results.iter().zip(returns).enumerate()
+                            {
+                                <span class="kw">let </span>return_type = called_function.dfg.type_of_value(<span class="kw-2">*</span>return_value);
+                                <span class="kw">let </span>instruction_result_type =
+                                    dfg.type_of_value(<span class="kw-2">*</span>instruction_result);
+                                <span class="kw">if </span>return_type != instruction_result_type {
+                                    <span class="macro">panic!</span>(
+                                        <span class="string">"Function call to {} expected return type {}, but got {} (at position {})"</span>,
+                                        func_id,
+                                        instruction_result_type,
+                                        return_type,
+                                        index + <span class="number">1
+                                    </span>);
+                                }
+                            }
+                        }
+                    }
+                    <span class="kw">_ </span>=&gt; (),
                 }
             }
             Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) | Instruction::ConstrainNotEqual(lhs, rhs, <span class="kw">_</span>) =&gt; {
@@ -1281,8 +1399,8 @@
 <span class="doccomment">/// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_function(function: <span class="kw-2">&amp;</span>Function) {
-    <span class="kw">let </span><span class="kw-2">mut </span>validator = Validator::new(function);
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>validate_function(function: <span class="kw-2">&amp;</span>Function, ssa: <span class="kw-2">&amp;</span>Ssa) {
+    <span class="kw">let </span><span class="kw-2">mut </span>validator = Validator::new(function, ssa);
     validator.run();
 }
 
@@ -1839,6 +1957,44 @@
         acir(inline) fn f2 f2 {
           b0():
             return Field 2
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(expected = <span class="string">"Function call to f1 expected 2 return values, but got 1"</span>)]
+    </span><span class="kw">fn </span>call_has_wrong_return_count() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            v0, v1 = call f1() -&gt; (Field, Field)
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        "</span>;
+        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+    }
+
+    <span class="attr">#[test]
+    #[should_panic(
+        expected = <span class="string">"Function call to f1 expected return type u8, but got Field (at position 1)"
+    </span>)]
+    </span><span class="kw">fn </span>call_has_wrong_return_type() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -&gt; u8
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
         }
         "</span>;
         <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();

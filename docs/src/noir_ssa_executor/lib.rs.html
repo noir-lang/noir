@@ -84,7 +84,9 @@
 <a href="#83" id="83">83</a>
 <a href="#84" id="84">84</a>
 <a href="#85" id="85">85</a>
-<a href="#86" id="86">86</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 #![allow(clippy::result_large_err)]
 
@@ -96,7 +98,7 @@
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>acvm::acir::native_types::WitnessMap;
 <span class="kw">use </span>noirc_driver::CompileOptions;
-<span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::Ssa;
+<span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::{Ssa, validate_ssa};
 
 <span class="kw">pub fn </span>execute_ssa(
     ssa: String,
@@ -106,6 +108,8 @@
     <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>ssa);
     <span class="kw">match </span>ssa {
         <span class="prelude-val">Ok</span>(ssa) =&gt; {
+            validate_ssa(<span class="kw-2">&amp;</span>ssa);
+
             <span class="kw">let </span>compiled_program = compile_from_ssa(ssa, <span class="kw-2">&amp;</span>compile_options);
             <span class="kw">match </span>compiled_program {
                 <span class="prelude-val">Ok</span>(compiled_program) =&gt; execute_single(<span class="kw-2">&amp;</span>compiled_program.program, initial_witness),

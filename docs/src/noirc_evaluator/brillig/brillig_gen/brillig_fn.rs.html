@@ -105,7 +105,8 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
 </span><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
@@ -204,6 +205,7 @@
     <span class="doccomment">/// Collects the return values of a given function
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>return_values(func: <span class="kw-2">&amp;</span>Function) -&gt; Vec&lt;BrilligParameter&gt; {
         func.returns()
+            .unwrap_or_default()
             .iter()
             .map(|<span class="kw-2">&amp;</span>value_id| {
                 <span class="kw">let </span>typ = func.dfg.type_of_value(value_id);

@@ -2049,7 +2049,33 @@
 <a href="#2048" id="2048">2048</a>
 <a href="#2049" id="2049">2049</a>
 <a href="#2050" id="2050">2050</a>
-<a href="#2051" id="2051">2051</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2544,7 +2570,8 @@
             <span class="kw">let </span>array_get =
                 Instruction::ArrayGet { array: instruction_results[<span class="number">0</span>], index: <span class="kw-2">*</span>index, offset };
 
-            <span class="self">self</span>.cached_instruction_results
+            <span class="comment">// If we encounter an array_get for this address, we know what the result will be.
+            </span><span class="self">self</span>.cached_instruction_results
                 .entry(array_get)
                 .or_default()
                 .entry(predicate)
@@ -2567,7 +2594,8 @@
                 <span class="self">self</span>.use_constraint_info &amp;&amp; instruction.requires_acir_gen_predicate(<span class="kw-2">&amp;</span>function.dfg);
             <span class="kw">let </span>predicate = use_predicate.then_some(side_effects_enabled_var);
 
-            <span class="self">self</span>.cached_instruction_results
+            <span class="comment">// If we see this make_array again, we can reuse the current result.
+            </span><span class="self">self</span>.cached_instruction_results
                 .entry(instruction)
                 .or_default()
                 .entry(predicate)
@@ -2678,8 +2706,13 @@
             brillig_arguments.push(parameter);
         }
 
+        <span class="comment">// Check that the function returns (doesn't always fail)
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>(returns) = func.returns() <span class="kw">else </span>{
+            <span class="kw">return </span>EvaluationResult::CannotEvaluate;
+        };
+
         <span class="comment">// Check that return value types are supported by brillig
-        </span><span class="kw">for </span>return_id <span class="kw">in </span>func.returns().iter() {
+        </span><span class="kw">for </span>return_id <span class="kw">in </span>returns {
             <span class="kw">let </span>typ = func.dfg.type_of_value(<span class="kw-2">*</span>return_id);
             <span class="kw">if </span>type_to_brillig_parameter(<span class="kw-2">&amp;</span>typ).is_none() {
                 <span class="kw">return </span>EvaluationResult::CannotEvaluate;
@@ -2775,34 +2808,53 @@
     ) {
         <span class="kw">use </span>Instruction::{ArraySet, Call, MakeArray, Store};
 
-        <span class="kw">let </span><span class="kw-2">mut </span>remove_if_array = |value: <span class="kw-2">&amp;</span>ValueId| {
-            <span class="kw">if </span>function.dfg.is_global(<span class="kw-2">*</span>value) {
-                <span class="comment">// Early return as we expect globals to be immutable.
-                </span><span class="kw">return</span>;
+        <span class="doccomment">/// Recursively remove from the cache any array values.
+        </span><span class="kw">fn </span>go(
+            function: <span class="kw-2">&amp;</span>Function,
+            cached_instruction_results: <span class="kw-2">&amp;mut </span>InstructionResultCache,
+            value: <span class="kw-2">&amp;</span>ValueId,
+        ) {
+            <span class="comment">// We expect globals to be immutable, so we can cache those results indefinitely.
+            </span><span class="kw">if </span>function.dfg.is_global(<span class="kw-2">*</span>value) {
+                <span class="kw">return</span>;
             };
 
-            <span class="kw">if </span>!function.dfg.type_of_value(<span class="kw-2">*</span>value).is_array() {
-                <span class="comment">// Early return as we only care about arrays and slices. (`Store` can act on non-array values as well)
-                </span><span class="kw">return</span>;
+            <span class="comment">// We only care about arrays and slices. (`Store` can act on non-array values as well)
+            </span><span class="kw">if </span>!function.dfg.type_of_value(<span class="kw-2">*</span>value).is_array() {
+                <span class="kw">return</span>;
             };
 
-            <span class="kw">let </span>instruction = <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>value] {
+            <span class="comment">// Look up the original instruction that created the value, which is the cache key.
+            </span><span class="kw">let </span>instruction = <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>value] {
                 Value::Instruction { instruction, .. } =&gt; <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction],
                 <span class="kw">_ </span>=&gt; <span class="kw">return</span>,
             };
 
-            <span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. } | Call { .. }) {
-                <span class="self">self</span>.cached_instruction_results.remove(instruction);
+            <span class="comment">// Remove the creator instruction from the cache.
+            </span><span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. } | Call { .. }) {
+                cached_instruction_results.remove(instruction);
             }
-        };
+
+            <span class="comment">// For arrays, we also want to invalidate the values, because multi-dimensional arrays
+            // can be passed around, and through them their sub-arrays might be modified.
+            </span><span class="kw">if let </span>MakeArray { elements, .. } = instruction {
+                <span class="kw">for </span>elem <span class="kw">in </span>elements {
+                    go(function, cached_instruction_results, elem);
+                }
+            }
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>remove_if_array = |value| go(function, <span class="kw-2">&amp;mut </span><span class="self">self</span>.cached_instruction_results, value);
 
         <span class="comment">// Should we consider calls to slice_push_back and similar to be mutating operations as well?
         </span><span class="kw">match </span>instruction {
             Store { value, .. } | ArraySet { array: value, .. } =&gt; {
-                remove_if_array(value);
+                <span class="comment">// If we write to a value, it's not safe for reuse, as its value has changed since its creation.
+                </span>remove_if_array(value);
             }
             Call { arguments, func } <span class="kw">if </span>function.runtime().is_brillig() =&gt; {
-                <span class="kw">let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>func] <span class="kw">else </span>{ <span class="kw">return </span>};
+                <span class="comment">// If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
+                </span><span class="kw">let </span>Value::Function(func_id) = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>func] <span class="kw">else </span>{ <span class="kw">return </span>};
                 <span class="kw">if </span><span class="macro">matches!</span>(function.dfg.purity_of(<span class="kw-2">*</span>func_id), <span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(Purity::Impure)) {
                     <span class="comment">// Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
                     // placed *before* the call to protect them. Currently we don't track the ref count in this

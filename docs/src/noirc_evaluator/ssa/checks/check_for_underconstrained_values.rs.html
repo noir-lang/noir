@@ -2141,7 +2141,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: <span class="kw-2">&amp;</span>Function,
     ) -&gt; BTreeSet&lt;usize&gt; {
-        <span class="kw">let </span>returns = function.returns();
+        <span class="kw">let </span>returns = function.returns().unwrap_or_default();
         <span class="kw">let </span>variable_parameters_and_return_values = function
             .parameters()
             .iter()

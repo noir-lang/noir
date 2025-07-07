@@ -1816,7 +1816,8 @@
 <a href="#1815" id="1815">1815</a>
 <a href="#1816" id="1816">1816</a>
 <a href="#1817" id="1817">1817</a>
-<a href="#1818" id="1818">1818</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2176,9 +2177,10 @@
         <span class="kw">let </span>arguments = <span class="self">self</span>.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
         <span class="kw">let </span>witness_inputs = <span class="self">self</span>.acir_context.extract_witness(<span class="kw-2">&amp;</span>inputs);
+        <span class="kw">let </span>returns = main_func.returns().unwrap_or_default();
 
         <span class="kw">let </span>outputs: Vec&lt;AcirType&gt; =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(<span class="kw-2">*</span>result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(<span class="kw-2">*</span>result_id).into());
 
         <span class="kw">let </span>code =
             gen_brillig_for(main_func, arguments.clone(), <span class="self">self</span>.brillig, <span class="self">self</span>.brillig_options)<span class="question-mark">?</span>;

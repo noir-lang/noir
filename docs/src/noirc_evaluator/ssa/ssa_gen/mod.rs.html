@@ -1335,7 +1335,7 @@
 
 <span class="kw">pub fn </span>validate_ssa(ssa: <span class="kw-2">&amp;</span>Ssa) {
     <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
-        validate_function(function);
+        validate_function(function, ssa);
     }
 }
 
