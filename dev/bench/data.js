@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751899579702,
+  "lastUpdate": 1751899581890,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53",
-          "message": "fix: compute the dominance frontier of the reverse cfg using the extended cfg (#9019)",
-          "timestamp": "2025-06-25T15:37:12Z",
-          "tree_id": "a370fbd7d82b102aab1ade20cf83dc19a223a4e6",
-          "url": "https://github.com/noir-lang/noir/commit/d596f680af00aa9c69d5f2e7ab7bfb348c4a8a53"
-        },
-        "date": 1750868042945,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/090d939071b69c288233fa17080e27e2057c85b6"
         },
         "date": 1751883892271,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 193.96,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 229.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 182.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 434.54,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 323.99,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 326.66,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.14,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2f11e87c99ad954f105484771aa647ff459dde3e",
+          "message": "fix(ssa): Recursively invalidate cached array instruction in constant folding (#9128)",
+          "timestamp": "2025-07-07T14:04:02Z",
+          "tree_id": "061eeb67c2d65fb8d9ca9dcb8d838b349b0bf849",
+          "url": "https://github.com/noir-lang/noir/commit/2f11e87c99ad954f105484771aa647ff459dde3e"
+        },
+        "date": 1751899567279,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
