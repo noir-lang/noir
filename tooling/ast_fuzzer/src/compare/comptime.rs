@@ -93,7 +93,8 @@ impl CompareComptime {
         f_comptime: impl FnOnce(Program) -> arbitrary::Result<(SsaProgramArtifact, CompareOptions)>,
     ) -> eyre::Result<CompareCompiledResult> {
         let initial_witness = self.input_witness()?;
-        let (res2, _) = Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
+        let (res2, print2) =
+            Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
         // Include the print part of stdlib for the elaborator to be able to use the print oracle
         let import_print = r#"
@@ -119,13 +120,17 @@ impl CompareComptime {
 
         // Add comptime modifier for main
         let source = format!("comptime {}{}", self.source, import_print);
+        let output = Rc::new(RefCell::new(Vec::new()));
 
-        // TODO(#9054): re-enable print output comparison
-        let empty_print = "";
+        // Take the printed output.
+        let printed = |output: Rc<RefCell<Vec<u8>>>| {
+            let output = Rc::into_inner(output).expect("context is gone").into_inner();
+            String::from_utf8(output).expect("not UTF-8")
+        };
 
         // Log source code before interpreting
         log::debug!("comptime src:\n{}", self.source);
-        let comptime_expr = match interpret(source.as_str()) {
+        let comptime_expr = match interpret(source.as_str(), output.clone()) {
             Ok(expr) => expr,
             Err(e) => {
                 let assertion_diagnostic = match &e {
@@ -143,11 +148,7 @@ impl CompareComptime {
                 };
 
                 if let Some(e) = assertion_diagnostic {
-                    return self.comptime_failure(
-                        &e,
-                        empty_print.into(),
-                        (res2, empty_print.into()),
-                    );
+                    return self.comptime_failure(&e, printed(output), (res2, print2));
                 } else {
                     panic!(
                         "elaborator error while interpreting generated comptime code: {e:?}\n{}",
@@ -167,8 +168,8 @@ impl CompareComptime {
             &self.abi,
             &Default::default(),
             &self.ssa.artifact.error_types,
-            (res1, empty_print.into()),
-            (res2, empty_print.into()),
+            (res1, printed(output)),
+            (res2, print2),
         )
     }
 

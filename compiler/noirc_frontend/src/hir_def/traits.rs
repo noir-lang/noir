@@ -4,10 +4,11 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ResolvedGeneric;
 use crate::ast::{Ident, ItemVisibility, NoirFunction};
 use crate::hir::type_check::generics::TraitGenerics;
+use crate::node_interner::{DefinitionId, NodeInterner};
 use crate::{
     Generics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
-    node_interner::{FuncId, TraitId, TraitMethodId},
+    node_interner::{FuncId, TraitId},
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
@@ -81,6 +82,9 @@ pub struct Trait {
     pub where_clause: Vec<TraitConstraint>,
 
     pub all_generics: Generics,
+
+    /// Map from each associated constant's name to a unique DefinitionId for that constant.
+    pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
 #[derive(Debug)]
@@ -119,6 +123,15 @@ impl TraitConstraint {
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         self.typ = self.typ.substitute(type_bindings);
         self.trait_bound.apply_bindings(type_bindings);
+    }
+
+    pub fn to_string(&self, interner: &NodeInterner) -> String {
+        interner.trait_constraint_string(
+            &self.typ,
+            self.trait_bound.trait_id,
+            &self.trait_bound.trait_generics.ordered,
+            &self.trait_bound.trait_generics.named,
+        )
     }
 }
 
@@ -181,13 +194,25 @@ impl Trait {
         self.associated_type_bounds = associated_type_bounds;
     }
 
-    pub fn find_method(&self, name: &str) -> Option<TraitMethodId> {
-        for (idx, method) in self.methods.iter().enumerate() {
+    pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
+        for method in self.methods.iter() {
             if &method.name == name {
-                return Some(TraitMethodId { trait_id: self.id, method_index: idx });
+                let id = *self.method_ids.get(name).unwrap();
+                return Some(interner.function_definition_id(id));
             }
         }
         None
+    }
+
+    pub fn find_method_or_constant(
+        &self,
+        name: &str,
+        interner: &NodeInterner,
+    ) -> Option<DefinitionId> {
+        if let Some(method) = self.find_method(name, interner) {
+            return Some(method);
+        }
+        self.associated_constant_ids.get(name).copied()
     }
 
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {

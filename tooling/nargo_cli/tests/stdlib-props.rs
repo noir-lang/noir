@@ -93,7 +93,7 @@ fn make_field_cast_test(size: u32, signed: bool) -> String {
     if signed {
         format!(
             "fn main(x: i{size}) -> pub Field {{
-            x as Field
+            x as u{size} as Field
          }}
          "
         )
@@ -282,7 +282,7 @@ fn make_sign_unsigned_test(size: u32) -> String {
     let y = x as u{size};
     let z = y as i{size};
     assert(z == x);
-    y as Field - x as Field
+    0
 }}"
     )
 }
@@ -307,7 +307,7 @@ fn make_sign_extend_test(in_size: u32, out_size: u32) -> String {
          let neg = -x;
      let y = x as i{out_size};
      let neg_y = neg as i{out_size};
-     (neg_y+y) as Field
+     (neg_y+y) as u{out_size} as Field
 }}"
     )
 }
