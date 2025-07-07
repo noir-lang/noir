@@ -10,8 +10,8 @@ mod tests {
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
-    use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
+    use acvm::{AcirField, FieldElement};
     use noirc_driver::{CompileOptions, CompiledProgram};
     use rand::Rng;
 
@@ -66,9 +66,8 @@ mod tests {
         witness_map
     }
 
-    fn compare_results(computed_rust: u64, computed_noir: FieldElement) {
-        let computed_rust = FieldElement::from(computed_rust);
-        assert_eq!(computed_rust, computed_noir, "Noir doesn't match Rust");
+    fn compare_results<T: Into<FieldElement>>(computed_rust: T, computed_noir: FieldElement) {
+        assert_eq!(computed_rust.into(), computed_noir, "Noir doesn't match Rust");
     }
 
     /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
@@ -127,7 +126,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add() {
+    fn test_unsigned_add() {
         let mut rng = rand::thread_rng();
         let mut lhs: u64 = rng.r#gen();
         let rhs: u64 = rng.r#gen();
@@ -142,8 +141,44 @@ mod tests {
         compare_results(lhs + rhs, noir_res);
     }
 
+    fn parse_integer_to_signed<T: Into<i128>>(integer: T) -> FieldElement {
+        let integer: i128 = integer.into();
+        let width = 8 * size_of::<T>();
+
+        let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+        let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+        if integer < min {
+            panic!("value is less than min");
+        } else if integer > max {
+            panic!("value is greater than max");
+        }
+
+        if integer < 0 {
+            FieldElement::from(2u32).pow(&width.into()) + FieldElement::from(integer)
+        } else {
+            FieldElement::from(integer)
+        }
+    }
+
     #[test]
-    fn test_sub() {
+    fn test_signed_add() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: i64 = rng.r#gen();
+        let rhs: i64 = rng.r#gen();
+
+        // to prevent `attempt to add with overflow`
+        lhs %= 12341234;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_add_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs + rhs), noir_res);
+    }
+
+    #[test]
+    fn test_unsigned_sub() {
         let mut rng = rand::thread_rng();
         let mut lhs: u64 = rng.r#gen();
         let mut rhs: u64 = rng.r#gen();
@@ -161,7 +196,21 @@ mod tests {
     }
 
     #[test]
-    fn test_mul() {
+    fn test_signed_sub() {
+        let mut rng = rand::thread_rng();
+        let lhs: i64 = rng.r#gen();
+        let rhs: i64 = rng.r#gen();
+
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_sub_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs - rhs), noir_res);
+    }
+
+    #[test]
+    fn test_unsigned_mul() {
         let mut rng = rand::thread_rng();
         let mut lhs: u64 = rng.r#gen();
         let mut rhs: u64 = rng.r#gen();
@@ -175,6 +224,23 @@ mod tests {
             (rhs.into(), ValueType::U64),
         );
         compare_results(lhs * rhs, noir_res);
+    }
+
+    #[test]
+    fn test_signed_mul() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
+        // to prevent `attempt to multiply with overflow`
+        lhs %= 12341234;
+        rhs %= 12341234;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_mul_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs * rhs), noir_res);
     }
 
     #[test]
