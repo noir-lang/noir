@@ -2976,7 +2976,35 @@
 <a href="#2975" id="2975">2975</a>
 <a href="#2976" id="2976">2976</a>
 <a href="#2977" id="2977">2977</a>
-<a href="#2978" id="2978">2978</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#2978" id="2978">2978</a>
+<a href="#2979" id="2979">2979</a>
+<a href="#2980" id="2980">2980</a>
+<a href="#2981" id="2981">2981</a>
+<a href="#2982" id="2982">2982</a>
+<a href="#2983" id="2983">2983</a>
+<a href="#2984" id="2984">2984</a>
+<a href="#2985" id="2985">2985</a>
+<a href="#2986" id="2986">2986</a>
+<a href="#2987" id="2987">2987</a>
+<a href="#2988" id="2988">2988</a>
+<a href="#2989" id="2989">2989</a>
+<a href="#2990" id="2990">2990</a>
+<a href="#2991" id="2991">2991</a>
+<a href="#2992" id="2992">2992</a>
+<a href="#2993" id="2993">2993</a>
+<a href="#2994" id="2994">2994</a>
+<a href="#2995" id="2995">2995</a>
+<a href="#2996" id="2996">2996</a>
+<a href="#2997" id="2997">2997</a>
+<a href="#2998" id="2998">2998</a>
+<a href="#2999" id="2999">2999</a>
+<a href="#3000" id="3000">3000</a>
+<a href="#3001" id="3001">3001</a>
+<a href="#3002" id="3002">3002</a>
+<a href="#3003" id="3003">3003</a>
+<a href="#3004" id="3004">3004</a>
+<a href="#3005" id="3005">3005</a>
+<a href="#3006" id="3006">3006</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3900,6 +3928,26 @@
         }
     }
 
+    <span class="doccomment">/// Check that if bound, it's a signed integer
+    </span><span class="kw">pub fn </span>is_signed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="kw-2">&amp;*</span><span class="self">self</span>.borrow() {
+            TypeBinding::Bound(binding) =&gt; {
+                <span class="macro">matches!</span>(binding.follow_bindings(), Type::Integer(Signedness::Signed, <span class="kw">_</span>))
+            }
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="doccomment">/// Check that if bound, it's an unsigned integer
+    </span><span class="kw">pub fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="kw-2">&amp;*</span><span class="self">self</span>.borrow() {
+            TypeBinding::Bound(binding) =&gt; {
+                <span class="macro">matches!</span>(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, <span class="kw">_</span>))
+            }
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
+    }
+
     <span class="doccomment">/// If value_level, only check for Type::FieldElement,
     /// else only check for a type-level FieldElement
     </span><span class="kw">fn </span>is_field_element(<span class="kw-2">&amp;</span><span class="self">self</span>, value_level: bool) -&gt; bool {
@@ -4150,11 +4198,19 @@
     }
 
     <span class="kw">pub fn </span>is_signed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>.follow_bindings(), Type::Integer(Signedness::Signed, <span class="kw">_</span>))
+        <span class="kw">match </span><span class="self">self</span>.follow_bindings_shallow().as_ref() {
+            Type::Integer(Signedness::Signed, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            Type::TypeVariable(var) =&gt; var.is_signed(),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
     }
 
     <span class="kw">pub fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        <span class="macro">matches!</span>(<span class="self">self</span>.follow_bindings(), Type::Integer(Signedness::Unsigned, <span class="kw">_</span>))
+        <span class="kw">match </span><span class="self">self</span>.follow_bindings_shallow().as_ref() {
+            Type::Integer(Signedness::Unsigned, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            Type::TypeVariable(var) =&gt; var.is_unsigned(),
+            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+        }
     }
 
     <span class="doccomment">/// While Kind::is_numeric refers to numeric _types_,

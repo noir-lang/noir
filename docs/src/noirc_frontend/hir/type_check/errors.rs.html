@@ -801,7 +801,11 @@
 <a href="#800" id="800">800</a>
 <a href="#801" id="801">801</a>
 <a href="#802" id="802">802</a>
-<a href="#803" id="803">803</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -896,6 +900,8 @@
     </span>UnconstrainedMismatch { item: String, expected: bool, location: Location },
     <span class="attr">#[error(<span class="string">"Only integer and Field types may be casted to"</span>)]
     </span>UnsupportedCast { location: Location },
+    <span class="attr">#[error(<span class="string">"Only unsigned integer types may be casted to Field"</span>)]
+    </span>UnsupportedFieldCast { location: Location },
     <span class="attr">#[error(<span class="string">"Index {index} is out of bounds for this tuple {lhs_type} of length {length}"</span>)]
     </span>TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     <span class="attr">#[error(<span class="string">"Variable `{name}` must be mutable to be assigned to"</span>)]
@@ -1088,6 +1094,7 @@
             | TypeCheckError::GenericCountMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
@@ -1292,6 +1299,7 @@
             TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }

@@ -2345,7 +2345,13 @@
 <a href="#2344" id="2344">2344</a>
 <a href="#2345" id="2345">2345</a>
 <a href="#2346" id="2346">2346</a>
-<a href="#2347" id="2347">2347</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2347" id="2347">2347</a>
+<a href="#2348" id="2348">2348</a>
+<a href="#2349" id="2349">2349</a>
+<a href="#2350" id="2350">2350</a>
+<a href="#2351" id="2351">2351</a>
+<a href="#2352" id="2352">2352</a>
+<a href="#2353" id="2353">2353</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3509,7 +3515,13 @@
 
         <span class="kw">match </span>to {
             Type::Integer(sign, bits) =&gt; Type::Integer(sign, bits),
-            Type::FieldElement =&gt; Type::FieldElement,
+            Type::FieldElement =&gt; {
+                <span class="kw">if </span>from_follow_bindings.is_signed() {
+                    <span class="self">self</span>.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                }
+
+                Type::FieldElement
+            }
             Type::Bool =&gt; {
                 <span class="kw">let </span>from_is_numeric = <span class="kw">match </span>from_follow_bindings {
                     Type::Integer(..) | Type::FieldElement =&gt; <span class="bool-val">true</span>,
