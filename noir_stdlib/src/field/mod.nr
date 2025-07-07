@@ -161,6 +161,9 @@ impl Field {
             static_assert(1 < radix, "radix must be greater than 1");
             static_assert(radix <= 256, "radix must be less than or equal to 256");
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
+        } else {
+            let max = (radix as Field).pow_32(N as Field);
+            assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
         }
         __to_le_radix(self, radix)
     }
@@ -171,6 +174,9 @@ impl Field {
             static_assert(1 < radix, "radix must be greater than 1");
             static_assert(radix <= 256, "radix must be less than or equal to 256");
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
+        } else {
+            let max = (radix as Field).pow_32(N as Field);
+            assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
         }
         __to_be_radix(self, radix)
     }
@@ -467,6 +473,16 @@ mod tests {
         } else {
             panic(f"radix must be less than or equal to 256")
         }
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    unconstrained fn not_enough_limbs_brillig() {
+        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    fn not_enough_limbs() {
+        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
     }
 
     // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
