@@ -1112,32 +1112,6 @@ impl<'interner> Monomorphizer<'interner> {
                 let value = Type::TypeVariable(type_variable.clone());
                 self.numeric_generic(value, numeric_typ.as_ref().clone(), typ, location)
             }
-            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
-                let location = ident.location;
-                let associated_types = self.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
-                    unreachable!("Expected associated type to be numeric");
-                };
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                {
-                    Ok(value) => {
-                        let typ = Self::convert_type(&numeric_type, location)?;
-                        let value = SignedField::positive(value);
-                        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
-                    }
-                    Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
-                        name: name.clone(),
-                        err,
-                        location,
-                    }),
-                }
-            }
         }
     }
 
@@ -2587,14 +2561,14 @@ pub(crate) fn resolve_trait_item(
         }
     }
 
-    if let Some((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
+    let trait_ = interner.get_trait(impl_.trait_id);
+    if let Some(id) = trait_.find_method_or_constant(name, interner) {
+        let expected_type = interner.definition_type(id);
+
         // The lookup above returns the expected type but not the value that
         // is expected to resolve to a Type::Constant - we have to look that up separately.
         for item in interner.get_associated_types_for_impl(impl_id) {
             if item.name.as_str() == name {
-                let id = *id;
-                let expected_type = expected_type.clone();
-
                 // We also need to apply any instantiation bindings if the expression has any
                 let instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
                 let value = if let Some(instantiation_bindings) = instantiation_bindings {

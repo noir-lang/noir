@@ -569,12 +569,6 @@ impl Elaborator<'_> {
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
         let variable = self.validate_path(variable);
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&variable)
-        {
-            return (expr_id, typ);
-        }
-
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
 
         let location = variable.location;
@@ -658,50 +652,6 @@ impl Elaborator<'_> {
         } else {
             (id, typ)
         }
-    }
-
-    /// Checks whether `variable` is `Self::method_name` or `Self::AssociatedConstant` when we are inside a trait impl and `Self`
-    /// resolves to a primitive type.
-    ///
-    /// In the first case we elaborate this as if it were a TypePath
-    /// (for example, if `Self` is `u32` then we consider this the same as `u32::method_name`).
-    /// A regular path lookup won't work here for the same reason `TypePath` exists.
-    ///
-    /// In the second case we solve the associated constant by looking up its value, later
-    /// turning it into a literal.
-    fn elaborate_variable_as_self_method_or_associated_constant(
-        &mut self,
-        variable: &TypedPath,
-    ) -> Option<(ExprId, Type)> {
-        if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
-            return None;
-        }
-
-        let location = variable.location;
-        let name = variable.segments[1].ident.as_str();
-        let self_type = self.self_type.as_ref()?;
-        let trait_impl_id = &self.current_trait_impl?;
-
-        // Check the `Self::AssociatedConstant` case when inside a trait impl
-        if let Some((definition_id, numeric_type)) =
-            self.interner.get_trait_impl_associated_constant(*trait_impl_id, name).cloned()
-        {
-            let hir_ident = HirIdent::non_trait_method(definition_id, location);
-            let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr(hir_expr);
-            self.interner.push_expr_location(id, location);
-            self.interner.push_expr_type(id, numeric_type.clone());
-            return Some((id, numeric_type));
-        }
-
-        // Check the `Self::method_name` case when `Self` is a primitive type
-        if matches!(self.self_type, Some(Type::DataType(..))) {
-            return None;
-        }
-
-        let ident = variable.segments[1].ident.clone();
-        let typ_location = variable.segments[0].location;
-        Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
     }
 
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
@@ -935,9 +885,6 @@ impl Elaborator<'_> {
                 self.resolve_local_variable(hir_ident.clone(), var_scope_index);
 
                 self.interner.add_local_reference(hir_ident.id, location);
-            }
-            DefinitionKind::AssociatedConstant(..) => {
-                // Nothing to do here
             }
         }
     }
