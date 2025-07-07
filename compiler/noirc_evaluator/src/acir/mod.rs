@@ -358,9 +358,10 @@ impl<'a> Context<'a> {
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
         let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;

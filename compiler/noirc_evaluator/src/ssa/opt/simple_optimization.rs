@@ -1,5 +1,7 @@
 use noirc_errors::call_stack::CallStackId;
 
+use acvm::FieldElement;
+
 use crate::{
     errors::RtResult,
     ssa::ir::{
@@ -7,6 +9,7 @@ use crate::{
         dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
+        types::NumericType,
         types::Type,
         value::{ValueId, ValueMapping},
     },
@@ -59,18 +62,20 @@ impl Function {
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
-
+        let mut enable_side_effects =
+            self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
         for block_id in self.reachable_blocks() {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
-
+                let instruction = &mut self.dfg[instruction_id];
                 if !values_to_replace.is_empty() {
-                    let instruction = &mut self.dfg[instruction_id];
                     instruction.replace_values(&values_to_replace);
                 }
-
+                if let Instruction::EnableSideEffectsIf { condition } = instruction {
+                    enable_side_effects = *condition;
+                }
                 let call_stack_id = self.dfg.get_instruction_call_stack_id(instruction_id);
                 let mut context = SimpleOptimizationContext {
                     block_id,
@@ -79,6 +84,7 @@ impl Function {
                     dfg: &mut self.dfg,
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
+                    enable_side_effects,
                 };
                 f(&mut context)?;
 
@@ -101,6 +107,7 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     pub(crate) instruction_id: InstructionId,
     pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
+    pub(crate) enable_side_effects: ValueId,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
 }

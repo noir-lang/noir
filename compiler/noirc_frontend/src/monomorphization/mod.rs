@@ -12,7 +12,7 @@ use crate::NamedGeneric;
 use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
-use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind};
+use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{Signedness, Visibility};
 use crate::signed_field::SignedField;
 use crate::token::FmtStrFragment;
@@ -25,7 +25,7 @@ use crate::{
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
         types,
     },
-    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind, TraitMethodId},
+    node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
@@ -86,7 +86,7 @@ pub(super) struct Monomorphizer<'interner> {
         node_interner::FuncId,
         FuncId,
         TypeBindings,
-        Option<TraitMethodId>,
+        Option<TraitItemId>,
         bool,
         Location,
     )>,
@@ -263,7 +263,7 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: node_interner::ExprId,
         typ: &HirType,
         turbofish_generics: &[HirType],
-        trait_method: Option<TraitMethodId>,
+        trait_method: Option<TraitItemId>,
     ) -> Definition {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
@@ -537,7 +537,7 @@ impl<'interner> Monomorphizer<'interner> {
                     let method = prefix
                         .trait_method_id
                         .expect("ice: missing trait method if when impl was found");
-                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
+                    let func = self.resolve_trait_item_expr(expr, function_type, method)?;
                     self.create_prefix_operator_impl_call(func, rhs, ret, location)?
                 } else {
                     let operator = prefix.operator;
@@ -559,7 +559,7 @@ impl<'interner> Monomorphizer<'interner> {
                         self.interner.get_infix_operator_type(infix.lhs, operator, expr);
 
                     let method = infix.trait_method_id;
-                    let func = self.resolve_trait_method_expr(expr, function_type, method)?;
+                    let func = self.resolve_trait_item_expr(expr, function_type, method)?;
                     let operator = infix.operator;
                     self.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)?
                 } else {
@@ -1047,8 +1047,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
-        if let ImplKind::TraitMethod(method) = ident.impl_kind {
-            return self.resolve_trait_method_expr(expr_id, typ, method.method_id);
+        if let ImplKind::TraitItem(item) = ident.impl_kind {
+            return self.resolve_trait_item_expr(expr_id, typ, item.id());
         }
 
         // Ensure all instantiation bindings are bound.
@@ -1067,7 +1067,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let definition = self.interner.definition(ident.id);
-        let ident = match &definition.kind {
+        match &definition.kind {
             DefinitionKind::Function(func_id) => {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
@@ -1085,60 +1085,32 @@ impl<'interner> Monomorphizer<'interner> {
                     ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
                 let ident_expression = ast::Expression::Ident(ident);
                 if self.is_function_closure_type(&typ) {
-                    ast::Expression::Tuple(vec![
-                        ast::Expression::ExtractTupleField(
-                            Box::new(ident_expression.clone()),
-                            0usize,
-                        ),
-                        ast::Expression::ExtractTupleField(Box::new(ident_expression), 1usize),
-                    ])
+                    let ident_clone = Box::new(ident_expression.clone());
+                    let function = ast::Expression::ExtractTupleField(ident_clone, 0);
+                    let env = ast::Expression::ExtractTupleField(Box::new(ident_expression), 1);
+                    Ok(ast::Expression::Tuple(vec![function, env]))
                 } else {
-                    ident_expression
+                    Ok(ident_expression)
                 }
             }
             DefinitionKind::Global(global_id) => {
-                self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)?
+                self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
-                Some(expr) => expr,
+                Some(expr) => Ok(expr),
                 None => {
                     let Some(ident) = self.local_ident(&ident, &typ)? else {
                         let location = self.interner.id_location(expr_id);
                         let message = "ICE: Variable not found during monomorphization";
                         return Err(MonomorphizationError::InternalError { location, message });
                     };
-                    ast::Expression::Ident(ident)
+                    Ok(ast::Expression::Ident(ident))
                 }
             },
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
-                let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_, _) => {
-                        unreachable!("Unbound type variable used in expression")
-                    }
-                    TypeBinding::Bound(binding) => {
-                        let location = self.interner.id_location(expr_id);
-                        binding
-                            .evaluate_to_field_element(
-                                &Kind::Numeric(numeric_typ.clone()),
-                                location,
-                            )
-                            .map_err(|err| MonomorphizationError::UnknownArrayLength {
-                                length: binding.clone(),
-                                err,
-                                location,
-                            })?
-                    }
-                };
                 let location = self.interner.id_location(expr_id);
-
-                if !Kind::Numeric(numeric_typ.clone()).unifies(&Kind::numeric(typ.clone())) {
-                    let message = "ICE: Generic's kind does not match expected type";
-                    return Err(MonomorphizationError::InternalError { location, message });
-                }
-
-                let typ = Self::convert_type(&typ, ident.location)?;
-                let value = SignedField::positive(value);
-                ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                let value = Type::TypeVariable(type_variable.clone());
+                self.numeric_generic(value, numeric_typ.as_ref().clone(), typ, location)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
@@ -1157,20 +1129,45 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
                         let value = SignedField::positive(value);
-                        ast::Expression::Literal(ast::Literal::Integer(value, typ, location))
+                        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
-                    Err(err) => {
-                        return Err(MonomorphizationError::CannotComputeAssociatedConstant {
-                            name: name.clone(),
-                            err,
-                            location,
-                        });
-                    }
+                    Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
+                        name: name.clone(),
+                        err,
+                        location,
+                    }),
                 }
             }
-        };
+        }
+    }
 
-        Ok(ident)
+    /// Monomorphize a numeric generic as a numeric constant.
+    /// Expects arguments to correspond to `let N: $expected_type = $value;`
+    fn numeric_generic(
+        &self,
+        value: Type,
+        expected_type: Type,
+        expr_type: Type,
+        location: Location,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
+        let value = value.evaluate_to_field_element(&expected_kind, location).map_err(|err| {
+            MonomorphizationError::UnknownArrayLength {
+                length: value.follow_bindings(),
+                err,
+                location,
+            }
+        })?;
+
+        let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
+        if !expected_kind.unifies(&expr_kind) {
+            let message = "ICE: Generic's kind does not match expected type";
+            return Err(MonomorphizationError::InternalError { location, message });
+        }
+
+        let typ = Self::convert_type(&expected_type, location)?;
+        let value = SignedField::positive(value);
+        Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 
     fn global_ident(
@@ -1606,29 +1603,43 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    fn resolve_trait_method_expr(
+    fn resolve_trait_item_expr(
         &mut self,
         expr_id: node_interner::ExprId,
         function_type: HirType,
-        method: TraitMethodId,
+        trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let func_id = resolve_trait_method(self.interner, method, expr_id)
+        let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)?;
 
-        let func_id =
-            match self.lookup_function(func_id, expr_id, &function_type, &[], Some(method)) {
-                Definition::Function(func_id) => func_id,
-                _ => unreachable!(),
-            };
+        let func_id = match item {
+            TraitItem::Method(func_id) => func_id,
+            TraitItem::Constant { id, expected_type, value } => {
+                let location = self.interner.definition(id).location;
+                let expr_type = self.interner.id_type(expr_id);
+                return self.numeric_generic(value, expected_type, expr_type, location);
+            }
+        };
 
-        let the_trait = self.interner.get_trait(method.trait_id);
+        let func_id = match self.lookup_function(
+            func_id,
+            expr_id,
+            &function_type,
+            &[],
+            Some(trait_item_id),
+        ) {
+            Definition::Function(func_id) => func_id,
+            _ => unreachable!(),
+        };
+
         let location = self.interner.expr_location(&expr_id);
+        let name = self.interner.definition_name(trait_item_id.item_id).to_string();
 
         Ok(ast::Expression::Ident(ast::Ident {
             definition: Definition::Function(func_id),
             mutable: false,
             location: None,
-            name: the_trait.methods[method.method_index].name.to_string(),
+            name,
             typ: Self::convert_type(&function_type, location)?,
             id: self.next_ident_id(),
         }))
@@ -1847,7 +1858,7 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: node_interner::ExprId,
         function_type: HirType,
         turbofish_generics: Vec<HirType>,
-        trait_method: Option<TraitMethodId>,
+        trait_method: Option<TraitItemId>,
     ) -> FuncId {
         let new_id = self.next_function_id();
         let is_unconstrained = self.is_unconstrained(id);
@@ -2466,20 +2477,17 @@ pub fn undo_instantiation_bindings(bindings: TypeBindings) {
 /// the correct type bindings during monomorphization.
 pub fn perform_impl_bindings(
     interner: &NodeInterner,
-    trait_method: Option<TraitMethodId>,
+    trait_method: Option<TraitItemId>,
     impl_method: node_interner::FuncId,
     location: Location,
 ) -> Result<TypeBindings, InterpreterError> {
     let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
-        let the_trait = interner.get_trait(trait_method.trait_id);
-
         let mut trait_method_type =
-            the_trait.methods[trait_method.method_index].typ.as_monotype().clone();
+            interner.definition_type(trait_method.item_id).as_monotype().clone();
 
-        let mut impl_method_type =
-            interner.function_meta(&impl_method).typ.unwrap_forall().1.clone();
+        let mut impl_method_type = interner.function_meta(&impl_method).typ.as_monotype().clone();
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id, binding.
@@ -2494,30 +2502,36 @@ pub fn perform_impl_bindings(
             }
         })?;
 
+        for (_, kind, binding) in bindings.values_mut() {
+            *kind = kind.follow_bindings();
+            *binding = binding.follow_bindings();
+        }
+
         perform_instantiation_bindings(&bindings);
     }
 
     Ok(bindings)
 }
 
-pub fn resolve_trait_method(
+/// Resolve a trait item to a particular impl
+fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
-    method: TraitMethodId,
+    method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<node_interner::FuncId, InterpreterError> {
+) -> Result<node_interner::TraitImplId, InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         let location = interner.expr_location(&expr_id);
         InterpreterError::NoImpl { location }
     })?;
 
-    let impl_id = match trait_impl {
-        TraitImplKind::Normal(impl_id) => impl_id,
+    match trait_impl {
+        TraitImplKind::Normal(impl_id) => Ok(impl_id),
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
             match interner.lookup_trait_implementation(
                 &object_type,
-                method.trait_id,
+                method_id.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
             ) {
@@ -2527,35 +2541,90 @@ pub fn resolve_trait_method(
                     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
                     bindings.extend(instantiation_bindings);
                     interner.store_instantiation_bindings(expr_id, bindings);
-                    impl_id
+                    Ok(impl_id)
                 }
                 Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
-                    return Err(InterpreterError::NoImpl { location });
+                    Err(InterpreterError::NoImpl { location })
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
-                    return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
+                    Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
                 }
                 Err(ImplSearchErrorKind::Nested(constraints)) => {
                     if let Some(error) =
                         NoMatchingImplFoundError::new(interner, constraints, location)
                     {
-                        return Err(InterpreterError::NoMatchingImplFound { error });
+                        Err(InterpreterError::NoMatchingImplFound { error })
                     } else {
-                        return Err(InterpreterError::NoImpl { location });
+                        Err(InterpreterError::NoImpl { location })
                     }
                 }
                 Err(ImplSearchErrorKind::MultipleMatching(candidates)) => {
-                    return Err(InterpreterError::MultipleMatchingImpls {
+                    Err(InterpreterError::MultipleMatchingImpls {
                         object_type,
                         location,
                         candidates,
-                    });
+                    })
                 }
             }
         }
-    };
+    }
+}
 
-    Ok(interner.get_trait_implementation(impl_id).borrow().methods[method.method_index])
+pub(crate) fn resolve_trait_item(
+    interner: &mut NodeInterner,
+    method_id: TraitItemId,
+    expr_id: ExprId,
+) -> Result<TraitItem, InterpreterError> {
+    let impl_id = resolve_trait_item_impl(interner, method_id, expr_id)?;
+
+    let name = interner.definition_name(method_id.item_id);
+    let impl_ = interner.get_trait_implementation(impl_id);
+    let impl_ = impl_.borrow();
+
+    for method in &impl_.methods {
+        if interner.function_name(method) == name {
+            return Ok(TraitItem::Method(*method));
+        }
+    }
+
+    if let Some((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
+        // The lookup above returns the expected type but not the value that
+        // is expected to resolve to a Type::Constant - we have to look that up separately.
+        for item in interner.get_associated_types_for_impl(impl_id) {
+            if item.name.as_str() == name {
+                let id = *id;
+                let expected_type = expected_type.clone();
+
+                // We also need to apply any instantiation bindings if the expression has any
+                let instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
+                let value = if let Some(instantiation_bindings) = instantiation_bindings {
+                    item.typ.substitute(instantiation_bindings)
+                } else {
+                    item.typ.clone()
+                };
+
+                return Ok(TraitItem::Constant { id, expected_type, value });
+            }
+        }
+    }
+
+    unreachable!("No method named `{name}` in impl")
+}
+
+pub(crate) enum TraitItem {
+    Method(node_interner::FuncId),
+    Constant { id: node_interner::DefinitionId, expected_type: Type, value: Type },
+}
+
+impl TraitItem {
+    pub(crate) fn unwrap_method(&self) -> node_interner::FuncId {
+        match self {
+            TraitItem::Method(func_id) => *func_id,
+            TraitItem::Constant { .. } => {
+                panic!("Expected `TraitItem::Method`, but found `TraitItem::Constant`")
+            }
+        }
+    }
 }
 
 /// Extend the arguments to `print` (which is a `bool` to show if newline is needed and

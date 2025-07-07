@@ -90,6 +90,7 @@ fn check_u128_mul_overflow(
 
     let u128 = NumericType::unsigned(128);
     let two_pow_64 = dfg.make_constant(two_pow_64.into(), u128);
+    let mul = BinaryOp::Mul { unchecked: true };
 
     let res = if lhs_value.is_some() && rhs_value.is_some() {
         // If both values are known at compile time, at this point we know it overflows
@@ -118,13 +119,17 @@ fn check_u128_mul_overflow(
             dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
 
         // Unchecked as operands are restricted to be less than 2^64 so multiplying them cannot overflow.
-        let mul = BinaryOp::Mul { unchecked: true };
         let instruction =
             Instruction::Binary(Binary { lhs: divided_lhs, rhs: divided_rhs, operator: mul });
         dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
     };
 
     let zero = dfg.make_constant(FieldElement::zero(), u128);
+    let instruction = Instruction::Cast(context.enable_side_effects, u128);
+    let predicate =
+        dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
+    let instruction = Instruction::Binary(Binary { lhs: res, rhs: predicate, operator: mul });
+    let res = dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
     let instruction = Instruction::Constrain(
         res,
         zero,
@@ -277,5 +282,35 @@ mod tests {
 
         let ssa = ssa.check_u128_mul_overflow();
         assert_normalized_ssa_equals(ssa, src);
+    }
+    #[test]
+    fn predicate_overflow() {
+        // This code performs a u128 multiplication that overflows, under a condition.
+        let src = "
+        acir(inline) fn main f0 {
+        b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+        b1():
+            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455	// src/main.nr:17:13
+            jmp b2()
+        b2():
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg().check_u128_mul_overflow();
+        // Below, the overflow check takes the 'enable_side_effects' value into account
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455
+            v3 = cast v0 as u128
+            constrain v3 == u128 0, "attempt to multiply with overflow"
+            v5 = not v0
+            enable_side_effects u1 1
+            return v0
+        }
+        "#);
     }
 }

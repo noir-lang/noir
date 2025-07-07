@@ -13,7 +13,6 @@ use noirc_evaluator::ssa::{
     secondary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-use std::collections::HashMap;
 
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
@@ -233,14 +232,7 @@ impl InstructionArtifacts {
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::None,
-        print_codegen_timings: false,
-        passed: HashMap::default(),
-        skip_passes: vec![],
-        files: None,
-    };
+    let builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, false, None);
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,

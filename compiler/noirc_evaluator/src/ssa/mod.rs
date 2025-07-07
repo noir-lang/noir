@@ -7,10 +7,8 @@
 //! This module heavily borrows from Cranelift
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
+    collections::{BTreeMap, BTreeSet},
+    path::PathBuf,
 };
 
 use crate::{
@@ -21,10 +19,7 @@ use crate::{
 use acvm::{
     FieldElement,
     acir::{
-        circuit::{
-            AcirOpcodeLocation, Circuit, ErrorSelector, ExpressionWidth, OpcodeLocation,
-            Program as AcirProgram, PublicInputs, brillig::BrilligBytecode,
-        },
+        circuit::{AcirOpcodeLocation, Circuit, ExpressionWidth, OpcodeLocation, PublicInputs},
         native_types::Witness,
     },
 };
@@ -42,6 +37,12 @@ use tracing::{Level, span};
 
 use crate::acir::GeneratedAcir;
 
+pub use artifact::{SsaCircuitArtifact, SsaProgramArtifact};
+use builder::time;
+pub use builder::{SsaBuilder, SsaPass};
+
+mod artifact;
+mod builder;
 mod checks;
 pub mod function_builder;
 pub mod interpreter;
@@ -96,64 +97,6 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
-}
-
-/// An SSA pass reified as a construct we can put into a list,
-/// which facilitates equivalence testing between different
-/// stages of the processing pipeline.
-pub struct SsaPass<'a> {
-    msg: &'static str,
-    run: Box<dyn Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a>,
-}
-
-impl<'a> SsaPass<'a> {
-    pub fn new<F>(f: F, msg: &'static str) -> Self
-    where
-        F: Fn(Ssa) -> Ssa + 'a,
-    {
-        Self::new_try(move |ssa| Ok(f(ssa)), msg)
-    }
-
-    pub fn new_try<F>(f: F, msg: &'static str) -> Self
-    where
-        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
-    {
-        Self { msg, run: Box::new(f) }
-    }
-
-    pub fn msg(&self) -> &str {
-        self.msg
-    }
-
-    pub fn run(&self, ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        (self.run)(ssa)
-    }
-
-    /// Follow up the pass with another one, without adding a separate message for it.
-    ///
-    /// This is useful for attaching cleanup passes that we don't want to appear on their
-    /// own in the pipeline, because it would just increase the noise.
-    pub fn and_then<F>(self, f: F) -> Self
-    where
-        F: Fn(Ssa) -> Ssa + 'a,
-    {
-        self.and_then_try(move |ssa| Ok(f(ssa)))
-    }
-
-    /// Same as `and_then` but for passes that can fail.
-    pub fn and_then_try<F>(self, f: F) -> Self
-    where
-        F: Fn(Ssa) -> Result<Ssa, RuntimeError> + 'a,
-    {
-        Self {
-            msg: self.msg,
-            run: Box::new(move |ssa| {
-                let ssa = self.run(ssa)?;
-                let ssa = f(ssa)?;
-                Ok(ssa)
-            }),
-        }
-    }
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
@@ -316,32 +259,20 @@ where
 {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let mut builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
-    let passed = std::mem::take(&mut builder.passed);
-    let files = builder.files;
-    let ssa = builder.finish();
+    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
 
-    let mut ssa_level_warnings = vec![];
     drop(ssa_gen_span_guard);
 
+    let ssa = builder.ssa();
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         ssa.to_brillig(&options.brillig_options)
     });
 
-    let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
-    let mut ssa = SsaBuilder::from_ssa(
-        ssa,
-        options.ssa_logging.clone(),
-        options.print_codegen_timings,
-        files,
-    )
-    .with_passed(passed)
-    .with_skip_passes(options.skip_passes.clone())
-    .run_passes(&secondary(&brillig))?
-    .finish();
+    let mut ssa = builder.run_passes(&secondary(&brillig))?.finish();
 
+    let mut ssa_level_warnings = vec![];
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
             "After Check for Underconstrained Values",
@@ -404,68 +335,6 @@ where
     optimize_ssa_builder_into_acir(builder, options, primary, secondary)
 }
 
-// Helper to time SSA passes
-fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
-    let start_time = chrono::Utc::now().time();
-    let result = f();
-
-    if print_timings {
-        let end_time = chrono::Utc::now().time();
-        println!("{name}: {} ms", (end_time - start_time).num_milliseconds());
-    }
-
-    result
-}
-
-#[derive(Default)]
-pub struct SsaProgramArtifact {
-    pub program: AcirProgram<FieldElement>,
-    pub debug: Vec<DebugInfo>,
-    pub warnings: Vec<SsaReport>,
-    pub main_input_witnesses: Vec<Witness>,
-    pub main_return_witnesses: Vec<Witness>,
-    pub names: Vec<String>,
-    pub brillig_names: Vec<String>,
-    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
-}
-
-impl SsaProgramArtifact {
-    pub fn new(
-        unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
-        error_types: BTreeMap<ErrorSelector, ErrorType>,
-    ) -> Self {
-        let program = AcirProgram { functions: Vec::default(), unconstrained_functions };
-        Self {
-            program,
-            debug: Vec::default(),
-            warnings: Vec::default(),
-            main_input_witnesses: Vec::default(),
-            main_return_witnesses: Vec::default(),
-            names: Vec::default(),
-            brillig_names: Vec::default(),
-            error_types,
-        }
-    }
-
-    pub fn add_circuit(&mut self, mut circuit_artifact: SsaCircuitArtifact, is_main: bool) {
-        self.program.functions.push(circuit_artifact.circuit);
-        self.debug.push(circuit_artifact.debug_info);
-        self.warnings.append(&mut circuit_artifact.warnings);
-        if is_main {
-            self.main_input_witnesses = circuit_artifact.input_witnesses;
-            self.main_return_witnesses = circuit_artifact.return_witnesses;
-        }
-        self.names.push(circuit_artifact.name);
-        // Acir and brillig both generate new error types, so we need to merge them
-        // With the ones found during ssa generation.
-        self.error_types.extend(circuit_artifact.error_types);
-    }
-
-    fn add_warnings(&mut self, mut warnings: Vec<SsaReport>) {
-        self.warnings.append(&mut warnings);
-    }
-}
-
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
 ///
 /// The output ACIR is backend-agnostic and so must go through a transformation pass before usage in proof generation.
@@ -515,60 +384,77 @@ where
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
 
-    let func_sigs = program.function_signatures.clone();
+    let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
+        program.function_signatures.iter().map(resolve_function_signature).collect();
 
+    let artifacts = optimize_into_acir(program, options, primary, secondary, files)?;
+
+    Ok(combine_artifacts(
+        artifacts,
+        &arg_size_and_visibilities,
+        debug_variables,
+        debug_functions,
+        debug_types,
+    ))
+}
+
+pub fn combine_artifacts(
+    artifacts: ArtifactsAndWarnings,
+    arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
+    debug_variables: DebugVariables,
+    debug_functions: DebugFunctions,
+    debug_types: DebugTypes,
+) -> SsaProgramArtifact {
     let ArtifactsAndWarnings(
         (generated_acirs, generated_brillig, brillig_function_names, error_types),
         ssa_level_warnings,
-    ) = optimize_into_acir(program, options, primary, secondary, files)?;
+    ) = artifacts;
 
     assert_eq!(
         generated_acirs.len(),
-        func_sigs.len(),
+        arg_size_and_visibilities.len(),
         "The generated ACIRs should match the supplied function signatures"
     );
+    let functions: Vec<SsaCircuitArtifact> = generated_acirs
+        .into_iter()
+        .zip(arg_size_and_visibilities)
+        .map(|(acir, arg_size_and_visibility)| {
+            convert_generated_acir_into_circuit(
+                acir,
+                arg_size_and_visibility,
+                // TODO: get rid of these clones
+                debug_variables.clone(),
+                debug_functions.clone(),
+                debug_types.clone(),
+            )
+        })
+        .collect();
 
     let error_types = error_types
         .into_iter()
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    let mut program_artifact = SsaProgramArtifact::new(generated_brillig, error_types);
-
-    // Add warnings collected at the Ssa stage
-    program_artifact.add_warnings(ssa_level_warnings);
-    // For setting up the ABI we need separately specify main's input and return witnesses
-    let mut is_main = true;
-    for (acir, func_sig) in generated_acirs.into_iter().zip(func_sigs) {
-        let circuit_artifact = convert_generated_acir_into_circuit(
-            acir,
-            func_sig,
-            // TODO: get rid of these clones
-            debug_variables.clone(),
-            debug_functions.clone(),
-            debug_types.clone(),
-        );
-        program_artifact.add_circuit(circuit_artifact, is_main);
-        is_main = false;
-    }
-    program_artifact.brillig_names = brillig_function_names;
-
-    Ok(program_artifact)
+    SsaProgramArtifact::new(
+        functions,
+        brillig_function_names,
+        generated_brillig,
+        error_types,
+        ssa_level_warnings,
+    )
 }
 
-pub struct SsaCircuitArtifact {
-    pub name: String,
-    pub circuit: Circuit<FieldElement>,
-    pub debug_info: DebugInfo,
-    pub warnings: Vec<SsaReport>,
-    pub input_witnesses: Vec<Witness>,
-    pub return_witnesses: Vec<Witness>,
-    pub error_types: BTreeMap<ErrorSelector, ErrorType>,
+fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
+    func_sig
+        .0
+        .iter()
+        .map(|(pattern, typ, visibility)| (typ.field_count(&pattern.location()), *visibility))
+        .collect()
 }
 
 pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
-    func_sig: FunctionSignature,
+    arg_size_and_visibility: &[(u32, Visibility)],
     debug_variables: DebugVariables,
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
@@ -588,7 +474,7 @@ pub fn convert_generated_acir_into_circuit(
     } = generated_acir;
 
     let (public_parameter_witnesses, private_parameters) =
-        split_public_and_private_inputs(&func_sig, &input_witnesses);
+        split_public_and_private_inputs(arg_size_and_visibility, &input_witnesses);
 
     let public_parameters = PublicInputs(public_parameter_witnesses);
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
@@ -629,15 +515,13 @@ pub fn convert_generated_acir_into_circuit(
         circuit: optimized_circuit,
         debug_info,
         warnings,
-        input_witnesses,
-        return_witnesses,
         error_types: generated_acir.error_types,
     }
 }
 
 // Takes each function argument and partitions the circuit's inputs witnesses according to its visibility.
 fn split_public_and_private_inputs(
-    func_sig: &FunctionSignature,
+    argument_sizes: &[(u32, Visibility)],
     input_witnesses: &[Witness],
 ) -> (BTreeSet<Witness>, BTreeSet<Witness>) {
     let mut idx = 0_usize;
@@ -645,13 +529,12 @@ fn split_public_and_private_inputs(
         return (BTreeSet::new(), BTreeSet::new());
     }
 
-    func_sig
-        .0
+    argument_sizes
         .iter()
-        .map(|(pattern, typ, visibility)| {
-            let num_field_elements_needed = typ.field_count(&pattern.location()) as usize;
-            let witnesses = input_witnesses[idx..idx + num_field_elements_needed].to_vec();
-            idx += num_field_elements_needed;
+        .map(|(arg_size, visibility)| {
+            let arg_size = *arg_size as usize;
+            let witnesses = input_witnesses[idx..idx + arg_size].to_vec();
+            idx += arg_size;
             (visibility, witnesses)
         })
         .fold((BTreeSet::new(), BTreeSet::new()), |mut acc, (vis, witnesses)| {
@@ -667,157 +550,4 @@ fn split_public_and_private_inputs(
             }
             (acc.0, acc.1)
         })
-}
-
-// This is just a convenience object to bundle the ssa with `print_ssa_passes` for debug printing.
-pub struct SsaBuilder<'local> {
-    /// The SSA being built; it is the input and the output of every pass ran by the builder.
-    pub ssa: Ssa,
-    /// Options to control which SSA passes to print.
-    pub ssa_logging: SsaLogging,
-    /// Whether to print the amount of time it took to run individual SSA passes.
-    pub print_codegen_timings: bool,
-    /// Counters indexed by the message in the SSA pass, so we can distinguish between multiple
-    /// runs of the same pass in the printed messages.
-    pub passed: HashMap<String, usize>,
-    /// List of SSA pass message fragments that we want to skip, for testing purposes.
-    pub skip_passes: Vec<String>,
-
-    /// Providing a file manager is optional - if provided it can be used to print source
-    /// locations along with each ssa instructions when debugging.
-    pub files: Option<&'local fm::FileManager>,
-}
-
-impl<'local> SsaBuilder<'local> {
-    pub fn from_program(
-        program: Program,
-        ssa_logging: SsaLogging,
-        print_codegen_timings: bool,
-        emit_ssa: &Option<PathBuf>,
-        files: Option<&'local fm::FileManager>,
-    ) -> Result<Self, RuntimeError> {
-        let ssa = ssa_gen::generate_ssa(program)?;
-        if let Some(emit_ssa) = emit_ssa {
-            let mut emit_ssa_dir = emit_ssa.clone();
-            // We expect the full package artifact path to be passed in here,
-            // and attempt to create the target directory if it does not exist.
-            emit_ssa_dir.pop();
-            create_named_dir(emit_ssa_dir.as_ref(), "target");
-            let ssa_path = emit_ssa.with_extension("ssa.json");
-            write_to_file(&serde_json::to_vec(&ssa).unwrap(), &ssa_path);
-        }
-        Ok(Self::from_ssa(ssa, ssa_logging, print_codegen_timings, files).print("Initial SSA"))
-    }
-
-    pub fn from_ssa(
-        ssa: Ssa,
-        ssa_logging: SsaLogging,
-        print_codegen_timings: bool,
-        files: Option<&'local fm::FileManager>,
-    ) -> Self {
-        Self {
-            ssa_logging,
-            print_codegen_timings,
-            ssa,
-            files,
-            passed: Default::default(),
-            skip_passes: Default::default(),
-        }
-    }
-
-    pub fn with_passed(mut self, passed: HashMap<String, usize>) -> Self {
-        self.passed = passed;
-        self
-    }
-
-    pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
-        self.skip_passes = skip_passes;
-        self
-    }
-
-    pub fn finish(self) -> Ssa {
-        self.ssa.generate_entry_point_index()
-    }
-
-    /// Run a list of SSA passes.
-    fn run_passes(mut self, passes: &[SsaPass]) -> Result<Self, RuntimeError> {
-        for pass in passes {
-            self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg)?;
-        }
-        Ok(self)
-    }
-
-    /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    #[allow(dead_code)]
-    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
-    where
-        F: FnOnce(Ssa) -> Ssa,
-    {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
-        self.print(msg)
-    }
-
-    /// The same as `run_pass` but for passes that may fail
-    fn try_run_pass<F>(mut self, pass: F, msg: &str) -> Result<Self, RuntimeError>
-    where
-        F: FnOnce(Ssa) -> Result<Ssa, RuntimeError>,
-    {
-        // Count the number of times we have seen this message.
-        let cnt = *self.passed.entry(msg.to_string()).and_modify(|cnt| *cnt += 1).or_insert(1);
-        let step = self.passed.values().sum::<usize>();
-        let msg = format!("{msg} ({cnt}) (step {step})");
-
-        // See if we should skip this pass, including the count, so we can skip the n-th occurrence of a step.
-        let skip = self.skip_passes.iter().any(|s| msg.contains(s));
-
-        if !skip {
-            self.ssa = time(&msg, self.print_codegen_timings, || pass(self.ssa))?;
-            Ok(self.print(&msg))
-        } else {
-            Ok(self)
-        }
-    }
-
-    fn print(mut self, msg: &str) -> Self {
-        // Always normalize if we are going to print at least one of the passes
-        if !matches!(self.ssa_logging, SsaLogging::None) {
-            self.ssa.normalize_ids();
-        }
-
-        let print_ssa_pass = match &self.ssa_logging {
-            SsaLogging::None => false,
-            SsaLogging::All => true,
-            SsaLogging::Contains(strings) => strings.iter().any(|string| {
-                let string = string.to_lowercase();
-                let string = string.strip_prefix("after ").unwrap_or(&string);
-                let string = string.strip_suffix(':').unwrap_or(string);
-                msg.to_lowercase().contains(string)
-            }),
-        };
-
-        if print_ssa_pass {
-            println!("After {msg}:\n{}", self.ssa.print_with(self.files));
-        }
-        self
-    }
-}
-
-fn create_named_dir(named_dir: &Path, name: &str) -> PathBuf {
-    std::fs::create_dir_all(named_dir)
-        .unwrap_or_else(|_| panic!("could not create the `{name}` directory"));
-
-    PathBuf::from(named_dir)
-}
-
-fn write_to_file(bytes: &[u8], path: &Path) {
-    let display = path.display();
-
-    let mut file = match File::create(path) {
-        Err(why) => panic!("couldn't create {display}: {why}"),
-        Ok(file) => file,
-    };
-
-    if let Err(why) = file.write_all(bytes) {
-        panic!("couldn't write to {display}: {why}");
-    }
 }
