@@ -57,14 +57,6 @@ mod tests {
         }
     }
 
-    fn generate_values<T>() -> (T, T)
-    where
-        rand::distributions::Standard: rand::distributions::Distribution<T>,
-    {
-        let mut rng = rand::thread_rng();
-        (rng.r#gen::<T>(), rng.r#gen::<T>())
-    }
-
     fn get_witness_map(values: &[FieldElement]) -> WitnessMap<FieldElement> {
         let mut witness_map = WitnessMap::new();
         for (i, value) in values.iter().enumerate() {
@@ -137,7 +129,10 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let (mut lhs, rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to add with overflow`
         lhs %= 12341234;
         let noir_res = run_instruction_double_arg(
@@ -150,7 +145,10 @@ mod tests {
 
     #[test]
     fn test_sub() {
-        let (mut lhs, mut rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to subtract with overflow`
         if lhs < rhs {
             (lhs, rhs) = (rhs, lhs);
@@ -165,7 +163,10 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        let (mut lhs, mut rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to multiply with overflow`
         lhs %= 12341234;
         rhs %= 12341234;
@@ -179,7 +180,10 @@ mod tests {
 
     #[test]
     fn test_div() {
-        let (lhs, mut rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         if rhs == 0 {
             rhs = 1;
         }
@@ -193,7 +197,10 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let (lhs, rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mod_instruction,
             (lhs.into(), ValueType::U64),
@@ -204,7 +211,10 @@ mod tests {
 
     #[test]
     fn test_and() {
-        let (lhs, rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_and_instruction,
             (lhs.into(), ValueType::U64),
@@ -215,7 +225,10 @@ mod tests {
 
     #[test]
     fn test_or() {
-        let (lhs, rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_or_instruction,
             (lhs.into(), ValueType::U64),
@@ -226,7 +239,10 @@ mod tests {
 
     #[test]
     fn test_xor() {
-        let (lhs, rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_xor_instruction,
             (lhs.into(), ValueType::U64),
@@ -236,7 +252,10 @@ mod tests {
     }
     #[test]
     fn test_shr() {
-        let (lhs, mut rhs): (u64, u64) = generate_values();
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         rhs %= 64;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_shr_instruction,
