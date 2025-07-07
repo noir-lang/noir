@@ -253,7 +253,7 @@ impl Context<'_, '_, '_> {
     /// Inserts a cast instruction at the end of the current block and returns the results
     /// of the cast.
     ///
-    /// Compared to `self.builder.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
+    /// Compared to `self.insert_cast`, this version will automatically truncate `value` to be a valid `typ`.
     pub(super) fn insert_safe_cast(&mut self, mut value: ValueId, typ: NumericType) -> ValueId {
         let incoming_type = self.context.dfg.type_of_value(value);
 
