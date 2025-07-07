@@ -307,7 +307,7 @@ fn compute_function_own_weight(func: &Function) -> usize {
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().len()
+    func.parameters().len() + func.returns().unwrap_or_default().len()
 }
 
 #[cfg(test)]
