@@ -63,11 +63,11 @@ impl Function {
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
-            let mut simple_context = Context { context };
+            let mut expansion_context = Context { context };
             let new_result = match operator {
-                BinaryOp::Add { .. } => simple_context.insert_add(lhs, rhs),
-                BinaryOp::Sub { .. } => simple_context.insert_sub(lhs, rhs),
-                BinaryOp::Mul { .. } => simple_context.insert_mul(lhs, rhs),
+                BinaryOp::Add { .. } => expansion_context.insert_add(lhs, rhs),
+                BinaryOp::Sub { .. } => expansion_context.insert_sub(lhs, rhs),
+                BinaryOp::Mul { .. } => expansion_context.insert_mul(lhs, rhs),
                 _ => unreachable!("ICE: expand_signed_checks called on non-add/sub/mul"),
             };
 
