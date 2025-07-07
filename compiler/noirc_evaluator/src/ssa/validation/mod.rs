@@ -17,7 +17,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 
-use crate::ssa::ir::instruction::TerminatorInstruction;
+use crate::ssa::{ir::instruction::TerminatorInstruction, ssa_gen::Ssa};
 
 use super::ir::{
     function::Function,
@@ -30,6 +30,7 @@ use super::ir::{
 /// during instruction visitation to track patterns that span multiple instructions.
 struct Validator<'f> {
     function: &'f Function,
+    ssa: &'f Ssa,
     // State for truncate-after-signed-sub validation
     // Stores: Option<(bit_size, result)>
     signed_binary_op: Option<PendingSignedOverflowOp>,
@@ -48,8 +49,8 @@ enum PendingSignedOverflowOp {
 }
 
 impl<'f> Validator<'f> {
-    fn new(function: &'f Function) -> Self {
-        Self { function, signed_binary_op: None, range_checks: HashMap::default() }
+    fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
+        Self { function, ssa, signed_binary_op: None, range_checks: HashMap::default() }
     }
 
     /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
@@ -290,28 +291,67 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::Call { func, arguments } => {
-                if let Value::Intrinsic(intrinsic) = &dfg[*func] {
-                    match intrinsic {
-                        Intrinsic::ToRadix(_) => {
-                            assert_eq!(arguments.len(), 2);
+                match &dfg[*func] {
+                    Value::Intrinsic(intrinsic) => {
+                        match intrinsic {
+                            Intrinsic::ToRadix(_) => {
+                                assert_eq!(arguments.len(), 2);
 
-                            let value_typ = dfg.type_of_value(arguments[0]);
-                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                                let value_typ = dfg.type_of_value(arguments[0]);
+                                assert!(matches!(
+                                    value_typ,
+                                    Type::Numeric(NumericType::NativeField)
+                                ));
 
-                            let radix_typ = dfg.type_of_value(arguments[1]);
-                            assert!(matches!(
-                                radix_typ,
-                                Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                            ));
+                                let radix_typ = dfg.type_of_value(arguments[1]);
+                                assert!(matches!(
+                                    radix_typ,
+                                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                                ));
+                            }
+                            Intrinsic::ToBits(_) => {
+                                // Intrinsic::ToBits always has a set radix
+                                assert_eq!(arguments.len(), 1);
+                                let value_typ = dfg.type_of_value(arguments[0]);
+                                assert!(matches!(
+                                    value_typ,
+                                    Type::Numeric(NumericType::NativeField)
+                                ));
+                            }
+                            _ => {}
                         }
-                        Intrinsic::ToBits(_) => {
-                            // Intrinsic::ToBits always has a set radix
-                            assert_eq!(arguments.len(), 1);
-                            let value_typ = dfg.type_of_value(arguments[0]);
-                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
-                        }
-                        _ => {}
                     }
+                    Value::Function(func_id) => {
+                        let called_function = &self.ssa.functions[func_id];
+                        if let Some(returns) = called_function.returns() {
+                            let instruction_results = dfg.instruction_results(instruction);
+                            if instruction_results.len() != returns.len() {
+                                panic!(
+                                    "Function call to {} expected {} return values, but got {}",
+                                    func_id,
+                                    instruction_results.len(),
+                                    returns.len(),
+                                );
+                            }
+                            for (index, (instruction_result, return_value)) in
+                                instruction_results.iter().zip(returns).enumerate()
+                            {
+                                let return_type = called_function.dfg.type_of_value(*return_value);
+                                let instruction_result_type =
+                                    dfg.type_of_value(*instruction_result);
+                                if return_type != instruction_result_type {
+                                    panic!(
+                                        "Function call to {} expected return type {}, but got {} (at position {})",
+                                        func_id,
+                                        instruction_result_type,
+                                        return_type,
+                                        index + 1
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
             Instruction::Constrain(lhs, rhs, _) | Instruction::ConstrainNotEqual(lhs, rhs, _) => {
@@ -358,8 +398,8 @@ impl<'f> Validator<'f> {
 /// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
-pub(crate) fn validate_function(function: &Function) {
-    let mut validator = Validator::new(function);
+pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
+    let mut validator = Validator::new(function, ssa);
     validator.run();
 }
 
@@ -916,6 +956,44 @@ mod tests {
         acir(inline) fn f2 f2 {
           b0():
             return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Function call to f1 expected 2 return values, but got 1")]
+    fn call_has_wrong_return_count() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0, v1 = call f1() -> (Field, Field)
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Function call to f1 expected return type u8, but got Field (at position 1)"
+    )]
+    fn call_has_wrong_return_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> u8
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
