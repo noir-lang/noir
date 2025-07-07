@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751901369686,
+  "lastUpdate": 1751902551106,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18756,48 +18756,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "afa4fcda08339196b93e4ae21e730b3067d988b0",
-          "message": "fix(ssa): Perform `mem2reg` before DIE (#9018)",
-          "timestamp": "2025-06-26T09:13:20Z",
-          "tree_id": "0c33e068a1e07d752eb17e8efdf7658fd56962e5",
-          "url": "https://github.com/noir-lang/noir/commit/afa4fcda08339196b93e4ae21e730b3067d988b0"
-        },
-        "date": 1750930846809,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255006,
-            "range": "± 1153",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225246,
-            "range": "± 2424",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781991,
-            "range": "± 3047",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "301d86ead94835841e0fc14781a37c28c5afd926",
           "message": "fix(fuzz): Avoid overflow in `gen_unary` (#9024)",
           "timestamp": "2025-06-26T10:14:09Z",
@@ -20839,6 +20797,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782757,
             "range": "± 3884",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d31ebb91a644ab938bc2a9910dabb99fee120864",
+          "message": "chore: refactor ssa-fuzzer tests (#9113)",
+          "timestamp": "2025-07-07T15:10:28Z",
+          "tree_id": "7b0e82d41bc16303cb22f46cd5c626f02b1caa3e",
+          "url": "https://github.com/noir-lang/noir/commit/d31ebb91a644ab938bc2a9910dabb99fee120864"
+        },
+        "date": 1751902537310,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250574,
+            "range": "± 1411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220919,
+            "range": "± 2898",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2804829,
+            "range": "± 1486",
             "unit": "ns/iter"
           }
         ]
