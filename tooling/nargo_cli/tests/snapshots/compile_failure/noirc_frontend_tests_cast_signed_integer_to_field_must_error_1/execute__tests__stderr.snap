@@ -2,11 +2,9 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Only unsigned integer types may be casted to Field
-  ┌─ src/main.nr:3:20
-  │
-3 │             assert(x as Field != 0);
-  │                    ----------
-  │
+[31mThe application panicked (crashed).[0m
+Message:  [36mThe global thread pool has not been initialized.: ThreadPoolBuildError { kind: IOError(Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }) }[0m
+Location: [35m/mnt/user-data/guillaume/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rayon-core-1.12.1/src/registry.rs[0m:[35m168[0m
 
-Aborting due to 1 previous error
+This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.
+If there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml
