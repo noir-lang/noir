@@ -141,10 +141,16 @@ impl Comparable for NargoErrorWithTypes {
         let msg1 = e1.user_defined_failure_message();
         let msg2 = e2.user_defined_failure_message();
         let equiv_msgs = if let (Some(msg1), Some(msg2)) = (&msg1, &msg2) {
+            let msg1 = msg1.to_lowercase();
+            let msg2 = msg2.to_lowercase();
             msg1 == msg2
-                || both(msg1, msg2, |msg| msg.contains("overflow"))
-                || both(msg1, msg2, |msg| {
-                    msg.contains("divide by zero") || msg.contains("divisor of zero")
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("overflow") || msg.contains("cannot fit into")
+                })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("divide by zero")
+                        || msg.contains("divisor of zero")
+                        || msg.contains("division by zero")
                 })
         } else {
             false
