@@ -22,7 +22,7 @@ pub enum InterpreterError {
         rhs_id: ValueId,
         msg: Option<String>,
     },
-    #[error("constrain {lhs_id} != {rhs_id}, {message} failed:\n    {lhs} == {rhs}", message = constraint_message(.msg))]
+    #[error("constrain {lhs_id} != {rhs_id}{message} failed:\n    {lhs} == {rhs}", message = constraint_message(.msg))]
     ConstrainNeFailed {
         lhs: String,
         lhs_id: ValueId,
