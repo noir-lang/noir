@@ -94,7 +94,7 @@ impl Elaborator<'_> {
 
                 if overrides.len() > 1 {
                     self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
+                        typ: DuplicateType::TraitAssociatedItem,
                         first_def: overrides[0].2.name_ident().clone(),
                         second_def: overrides[1].2.name_ident().clone(),
                     });

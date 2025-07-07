@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use insta::assert_snapshot;
 
 use crate::ssa::{
     interpreter::value::NumericValue,
@@ -158,10 +159,10 @@ fn run_flattened_function() {
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 0]");
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
 }
 
 #[test]
