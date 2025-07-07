@@ -771,7 +771,7 @@ impl<'brillig> Context<'brillig> {
                 remove_if_array(value);
             }
             Call { arguments, func } if function.runtime().is_brillig() => {
-                // If we pass a value to a function, it might modify, making it unsafe for reuse after the call.
+                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
                 let Value::Function(func_id) = &function.dfg[*func] else { return };
                 if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
