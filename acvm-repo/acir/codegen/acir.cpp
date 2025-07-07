@@ -1298,17 +1298,15 @@ namespace Acir {
         struct Poseidon2Permutation {
             Acir::HeapVector message;
             Acir::HeapArray output;
-            Acir::MemoryAddress len;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("message", message));
                 packer.pack(std::make_pair("output", output));
-                packer.pack(std::make_pair("len", len));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -1316,7 +1314,6 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "message", message, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -2111,28 +2108,6 @@ namespace Acir {
             }
         };
 
-        struct JumpIfNot {
-            Acir::MemoryAddress condition;
-            uint64_t location;
-
-            friend bool operator==(const JumpIfNot&, const JumpIfNot&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static JumpIfNot bincodeDeserialize(std::vector<uint8_t>);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(2);
-                packer.pack(std::make_pair("condition", condition));
-                packer.pack(std::make_pair("location", location));
-            }
-
-            void msgpack_unpack(msgpack::object const& o) {
-                auto name = "JumpIfNot";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "condition", condition, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "location", location, false);
-            }
-        };
-
         struct JumpIf {
             Acir::MemoryAddress condition;
             uint64_t location;
@@ -2221,7 +2196,7 @@ namespace Acir {
         struct Const {
             Acir::MemoryAddress destination;
             Acir::BitSize bit_size;
-            std::string value;
+            std::vector<uint8_t> value;
 
             friend bool operator==(const Const&, const Const&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -2246,7 +2221,7 @@ namespace Acir {
         struct IndirectConst {
             Acir::MemoryAddress destination_pointer;
             Acir::BitSize bit_size;
-            std::string value;
+            std::vector<uint8_t> value;
 
             friend bool operator==(const IndirectConst&, const IndirectConst&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -2459,7 +2434,7 @@ namespace Acir {
             }
         };
 
-        std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIfNot, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
+        std::variant<BinaryFieldOp, BinaryIntOp, Not, Cast, JumpIf, Jump, CalldataCopy, Call, Const, IndirectConst, Return, ForeignCall, Mov, ConditionalMov, Load, Store, BlackBox, Trap, Stop> value;
 
         friend bool operator==(const BrilligOpcode&, const BrilligOpcode&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -2487,66 +2462,62 @@ namespace Acir {
                     is_unit = false;
                     break;
                 case 4:
-                    tag = "JumpIfNot";
-                    is_unit = false;
-                    break;
-                case 5:
                     tag = "JumpIf";
                     is_unit = false;
                     break;
-                case 6:
+                case 5:
                     tag = "Jump";
                     is_unit = false;
                     break;
-                case 7:
+                case 6:
                     tag = "CalldataCopy";
                     is_unit = false;
                     break;
-                case 8:
+                case 7:
                     tag = "Call";
                     is_unit = false;
                     break;
-                case 9:
+                case 8:
                     tag = "Const";
                     is_unit = false;
                     break;
-                case 10:
+                case 9:
                     tag = "IndirectConst";
                     is_unit = false;
                     break;
-                case 11:
+                case 10:
                     tag = "Return";
                     is_unit = true;
                     break;
-                case 12:
+                case 11:
                     tag = "ForeignCall";
                     is_unit = false;
                     break;
-                case 13:
+                case 12:
                     tag = "Mov";
                     is_unit = false;
                     break;
-                case 14:
+                case 13:
                     tag = "ConditionalMov";
                     is_unit = false;
                     break;
-                case 15:
+                case 14:
                     tag = "Load";
                     is_unit = false;
                     break;
-                case 16:
+                case 15:
                     tag = "Store";
                     is_unit = false;
                     break;
-                case 17:
+                case 16:
                     tag = "BlackBox";
                     is_unit = false;
                     break;
-                case 18:
+                case 17:
                     tag = "Trap";
                     is_unit = false;
                     break;
-                case 19:
+                case 18:
                     tag = "Stop";
                     is_unit = false;
                     break;
@@ -2624,17 +2595,6 @@ namespace Acir {
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
                     throw_or_abort("error converting into enum variant 'BrilligOpcode::Cast'");
-                }
-                
-                value = v;
-            }
-            else if (tag == "JumpIfNot") {
-                JumpIfNot v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'BrilligOpcode::JumpIfNot'");
                 }
                 
                 value = v;
@@ -2823,10 +2783,10 @@ namespace Acir {
         }
     };
 
-    struct ConstantOrWitnessEnum {
+    struct FunctionInput {
 
         struct Constant {
-            std::string value;
+            std::vector<uint8_t> value;
 
             friend bool operator==(const Constant&, const Constant&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -2865,9 +2825,9 @@ namespace Acir {
 
         std::variant<Constant, Witness> value;
 
-        friend bool operator==(const ConstantOrWitnessEnum&, const ConstantOrWitnessEnum&);
+        friend bool operator==(const FunctionInput&, const FunctionInput&);
         std::vector<uint8_t> bincodeSerialize() const;
-        static ConstantOrWitnessEnum bincodeDeserialize(std::vector<uint8_t>);
+        static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
             std::string tag;
@@ -2883,7 +2843,7 @@ namespace Acir {
                     is_unit = false;
                     break;
                 default:
-                    throw_or_abort("unknown enum 'ConstantOrWitnessEnum' variant index: " + std::to_string(value.index()));
+                    throw_or_abort("unknown enum 'FunctionInput' variant index: " + std::to_string(value.index()));
             }
             if (is_unit) {
                 packer.pack(tag);
@@ -2900,10 +2860,10 @@ namespace Acir {
 
             if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
                 std::cerr << o << std::endl;
-                throw_or_abort("expected MAP or STR for enum 'ConstantOrWitnessEnum'; got type " + std::to_string(o.type));
+                throw_or_abort("expected MAP or STR for enum 'FunctionInput'; got type " + std::to_string(o.type));
             }
             if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ConstantOrWitnessEnum'; got " + std::to_string(o.via.map.size));
+                throw_or_abort("expected 1 entry for enum 'FunctionInput'; got " + std::to_string(o.via.map.size));
             }
             std::string tag;
             try {
@@ -2914,7 +2874,7 @@ namespace Acir {
                 }
             } catch(const msgpack::type_error&) {
                 std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'ConstantOrWitnessEnum'");
+                throw_or_abort("error converting tag to string for enum 'FunctionInput'");
             }
             if (tag == "Constant") {
                 Constant v;
@@ -2922,7 +2882,7 @@ namespace Acir {
                     o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ConstantOrWitnessEnum::Constant'");
+                    throw_or_abort("error converting into enum variant 'FunctionInput::Constant'");
                 }
                 
                 value = v;
@@ -2933,37 +2893,15 @@ namespace Acir {
                     o.via.map.ptr[0].val.convert(v);
                 } catch (const msgpack::type_error&) {
                     std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ConstantOrWitnessEnum::Witness'");
+                    throw_or_abort("error converting into enum variant 'FunctionInput::Witness'");
                 }
                 
                 value = v;
             }
             else {
                 std::cerr << o << std::endl;
-                throw_or_abort("unknown 'ConstantOrWitnessEnum' enum variant: " + tag);
+                throw_or_abort("unknown 'FunctionInput' enum variant: " + tag);
             }
-        }
-    };
-
-    struct FunctionInput {
-        Acir::ConstantOrWitnessEnum input;
-        uint32_t num_bits;
-
-        friend bool operator==(const FunctionInput&, const FunctionInput&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static FunctionInput bincodeDeserialize(std::vector<uint8_t>);
-
-        void msgpack_pack(auto& packer) const {
-            packer.pack_map(2);
-            packer.pack(std::make_pair("input", input));
-            packer.pack(std::make_pair("num_bits", num_bits));
-        }
-
-        void msgpack_unpack(msgpack::object const& o) {
-            auto name = "FunctionInput";
-            auto kvmap = Helpers::make_kvmap(o, name);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
         }
     };
 
@@ -3000,6 +2938,7 @@ namespace Acir {
         struct AND {
             Acir::FunctionInput lhs;
             Acir::FunctionInput rhs;
+            uint32_t num_bits;
             Acir::Witness output;
 
             friend bool operator==(const AND&, const AND&);
@@ -3007,9 +2946,10 @@ namespace Acir {
             static AND bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(4);
                 packer.pack(std::make_pair("lhs", lhs));
                 packer.pack(std::make_pair("rhs", rhs));
+                packer.pack(std::make_pair("num_bits", num_bits));
                 packer.pack(std::make_pair("output", output));
             }
 
@@ -3018,6 +2958,7 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
@@ -3025,6 +2966,7 @@ namespace Acir {
         struct XOR {
             Acir::FunctionInput lhs;
             Acir::FunctionInput rhs;
+            uint32_t num_bits;
             Acir::Witness output;
 
             friend bool operator==(const XOR&, const XOR&);
@@ -3032,9 +2974,10 @@ namespace Acir {
             static XOR bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(4);
                 packer.pack(std::make_pair("lhs", lhs));
                 packer.pack(std::make_pair("rhs", rhs));
+                packer.pack(std::make_pair("num_bits", num_bits));
                 packer.pack(std::make_pair("output", output));
             }
 
@@ -3043,26 +2986,30 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "lhs", lhs, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "rhs", rhs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
             }
         };
 
         struct RANGE {
             Acir::FunctionInput input;
+            uint32_t num_bits;
 
             friend bool operator==(const RANGE&, const RANGE&);
             std::vector<uint8_t> bincodeSerialize() const;
             static RANGE bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("input", input));
+                packer.pack(std::make_pair("num_bits", num_bits));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
                 auto name = "RANGE";
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "input", input, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "num_bits", num_bits, false);
             }
         };
 
@@ -3425,17 +3372,15 @@ namespace Acir {
         struct Poseidon2Permutation {
             std::vector<Acir::FunctionInput> inputs;
             std::vector<Acir::Witness> outputs;
-            uint32_t len;
 
             friend bool operator==(const Poseidon2Permutation&, const Poseidon2Permutation&);
             std::vector<uint8_t> bincodeSerialize() const;
             static Poseidon2Permutation bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("inputs", inputs));
                 packer.pack(std::make_pair("outputs", outputs));
-                packer.pack(std::make_pair("len", len));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -3443,7 +3388,6 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "inputs", inputs, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "len", len, false);
             }
         };
 
@@ -3966,9 +3910,9 @@ namespace Acir {
     };
 
     struct Expression {
-        std::vector<std::tuple<std::string, Acir::Witness, Acir::Witness>> mul_terms;
-        std::vector<std::tuple<std::string, Acir::Witness>> linear_combinations;
-        std::string q_c;
+        std::vector<std::tuple<std::vector<uint8_t>, Acir::Witness, Acir::Witness>> mul_terms;
+        std::vector<std::tuple<std::vector<uint8_t>, Acir::Witness>> linear_combinations;
+        std::vector<uint8_t> q_c;
 
         friend bool operator==(const Expression&, const Expression&);
         std::vector<uint8_t> bincodeSerialize() const;
@@ -4336,17 +4280,15 @@ namespace Acir {
         struct MemoryOp {
             Acir::BlockId block_id;
             Acir::MemOp op;
-            std::optional<Acir::Expression> predicate;
 
             friend bool operator==(const MemoryOp&, const MemoryOp&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MemoryOp bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(2);
                 packer.pack(std::make_pair("block_id", block_id));
                 packer.pack(std::make_pair("op", op));
-                packer.pack(std::make_pair("predicate", predicate));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -4354,7 +4296,6 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "block_id", block_id, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "op", op, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, true);
             }
         };
 
@@ -6112,6 +6053,7 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::AND &lhs, const BlackBoxFuncCall::AND &rhs) {
         if (!(lhs.lhs == rhs.lhs)) { return false; }
         if (!(lhs.rhs == rhs.rhs)) { return false; }
+        if (!(lhs.num_bits == rhs.num_bits)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
@@ -6138,6 +6080,7 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::AND>::serialize(const Acir::BlackBoxFuncCall::AND &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.lhs)>::serialize(obj.lhs, serializer);
     serde::Serializable<decltype(obj.rhs)>::serialize(obj.rhs, serializer);
+    serde::Serializable<decltype(obj.num_bits)>::serialize(obj.num_bits, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
 }
 
@@ -6147,6 +6090,7 @@ Acir::BlackBoxFuncCall::AND serde::Deserializable<Acir::BlackBoxFuncCall::AND>::
     Acir::BlackBoxFuncCall::AND obj;
     obj.lhs = serde::Deserializable<decltype(obj.lhs)>::deserialize(deserializer);
     obj.rhs = serde::Deserializable<decltype(obj.rhs)>::deserialize(deserializer);
+    obj.num_bits = serde::Deserializable<decltype(obj.num_bits)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
@@ -6156,6 +6100,7 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::XOR &lhs, const BlackBoxFuncCall::XOR &rhs) {
         if (!(lhs.lhs == rhs.lhs)) { return false; }
         if (!(lhs.rhs == rhs.rhs)) { return false; }
+        if (!(lhs.num_bits == rhs.num_bits)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
         return true;
     }
@@ -6182,6 +6127,7 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::XOR>::serialize(const Acir::BlackBoxFuncCall::XOR &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.lhs)>::serialize(obj.lhs, serializer);
     serde::Serializable<decltype(obj.rhs)>::serialize(obj.rhs, serializer);
+    serde::Serializable<decltype(obj.num_bits)>::serialize(obj.num_bits, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
 }
 
@@ -6191,6 +6137,7 @@ Acir::BlackBoxFuncCall::XOR serde::Deserializable<Acir::BlackBoxFuncCall::XOR>::
     Acir::BlackBoxFuncCall::XOR obj;
     obj.lhs = serde::Deserializable<decltype(obj.lhs)>::deserialize(deserializer);
     obj.rhs = serde::Deserializable<decltype(obj.rhs)>::deserialize(deserializer);
+    obj.num_bits = serde::Deserializable<decltype(obj.num_bits)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
     return obj;
 }
@@ -6199,6 +6146,7 @@ namespace Acir {
 
     inline bool operator==(const BlackBoxFuncCall::RANGE &lhs, const BlackBoxFuncCall::RANGE &rhs) {
         if (!(lhs.input == rhs.input)) { return false; }
+        if (!(lhs.num_bits == rhs.num_bits)) { return false; }
         return true;
     }
 
@@ -6223,6 +6171,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::RANGE>::serialize(const Acir::BlackBoxFuncCall::RANGE &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
+    serde::Serializable<decltype(obj.num_bits)>::serialize(obj.num_bits, serializer);
 }
 
 template <>
@@ -6230,6 +6179,7 @@ template <typename Deserializer>
 Acir::BlackBoxFuncCall::RANGE serde::Deserializable<Acir::BlackBoxFuncCall::RANGE>::deserialize(Deserializer &deserializer) {
     Acir::BlackBoxFuncCall::RANGE obj;
     obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
+    obj.num_bits = serde::Deserializable<decltype(obj.num_bits)>::deserialize(deserializer);
     return obj;
 }
 
@@ -6860,7 +6810,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::Poseidon2Permutation &lhs, const BlackBoxFuncCall::Poseidon2Permutation &rhs) {
         if (!(lhs.inputs == rhs.inputs)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
-        if (!(lhs.len == rhs.len)) { return false; }
         return true;
     }
 
@@ -6886,7 +6835,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::Poseidon2Permutation>::serialize(const Acir::BlackBoxFuncCall::Poseidon2Permutation &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.inputs)>::serialize(obj.inputs, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
-    serde::Serializable<decltype(obj.len)>::serialize(obj.len, serializer);
 }
 
 template <>
@@ -6895,7 +6843,6 @@ Acir::BlackBoxFuncCall::Poseidon2Permutation serde::Deserializable<Acir::BlackBo
     Acir::BlackBoxFuncCall::Poseidon2Permutation obj;
     obj.inputs = serde::Deserializable<decltype(obj.inputs)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
-    obj.len = serde::Deserializable<decltype(obj.len)>::deserialize(deserializer);
     return obj;
 }
 
@@ -7621,7 +7568,6 @@ namespace Acir {
     inline bool operator==(const BlackBoxOp::Poseidon2Permutation &lhs, const BlackBoxOp::Poseidon2Permutation &rhs) {
         if (!(lhs.message == rhs.message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
-        if (!(lhs.len == rhs.len)) { return false; }
         return true;
     }
 
@@ -7647,7 +7593,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxOp::Poseidon2Permutation>::serialize(const Acir::BlackBoxOp::Poseidon2Permutation &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.message)>::serialize(obj.message, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
-    serde::Serializable<decltype(obj.len)>::serialize(obj.len, serializer);
 }
 
 template <>
@@ -7656,7 +7601,6 @@ Acir::BlackBoxOp::Poseidon2Permutation serde::Deserializable<Acir::BlackBoxOp::P
     Acir::BlackBoxOp::Poseidon2Permutation obj;
     obj.message = serde::Deserializable<decltype(obj.message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
-    obj.len = serde::Deserializable<decltype(obj.len)>::deserialize(deserializer);
     return obj;
 }
 
@@ -8368,47 +8312,6 @@ Acir::BrilligOpcode::Cast serde::Deserializable<Acir::BrilligOpcode::Cast>::dese
     obj.destination = serde::Deserializable<decltype(obj.destination)>::deserialize(deserializer);
     obj.source = serde::Deserializable<decltype(obj.source)>::deserialize(deserializer);
     obj.bit_size = serde::Deserializable<decltype(obj.bit_size)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Acir {
-
-    inline bool operator==(const BrilligOpcode::JumpIfNot &lhs, const BrilligOpcode::JumpIfNot &rhs) {
-        if (!(lhs.condition == rhs.condition)) { return false; }
-        if (!(lhs.location == rhs.location)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> BrilligOpcode::JumpIfNot::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<BrilligOpcode::JumpIfNot>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline BrilligOpcode::JumpIfNot BrilligOpcode::JumpIfNot::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<BrilligOpcode::JumpIfNot>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::BrilligOpcode::JumpIfNot>::serialize(const Acir::BrilligOpcode::JumpIfNot &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.condition)>::serialize(obj.condition, serializer);
-    serde::Serializable<decltype(obj.location)>::serialize(obj.location, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Acir::BrilligOpcode::JumpIfNot serde::Deserializable<Acir::BrilligOpcode::JumpIfNot>::deserialize(Deserializer &deserializer) {
-    Acir::BrilligOpcode::JumpIfNot obj;
-    obj.condition = serde::Deserializable<decltype(obj.condition)>::deserialize(deserializer);
-    obj.location = serde::Deserializable<decltype(obj.location)>::deserialize(deserializer);
     return obj;
 }
 
@@ -9210,124 +9113,6 @@ Acir::Circuit serde::Deserializable<Acir::Circuit>::deserialize(Deserializer &de
 
 namespace Acir {
 
-    inline bool operator==(const ConstantOrWitnessEnum &lhs, const ConstantOrWitnessEnum &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> ConstantOrWitnessEnum::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ConstantOrWitnessEnum>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ConstantOrWitnessEnum ConstantOrWitnessEnum::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ConstantOrWitnessEnum>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ConstantOrWitnessEnum>::serialize(const Acir::ConstantOrWitnessEnum &obj, Serializer &serializer) {
-    serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-    serializer.decrease_container_depth();
-}
-
-template <>
-template <typename Deserializer>
-Acir::ConstantOrWitnessEnum serde::Deserializable<Acir::ConstantOrWitnessEnum>::deserialize(Deserializer &deserializer) {
-    deserializer.increase_container_depth();
-    Acir::ConstantOrWitnessEnum obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    deserializer.decrease_container_depth();
-    return obj;
-}
-
-namespace Acir {
-
-    inline bool operator==(const ConstantOrWitnessEnum::Constant &lhs, const ConstantOrWitnessEnum::Constant &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> ConstantOrWitnessEnum::Constant::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ConstantOrWitnessEnum::Constant>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ConstantOrWitnessEnum::Constant ConstantOrWitnessEnum::Constant::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ConstantOrWitnessEnum::Constant>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ConstantOrWitnessEnum::Constant>::serialize(const Acir::ConstantOrWitnessEnum::Constant &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Acir::ConstantOrWitnessEnum::Constant serde::Deserializable<Acir::ConstantOrWitnessEnum::Constant>::deserialize(Deserializer &deserializer) {
-    Acir::ConstantOrWitnessEnum::Constant obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Acir {
-
-    inline bool operator==(const ConstantOrWitnessEnum::Witness &lhs, const ConstantOrWitnessEnum::Witness &rhs) {
-        if (!(lhs.value == rhs.value)) { return false; }
-        return true;
-    }
-
-    inline std::vector<uint8_t> ConstantOrWitnessEnum::Witness::bincodeSerialize() const {
-        auto serializer = serde::BincodeSerializer();
-        serde::Serializable<ConstantOrWitnessEnum::Witness>::serialize(*this, serializer);
-        return std::move(serializer).bytes();
-    }
-
-    inline ConstantOrWitnessEnum::Witness ConstantOrWitnessEnum::Witness::bincodeDeserialize(std::vector<uint8_t> input) {
-        auto deserializer = serde::BincodeDeserializer(input);
-        auto value = serde::Deserializable<ConstantOrWitnessEnum::Witness>::deserialize(deserializer);
-        if (deserializer.get_buffer_offset() < input.size()) {
-            throw_or_abort("Some input bytes were not read");
-        }
-        return value;
-    }
-
-} // end of namespace Acir
-
-template <>
-template <typename Serializer>
-void serde::Serializable<Acir::ConstantOrWitnessEnum::Witness>::serialize(const Acir::ConstantOrWitnessEnum::Witness &obj, Serializer &serializer) {
-    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
-}
-
-template <>
-template <typename Deserializer>
-Acir::ConstantOrWitnessEnum::Witness serde::Deserializable<Acir::ConstantOrWitnessEnum::Witness>::deserialize(Deserializer &deserializer) {
-    Acir::ConstantOrWitnessEnum::Witness obj;
-    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
-    return obj;
-}
-
-namespace Acir {
-
     inline bool operator==(const Expression &lhs, const Expression &rhs) {
         if (!(lhs.mul_terms == rhs.mul_terms)) { return false; }
         if (!(lhs.linear_combinations == rhs.linear_combinations)) { return false; }
@@ -9610,8 +9395,7 @@ Acir::ExpressionWidth::Bounded serde::Deserializable<Acir::ExpressionWidth::Boun
 namespace Acir {
 
     inline bool operator==(const FunctionInput &lhs, const FunctionInput &rhs) {
-        if (!(lhs.input == rhs.input)) { return false; }
-        if (!(lhs.num_bits == rhs.num_bits)) { return false; }
+        if (!(lhs.value == rhs.value)) { return false; }
         return true;
     }
 
@@ -9636,8 +9420,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::FunctionInput>::serialize(const Acir::FunctionInput &obj, Serializer &serializer) {
     serializer.increase_container_depth();
-    serde::Serializable<decltype(obj.input)>::serialize(obj.input, serializer);
-    serde::Serializable<decltype(obj.num_bits)>::serialize(obj.num_bits, serializer);
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
     serializer.decrease_container_depth();
 }
 
@@ -9646,9 +9429,84 @@ template <typename Deserializer>
 Acir::FunctionInput serde::Deserializable<Acir::FunctionInput>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::FunctionInput obj;
-    obj.input = serde::Deserializable<decltype(obj.input)>::deserialize(deserializer);
-    obj.num_bits = serde::Deserializable<decltype(obj.num_bits)>::deserialize(deserializer);
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const FunctionInput::Constant &lhs, const FunctionInput::Constant &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> FunctionInput::Constant::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<FunctionInput::Constant>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline FunctionInput::Constant FunctionInput::Constant::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<FunctionInput::Constant>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::FunctionInput::Constant>::serialize(const Acir::FunctionInput::Constant &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Acir::FunctionInput::Constant serde::Deserializable<Acir::FunctionInput::Constant>::deserialize(Deserializer &deserializer) {
+    Acir::FunctionInput::Constant obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
+    return obj;
+}
+
+namespace Acir {
+
+    inline bool operator==(const FunctionInput::Witness &lhs, const FunctionInput::Witness &rhs) {
+        if (!(lhs.value == rhs.value)) { return false; }
+        return true;
+    }
+
+    inline std::vector<uint8_t> FunctionInput::Witness::bincodeSerialize() const {
+        auto serializer = serde::BincodeSerializer();
+        serde::Serializable<FunctionInput::Witness>::serialize(*this, serializer);
+        return std::move(serializer).bytes();
+    }
+
+    inline FunctionInput::Witness FunctionInput::Witness::bincodeDeserialize(std::vector<uint8_t> input) {
+        auto deserializer = serde::BincodeDeserializer(input);
+        auto value = serde::Deserializable<FunctionInput::Witness>::deserialize(deserializer);
+        if (deserializer.get_buffer_offset() < input.size()) {
+            throw_or_abort("Some input bytes were not read");
+        }
+        return value;
+    }
+
+} // end of namespace Acir
+
+template <>
+template <typename Serializer>
+void serde::Serializable<Acir::FunctionInput::Witness>::serialize(const Acir::FunctionInput::Witness &obj, Serializer &serializer) {
+    serde::Serializable<decltype(obj.value)>::serialize(obj.value, serializer);
+}
+
+template <>
+template <typename Deserializer>
+Acir::FunctionInput::Witness serde::Deserializable<Acir::FunctionInput::Witness>::deserialize(Deserializer &deserializer) {
+    Acir::FunctionInput::Witness obj;
+    obj.value = serde::Deserializable<decltype(obj.value)>::deserialize(deserializer);
     return obj;
 }
 
@@ -10442,7 +10300,6 @@ namespace Acir {
     inline bool operator==(const Opcode::MemoryOp &lhs, const Opcode::MemoryOp &rhs) {
         if (!(lhs.block_id == rhs.block_id)) { return false; }
         if (!(lhs.op == rhs.op)) { return false; }
-        if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
     }
 
@@ -10468,7 +10325,6 @@ template <typename Serializer>
 void serde::Serializable<Acir::Opcode::MemoryOp>::serialize(const Acir::Opcode::MemoryOp &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.block_id)>::serialize(obj.block_id, serializer);
     serde::Serializable<decltype(obj.op)>::serialize(obj.op, serializer);
-    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
 }
 
 template <>
@@ -10477,7 +10333,6 @@ Acir::Opcode::MemoryOp serde::Deserializable<Acir::Opcode::MemoryOp>::deserializ
     Acir::Opcode::MemoryOp obj;
     obj.block_id = serde::Deserializable<decltype(obj.block_id)>::deserialize(deserializer);
     obj.op = serde::Deserializable<decltype(obj.op)>::deserialize(deserializer);
-    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     return obj;
 }
 

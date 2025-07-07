@@ -199,13 +199,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
-                //index, value, and predicate
+            Opcode::MemoryOp { block_id: _, op } => {
+                //index and value
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_wit(p));
-                }
                 witnesses
             }
 
@@ -426,7 +423,8 @@ mod tests {
                 q_c: FieldElement::zero(),
             }),
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(3), 32),
+                input: FunctionInput::Witness(Witness(3)),
+                num_bits: 32,
             }),
         ];
 
@@ -462,8 +460,9 @@ mod tests {
                     predicate: None,
                 },
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-                    lhs: FunctionInput::witness(Witness(0), 8),
-                    rhs: FunctionInput::witness(Witness(1), 8),
+                    lhs: FunctionInput::Witness(Witness(0)),
+                    rhs: FunctionInput::Witness(Witness(1)),
+                    num_bits: 8,
                     output: Witness(4),
                 }),
                 Opcode::AssertZero(Expression {
