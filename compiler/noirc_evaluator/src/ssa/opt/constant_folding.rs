@@ -627,8 +627,13 @@ impl<'brillig> Context<'brillig> {
             brillig_arguments.push(parameter);
         }
 
+        // Check that the function returns (doesn't always fail)
+        let Some(returns) = func.returns() else {
+            return EvaluationResult::CannotEvaluate;
+        };
+
         // Check that return value types are supported by brillig
-        for return_id in func.returns().iter() {
+        for return_id in returns {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
                 return EvaluationResult::CannotEvaluate;
