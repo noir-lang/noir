@@ -694,6 +694,51 @@ impl ItemPrinter<'_, '_> {
     }
 
     fn show_hir_ident(&mut self, ident: HirIdent, expr_id: Option<ExprId>) {
+        let instantiation_bindings = if let Some(expr_id) = expr_id {
+            self.interner.try_get_instantiation_bindings(expr_id)
+        } else {
+            None
+        };
+
+        match ident.impl_kind {
+            ImplKind::NotATraitMethod => (),
+            ImplKind::TraitItem(trait_item) => {
+                let mut constraint = trait_item.constraint.clone();
+                constraint.typ = constraint.typ.follow_bindings();
+                if let Some(bindings) = instantiation_bindings {
+                    constraint.typ = constraint.typ.substitute(bindings);
+                    constraint.trait_bound.trait_generics =
+                        constraint.trait_bound.trait_generics.map(|typ| typ.substitute(bindings));
+                }
+
+                // Don't show this as `AsTraitPath` if typ is already constrained by the same bounds
+                if !self.trait_constraints.contains(&constraint) {
+                    match &constraint.typ {
+                        Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
+                            // Don't show this as `AsTraitPath`
+                        }
+                        _ => {
+                            self.push('<');
+                            self.show_type(&constraint.typ);
+                            self.push_str(" as ");
+                            let trait_id = constraint.trait_bound.trait_id;
+                            let trait_ = self.interner.get_trait(trait_id);
+                            self.show_reference_to_module_def_id(
+                                ModuleDefId::TraitId(trait_id),
+                                trait_.visibility,
+                                true,
+                            );
+                            self.show_trait_generics(&constraint.trait_bound.trait_generics);
+                            self.push_str(">::");
+                            let name = self.interner.definition_name(trait_item.definition);
+                            self.push_str(name);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         let definition = self.interner.definition(ident.id);
         match definition.kind {
             DefinitionKind::Function(func_id) => {
@@ -709,25 +754,21 @@ impl ItemPrinter<'_, '_> {
                         return;
                     }
 
-                    // See if we can show this as `Self::method` by substitution instantiation type bindings for self_type
-                    if let Some(expr_id) = expr_id {
-                        if let Some(instantiation_bindings) =
-                            self.interner.try_get_instantiation_bindings(expr_id)
-                        {
-                            let self_type = self_type.substitute(instantiation_bindings);
-                            let unbound = if let Type::TypeVariable(type_var) = &self_type {
-                                type_var.borrow().is_unbound()
-                            } else {
-                                false
-                            };
+                    // See if we can show this as `Self::method` by substituting instantiation type bindings for self_type
+                    if let Some(instantiation_bindings) = instantiation_bindings {
+                        let self_type = self_type.substitute(instantiation_bindings);
+                        let unbound = if let Type::TypeVariable(type_var) = &self_type {
+                            type_var.borrow().is_unbound()
+                        } else {
+                            false
+                        };
 
-                            if !unbound {
-                                self.show_type_as_expression(&self_type);
-                                self.push_str("::");
-                                let name = self.interner.function_name(&func_id);
-                                self.push_str(name);
-                                return;
-                            }
+                        if !unbound {
+                            self.show_type_as_expression(&self_type);
+                            self.push_str("::");
+                            let name = self.interner.function_name(&func_id);
+                            self.push_str(name);
+                            return;
                         }
                     }
                 }

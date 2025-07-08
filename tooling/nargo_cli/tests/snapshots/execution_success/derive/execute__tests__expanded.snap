@@ -108,7 +108,7 @@ where
         Self {
             field1: A::default(),
             field2: B::default(),
-            field3: MyOtherOtherStruct::<B>::default(),
+            field3: <MyOtherOtherStruct<B> as Default>::default(),
         }
     }
 }

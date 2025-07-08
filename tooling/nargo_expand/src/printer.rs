@@ -36,6 +36,7 @@ pub(super) struct ItemPrinter<'context, 'string> {
     module_id: ModuleId,
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
+    trait_constraints: Vec<TraitConstraint>,
 }
 
 impl<'context, 'string> ItemPrinter<'context, 'string> {
@@ -59,6 +60,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             module_id,
             imports,
             self_type: None,
+            trait_constraints: Vec::new(),
         }
     }
 
@@ -550,6 +552,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         self.show_where_clause(&func_meta.trait_constraints);
 
+        self.trait_constraints = func_meta.trait_constraints.clone();
+
         let hir_function = self.interner.function(&func_id);
         if let Some(expr) = hir_function.try_as_expr() {
             let hir_expr = self.interner.expression(&expr);
@@ -587,6 +591,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
             }
         }
+
+        self.trait_constraints.clear();
     }
 
     fn show_generic_types(&mut self, types: &[Type], use_colons: bool) {
@@ -643,13 +649,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             .named
             .iter()
             .filter(|named| {
-                if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named.typ {
-                    if type_var.borrow().is_unbound() {
-                        return false;
-                    }
-                }
-
-                true
+                !matches!(&named.typ,
+                Type::TypeVariable(type_var)
+                | Type::NamedGeneric(NamedGeneric { type_var, .. })
+                    if type_var.borrow().is_unbound())
             })
             .collect::<Vec<_>>();
 

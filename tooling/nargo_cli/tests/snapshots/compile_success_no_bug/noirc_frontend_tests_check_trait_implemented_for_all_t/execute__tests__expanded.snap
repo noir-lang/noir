@@ -46,7 +46,7 @@ impl Eq2 for Foo {
 
 impl Default2 for Foo {
     fn default2() -> Self {
-        Self { a: u64::default2() }
+        Self { a: <u64 as Default2>::default2() }
     }
 }
 
