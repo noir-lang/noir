@@ -23,11 +23,7 @@ where
 {
     type Bar = <T as Foo>::Bar;
 
-    fn foo(self) -> <T as Foo>::Bar
-    where
-        T: Foo,
-        <T as Foo>::Bar: Eq,
-    {
+    fn foo(self) -> <T as Foo>::Bar {
         self.unwrap().foo()
     }
 }

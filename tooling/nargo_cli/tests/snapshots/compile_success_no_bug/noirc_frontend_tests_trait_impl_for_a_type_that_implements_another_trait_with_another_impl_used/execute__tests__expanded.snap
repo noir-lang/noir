@@ -21,10 +21,7 @@ impl<T> Two for T
 where
     T: One,
 {
-    fn two(self) -> i32
-    where
-        Self: One,
-    {
+    fn two(self) -> i32 {
         self.one() + 1_i32
     }
 }

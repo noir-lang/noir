@@ -11,6 +11,23 @@ impl Serialize for Field {
 }
 
 fn main() {
-    let x: u32 = N;
+    let x: u32 = <Field as Serialize>::N;
     assert(x == 1_u32);
+    assert(get_n_1::<Field>() == 1_u32);
+    assert(get_n_2::<Field>() == 1_u32);
+    ()
+}
+
+fn get_n_1<T>() -> u32
+where
+    T: Serialize,
+{
+    T::N
+}
+
+fn get_n_2<T>() -> u32
+where
+    T: Serialize,
+{
+    <T as Serialize>::N
 }
