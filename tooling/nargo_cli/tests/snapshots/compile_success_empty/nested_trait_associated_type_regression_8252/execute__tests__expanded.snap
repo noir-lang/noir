@@ -1,0 +1,80 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait TraitWithAssociatedConstant {
+    let N: u32;
+
+    fn foo(_: Self) -> bool {
+        true
+    }
+}
+
+struct Foo {}
+
+impl TraitWithAssociatedConstant for Foo {
+    let N: u32 = 42;
+
+    fn foo(_: Self) -> bool {
+        true
+    }
+}
+
+struct Bar {}
+
+impl TraitWithAssociatedConstant for Bar {
+    let N: u32 = 43;
+
+    fn foo(_: Self) -> bool {
+        true
+    }
+}
+
+struct Wrapper<T> {
+    inner: T,
+}
+
+impl<V> TraitWithAssociatedConstant for Wrapper<V>
+where
+    V: TraitWithAssociatedConstant,
+{
+    let N: u32 = <V as TraitWithAssociatedConstant>::N;
+
+    fn foo(_: Self) -> bool {
+        true
+    }
+}
+
+impl<U> Eq for Wrapper<U>
+where
+    U: TraitWithAssociatedConstant,
+{
+    fn eq(self, _other: Self) -> bool {
+        U::foo(self.inner)
+    }
+}
+
+fn main() {
+    let wrapper: Wrapper<Foo> = Wrapper::<Foo> { inner: Foo {} };
+    assert(wrapper == wrapper);
+    assert(wrapper.eq(wrapper));
+    assert(wrapper.eq(wrapper));
+    assert(wrapper == wrapper);
+    let wrapper: Wrapper<Bar> = Wrapper::<Bar> { inner: Bar {} };
+    assert(wrapper == wrapper);
+    let wrapper: Wrapper<Wrapper<Foo>> =
+        Wrapper::<Wrapper<Foo>> { inner: Wrapper::<Foo> { inner: Foo {} } };
+    assert(wrapper == wrapper);
+    let wrapper: Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Foo>>>>>>>> = Wrapper::<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Foo>>>>>>>> {
+        inner: Wrapper::<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Foo>>>>>>> {
+            inner: Wrapper::<Wrapper<Wrapper<Wrapper<Wrapper<Wrapper<Foo>>>>>> {
+                inner: Wrapper::<Wrapper<Wrapper<Wrapper<Wrapper<Foo>>>>> {
+                    inner: Wrapper::<Wrapper<Wrapper<Wrapper<Foo>>>> {
+                        inner: Wrapper::<Wrapper<Wrapper<Foo>>> { inner: wrapper },
+                    },
+                },
+            },
+        },
+    };
+    assert(wrapper == wrapper);
+}
