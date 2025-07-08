@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752001947508,
+  "lastUpdate": 1752001978207,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8e01c4a2dc88b4df9e533aba230695148833c9c4",
-          "message": "fix(ssa_fuzzer): nested conditions in loops (#8997)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-06-26T13:53:45Z",
-          "tree_id": "9f03f62bb08b0d05082ffe2058745336f2e7e584",
-          "url": "https://github.com/noir-lang/noir/commit/8e01c4a2dc88b4df9e533aba230695148833c9c4"
-        },
-        "date": 1750948016121,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.252,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.522,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 19.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 184,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.268,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.33,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.762,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.764,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4742c0286e17d9810860b9e7aba96b96b93dc5fd",
+          "message": "fix(expand): handle HirIdent with TraitItem (and other related fixes) (#9143)",
+          "timestamp": "2025-07-08T18:34:33Z",
+          "tree_id": "4fc72d6991ca80699eca4bd29f606c3cc678b35a",
+          "url": "https://github.com/noir-lang/noir/commit/4742c0286e17d9810860b9e7aba96b96b93dc5fd"
+        },
+        "date": 1752001963879,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.818,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.972,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.328,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 15.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.326,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.496,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.785,
             "unit": "s"
           }
         ]
