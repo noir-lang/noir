@@ -152,6 +152,7 @@ impl Elaborator<'_> {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
         let self_type = self.self_type.as_ref().unwrap().clone();
+
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
