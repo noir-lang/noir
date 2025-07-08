@@ -3004,7 +3004,13 @@
 <a href="#3003" id="3003">3003</a>
 <a href="#3004" id="3004">3004</a>
 <a href="#3005" id="3005">3005</a>
-<a href="#3006" id="3006">3006</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3006" id="3006">3006</a>
+<a href="#3007" id="3007">3007</a>
+<a href="#3008" id="3008">3008</a>
+<a href="#3009" id="3009">3009</a>
+<a href="#3010" id="3010">3010</a>
+<a href="#3011" id="3011">3011</a>
+<a href="#3012" id="3012">3012</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -4988,28 +4994,34 @@
     /// is used and generic substitutions are provided manually by users.
     ///
     /// Expects the given type vector to be the same length as the Forall type variables.
-    </span><span class="kw">pub fn </span>instantiate_with(
+    </span><span class="kw">pub fn </span>instantiate_with_bindings_and_turbofish(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        types: Vec&lt;Type&gt;,
+        bindings: TypeBindings,
+        turbofish_types: Vec&lt;Type&gt;,
         interner: <span class="kw-2">&amp;</span>NodeInterner,
         implicit_generic_count: usize,
     ) -&gt; (Type, TypeBindings) {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Forall(typevars, typ) =&gt; {
                 <span class="macro">assert_eq!</span>(
-                    types.len() + implicit_generic_count,
+                    turbofish_types.len() + implicit_generic_count,
                     typevars.len(),
                     <span class="string">"Turbofish operator used with incorrect generic count which was not caught by name resolution"
                 </span>);
 
-                <span class="kw">let </span>bindings =
-                    (<span class="number">0</span>..implicit_generic_count).map(|<span class="kw">_</span>| interner.next_type_variable()).chain(types);
+                <span class="kw">let </span>implicit_and_turbofish_bindings = (<span class="number">0</span>..implicit_generic_count)
+                    .map(|<span class="kw">_</span>| interner.next_type_variable())
+                    .chain(turbofish_types);
 
-                <span class="kw">let </span>replacements = typevars
+                <span class="kw">let </span><span class="kw-2">mut </span>replacements: TypeBindings = typevars
                     .iter()
-                    .zip(bindings)
+                    .zip(implicit_and_turbofish_bindings)
                     .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
                     .collect();
+
+                <span class="kw">for </span>(binding_key, binding_value) <span class="kw">in </span>bindings {
+                    replacements.insert(binding_key, binding_value);
+                }
 
                 <span class="kw">let </span>instantiated = typ.substitute(<span class="kw-2">&amp;</span>replacements);
                 (instantiated, replacements)

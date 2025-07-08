@@ -1756,7 +1756,9 @@
 <a href="#1755" id="1755">1755</a>
 <a href="#1756" id="1756">1756</a>
 <a href="#1757" id="1757">1757</a>
-<a href="#1758" id="1758">1758</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2805,7 +2807,9 @@
 
             </span><span class="kw">let </span>bit_size = bit_size_u128(rhs_offset);
             <span class="comment">// r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
-            </span><span class="kw">let </span>r = (<span class="number">1_u128 </span>&lt;&lt; bit_size) - rhs_offset - <span class="number">1</span>;
+            </span><span class="kw">let </span>two_pow_bit_size_minus_one =
+                <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ (<span class="number">1_u128 </span>&lt;&lt; bit_size) - <span class="number">1 </span>};
+            <span class="kw">let </span>r = two_pow_bit_size_minus_one - rhs_offset;
             <span class="comment">// however, since it is a constant, we can compute it's actual bit size
             </span><span class="kw">let </span>r_bit_size = bit_size_u128(r);
 

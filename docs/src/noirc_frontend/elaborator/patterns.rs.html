@@ -1191,7 +1191,12 @@
 <a href="#1190" id="1190">1190</a>
 <a href="#1191" id="1191">1191</a>
 <a href="#1192" id="1192">1192</a>
-<a href="#1193" id="1193">1193</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a>
+<a href="#1197" id="1197">1197</a>
+<a href="#1198" id="1198">1198</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -2271,7 +2276,12 @@
                         Type::Forall(generics, <span class="kw">_</span>) =&gt; generics.len() - function_generic_count,
                         <span class="kw">_ </span>=&gt; <span class="number">0</span>,
                     };
-                    typ.instantiate_with(turbofish_generics, <span class="self">self</span>.interner, implicit_generic_count)
+                    typ.instantiate_with_bindings_and_turbofish(
+                        bindings,
+                        turbofish_generics,
+                        <span class="self">self</span>.interner,
+                        implicit_generic_count,
+                    )
                 }
             }
             <span class="prelude-val">None </span>=&gt; typ.instantiate_with_bindings(bindings, <span class="self">self</span>.interner),

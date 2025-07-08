@@ -86,7 +86,59 @@
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
 <a href="#87" id="87">87</a>
-<a href="#88" id="88">88</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a>
+<a href="#121" id="121">121</a>
+<a href="#122" id="122">122</a>
+<a href="#123" id="123">123</a>
+<a href="#124" id="124">124</a>
+<a href="#125" id="125">125</a>
+<a href="#126" id="126">126</a>
+<a href="#127" id="127">127</a>
+<a href="#128" id="128">128</a>
+<a href="#129" id="129">129</a>
+<a href="#130" id="130">130</a>
+<a href="#131" id="131">131</a>
+<a href="#132" id="132">132</a>
+<a href="#133" id="133">133</a>
+<a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 #![allow(clippy::result_large_err)]
 
@@ -172,6 +224,58 @@
             }"</span>;
         <span class="kw">let </span>result = execute_ssa(ssa.to_string(), WitnessMap::new(), CompileOptions::default());
         <span class="macro">assert!</span>(result.is_err());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>bound_constraint_with_offset_bug() {
+        <span class="kw">let </span>ssa_without_runtime = <span class="string">"
+            (inline) fn main f0 {
+              b0(v0: i32, v1: u1, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
+                jmpif v6 then: b1, else: b2
+              b1():
+                v7 = cast v0 as u128
+                jmp b3()
+              b2():
+                jmp b9()
+              b3():
+                v8 = div v7, v7
+                jmp b4()
+              b4():
+                v9 = not v8
+                jmp b5()
+              b5():
+                v10 = add v8, v9
+                jmp b6()
+              b6():
+                v12 = div v9, v9
+                jmp b7()
+              b7():
+                v13 = div v12, v10
+                jmp b9()
+              b8():
+                v14 = cast v1 as Field
+                return v14
+              b9():
+                jmp b8()
+            }
+        "</span>;
+        <span class="kw">let </span>acir_ssa = <span class="string">"acir"</span>.to_string() + ssa_without_runtime;
+        <span class="kw">let </span>brillig_ssa = <span class="string">"brillig"</span>.to_string() + ssa_without_runtime;
+        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+        witness_map.insert(Witness(<span class="number">0</span>), FieldElement::from(<span class="number">1188688178_u32</span>));
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..<span class="number">6 </span>{
+            witness_map.insert(Witness(i), FieldElement::from(<span class="number">1_u32</span>));
+        }
+        witness_map.insert(Witness(<span class="number">6</span>), FieldElement::from(<span class="number">0_u32</span>));
+        <span class="kw">let </span>acir_result =
+            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        <span class="kw">let </span>brillig_result =
+            execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
+        <span class="kw">match </span>(acir_result, brillig_result) {
+            (<span class="prelude-val">Err</span>(acir), <span class="prelude-val">Ok</span>(_brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir failed with: {}, brillig succeeded"</span>, acir),
+            (<span class="prelude-val">Ok</span>(_acir), <span class="prelude-val">Err</span>(brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir succeeded, brillig failed: {}"</span>, brillig),
+            <span class="kw">_ </span>=&gt; {}
+        }
     }
 }
 </code></pre></div></section></main></body></html>
