@@ -191,7 +191,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             ) => {
                 // The `lhs` and `rhs` might change during passes, making direct comparison difficult:
                 // * the sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`
-                // * the condition might be flipped: `u1 true != u1 false` vs `Field 0 == Field 0`
+                // * the condition might be flipped: `u1 1 != u1 0` vs `Field 0 == Field 0`
                 // * types could change:
                 //      * `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`
                 //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`

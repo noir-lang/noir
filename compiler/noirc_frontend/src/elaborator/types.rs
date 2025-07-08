@@ -673,8 +673,9 @@ impl Elaborator<'_> {
         let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
-            Ok((impl_kind, _instantiation_bindings)) => {
-                self.get_associated_type_from_trait_impl(path, impl_kind)
+            Ok((impl_kind, instantiation_bindings)) => {
+                let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
+                typ.substitute(&instantiation_bindings)
             }
             Err(constraints) => {
                 self.push_trait_constraint_error(&object_type, constraints, location);
@@ -1161,7 +1162,13 @@ impl Elaborator<'_> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
-            Type::FieldElement => Type::FieldElement,
+            Type::FieldElement => {
+                if from_follow_bindings.is_signed() {
+                    self.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                }
+
+                Type::FieldElement
+            }
             Type::Bool => {
                 let from_is_numeric = match from_follow_bindings {
                     Type::Integer(..) | Type::FieldElement => true,

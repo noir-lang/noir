@@ -10,7 +10,7 @@ use crate::runner::{SsaExecutionError, execute_single};
 use acvm::FieldElement;
 use acvm::acir::native_types::WitnessMap;
 use noirc_driver::CompileOptions;
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_evaluator::ssa::ssa_gen::{Ssa, validate_ssa};
 
 pub fn execute_ssa(
     ssa: String,
@@ -20,6 +20,8 @@ pub fn execute_ssa(
     let ssa = Ssa::from_str(&ssa);
     match ssa {
         Ok(ssa) => {
+            validate_ssa(&ssa);
+
             let compiled_program = compile_from_ssa(ssa, &compile_options);
             match compiled_program {
                 Ok(compiled_program) => execute_single(&compiled_program.program, initial_witness),
