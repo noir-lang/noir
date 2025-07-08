@@ -202,6 +202,7 @@ impl<'cfg> Context<'cfg> {
     /// Try to join a pending branch, once the next join point is found:
     /// * if this is the first time we encounter this, mark it as pending, and return `false`,
     /// * if this is the second time, then we mark it as completed, and return `true`.
+    ///
     /// Panics if the join point does not match the existing one.
     fn maybe_join_pending(&mut self, parent: BasicBlockId, join: BasicBlockId) -> bool {
         let Some(pending) = self.branch_ends_pending.insert(parent, join) else {
