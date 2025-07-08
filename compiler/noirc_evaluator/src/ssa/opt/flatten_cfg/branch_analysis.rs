@@ -24,23 +24,16 @@
 //!
 //!    The iterative variant goes like this:
 //!    1. Pop the next branch from a stack of branches we need to process.
-//!     - If this is the first time we see the branch:
-//!       - Find the next join point or branch point on both left and right branches of a jmpif block.
-//!       - If both branches rejoin immediately:
-//!         - Repeatedly find the next join point after them, until we are back on the branching level we started from.
-//!         - If a new branch is encountered, push it onto the stack.
-//!       - If either branches are followed by further branching:
-//!         - Push the current back back on the stack for a second visit later.
-//!         - Push the branching children onto the stack for the first visit.
-//!     - If this is the second time we visit the branch:
-//!       - By now we expect to have already visited all descendant branches.
-//!       - Find the join point of both left and right branches:
-//!         - If the branch directly ends in a join point, return it.
-//!         - If it ends in another branch:
-//!           - Look up the end of that branch in the cache.
-//!           - Skip the end block, and look for the next join point, where it rejoins its parent.
-//!         - Repeat until we find two join points in a row, which should be the join point of the parent.
-//!       - Store the end of the branch in the cache.
+//!     - Find the next join point or branch point on both left and right branches of a jmpif block.
+//!     - If both branches rejoin immediately:
+//!       - Repeatedly find the next point following the current one:
+//!         - If it's a join point, it must be for the parent level:
+//!           - If this is the first time we see the join point for this level, mark it as pending.
+//!           - If it's the second time, mark it as the end point, ensuring it matches the pending value.
+//!         - If a new branch is encountered, push it onto the stack, remembering the parent level to return to.
+//!     - If either branches are followed by further branching:
+//!       - Push the branching children onto the stack for visiting later, remembering to return to the current level.
+//!       - Mark any children that goes to in a join point as a pending end for this branch.
 //!
 //! This algorithm will remember each join point found in `find_join_point_of_branches` and
 //! the resulting map from each split block to each join block is returned.
