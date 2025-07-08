@@ -950,7 +950,53 @@
 <a href="#949" id="949">949</a>
 <a href="#950" id="950">950</a>
 <a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a>
+<a href="#966" id="966">966</a>
+<a href="#967" id="967">967</a>
+<a href="#968" id="968">968</a>
+<a href="#969" id="969">969</a>
+<a href="#970" id="970">970</a>
+<a href="#971" id="971">971</a>
+<a href="#972" id="972">972</a>
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1646,6 +1692,56 @@
     }
 
     <span class="kw">fn </span>show_hir_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: HirIdent, expr_id: <span class="prelude-ty">Option</span>&lt;ExprId&gt;) {
+        <span class="kw">let </span>instantiation_bindings = <span class="kw">if let </span><span class="prelude-val">Some</span>(expr_id) = expr_id {
+            <span class="self">self</span>.interner.try_get_instantiation_bindings(expr_id)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>};
+
+        <span class="kw">match </span>ident.impl_kind {
+            ImplKind::NotATraitMethod =&gt; (),
+            ImplKind::TraitItem(trait_item) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>constraint = trait_item.constraint.clone();
+                constraint.typ = constraint.typ.follow_bindings();
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(bindings) = instantiation_bindings {
+                    constraint.typ = constraint.typ.substitute(bindings);
+                    constraint.trait_bound.trait_generics =
+                        constraint.trait_bound.trait_generics.map(|typ| typ.substitute(bindings));
+                }
+
+                <span class="kw">if </span><span class="self">self</span>.trait_constraints.contains(<span class="kw-2">&amp;</span>constraint) {
+                    <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>constraint.typ);
+                    <span class="self">self</span>.push_str(<span class="string">"::"</span>);
+                    <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(trait_item.definition);
+                    <span class="self">self</span>.push_str(name);
+                    <span class="kw">return</span>;
+                } <span class="kw">else </span>{
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>constraint.typ {
+                        Type::TypeVariable(type_var) <span class="kw">if </span>type_var.borrow().is_unbound() =&gt; {
+                            <span class="comment">// Don't show this as `AsTraitPath`
+                        </span>}
+                        <span class="kw">_ </span>=&gt; {
+                            <span class="self">self</span>.push(<span class="string">'&lt;'</span>);
+                            <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>constraint.typ);
+                            <span class="self">self</span>.push_str(<span class="string">" as "</span>);
+                            <span class="kw">let </span>trait_id = constraint.trait_bound.trait_id;
+                            <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
+                            <span class="self">self</span>.show_reference_to_module_def_id(
+                                ModuleDefId::TraitId(trait_id),
+                                trait_.visibility,
+                                <span class="bool-val">true</span>,
+                            );
+                            <span class="self">self</span>.show_trait_generics(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics);
+                            <span class="self">self</span>.push_str(<span class="string">"&gt;::"</span>);
+                            <span class="kw">let </span>name = <span class="self">self</span>.interner.definition_name(trait_item.definition);
+                            <span class="self">self</span>.push_str(name);
+                            <span class="kw">return</span>;
+                        }
+                    }
+                }
+            }
+        }
+
         <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
         <span class="kw">match </span>definition.kind {
             DefinitionKind::Function(func_id) =&gt; {
@@ -1661,25 +1757,21 @@
                         <span class="kw">return</span>;
                     }
 
-                    <span class="comment">// See if we can show this as `Self::method` by substitution instantiation type bindings for self_type
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expr_id) = expr_id {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(instantiation_bindings) =
-                            <span class="self">self</span>.interner.try_get_instantiation_bindings(expr_id)
-                        {
-                            <span class="kw">let </span>self_type = self_type.substitute(instantiation_bindings);
-                            <span class="kw">let </span>unbound = <span class="kw">if let </span>Type::TypeVariable(type_var) = <span class="kw-2">&amp;</span>self_type {
-                                type_var.borrow().is_unbound()
-                            } <span class="kw">else </span>{
-                                <span class="bool-val">false
-                            </span>};
+                    <span class="comment">// See if we can show this as `Self::method` by substituting instantiation type bindings for self_type
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(instantiation_bindings) = instantiation_bindings {
+                        <span class="kw">let </span>self_type = self_type.substitute(instantiation_bindings);
+                        <span class="kw">let </span>unbound = <span class="kw">if let </span>Type::TypeVariable(type_var) = <span class="kw-2">&amp;</span>self_type {
+                            type_var.borrow().is_unbound()
+                        } <span class="kw">else </span>{
+                            <span class="bool-val">false
+                        </span>};
 
-                            <span class="kw">if </span>!unbound {
-                                <span class="self">self</span>.show_type_as_expression(<span class="kw-2">&amp;</span>self_type);
-                                <span class="self">self</span>.push_str(<span class="string">"::"</span>);
-                                <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>func_id);
-                                <span class="self">self</span>.push_str(name);
-                                <span class="kw">return</span>;
-                            }
+                        <span class="kw">if </span>!unbound {
+                            <span class="self">self</span>.show_type_as_expression(<span class="kw-2">&amp;</span>self_type);
+                            <span class="self">self</span>.push_str(<span class="string">"::"</span>);
+                            <span class="kw">let </span>name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>func_id);
+                            <span class="self">self</span>.push_str(name);
+                            <span class="kw">return</span>;
                         }
                     }
                 }
