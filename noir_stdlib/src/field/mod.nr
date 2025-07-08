@@ -163,9 +163,13 @@ impl Field {
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         } else {
             if radix == 2 {
-                self.assert_max_bit_size::<N>();
+                if N < modulus_num_bits() as u32 {
+                    self.assert_max_bit_size::<N>();
+                }
             } else if radix == 256 {
-                self.assert_max_bit_size::<N * 8>();
+                if N * 8 < modulus_num_bits() as u32 {
+                    self.assert_max_bit_size::<N * 8>();
+                }
             } else {
                 let max = (radix as Field).pow_32(N as Field);
                 assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
@@ -182,9 +186,13 @@ impl Field {
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         } else {
             if radix == 2 {
-                self.assert_max_bit_size::<N>();
+                if N < modulus_num_bits() as u32 {
+                    self.assert_max_bit_size::<N>();
+                }
             } else if radix == 256 {
-                self.assert_max_bit_size::<N * 8>();
+                if N * 8 < modulus_num_bits() as u32 {
+                    self.assert_max_bit_size::<N * 8>();
+                }
             } else {
                 let max = (radix as Field).pow_32(N as Field);
                 assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
