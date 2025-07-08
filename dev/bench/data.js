@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751931999184,
+  "lastUpdate": 1751984553381,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18756,48 +18756,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a77d56d0a31d090136051e7fa7162689fa5d8764",
-          "message": "fix(fuzz): Consider `==` turning into `!=` equivalent (#9025)",
-          "timestamp": "2025-06-26T10:30:40Z",
-          "tree_id": "6e64bec03859a771f0b135a1365560dd3f076694",
-          "url": "https://github.com/noir-lang/noir/commit/a77d56d0a31d090136051e7fa7162689fa5d8764"
-        },
-        "date": 1750935289383,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252349,
-            "range": "± 1360",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222806,
-            "range": "± 3888",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778846,
-            "range": "± 987",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -20849,6 +20807,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785670,
             "range": "± 1711",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5d58460a9605d63a4d1672cbba7e535fe5827a41",
+          "message": "fix: Impl associated types can get out of order (#9137)",
+          "timestamp": "2025-07-08T13:56:55Z",
+          "tree_id": "9b9eee14e8835731d3c472d93f5d5b11390eb253",
+          "url": "https://github.com/noir-lang/noir/commit/5d58460a9605d63a4d1672cbba7e535fe5827a41"
+        },
+        "date": 1751984539156,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249153,
+            "range": "± 1487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219103,
+            "range": "± 11739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782901,
+            "range": "± 1820",
             "unit": "ns/iter"
           }
         ]
