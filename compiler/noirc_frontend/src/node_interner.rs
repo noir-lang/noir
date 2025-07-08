@@ -220,12 +220,12 @@ pub struct NodeInterner {
     interned_statement_kinds: noirc_arena::Arena<StatementKind>,
 
     // Interned `UnresolvedTypeData`s during comptime code.
-    interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
+    interned_unresolved_type_data: noirc_arena::Arena<UnresolvedTypeData>,
 
     // Interned `Pattern`s during comptime code.
     interned_patterns: noirc_arena::Arena<Pattern>,
 
-    /// Determins whether to run in LSP mode. In LSP mode references are tracked.
+    /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
     /// Store the location of the references in the graph.
@@ -710,7 +710,7 @@ impl Default for NodeInterner {
             quoted_types: Default::default(),
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
-            interned_unresolved_type_datas: Default::default(),
+            interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
@@ -2307,11 +2307,11 @@ impl NodeInterner {
         &mut self,
         typ: UnresolvedTypeData,
     ) -> InternedUnresolvedTypeData {
-        InternedUnresolvedTypeData(self.interned_unresolved_type_datas.insert(typ))
+        InternedUnresolvedTypeData(self.interned_unresolved_type_data.insert(typ))
     }
 
     pub fn get_unresolved_type_data(&self, id: InternedUnresolvedTypeData) -> &UnresolvedTypeData {
-        &self.interned_unresolved_type_datas[id.0]
+        &self.interned_unresolved_type_data[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.

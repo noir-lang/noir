@@ -104,7 +104,7 @@ impl<'cfg> Context<'cfg> {
             self.find_join_point(successors.next().unwrap())
         } else if successors.len() == 0 {
             unreachable!(
-                "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
+                "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jumping to a join block first"
             )
         } else {
             unreachable!("A block can only have 0, 1, or 2 successors");

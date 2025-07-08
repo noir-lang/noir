@@ -82,7 +82,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 6, character: 9 },
             r#"    one
-    mod subone"#,
+    mod sub_one"#,
         )
         .await;
     }
@@ -93,7 +93,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 9, character: 20 },
-            r#"    one::subone
+            r#"    one::sub_one
     struct SubOneStruct {
         some_field: i32,
         some_other_field: Field,
@@ -108,7 +108,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 46, character: 17 },
-            r#"    one::subone
+            r#"    one::sub_one
     struct GenericStruct<A, B> {
     }"#,
         )
@@ -121,7 +121,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 9, character: 35 },
-            r#"    one::subone::SubOneStruct
+            r#"    one::sub_one::SubOneStruct
     some_field: i32"#,
         )
         .await;
@@ -133,7 +133,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 12, character: 17 },
-            r#"    one::subone
+            r#"    one::sub_one
     trait SomeTrait"#,
         )
         .await;
@@ -145,7 +145,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
-            r#"    one::subone
+            r#"    one::sub_one
     global some_global: Field = 2"#,
         )
         .await;
@@ -193,7 +193,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 20, character: 6 },
-            r#"    one::subone::SubOneStruct
+            r#"    one::sub_one::SubOneStruct
     impl SubOneStruct
     fn foo(self, x: i32, y: i32) -> Field"#,
         )
@@ -257,7 +257,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 34, character: 17 },
-            r#"    one::subone
+            r#"    one::sub_one
     type SomeAlias = i32"#,
         )
         .await;
@@ -294,7 +294,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 15, character: 17 },
             r#"    one
-    mod subone"#,
+    mod sub_one"#,
         )
         .await;
     }
@@ -330,7 +330,7 @@ mod hover_tests {
             "two/src/lib.nr",
             Position { line: 19, character: 12 },
             r#"    one
-    mod subone"#,
+    mod sub_one"#,
         )
         .await;
     }
@@ -341,7 +341,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 51, character: 30 },
-            r#"    one::subone
+            r#"    one::sub_one
     struct SubOneStruct {
         some_field: i32,
         some_other_field: Field,

@@ -63,7 +63,9 @@ pub fn arb_program_comptime(u: &mut Unstructured, config: Config) -> arbitrary::
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(u, FuncId(0), |u, fctx| fctx.gen_body_with_lit_call(u, FuncId(1)))?;
+    ctx.gen_function_with_body(u, FuncId(0), |u, function_ctx| {
+        function_ctx.gen_body_with_lit_call(u, FuncId(1))
+    })?;
     ctx.rewrite_functions(u)?;
 
     let program = ctx.finalize();
@@ -86,8 +88,10 @@ pub fn program_wrap_expression(expr: Expression) -> Program {
     };
 
     ctx.set_function_decl(FuncId(0), decl_main);
-    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _fctx| Ok(expr))
-        .expect("shouldn't access any randomness");
+    ctx.gen_function_with_body(&mut Unstructured::new(&[]), FuncId(0), |_u, _function_ctx| {
+        Ok(expr)
+    })
+    .expect("shouldn't access any randomness");
 
     ctx.finalize()
 }
@@ -334,7 +338,7 @@ impl Context {
 
     /// Generate random function body.
     fn gen_function(&mut self, u: &mut Unstructured, id: FuncId) -> arbitrary::Result<()> {
-        self.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
+        self.gen_function_with_body(u, id, |u, function_ctx| function_ctx.gen_body(u))
     }
 
     /// Generate function with a specified body generator.
@@ -344,8 +348,8 @@ impl Context {
         id: FuncId,
         f: impl FnOnce(&mut Unstructured, FunctionContext) -> arbitrary::Result<Expression>,
     ) -> arbitrary::Result<()> {
-        let fctx = FunctionContext::new(self, id);
-        let body = f(u, fctx)?;
+        let function_ctx = FunctionContext::new(self, id);
+        let body = f(u, function_ctx)?;
         let decl = self.function_decl(id);
         let func = Function {
             id,

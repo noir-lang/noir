@@ -2056,7 +2056,7 @@ impl Type {
         }
 
         let recur_on_binding = |id, replacement: &Type| {
-            // Prevent recuring forever if there's a `T := T` binding
+            // Prevent recurring forever if there's a `T := T` binding
             if replacement.type_variable_id() == Some(id) {
                 replacement.clone()
             } else {
@@ -2142,7 +2142,7 @@ impl Type {
                 Type::Tuple(fields)
             }
             Type::Forall(typevars, typ) => {
-                // Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
+                // Trying to substitute_helper a variable within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 for var in typevars {
                     assert!(!type_bindings.contains_key(&var.id()));
@@ -2309,7 +2309,7 @@ impl Type {
         }
     }
 
-    /// Follow bindings if this is a type variable or generic to the first non-typevariable
+    /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
     pub fn follow_bindings_shallow(&self) -> Cow<Type> {
@@ -2869,7 +2869,7 @@ impl std::hash::Hash for Type {
                 len.hash(state);
                 env.hash(state);
             }
-            Type::Tuple(elems) => elems.hash(state),
+            Type::Tuple(elements) => elements.hash(state),
             Type::DataType(def, args) => {
                 def.hash(state);
                 args.hash(state);

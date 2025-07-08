@@ -26,7 +26,7 @@ enum SerializationError {
     Deserialize(std::io::Error),
 }
 
-/// Native error for serializing/deserializating a witness stack.
+/// Native error for serializing/deserializing a witness stack.
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct WitnessStackError(#[from] SerializationError);

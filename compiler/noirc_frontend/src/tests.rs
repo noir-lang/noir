@@ -284,7 +284,7 @@ fn get_error_line_span_and_message(
 
     let chars = line.chars().collect::<Vec<_>>();
     let first_caret = chars.iter().position(|c| *c == char).unwrap();
-    let last_caret = chars.iter().rposition(|c| *c == char).unwrap();
+    let last_caret = chars.iter().rposition(|c| *c == char).unwrap(); // cSpell:disable-line
     let start = byte - last_line_length;
     let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
     let error = line.trim().trim_start_matches(char).trim().to_string();
@@ -3214,7 +3214,7 @@ fn unconditional_recursion_fail() {
     // wouldn't panic due to infinite recursion, but the errors asserted here
     // come from the compilation checks, which does static analysis to catch the
     // problem before it even has a chance to cause a panic.
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
            ^^^^ function `main` cannot return without recursing
@@ -3296,7 +3296,7 @@ fn unconditional_recursion_fail() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         check_errors(src, Some(&format!("{}_{index}", function_path!())));
     }
 }
@@ -3304,7 +3304,7 @@ fn unconditional_recursion_fail() {
 #[named]
 #[test]
 fn unconditional_recursion_pass() {
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
             if false { main(); }
@@ -3346,7 +3346,7 @@ fn unconditional_recursion_pass() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         assert_no_errors(src, &format!("{}_{index}", function_path!()));
     }
 }
