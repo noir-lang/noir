@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752007135266,
+  "lastUpdate": 1752007459307,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "85527e04ea8488100d6c3645331dcb28d132a930",
-          "message": "feat(ssa): Handle `println` in the SSA interpreter (#9028)",
-          "timestamp": "2025-06-26T18:26:50Z",
-          "tree_id": "e848f418fd17211b76161b26b597c72c97fddea0",
-          "url": "https://github.com/noir-lang/noir/commit/85527e04ea8488100d6c3645331dcb28d132a930"
-        },
-        "date": 1750964671709,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.32,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.674,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.104,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 183,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 180,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.306,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.791,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.782,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "913ee6308f6ea040608df452a66bcb20bece3ca6",
+          "message": "fix(ssa interpreter): Add out of bounds error (#9147)",
+          "timestamp": "2025-07-08T20:13:40Z",
+          "tree_id": "cc289c4dc0895b3aa8d812d540097fa13f97db3a",
+          "url": "https://github.com/noir-lang/noir/commit/913ee6308f6ea040608df452a66bcb20bece3ca6"
+        },
+        "date": 1752007445756,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.836,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.924,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.366,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.364,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.508,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.797,
             "unit": "s"
           }
         ]
