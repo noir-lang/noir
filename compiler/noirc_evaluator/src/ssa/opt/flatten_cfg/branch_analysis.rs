@@ -114,40 +114,17 @@ impl<'cfg> Context<'cfg> {
         // Kick off the stack from the starting branch. It doesn't have a parent.
         self.stack.push((start, left, right));
 
-        while let Some((mut branch, left, right)) = self.stack.pop() {
+        while let Some((branch, left, right)) = self.stack.pop() {
             if !visited.insert(branch) {
                 continue;
             }
             let left = self.find_next_point(left, false);
             let right = self.find_next_point(right, false);
 
-            if let Some(mut join) = self.maybe_join(branch, &left, &right) {
+            if let Some(join) = self.maybe_join(branch, &left, &right) {
                 // If we managed to join the branches immediately, then we know where this branch ends,
                 // and we can check if we can complete any parent levels.
-                loop {
-                    // If we reached the starting point, we can stop.
-                    let Some(parent) = self.branch_parents.get(&branch).cloned() else {
-                        break;
-                    };
-                    // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
-                    match self.find_next_point(join, true) {
-                        Point::Join(next) => {
-                            // If it's a second join point, then we went back to the parent level. Try to complete it.
-                            if self.maybe_join_pending(parent, next) {
-                                branch = parent;
-                                join = next;
-                            } else {
-                                break;
-                            }
-                        }
-                        Point::Branch(next, left, right) => {
-                            // We found another branch on the same level as we are currently at.
-                            // We must visit it before we can return the the previous level.
-                            self.push_branch(parent, next, left, right);
-                            break;
-                        }
-                    }
-                }
+                self.complete_parents(branch, join);
             } else {
                 // At least one of the children further branches off.
                 for child in [left, right] {
@@ -167,6 +144,54 @@ impl<'cfg> Context<'cfg> {
             .get(&start)
             .cloned()
             .unwrap_or_else(|| panic!("should have found the join point for {start}"))
+    }
+
+    /// Try to complete as many of the parent levels as we can, after finding the end point of a branch.
+    ///
+    /// Say we have this CFG:
+    /// ```text
+    ///                     b11
+    ///                    /   \
+    ///        b5        b9     b13
+    ///      /  \      /  \   /   \
+    ///    b1    b7--b8    b12     b15
+    ///    /  \  /     \          /   \
+    ///  b0    b6       b10----b14    b4
+    ///    \                          /
+    ///    b2-----------------------b3
+    /// ```
+    /// At some point during the algorithm:
+    /// * We process `b8` we see that on the `b10` side it's followed by the join point `b15` and on the `b9` side it's another branch.
+    /// * We take note of `b15` as the pending ending for `b8`, and queue `b9` for processing.
+    /// * When we process `b9`, we get the join point `b13` on both `b11` and `b12`, so we "immediately" know that `b9` ends at `b13`.
+    /// * At that point we look for the next point after `b13`, which is the join point `b15`.
+    /// * The parent of `b9` is `b8`, which already has `b15` as a pending end, which checks out, so we can "complete" `b8`.
+    /// * Then we follow up the chain: the parent level of `b8` is `b0`; `b15` is followed by `b4`; `b0` already has `b4` as pending end, so we can "complete" that as well.
+    fn complete_parents(&mut self, mut branch: BasicBlockId, mut join: BasicBlockId) {
+        loop {
+            // If we reached the starting point, we can stop.
+            let Some(parent) = self.branch_parents.get(&branch).cloned() else {
+                break;
+            };
+            // We can skip this join point (we know it completes this level, not the parent), and look for the next one.
+            match self.find_next_point(join, true) {
+                Point::Join(next) => {
+                    // If it's a second join point, then we went back to the parent level. Try to complete it.
+                    if self.maybe_join_pending(parent, next) {
+                        branch = parent;
+                        join = next;
+                    } else {
+                        break;
+                    }
+                }
+                Point::Branch(next, left, right) => {
+                    // We found another branch on the same level as we are currently at.
+                    // We must visit it before we can return the the previous level.
+                    self.push_branch(parent, next, left, right);
+                    break;
+                }
+            }
+        }
     }
 
     /// Push a branch to the stack for exploration, remembering what the parent level branch was.
