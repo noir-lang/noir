@@ -48,10 +48,7 @@ impl<T> Deserialize<1> for MyStruct<T>
 where
     T: FromField,
 {
-    fn deserialize(fields: [Field; 1]) -> Self
-    where
-        T: FromField,
-    {
+    fn deserialize(fields: [Field; 1]) -> Self {
         Self { a: T::from_field(fields[0_u32]) }
     }
 }

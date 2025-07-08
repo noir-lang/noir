@@ -12,9 +12,7 @@ trait CurveParamsTrait<BigNum>
 where
     BigNum: BigNumTrait,
 {
-    fn one()
-    where
-        BigNum: BigNumTrait;
+    fn one();
 }
 
 pub struct BN254Params {}
@@ -34,11 +32,7 @@ where
     BigNum: BigNumTrait,
     CurveParams: CurveParamsTrait<BigNum>,
 {
-    fn two()
-    where
-        BigNum: BigNumTrait,
-        CurveParams: CurveParamsTrait<BigNum>,
-    {
+    fn two() {
         let _: () = CurveParams::one();
     }
 }
