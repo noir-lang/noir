@@ -11,9 +11,9 @@ where
     T: Foo,
     T: Foo2,
 {
-    T::bar(1_Field);
-    T::bar(());
-    T::bar(());
+    Foo::bar(1_Field);
+    Foo2::bar(());
+    Foo::bar(());
 }
 
 trait Foo {
