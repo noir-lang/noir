@@ -25,11 +25,7 @@ where
     T: Default2,
     T: Eq2,
 {
-    fn is_default(self) -> bool
-    where
-        Self: Default2,
-        Self: Eq2,
-    {
+    fn is_default(self) -> bool {
         self.eq2(Self::default2())
     }
 }

@@ -36,6 +36,9 @@ pub(super) struct ItemPrinter<'context, 'string> {
     module_id: ModuleId,
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
+
+    /// Trait constraints in scope.
+    /// These are set when a trait, trait impl or function is visited.
     trait_constraints: Vec<TraitConstraint>,
 }
 
@@ -352,6 +355,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(" {\n");
         self.increase_indent();
 
+        self.trait_constraints = trait_.where_clause.clone();
+
         let mut printed_type_or_function = false;
 
         for associated_type in &trait_.associated_types {
@@ -393,6 +398,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.write_indent();
         self.push('}');
 
+        self.trait_constraints.clear();
+
         self.show_trait_impls(item_trait.trait_impls);
     }
 
@@ -422,6 +429,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.show_where_clause(&trait_impl.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
+
+        self.trait_constraints = trait_impl.where_clause.clone();
 
         self.self_type = Some(trait_impl.typ.clone());
 
@@ -470,6 +479,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.self_type = None;
+        self.trait_constraints.clear();
     }
 
     fn show_global(&mut self, global_id: GlobalId) {
@@ -550,9 +560,19 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             }
         }
 
-        self.show_where_clause(&func_meta.trait_constraints);
+        // Only show trait constraints if they aren't already present because they exist in the
+        // parent trait/impl.
+        let func_trait_constraints = func_meta
+            .trait_constraints
+            .iter()
+            .filter(|trait_constraint| !self.trait_constraints.contains(trait_constraint))
+            .cloned()
+            .collect::<Vec<_>>();
 
-        self.trait_constraints = func_meta.trait_constraints.clone();
+        self.show_where_clause(&func_trait_constraints);
+
+        let previous_trait_constraints_length = self.trait_constraints.len();
+        self.trait_constraints.extend(func_trait_constraints);
 
         let hir_function = self.interner.function(&func_id);
         if let Some(expr) = hir_function.try_as_expr() {
@@ -592,7 +612,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             }
         }
 
-        self.trait_constraints.clear();
+        self.trait_constraints.truncate(previous_trait_constraints_length);
     }
 
     fn show_generic_types(&mut self, types: &[Type], use_colons: bool) {
