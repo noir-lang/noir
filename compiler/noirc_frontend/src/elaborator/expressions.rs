@@ -1485,7 +1485,7 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: true };
+        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: false };
 
         let ident = HirIdent {
             location: path.impl_item.location(),
