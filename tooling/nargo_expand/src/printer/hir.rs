@@ -711,8 +711,13 @@ impl ItemPrinter<'_, '_> {
                         constraint.trait_bound.trait_generics.map(|typ| typ.substitute(bindings));
                 }
 
-                // Don't show this as `AsTraitPath` if typ is already constrained by the same bounds
-                if !self.trait_constraints.contains(&constraint) {
+                if self.trait_constraints.contains(&constraint) {
+                    self.show_type(&constraint.typ);
+                    self.push_str("::");
+                    let name = self.interner.definition_name(trait_item.definition);
+                    self.push_str(name);
+                    return;
+                } else {
                     match &constraint.typ {
                         Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
                             // Don't show this as `AsTraitPath`
