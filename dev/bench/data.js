@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752001978207,
+  "lastUpdate": 1752002349320,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8e01c4a2dc88b4df9e533aba230695148833c9c4",
-          "message": "fix(ssa_fuzzer): nested conditions in loops (#8997)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-06-26T13:53:45Z",
-          "tree_id": "9f03f62bb08b0d05082ffe2058745336f2e7e584",
-          "url": "https://github.com/noir-lang/noir/commit/8e01c4a2dc88b4df9e533aba230695148833c9c4"
-        },
-        "date": 1750948481096,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14785,6 +14716,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 434.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 326.68,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.16,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4742c0286e17d9810860b9e7aba96b96b93dc5fd",
+          "message": "fix(expand): handle HirIdent with TraitItem (and other related fixes) (#9143)",
+          "timestamp": "2025-07-08T18:34:33Z",
+          "tree_id": "4fc72d6991ca80699eca4bd29f606c3cc678b35a",
+          "url": "https://github.com/noir-lang/noir/commit/4742c0286e17d9810860b9e7aba96b96b93dc5fd"
+        },
+        "date": 1752002335461,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 189.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 434.59,
             "unit": "MB"
           },
           {
