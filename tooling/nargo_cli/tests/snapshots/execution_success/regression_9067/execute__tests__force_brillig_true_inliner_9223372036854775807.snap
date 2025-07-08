@@ -1,0 +1,54 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "c",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "field"
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _1",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : [_1]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 })], outputs: [Simple(Witness(1))]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32838 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 1 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(2), offset_address: Relative(3) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U1) }, Mov { destination: Relative(1), source: Direct(32836) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32837), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 56 }, Mov { destination: Relative(2), source: Direct(1) }, BinaryIntOp { destination: Direct(1), op: Add, bit_size: U32, lhs: Direct(1), rhs: Direct(2) }, Const { destination: Relative(3), bit_size: Field, value: 0 }, Store { destination_pointer: Relative(2), source: Relative(3) }, JumpIf { condition: Relative(1), location: 22 }, Jump { location: 31 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 150 }, Const { destination: Relative(6), bit_size: Integer(U32), value: 1 }, Mov { destination: Relative(3), source: Relative(4) }, Jump { location: 27 }, BinaryIntOp { destination: Relative(7), op: LessThan, bit_size: U32, lhs: Relative(3), rhs: Relative(5) }, JumpIf { condition: Relative(7), location: 33 }, Jump { location: 30 }, Jump { location: 31 }, Load { destination: Relative(1), source_pointer: Relative(2) }, Return, Cast { destination: Relative(8), source: Relative(3), bit_size: Field }, Mov { destination: Relative(7), source: Relative(4) }, Jump { location: 36 }, BinaryIntOp { destination: Relative(9), op: LessThan, bit_size: U32, lhs: Relative(7), rhs: Relative(5) }, JumpIf { condition: Relative(9), location: 42 }, Jump { location: 39 }, BinaryIntOp { destination: Relative(7), op: Add, bit_size: U32, lhs: Relative(3), rhs: Relative(6) }, Mov { destination: Relative(3), source: Relative(7) }, Jump { location: 27 }, JumpIf { condition: Relative(1), location: 49 }, Jump { location: 44 }, Load { destination: Relative(9), source_pointer: Relative(2) }, Cast { destination: Relative(10), source: Relative(7), bit_size: Field }, BinaryFieldOp { destination: Relative(11), op: Add, lhs: Relative(9), rhs: Relative(10) }, Store { destination_pointer: Relative(2), source: Relative(11) }, Jump { location: 53 }, Load { destination: Relative(9), source_pointer: Relative(2) }, BinaryFieldOp { destination: Relative(10), op: Add, lhs: Relative(9), rhs: Relative(8) }, Store { destination_pointer: Relative(2), source: Relative(10) }, Jump { location: 53 }, BinaryIntOp { destination: Relative(9), op: Add, bit_size: U32, lhs: Relative(7), rhs: Relative(6) }, Mov { destination: Relative(7), source: Relative(9) }, Jump { location: 36 }, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 61 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
+  "debug_symbols": "nZLbjoQgDED/pc88WBQv/MpkYlBxQkLQMLrJxvjvW/CyzsMmG184UDhtSbpAp5v5VRvXD2+QjwUab6w1r9oOrZrM4Ci6QBIWzEEiAyw2lBuqCE5BziBFkCkhBZkRSBCEKgazDGROECALQr4Fiw1VfCmS+ETgBsqSriuDo5V68lqHTi69Ucej8tpNIN1sLYMvZef46D0qFzkpT7cJA+06IiXsjdVht7JfO/lbzcrdzapTFv+2S77bpbhhcy52nWf8ho95sftYFHd8PNpHFLfq41m/vPP/FM//44f/pJNqjf+Y1DVk8kY1Vu/Hfnbt5Xb6Ho+bY9JHP7S6m70OmS7jTutD5CzH5xqq/QA=",
+  "file_map": {
+    "50": {
+      "source": "fn main(c: bool) -> pub Field {\n    let mut s = 0;\n    if c {\n        for i in 0..150 {\n            for j in 0..150 {\n                if c {\n                    s += (i as Field);\n                } else {\n                    s += (j as Field);\n                }\n            }\n        }\n    }\n    s\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
