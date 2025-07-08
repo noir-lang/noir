@@ -171,8 +171,9 @@ impl Field {
                     self.assert_max_bit_size::<N * 8>();
                 }
             } else {
-                let max = (radix as Field).pow_32(N as Field);
-                assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+                assert(false, "unsupported radix");
+                // let max = (radix as Field).pow_32(N as Field);
+                // assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
             }
         }
         __to_le_radix(self, radix)
@@ -194,8 +195,9 @@ impl Field {
                     self.assert_max_bit_size::<N * 8>();
                 }
             } else {
-                let max = (radix as Field).pow_32(N as Field);
-                assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+                assert(false, "unsupported radix");
+                // let max = (radix as Field).pow_32(N as Field);
+                // assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
             }
         }
         __to_be_radix(self, radix)
