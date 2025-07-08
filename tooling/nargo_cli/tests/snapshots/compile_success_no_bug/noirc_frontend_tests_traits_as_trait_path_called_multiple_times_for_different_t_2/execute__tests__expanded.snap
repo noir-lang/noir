@@ -18,7 +18,7 @@ pub fn load<T>()
 where
     T: Trait,
 {
-    let _: u32 = N;
+    let _: u32 = T::N;
 }
 
 fn main() {

@@ -206,7 +206,7 @@ unconstrained fn doc_tests() {
         UHashMap::<u8, u32, BuildHasherDefault<Poseidon2Hasher>>::default();
     assert(hashmap.is_empty());
     let my_hasher: BuildHasherDefault<Poseidon2Hasher> =
-        BuildHasherDefault::<Poseidon2Hasher>::default();
+        <BuildHasherDefault<Poseidon2Hasher> as Default>::default();
     let hashmap: UHashMap<u8, u32, BuildHasherDefault<Poseidon2Hasher>> =
         UHashMap::<u8, u32, BuildHasherDefault<Poseidon2Hasher>>::with_hasher(my_hasher);
     assert(hashmap.is_empty());

@@ -21,7 +21,7 @@ impl Trait for Foo {
 }
 
 fn main() {
-    let params: Params<i32> = Trait::params();
+    let params: Params<i32> = <Foo as Trait<T = i32>>::params();
     foo(params);
 }
 
