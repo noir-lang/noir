@@ -162,8 +162,14 @@ impl Field {
             static_assert(radix <= 256, "radix must be less than or equal to 256");
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         } else {
-            let max = (radix as Field).pow_32(N as Field);
-            assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+            if radix == 2 {
+                self.assert_max_bit_size::<N>();
+            } else if radix == 256 {
+                self.assert_max_bit_size::<N * 8>();
+            } else {
+                let max = (radix as Field).pow_32(N as Field);
+                assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+            }
         }
         __to_le_radix(self, radix)
     }
@@ -175,8 +181,14 @@ impl Field {
             static_assert(radix <= 256, "radix must be less than or equal to 256");
             static_assert(radix & (radix - 1) == 0, "radix must be a power of 2");
         } else {
-            let max = (radix as Field).pow_32(N as Field);
-            assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+            if radix == 2 {
+                self.assert_max_bit_size::<N>();
+            } else if radix == 256 {
+                self.assert_max_bit_size::<N * 8>();
+            } else {
+                let max = (radix as Field).pow_32(N as Field);
+                assert(self.lt(max), f"Field failed to decompose into specified {N} limbs");
+            }
         }
         __to_be_radix(self, radix)
     }
@@ -475,7 +487,8 @@ mod tests {
         }
     }
 
-    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    // #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    #[test(should_fail_with = "call to assert_max_bit_size")]
     unconstrained fn not_enough_limbs_brillig() {
         let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
     }
