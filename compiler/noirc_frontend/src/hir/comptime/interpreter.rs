@@ -629,29 +629,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let value = Type::TypeVariable(type_variable.clone());
                 self.evaluate_numeric_generic(value, numeric_typ, id)
             }
-            DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
-                let associated_types =
-                    self.elaborator.interner.get_associated_types_for_impl(*trait_impl_id);
-                let associated_type = associated_types
-                    .iter()
-                    .find(|typ| typ.name.as_str() == name)
-                    .expect("Expected to find associated type");
-                let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
-                    unreachable!("Expected associated type to be numeric");
-                };
-                let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                {
-                    Ok(value) => self.evaluate_integer(value.into(), id),
-                    Err(err) => Err(InterpreterError::NonIntegerArrayLength {
-                        typ: associated_type.typ.clone(),
-                        err: Some(Box::new(err)),
-                        location,
-                    }),
-                }
-            }
         }
     }
 

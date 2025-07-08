@@ -1521,7 +1521,7 @@ fn accesses_associated_type_inside_trait_impl_using_self() {
         let _ = i32::foo();
     }
     "#;
-    assert_no_errors!(src);
+    check_monomorphization_error!(src);
 }
 
 #[named]
@@ -1544,7 +1544,7 @@ fn accesses_associated_type_inside_trait_using_self() {
         let _ = i32::foo();
     }
     "#;
-    assert_no_errors!(src);
+    check_monomorphization_error!(src);
 }
 
 #[named]

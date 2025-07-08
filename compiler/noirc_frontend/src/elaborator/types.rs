@@ -716,12 +716,6 @@ impl Elaborator<'_> {
         &mut self,
         path: &TypedPath,
     ) -> Option<TraitPathResolution> {
-        // If we are inside a trait impl, `Self` is known to be a concrete type so we don't have
-        // to solve the path via trait method lookup.
-        if self.current_trait_impl.is_some() {
-            return None;
-        }
-
         let trait_id = if let Some(current_trait) = self.current_trait {
             current_trait
         } else {
@@ -738,7 +732,11 @@ impl Elaborator<'_> {
                 // Allow referring to trait constants via Self:: as well
                 let definition =
                     the_trait.find_method_or_constant(method.as_str(), self.interner)?;
-                let constraint = the_trait.as_constraint(path.location);
+                let mut constraint = the_trait.as_constraint(path.location);
+                if let Some(self_type) = &self.self_type {
+                    constraint.typ = self_type.clone();
+                }
+
                 let trait_method = TraitItem { definition, constraint, assumed: true };
                 let method = TraitPathResolutionMethod::TraitItem(trait_method);
                 return Some(TraitPathResolution { method, item: None, errors: Vec::new() });

@@ -146,8 +146,6 @@ pub struct NodeInterner {
     /// created, when resolving the type signature of each method in the impl.
     trait_impl_associated_types: HashMap<TraitImplId, Vec<NamedType>>,
 
-    trait_impl_associated_constants: HashMap<TraitImplId, HashMap<String, (DefinitionId, Type)>>,
-
     /// Trait implementations on each type. This is expected to always have the same length as
     /// `self.trait_implementations`.
     ///
@@ -597,8 +595,6 @@ pub enum DefinitionKind {
     /// Generic types in functions (T, U in `fn foo<T, U>(...)` are declared as variables
     /// in scope in case they resolve to numeric generics later.
     NumericGeneric(TypeVariable, Box<Type>),
-
-    AssociatedConstant(TraitImplId, String),
 }
 
 impl DefinitionKind {
@@ -614,7 +610,6 @@ impl DefinitionKind {
             DefinitionKind::Global(_) => None,
             DefinitionKind::Local(id) => *id,
             DefinitionKind::NumericGeneric(_, _) => None,
-            DefinitionKind::AssociatedConstant(_, _) => None,
         }
     }
 }
@@ -720,7 +715,6 @@ impl Default for NodeInterner {
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
-            trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
             reexports: HashMap::default(),
         }
@@ -2357,26 +2351,6 @@ impl NodeInterner {
         impl_id: TraitImplId,
         associated_types: Vec<NamedType>,
     ) {
-        // Wrap the named generics in type variables to be able to refer them as type variables
-        for associated_type in &associated_types {
-            let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
-                continue;
-            };
-
-            let name = associated_type.name.to_string();
-            let definition_id = self.push_definition(
-                associated_type.name.to_string(),
-                false,
-                false,
-                DefinitionKind::AssociatedConstant(impl_id, name.clone()),
-                associated_type.name.location(),
-            );
-            self.trait_impl_associated_constants
-                .entry(impl_id)
-                .or_default()
-                .insert(name, (definition_id, *numeric_type));
-        }
-
         self.trait_impl_associated_types.insert(impl_id, associated_types);
     }
 
@@ -2393,15 +2367,6 @@ impl NodeInterner {
     ) -> Option<&Type> {
         let types = self.trait_impl_associated_types.get(&impl_id)?;
         types.iter().find(|typ| typ.name.as_str() == type_name).map(|typ| &typ.typ)
-    }
-
-    /// Returns the definition id for the associated constant of the given type variable.
-    pub fn get_trait_impl_associated_constant(
-        &self,
-        impl_id: TraitImplId,
-        name: &str,
-    ) -> Option<&(DefinitionId, Type)> {
-        self.trait_impl_associated_constants.get(&impl_id).and_then(|map| map.get(name))
     }
 
     /// Return a set of TypeBindings to bind types from the parent trait to those from the trait impl.

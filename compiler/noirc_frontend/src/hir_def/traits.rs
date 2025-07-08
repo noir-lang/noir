@@ -231,7 +231,7 @@ impl Trait {
         let ordered = vecmap(&self.generics, |generic| generic.clone().as_named_generic());
         let named = vecmap(&self.associated_types, |generic| {
             let name = Ident::new(generic.name.to_string(), location);
-            NamedType { name, typ: generic.clone().as_named_generic() }
+            NamedType { name, typ: Type::TypeVariable(generic.type_var.clone()) }
         });
         TraitGenerics { ordered, named }
     }
