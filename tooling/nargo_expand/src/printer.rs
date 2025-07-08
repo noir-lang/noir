@@ -672,10 +672,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             .named
             .iter()
             .filter(|named| {
-                !matches!(&named.typ,
-                Type::TypeVariable(type_var)
-                | Type::NamedGeneric(NamedGeneric { type_var, .. })
-                    if type_var.borrow().is_unbound())
+                let typ = named.typ.follow_bindings();
+                match &typ {
+                    Type::TypeVariable(type_var)
+                    | Type::NamedGeneric(NamedGeneric { type_var, .. })
+                        if type_var.borrow().is_unbound() =>
+                    {
+                        false
+                    }
+                    Type::Constant(..) => false,
+                    _ => true,
+                }
             })
             .collect::<Vec<_>>();
 
