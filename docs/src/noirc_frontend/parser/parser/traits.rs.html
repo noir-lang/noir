@@ -826,7 +826,7 @@
         <span class="prelude-val">Some</span>(TraitItem::Type { name, bounds })
     }
 
-    <span class="doccomment">/// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    <span class="doccomment">/// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
     </span><span class="kw">fn </span>parse_trait_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;TraitItem&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Let) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
