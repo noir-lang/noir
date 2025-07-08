@@ -115,11 +115,18 @@ impl<'cfg> Context<'cfg> {
 #[cfg(test)]
 mod test {
 
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{cfg::ControlFlowGraph, map::Id, types::Type},
-        opt::flatten_cfg::branch_analysis::find_branch_ends,
-        ssa_gen::Ssa,
+    use acvm::acir::circuit::ExpressionWidth;
+
+    use crate::{
+        brillig::BrilligOptions,
+        ssa::{
+            SsaEvaluatorOptions,
+            function_builder::FunctionBuilder,
+            ir::{cfg::ControlFlowGraph, map::Id, types::Type},
+            opt::flatten_cfg::branch_analysis::find_branch_ends,
+            primary_passes,
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -318,5 +325,113 @@ mod test {
         let function = ssa.main();
         let cfg = ControlFlowGraph::with_function(function);
         find_branch_ends(function, &cfg);
+    }
+
+    #[test]
+    fn test_large_unroll_stack_overflow() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u64, v2: i32, v3: u1, v4: Field, v5: u1, v6: u1):
+            jmpif v6 then: b1, else: b2
+          b1():
+            jmp b14()
+          b2():
+            jmp b5(u32 67)
+          b3():
+            jmp b8(u32 198)
+          b4():
+            jmp b14()
+          b5(v7: u32):
+            v11 = lt v7, u32 232
+            jmpif v11 then: b3, else: b4
+          b6():
+            v18 = add v7, u32 1
+            v19 = truncate v18 to 32 bits, max_bit_size: 33
+            v21 = call f1(v4, v4, v4, v4, v4, v0, v0) -> Field
+            jmp b5(v19)
+          b7():
+            jmpif v6 then: b10, else: b11
+          b8(v8: u32):
+            v14 = lt v8, u32 90
+            jmpif v14 then: b7, else: b6
+          b9():
+            v16 = add v8, u32 1
+            v17 = truncate v16 to 32 bits, max_bit_size: 33
+            jmp b8(v17)
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmp b9()
+          b13():
+            return v0
+          b14():
+            jmp b13()
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+            jmp b3(u32 54)
+          b1():
+            jmpif v6 then: b5, else: b6
+          b2():
+            jmp b8()
+          b3(v7: u32):
+            v10 = lt v7, u32 207
+            jmpif v10 then: b1, else: b2
+          b4():
+            v12 = add v7, u32 1
+            v13 = truncate v12 to 32 bits, max_bit_size: 33
+            jmp b3(v13)
+          b5():
+            jmp b7()
+          b6():
+            jmp b7()
+          b7():
+            jmp b4()
+          b8():
+            return v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // If we try to run the branch analysis now, it panics, it doesn't have the expected CFG structure.
+        // Instead, run the pipeline up to just before the flattening pass.
+        let ssa = run_pipeline_up_to_pass(ssa, "Flattening");
+
+        // The resulting SSA has more than 70k blocks.
+        // Both functions in the SSA have blocks such as b1->[b5, b6]->b7 where
+        // a branch immediately rejoins. For whatever combination, it's too much for
+        // a recursive algorithm, and can cause a stack overflow.
+
+        let function = ssa.main();
+        let cfg = ControlFlowGraph::with_function(function);
+        let _ = find_branch_ends(function, &cfg);
+    }
+
+    fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
+        let options = SsaEvaluatorOptions {
+            ssa_logging: crate::ssa::SsaLogging::None,
+            brillig_options: BrilligOptions::default(),
+            print_codegen_timings: false,
+            expression_width: ExpressionWidth::default(),
+            emit_ssa: None,
+            skip_underconstrained_check: true,
+            skip_brillig_constraints_check: true,
+            enable_brillig_constraints_check_lookback: false,
+            inliner_aggressiveness: 0,
+            max_bytecode_increase_percent: None,
+            skip_passes: Vec::new(),
+        };
+        let pipeline = primary_passes(&options);
+        for pass in pipeline {
+            if pass.msg() == stop_before_pass {
+                break;
+            }
+            ssa = pass
+                .run(ssa)
+                .unwrap_or_else(|e| panic!("failed to run pass '{}': {e}", pass.msg()));
+        }
+        ssa
     }
 }
