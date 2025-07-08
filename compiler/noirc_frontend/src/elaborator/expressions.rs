@@ -1453,6 +1453,9 @@ impl Elaborator<'_> {
 
     fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
         let location = path.typ.location.merge(path.trait_path.location);
+        let named_args = &path.trait_generics.named_args;
+        let explicitly_named_generics =
+            named_args.iter().map(|(name, _)| name.to_string()).collect::<HashSet<_>>();
 
         let constraint = UnresolvedTraitConstraint {
             typ: path.typ,
@@ -1472,6 +1475,24 @@ impl Elaborator<'_> {
         };
 
         let constraint = TraitConstraint { typ, trait_bound };
+
+        // In a code like this:
+        //
+        // ```noir
+        // trait Trait {
+        //     let N: u32;
+        // }
+        //
+        // fn foo<T: Trait>() { <T as Trait>:N }
+        // ```
+        //
+        // there will be an existing trait constraint for `T` whose trait generics reference
+        // an `N` that's also defined in existing trait constraints (for the associated constant `N`).
+        //
+        // In this case we need to reuse that existing constraint instead of creating a new one
+        // with different type variables.
+        let constraint = self
+            .find_matching_constraint_in_self_trait_bounds(constraint, &explicitly_named_generics);
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
         let Some(definition) =
@@ -1499,5 +1520,56 @@ impl Elaborator<'_> {
         let typ = self.type_check_variable(ident, id, None);
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
+    }
+
+    /// Finds a constraint in `self.trait_bounds` that is equal to the given `constraint`.
+    /// `explicitly_named_generics` is the set of names that were explicitly specified for
+    /// building `constraint`. The ones the are implicitly specified are not taking into account
+    /// when finding a matching constraint.
+    fn find_matching_constraint_in_self_trait_bounds(
+        &self,
+        constraint: TraitConstraint,
+        explicitly_named_generics: &HashSet<String>,
+    ) -> TraitConstraint {
+        for existing_constraint in &self.trait_bounds {
+            if existing_constraint.typ != constraint.typ {
+                continue;
+            }
+
+            let trait_bound = &constraint.trait_bound;
+            let existing_trait_bound = &existing_constraint.trait_bound;
+
+            if trait_bound.trait_id != existing_trait_bound.trait_id {
+                continue;
+            }
+
+            let generics = &trait_bound.trait_generics;
+            let existing_generics = &existing_trait_bound.trait_generics;
+
+            if generics.ordered != existing_generics.ordered {
+                continue;
+            }
+
+            if generics.named.len() != existing_generics.named.len() {
+                continue;
+            }
+
+            if !generics.named.iter().all(|named_type| {
+                let existing_named_type = existing_generics
+                    .named
+                    .iter()
+                    .find(|existing_named_type| existing_named_type.name == named_type.name);
+                existing_named_type.is_some_and(|existing_named_type| {
+                    !explicitly_named_generics.contains(existing_named_type.name.as_str())
+                        || existing_named_type.typ == named_type.typ
+                })
+            }) {
+                continue;
+            }
+
+            return existing_constraint.clone();
+        }
+
+        constraint
     }
 }
