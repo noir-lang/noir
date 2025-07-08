@@ -24,15 +24,15 @@
 //!
 //!    The iterative variant goes like this:
 //!    1. Pop the next branch from a stack of branches we need to process.
-//!     - Find the next join point or branch point on both left and right branches of a jmpif block.
-//!     - If both branches rejoin immediately:
-//!       - Repeatedly find the next point following the current one:
-//!         - If it's a join point, it must be for the parent level:
-//!           - If this is the first time we see the join point for this level, mark it as pending.
+//!     - Find the next join or branch point on both left and right branches.
+//!     - If the branches rejoin immediately:
+//!       - Repeatedly find the next point following the join point:
+//!         - If it's another join point, it must be for the parent level:
+//!           - If this is the first time we see a join point for this level, mark it as pending.
 //!           - If it's the second time, mark it as the end point, ensuring it matches the pending value.
-//!         - If a new branch is encountered, push it onto the stack, remembering the parent level to return to.
+//!         - If a new branch is encountered, push it onto the stack, noting the parent level to return to.
 //!     - If either branches are followed by further branching:
-//!       - Push the branching children onto the stack for visiting later, remembering to return to the current level.
+//!       - Push the branching children onto the stack for visiting later, noting to return to the current level.
 //!       - Mark any children that goes to in a join point as a pending end for this branch.
 //!
 //! This algorithm will remember each join point found in `find_join_point_of_branches` and
@@ -183,17 +183,16 @@ impl<'cfg> Context<'cfg> {
     }
 
     /// Check if the left and right branches joined.
-    /// If so, they are expected to have joined at the same block;
-    /// remember that join point for the start and return the join point.
-    /// If not, return `None`.
+    /// If so, mark the branch as completed, and return `Some` join point, otherwise return `None`.
+    /// Panics if both points are joins, but have different values.
     fn maybe_join(
         &mut self,
-        start: BasicBlockId,
+        branch: BasicBlockId,
         left: &Point,
         right: &Point,
     ) -> Option<BasicBlockId> {
         if let (Point::Join(left), Point::Join(right)) = (left, right) {
-            self.must_join(start, *left, *right);
+            self.must_join(branch, *left, *right);
             Some(*left)
         } else {
             None
@@ -201,8 +200,9 @@ impl<'cfg> Context<'cfg> {
     }
 
     /// Try to join a pending branch, once the next join point is found:
-    /// * if this is the first time we encounter this, mark it as pending, and return `None`
-    /// * if this is the second time, then we mark the parent as completed, and return `Some` parent
+    /// * if this is the first time we encounter this, mark it as pending, and return `false`,
+    /// * if this is the second time, then we mark it as completed, and return `true`.
+    /// Panics if the join point does not match the existing one.
     fn maybe_join_pending(&mut self, parent: BasicBlockId, join: BasicBlockId) -> bool {
         let Some(pending) = self.branch_ends_pending.insert(parent, join) else {
             return false;
