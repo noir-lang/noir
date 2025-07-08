@@ -190,7 +190,9 @@
 <a href="#189" id="189">189</a>
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     basic_block::BasicBlockId,
     instruction::{BinaryOp, Intrinsic},
     types::NumericType,
@@ -260,6 +262,8 @@
     </span>BlackBoxError { name: String, reason: String },
     <span class="attr">#[error(<span class="string">"Reached the unreachable"</span>)]
     </span>ReachedTheUnreachable,
+    <span class="attr">#[error(<span class="string">"Array index {index} is out of bounds for array of length {length}"</span>)]
+    </span>IndexOutOfBounds { index: u32, length: u32 },
 }
 
 <span class="doccomment">/// These errors can only result from interpreting malformed SSA

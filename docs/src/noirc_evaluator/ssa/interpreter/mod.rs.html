@@ -1490,7 +1490,16 @@
 <a href="#1489" id="1489">1489</a>
 <a href="#1490" id="1490">1490</a>
 <a href="#1491" id="1491">1491</a>
-<a href="#1492" id="1492">1492</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2371,7 +2380,11 @@
             <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
             <span class="kw">let </span>index = index - offset.to_u32();
-            array.elements.borrow()[index <span class="kw">as </span>usize].clone()
+            <span class="kw">let </span>elements = array.elements.borrow();
+            <span class="kw">let </span>element = elements.get(index <span class="kw">as </span>usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() <span class="kw">as </span>u32 }
+            })<span class="question-mark">?</span>;
+            element.clone()
         } <span class="kw">else </span>{
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
             Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
@@ -2400,6 +2413,11 @@
 
             <span class="kw">let </span>should_mutate =
                 <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() { <span class="kw-2">*</span>array.rc.borrow() == <span class="number">1 </span>} <span class="kw">else </span>{ mutable };
+
+            <span class="kw">let </span>len = array.elements.borrow().len();
+            <span class="kw">if </span>index <span class="kw">as </span>usize &gt;= len {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index, length: len <span class="kw">as </span>u32 });
+            }
 
             <span class="kw">if </span>should_mutate {
                 array.elements.borrow_mut()[index <span class="kw">as </span>usize] = value;
