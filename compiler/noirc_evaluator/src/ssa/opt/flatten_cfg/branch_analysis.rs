@@ -10,6 +10,8 @@
 //!       return instruction is found.
 //!
 //! 2. The inner part defined by `find_join_point_of_branches`:
+//!
+//!    The recursive version of the algorithm is as follows:
 //!    1. For each of the two branches in a jmpif block:
 //!     - Check if either has multiple predecessors. If so, it is a join point.
 //!     - If not, continue to search the linear sequence of successor blocks from that block.
@@ -18,8 +20,32 @@
 //!     - After, we should have identified a join point for both branches. This is expected to be
 //!       the same block for both and can be returned from here to continue iteration.
 //!
+//!    The recursive variant can encounter a stack overflow on certain CFG.
+//!
+//!    The iterative variant goes like this:
+//!    1. Pop the next branch from a stack of branches we need to process.
+//!     - If this is the first time we see the branch:
+//!       - Find the next join point or branch point on both left and right branches of a jmpif block.
+//!       - If both branches rejoin immediately:
+//!         - Repeatedly find the next join point after them, until we are back on the branching level we started from.
+//!         - If a new branch is encountered, push it onto the stack.
+//!       - If either branches are followed by further branching:
+//!         - Push the current back back on the stack for a second visit later.
+//!         - Push the branching children onto the stack for the first visit.
+//!     - If this is the second time we visit the branch:
+//!       - By now we expect to have already visited all descendant branches.
+//!       - Find the join point of both left and right branches:
+//!         - If the branch directly ends in a join point, return it.
+//!         - If it ends in another branch:
+//!           - Look up the end of that branch in the cache.
+//!           - Skip the end block, and look for the next join point, where it rejoins its parent.
+//!         - Repeat until we find two join points in a row, which should be the join point of the parent.
+//!       - Store the end of the branch in the cache.
+//!
 //! This algorithm will remember each join point found in `find_join_point_of_branches` and
 //! the resulting map from each split block to each join block is returned.
+
+use std::collections::HashSet;
 
 use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
 use fxhash::FxHashMap as HashMap;
@@ -55,6 +81,24 @@ pub(super) fn find_branch_ends(
     context.branch_ends
 }
 
+/// The next interesting point following some block.
+#[derive(Debug, Clone)]
+enum Point {
+    /// The CFG rejoined.
+    Join(BasicBlockId),
+    /// The CFG branched again at a parent block into a left and right child.
+    Branch(BasicBlockId, BasicBlockId, BasicBlockId),
+}
+
+/// We need to visit branches twice:
+/// * First we look at the next interesting point and decide if we need to recurse.
+/// * Second time we should have visited both left and right branch already.
+#[derive(Debug)]
+enum Visit {
+    First(BasicBlockId, BasicBlockId, BasicBlockId, usize),
+    Second(BasicBlockId, Point, Point),
+}
+
 struct Context<'cfg> {
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
     cfg: &'cfg ControlFlowGraph,
@@ -72,42 +116,150 @@ impl<'cfg> Context<'cfg> {
     ) -> BasicBlockId {
         let left = successors.next().unwrap();
         let right = successors.next().unwrap();
+        let mut stack = Vec::new();
+        let mut visited = HashSet::new();
+        stack.push(Visit::First(start, left, right, 0));
 
-        let left_join = self.find_join_point(left);
-        let right_join = self.find_join_point(right);
+        'processing: while let Some(visit) = stack.pop() {
+            match visit {
+                Visit::First(start, left, right, mut level) => {
+                    if !visited.insert(start) {
+                        continue;
+                    }
+                    let left = self.find_next_point(left, false);
+                    let right = self.find_next_point(right, false);
 
-        assert_eq!(left_join, right_join, "Expected two blocks to join to the same block");
-        self.branch_ends.insert(start, left_join);
-
-        left_join
-    }
-
-    fn find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
-        let predecessors = self.cfg.predecessors(block);
-        if predecessors.len() > 1 {
-            return block;
+                    if let Some(mut join) = self.maybe_join(start, &left, &right) {
+                        // If we managed to join the branches immediately, we still might have to recurse,
+                        // until we have done enough joins to get back at the original level, or we have
+                        // encountered another branch before we could rejoin the original.
+                        while level > 0 {
+                            // Skip this join point: we know it is not for the parent block we originally branched off from.
+                            match self.find_next_point(join, true) {
+                                Point::Join(next) => {
+                                    level -= 1;
+                                    join = next;
+                                }
+                                Point::Branch(next, left, right) => {
+                                    // We found another branch on the same level as we are currently at.
+                                    // We must visit it before we can return the the previous level.
+                                    // Since this could be after a join point of multiple branches,
+                                    // we could arrive here from two different ways.
+                                    stack.push(Visit::First(next, left, right, level));
+                                    continue 'processing;
+                                }
+                            }
+                        }
+                    } else {
+                        // At least one of the branches further branches off, so we must schedule a second visit
+                        // after we have processed them.
+                        stack.push(Visit::Second(start, left.clone(), right.clone()));
+                        for child in [left, right] {
+                            if let Point::Branch(start, left, right) = child {
+                                stack.push(Visit::First(start, left, right, level + 1));
+                            }
+                        }
+                    }
+                }
+                Visit::Second(start, left, right) => {
+                    let left = self.get_join_point(left);
+                    let right = self.get_join_point(right);
+                    self.must_join(start, left, right);
+                }
+            }
         }
-        // The join point is not this block, so continue on
-        self.skip_then_find_join_point(block)
+
+        self.branch_ends
+            .get(&start)
+            .cloned()
+            .unwrap_or_else(|| panic!("should have found the join point for {start}"))
     }
 
-    fn skip_then_find_join_point(&mut self, block: BasicBlockId) -> BasicBlockId {
-        let mut successors = self.cfg.successors(block);
-
-        if successors.len() == 2 {
-            let join = self.find_join_point_of_branches(block, successors);
-            // Note that we call skip_then_find_join_point here instead of find_join_point.
-            // We already know this `join` is a join point, but it cannot be for the current block
-            // since we already know it is the join point of the successors of the current block.
-            self.skip_then_find_join_point(join)
-        } else if successors.len() == 1 {
-            self.find_join_point(successors.next().unwrap())
-        } else if successors.len() == 0 {
-            unreachable!(
-                "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
-            )
+    /// Check if the left and right branches joined.
+    /// If so, they are expected to have joined at the same block;
+    /// remember that join point for the start and return the join point.
+    /// If not, return `None`.
+    fn maybe_join(
+        &mut self,
+        start: BasicBlockId,
+        left: &Point,
+        right: &Point,
+    ) -> Option<BasicBlockId> {
+        if let (Point::Join(left), Point::Join(right)) = (left, right) {
+            self.must_join(start, *left, *right);
+            Some(*left)
         } else {
-            unreachable!("A block can only have 0, 1, or 2 successors");
+            None
+        }
+    }
+
+    /// Check that the left and right join points are the same, and mark this as the join point for the start block.
+    fn must_join(&mut self, start: BasicBlockId, left: BasicBlockId, right: BasicBlockId) {
+        assert_eq!(left, right, "Expected two blocks to join to the same block");
+        self.branch_ends.insert(start, left);
+    }
+
+    /// Get the join point of a branch after all descendants have been visited,
+    /// going from either the left or the right child, recursively getting the
+    /// join points of branches, and then the last join point.
+    fn get_join_point(&self, mut next: Point) -> BasicBlockId {
+        loop {
+            match next {
+                Point::Join(id) => return id,
+                Point::Branch(id, _, _) => {
+                    // If we branched off, that means we have to repeatedly find join
+                    // blocks after the branch rejoins, until we find one extra join
+                    // block that brings us back to the current branching level.
+                    let join = self
+                        .branch_ends
+                        .get(&id)
+                        .cloned()
+                        .unwrap_or_else(|| panic!("branch end for {id} not found"));
+                    // Skip this join point, it was for the child branch.
+                    // If we branch off again (maybe from the same block),
+                    // then do another pass over it, looking for the following
+                    // join point, until we get two in a row.
+                    next = self.find_next_point(join, true);
+                }
+            }
+        }
+    }
+
+    /// Starting with the current block, find the next join or branching point,
+    /// skipping over blocks with single successors and predecessors.
+    ///
+    /// If a block is both a join and a branch block, it is returned as a join.
+    ///
+    /// When `skip` is true, we don't consider the current block for an immediate join point,
+    /// although it can be returned as a branch.
+    fn find_next_point(&self, mut block: BasicBlockId, mut skip: bool) -> Point {
+        loop {
+            if !skip {
+                let predecessors = self.cfg.predecessors(block);
+                if predecessors.len() > 1 {
+                    return Point::Join(block);
+                }
+            }
+            let mut successors = self.cfg.successors(block);
+            match successors.len() {
+                2 => {
+                    let left = successors.next().unwrap();
+                    let right = successors.next().unwrap();
+                    return Point::Branch(block, left, right);
+                }
+                1 => {
+                    skip = false;
+                    block = successors.next().unwrap();
+                }
+                0 => {
+                    unreachable!(
+                        "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
+                    );
+                }
+                _ => {
+                    unreachable!("A block can only have 0, 1, or 2 successors");
+                }
+            }
         }
     }
 }
