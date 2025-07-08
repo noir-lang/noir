@@ -13,7 +13,6 @@ where
     fn greet<U>(object: U)
     where
         U: Greeter,
-        T: Greeter,
     {
         object.greet();
     }
