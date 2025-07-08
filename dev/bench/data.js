@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752007460977,
+  "lastUpdate": 1752007462822,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,75 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "85527e04ea8488100d6c3645331dcb28d132a930",
-          "message": "feat(ssa): Handle `println` in the SSA interpreter (#9028)",
-          "timestamp": "2025-06-26T18:26:50Z",
-          "tree_id": "e848f418fd17211b76161b26b597c72c97fddea0",
-          "url": "https://github.com/noir-lang/noir/commit/85527e04ea8488100d6c3645331dcb28d132a930"
-        },
-        "date": 1750964666076,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.027,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.29,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 12.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.003,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.006,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.021,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -11353,6 +11284,75 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.02,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "913ee6308f6ea040608df452a66bcb20bece3ca6",
+          "message": "fix(ssa interpreter): Add out of bounds error (#9147)",
+          "timestamp": "2025-07-08T20:13:40Z",
+          "tree_id": "cc289c4dc0895b3aa8d812d540097fa13f97db3a",
+          "url": "https://github.com/noir-lang/noir/commit/913ee6308f6ea040608df452a66bcb20bece3ca6"
+        },
+        "date": 1752007445608,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.014,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.153,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.292,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.029,
             "unit": "s"
           }
         ]
