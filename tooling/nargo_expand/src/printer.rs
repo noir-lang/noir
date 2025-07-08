@@ -343,12 +343,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         if !trait_.trait_bounds.is_empty() {
             self.push_str(": ");
-            for (index, trait_bound) in trait_.trait_bounds.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(" + ");
-                }
-                self.show_trait_bound(trait_bound);
-            }
+            self.show_trait_bounds(&trait_.trait_bounds);
         }
 
         self.show_where_clause(&trait_.where_clause);
@@ -374,6 +369,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             } else {
                 self.push_str("type ");
                 self.push_str(&associated_type.name);
+                if let Some(trait_bounds) =
+                    trait_.associated_type_bounds.get(associated_type.name.as_str())
+                {
+                    if !trait_bounds.is_empty() {
+                        self.push_str(": ");
+                        self.show_trait_bounds(trait_bounds);
+                    }
+                }
             }
 
             self.push_str(";");
@@ -742,6 +745,15 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let trait_ = self.interner.get_trait(bound.trait_id);
         self.push_str(&trait_.name.to_string());
         self.show_trait_generics(&bound.trait_generics);
+    }
+
+    fn show_trait_bounds(&mut self, bounds: &[ResolvedTraitBound]) {
+        for (index, trait_bound) in bounds.iter().enumerate() {
+            if index != 0 {
+                self.push_str(" + ");
+            }
+            self.show_trait_bound(trait_bound);
+        }
     }
 
     fn show_pattern(&mut self, pattern: &HirPattern) {
