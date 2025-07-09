@@ -618,7 +618,21 @@
 <a href="#617" id="617">617</a>
 <a href="#618" id="618">618</a>
 <a href="#619" id="619">619</a>
-<a href="#620" id="620">620</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -850,6 +864,7 @@
         </span><span class="kw">fn </span>add_helpers(source: <span class="kw-2">&amp;mut </span>String, namespace: <span class="kw-2">&amp;</span>str) {
             <span class="comment">// Based on https://github.com/AztecProtocol/msgpack-c/blob/54e9865b84bbdc73cfbf8d1d437dbf769b64e386/include/msgpack/v1/adaptor/detail/cpp11_define_map.hpp#L75
             // Using a `struct Helpers` with `static` methods, because top level functions turn up as duplicates in `wasm-ld`.
+            // cSpell:disable
             </span><span class="kw">let </span>helpers = <span class="string">r#"
     struct Helpers {
         static std::map&lt;std::string, msgpack::object const*&gt; make_kvmap(
@@ -896,7 +911,8 @@
         }
     };
     "#</span>;
-            <span class="kw">let </span>pos = source.find(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"namespace {namespace}"</span>)).expect(<span class="string">"namespace"</span>);
+            <span class="comment">// cSpell:enable
+            </span><span class="kw">let </span>pos = source.find(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"namespace {namespace}"</span>)).expect(<span class="string">"namespace"</span>);
             source.insert_str(pos, <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"namespace {namespace} {{{helpers}}}\n\n"</span>));
         }
 
@@ -975,7 +991,7 @@
             // code is more verbose, but also easier to control, e.g. we can
             // raise errors telling specifically which field was wrong,
             // or we could reject the data if there was a new field we could
-            // not recognise, or we could even handle aliases.
+            // not recognize, or we could even handle aliases.
 
             </span><span class="self">self</span>.msgpack_pack(name, <span class="kw-2">&amp;</span>{
                 <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
@@ -996,19 +1012,23 @@
             <span class="self">self</span>.msgpack_unpack(name, <span class="kw-2">&amp;</span>{
                 <span class="comment">// Turn the MAP into a `std::map&lt;string, msgpack::object&gt;`,
                 // then look up each field, returning error if one isn't found.
+                // cSpell:disable
                 </span><span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
                     <span class="string">r#"
     auto name = "{name}";
     auto kvmap = Helpers::make_kvmap(o, name);"#
                 </span>);
-                <span class="kw">for </span>field <span class="kw">in </span>fields {
+                <span class="comment">// cSpell:enable
+                </span><span class="kw">for </span>field <span class="kw">in </span>fields {
                     <span class="kw">let </span>field_name = <span class="kw-2">&amp;</span>field.name;
                     <span class="kw">let </span>is_optional = <span class="macro">matches!</span>(field.value, Format::Option(<span class="kw">_</span>));
-                    body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                    <span class="comment">// cSpell:disable
+                    </span>body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                         <span class="string">r#"
     Helpers::conv_fld_from_kvmap(kvmap, name, "{field_name}", {field_name}, {is_optional});"#
                     </span>));
-                }
+                    <span class="comment">// cSpell:enable
+                </span>}
                 body
             });
         }
@@ -1018,7 +1038,8 @@
             <span class="self">self</span>.msgpack_pack(name, <span class="string">"packer.pack(value);"</span>);
             <span class="self">self</span>.msgpack_unpack(
                 name,
-                <span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                <span class="comment">// cSpell:disable
+                </span><span class="kw-2">&amp;</span><span class="macro">format!</span>(
                     <span class="string">r#"
     try {{
         o.convert(value);
@@ -1028,7 +1049,8 @@
     }}
             "#
                 </span>),
-            );
+                <span class="comment">// cSpell:enable
+            </span>);
         }
 
         <span class="doccomment">/// Tuples serialize as a vector of underlying data.
@@ -1088,7 +1110,8 @@
             // See https://c.msgpack.org/cpp/structmsgpack_1_1object.html#a8c7c484d2a6979a833bdb69412ad382c
             // for how to access the object's content without parsing it.
             </span><span class="self">self</span>.msgpack_unpack(name, <span class="kw-2">&amp;</span>{
-                <span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
+                <span class="comment">// cSpell:disable
+                </span><span class="kw">let </span><span class="kw-2">mut </span>body = <span class="macro">format!</span>(
                     <span class="string">r#"
 
     if (o.type != msgpack::type::object_type::MAP &amp;&amp; o.type != msgpack::type::object_type::STR) {{
@@ -1110,8 +1133,9 @@
         throw_or_abort("error converting tag to string for enum '{name}'");
     }}"#
                 </span>);
+                <span class="comment">// cSpell:enable
 
-                <span class="kw">for </span>(i, v) <span class="kw">in </span>variants.iter() {
+                </span><span class="kw">for </span>(i, v) <span class="kw">in </span>variants.iter() {
                     <span class="kw">let </span>variant = <span class="kw-2">&amp;</span>v.name;
                     body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                         <span class="string">r#"
@@ -1121,7 +1145,8 @@
                     ));
 
                     <span class="kw">if </span>!<span class="macro">matches!</span>(v.value, VariantFormat::Unit) {
-                        body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                        <span class="comment">// cSpell:disable
+                        </span>body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                             <span class="string">r#"
         try {{
             o.via.map.ptr[0].val.convert(v);
@@ -1131,7 +1156,8 @@
         }}
         "#
                         </span>));
-                    }
+                        <span class="comment">// cSpell:enable
+                    </span>}
                     <span class="comment">// Closing brace of if statement
                     </span>body.push_str(
                         <span class="string">r#"
@@ -1139,15 +1165,17 @@
     }"#</span>,
                     );
                 }
-                body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                <span class="comment">// cSpell:disable
+                </span>body.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
                     <span class="string">r#"
     else {{
         std::cerr &lt;&lt; o &lt;&lt; std::endl;
         throw_or_abort("unknown '{name}' enum variant: " + tag);
     }}"#
                 </span>));
+                <span class="comment">// cSpell:enable
 
-                body
+                </span>body
             });
         }
 
@@ -1183,7 +1211,7 @@
 
         <span class="doccomment">/// Add a `msgpack_unpack` implementation.
         </span><span class="kw">fn </span>msgpack_unpack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, body: <span class="kw-2">&amp;</span>str) {
-            <span class="comment">// Using `msgpack::object const&amp; o` instad of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
+            <span class="comment">// Using `msgpack::object const&amp; o` instead of `auto o`, because the latter is passed as `msgpack::object::implicit_type`,
             // which would have to be cast like `msgpack::object obj = o;`. This `const&amp;` pattern exists in `msgpack-c` codebase.
 
             // Instead of implementing the `msgpack_unpack` method as suggested by `msgpack.hpp` in Barretenberg,
@@ -1199,7 +1227,7 @@
             //     {
             //         return o;
             //         if (o.type != msgpack::type::MAP || o.via.map.size != 1) {
-            //             throw_or_abort("expecteed signle element map for 'Opcode'");
+            //             throw_or_abort("expected single element map for 'Opcode'");
             //         }
 
             //         auto&amp; kv = o.via.map.ptr[0];

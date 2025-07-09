@@ -2633,7 +2633,8 @@
 <a href="#2632" id="2632">2632</a>
 <a href="#2633" id="2633">2633</a>
 <a href="#2634" id="2634">2634</a>
-<a href="#2635" id="2635">2635</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -3778,6 +3779,7 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="comment">// cSpell:disable-next-line
     </span><span class="kw">fn </span>jmpifnot_opcode() {
         <span class="kw">let </span>calldata: Vec&lt;FieldElement&gt; = <span class="macro">vec!</span>[<span class="number">1u128</span>.into(), <span class="number">2u128</span>.into()];
 

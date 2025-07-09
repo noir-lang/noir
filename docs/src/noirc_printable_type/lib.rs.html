@@ -526,7 +526,10 @@
 <a href="#525" id="525">525</a>
 <a href="#526" id="526">526</a>
 <a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a>
+<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -626,7 +629,10 @@
         }
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) =&gt; {
             <span class="comment">// Retain the lower 'width' bits
-            </span><span class="macro">debug_assert!</span>(<span class="kw-2">*</span>width &lt;= <span class="number">128</span>, <span class="string">"We don't currently support uints larger than u128"</span>);
+            </span><span class="macro">debug_assert!</span>(
+                <span class="kw-2">*</span>width &lt;= <span class="number">128</span>,
+                <span class="string">"We don't currently support unsigned integers larger than u128"
+            </span>);
             <span class="kw">let </span><span class="kw-2">mut </span>uint_cast = f.to_u128();
             <span class="kw">if </span><span class="kw-2">*</span>width != <span class="number">128 </span>{
                 uint_cast &amp;= (<span class="number">1 </span>&lt;&lt; width) - <span class="number">1</span>;
@@ -704,12 +710,12 @@
 
         (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) =&gt; {
             output.push(<span class="string">'('</span>);
-            <span class="kw">let </span><span class="kw-2">mut </span>elems = array_elements.iter().zip(types).peekable();
-            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elems.next() {
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = array_elements.iter().zip(types).peekable();
+            <span class="kw">while let </span><span class="prelude-val">Some</span>((value, typ)) = elements.next() {
                 output.push_str(
                     <span class="kw-2">&amp;</span>PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
                 );
-                <span class="kw">if </span>elems.peek().is_some() {
+                <span class="kw">if </span>elements.peek().is_some() {
                     output.push_str(<span class="string">", "</span>);
                 }
             }

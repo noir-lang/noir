@@ -1805,7 +1805,7 @@
         <span class="comment">// To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        </span><span class="kw">for </span>(_tvar, kind, binding) <span class="kw">in </span>instantiation_bindings.values_mut() {
+        </span><span class="kw">for </span>(_type_var, kind, binding) <span class="kw">in </span>instantiation_bindings.values_mut() {
             <span class="kw-2">*</span>kind = kind.follow_bindings();
             <span class="kw-2">*</span>binding = binding.follow_bindings();
         }
@@ -1966,7 +1966,7 @@
             }
         } <span class="kw">else </span>{
             <span class="kw">let </span>name = <span class="self">self</span>.elaborator.interner.function_name(<span class="kw-2">&amp;</span>function);
-            <span class="macro">unreachable!</span>(<span class="string">"Non-builtin, lowlevel or oracle builtin fn '{name}'"</span>)
+            <span class="macro">unreachable!</span>(<span class="string">"Non-builtin, low-level or oracle builtin fn '{name}'"</span>)
         }
     }
 

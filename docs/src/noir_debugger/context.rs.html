@@ -1522,7 +1522,8 @@
 <a href="#1521" id="1521">1521</a>
 <a href="#1522" id="1522">1522</a>
 <a href="#1523" id="1523">1523</a>
-<a href="#1524" id="1524">1524</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::foreign_calls::DebugForeignCallExecutor;
 <span class="kw">use </span>acvm::acir::brillig::BitSize;
 <span class="kw">use </span>acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
 <span class="kw">use </span>acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
@@ -2670,7 +2671,7 @@
             outputs: <span class="macro">vec!</span>[],
             predicate: <span class="prelude-val">None</span>,
         }];
-        <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_bytecode];
+        <span class="kw">let </span>brillig_functions = <span class="kw-2">&amp;</span>[brillig_bytecode];
         <span class="kw">let </span>current_witness_index = <span class="number">2</span>;
         <span class="kw">let </span>circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
         <span class="kw">let </span>circuits = <span class="kw-2">&amp;</span>[circuit];
@@ -2694,7 +2695,7 @@
             debug_artifact,
             initial_witness,
             foreign_call_executor,
-            brillig_funcs,
+            brillig_functions,
         );
 
         <span class="macro">assert_eq!</span>(
@@ -2730,7 +2731,8 @@
             })
         );
 
-        <span class="comment">// Calldatacopy
+        <span class="comment">// cSpell:disable-next-line
+        // Calldatacopy
         </span><span class="kw">let </span>result = context.step_into_opcode();
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, DebugCommandResult::Ok));
         <span class="macro">assert_eq!</span>(
@@ -2859,14 +2861,14 @@
             <span class="prelude-val">None</span>,
             String::new(),
         ));
-        <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_bytecode];
+        <span class="kw">let </span>brillig_functions = <span class="kw-2">&amp;</span>[brillig_bytecode];
         <span class="kw">let </span><span class="kw-2">mut </span>context = DebugContext::&lt;StubbedBlackBoxSolver&gt;::new(
             <span class="kw-2">&amp;</span>solver,
             circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
-            brillig_funcs,
+            brillig_functions,
         );
 
         <span class="comment">// set breakpoint
@@ -2946,7 +2948,7 @@
         };
         <span class="kw">let </span>circuits = <span class="macro">vec!</span>[circuit_one, circuit_two];
         <span class="kw">let </span>debug_artifact = DebugArtifact { debug_symbols: <span class="macro">vec!</span>[], file_map: BTreeMap::new() };
-        <span class="kw">let </span>brillig_funcs = <span class="kw-2">&amp;</span>[brillig_one, brillig_two];
+        <span class="kw">let </span>brillig_functions = <span class="kw-2">&amp;</span>[brillig_one, brillig_two];
 
         <span class="kw">let </span>context = DebugContext::&lt;StubbedBlackBoxSolver&gt;::new(
             <span class="kw-2">&amp;</span>solver,
@@ -2959,7 +2961,7 @@
                 <span class="prelude-val">None</span>,
                 String::new(),
             )),
-            brillig_funcs,
+            brillig_functions,
         );
 
         <span class="kw">let </span>locations =

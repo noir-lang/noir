@@ -133,7 +133,7 @@
     </span>Deserialize(std::io::Error),
 }
 
-<span class="doccomment">/// Native error for serializing/deserializating a witness stack.
+<span class="doccomment">/// Native error for serializing/deserializing a witness stack.
 </span><span class="attr">#[derive(Debug, Error)]
 #[error(transparent)]
 </span><span class="kw">pub struct </span>WitnessStackError(<span class="attr">#[from] </span>SerializationError);

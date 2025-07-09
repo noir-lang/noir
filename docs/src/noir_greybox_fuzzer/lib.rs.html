@@ -1573,7 +1573,7 @@
     }
 
     <span class="doccomment">/// Create a task for executing a testcase without mutation
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>mutationless(main_testcase_id: TestCaseId) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>without_mutation(main_testcase_id: TestCaseId) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             main_testcase_id,
             additional_testcase_id: <span class="prelude-val">None</span>,
@@ -1973,7 +1973,7 @@
         <span class="comment">// Generate a seed for the campaign
         </span><span class="kw">let </span>seed = thread_rng().r#gen::&lt;u64&gt;();
 
-        <span class="comment">// Init a fast PRNG used throughout the campain
+        <span class="comment">// Init a fast PRNG used throughout the campaign
         </span><span class="kw">let </span><span class="kw-2">mut </span>prng = XorShiftRng::seed_from_u64(seed);
 
         <span class="comment">// Initialize the starting corpus
@@ -2128,7 +2128,7 @@
                 <span class="comment">// If this is the initial processing round, then push testcases from the starting corpus into the set
                 </span>testcase_set.reserve(starting_corpus_ids.len());
                 <span class="kw">for </span>id <span class="kw">in </span>starting_corpus_ids.iter() {
-                    testcase_set.push(FuzzTask::mutationless(<span class="kw-2">*</span>id));
+                    testcase_set.push(FuzzTask::without_mutation(<span class="kw-2">*</span>id));
                 }
             }
             <span class="kw">let </span>mutation_and_fuzzing_time_tracker = Instant::now();

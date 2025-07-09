@@ -855,8 +855,8 @@
         Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lvalue(lvaue: LValue) -&gt; <span class="self">Self </span>{
-        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lvalue(lvalue: LValue) -&gt; <span class="self">Self </span>{
+        Value::Expr(Box::new(ExprValue::LValue(lvalue)))
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>pattern(pattern: Pattern) -&gt; <span class="self">Self </span>{

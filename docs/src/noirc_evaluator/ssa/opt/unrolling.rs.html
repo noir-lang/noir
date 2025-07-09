@@ -2625,7 +2625,7 @@
     <span class="kw">use super</span>::{BoilerplateStats, Loops, is_new_size_ok};
 
     <span class="doccomment">/// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
-    /// bypassing the iterative loop done by the SSA which does further optimisations.
+    /// bypassing the iterative loop done by the SSA which does further optimizations.
     ///
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     </span><span class="kw">fn </span>try_unroll_loops(<span class="kw-2">mut </span>ssa: Ssa) -&gt; (Ssa, Vec&lt;RuntimeError&gt;) {

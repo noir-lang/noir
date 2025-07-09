@@ -416,7 +416,8 @@
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">pub mod </span>builder;
@@ -490,6 +491,7 @@
     }
 
     <span class="doccomment">/// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
+    /// Instruction runs with first and second witness given
     </span><span class="kw">fn </span>run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
         lhs: (FieldElement, ValueType),

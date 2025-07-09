@@ -2913,12 +2913,12 @@
     </span>interned_statement_kinds: noirc_arena::Arena&lt;StatementKind&gt;,
 
     <span class="comment">// Interned `UnresolvedTypeData`s during comptime code.
-    </span>interned_unresolved_type_datas: noirc_arena::Arena&lt;UnresolvedTypeData&gt;,
+    </span>interned_unresolved_type_data: noirc_arena::Arena&lt;UnresolvedTypeData&gt;,
 
     <span class="comment">// Interned `Pattern`s during comptime code.
     </span>interned_patterns: noirc_arena::Arena&lt;Pattern&gt;,
 
-    <span class="doccomment">/// Determins whether to run in LSP mode. In LSP mode references are tracked.
+    <span class="doccomment">/// Determines whether to run in LSP mode. In LSP mode references are tracked.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) lsp_mode: bool,
 
     <span class="doccomment">/// Store the location of the references in the graph.
@@ -3403,7 +3403,7 @@
             quoted_types: Default::default(),
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
-            interned_unresolved_type_datas: Default::default(),
+            interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: <span class="bool-val">false</span>,
             location_indices: LocationIndices::default(),
@@ -5000,11 +5000,11 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         typ: UnresolvedTypeData,
     ) -&gt; InternedUnresolvedTypeData {
-        InternedUnresolvedTypeData(<span class="self">self</span>.interned_unresolved_type_datas.insert(typ))
+        InternedUnresolvedTypeData(<span class="self">self</span>.interned_unresolved_type_data.insert(typ))
     }
 
     <span class="kw">pub fn </span>get_unresolved_type_data(<span class="kw-2">&amp;</span><span class="self">self</span>, id: InternedUnresolvedTypeData) -&gt; <span class="kw-2">&amp;</span>UnresolvedTypeData {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.interned_unresolved_type_datas[id.<span class="number">0</span>]
+        <span class="kw-2">&amp;</span><span class="self">self</span>.interned_unresolved_type_data[id.<span class="number">0</span>]
     }
 
     <span class="doccomment">/// Returns the type of an operator (which is always a function), along with its return type.

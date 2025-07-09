@@ -874,8 +874,8 @@
 
             <span class="kw">let </span>integer_modulus = BigUint::from(<span class="number">2_u128</span>).pow(bit_size);
             <span class="kw">let </span>truncated_as_bigint = BigUint::from(input)
-                        .modpow(<span class="kw-2">&amp;</span>BigUint::one(), <span class="kw-2">&amp;</span>integer_modulus);
-            <span class="kw">let </span>truncated_as_bigint = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>truncated_as_bigint.to_bytes_be());
+                        .modpow(<span class="kw-2">&amp;</span>BigUint::one(), <span class="kw-2">&amp;</span>integer_modulus); <span class="comment">// cSpell:disable-line
+            </span><span class="kw">let </span>truncated_as_bigint = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>truncated_as_bigint.to_bytes_be());
             <span class="macro">prop_assert_eq!</span>(truncated_as_field, truncated_as_bigint);
         }
     }

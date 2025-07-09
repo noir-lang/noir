@@ -3485,7 +3485,82 @@
 <a href="#3484" id="3484">3484</a>
 <a href="#3485" id="3485">3485</a>
 <a href="#3486" id="3486">3486</a>
-<a href="#3487" id="3487">3487</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
+<a href="#3487" id="3487">3487</a>
+<a href="#3488" id="3488">3488</a>
+<a href="#3489" id="3489">3489</a>
+<a href="#3490" id="3490">3490</a>
+<a href="#3491" id="3491">3491</a>
+<a href="#3492" id="3492">3492</a>
+<a href="#3493" id="3493">3493</a>
+<a href="#3494" id="3494">3494</a>
+<a href="#3495" id="3495">3495</a>
+<a href="#3496" id="3496">3496</a>
+<a href="#3497" id="3497">3497</a>
+<a href="#3498" id="3498">3498</a>
+<a href="#3499" id="3499">3499</a>
+<a href="#3500" id="3500">3500</a>
+<a href="#3501" id="3501">3501</a>
+<a href="#3502" id="3502">3502</a>
+<a href="#3503" id="3503">3503</a>
+<a href="#3504" id="3504">3504</a>
+<a href="#3505" id="3505">3505</a>
+<a href="#3506" id="3506">3506</a>
+<a href="#3507" id="3507">3507</a>
+<a href="#3508" id="3508">3508</a>
+<a href="#3509" id="3509">3509</a>
+<a href="#3510" id="3510">3510</a>
+<a href="#3511" id="3511">3511</a>
+<a href="#3512" id="3512">3512</a>
+<a href="#3513" id="3513">3513</a>
+<a href="#3514" id="3514">3514</a>
+<a href="#3515" id="3515">3515</a>
+<a href="#3516" id="3516">3516</a>
+<a href="#3517" id="3517">3517</a>
+<a href="#3518" id="3518">3518</a>
+<a href="#3519" id="3519">3519</a>
+<a href="#3520" id="3520">3520</a>
+<a href="#3521" id="3521">3521</a>
+<a href="#3522" id="3522">3522</a>
+<a href="#3523" id="3523">3523</a>
+<a href="#3524" id="3524">3524</a>
+<a href="#3525" id="3525">3525</a>
+<a href="#3526" id="3526">3526</a>
+<a href="#3527" id="3527">3527</a>
+<a href="#3528" id="3528">3528</a>
+<a href="#3529" id="3529">3529</a>
+<a href="#3530" id="3530">3530</a>
+<a href="#3531" id="3531">3531</a>
+<a href="#3532" id="3532">3532</a>
+<a href="#3533" id="3533">3533</a>
+<a href="#3534" id="3534">3534</a>
+<a href="#3535" id="3535">3535</a>
+<a href="#3536" id="3536">3536</a>
+<a href="#3537" id="3537">3537</a>
+<a href="#3538" id="3538">3538</a>
+<a href="#3539" id="3539">3539</a>
+<a href="#3540" id="3540">3540</a>
+<a href="#3541" id="3541">3541</a>
+<a href="#3542" id="3542">3542</a>
+<a href="#3543" id="3543">3543</a>
+<a href="#3544" id="3544">3544</a>
+<a href="#3545" id="3545">3545</a>
+<a href="#3546" id="3546">3546</a>
+<a href="#3547" id="3547">3547</a>
+<a href="#3548" id="3548">3548</a>
+<a href="#3549" id="3549">3549</a>
+<a href="#3550" id="3550">3550</a>
+<a href="#3551" id="3551">3551</a>
+<a href="#3552" id="3552">3552</a>
+<a href="#3553" id="3553">3553</a>
+<a href="#3554" id="3554">3554</a>
+<a href="#3555" id="3555">3555</a>
+<a href="#3556" id="3556">3556</a>
+<a href="#3557" id="3557">3557</a>
+<a href="#3558" id="3558">3558</a>
+<a href="#3559" id="3559">3559</a>
+<a href="#3560" id="3560">3560</a>
+<a href="#3561" id="3561">3561</a>
+<a href="#3562" id="3562">3562</a></pre></div><pre class="rust"><code><span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>completion_tests {
     <span class="kw">use crate</span>::{
         notifications::on_did_open_text_document,
@@ -3612,16 +3687,18 @@
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_use_first_segment() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell: disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             mod foobaz {}
             mod foobar {}
             use foob&gt;|&lt;
         "#</span>;
+        <span class="comment">// cSpell: enable
 
-        assert_completion(
+        </span>assert_completion(
             src,
-            <span class="macro">vec!</span>[module_completion_item(<span class="string">"foobaz"</span>), module_completion_item(<span class="string">"foobar"</span>)],
-        )
+            <span class="macro">vec!</span>[module_completion_item(<span class="string">"foobaz"</span>), module_completion_item(<span class="string">"foobar"</span>)], <span class="comment">// cSpell:disable-line
+        </span>)
         .<span class="kw">await</span>;
     }
 
@@ -3777,7 +3854,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_use_after_super() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell: disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             mod foobar {}
 
             mod bar {
@@ -3786,8 +3864,9 @@
                 use super::foob&gt;|&lt;
             }
         "#</span>;
+        <span class="comment">// cSpell: enable
 
-        assert_completion(src, <span class="macro">vec!</span>[module_completion_item(<span class="string">"foobar"</span>)]).<span class="kw">await</span>;
+        </span>assert_completion(src, <span class="macro">vec!</span>[module_completion_item(<span class="string">"foobar"</span>)]).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
@@ -5300,7 +5379,8 @@ mod other {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_auto_import_suggests_modules_too() {
-        <span class="kw">let </span>src = <span class="string">r#"mod foo {
+        <span class="comment">// cSpell: disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod foo {
         pub mod barbaz {
             fn hello_world() {}
         }
@@ -5310,8 +5390,10 @@ mod other {
         barb&gt;|&lt;
     }
 }"#</span>;
+        <span class="comment">// cSpell: enable
 
-        <span class="kw">let </span>expected = <span class="string">r#"use foo::barbaz;
+        // cSpell: disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use foo::barbaz;
 
 mod foo {
         pub mod barbaz {
@@ -5323,18 +5405,19 @@ mod foo {
         barb
     }
 }"#</span>;
+        <span class="comment">// cSpell: enable
 
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
-        <span class="macro">assert_eq!</span>(item.label, <span class="string">"barbaz"</span>);
+        <span class="macro">assert_eq!</span>(item.label, <span class="string">"barbaz"</span>); <span class="comment">// cSpell::disable-line
 
-        <span class="macro">assert_eq!</span>(
+        </span><span class="macro">assert_eq!</span>(
             item.label_details,
             <span class="prelude-val">Some</span>(CompletionItemLabelDetails {
-                detail: <span class="prelude-val">Some</span>(<span class="string">"(use foo::barbaz)"</span>.to_string()),
-                description: <span class="prelude-val">None
+                detail: <span class="prelude-val">Some</span>(<span class="string">"(use foo::barbaz)"</span>.to_string()), <span class="comment">// cSpell::disable-line
+                </span>description: <span class="prelude-val">None
             </span>})
         );
 
@@ -5692,12 +5775,14 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_auto_import_from_std() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             fn main() {
                 zeroe&gt;|&lt;
             }
         "#</span>;
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>items[<span class="number">0</span>];
@@ -5710,14 +5795,17 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_completes_after_first_letter_of_path() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             fn main() {
                 h&gt;|&lt;ello();
             }
 
             fn hello_world() {}
         "#</span>;
-        assert_completion_excluding_auto_import(
+        <span class="comment">// cSpell:enable
+
+        </span>assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[function_completion_item(<span class="string">"hello_world"</span>, <span class="string">"hello_world()"</span>, <span class="string">"fn()"</span>)],
         )
@@ -5869,7 +5957,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_auto_import_suggests_pub_use_for_module() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             mod bar {
                 pub mod baz {
                     pub mod coco {}
@@ -5882,8 +5971,9 @@ fn main() {
                 foob&gt;|&lt;
             }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>items[<span class="number">0</span>];
@@ -5896,7 +5986,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_auto_import_suggests_pub_use_for_function() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             mod bar {
                 pub mod baz {
                     pub fn coco() {}
@@ -5909,8 +6000,9 @@ fn main() {
                 foob&gt;|&lt;
             }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>items[<span class="number">0</span>];
@@ -5923,7 +6015,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_auto_import_suggests_private_function_if_visible() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             mod foo {
                 fn qux() {
                   barba&gt;|&lt;
@@ -5934,21 +6027,23 @@ fn main() {
 
             fn main() {}
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = <span class="kw-2">&amp;</span>items[<span class="number">0</span>];
-        <span class="macro">assert_eq!</span>(item.label, <span class="string">"barbaz()"</span>);
-        <span class="macro">assert_eq!</span>(
+        <span class="macro">assert_eq!</span>(item.label, <span class="string">"barbaz()"</span>); <span class="comment">// cSpell:disable-line
+        </span><span class="macro">assert_eq!</span>(
             item.label_details.as_ref().unwrap().detail,
-            <span class="prelude-val">Some</span>(<span class="string">"(use super::barbaz)"</span>.to_string()),
-        );
+            <span class="prelude-val">Some</span>(<span class="string">"(use super::barbaz)"</span>.to_string()), <span class="comment">// cSpell:disable-line
+        </span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_self_fields_and_methods() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             struct Foo {
                 foobar: Field,
             }
@@ -5961,8 +6056,9 @@ fn main() {
                 }
             }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion_excluding_auto_import(
+        </span>assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[
                 field_completion_item(<span class="string">"self.foobar"</span>, <span class="string">"Field"</span>),
@@ -6002,14 +6098,16 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_built_in_let_attribute() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
             fn foo() {
                 #[allo&gt;|&lt;]
                 let x = 1;
             }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion_excluding_auto_import(
+        </span>assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[simple_completion_item(
                 <span class="string">"allow(unused_variables)"</span>,
@@ -6229,7 +6327,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_macro_call_if_comptime_function_returns_quoted() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         comptime fn foobar() -&gt; Quoted {}
 
         fn main() {
@@ -6238,8 +6337,9 @@ fn main() {
             }
         }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion_excluding_auto_import(
+        </span>assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[
                 function_completion_item(<span class="string">"foobar!()"</span>, <span class="string">"foobar!()"</span>, <span class="string">"fn() -&gt; Quoted"</span>),
@@ -6252,15 +6352,17 @@ fn main() {
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_only_macro_call_if_comptime_function_returns_quoted_and_outside_comptime()
      {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         comptime fn foobar() -&gt; Quoted {}
 
         fn main() {
             fooba&gt;|&lt;
         }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion_excluding_auto_import(
+        </span>assert_completion_excluding_auto_import(
             src,
             <span class="macro">vec!</span>[function_completion_item(<span class="string">"foobar!()"</span>, <span class="string">"foobar!()"</span>, <span class="string">"fn() -&gt; Quoted"</span>)],
         )
@@ -6269,15 +6371,17 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_only_suggests_macro_call_for_unquote() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         use std::meta::unquote;
 
         fn main() {
             unquot&gt;|&lt;
         }
         "#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(items[<span class="number">0</span>].label, <span class="string">"unquote!(…)"</span>);
     }
@@ -6332,65 +6436,75 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_does_not_auto_import_private_global() {
-        <span class="kw">let </span>src = <span class="string">r#"mod moo {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod moo {
             global foobar = 1;
         }
 
         fn main() {
             fooba&gt;|&lt;
         }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion(src, Vec::new()).<span class="kw">await</span>;
+        </span>assert_completion(src, Vec::new()).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_does_not_auto_import_private_type_alias() {
-        <span class="kw">let </span>src = <span class="string">r#"mod moo {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod moo {
             type foobar = i32;
         }
 
         fn main() {
             fooba&gt;|&lt;
         }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion(src, Vec::new()).<span class="kw">await</span>;
+        </span>assert_completion(src, Vec::new()).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_does_not_auto_import_private_trait() {
-        <span class="kw">let </span>src = <span class="string">r#"mod moo {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod moo {
             trait Foobar {}
         }
 
         fn main() {
             Fooba&gt;|&lt;
         }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion(src, Vec::new()).<span class="kw">await</span>;
+        </span>assert_completion(src, Vec::new()).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_does_not_auto_import_private_module() {
-        <span class="kw">let </span>src = <span class="string">r#"mod moo {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod moo {
             mod foobar {}
         }
 
         fn main() {
             fooba&gt;|&lt;
         }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        assert_completion(src, Vec::new()).<span class="kw">await</span>;
+        </span>assert_completion(src, Vec::new()).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_trait_in_trait_parent_bounds() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         trait Foobar {}
         struct Foobarbaz {}
 
         trait Bar: Foob&gt;|&lt; {}
         "#</span>;
-        assert_completion(
+        <span class="comment">// cSpell:enable
+        </span>assert_completion(
             src,
             <span class="macro">vec!</span>[simple_completion_item(
                 <span class="string">"Foobar"</span>,
@@ -6403,13 +6517,15 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_trait_in_function_where_clause() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         trait Foobar {}
         struct Foobarbaz {}
 
         fn foo&lt;T&gt;() where T: Foob&gt;|&lt; {}
         "#</span>;
-        assert_completion(
+        <span class="comment">// cSpell:enable
+        </span>assert_completion(
             src,
             <span class="macro">vec!</span>[simple_completion_item(
                 <span class="string">"Foobar"</span>,
@@ -6473,7 +6589,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_does_not_suggest_trait_function_not_visible() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         mod moo {
             trait Foo {
                 fn foobar();
@@ -6489,12 +6606,14 @@ fn main() {
         }
 
         "#</span>;
-        assert_completion(src, <span class="macro">vec!</span>[]).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span>assert_completion(src, <span class="macro">vec!</span>[]).<span class="kw">await</span>;
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_multiple_trait_methods() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
         mod moo {
             pub trait Foo {
                 fn foobar();
@@ -6518,13 +6637,15 @@ fn main() {
         }
 
         "#</span>;
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">2</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_and_imports_trait_method_without_self() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
 mod moo {
     pub trait Foo {
         fn foobar();
@@ -6539,7 +6660,8 @@ fn main() {
     Field::fooba&gt;|&lt;
 }
         "#</span>;
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6547,7 +6669,8 @@ fn main() {
 
         <span class="kw">let </span>new_code = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
 
-        <span class="kw">let </span>expected = <span class="string">r#"use moo::Foo;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use moo::Foo;
 
 mod moo {
     pub trait Foo {
@@ -6563,12 +6686,14 @@ fn main() {
     Field::fooba
 }
         "#</span>;
-        <span class="macro">assert_eq!</span>(new_code, expected);
+        <span class="comment">// cSpell:enable
+        </span><span class="macro">assert_eq!</span>(new_code, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_and_imports_trait_method_with_self() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
 mod moo {
     pub trait Foo {
         fn foobar(self);
@@ -6584,7 +6709,8 @@ fn main() {
     x.fooba&gt;|&lt;
 }
         "#</span>;
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6592,7 +6718,8 @@ fn main() {
 
         <span class="kw">let </span>new_code = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
 
-        <span class="kw">let </span>expected = <span class="string">r#"use moo::Foo;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use moo::Foo;
 
 mod moo {
     pub trait Foo {
@@ -6609,12 +6736,14 @@ fn main() {
     x.fooba
 }
         "#</span>;
-        <span class="macro">assert_eq!</span>(new_code, expected);
+        <span class="comment">// cSpell:enable
+        </span><span class="macro">assert_eq!</span>(new_code, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>test_suggests_and_imports_trait_method_with_self_using_public_export() {
-        <span class="kw">let </span>src = <span class="string">r#"
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"
 mod moo {
     mod nested {
         pub trait Foo {
@@ -6634,7 +6763,8 @@ fn main() {
     x.fooba&gt;|&lt;
 }
         "#</span>;
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        <span class="comment">// cSpell:enable
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6642,7 +6772,8 @@ fn main() {
 
         <span class="kw">let </span>new_code = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
 
-        <span class="kw">let </span>expected = <span class="string">r#"use moo::Bar;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use moo::Bar;
 
 mod moo {
     mod nested {
@@ -6663,7 +6794,8 @@ fn main() {
     x.fooba
 }
         "#</span>;
-        <span class="macro">assert_eq!</span>(new_code, expected);
+        <span class="comment">// cSpell:enable
+        </span><span class="macro">assert_eq!</span>(new_code, expected);
     }
 
     <span class="attr">#[test]
@@ -6748,7 +6880,8 @@ fn main() {
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>autocompletes_via_parent_module_reexport() {
-        <span class="kw">let </span>src = <span class="string">r#"mod aztec {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod aztec {
     mod deps {
         pub mod protocol_types {
             pub struct SomeStruct {}
@@ -6761,8 +6894,9 @@ fn main() {
 fn main() {
     SomeStru&gt;|&lt;
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6774,7 +6908,8 @@ fn main() {
             })
         );
 
-        <span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::SomeStruct;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::SomeStruct;
 
 mod aztec {
     mod deps {
@@ -6789,14 +6924,16 @@ mod aztec {
 fn main() {
     SomeStru
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
+        </span><span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
         <span class="macro">assert_eq!</span>(changed, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>autocompletes_via_renamed_parent_module_reexport() {
-        <span class="kw">let </span>src = <span class="string">r#"mod aztec {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod aztec {
     mod deps {
         pub mod protocol_types {
             pub struct SomeStruct {}
@@ -6809,8 +6946,9 @@ fn main() {
 fn main() {
     SomeStru&gt;|&lt;
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6822,7 +6960,8 @@ fn main() {
             })
         );
 
-        <span class="kw">let </span>expected = <span class="string">r#"use aztec::export::SomeStruct;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use aztec::export::SomeStruct;
 
 mod aztec {
     mod deps {
@@ -6837,14 +6976,16 @@ mod aztec {
 fn main() {
     SomeStru
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
+        </span><span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
         <span class="macro">assert_eq!</span>(changed, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>autocompletes_nested_type_via_parent_module_reexport() {
-        <span class="kw">let </span>src = <span class="string">r#"mod aztec {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod aztec {
     mod deps {
         pub mod protocol_types {
             pub mod nested {
@@ -6859,8 +7000,9 @@ fn main() {
 fn main() {
     SomeStru&gt;|&lt;
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6872,7 +7014,8 @@ fn main() {
             })
         );
 
-        <span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::nested::SomeStruct;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::nested::SomeStruct;
 
 mod aztec {
     mod deps {
@@ -6889,14 +7032,16 @@ mod aztec {
 fn main() {
     SomeStru
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
+        </span><span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
         <span class="macro">assert_eq!</span>(changed, expected);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>does_not_autocomplete_nested_type_via_parent_module_reexport_if_it_is_not_visible() {
-        <span class="kw">let </span>src = <span class="string">r#"mod aztec {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod aztec {
     mod deps {
         pub mod protocol_types {
             pub mod nested {
@@ -6911,14 +7056,16 @@ fn main() {
 fn main() {
     SomeStru&gt;|&lt;
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(items, <span class="kw">_</span>) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">0</span>);
     }
 
     <span class="attr">#[test]
     </span><span class="kw">async fn </span>autocompletes_deeply_nested_type_via_parent_module_reexport() {
-        <span class="kw">let </span>src = <span class="string">r#"mod aztec {
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>src = <span class="string">r#"mod aztec {
     mod deps {
         pub mod protocol_types {
             pub mod deeply {
@@ -6935,8 +7082,9 @@ fn main() {
 fn main() {
     SomeStru&gt;|&lt;
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
+        </span><span class="kw">let </span>(<span class="kw-2">mut </span>items, src) = get_completions(src).<span class="kw">await</span>;
         <span class="macro">assert_eq!</span>(items.len(), <span class="number">1</span>);
 
         <span class="kw">let </span>item = items.remove(<span class="number">0</span>);
@@ -6948,7 +7096,8 @@ fn main() {
             })
         );
 
-        <span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::deeply::nested::SomeStruct;
+        <span class="comment">// cSpell:disable
+        </span><span class="kw">let </span>expected = <span class="string">r#"use aztec::protocol_types::deeply::nested::SomeStruct;
 
 mod aztec {
     mod deps {
@@ -6967,8 +7116,9 @@ mod aztec {
 fn main() {
     SomeStru
 }"#</span>;
+        <span class="comment">// cSpell:enable
 
-        <span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
+        </span><span class="kw">let </span>changed = apply_text_edits(<span class="kw-2">&amp;</span>src, <span class="kw-2">&amp;</span>item.additional_text_edits.unwrap());
         <span class="macro">assert_eq!</span>(changed, expected);
     }
 }

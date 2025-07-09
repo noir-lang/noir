@@ -11,9 +11,9 @@
 <a href="#10" id="10">10</a>
 <a href="#11" id="11">11</a>
 <a href="#12" id="12">12</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::BlackBoxResolutionError;
-<span class="kw">use </span>libaes::Cipher;
+<span class="kw">use </span>libaes::Cipher; <span class="comment">// cSpell:disable-line
 
-<span class="kw">pub fn </span>aes128_encrypt(
+</span><span class="kw">pub fn </span>aes128_encrypt(
     inputs: <span class="kw-2">&amp;</span>[u8],
     iv: [u8; <span class="number">16</span>],
     key: [u8; <span class="number">16</span>],

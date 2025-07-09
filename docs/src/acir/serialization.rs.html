@@ -787,16 +787,16 @@
     <span class="doccomment">/// Test that an enum where each member wraps a struct serializes as a single item map keyed by the type.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>msgpack_repr_enum_of_structs() {
-        <span class="kw">use </span>rmpv::Value;
+        <span class="kw">use </span>rmpv::Value; <span class="comment">// cSpell:disable-line
 
-        <span class="kw">let </span>value = ValueOrArray::HeapArray(HeapArray {
+        </span><span class="kw">let </span>value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(<span class="number">0</span>),
             size: <span class="number">3</span>,
         });
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap();
+        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
-        <span class="kw">let </span>Value::Map(fields) = msg <span class="kw">else </span>{
+        </span><span class="kw">let </span>Value::Map(fields) = msg <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"expected Map: {msg:?}"</span>);
         };
         <span class="macro">assert_eq!</span>(fields.len(), <span class="number">1</span>);
@@ -811,9 +811,9 @@
     </span><span class="kw">fn </span>msgpack_repr_enum_of_unit_structs() {
         <span class="kw">let </span>value = IntegerBitSize::U1;
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap();
+        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
-        <span class="macro">assert_eq!</span>(msg.as_str(), <span class="prelude-val">Some</span>(<span class="string">"U1"</span>));
+        </span><span class="macro">assert_eq!</span>(msg.as_str(), <span class="prelude-val">Some</span>(<span class="string">"U1"</span>));
     }
 
     <span class="doccomment">/// Test how an enum where some members are unit structs serializes.
@@ -821,21 +821,21 @@
     </span><span class="kw">fn </span>msgpack_repr_enum_of_mixed() {
         <span class="kw">let </span>value = <span class="macro">vec!</span>[BitSize::Field, BitSize::Integer(IntegerBitSize::U64)];
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap();
+        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
-        <span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{msg}"</span>), <span class="string">r#"["Field", {"Integer": "U64"}]"#</span>);
+        </span><span class="macro">assert_eq!</span>(<span class="macro">format!</span>(<span class="string">"{msg}"</span>), <span class="string">r#"["Field", {"Integer": "U64"}]"#</span>);
     }
 
     <span class="doccomment">/// Test that a newtype, just wrapping a value, is serialized as the underlying value.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>msgpack_repr_newtype() {
-        <span class="kw">use </span>rmpv::Value;
+        <span class="kw">use </span>rmpv::Value; <span class="comment">// cSpell:disable-line
 
-        <span class="kw">let </span>value = Witness(<span class="number">1</span>);
+        </span><span class="kw">let </span>value = Witness(<span class="number">1</span>);
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap();
+        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(msg, Value::Integer(<span class="kw">_</span>)));
+        </span><span class="macro">assert!</span>(<span class="macro">matches!</span>(msg, Value::Integer(<span class="kw">_</span>)));
     }
 
     <span class="doccomment">/// Test to show that optional fields, when empty, are still in the map.
@@ -843,18 +843,18 @@
     /// but the `msgpack-c` library does not.
     </span><span class="attr">#[test]
     </span><span class="kw">fn </span>msgpack_optional() {
-        <span class="kw">use </span>rmpv::Value;
+        <span class="kw">use </span>rmpv::Value; <span class="comment">// cSpell:disable-line
 
-        <span class="kw">let </span>value: Opcode&lt;FieldElement&gt; = Opcode::BrilligCall {
+        </span><span class="kw">let </span>value: Opcode&lt;FieldElement&gt; = Opcode::BrilligCall {
             id: BrilligFunctionId(<span class="number">1</span>),
             inputs: Vec::new(),
             outputs: Vec::new(),
             predicate: <span class="prelude-val">None</span>,
         };
         <span class="kw">let </span>bz = msgpack_serialize(<span class="kw-2">&amp;</span>value, <span class="bool-val">false</span>).unwrap();
-        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap();
+        <span class="kw">let </span>msg = rmpv::decode::read_value::&lt;<span class="kw-2">&amp;</span>[u8]&gt;(<span class="kw-2">&amp;mut </span>bz.as_ref()).unwrap(); <span class="comment">// cSpell:disable-line
 
-        <span class="kw">let </span>fields = msg.as_map().expect(<span class="string">"enum is a map"</span>);
+        </span><span class="kw">let </span>fields = msg.as_map().expect(<span class="string">"enum is a map"</span>);
         <span class="kw">let </span>fields = <span class="kw-2">&amp;</span>fields.first().expect(<span class="string">"enum is non-empty"</span>).<span class="number">1</span>;
         <span class="kw">let </span>fields = fields.as_map().expect(<span class="string">"fields are map"</span>);
 

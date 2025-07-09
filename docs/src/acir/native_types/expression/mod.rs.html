@@ -793,7 +793,7 @@
     <span class="kw">use </span>acir_field::{AcirField, FieldElement};
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>add_mul_smoketest() {
+    </span><span class="kw">fn </span>add_mul_smoke_test() {
         <span class="kw">let </span>a = Expression {
             mul_terms: <span class="macro">vec!</span>[(FieldElement::from(<span class="number">2u128</span>), Witness(<span class="number">1</span>), Witness(<span class="number">2</span>))],
             ..Default::default()

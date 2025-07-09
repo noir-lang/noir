@@ -412,7 +412,7 @@
                 <span class="self">self</span>.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) =&gt; {
-                <span class="comment">// `&amp;` can be represented with Ampersando or SliceStart in the lexer depending
+                <span class="comment">// `&amp;` can be represented with Ampersand or SliceStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 </span><span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.token {
                     Token::Ampersand =&gt; {

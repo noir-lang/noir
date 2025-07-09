@@ -433,8 +433,8 @@
                 <span class="kw">match </span>databus {
                     BlockType::Memory =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT "</span>)<span class="question-mark">?</span>,
                     BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {} "</span>, id)<span class="question-mark">?</span>,
-                    BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>,
-                }
+                    BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>, <span class="comment">// cSpell:disable-line
+                </span>}
                 <span class="kw">let </span>witnesses =
                     init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"_{}"</span>, w.<span class="number">0</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
                 <span class="macro">write!</span>(f, <span class="string">"(id: {}, len: {}, witnesses: [{witnesses}])"</span>, block_id.<span class="number">0</span>, init.len())

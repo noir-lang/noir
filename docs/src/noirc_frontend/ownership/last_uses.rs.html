@@ -748,7 +748,7 @@
             Expression::While(while_expr) =&gt; <span class="self">self</span>.track_variables_in_while(while_expr),
             Expression::If(if_expr) =&gt; <span class="self">self</span>.track_variables_in_if(if_expr),
             Expression::Match(match_expr) =&gt; <span class="self">self</span>.track_variables_in_match(match_expr),
-            Expression::Tuple(elems) =&gt; <span class="self">self</span>.track_variables_in_tuple(elems),
+            Expression::Tuple(elements) =&gt; <span class="self">self</span>.track_variables_in_tuple(elements),
             Expression::ExtractTupleField(tuple, _index) =&gt; {
                 <span class="self">self</span>.track_variables_in_expression(tuple);
             }
@@ -857,8 +857,8 @@
         }
     }
 
-    <span class="kw">fn </span>track_variables_in_tuple(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elems: <span class="kw-2">&amp;</span>[Expression]) {
-        <span class="kw">for </span>elem <span class="kw">in </span>elems {
+    <span class="kw">fn </span>track_variables_in_tuple(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: <span class="kw-2">&amp;</span>[Expression]) {
+        <span class="kw">for </span>elem <span class="kw">in </span>elements {
             <span class="self">self</span>.track_variables_in_expression(elem);
         }
     }

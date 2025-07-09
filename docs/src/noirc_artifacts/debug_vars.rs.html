@@ -204,8 +204,8 @@
 
     <span class="kw">fn </span>lookup_var(<span class="kw-2">&amp;</span><span class="self">self</span>, var_id: DebugVarId) -&gt; <span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span>str, <span class="kw-2">&amp;</span>PrintableType)&gt; {
         <span class="self">self</span>.variables.get(<span class="kw-2">&amp;</span>var_id).and_then(|debug_var| {
-            <span class="kw">let </span>ptype = <span class="self">self</span>.types.get(<span class="kw-2">&amp;</span>debug_var.debug_type_id)<span class="question-mark">?</span>;
-            <span class="prelude-val">Some</span>((debug_var.name.as_str(), ptype))
+            <span class="kw">let </span>printable_type = <span class="self">self</span>.types.get(<span class="kw-2">&amp;</span>debug_var.debug_type_id)<span class="question-mark">?</span>;
+            <span class="prelude-val">Some</span>((debug_var.name.as_str(), printable_type))
         })
     }
 
@@ -234,13 +234,13 @@
 
     <span class="kw">pub fn </span>assign_var(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_id: DebugVarId, values: <span class="kw-2">&amp;</span>[F]) {
         <span class="kw">let </span>type_id = <span class="kw-2">&amp;</span><span class="self">self</span>.variables.get(<span class="kw-2">&amp;</span>var_id).unwrap().debug_type_id;
-        <span class="kw">let </span>ptype = <span class="self">self</span>.types.get(type_id).unwrap();
+        <span class="kw">let </span>printable_type = <span class="self">self</span>.types.get(type_id).unwrap();
 
         <span class="self">self</span>.frames
             .last_mut()
             .expect(<span class="string">"unexpected empty stack frames"</span>)
             .<span class="number">1
-            </span>.insert(var_id, decode_printable_value(<span class="kw-2">&amp;mut </span>values.iter().copied(), ptype));
+            </span>.insert(var_id, decode_printable_value(<span class="kw-2">&amp;mut </span>values.iter().copied(), printable_type));
     }
 
     <span class="kw">pub fn </span>assign_field(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var_id: DebugVarId, indexes: Vec&lt;u32&gt;, values: <span class="kw-2">&amp;</span>[F]) {

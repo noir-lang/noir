@@ -741,9 +741,9 @@
 
     <span class="comment">// Any remaining functions are completely unreachable and are either recursive or mutually recursive.
     // As these functions will be removed from the program, we treat them as impure.
-    </span><span class="kw">let </span>unhandled_funcs: Vec&lt;<span class="kw">_</span>&gt; =
+    </span><span class="kw">let </span>unhandled_functions: Vec&lt;<span class="kw">_</span>&gt; =
         starting_purities.keys().filter(|func| !finished_purities.contains_key(<span class="kw-2">*</span>func)).collect();
-    <span class="kw">for </span>id <span class="kw">in </span>unhandled_funcs {
+    <span class="kw">for </span>id <span class="kw">in </span>unhandled_functions {
         finished_purities.insert(<span class="kw-2">*</span>id, Purity::Impure);
     }
 

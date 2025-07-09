@@ -112,7 +112,8 @@
 <a href="#111" id="111">111</a>
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
-<a href="#114" id="114">114</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::BlackBoxFunc;
 <span class="kw">use </span>blake2::digest::generic_array::GenericArray;
 <span class="kw">use </span>blake2::{Blake2s256, Digest};
 
@@ -141,8 +142,8 @@
         <span class="kw">let </span>bytes = block.to_be_bytes();
         blocks[i * <span class="number">4</span>..i * <span class="number">4 </span>+ <span class="number">4</span>].copy_from_slice(<span class="kw-2">&amp;</span>bytes);
     }
-    <span class="kw">let </span>blocks: GenericArray&lt;u8, sha2::digest::typenum::U64&gt; = blocks.into();
-    sha2::compress256(state, <span class="kw-2">&amp;</span>[blocks]);
+    <span class="kw">let </span>blocks: GenericArray&lt;u8, sha2::digest::typenum::U64&gt; = blocks.into(); <span class="comment">// cSpell:disable-line
+    </span>sha2::compress256(state, <span class="kw-2">&amp;</span>[blocks]);
 }
 
 <span class="kw">const </span>KECCAK_LANES: usize = <span class="number">25</span>;
@@ -160,7 +161,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>sanity_check() {
-        <span class="comment">// Test vectors are copied from XKCP (eXtended Keccak Code Package)
+        <span class="comment">// cSpell:disable-next-line
+        // Test vectors are copied from XKCP (eXtended Keccak Code Package)
         // https://github.com/XKCP/XKCP/blob/master/tests/TestVectors/KeccakF-1600-IntermediateValues.txt
         </span><span class="kw">let </span>zero_state = [<span class="number">0u64</span>; <span class="number">25</span>];
 

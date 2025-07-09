@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["abi_decode","abi_decode_error","abi_encode","serialise_witness"],"mod":["errors","js_witness_map"],"struct":["JsAbi","JsInputMap","JsInputValue","JsRawAssertionPayload"]};
+window.SIDEBAR_ITEMS = {"fn":["abi_decode","abi_decode_error","abi_encode","serialize_witness"],"mod":["errors","js_witness_map"],"struct":["JsAbi","JsInputMap","JsInputValue","JsRawAssertionPayload"]};

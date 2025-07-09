@@ -3433,9 +3433,9 @@
         ctx.config.max_loop_size = <span class="number">10</span>;
         ctx.config.vary_loop_size = <span class="bool-val">false</span>;
         ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-        <span class="kw">let </span><span class="kw-2">mut </span>fctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-        fctx.budget = <span class="number">2</span>;
-        <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+        function_ctx.budget = <span class="number">2</span>;
+        <span class="kw">let </span>loop_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_loop(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
 
         <span class="macro">assert!</span>(
             loop_code.starts_with(
@@ -3458,9 +3458,9 @@
         ctx.config.max_loop_size = <span class="number">10</span>;
         ctx.config.vary_loop_size = <span class="bool-val">false</span>;
         ctx.gen_main_decl(<span class="kw-2">&amp;mut </span>u);
-        <span class="kw">let </span><span class="kw-2">mut </span>fctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
-        fctx.budget = <span class="number">2</span>;
-        <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, fctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>function_ctx = FunctionContext::new(<span class="kw-2">&amp;mut </span>ctx, FuncId(<span class="number">0</span>));
+        function_ctx.budget = <span class="number">2</span>;
+        <span class="kw">let </span>while_code = <span class="macro">format!</span>(<span class="string">"{}"</span>, function_ctx.gen_while(<span class="kw-2">&amp;mut </span>u).unwrap()).replace(<span class="string">" "</span>, <span class="string">""</span>);
 
         <span class="macro">assert!</span>(
             while_code.starts_with(

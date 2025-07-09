@@ -426,7 +426,7 @@
             <span class="self">self</span>.find_join_point(successors.next().unwrap())
         } <span class="kw">else if </span>successors.len() == <span class="number">0 </span>{
             <span class="macro">unreachable!</span>(
-                <span class="string">"return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
+                <span class="string">"return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jumping to a join block first"
             </span>)
         } <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"A block can only have 0, 1, or 2 successors"</span>);

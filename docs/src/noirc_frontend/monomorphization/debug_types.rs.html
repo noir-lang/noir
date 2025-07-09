@@ -224,12 +224,12 @@
     }
 
     <span class="kw">fn </span>insert_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, the_type: <span class="kw-2">&amp;</span>Type) -&gt; DebugTypeId {
-        <span class="kw">let </span>ptype: PrintableType = the_type.follow_bindings().into();
-        <span class="self">self</span>.types_reverse.get(<span class="kw-2">&amp;</span>ptype).copied().unwrap_or_else(|| {
+        <span class="kw">let </span>printable_type: PrintableType = the_type.follow_bindings().into();
+        <span class="self">self</span>.types_reverse.get(<span class="kw-2">&amp;</span>printable_type).copied().unwrap_or_else(|| {
             <span class="kw">let </span>type_id = DebugTypeId(<span class="self">self</span>.next_type_id);
             <span class="self">self</span>.next_type_id += <span class="number">1</span>;
-            <span class="self">self</span>.types_reverse.insert(ptype.clone(), type_id);
-            <span class="self">self</span>.types.insert(type_id, ptype);
+            <span class="self">self</span>.types_reverse.insert(printable_type.clone(), type_id);
+            <span class="self">self</span>.types.insert(type_id, printable_type);
             type_id
         })
     }
@@ -269,8 +269,8 @@
     }
 }
 
-<span class="kw">fn </span>get_field(ptype: <span class="kw-2">&amp;</span>PrintableType, field_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
-    <span class="kw">match </span>ptype {
+<span class="kw">fn </span>get_field(printable_type: <span class="kw-2">&amp;</span>PrintableType, field_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
+    <span class="kw">match </span>printable_type {
         PrintableType::Struct { fields, .. } =&gt; {
             fields.iter().position(|(name, <span class="kw">_</span>)| name == field_name)
         }

@@ -1636,7 +1636,10 @@
 <a href="#1635" id="1635">1635</a>
 <a href="#1636" id="1636">1636</a>
 <a href="#1637" id="1637">1637</a>
-<a href="#1638" id="1638">1638</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::token::DocStyle;
 
 <span class="kw">use super</span>::{
     errors::LexerErrorKind,
@@ -1692,8 +1695,8 @@
             done: <span class="bool-val">false</span>,
             skip_comments: <span class="bool-val">true</span>,
             skip_whitespaces: <span class="bool-val">true</span>,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
-                - BigInt::one(),
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) <span class="comment">// cSpell:disable-line
+                </span>- BigInt::one(),
         }
     }
 
@@ -1814,7 +1817,8 @@
             <span class="prelude-val">Some</span>(<span class="string">'r'</span>) =&gt; <span class="self">self</span>.eat_raw_string_or_alpha_numeric(),
             <span class="prelude-val">Some</span>(<span class="string">'q'</span>) =&gt; <span class="self">self</span>.eat_quote_or_alpha_numeric(),
             <span class="prelude-val">Some</span>(<span class="string">'#'</span>) =&gt; <span class="self">self</span>.eat_attribute_start(),
-            <span class="prelude-val">Some</span>(ch)
+            <span class="comment">// cSpell:disable
+            </span><span class="prelude-val">Some</span>(ch)
                 <span class="kw">if </span>ch.is_whitespace()
                     <span class="comment">// These aren't unicode whitespace but look like '' so they are also misleading
                     </span>|| ch == <span class="string">'\u{180E}'
@@ -1824,7 +1828,8 @@
                     </span>|| ch == <span class="string">'\u{2060}'
                     </span>|| ch == <span class="string">'\u{FEFF}' </span>=&gt;
             {
-                <span class="kw">let </span>span = Span::from(<span class="self">self</span>.position..<span class="self">self</span>.position + <span class="number">1</span>);
+                <span class="comment">// cSpell:enable
+                </span><span class="kw">let </span>span = Span::from(<span class="self">self</span>.position..<span class="self">self</span>.position + <span class="number">1</span>);
                 <span class="kw">let </span>location = Location::new(span, <span class="self">self</span>.file_id);
                 <span class="self">self</span>.next_char();
                 <span class="prelude-val">Err</span>(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
@@ -3095,7 +3100,7 @@
     //   (expected_token_discriminator, strings_to_lex)
     // expected_token_discriminator matches a given token when
     // std::mem::discriminant returns the same discriminant for both.
-    </span><span class="kw">fn </span>blns_base64_to_statements(base64_str: String) -&gt; Vec&lt;(<span class="prelude-ty">Option</span>&lt;Token&gt;, Vec&lt;String&gt;)&gt; {
+    </span><span class="kw">fn </span>big_list_base64_to_statements(base64_str: String) -&gt; Vec&lt;(<span class="prelude-ty">Option</span>&lt;Token&gt;, Vec&lt;String&gt;)&gt; {
         <span class="kw">use </span>base64::engine::general_purpose;
         <span class="kw">use </span>std::borrow::Cow;
         <span class="kw">use </span>std::io::Cursor;
@@ -3153,15 +3158,15 @@
     </span><span class="kw">fn </span>test_big_list_of_naughty_strings() {
         <span class="kw">use </span>std::mem::discriminant;
 
-        <span class="kw">let </span>blns_contents = <span class="macro">include_str!</span>(<span class="string">"./blns/blns.base64.json"</span>);
-        <span class="kw">let </span>blns_base64: Vec&lt;String&gt; =
-            serde_json::from_str(blns_contents).expect(<span class="string">"BLNS json invalid"</span>);
-        <span class="kw">for </span>blns_base64_str <span class="kw">in </span>blns_base64 {
-            <span class="kw">let </span>statements = blns_base64_to_statements(blns_base64_str);
-            <span class="kw">for </span>(token_discriminator_opt, blns_program_strs) <span class="kw">in </span>statements {
-                <span class="kw">for </span>blns_program_str <span class="kw">in </span>blns_program_strs {
+        <span class="kw">let </span>big_list_contents = <span class="macro">include_str!</span>(<span class="string">"./blns/blns.base64.json"</span>); <span class="comment">// cSpell:disable-line
+        </span><span class="kw">let </span>big_list_base64: Vec&lt;String&gt; =
+            serde_json::from_str(big_list_contents).expect(<span class="string">"BLNS json invalid"</span>); <span class="comment">// cSpell:disable-line
+        </span><span class="kw">for </span>big_list_base64_str <span class="kw">in </span>big_list_base64 {
+            <span class="kw">let </span>statements = big_list_base64_to_statements(big_list_base64_str);
+            <span class="kw">for </span>(token_discriminator_opt, big_list_program_strings) <span class="kw">in </span>statements {
+                <span class="kw">for </span>big_list_program_str <span class="kw">in </span>big_list_program_strings {
                     <span class="kw">let </span><span class="kw-2">mut </span>expected_token_found = <span class="bool-val">false</span>;
-                    <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(<span class="kw-2">&amp;</span>blns_program_str);
+                    <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(<span class="kw-2">&amp;</span>big_list_program_str);
                     <span class="kw">let </span><span class="kw-2">mut </span>result_tokens = Vec::new();
                     <span class="kw">loop </span>{
                         <span class="kw">match </span>lexer.next_token() {
@@ -3192,7 +3197,7 @@
                             <span class="prelude-val">Err</span>(err) =&gt; {
                                 <span class="macro">panic!</span>(
                                     <span class="string">"Unexpected lexer error found {:?} for input string {:?}"</span>,
-                                    err, blns_program_str
+                                    err, big_list_program_str
                                 )
                             }
                         }
@@ -3253,7 +3258,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_non_ascii_comments() {
-        <span class="kw">let </span>cases = <span class="macro">vec!</span>[<span class="string">"// 🙂"</span>, <span class="string">"// schön"</span>, <span class="string">"/* in the middle 🙂 of a comment */"</span>];
+        <span class="comment">// cSpell:disable-next-line
+        </span><span class="kw">let </span>cases = <span class="macro">vec!</span>[<span class="string">"// 🙂"</span>, <span class="string">"// schön"</span>, <span class="string">"/* in the middle 🙂 of a comment */"</span>];
 
         <span class="kw">for </span>source <span class="kw">in </span>cases {
             <span class="kw">let </span><span class="kw-2">mut </span>lexer = Lexer::new_with_dummy_file(source);

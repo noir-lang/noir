@@ -786,7 +786,7 @@
 
         Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::String(<span class="kw">_</span>) | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
 
-        Type::Tuple(elems) =&gt; elems.iter().any(contains_array_or_str_type),
+        Type::Tuple(elements) =&gt; elements.iter().any(contains_array_or_str_type),
     }
 }
 

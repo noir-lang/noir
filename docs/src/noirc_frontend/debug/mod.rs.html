@@ -794,7 +794,9 @@
 <a href="#793" id="793">793</a>
 <a href="#794" id="794">794</a>
 <a href="#795" id="795">795</a>
-<a href="#796" id="796">796</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -1118,7 +1120,7 @@
             }
             ast::LValue::Dereference(_lv, location) =&gt; {
                 <span class="comment">// TODO: this is a dummy statement for now, but we should
-                // somehow track the derefence and update the pointed to
+                // somehow track the dereference and update the pointed to
                 // variable
                 </span>ast::Statement {
                     kind: ast::StatementKind::Expression(uint_expr(<span class="number">0</span>, <span class="kw-2">*</span>location)),
@@ -1524,9 +1526,9 @@
             ast::Pattern::Tuple(patterns, <span class="kw">_</span>) =&gt; {
                 stack.extend(patterns.iter().map(|pattern| (pattern, <span class="bool-val">false</span>)));
             }
-            ast::Pattern::Struct(<span class="kw">_</span>, pids, <span class="kw">_</span>) =&gt; {
-                stack.extend(pids.iter().map(|(<span class="kw">_</span>, pattern)| (pattern, is_mut)));
-                vars.extend(pids.iter().map(|(id, <span class="kw">_</span>)| (id.clone(), <span class="bool-val">false</span>)));
+            ast::Pattern::Struct(<span class="kw">_</span>, fields, <span class="kw">_</span>) =&gt; {
+                stack.extend(fields.iter().map(|(<span class="kw">_</span>, pattern)| (pattern, is_mut)));
+                vars.extend(fields.iter().map(|(id, <span class="kw">_</span>)| (id.clone(), <span class="bool-val">false</span>)));
             }
             ast::Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
                 stack.push_back((pattern, <span class="bool-val">false</span>));
@@ -1540,7 +1542,9 @@
 <span class="kw">fn </span>pattern_to_string(pattern: <span class="kw-2">&amp;</span>ast::Pattern) -&gt; String {
     <span class="kw">match </span>pattern {
         ast::Pattern::Identifier(id) =&gt; id.to_string(),
-        ast::Pattern::Mutable(mpat, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(<span class="string">"mut {}"</span>, pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Mutable(pattern, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+            <span class="macro">format!</span>(<span class="string">"mut {}"</span>, pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Tuple(elements, <span class="kw">_</span>) =&gt; <span class="macro">format!</span>(
             <span class="string">"({})"</span>,
             elements.iter().map(pattern_to_string).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>)

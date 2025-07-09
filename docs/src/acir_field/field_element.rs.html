@@ -1025,8 +1025,8 @@
         <span class="macro">assert_eq!</span>(from_le, field);
 
         <span class="comment">// Additional test with a larger number to ensure proper byte handling
-        </span><span class="kw">let </span>large_field = FieldElement::&lt;ark_bn254::Fr&gt;::from(<span class="number">0x0123_4567_89AB_CDEF_u64</span>);
-        <span class="kw">let </span>large_le = large_field.to_le_bytes();
+        </span><span class="kw">let </span>large_field = FieldElement::&lt;ark_bn254::Fr&gt;::from(<span class="number">0x0123_4567_89AB_CDEF_u64</span>); <span class="comment">// cSpell:disable-line
+        </span><span class="kw">let </span>large_le = large_field.to_le_bytes();
         <span class="kw">let </span>reconstructed = FieldElement::from_le_bytes_reduce(<span class="kw-2">&amp;</span>large_le);
         <span class="macro">assert_eq!</span>(reconstructed, large_field);
     }

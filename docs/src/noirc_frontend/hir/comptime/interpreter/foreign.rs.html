@@ -523,7 +523,12 @@
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
 <a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#525" id="525">525</a>
+<a href="#526" id="526">526</a>
+<a href="#527" id="527">527</a>
+<a href="#528" id="528">528</a>
+<a href="#529" id="529">529</a>
+<a href="#530" id="530">530</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField, BlackBoxResolutionError, FieldElement,
     acir::BlackBoxFunc,
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
@@ -596,13 +601,15 @@
         <span class="string">"bigint_div" </span>=&gt; bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         <span class="string">"blake2s" </span>=&gt; blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         <span class="string">"blake3" </span>=&gt; blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
-        <span class="string">"ecdsa_secp256k1" </span>=&gt; ecdsa_secp256_verify(
+        <span class="comment">// cSpell:disable-next-line
+        </span><span class="string">"ecdsa_secp256k1" </span>=&gt; ecdsa_secp256_verify(
             interner,
             args,
             location,
             acvm::blackbox_solver::ecdsa_secp256k1_verify,
         ),
-        <span class="string">"ecdsa_secp256r1" </span>=&gt; ecdsa_secp256_verify(
+        <span class="comment">// cSpell:disable-next-line
+        </span><span class="string">"ecdsa_secp256r1" </span>=&gt; ecdsa_secp256_verify(
             interner,
             args,
             location,
@@ -757,7 +764,8 @@
     <span class="prelude-val">Ok</span>(to_byte_array(<span class="kw-2">&amp;</span>output))
 }
 
-<span class="doccomment">/// Run one of the Secp256 signature verifications.
+<span class="comment">// cSpell:disable-next-line
+</span><span class="doccomment">/// Run one of the Secp256 signature verifications.
 /// ```text
 /// pub fn verify_signature&lt;let N: u32&gt;(
 ///   public_key_x: [u8; 32],
@@ -773,6 +781,8 @@
 ///   message_hash: [u8],
 /// ) -&gt; bool
 /// ```
+///
+</span><span class="comment">// cSpell:disable-next-line
 </span><span class="kw">fn </span>ecdsa_secp256_verify(
     interner: <span class="kw-2">&amp;mut </span>NodeInterner,
     arguments: Vec&lt;(Value, Location)&gt;,

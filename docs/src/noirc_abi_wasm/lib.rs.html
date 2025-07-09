@@ -277,7 +277,7 @@ export { Field, InputValue, InputMap, Visibility, Sign, AbiType, AbiParameter, A
 }
 
 <span class="attr">#[wasm_bindgen(js_name = serializeWitness)]
-</span><span class="kw">pub fn </span>serialise_witness(witness_map: JsWitnessMap) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, JsAbiError&gt; {
+</span><span class="kw">pub fn </span>serialize_witness(witness_map: JsWitnessMap) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;u8&gt;, JsAbiError&gt; {
     console_error_panic_hook::set_once();
     <span class="kw">let </span>converted_witness: WitnessMap&lt;FieldElement&gt; = witness_map.into();
     <span class="kw">let </span>witness_stack: WitnessStack&lt;FieldElement&gt; = converted_witness.into();

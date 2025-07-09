@@ -904,7 +904,7 @@
                     <span class="prelude-val">Ok</span>(Vec::new())
                 } <span class="kw">else </span>{
                     <span class="comment">// Static assert can either have 2 arguments, in which case the second one is a string,
-                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // or it can have more arguments in case fmtstr or some other non-string value is passed.
                     // For simplicity, we won't build the dynamic message here.
                     </span><span class="kw">let </span>message = <span class="kw">if </span>args.len() == <span class="number">2 </span>{
                         <span class="self">self</span>.lookup_string(args[<span class="number">1</span>], <span class="string">"static_assert"</span>)<span class="question-mark">?

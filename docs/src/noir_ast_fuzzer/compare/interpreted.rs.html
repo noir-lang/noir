@@ -759,7 +759,7 @@
         AbiType::Integer { sign: Sign::Unsigned, width } =&gt; types.push(Type::unsigned(<span class="kw-2">*</span>width)),
         AbiType::Boolean =&gt; types.push(Type::bool()),
         AbiType::Struct { path: <span class="kw">_</span>, fields } =&gt; {
-            <span class="comment">// Structs are flattend
+            <span class="comment">// Structs are flattened
             </span><span class="kw">for </span>(<span class="kw">_</span>, typ) <span class="kw">in </span>fields {
                 append_input_type_to_ssa(typ, types);
             }

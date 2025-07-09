@@ -612,7 +612,11 @@
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -677,7 +681,9 @@
     };
 
     ctx.set_function_decl(FuncId(<span class="number">0</span>), decl_main);
-    ctx.gen_function_with_body(u, FuncId(<span class="number">0</span>), |u, fctx| fctx.gen_body_with_lit_call(u, FuncId(<span class="number">1</span>)))<span class="question-mark">?</span>;
+    ctx.gen_function_with_body(u, FuncId(<span class="number">0</span>), |u, function_ctx| {
+        function_ctx.gen_body_with_lit_call(u, FuncId(<span class="number">1</span>))
+    })<span class="question-mark">?</span>;
     ctx.rewrite_functions(u)<span class="question-mark">?</span>;
 
     <span class="kw">let </span>program = ctx.finalize();
@@ -700,8 +706,10 @@
     };
 
     ctx.set_function_decl(FuncId(<span class="number">0</span>), decl_main);
-    ctx.gen_function_with_body(<span class="kw-2">&amp;mut </span>Unstructured::new(<span class="kw-2">&amp;</span>[]), FuncId(<span class="number">0</span>), |_u, _fctx| <span class="prelude-val">Ok</span>(expr))
-        .expect(<span class="string">"shouldn't access any randomness"</span>);
+    ctx.gen_function_with_body(<span class="kw-2">&amp;mut </span>Unstructured::new(<span class="kw-2">&amp;</span>[]), FuncId(<span class="number">0</span>), |_u, _function_ctx| {
+        <span class="prelude-val">Ok</span>(expr)
+    })
+    .expect(<span class="string">"shouldn't access any randomness"</span>);
 
     ctx.finalize()
 }
@@ -948,7 +956,7 @@
 
     <span class="doccomment">/// Generate random function body.
     </span><span class="kw">fn </span>gen_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, u: <span class="kw-2">&amp;mut </span>Unstructured, id: FuncId) -&gt; arbitrary::Result&lt;()&gt; {
-        <span class="self">self</span>.gen_function_with_body(u, id, |u, fctx| fctx.gen_body(u))
+        <span class="self">self</span>.gen_function_with_body(u, id, |u, function_ctx| function_ctx.gen_body(u))
     }
 
     <span class="doccomment">/// Generate function with a specified body generator.
@@ -958,8 +966,8 @@
         id: FuncId,
         f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>Unstructured, FunctionContext) -&gt; arbitrary::Result&lt;Expression&gt;,
     ) -&gt; arbitrary::Result&lt;()&gt; {
-        <span class="kw">let </span>fctx = FunctionContext::new(<span class="self">self</span>, id);
-        <span class="kw">let </span>body = f(u, fctx)<span class="question-mark">?</span>;
+        <span class="kw">let </span>function_ctx = FunctionContext::new(<span class="self">self</span>, id);
+        <span class="kw">let </span>body = f(u, function_ctx)<span class="question-mark">?</span>;
         <span class="kw">let </span>decl = <span class="self">self</span>.function_decl(id);
         <span class="kw">let </span>func = Function {
             id,

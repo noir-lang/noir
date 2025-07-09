@@ -4,8 +4,8 @@ This method splits both name and prefix by underscore,
 then checks that every part of name starts with a part of
 prefix, in order.</p>
 <p>For example:</p>
-<p>// “merk” and “ro” match “merkle” and “root” and are in order
-name_matches(“compute_merkle_root”, “merk_ro”) == true</p>
+<p>// “merk” and “ro” match “merkle” and “root” and are in order  // cSpell:disable-line
+name_matches(“compute_merkle_root”, “merk_ro”) == true // cSpell:disable-line</p>
 <p>// “ro” matches “root”, but “merkle” comes before it, so no match
 name_matches(“compute_merkle_root”, “ro_mer”) == false</p>
 <p>// neither “compute” nor “merkle” nor “root” start with “oot”

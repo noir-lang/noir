@@ -335,8 +335,8 @@
             chars: source.char_indices(),
             position: <span class="number">0</span>,
             done: <span class="bool-val">false</span>,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
-                - BigInt::one(),
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) <span class="comment">// cSpell:disable-line
+                </span>- BigInt::one(),
         }
     }
 

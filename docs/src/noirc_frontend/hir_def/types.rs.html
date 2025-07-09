@@ -5074,7 +5074,7 @@
         }
 
         <span class="kw">let </span>recur_on_binding = |id, replacement: <span class="kw-2">&amp;</span>Type| {
-            <span class="comment">// Prevent recuring forever if there's a `T := T` binding
+            <span class="comment">// Prevent recurring forever if there's a `T := T` binding
             </span><span class="kw">if </span>replacement.type_variable_id() == <span class="prelude-val">Some</span>(id) {
                 replacement.clone()
             } <span class="kw">else </span>{
@@ -5160,7 +5160,7 @@
                 Type::Tuple(fields)
             }
             Type::Forall(typevars, typ) =&gt; {
-                <span class="comment">// Trying to substitute_helper a variable de, substitute_bound_typevarsfined within a nested Forall
+                <span class="comment">// Trying to substitute_helper a variable within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 </span><span class="kw">for </span>var <span class="kw">in </span>typevars {
                     <span class="macro">assert!</span>(!type_bindings.contains_key(<span class="kw-2">&amp;</span>var.id()));
@@ -5327,7 +5327,7 @@
         }
     }
 
-    <span class="doccomment">/// Follow bindings if this is a type variable or generic to the first non-typevariable
+    <span class="doccomment">/// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
     </span><span class="kw">pub fn </span>follow_bindings_shallow(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Type&gt; {
@@ -5887,7 +5887,7 @@
                 len.hash(state);
                 env.hash(state);
             }
-            Type::Tuple(elems) =&gt; elems.hash(state),
+            Type::Tuple(elements) =&gt; elements.hash(state),
             Type::DataType(def, args) =&gt; {
                 def.hash(state);
                 args.hash(state);

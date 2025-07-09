@@ -357,8 +357,8 @@
                         <span class="string">"Attempted to divide BigInt by zero"</span>.to_string(),
                     ));
                 }
-                lhs * rhs.modpow(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span>modulus - BigUint::from(<span class="number">2_u32</span>)), <span class="kw-2">&amp;</span>modulus)
-            }
+                lhs * rhs.modpow(<span class="kw-2">&amp;</span>(<span class="kw-2">&amp;</span>modulus - BigUint::from(<span class="number">2_u32</span>)), <span class="kw-2">&amp;</span>modulus) <span class="comment">// cSpell:disable-line
+            </span>}
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - bigint_op must be called for an operation"</span>),
         };
         <span class="kw">if </span>result &gt; modulus {
@@ -463,9 +463,9 @@
 <span class="attr">#[test]
 </span><span class="kw">fn </span>all_allowed_bigint_moduli_are_prime() {
     <span class="kw">use </span>num_prime::Primality;
-    <span class="kw">use </span>num_prime::nt_funcs::is_prime;
+    <span class="kw">use </span>num_prime::nt_funcs::is_prime; <span class="comment">// cSpell:disable-line
 
-    <span class="kw">for </span>modulus <span class="kw">in </span>BigIntSolver::allowed_bigint_moduli() {
+    </span><span class="kw">for </span>modulus <span class="kw">in </span>BigIntSolver::allowed_bigint_moduli() {
         <span class="kw">let </span>modulus = BigUint::from_bytes_le(<span class="kw-2">&amp;</span>modulus);
         <span class="kw">let </span>prime_test_config = <span class="prelude-val">None</span>;
         <span class="kw">match </span>is_prime(<span class="kw-2">&amp;</span>modulus, prime_test_config) {

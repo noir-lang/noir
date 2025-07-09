@@ -487,7 +487,8 @@
 <a href="#486" id="486">486</a>
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
-<a href="#489" id="489">489</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -669,7 +670,8 @@
         }
 
         <span class="kw">for </span>(i, bit_size) <span class="kw">in </span>arguments.iter().flat_map(flat_bit_sizes).enumerate() {
-            <span class="comment">// Calldatacopy tags everything with field type, so when downcast when necessary
+            <span class="comment">// cSpell:disable-next-line
+            // Calldatacopy tags everything with field type, so when downcast when necessary
             </span><span class="kw">if </span>bit_size &lt; F::max_num_bits() {
                 <span class="self">self</span>.cast_instruction(
                     SingleAddrVariable::new(

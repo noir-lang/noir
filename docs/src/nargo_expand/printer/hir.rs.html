@@ -1047,14 +1047,14 @@
         }
     }
 
-    <span class="kw">fn </span>show_hir_expression_id_maybe_inside_curlies(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId) {
+    <span class="kw">fn </span>show_hir_expression_id_maybe_inside_curly_braces(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId) {
         <span class="kw">let </span>hir_expr = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id);
-        <span class="kw">let </span>curlies = hir_expression_needs_parentheses(<span class="kw-2">&amp;</span>hir_expr);
-        <span class="kw">if </span>curlies {
+        <span class="kw">let </span>needs_curly_braces = hir_expression_needs_parentheses(<span class="kw-2">&amp;</span>hir_expr);
+        <span class="kw">if </span>needs_curly_braces {
             <span class="self">self</span>.push(<span class="string">'{'</span>);
         }
         <span class="self">self</span>.show_hir_expression(hir_expr, expr_id);
-        <span class="kw">if </span>curlies {
+        <span class="kw">if </span>needs_curly_braces {
             <span class="self">self</span>.push(<span class="string">'}'</span>);
         }
     }
@@ -1256,7 +1256,7 @@
             <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>hir_lambda.return_type);
             <span class="self">self</span>.push_str(<span class="string">" "</span>);
         }
-        <span class="self">self</span>.show_hir_expression_id_maybe_inside_curlies(hir_lambda.body);
+        <span class="self">self</span>.show_hir_expression_id_maybe_inside_curly_braces(hir_lambda.body);
     }
 
     <span class="kw">fn </span>show_hir_match(<span class="kw-2">&amp;mut </span><span class="self">self</span>, hir_match: HirMatch) {
