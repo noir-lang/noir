@@ -13,34 +13,53 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use super::base_context::{FuzzerCommand, FuzzerContext};
+use super::function_context::{FunctionData, WitnessValue};
 use super::instruction::InstructionBlock;
-use super::options::{FuzzerOptions, ProgramContextOptions};
+use super::options::{FunctionContextOptions, FuzzerOptions};
+use super::program_context::FuzzerProgramContext;
+use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
+use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
+use serde::{Deserialize, Serialize};
+
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct FuzzerData {
+    pub(crate) functions: Vec<FunctionData>,
+    pub(crate) initial_witness:
+        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) instruction_blocks: Vec<InstructionBlock>,
+}
+
+impl Default for FuzzerData {
+    fn default() -> Self {
+        FuzzerData {
+            functions: vec![FunctionData::default()],
+            initial_witness: [WitnessValue::default();
+                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            instruction_blocks: vec![],
+        }
+    }
+}
 
 pub(crate) struct Fuzzer {
-    pub(crate) context_non_constant: Option<FuzzerContext>,
-    pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerContext>,
-    pub(crate) context_constant: Option<FuzzerContext>,
+    pub(crate) context_non_constant: Option<FuzzerProgramContext>,
+    pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerProgramContext>,
+    pub(crate) context_constant: Option<FuzzerProgramContext>,
 }
 
 impl Fuzzer {
     pub(crate) fn new(
-        types: Vec<ValueType>,
-        initial_witness_vector: Vec<impl Into<FieldElement>>,
         instruction_blocks: Vec<InstructionBlock>,
+        values: Vec<FieldElement>,
         options: FuzzerOptions,
     ) -> Self {
         let context_constant = match options.constant_execution_enabled {
-            true => Some(FuzzerContext::new_constant_context(
-                initial_witness_vector,
-                types.clone(),
-                instruction_blocks.clone(),
-                ProgramContextOptions {
+            true => Some(FuzzerProgramContext::new_constant_context(
+                FunctionContextOptions {
                     idempotent_morphing_enabled: false,
                     compile_options: options.compile_options.clone(),
                     max_ssa_blocks_num: options.max_ssa_blocks_num,
@@ -49,13 +68,13 @@ impl Fuzzer {
                     fuzzer_command_options: options.fuzzer_command_options,
                     max_iterations_num: options.max_iterations_num,
                 },
+                instruction_blocks.clone(),
+                values.clone(),
             )),
             false => None,
         };
-        let context_non_constant = Some(FuzzerContext::new(
-            types.clone(),
-            instruction_blocks.clone(),
-            ProgramContextOptions {
+        let context_non_constant = Some(FuzzerProgramContext::new(
+            FunctionContextOptions {
                 idempotent_morphing_enabled: false,
                 compile_options: options.compile_options.clone(),
                 max_ssa_blocks_num: options.max_ssa_blocks_num,
@@ -64,13 +83,13 @@ impl Fuzzer {
                 fuzzer_command_options: options.fuzzer_command_options,
                 max_iterations_num: options.max_iterations_num,
             },
+            instruction_blocks.clone(),
+            values.clone(),
         ));
         let context_non_constant_with_idempotent_morphing =
             match options.constrain_idempotent_morphing_enabled {
-                true => Some(FuzzerContext::new(
-                    types,
-                    instruction_blocks,
-                    ProgramContextOptions {
+                true => Some(FuzzerProgramContext::new(
+                    FunctionContextOptions {
                         idempotent_morphing_enabled: true,
                         compile_options: options.compile_options.clone(),
                         max_ssa_blocks_num: options.max_ssa_blocks_num,
@@ -79,6 +98,8 @@ impl Fuzzer {
                         fuzzer_command_options: options.fuzzer_command_options,
                         max_iterations_num: options.max_iterations_num,
                     },
+                    instruction_blocks,
+                    values,
                 )),
                 false => None,
             };
@@ -89,21 +110,21 @@ impl Fuzzer {
         }
     }
 
-    pub(crate) fn process_fuzzer_command(&mut self, command: FuzzerCommand) {
+    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<ValueType>) {
         if let Some(context) = &mut self.context_non_constant {
-            context.process_fuzzer_command(&command);
+            context.process_function(function_data.clone(), types.clone());
         }
         if let Some(context) = &mut self.context_non_constant_with_idempotent_morphing {
-            context.process_fuzzer_command(&command);
+            context.process_function(function_data.clone(), types.clone());
         }
         if let Some(context) = &mut self.context_constant {
-            context.process_fuzzer_command(&command);
+            context.process_function(function_data, types);
         }
     }
 
     fn run_context(
         &mut self,
-        context: FuzzerContext,
+        context: FuzzerProgramContext,
         initial_witness: WitnessMap<FieldElement>,
     ) -> Option<FieldElement> {
         let (acir_return_witness, brillig_return_witness) = context.get_return_witnesses();
@@ -119,14 +140,13 @@ impl Fuzzer {
     pub(crate) fn finalize_and_run(
         mut self,
         initial_witness: WitnessMap<FieldElement>,
-        return_instruction_block_idx: usize,
     ) -> Option<FieldElement> {
         let mut non_constant_context = self.context_non_constant.take().unwrap();
-        non_constant_context.finalize(return_instruction_block_idx);
+        non_constant_context.finalize_program();
         let non_constant_result = self.run_context(non_constant_context, initial_witness.clone());
         if let Some(context) = self.context_constant.take() {
             let mut constant_context = context;
-            constant_context.finalize(return_instruction_block_idx);
+            constant_context.finalize_program();
             let constant_result = self.run_context(constant_context, initial_witness.clone());
             assert_eq!(
                 non_constant_result, constant_result,
@@ -136,7 +156,7 @@ impl Fuzzer {
 
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
             let mut context_with_idempotent_morphing = context;
-            context_with_idempotent_morphing.finalize(return_instruction_block_idx);
+            context_with_idempotent_morphing.finalize_program();
             let result_with_constrains =
                 self.run_context(context_with_idempotent_morphing, initial_witness);
             assert_eq!(
@@ -149,7 +169,7 @@ impl Fuzzer {
     }
 
     fn execute_and_compare(
-        context: FuzzerContext,
+        context: FuzzerProgramContext,
         initial_witness: WitnessMap<FieldElement>,
         acir_return_witness: Witness,
         brillig_return_witness: Witness,

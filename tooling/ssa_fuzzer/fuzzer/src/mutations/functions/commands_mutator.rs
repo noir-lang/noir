@@ -5,22 +5,23 @@
 //! 3. Add command
 //! 4. Replace command with random command
 
-use crate::fuzz_lib::base_context::FuzzerCommand;
+use crate::fuzz_lib::function_context::FuzzerFunctionCommand;
 use crate::mutations::configuration::{
     BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION, FuzzerCommandMutationOptions,
+    SIZE_OF_LARGE_ARBITRARY_BUFFER, SIZE_OF_SMALL_ARBITRARY_BUFFER,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
 trait MutateVecFuzzerCommand {
-    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>);
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerFunctionCommand>);
 }
 
 /// Return new random vector of fuzzer commands
 struct RandomMutation;
 impl MutateVecFuzzerCommand for RandomMutation {
-    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
-        let mut bytes = [0u8; 128];
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerFunctionCommand>) {
+        let mut bytes = [0u8; SIZE_OF_LARGE_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *commands = Unstructured::new(&bytes).arbitrary().unwrap();
     }
@@ -29,7 +30,7 @@ impl MutateVecFuzzerCommand for RandomMutation {
 /// Remove randomly chosen command from the vector
 struct RemoveCommandMutation;
 impl MutateVecFuzzerCommand for RemoveCommandMutation {
-    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerFunctionCommand>) {
         if !commands.is_empty() {
             commands.remove(rng.gen_range(0..commands.len()));
         }
@@ -39,8 +40,8 @@ impl MutateVecFuzzerCommand for RemoveCommandMutation {
 /// Add randomly generated command to the vector
 struct AddCommandMutation;
 impl MutateVecFuzzerCommand for AddCommandMutation {
-    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
-        let mut bytes = [0u8; 25];
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerFunctionCommand>) {
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         let command = Unstructured::new(&bytes).arbitrary().unwrap();
         commands.push(command);
@@ -50,8 +51,8 @@ impl MutateVecFuzzerCommand for AddCommandMutation {
 /// Replace randomly chosen command with randomly generated command
 struct ReplaceCommandMutation;
 impl MutateVecFuzzerCommand for ReplaceCommandMutation {
-    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerCommand>) {
-        let mut bytes = [0u8; 25];
+    fn mutate(rng: &mut StdRng, commands: &mut Vec<FuzzerFunctionCommand>) {
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         let command = Unstructured::new(&bytes).arbitrary().unwrap();
         if !commands.is_empty() {
@@ -62,7 +63,7 @@ impl MutateVecFuzzerCommand for ReplaceCommandMutation {
 }
 
 pub(crate) fn mutate_vec_fuzzer_command(
-    vec_fuzzer_command: &mut Vec<FuzzerCommand>,
+    vec_fuzzer_command: &mut Vec<FuzzerFunctionCommand>,
     rng: &mut StdRng,
 ) {
     match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
