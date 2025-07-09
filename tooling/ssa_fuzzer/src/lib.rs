@@ -7,13 +7,16 @@ pub mod typed_value;
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Display;
+
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
     use noirc_driver::{CompileOptions, CompiledProgram};
-    use rand::Rng;
+    use proptest::prelude::any;
+    use proptest::test_runner::{Config, TestError, TestRunner};
 
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
     use noirc_evaluator::ssa::ir::types::NumericType;
@@ -66,22 +69,15 @@ mod tests {
         witness_map
     }
 
-    fn compare_results(computed_rust: u64, computed_noir: FieldElement) {
-        let computed_rust = FieldElement::from(computed_rust);
-        assert_eq!(computed_rust, computed_noir, "Noir doesn't match Rust");
-    }
-
     /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
-    fn run_instruction_double_arg(
+    fn compile_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
-        lhs: (FieldElement, ValueType),
-        rhs: (FieldElement, ValueType),
-    ) -> FieldElement {
+        lhs_type: ValueType,
+        rhs_type: ValueType,
+    ) -> (CompiledProgram, CompiledProgram) {
         let mut test_helper = TestHelper::new();
-        let lhs_val = test_helper.insert_variable(lhs.1);
-        let rhs_val = test_helper.insert_variable(rhs.1);
-        let lhs = lhs.0;
-        let rhs = rhs.0;
+        let lhs_val = test_helper.insert_variable(lhs_type);
+        let rhs_val = test_helper.insert_variable(rhs_type);
 
         let (acir_result, brillig_result) =
             test_helper.insert_instruction_double_arg(instruction, lhs_val, rhs_val);
@@ -92,13 +88,35 @@ mod tests {
         let acir_program = test_helper.acir_builder.compile(compile_options.clone()).unwrap();
         let brillig_program = test_helper.brillig_builder.compile(compile_options).unwrap();
 
+        (acir_program, brillig_program)
+    }
+
+    /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
+    fn run_instruction_double_arg(
+        acir_program: &CompiledProgram,
+        brillig_program: &CompiledProgram,
+        lhs: FieldElement,
+        rhs: FieldElement,
+    ) -> CompareResults {
         let witness_map = get_witness_map(&[lhs, rhs]);
         let initial_witness = witness_map;
-        let compare_results =
-            run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
-        // If not agree throw panic, it is not intended to happen in tests
-        match compare_results {
-            CompareResults::Agree(result) => result,
+
+        run_and_compare(&acir_program.program, &brillig_program.program, initial_witness)
+    }
+
+    fn check_result<T: Display>(
+        result: CompareResults,
+        expected_result: Option<FieldElement>,
+        lhs: T,
+        rhs: T,
+    ) {
+        match result {
+            CompareResults::Agree(result) => assert_eq!(
+                expected_result.expect("rust should succeed when noir succeeds"),
+                result,
+                "Noir doesn't match Rust"
+            ),
+
             CompareResults::Disagree(acir_result, brillig_result) => {
                 panic!(
                     "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
@@ -106,9 +124,14 @@ mod tests {
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
-                panic!(
-                    "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
-                    acir_error, brillig_error, lhs, rhs
+                assert!(
+                    expected_result.is_none(),
+                    "Both ACIR and Brillig failed where rust succeeded: ACIR: {}, Brillig: {}, Rust: {}, lhs: {}, rhs: {}",
+                    acir_error,
+                    brillig_error,
+                    expected_result.unwrap(),
+                    lhs,
+                    rhs
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
@@ -128,140 +151,209 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
-
-        // to prevent `attempt to add with overflow`
-        lhs %= 12341234;
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs + rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, lhs.checked_add(rhs).map(FieldElement::from), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_sub() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
-
-        // to prevent `attempt to subtract with overflow`
-        if lhs < rhs {
-            (lhs, rhs) = (rhs, lhs);
-        }
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs - rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, lhs.checked_sub(rhs).map(FieldElement::from), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_mul() {
-        let mut rng = rand::thread_rng();
-        let mut lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
-
-        // to prevent `attempt to multiply with overflow`
-        lhs %= 12341234;
-        rhs %= 12341234;
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs * rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, lhs.checked_mul(rhs).map(FieldElement::from), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_div() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
-
-        if rhs == 0 {
-            rhs = 1;
-        }
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_div_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs / rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, lhs.checked_div(rhs).map(FieldElement::from), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_mod() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
-
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_mod_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs % rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, Some((lhs % rhs).into()), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_and() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
-
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_and_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs & rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, Some((lhs & rhs).into()), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_or() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
-
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_or_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs | rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, Some((lhs | rhs).into()), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     #[test]
     fn test_xor() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let rhs: u64 = rng.r#gen();
-
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_xor_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs ^ rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u64>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, Some((lhs ^ rhs).into()), lhs, rhs);
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
+
     #[test]
     fn test_shr() {
-        let mut rng = rand::thread_rng();
-        let lhs: u64 = rng.r#gen();
-        let mut rhs: u64 = rng.r#gen();
-
-        rhs %= 64;
-        let noir_res = run_instruction_double_arg(
+        let (acir_program, brillig_program) = compile_instruction_double_arg(
             FuzzerBuilder::insert_shr_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            ValueType::U64,
+            ValueType::U64,
         );
-        compare_results(lhs >> rhs, noir_res);
+
+        let mut runner = TestRunner::new(Config::default());
+        let result = runner.run(&(any::<u64>(), any::<u32>()), |(lhs, rhs)| {
+            let noir_res =
+                run_instruction_double_arg(&acir_program, &brillig_program, lhs.into(), rhs.into());
+
+            check_result(noir_res, lhs.checked_shr(rhs).map(FieldElement::from), lhs, rhs.into());
+
+            Ok(())
+        });
+
+        if let Err(TestError::Fail(_, value)) = result {
+            panic!("Found minimal failing case: {:?}", value);
+        }
     }
 
     fn check_expected_validation_error(
