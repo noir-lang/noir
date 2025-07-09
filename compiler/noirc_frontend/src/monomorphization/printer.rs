@@ -25,7 +25,7 @@ pub struct FunctionPrintOptions {
 #[derive(PartialEq)]
 enum SpecialCall {
     Print,
-    Array(String),
+    Object(String),
 }
 
 #[derive(Debug)]
@@ -509,8 +509,8 @@ impl AstPrinter {
                 let is_unsafe = *unconstrained && !self.in_unconstrained;
                 let special = match definition {
                     Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                    Definition::Builtin(s) if s.starts_with("array") => {
-                        Some(SpecialCall::Array(name.clone()))
+                    Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                        Some(SpecialCall::Object(name.clone()))
                     }
                     _ => None,
                 };
@@ -550,8 +550,8 @@ impl AstPrinter {
         }
         match special {
             SpecialCall::Print => self.print_println(args, f),
-            SpecialCall::Array(method) => {
-                self.print_array_method(&method, args, f)?;
+            SpecialCall::Object(method) => {
+                self.print_object_method(&method, args, f)?;
                 Ok(true)
             }
         }
@@ -587,13 +587,13 @@ impl AstPrinter {
     }
 
     /// Special method for printing builtin array method calls, turning e.g. `len$array_len(x)` into `x.len()`.
-    fn print_array_method(
+    fn print_object_method(
         &mut self,
         method: &str,
         args: &[Expression],
         f: &mut Formatter,
     ) -> Result<bool, std::fmt::Error> {
-        assert!(!args.is_empty(), "array methods need at least a self argument");
+        assert!(!args.is_empty(), "methods need at least a self argument");
         let (arr, args) = args.split_at(1);
         self.print_expr(&arr[0], f)?;
         write!(f, ".{method}(")?;
