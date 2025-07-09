@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752059594078,
+  "lastUpdate": 1752079119528,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18786,48 +18786,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2d8f14e3bfa0379c1aed2a8d3e32544c87cef101",
-          "message": "feat: implicit coercion of str and fmtstr into CtString (#9032)",
-          "timestamp": "2025-06-27T12:30:01Z",
-          "tree_id": "90a799332ad404e7c9b03219b8641d6d0744ceac",
-          "url": "https://github.com/noir-lang/noir/commit/2d8f14e3bfa0379c1aed2a8d3e32544c87cef101"
-        },
-        "date": 1751028840839,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253302,
-            "range": "± 402",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223099,
-            "range": "± 3462",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2776577,
-            "range": "± 1567",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -20879,6 +20837,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800742,
             "range": "± 6678",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3ea0b8cacaec75aa7841d0381944d5105a729169",
+          "message": "chore: fix cSpell issues in all Rust files (#9144)",
+          "timestamp": "2025-07-09T16:13:27Z",
+          "tree_id": "9c3aab06a299e04b941a1aab01ebb7e8f3a30d5a",
+          "url": "https://github.com/noir-lang/noir/commit/3ea0b8cacaec75aa7841d0381944d5105a729169"
+        },
+        "date": 1752079105536,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254890,
+            "range": "± 1002",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229715,
+            "range": "± 5862",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2804444,
+            "range": "± 1060",
             "unit": "ns/iter"
           }
         ]
