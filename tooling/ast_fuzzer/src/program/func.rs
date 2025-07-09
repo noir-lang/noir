@@ -701,6 +701,25 @@ impl<'a> FunctionContext<'a> {
                     (idx_expr, idx_dyn)
                 };
 
+                // Unless the slice is coming from an identifier or literal, we should create a let binding for it
+                // to avoid doubling up any side effects, or double using local variables when it was created.
+                let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
+                    (None, ident)
+                } else {
+                    let (let_expr, let_ident) = self.let_var_and_ident(
+                        false,
+                        src_type.clone(),
+                        src_expr,
+                        false,
+                        src_dyn,
+                        local_name,
+                    );
+                    (Some(let_expr), let_ident)
+                };
+
+                // We'll need the ident again to access the item.
+                let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
+
                 // Get the runtime length.
                 let len_expr = {
                     let array_len_ident = Ident {
@@ -718,7 +737,7 @@ impl<'a> FunctionContext<'a> {
                     };
                     Expression::Call(Call {
                         func: Box::new(Expression::Ident(array_len_ident)),
-                        arguments: vec![src_expr.clone()],
+                        arguments: vec![Expression::Ident(ident_1)],
                         return_type: types::U32,
                         location: Location::dummy(),
                     })
@@ -729,11 +748,17 @@ impl<'a> FunctionContext<'a> {
 
                 // Access the item.
                 let item_expr = Expression::Index(Index {
-                    collection: Box::new(src_expr),
+                    collection: Box::new(Expression::Ident(ident_2)),
                     index: Box::new(idx_expr),
                     element_type: *item_typ.clone(),
                     location: Location::dummy(),
                 });
+
+                let item_expr = if let Some(let_expr) = let_expr {
+                    Expression::Block(vec![let_expr, item_expr])
+                } else {
+                    item_expr
+                };
 
                 // Produce the target type from the item.
                 self.gen_expr_from_source(
