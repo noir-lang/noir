@@ -19,7 +19,7 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) => 1 + type_depth(typ),
+        Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),

@@ -10,7 +10,10 @@ use noirc_frontend::{
     shared::Visibility,
 };
 
-use crate::program::{Context, VariableId, expr, types, visitor::visit_expr_mut};
+use crate::{
+    Config,
+    program::{Context, VariableId, expr, types, visitor::visit_expr_mut},
+};
 
 use super::next_local_and_ident_id;
 
@@ -61,9 +64,9 @@ pub(crate) fn add_recursion_limit(
 
     // Rewrite functions.
     for (func_id, func) in ctx.functions.iter_mut() {
-        let mut ctx = LimitContext::new(*func_id, func, ctx.config.max_recursive_calls as u32);
+        let mut limit_ctx = LimitContext::new(*func_id, func, &ctx.config);
 
-        ctx.rewrite_functions(u, &mut proxy_functions)?;
+        limit_ctx.rewrite_functions(u, &mut proxy_functions)?;
     }
 
     // Append proxy functions.
@@ -86,18 +89,18 @@ fn ctx_limit_type_for_func_param(callee_unconstrained: bool, param_unconstrained
     }
 }
 
-struct LimitContext<'a> {
+struct LimitContext<'a, 'b> {
     func_id: FuncId,
     func: &'a mut Function,
+    config: &'b Config,
     is_main: bool,
     is_recursive: bool,
     next_local_id: u32,
     next_ident_id: u32,
-    max_recursive_calls: u32,
 }
 
-impl<'a> LimitContext<'a> {
-    fn new(func_id: FuncId, func: &'a mut Function, max_recursive_calls: u32) -> Self {
+impl<'a, 'b> LimitContext<'a, 'b> {
+    fn new(func_id: FuncId, func: &'a mut Function, config: &'b Config) -> Self {
         let is_main = func_id == Program::main_id();
 
         // Recursive functions are those that call another function.
@@ -112,15 +115,7 @@ impl<'a> LimitContext<'a> {
         // traverse the AST to figure out what the next ID to use is.
         let (next_local_id, next_ident_id) = next_local_and_ident_id(func);
 
-        Self {
-            func_id,
-            func,
-            is_main,
-            is_recursive,
-            next_local_id,
-            next_ident_id,
-            max_recursive_calls,
-        }
+        Self { func_id, func, config, is_main, is_recursive, next_local_id, next_ident_id }
     }
 
     /// Rewrite the function and its proxy (if it has one).
@@ -170,7 +165,7 @@ impl<'a> LimitContext<'a> {
             limit_id,
             true,
             LIMIT_NAME.to_string(),
-            expr::u32_literal(self.max_recursive_calls),
+            expr::u32_literal(self.config.max_recursive_calls as u32),
         );
         expr::prepend(&mut self.func.body, init_limit);
     }
@@ -194,7 +189,7 @@ impl<'a> LimitContext<'a> {
         ));
 
         // Generate a random value to return.
-        let default_return = expr::gen_literal(u, &self.func.return_type)?;
+        let default_return = expr::gen_literal(u, &self.func.return_type, self.config)?;
 
         let limit_ident = expr::ident_inner(
             limit_var,

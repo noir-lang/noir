@@ -173,7 +173,7 @@ impl Context {
         )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
-        let val = expr::gen_literal(u, &typ)?;
+        let val = expr::gen_literal(u, &typ, &self.config)?;
         let name = make_name(i, true);
         Ok((name, typ, val))
     }

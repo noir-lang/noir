@@ -21,6 +21,8 @@ use noirc_frontend::{
     shared::{Signedness, Visibility},
 };
 
+use crate::Config;
+
 use super::{
     CallableId, Context, VariableId, expr,
     freq::Freq,
@@ -326,15 +328,14 @@ impl<'a> FunctionContext<'a> {
         self.id == Program::main_id()
     }
 
+    fn config(&self) -> &Config {
+        &self.ctx.config
+    }
+
     /// The default maximum depth to start from. We use `max_depth` to limit the
     /// complexity of expressions such as binary ones, array indexes, etc.
     fn max_depth(&self) -> usize {
-        self.ctx.config.max_depth
-    }
-
-    /// Is the program supposed to be comptime friendly?
-    fn is_comptime_friendly(&self) -> bool {
-        self.ctx.config.comptime_friendly
+        self.config().max_depth
     }
 
     /// Get and increment the next local ID.
@@ -411,6 +412,11 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Generate a literal expression of a certain type.
+    fn gen_literal(&self, u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+        expr::gen_literal(u, typ, self.config())
+    }
+
     /// Generate an expression of a certain type.
     ///
     /// While doing so, enter and exit blocks, and add variables declared to the context,
@@ -456,14 +462,14 @@ impl<'a> FunctionContext<'a> {
             }
         };
 
-        let mut freq = Freq::new(u, &self.ctx.config.expr_freqs)?;
+        let mut freq = Freq::new(u, &self.config().expr_freqs)?;
 
         // Stop nesting if we reached the bottom.
         let allow_nested = max_depth > 0;
 
         let allow_blocks = flags.allow_blocks
             && allow_nested
-            && max_depth == self.ctx.config.max_depth
+            && max_depth == self.config().max_depth
             && self.budget > 0;
 
         let allow_if_then = flags.allow_if_then
@@ -512,7 +518,7 @@ impl<'a> FunctionContext<'a> {
         // TODO(#7926): Match
 
         // If nothing else worked out we can always produce a random literal.
-        expr::gen_literal(u, typ).map(|expr| (expr, false))
+        self.gen_literal(u, typ).map(|expr| (expr, false))
     }
 
     /// Try to generate an expression with a certain type out of the variables in scope.
@@ -797,7 +803,7 @@ impl<'a> FunctionContext<'a> {
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         // Negation can cause overflow: for example `-1*i8::MIN` does not fit into `i8`, because `i8` is [-128, 127].
-        let avoid_overflow = self.ctx.config.avoid_overflow || self.in_no_dynamic;
+        let avoid_overflow = self.config().avoid_overflow || self.in_no_dynamic;
 
         let mut make_unary = |op| {
             self.gen_expr(u, typ, max_depth.saturating_sub(1), Flags::NESTED)
@@ -827,9 +833,9 @@ impl<'a> FunctionContext<'a> {
         let ops = BinaryOp::iter()
             .filter(|op| {
                 types::can_binary_op_return(op, typ)
-                    && (!(self.ctx.config.avoid_overflow || self.in_no_dynamic)
+                    && (!(self.config().avoid_overflow || self.in_no_dynamic)
                         || !types::can_binary_op_overflow(op))
-                    && (!(self.ctx.config.avoid_err_by_zero || self.in_no_dynamic)
+                    && (!(self.config().avoid_err_by_zero || self.in_no_dynamic)
                         || !types::can_binary_op_err_by_zero(op))
             })
             .collect::<Vec<_>>();
@@ -915,7 +921,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<TrackedExpression> {
         // The `max_depth` resets here, because that's only relevant in complex expressions.
         let max_depth = self.max_depth();
-        let max_size = self.ctx.config.max_block_size.min(self.budget);
+        let max_size = self.config().max_block_size.min(self.budget);
 
         // If we want blocks to be empty, or we don't have a budget for statements, just return an expression.
         if max_size == 0 {
@@ -958,14 +964,14 @@ impl<'a> FunctionContext<'a> {
     /// whether it used dynamic inputs; there is nothing to propagate.
     fn gen_stmt(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         let mut freq = if self.unconstrained() {
-            Freq::new(u, &self.ctx.config.stmt_freqs_brillig)?
+            Freq::new(u, &self.config().stmt_freqs_brillig)?
         } else {
-            Freq::new(u, &self.ctx.config.stmt_freqs_acir)?
+            Freq::new(u, &self.config().stmt_freqs_acir)?
         };
         // TODO(#7926): Match
 
         // We don't want constraints to get too frequent, as it could dominate all outcome.
-        if freq.enabled_when("constrain", !self.ctx.config.avoid_constrain) {
+        if freq.enabled_when("constrain", !self.config().avoid_constrain) {
             if let Some(e) = self.gen_constrain(u)? {
                 return Ok(e);
             }
@@ -996,16 +1002,16 @@ impl<'a> FunctionContext<'a> {
                 return self.gen_while(u);
             }
 
-            if freq.enabled_when("break", self.in_loop && !self.ctx.config.avoid_loop_control) {
+            if freq.enabled_when("break", self.in_loop && !self.config().avoid_loop_control) {
                 return Ok(Expression::Break);
             }
 
-            if freq.enabled_when("continue", self.in_loop && !self.ctx.config.avoid_loop_control) {
+            if freq.enabled_when("continue", self.in_loop && !self.config().avoid_loop_control) {
                 return Ok(Expression::Continue);
             }
 
             // For now only try prints in unconstrained code, were we don't need to create a proxy.
-            if freq.enabled_when("print", !self.ctx.config.avoid_print) {
+            if freq.enabled_when("print", !self.config().avoid_print) {
                 if let Some(e) = self.gen_print(u)? {
                     return Ok(e);
                 }
@@ -1025,7 +1031,7 @@ impl<'a> FunctionContext<'a> {
     fn gen_let(&mut self, u: &mut Unstructured) -> arbitrary::Result<Expression> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
-        let comptime_friendly = self.is_comptime_friendly();
+        let comptime_friendly = self.config().comptime_friendly;
         let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
@@ -1261,7 +1267,7 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         };
         // Generate a unique message for the assertion, so it's easy to find which one failed.
-        let msg = expr::gen_literal(u, &CONSTRAIN_MSG_TYPE)?;
+        let msg = self.gen_literal(u, &CONSTRAIN_MSG_TYPE)?;
         let cons = Expression::Constrain(
             Box::new(cond),
             Location::dummy(),
@@ -1314,7 +1320,7 @@ impl<'a> FunctionContext<'a> {
         // The index can be signed or unsigned int, 8 to 128 bits, except i128,
         // but currently the frontend expects it to be u32 unless it's declared as a separate variable.
         let idx_type = {
-            let bit_size = if self.ctx.config.avoid_large_int_literals {
+            let bit_size = if self.config().avoid_large_int_literals {
                 IntegerBitSize::ThirtyTwo
             } else {
                 u.choose(&[8, 16, 32, 64, 128]).map(|s| IntegerBitSize::try_from(*s).unwrap())?
@@ -1322,7 +1328,7 @@ impl<'a> FunctionContext<'a> {
 
             Type::Integer(
                 if bit_size == IntegerBitSize::HundredTwentyEight
-                    || self.ctx.config.avoid_negative_int_literals
+                    || self.config().avoid_negative_int_literals
                     || bool::arbitrary(u)?
                 {
                     Signedness::Unsigned
@@ -1335,7 +1341,7 @@ impl<'a> FunctionContext<'a> {
 
         let (start_range, end_range) = if self.unconstrained() && bool::arbitrary(u)? {
             // Choosing a maximum range size because changing it immediately brought out some bug around modulo.
-            let max_size = u.int_in_range(1..=self.ctx.config.max_loop_size)?;
+            let max_size = u.int_in_range(1..=self.config().max_loop_size)?;
             // Generate random expression.
             let (s, _) = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
             let (e, _) = self.gen_expr(u, &idx_type, self.max_depth(), Flags::RANGE)?;
@@ -1346,7 +1352,7 @@ impl<'a> FunctionContext<'a> {
             (s, e)
         } else {
             // `gen_range` will choose a size up to the max.
-            let max_size = self.ctx.config.max_loop_size;
+            let max_size = self.config().max_loop_size;
             // If the function is constrained, we need a range we can determine at compile time.
             // For now do it with literals, although we should be able to use constant variables as well.
             let (s, e) = expr::gen_range(u, &idx_type, max_size)?;
@@ -1461,7 +1467,7 @@ impl<'a> FunctionContext<'a> {
 
         let mut args = Vec::new();
         for typ in &param_types {
-            args.push(expr::gen_literal(u, typ)?);
+            args.push(self.gen_literal(u, typ)?);
         }
 
         let call_expr = Expression::Call(Call {
@@ -1569,10 +1575,10 @@ impl<'a> FunctionContext<'a> {
 
     /// Choose a random maximum guard size for `loop` and `while` to match the average of the size of a `for`.
     fn gen_loop_size(&self, u: &mut Unstructured) -> arbitrary::Result<usize> {
-        if self.ctx.config.vary_loop_size {
-            u.choose_index(self.ctx.config.max_loop_size)
+        if self.config().vary_loop_size {
+            u.choose_index(self.config().max_loop_size)
         } else {
-            Ok(self.ctx.config.max_loop_size)
+            Ok(self.config().max_loop_size)
         }
     }
 

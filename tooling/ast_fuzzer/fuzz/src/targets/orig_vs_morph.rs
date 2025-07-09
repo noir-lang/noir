@@ -305,7 +305,7 @@ mod rules {
     use super::helpers::gen_expr;
     use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{expr, types};
+    use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
         ast::BinaryOpKind,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
@@ -423,7 +423,7 @@ mod rules {
                 let Expression::Literal(Literal::Integer(a, typ, loc)) = expr else {
                     unreachable!("matched only integer literals, got {expr}");
                 };
-                let mut b_expr = expr::gen_literal(u, typ)?;
+                let mut b_expr = expr::gen_literal(u, typ, &Config::default())?;
                 let Expression::Literal(Literal::Integer(b, _, _)) = &mut b_expr else {
                     unreachable!("generated a literal of the same type");
                 };
@@ -474,7 +474,7 @@ mod rules {
     pub fn bool_xor_rand() -> Rule {
         Rule::new(bool_rule_matches, |u, _locals, expr| {
             // This is where we could access the scope to look for a random bool variable.
-            let rnd = expr::gen_literal(u, &Type::Bool)?;
+            let rnd = expr::gen_literal(u, &Type::Bool, &Config::default())?;
             expr::replace(expr, |expr| {
                 let rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
                 expr::binary(rnd, BinaryOpKind::Xor, rhs)
@@ -617,7 +617,7 @@ mod helpers {
     use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{expr, types, visitor::visit_expr_be_mut};
+    use noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
     use noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
         monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
@@ -658,7 +658,7 @@ mod helpers {
                 }
             }
         }
-        expr::gen_literal(u, typ)
+        expr::gen_literal(u, typ, &Config::default())
     }
 
     /// Generate an arbitrary unary expression, returning a specific type.
