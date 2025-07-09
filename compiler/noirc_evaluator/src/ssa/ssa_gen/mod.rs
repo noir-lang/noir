@@ -139,7 +139,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
 pub fn validate_ssa(ssa: &Ssa) {
     for function in ssa.functions.values() {
-        validate_function(function);
+        validate_function(function, ssa);
     }
 }
 

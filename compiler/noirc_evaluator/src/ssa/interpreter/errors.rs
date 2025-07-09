@@ -68,6 +68,8 @@ pub enum InterpreterError {
     BlackBoxError { name: String, reason: String },
     #[error("Reached the unreachable")]
     ReachedTheUnreachable,
+    #[error("Array index {index} is out of bounds for array of length {length}")]
+    IndexOutOfBounds { index: u32, length: u32 },
 }
 
 /// These errors can only result from interpreting malformed SSA

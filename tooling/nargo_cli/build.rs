@@ -154,12 +154,14 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 7] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
+    // bug
+    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
@@ -176,7 +178,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 12] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -202,31 +204,21 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     "trait_static_methods",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
-    // bug
-    "nested_trait_associated_type_regression_8252",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
-    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 10] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
-    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
-    "noirc_frontend_tests_traits_serialize_test_with_a_previous_unrelated_definition",
     "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
     "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
-    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
-    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =

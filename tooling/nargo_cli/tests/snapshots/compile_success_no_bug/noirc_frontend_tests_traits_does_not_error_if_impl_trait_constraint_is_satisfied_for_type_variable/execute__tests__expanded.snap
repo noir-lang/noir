@@ -10,10 +10,7 @@ pub trait Foo<T>
 where
     T: Greeter,
 {
-    fn greet(object: T)
-    where
-        T: Greeter,
-    {
+    fn greet(object: T) {
         object.greet();
     }
 }
@@ -24,10 +21,7 @@ impl<T> Foo<T> for Bar
 where
     T: Greeter,
 {
-    fn greet(object: T)
-    where
-        T: Greeter,
-    {
+    fn greet(object: T) {
         object.greet();
     }
 }

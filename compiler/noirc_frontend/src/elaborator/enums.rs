@@ -907,7 +907,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
-            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+            Type::TypeVariable(typevar) if typevar.is_integer() || typevar.is_integer_or_field() => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }

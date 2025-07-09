@@ -936,7 +936,7 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return u32 1
+            return Field 1
         }
         ";
 

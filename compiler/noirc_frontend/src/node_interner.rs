@@ -526,10 +526,11 @@ impl TraitId {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TraitMethodId {
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub struct TraitItemId {
     pub trait_id: TraitId,
-    pub method_index: usize, // index in Trait::methods
+    /// This is the definition id of the method or associated constant in the trait, not an impl
+    pub item_id: DefinitionId,
 }
 
 macro_rules! into_index {
@@ -773,6 +774,7 @@ impl NodeInterner {
         unresolved_trait: &UnresolvedTrait,
         generics: Generics,
         associated_types: Generics,
+        associated_constant_ids: HashMap<String, DefinitionId>,
     ) {
         let new_trait = Trait {
             id: type_id,
@@ -789,6 +791,7 @@ impl NodeInterner {
             trait_bounds: Vec::new(),
             where_clause: Vec::new(),
             all_generics: Vec::new(),
+            associated_constant_ids,
         };
 
         self.traits.insert(type_id, new_trait);
@@ -1417,14 +1420,29 @@ impl NodeInterner {
         self.function_definition_ids[&function]
     }
 
-    /// Returns the DefinitionId of a trait's method, panics if the given trait method
-    /// is not a valid method of the trait or if the trait has not yet had
-    /// its methods ids set during name resolution.
-    pub fn trait_method_id(&self, trait_method: TraitMethodId) -> DefinitionId {
-        let the_trait = self.get_trait(trait_method.trait_id);
-        let method_name = &the_trait.methods[trait_method.method_index].name;
-        let function_id = the_trait.method_ids[method_name.as_str()];
-        self.function_definition_id(function_id)
+    /// Returns the definition id and trait id for a given trait or impl function.
+    ///
+    /// If this is an impl function, the DefinitionId inside the TraitItemId will still
+    /// be that of the function in the parent trait.
+    pub fn get_trait_item_id(&self, function_id: FuncId) -> Option<TraitItemId> {
+        let function = self.function_meta(&function_id);
+
+        match function.trait_impl {
+            Some(impl_id) => {
+                let trait_id = self.get_trait_implementation(impl_id).borrow().trait_id;
+                let the_trait = self.get_trait(trait_id);
+                let name = self.definition_name(function.name.id);
+                let definition_id = the_trait
+                    .find_method_or_constant(name, self)
+                    .expect("Expected parent trait to have function from impl");
+                Some(TraitItemId { item_id: definition_id, trait_id })
+            }
+            None => {
+                let trait_id = function.trait_id?;
+                let definition_id = self.function_definition_id(function_id);
+                Some(TraitItemId { item_id: definition_id, trait_id })
+            }
+        }
     }
 
     /// Adds a non-trait method to a type.
@@ -1509,17 +1527,6 @@ impl NodeInterner {
             generics = format!("<{generics}>");
         }
         format!("{object_type:?}: {name}{generics}")
-    }
-
-    /// If the given function belongs to a trait impl, return its trait method id.
-    /// Otherwise, return None.
-    pub fn get_trait_method_id(&self, function: FuncId) -> Option<TraitMethodId> {
-        let impl_id = self.function_meta(&function).trait_impl?;
-        let trait_impl = self.get_trait_implementation(impl_id);
-        let trait_impl = trait_impl.borrow();
-
-        let method_index = trait_impl.methods.iter().position(|id| *id == function)?;
-        Some(TraitMethodId { trait_id: trait_impl.trait_id, method_index })
     }
 
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
@@ -1981,22 +1988,22 @@ impl NodeInterner {
     /// to the same trait (such as `==` and `!=`).
     /// `self.infix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitMethodId {
+    pub fn get_operator_trait_method(&self, operator: BinaryOpKind) -> TraitItemId {
         let trait_id = self.infix_operator_traits[&operator];
-
-        // Assume that the operator's method to be overloaded is the first method of the trait.
-        TraitMethodId { trait_id, method_index: 0 }
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        TraitItemId { trait_id, item_id: self.function_definition_id(func_id) }
     }
 
     /// Retrieves the trait id for a given unary operator.
     /// Only some unary operators correspond to a trait: `-` and `!`, but for example `*` does not.
     /// `self.prefix_operator_traits` is expected to be filled before name resolution,
     /// during definition collection.
-    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitMethodId> {
-        let trait_id = self.prefix_operator_traits.get(operator)?;
-
-        // Assume that the operator's method to be overloaded is the first method of the trait.
-        Some(TraitMethodId { trait_id: *trait_id, method_index: 0 })
+    pub fn get_prefix_operator_trait_method(&self, operator: &UnaryOp) -> Option<TraitItemId> {
+        let trait_id = *self.prefix_operator_traits.get(operator)?;
+        let the_trait = self.get_trait(trait_id);
+        let func_id = *the_trait.method_ids.values().next().unwrap();
+        Some(TraitItemId { trait_id, item_id: self.function_definition_id(func_id) })
     }
 
     /// Add the given trait as an operator trait if its name matches one of the
@@ -2068,25 +2075,63 @@ impl NodeInterner {
     /// to `get_operator_trait` do not panic when the stdlib isn't present.
     #[cfg(any(test, feature = "test_utils"))]
     pub fn populate_dummy_operator_traits(&mut self) {
-        let dummy_trait = TraitId(ModuleId::dummy_id());
-        self.infix_operator_traits.insert(BinaryOpKind::Add, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Subtract, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Multiply, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Divide, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Modulo, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Equal, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::NotEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Less, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::LessEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Greater, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::GreaterEqual, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::And, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Or, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::Xor, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::ShiftLeft, dummy_trait);
-        self.infix_operator_traits.insert(BinaryOpKind::ShiftRight, dummy_trait);
-        self.prefix_operator_traits.insert(UnaryOp::Minus, dummy_trait);
-        self.prefix_operator_traits.insert(UnaryOp::Not, dummy_trait);
+        // Populate a dummy trait with a single method, as the trait, and its single methods,
+        // are looked up during `get_operator_trait`.
+        let mut usize_arena = Arena::default();
+        let index = usize_arena.insert(0);
+        let stdlib = CrateId::Stdlib(0);
+        let func_id = FuncId::dummy_id();
+        // Use a definition ID that won't clash with anything else, and isn't the dummy one
+        let definition_id = DefinitionId(usize::MAX - 1);
+        self.function_definition_ids.insert(func_id, definition_id);
+        let module_id = ModuleId { krate: stdlib, local_id: LocalModuleId::new(index) };
+        let trait_id = TraitId(module_id);
+        let self_type_typevar = self.next_type_variable_id();
+        let mut method_ids: HashMap<String, FuncId> = Default::default();
+        method_ids.insert("dummy_method".to_string(), func_id);
+
+        let trait_ = Trait {
+            id: trait_id,
+            crate_id: stdlib,
+            methods: vec![],
+            method_ids,
+            associated_types: vec![],
+            associated_type_bounds: Default::default(),
+            name: Ident::new("Dummy".to_string(), Location::dummy()),
+            generics: vec![],
+            location: Location::dummy(),
+            visibility: ItemVisibility::Public,
+            self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
+            trait_bounds: vec![],
+            where_clause: vec![],
+            all_generics: vec![],
+            associated_constant_ids: Default::default(),
+        };
+        self.traits.insert(trait_id, trait_);
+
+        let operators = [
+            BinaryOpKind::Add,
+            BinaryOpKind::Subtract,
+            BinaryOpKind::Multiply,
+            BinaryOpKind::Divide,
+            BinaryOpKind::Modulo,
+            BinaryOpKind::Equal,
+            BinaryOpKind::NotEqual,
+            BinaryOpKind::Less,
+            BinaryOpKind::LessEqual,
+            BinaryOpKind::Greater,
+            BinaryOpKind::GreaterEqual,
+            BinaryOpKind::And,
+            BinaryOpKind::Or,
+            BinaryOpKind::Xor,
+            BinaryOpKind::ShiftLeft,
+            BinaryOpKind::ShiftRight,
+        ];
+
+        // It's fine to use the same trait for all operators, at least in tests
+        for operator in operators {
+            self.infix_operator_traits.insert(operator, trait_id);
+        }
     }
 
     pub(crate) fn ordering_type(&self) -> Type {
@@ -2389,7 +2434,19 @@ impl NodeInterner {
         let impl_associated_types = self.get_associated_types_for_impl(impl_id);
         let trait_associated_types = &the_trait.associated_types;
 
-        for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
+        // `impl_associated_types` may not be in the same order as `trait_associated_types`
+        let impl_associated_types = impl_associated_types
+            .iter()
+            .map(|typ| (typ.name.as_str(), typ))
+            .collect::<HashMap<_, _>>();
+
+        for trait_type in trait_associated_types {
+            let Some(impl_type) = impl_associated_types.get(trait_type.name.as_str()) else {
+                // Impl doesn't have the corresponding associated type - an error should already
+                // have been issued beforehand.
+                continue;
+            };
+
             let type_variable = trait_type.type_var.clone();
             bindings.insert(
                 type_variable.id(),
