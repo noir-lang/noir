@@ -59,7 +59,7 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(Vec::new())
                 } else {
                     // Static assert can either have 2 arguments, in which case the second one is a string,
-                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // or it can have more arguments in case fmtstr or some other non-string value is passed.
                     // For simplicity, we won't build the dynamic message here.
                     let message = if args.len() == 2 {
                         self.lookup_string(args[1], "static_assert")?

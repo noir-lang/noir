@@ -809,7 +809,7 @@ impl fmt::Display for TestScope {
     }
 }
 
-/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
     /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
