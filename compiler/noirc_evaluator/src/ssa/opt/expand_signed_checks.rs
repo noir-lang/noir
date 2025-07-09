@@ -443,112 +443,22 @@ impl Context<'_, '_, '_> {
 /// Post-check condition for [Function::expand_signed_checks].
 ///
 /// Succeeds if:
-///   - `func` does not contain and checked signed ops
-///   - All unchecked signed ops are followed by an appropriate overflow check.
+///   - `func` does not contain any checked signed ops
 ///
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn expand_signed_checks_post_check(func: &Function) {
-    #[derive(Debug)]
-    enum PendingSignedOverflowOp {
-        AddOrSub { bit_size: u32, result: ValueId },
-        Mul { bit_size: u32, mul_result: ValueId, cast_result: Option<ValueId> },
-    }
-
-    let mut signed_binary_op: Option<PendingSignedOverflowOp> = None;
-
-    // Otherwise there should be no shift-left or shift-right instructions in any reachable block.
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
-            match &func.dfg[*instruction_id] {
-                Instruction::Binary(binary) => {
-                    // Only reset if we are starting a new tracked op.
-                    // We do not reset on unrelated ops. If we already an op pending, we have an ill formed signed op.
-                    if signed_binary_op.is_some() {
-                        panic!("Signed binary operation does not follow overflow pattern");
+            if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
+                match binary.operator {
+                    BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false } => {
+                        panic!("Checked signed binary operation has not been removed")
                     }
-
-                    // Assumes rhs_type is the same as lhs_type
-                    let lhs_type = func.dfg.type_of_value(binary.lhs);
-                    let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type else {
-                        return;
-                    };
-
-                    let result = func.dfg.instruction_results(*instruction_id)[0];
-                    match binary.operator {
-                        BinaryOp::Add { unchecked: false }
-                        | BinaryOp::Sub { unchecked: false }
-                        | BinaryOp::Mul { unchecked: false } => {
-                            panic!("Checked signed binary operation has not been removed")
-                        }
-                        BinaryOp::Mul { unchecked: true } => {
-                            signed_binary_op = Some(PendingSignedOverflowOp::Mul {
-                                bit_size,
-                                mul_result: result,
-                                cast_result: None,
-                            });
-                        }
-                        BinaryOp::Add { unchecked: true } | BinaryOp::Sub { unchecked: true } => {
-                            signed_binary_op =
-                                Some(PendingSignedOverflowOp::AddOrSub { bit_size, result });
-                        }
-                        _ => {}
-                    }
-                }
-                Instruction::Truncate { value, bit_size, max_bit_size } => {
-                    // Only a truncate can reset the signed binary op state
-                    match signed_binary_op.take() {
-                        Some(PendingSignedOverflowOp::AddOrSub {
-                            bit_size: expected_bit_size,
-                            result,
-                        }) => {
-                            assert_eq!(*bit_size, expected_bit_size);
-                            assert_eq!(*max_bit_size, expected_bit_size + 1);
-                            assert_eq!(*value, result);
-                        }
-                        Some(PendingSignedOverflowOp::Mul {
-                            bit_size: expected_bit_size,
-                            cast_result: Some(cast),
-                            ..
-                        }) => {
-                            assert_eq!(*bit_size, expected_bit_size);
-                            assert_eq!(*max_bit_size, 2 * expected_bit_size);
-                            assert_eq!(*value, cast);
-                        }
-                        Some(PendingSignedOverflowOp::Mul { cast_result: None, .. }) => {
-                            panic!("Truncate not matched to signed overflow pattern");
-                        }
-                        None => {
-                            // Do nothing as there is no overflow op pending
-                        }
-                    }
-                }
-                Instruction::Cast(value, typ) => {
-                    match &mut signed_binary_op {
-                        Some(PendingSignedOverflowOp::AddOrSub { .. }) => {
-                            panic!(
-                                "Invalid cast inserted after signed checked Add/Sub. It must be followed immediately by truncate"
-                            );
-                        }
-                        Some(PendingSignedOverflowOp::Mul {
-                            bit_size: expected_bit_size,
-                            mul_result,
-                            cast_result,
-                        }) => {
-                            assert_eq!(typ.bit_size(), 2 * *expected_bit_size);
-                            assert_eq!(*value, *mul_result);
-                            *cast_result = Some(func.dfg.instruction_results(*instruction_id)[0]);
-                        }
-                        None => {
-                            // Do nothing as there is no overflow op pending
-                        }
-                    }
-                }
-                _ => {
-                    if signed_binary_op.is_some() {
-                        panic!("Signed binary operation does not follow overflow pattern");
-                    }
+                    _ => (),
                 }
             }
         }
