@@ -23,11 +23,16 @@ pub fn run_and_compare(
     acir_program: &Program<FieldElement>,
     brillig_program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
-    return_witness_acir: Witness,
-    return_witness_brillig: Witness,
 ) -> CompareResults {
     let acir_result = execute_single(acir_program, initial_witness.clone());
     let brillig_result = execute_single(brillig_program, initial_witness);
+
+    let return_witnesses_acir = &acir_program.functions[0].return_values;
+    let return_witnesses_brillig = &brillig_program.functions[0].return_values;
+    assert_eq!(return_witnesses_acir.0.len(), 1, "Multiple return value witnesses encountered");
+    assert_eq!(return_witnesses_brillig.0.len(), 1, "Multiple return value witnesses encountered");
+    let return_witness_acir: &Witness = return_witnesses_acir.0.first().unwrap();
+    let return_witness_brillig: &Witness = return_witnesses_brillig.0.first().unwrap();
 
     // we found bug in case of
     // 1) acir_result != brillig_result
@@ -36,8 +41,8 @@ pub fn run_and_compare(
     // it has depth 2, because nargo can panic or return NargoError
     match (acir_result, brillig_result) {
         (Ok(acir_result), Ok(brillig_result)) => {
-            let acir_result = acir_result[&return_witness_acir];
-            let brillig_result = brillig_result[&return_witness_brillig];
+            let acir_result = acir_result[return_witness_acir];
+            let brillig_result = brillig_result[return_witness_brillig];
             if acir_result == brillig_result {
                 CompareResults::Agree(acir_result)
             } else {
@@ -45,11 +50,11 @@ pub fn run_and_compare(
             }
         }
         (Err(acir_error), Ok(brillig_result)) => {
-            let brillig_result = brillig_result[&return_witness_brillig];
+            let brillig_result = brillig_result[return_witness_brillig];
             CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
         }
         (Ok(acir_result), Err(brillig_error)) => {
-            let acir_result = acir_result[&return_witness_acir];
+            let acir_result = acir_result[return_witness_acir];
             CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
         }
         (Err(acir_error), Err(brillig_error)) => {
