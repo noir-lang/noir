@@ -950,7 +950,7 @@ fn push_child_module(
     //   if it's an inline module, or the first char of a the file if it's an external module.
     // - `location` will always point to the token "foo" in `mod foo` regardless of whether
     //   it's inline or external.
-    // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+    // Eventually the location put in `ModuleData` is used for CodeLens about `contract`s,
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(

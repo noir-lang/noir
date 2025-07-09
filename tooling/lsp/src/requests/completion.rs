@@ -1993,8 +1993,8 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
-/// // "merk" and "ro" match "merkle" and "root" and are in order
-/// name_matches("compute_merkle_root", "merk_ro") == true
+/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
+/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
 /// name_matches("compute_merkle_root", "ro_mer") == false

@@ -10,7 +10,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
 use serde::{Deserialize, Serialize};
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
+/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {

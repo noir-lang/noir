@@ -26,8 +26,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Avoid constraints for now
-        avoid_constrain: true,
         // Slices need some parts of the stdlib that we can't just append to the source
         // the way it is currently done to support prints, because they are low level extensions.
         avoid_slices: true,

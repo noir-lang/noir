@@ -344,7 +344,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
         AbiType::Boolean => types.push(Type::bool()),
         AbiType::Struct { path: _, fields } => {
-            // Structs are flattend
+            // Structs are flattened
             for (_, typ) in fields {
                 append_input_type_to_ssa(typ, types);
             }
