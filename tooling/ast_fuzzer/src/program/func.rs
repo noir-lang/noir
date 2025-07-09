@@ -680,14 +680,14 @@ impl<'a> FunctionContext<'a> {
             }
             (Type::Slice(item_typ), _) => {
                 // We don't know the length of the slice at compile time,
-                // so we need to call the builtin function to get its length,
-                // generate a random number here, and take its modulo.
-                //      let idx = u32::arbitrary(u)?;
-                //      let len_expr = ???;
-                //      let idx_expr = expr::modulo(expr::u32_literal(idx), len_expr);
+                // so we need to call the builtin function to get it,
+                // and use it for the length modulo.
 
                 // The rules around dynamic indexing is the same as for arrays.
-                let (idx_expr, idx_dyn) = {
+                let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
+                    // Avoid any stack overflow where we look for an index in the slice itself.
+                    (self.gen_literal(u, &types::U32)?, false)
+                } else {
                     let no_dynamic = self.in_no_dynamic
                         || !self.unconstrained() && types::contains_reference(item_typ);
                     let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
