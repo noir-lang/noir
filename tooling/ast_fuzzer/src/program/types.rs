@@ -163,7 +163,8 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
             *unconstrained,
         ),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::FmtString(_, _) | Type::Slice(_) => {
+        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::FmtString(_, _) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
