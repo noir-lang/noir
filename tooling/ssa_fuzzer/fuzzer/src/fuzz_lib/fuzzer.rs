@@ -200,13 +200,8 @@ impl Fuzzer {
                 }
             }
         };
-        let comparison_result = run_and_compare(
-            &acir_program.program,
-            &brillig_program.program,
-            initial_witness,
-            acir_return_witness,
-            brillig_return_witness,
-        );
+        let comparison_result =
+            run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         log::debug!("Comparison result: {:?}", comparison_result);
         match comparison_result {
             CompareResults::Agree(result) => Some(result),

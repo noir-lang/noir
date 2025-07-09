@@ -188,7 +188,7 @@ impl Parser<'_> {
         Some(TraitItem::Type { name, bounds })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;

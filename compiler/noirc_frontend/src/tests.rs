@@ -2040,6 +2040,30 @@ fn cast_negative_one_to_u8_size_checks() {
 
 #[named]
 #[test]
+fn cast_signed_i8_to_field_must_error() {
+    let src = r#"
+        fn main() {
+            assert((-1 as i8) as Field != 0);
+                   ^^^^^^^^^^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
+}
+
+#[named]
+#[test]
+fn cast_signed_i32_to_field_must_error() {
+    let src = r#"
+        fn main(x: i32) {
+            assert(x as Field != 0);
+                   ^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
+}
+
+#[named]
+#[test]
 fn constant_used_with_numeric_generic() {
     let src = r#"
     struct ValueNote {
@@ -4738,4 +4762,21 @@ fn cannot_use_prefix_minus_on_u32() {
     }
     "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn static_method_with_generics_on_type_and_method() {
+    let src = r#"
+    struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn static_method<U>() {}
+    }
+
+    fn main() {
+        Foo::<u8>::static_method::<Field>();
+    }
+    "#;
+    assert_no_errors!(src);
 }

@@ -2434,7 +2434,19 @@ impl NodeInterner {
         let impl_associated_types = self.get_associated_types_for_impl(impl_id);
         let trait_associated_types = &the_trait.associated_types;
 
-        for (trait_type, impl_type) in trait_associated_types.iter().zip(impl_associated_types) {
+        // `impl_associated_types` may not be in the same order as `trait_associated_types`
+        let impl_associated_types = impl_associated_types
+            .iter()
+            .map(|typ| (typ.name.as_str(), typ))
+            .collect::<HashMap<_, _>>();
+
+        for trait_type in trait_associated_types {
+            let Some(impl_type) = impl_associated_types.get(trait_type.name.as_str()) else {
+                // Impl doesn't have the corresponding associated type - an error should already
+                // have been issued beforehand.
+                continue;
+            };
+
             let type_variable = trait_type.type_var.clone();
             bindings.insert(
                 type_variable.id(),

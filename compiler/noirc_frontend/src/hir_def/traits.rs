@@ -135,7 +135,7 @@ impl TraitConstraint {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct ResolvedTraitBound {
     pub trait_id: TraitId,
     pub trait_generics: TraitGenerics,
@@ -151,6 +151,13 @@ impl ResolvedTraitBound {
         for named in &mut self.trait_generics.named {
             named.typ = named.typ.substitute(type_bindings);
         }
+    }
+}
+
+impl PartialEq for ResolvedTraitBound {
+    fn eq(&self, other: &Self) -> bool {
+        // Location doesn't matter for equality
+        self.trait_id == other.trait_id && self.trait_generics == other.trait_generics
     }
 }
 
