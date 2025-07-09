@@ -496,7 +496,7 @@ impl Context {
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 if is_slice_allowed => {
+                6 if is_slice_allowed && !self.config.avoid_slices => {
                     let typ = gen_inner_type(self, u, false)?;
                     Type::Slice(Box::new(typ))
                 }
