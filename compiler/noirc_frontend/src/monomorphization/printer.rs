@@ -21,13 +21,20 @@ pub struct FunctionPrintOptions {
     pub comptime: bool,
 }
 
+/// Some calls can be printed with the intention of parsing the code.
+#[derive(PartialEq)]
+enum SpecialCall {
+    Print,
+    Array(String),
+}
+
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     pub show_id: bool,
     pub show_clone_and_drop: bool,
-    pub show_print_as_std: bool,
+    pub show_specials_as_std: bool,
     pub show_type_in_let: bool,
     pub show_type_of_int_literal: bool,
 }
@@ -39,7 +46,7 @@ impl Default for AstPrinter {
             in_unconstrained: false,
             show_id: true,
             show_clone_and_drop: true,
-            show_print_as_std: false,
+            show_specials_as_std: false,
             show_type_in_let: false,
             show_type_of_int_literal: false,
         }
@@ -492,22 +499,32 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        let (print_unsafe, print_oracle) = match call.func.as_ref() {
+        let (print_unsafe, special) = match call.func.as_ref() {
             Expression::Ident(Ident {
                 typ: Type::Function(_, _, _, unconstrained),
                 definition,
+                name,
                 ..
             }) => {
                 let is_unsafe = *unconstrained && !self.in_unconstrained;
-                let is_print = matches!(definition, Definition::Oracle(s) if s == "print");
-                (is_unsafe, is_print)
+                let special = match definition {
+                    Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                    Definition::Builtin(s) if s.starts_with("array") => {
+                        Some(SpecialCall::Array(name.clone()))
+                    }
+                    _ => None,
+                };
+                (is_unsafe, special)
             }
-            _ => (false, false),
+            _ => (false, None),
         };
-        // If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        if print_oracle && self.show_print_as_std && self.print_println(&call.arguments, f)? {
-            return Ok(());
+
+        if let Some(special) = special {
+            if self.print_special_call(special, &call.arguments, f)? {
+                return Ok(());
+            }
         }
+
         if print_unsafe {
             write!(f, "unsafe {{ ")?;
         }
@@ -519,6 +536,25 @@ impl AstPrinter {
             write!(f, " }}")?;
         }
         Ok(())
+    }
+
+    /// Try to display a special call as Noir.
+    fn print_special_call(
+        &mut self,
+        special: SpecialCall,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        if !self.show_specials_as_std {
+            return Ok(false);
+        }
+        match special {
+            SpecialCall::Print => self.print_println(args, f),
+            SpecialCall::Array(method) => {
+                self.print_array_method(&method, args, f)?;
+                Ok(true)
+            }
+        }
     }
 
     /// Instead of printing a call to the print oracle as a regular function,
@@ -546,6 +582,22 @@ impl AstPrinter {
         // The 2nd parameter is the printed value. The 3rd and 4th parameter don't appear in Noir;
         // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         self.print_expr(&args[1], f)?;
+        write!(f, ")")?;
+        Ok(true)
+    }
+
+    /// Special method for printing builtin array method calls, turning e.g. `len$array_len(x)` into `x.len()`.
+    fn print_array_method(
+        &mut self,
+        method: &str,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        assert!(!args.is_empty(), "array methods need at least a self argument");
+        let (arr, args) = args.split_at(1);
+        self.print_expr(&arr[0], f)?;
+        write!(f, ".{method}(")?;
+        self.print_comma_separated(args, f)?;
         write!(f, ")")?;
         Ok(true)
     }
