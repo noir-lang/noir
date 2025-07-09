@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752007959991,
+  "lastUpdate": 1752055277017,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18786,48 +18786,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7e7b1405e98a5970f6044784d4b28ad26d47716d",
-          "message": "chore: add logging for signature failure cases which break barretenberg (#9030)",
-          "timestamp": "2025-06-26T18:40:26Z",
-          "tree_id": "b0035e94240faddf2eb3e3da208335a33d64a903",
-          "url": "https://github.com/noir-lang/noir/commit/7e7b1405e98a5970f6044784d4b28ad26d47716d"
-        },
-        "date": 1750965027446,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 233592,
-            "range": "± 601",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 205419,
-            "range": "± 5219",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2565222,
-            "range": "± 11899",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2203e14f139db2264a9a87dea3a4822d1397e6e9",
           "message": "chore: add idempotency check to `remove_unreachable_functions` (#9017)",
           "timestamp": "2025-06-27T08:36:32Z",
@@ -20869,6 +20827,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789482,
             "range": "± 1234",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f7b3fa81a146999cef2d1af466be1cd47f9ed9a",
+          "message": "fix(fuzz): fix wrong source listing order for comptime (#9149)",
+          "timestamp": "2025-07-09T09:36:29Z",
+          "tree_id": "740fbd2c2bcb3d3b5547aa38038d963b60d0114f",
+          "url": "https://github.com/noir-lang/noir/commit/8f7b3fa81a146999cef2d1af466be1cd47f9ed9a"
+        },
+        "date": 1752055262965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257279,
+            "range": "± 1197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226904,
+            "range": "± 8549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786235,
+            "range": "± 2155",
             "unit": "ns/iter"
           }
         ]
