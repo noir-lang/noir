@@ -198,9 +198,13 @@ mod tests {
     #[test]
     fn test_signed_sub() {
         let mut rng = rand::thread_rng();
-        let lhs: i64 = rng.r#gen();
-        let rhs: i64 = rng.r#gen();
+        let mut lhs: i64 = rng.r#gen();
+        let mut rhs: i64 = rng.r#gen();
 
+        // to prevent `attempt to subtract with overflow`
+        if lhs < rhs {
+            (lhs, rhs) = (rhs, lhs);
+        }
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
             (parse_integer_to_signed(lhs), ValueType::I64),
