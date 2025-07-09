@@ -317,13 +317,7 @@ impl<'a> FunctionContext<'a> {
     /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
     /// bit-shifts, because we will convert them to field multiplication
     ///
-    /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
-    /// an unsigned value representing the signed integer.
-    /// We need to use a bigger bit size depending on the operation, in case the operation does overflow,
-    /// Then, we delegate the overflow checks to check_signed_overflow() and cast the result back to its type.
-    /// Note that we do NOT want to check for overflows here, only check_signed_overflow() is allowed to do so.
-    /// This is because an overflow might be valid. For instance if 'a' is a signed integer, then 'a - a', as an unsigned result will always
-    /// overflow the bit size, however the operation is still valid (i.e it is not a signed overflow)
+    /// If the result is signed, overflow will be checked during SSA optimization.
     fn check_overflow(
         &mut self,
         result: ValueId,
