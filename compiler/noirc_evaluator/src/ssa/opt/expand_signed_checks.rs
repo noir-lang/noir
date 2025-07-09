@@ -452,13 +452,15 @@ fn expand_signed_checks_post_check(func: &Function) {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             if let Instruction::Binary(binary) = &func.dfg[*instruction_id] {
-                match binary.operator {
-                    BinaryOp::Add { unchecked: false }
-                    | BinaryOp::Sub { unchecked: false }
-                    | BinaryOp::Mul { unchecked: false } => {
-                        panic!("Checked signed binary operation has not been removed")
+                if func.dfg.type_of_value(binary.lhs).is_signed() {
+                    match binary.operator {
+                        BinaryOp::Add { unchecked: false }
+                        | BinaryOp::Sub { unchecked: false }
+                        | BinaryOp::Mul { unchecked: false } => {
+                            panic!("Checked signed binary operation has not been removed")
+                        }
+                        _ => (),
                     }
-                    _ => (),
                 }
             }
         }
