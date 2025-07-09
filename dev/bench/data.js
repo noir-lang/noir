@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752091878683,
+  "lastUpdate": 1752091880605,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11362,75 +11362,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4f52a7a8a12cad6e810df4decb9a00d549e837f2",
-          "message": "feat(ssa_fuzzer): custom mutations (#8988)",
-          "timestamp": "2025-06-27T16:14:53Z",
-          "tree_id": "e53f75b97c6373196b210d689961a5b2eb5b520b",
-          "url": "https://github.com/noir-lang/noir/commit/4f52a7a8a12cad6e810df4decb9a00d549e837f2"
-        },
-        "date": 1751043130188,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3ea0b8cacaec75aa7841d0381944d5105a729169"
         },
         "date": 1752079942973,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 189.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 434.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 326.68,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.16,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "isennovskiy@gmail.com",
+            "name": "Innokentii Sennovskii",
+            "username": "Rumata888"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d6515766a15104036c8e06c40c87f0a32138bfab",
+          "message": "fix: Execution and proving discrepancy in ecdsa (#9157)",
+          "timestamp": "2025-07-09T19:31:26Z",
+          "tree_id": "941b339e09a39a61b63379fea4b547cbaac3cb36",
+          "url": "https://github.com/noir-lang/noir/commit/d6515766a15104036c8e06c40c87f0a32138bfab"
+        },
+        "date": 1752091865573,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
