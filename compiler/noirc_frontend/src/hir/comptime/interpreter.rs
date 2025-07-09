@@ -103,7 +103,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_tvar, kind, binding) in instantiation_bindings.values_mut() {
+        for (_type_var, kind, binding) in instantiation_bindings.values_mut() {
             *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
@@ -264,7 +264,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else {
             let name = self.elaborator.interner.function_name(&function);
-            unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
+            unreachable!("Non-builtin, low-level or oracle builtin fn '{name}'")
         }
     }
 

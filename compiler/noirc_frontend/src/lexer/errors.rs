@@ -205,7 +205,7 @@ impl LexerErrorKind {
                     '\u{200C}' => Some("Zero Width Non-Joiner"),
                     '\u{200D}' => Some("Zero Width Joiner"),
                     '\u{2060}' => Some("Word Joiner"),
-                    '\u{FEFF}' => Some("Zero Width No-Break Space"),
+                    '\u{FEFF}' => Some("Zero Width No-Break Space"), // cSpell:disable-line
                     _ => None,
                 };
 

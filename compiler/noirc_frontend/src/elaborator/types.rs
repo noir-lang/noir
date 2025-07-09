@@ -2185,7 +2185,7 @@ impl Elaborator<'_> {
                             let existing = existing.follow_bindings();
                             let new = binding.2.follow_bindings();
 
-                            // Exact equality on types is intential here, we never want to
+                            // Exact equality on types is intentional here, we never want to
                             // overwrite even type variables but should probably avoid a panic if
                             // the types are exactly the same.
                             if existing != new {

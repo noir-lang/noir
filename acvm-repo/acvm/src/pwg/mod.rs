@@ -56,7 +56,7 @@ pub enum ACVMStatus<F> {
     RequiresForeignCall(ForeignCallWaitInfo<F>),
 
     /// The ACVM has encountered a request for an ACIR [call][acir::circuit::Opcode]
-    /// to execute a separate ACVM instance. The result of the ACIR call must be passd back to the ACVM.
+    /// to execute a separate ACVM instance. The result of the ACIR call must be passed back to the ACVM.
     ///
     /// Once this is done, the ACVM can be restarted to solve the remaining opcodes.
     RequiresAcirCall(AcirCallWaitInfo<F>),

@@ -42,7 +42,7 @@ impl Options {
 /// Inlining happens if `inline_cost - retain_cost < aggressiveness` (see `inlining.rs`).
 /// NB the CLI uses maximum aggressiveness.
 ///
-/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behaviour.
+/// Even with the same inlining aggressiveness, forcing Brillig can trigger different behavior.
 #[test_matrix(
     [false, true],
     [i64::MIN, 0, i64::MAX]

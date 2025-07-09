@@ -187,8 +187,8 @@ impl Monomorphizer<'_> {
     }
 }
 
-fn element_type_at_index(ptype: &PrintableType, i: usize) -> &PrintableType {
-    match ptype {
+fn element_type_at_index(printable_type: &PrintableType, i: usize) -> &PrintableType {
+    match printable_type {
         PrintableType::Array { length: _length, typ } => typ.as_ref(),
         PrintableType::Slice { typ } => typ.as_ref(),
         PrintableType::Tuple { types } => &types[i],

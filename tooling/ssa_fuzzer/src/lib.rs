@@ -72,6 +72,7 @@ mod tests {
     }
 
     /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
+    /// Instruction runs with first and second witness given
     fn run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
         lhs: (FieldElement, ValueType),
