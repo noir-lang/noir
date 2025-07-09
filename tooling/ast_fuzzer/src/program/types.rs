@@ -225,6 +225,22 @@ pub fn contains_reference(typ: &Type) -> bool {
     }
 }
 
+/// Check if the type contains any references.
+pub fn contains_slice(typ: &Type) -> bool {
+    match typ {
+        Type::Slice(_) => true,
+        Type::Field
+        | Type::Integer(_, _)
+        | Type::Bool
+        | Type::String(_)
+        | Type::Unit
+        | Type::FmtString(_, _)
+        | Type::Function(_, _, _, _) => false,
+        Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
+        Type::Tuple(types) => types.iter().any(contains_slice),
+    }
+}
+
 /// Check if the type can be used with a `println` statement.
 pub fn is_printable(typ: &Type) -> bool {
     match typ {

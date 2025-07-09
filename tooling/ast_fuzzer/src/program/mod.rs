@@ -236,8 +236,7 @@ impl Context {
                         unconstrained,
                         types::contains_reference(&return_type),
                         *callee_id,
-                        callee.unconstrained,
-                        callee.has_refs(),
+                        callee,
                     )
                     .then_some(*callee_id)
                 })
@@ -443,6 +442,18 @@ impl Context {
         // Once we hit the maximum depth, stop generating composite types.
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
+        // Generate the inner type for composite types with reduced maximum depth.
+        let gen_inner_type = |this: &mut Self, u: &mut Unstructured| {
+            this.gen_type(
+                u,
+                max_depth - 1,
+                is_global,
+                is_main,
+                is_frontend_friendly,
+                is_comptime_friendly,
+            )
+        };
+
         let mut typ: Type;
         loop {
             typ = match u.choose_index(max_index)? {
@@ -469,36 +480,24 @@ impl Context {
                     Type::Integer(sign, u.choose_iter(sizes)?)
                 }
                 3 => Type::String(u.int_in_range(0..=self.config.max_array_size)? as u32),
-                // 2 composite types
+                // 3 composite types
                 4 | 5 => {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| {
-                            self.gen_type(
-                                u,
-                                max_depth - 1,
-                                is_global,
-                                is_main,
-                                is_frontend_friendly,
-                                is_comptime_friendly,
-                            )
-                        })
+                        .map(|_| gen_inner_type(self, u))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 | 7 => {
+                6 => {
                     let min_size = if is_frontend_friendly { 1 } else { 0 };
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
-                    let typ = self.gen_type(
-                        u,
-                        max_depth - 1,
-                        is_global,
-                        is_main,
-                        is_frontend_friendly,
-                        is_comptime_friendly,
-                    )?;
+                    let typ = gen_inner_type(self, u)?;
                     Type::Array(size as u32, Box::new(typ))
+                }
+                7 => {
+                    let typ = gen_inner_type(self, u)?;
+                    Type::Slice(Box::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };

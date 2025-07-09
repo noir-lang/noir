@@ -63,17 +63,20 @@ impl FunctionDeclaration {
         (param_types, return_type)
     }
 
-    /// Check if any of the parameters or return value contain a reference.
-    pub(super) fn has_refs(&self) -> bool {
-        self.takes_refs() || self.returns_refs()
-    }
-
-    pub(super) fn takes_refs(&self) -> bool {
-        self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
-    }
-
+    /// Check if the return type contain a reference.
     pub(super) fn returns_refs(&self) -> bool {
         types::contains_reference(&self.return_type)
+    }
+
+    /// Check if the return type contains a slice.
+    pub(super) fn returns_slices(&self) -> bool {
+        types::contains_slice(&self.return_type)
+    }
+
+    /// Check if any of the parameters or return value contain a reference.
+    pub(super) fn has_refs(&self) -> bool {
+        self.returns_refs()
+            || self.params.iter().any(|(_, _, _, typ, _)| types::contains_reference(typ))
     }
 }
 
@@ -105,18 +108,19 @@ pub(super) fn can_call(
     caller_unconstrained: bool,
     caller_returns_ref: bool,
     callee_id: FuncId,
-    callee_unconstrained: bool,
-    callee_has_refs: bool,
+    callee_decl: &FunctionDeclaration,
 ) -> bool {
     // Nobody should call `main`.
     if callee_id == Program::main_id() {
         return false;
     }
 
-    // The compiler cannot handle returning references from `if-then-else`;
-    // since the `limit` module currently inserts an `if ctx_limit == 0`,
-    // returning a literal, it would violate this if the return has `&mut`.
-    if caller_returns_ref {
+    // The compiler cannot handle returning references from `if-then-else` in ACIR.
+    // Since the `limit` module currently inserts an `if ctx_limit == 0`,
+    // returning a literal, it would violate this if the return has `&mut`,
+    // therefore we don't make recursive calls from such functions, so the
+    // limit strategy is not applied to them.
+    if caller_returns_ref && caller_unconstrained {
         return false;
     }
 
@@ -129,21 +133,21 @@ pub(super) fn can_call(
     // 1) it would make programs bigger for little benefit
     // 2) it would skew calibration frequencies as ACIR freqs would overlay Brillig ones
     if caller_unconstrained {
-        return callee_unconstrained;
+        return callee_decl.unconstrained;
     }
 
     // When calling ACIR from ACIR, we avoid creating infinite
     // recursion by only calling functions with lower IDs,
     // otherwise the inliner could get stuck.
-    if !callee_unconstrained {
+    if !callee_decl.unconstrained {
         // Higher calls lower, so we can use this rule to pick function parameters
         // as we create the declarations: we can pass functions already declared.
         return callee_id < caller_id;
     }
 
     // When calling Brillig from ACIR, we avoid calling functions that take or return
-    // references, which cannot be passed between the two.
-    !callee_has_refs
+    // references or slices, which cannot be passed between the two.
+    !callee_decl.has_refs() && !callee_decl.returns_slices()
 }
 
 /// Make a name for a local variable.
@@ -252,14 +256,7 @@ impl<'a> FunctionContext<'a> {
 
         // Consider calling any allowed global function.
         for (callee_id, callee_decl) in &ctx.function_declarations {
-            if !can_call(
-                id,
-                decl.unconstrained,
-                decl.returns_refs(),
-                *callee_id,
-                callee_decl.unconstrained,
-                callee_decl.has_refs(),
-            ) {
+            if !can_call(id, decl.unconstrained, decl.returns_refs(), *callee_id, callee_decl) {
                 continue;
             }
             let produces = types::types_produced(&callee_decl.return_type);
@@ -645,15 +642,18 @@ impl<'a> FunctionContext<'a> {
                 //     let b = [0, 1];
                 //     *a[b[i]]
                 // }
-                let no_dynamic = self.in_no_dynamic
-                    || !self.unconstrained() && types::contains_reference(item_typ);
-                let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+                let (idx_expr, idx_dyn) = {
+                    let no_dynamic = self.in_no_dynamic
+                        || !self.unconstrained() && types::contains_reference(item_typ);
+                    let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
 
-                // Choose a random index.
-                let (idx_expr, idx_dyn) = self.gen_index(u, *len, max_depth)?;
-                assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
+                    // Choose a random index.
+                    let (idx_expr, idx_dyn) = self.gen_index(u, *len, max_depth)?;
+                    assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
 
-                self.in_no_dynamic = was_in_no_dynamic;
+                    self.in_no_dynamic = was_in_no_dynamic;
+                    (idx_expr, idx_dyn)
+                };
 
                 // Access the item.
                 let item_expr = Expression::Index(Index {
@@ -662,6 +662,73 @@ impl<'a> FunctionContext<'a> {
                     element_type: *item_typ.clone(),
                     location: Location::dummy(),
                 });
+                // Produce the target type from the item.
+                self.gen_expr_from_source(
+                    u,
+                    (item_expr, src_dyn || idx_dyn),
+                    item_typ,
+                    src_mutable,
+                    tgt_type,
+                    max_depth,
+                )
+            }
+            (Type::Slice(item_typ), _) => {
+                // We don't know the length of the slice at compile time,
+                // so we need to call the builtin function to get its length,
+                // generate a random number here, and take its modulo.
+                //      let idx = u32::arbitrary(u)?;
+                //      let len_expr = ???;
+                //      let idx_expr = expr::modulo(expr::u32_literal(idx), len_expr);
+
+                // The rules around dynamic indexing is the same as for arrays.
+                let (idx_expr, idx_dyn) = {
+                    let no_dynamic = self.in_no_dynamic
+                        || !self.unconstrained() && types::contains_reference(item_typ);
+                    let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
+                    // Choose a random index.
+                    let (idx_expr, idx_dyn) =
+                        self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
+                    assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
+
+                    self.in_no_dynamic = was_in_no_dynamic;
+                    (idx_expr, idx_dyn)
+                };
+
+                // Get the runtime length.
+                let len_expr = {
+                    let array_len_ident = Ident {
+                        location: None,
+                        definition: Definition::Builtin("array_len".to_string()),
+                        mutable: false,
+                        name: "len".to_string(),
+                        typ: Type::Function(
+                            vec![src_type.clone()],
+                            Box::new(types::U32),
+                            Box::new(Type::Unit),
+                            false,
+                        ),
+                        id: self.next_ident_id(),
+                    };
+                    Expression::Call(Call {
+                        func: Box::new(Expression::Ident(array_len_ident)),
+                        arguments: vec![src_expr.clone()],
+                        return_type: types::U32,
+                        location: Location::dummy(),
+                    })
+                };
+
+                // Take the modulo.
+                let idx_expr = expr::modulo(idx_expr, len_expr);
+
+                // Access the item.
+                let item_expr = Expression::Index(Index {
+                    collection: Box::new(src_expr),
+                    index: Box::new(idx_expr),
+                    element_type: *item_typ.clone(),
+                    location: Location::dummy(),
+                });
+
                 // Produce the target type from the item.
                 self.gen_expr_from_source(
                     u,
@@ -689,16 +756,6 @@ impl<'a> FunctionContext<'a> {
                     }
                 }
                 if opts.is_empty() { Ok(None) } else { Ok(Some(u.choose_iter(opts)?)) }
-            }
-            (Type::Slice(_), _) => {
-                // TODO(#7929): We don't know the length of the slice at compile time,
-                // so we need to call the builtin function to get its length,
-                // generate a random number here, and take its modulo:
-                //      let idx = u32::arbitrary(u)?;
-                //      let len_expr = ???;
-                //      let idx_expr = expr::modulo(expr::u32_literal(idx), len_expr);
-                // For now return nothing.
-                Ok(None)
             }
             _ => {
                 // We have already considered the case when the two types equal.
