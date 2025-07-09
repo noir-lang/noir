@@ -1982,28 +1982,34 @@ impl Type {
     /// is used and generic substitutions are provided manually by users.
     ///
     /// Expects the given type vector to be the same length as the Forall type variables.
-    pub fn instantiate_with(
+    pub fn instantiate_with_bindings_and_turbofish(
         &self,
-        types: Vec<Type>,
+        bindings: TypeBindings,
+        turbofish_types: Vec<Type>,
         interner: &NodeInterner,
         implicit_generic_count: usize,
     ) -> (Type, TypeBindings) {
         match self {
             Type::Forall(typevars, typ) => {
                 assert_eq!(
-                    types.len() + implicit_generic_count,
+                    turbofish_types.len() + implicit_generic_count,
                     typevars.len(),
                     "Turbofish operator used with incorrect generic count which was not caught by name resolution"
                 );
 
-                let bindings =
-                    (0..implicit_generic_count).map(|_| interner.next_type_variable()).chain(types);
+                let implicit_and_turbofish_bindings = (0..implicit_generic_count)
+                    .map(|_| interner.next_type_variable())
+                    .chain(turbofish_types);
 
-                let replacements = typevars
+                let mut replacements: TypeBindings = typevars
                     .iter()
-                    .zip(bindings)
+                    .zip(implicit_and_turbofish_bindings)
                     .map(|(var, binding)| (var.id(), (var.clone(), var.kind(), binding)))
                     .collect();
+
+                for (binding_key, binding_value) in bindings {
+                    replacements.insert(binding_key, binding_value);
+                }
 
                 let instantiated = typ.substitute(&replacements);
                 (instantiated, replacements)
