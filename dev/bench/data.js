@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752055741076,
+  "lastUpdate": 1752056182130,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11372,75 +11372,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7e7b1405e98a5970f6044784d4b28ad26d47716d",
-          "message": "chore: add logging for signature failure cases which break barretenberg (#9030)",
-          "timestamp": "2025-06-26T18:40:26Z",
-          "tree_id": "b0035e94240faddf2eb3e3da208335a33d64a903",
-          "url": "https://github.com/noir-lang/noir/commit/7e7b1405e98a5970f6044784d4b28ad26d47716d"
-        },
-        "date": 1750965790133,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.35,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 226.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 177.64,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 507.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 440.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.8,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 71.01,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "2203e14f139db2264a9a87dea3a4822d1397e6e9",
           "message": "chore: add idempotency check to `remove_unreachable_functions` (#9017)",
           "timestamp": "2025-06-27T08:36:32Z",
@@ -14760,6 +14691,75 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/913ee6308f6ea040608df452a66bcb20bece3ca6"
         },
         "date": 1752007942165,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 189.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 225.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 178.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 501.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 434.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 326.68,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.16,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rkarabut@users.noreply.github.com",
+            "name": "Ratmir Karabut",
+            "username": "rkarabut"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8f7b3fa81a146999cef2d1af466be1cd47f9ed9a",
+          "message": "fix(fuzz): fix wrong source listing order for comptime (#9149)",
+          "timestamp": "2025-07-09T09:36:29Z",
+          "tree_id": "740fbd2c2bcb3d3b5547aa38038d963b60d0114f",
+          "url": "https://github.com/noir-lang/noir/commit/8f7b3fa81a146999cef2d1af466be1cd47f9ed9a"
+        },
+        "date": 1752056167914,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
