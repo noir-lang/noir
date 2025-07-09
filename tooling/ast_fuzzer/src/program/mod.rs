@@ -170,6 +170,7 @@ impl Context {
             false,
             false,
             self.config.comptime_friendly,
+            true,
         )?;
         // By the time we get to the monomorphized AST the compiler will have already turned
         // complex global expressions into literals.
@@ -221,6 +222,7 @@ impl Context {
             is_main || is_abi,
             false,
             self.config.comptime_friendly,
+            true,
         )?;
 
         // Which existing functions we could receive as parameters.
@@ -259,6 +261,7 @@ impl Context {
                     is_main || is_abi,
                     false,
                     self.config.comptime_friendly,
+                    true,
                 )?
             } else {
                 // Take a function type.
@@ -414,6 +417,7 @@ impl Context {
     /// It also cannot infer the type of empty array literals, e.g. `let x = [];` would not compile.
     /// When we generate types for e.g. function parameters, where the type is going to be declared
     /// along with the variable name, this is not a concern.
+    #[allow(clippy::too_many_arguments)]
     fn gen_type(
         &mut self,
         u: &mut Unstructured,
@@ -422,6 +426,7 @@ impl Context {
         is_main: bool,
         is_frontend_friendly: bool,
         is_comptime_friendly: bool,
+        is_slice_allowed: bool,
     ) -> arbitrary::Result<Type> {
         // See if we can reuse an existing type without going over the maximum depth.
         if u.ratio(5, 10)? {
@@ -432,6 +437,7 @@ impl Context {
                 .filter(|typ| !is_main || types::can_be_main(typ))
                 .filter(|typ| types::type_depth(typ) <= max_depth)
                 .filter(|typ| !is_frontend_friendly || !self.should_avoid_literals(typ))
+                .filter(|typ| is_slice_allowed || !types::contains_slice(typ))
                 .collect::<Vec<_>>();
 
             if !existing_types.is_empty() {
@@ -443,7 +449,7 @@ impl Context {
         let max_index = if max_depth == 0 { 4 } else { 8 };
 
         // Generate the inner type for composite types with reduced maximum depth.
-        let gen_inner_type = |this: &mut Self, u: &mut Unstructured| {
+        let gen_inner_type = |this: &mut Self, u: &mut Unstructured, is_slice_allowed: bool| {
             this.gen_type(
                 u,
                 max_depth - 1,
@@ -451,6 +457,7 @@ impl Context {
                 is_main,
                 is_frontend_friendly,
                 is_comptime_friendly,
+                is_slice_allowed,
             )
         };
 
@@ -485,19 +492,19 @@ impl Context {
                     // 1-size tuples look strange, so let's make it minimum 2 fields.
                     let size = u.int_in_range(2..=self.config.max_tuple_size)?;
                     let types = (0..size)
-                        .map(|_| gen_inner_type(self, u))
+                        .map(|_| gen_inner_type(self, u, is_slice_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
                     Type::Tuple(types)
                 }
-                6 => {
+                6 if is_slice_allowed => {
+                    let typ = gen_inner_type(self, u, false)?;
+                    Type::Slice(Box::new(typ))
+                }
+                6 | 7 => {
                     let min_size = if is_frontend_friendly { 1 } else { 0 };
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
-                    let typ = gen_inner_type(self, u)?;
+                    let typ = gen_inner_type(self, u, false)?;
                     Type::Array(size as u32, Box::new(typ))
-                }
-                7 => {
-                    let typ = gen_inner_type(self, u)?;
-                    Type::Slice(Box::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };

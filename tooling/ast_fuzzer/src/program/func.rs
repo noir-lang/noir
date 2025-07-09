@@ -1032,7 +1032,7 @@ impl<'a> FunctionContext<'a> {
         // Generate a type or choose an existing one.
         let max_depth = self.max_depth();
         let comptime_friendly = self.config().comptime_friendly;
-        let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly)?;
+        let typ = self.ctx.gen_type(u, max_depth, false, false, true, comptime_friendly, true)?;
         let (expr, is_dyn) = self.gen_expr(u, &typ, max_depth, Flags::TOP)?;
         let mutable = bool::arbitrary(u)?;
         Ok(self.let_var(mutable, typ, expr, true, is_dyn, local_name))
