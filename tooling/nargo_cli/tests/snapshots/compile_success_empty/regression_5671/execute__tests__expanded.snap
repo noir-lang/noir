@@ -12,11 +12,7 @@ where
     A: Eq,
     B: Eq,
 {
-    fn eq(self, other: Self) -> bool
-    where
-        A: Eq,
-        B: Eq,
-    {
+    fn eq(self, other: Self) -> bool {
         (self.field1 == other.field1) & (self.field2 == other.field2)
     }
 }

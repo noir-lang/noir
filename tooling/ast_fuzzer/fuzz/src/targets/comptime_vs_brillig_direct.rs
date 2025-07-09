@@ -26,11 +26,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Avoid overflows, divisions by zero and constraints for now, as we currently
-        // don't catch errors issued by the elaborator
-        avoid_overflow: true,
-        avoid_err_by_zero: true,
-        avoid_constrain: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
