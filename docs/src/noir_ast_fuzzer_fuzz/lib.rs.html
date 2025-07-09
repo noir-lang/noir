@@ -357,8 +357,8 @@
         <span class="macro">eprintln!</span>(<span class="string">"{report:#}"</span>);
 
         <span class="comment">// Showing the AST as Noir so we can easily create integration tests.
-        </span><span class="macro">eprintln!</span>(<span class="string">"---\nAST:\n{}"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>inputs.program));
-        <span class="macro">eprintln!</span>(<span class="string">"---\nComptime source:\n{}"</span>, <span class="kw-2">&amp;</span>inputs.source);
+        </span><span class="macro">eprintln!</span>(<span class="string">"---\nComptime source:\n{}"</span>, <span class="kw-2">&amp;</span>inputs.source);
+        <span class="macro">eprintln!</span>(<span class="string">"---\nAST:\n{}"</span>, DisplayAstAsNoir(<span class="kw-2">&amp;</span>inputs.program));
 
         <span class="macro">eprintln!</span>(<span class="string">"---\nCompile options:\n{:?}"</span>, inputs.ssa.options);
         <span class="macro">eprintln!</span>(<span class="string">"---\nCompiled program:\n{}"</span>, inputs.ssa.artifact.program);
