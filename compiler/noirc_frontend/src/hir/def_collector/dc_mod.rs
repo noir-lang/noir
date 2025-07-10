@@ -455,6 +455,11 @@ impl ModCollector<'_> {
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
+            desugar_generic_trait_bounds(
+                &mut trait_definition.generics,
+                &mut trait_definition.where_clause,
+            );
+
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
                 context,

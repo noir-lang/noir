@@ -1766,3 +1766,24 @@ fn as_trait_path_called_multiple_times_for_different_t_2() {
     "#;
     check_monomorphization_error!(src);
 }
+
+#[named]
+#[test]
+fn short_syntax_for_trait_constraint_on_trait_generic() {
+    let src = r#"
+    pub trait Other {
+        fn other(self) {
+            let _ = self;
+        }
+    }
+
+    pub trait Trait<T: Other> {
+        fn foo(x: T) {
+            x.other();
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_monomorphization_error!(src);
+}
