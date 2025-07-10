@@ -25,8 +25,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         // Avoid overflows, divisions by zero and constraints for now, as we currently
         // don't catch errors issued by the elaborator
         avoid_overflow: u.arbitrary()?,
-        // Avoid constraints for now
-        avoid_constrain: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
