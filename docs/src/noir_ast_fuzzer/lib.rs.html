@@ -135,7 +135,10 @@
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>rand <span class="kw">as _</span>;
@@ -207,6 +210,8 @@
     </span><span class="kw">pub </span>avoid_print: bool,
     <span class="doccomment">/// Avoid using constrain statements.
     </span><span class="kw">pub </span>avoid_constrain: bool,
+    <span class="doccomment">/// Avoid using the slice type.
+    </span><span class="kw">pub </span>avoid_slices: bool,
     <span class="doccomment">/// Only use comptime friendly expressions.
     </span><span class="kw">pub </span>comptime_friendly: bool,
 }
@@ -268,6 +273,7 @@
             avoid_lambdas: <span class="bool-val">false</span>,
             avoid_print: <span class="bool-val">false</span>,
             avoid_constrain: <span class="bool-val">false</span>,
+            avoid_slices: <span class="bool-val">false</span>,
             comptime_friendly: <span class="bool-val">false</span>,
         }
     }

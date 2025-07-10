@@ -326,7 +326,24 @@
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
 <a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a>
+<a href="#339" id="339">339</a>
+<a href="#340" id="340">340</a>
+<a href="#341" id="341">341</a>
+<a href="#342" id="342">342</a>
+<a href="#343" id="343">343</a>
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -347,7 +364,7 @@
 </span><span class="kw">pub fn </span>type_depth(typ: <span class="kw-2">&amp;</span>Type) -&gt; usize {
     <span class="kw">match </span>typ {
         Type::Field | Type::Bool | Type::String(<span class="kw">_</span>) | Type::Unit | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="number">0</span>,
-        Type::Array(<span class="kw">_</span>, typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
+        Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; <span class="number">1 </span>+ type_depth(typ),
         Type::Tuple(types) =&gt; <span class="number">1 </span>+ types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, <span class="kw">_</span>) =&gt; <span class="number">1 </span>+ type_depth(typ.as_ref()),
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type: {typ}"</span>),
@@ -491,7 +508,8 @@
             <span class="kw-2">*</span>unconstrained,
         ),
         Type::Reference(typ, mutable) =&gt; HirType::Reference(Box::new(to_hir_type(typ)), <span class="kw-2">*</span>mutable),
-        Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>) =&gt; {
+        Type::Slice(typ) =&gt; HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
             <span class="macro">unreachable!</span>(<span class="string">"unexpected type converting to HIR: {}"</span>, typ)
         }
     }
@@ -550,6 +568,22 @@
         | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
         Type::Array(<span class="kw">_</span>, typ) | Type::Slice(typ) =&gt; contains_reference(typ),
         Type::Tuple(types) =&gt; types.iter().any(contains_reference),
+    }
+}
+
+<span class="doccomment">/// Check if the type contains any references.
+</span><span class="kw">pub fn </span>contains_slice(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+    <span class="kw">match </span>typ {
+        Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+        Type::Field
+        | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)
+        | Type::Bool
+        | Type::String(<span class="kw">_</span>)
+        | Type::Unit
+        | Type::FmtString(<span class="kw">_</span>, <span class="kw">_</span>)
+        | Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        Type::Array(<span class="kw">_</span>, typ) | Type::Reference(typ, <span class="kw">_</span>) =&gt; contains_slice(typ),
+        Type::Tuple(types) =&gt; types.iter().any(contains_slice),
     }
 }
 

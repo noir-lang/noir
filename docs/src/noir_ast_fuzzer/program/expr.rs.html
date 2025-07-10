@@ -485,7 +485,21 @@
 <a href="#484" id="484">484</a>
 <a href="#485" id="485">485</a>
 <a href="#486" id="486">486</a>
-<a href="#487" id="487">487</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -500,6 +514,8 @@
     signed_field::SignedField,
 };
 
+<span class="kw">use </span><span class="kw">crate</span>::Config;
+
 <span class="kw">use super</span>::{Name, VariableId, types, visitor::visit_expr};
 
 <span class="doccomment">/// Boolean literal.
@@ -508,7 +524,11 @@
 }
 
 <span class="doccomment">/// Generate a literal expression according to a type.
-</span><span class="kw">pub fn </span>gen_literal(u: <span class="kw-2">&amp;mut </span>Unstructured, typ: <span class="kw-2">&amp;</span>Type) -&gt; arbitrary::Result&lt;Expression&gt; {
+</span><span class="kw">pub fn </span>gen_literal(
+    u: <span class="kw-2">&amp;mut </span>Unstructured,
+    typ: <span class="kw-2">&amp;</span>Type,
+    config: <span class="kw-2">&amp;</span>Config,
+) -&gt; arbitrary::Result&lt;Expression&gt; {
     <span class="kw">use </span>FieldElement <span class="kw">as </span>Field;
     <span class="kw">use </span>IntegerBitSize::<span class="kw-2">*</span>;
 
@@ -570,20 +590,28 @@
         Type::Array(len, item_type) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
-                arr.contents.push(gen_literal(u, item_type)<span class="question-mark">?</span>);
+                arr.contents.push(gen_literal(u, item_type, config)<span class="question-mark">?</span>);
             }
             Expression::Literal(Literal::Array(arr))
+        }
+        Type::Slice(item_type) =&gt; {
+            <span class="kw">let </span>len = u.int_in_range(<span class="number">0</span>..=config.max_array_size)<span class="question-mark">?</span>;
+            <span class="kw">let </span><span class="kw-2">mut </span>arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+            <span class="kw">for _ in </span><span class="number">0</span>..len {
+                arr.contents.push(gen_literal(u, item_type, config)<span class="question-mark">?</span>);
+            }
+            Expression::Literal(Literal::Slice(arr))
         }
         Type::Tuple(items) =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
             <span class="kw">for </span>item_type <span class="kw">in </span>items {
-                values.push(gen_literal(u, item_type)<span class="question-mark">?</span>);
+                values.push(gen_literal(u, item_type, config)<span class="question-mark">?</span>);
             }
             Expression::Tuple(values)
         }
         Type::Reference(typ, mutable) =&gt; {
             <span class="comment">// In Noir we can return a reference for a value created in a function.
-            </span><span class="kw">let </span>value = gen_literal(u, typ.as_ref())<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>value = gen_literal(u, typ.as_ref(), config)<span class="question-mark">?</span>;
             ref_with_mut(value, typ.as_ref().clone(), <span class="kw-2">*</span>mutable)
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected type to generate a literal for: {typ}"</span>),

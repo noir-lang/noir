@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["AstPrinter","FunctionPrintOptions"]};
+window.SIDEBAR_ITEMS = {"enum":["SpecialCall"],"struct":["AstPrinter","FunctionPrintOptions"]};

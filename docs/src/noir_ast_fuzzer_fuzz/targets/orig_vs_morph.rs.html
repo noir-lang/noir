@@ -1126,7 +1126,7 @@
     <span class="kw">use </span><span class="kw">super</span>::helpers::gen_expr;
     <span class="kw">use </span>acir::{AcirField, FieldElement};
     <span class="kw">use </span>arbitrary::Unstructured;
-    <span class="kw">use </span>noir_ast_fuzzer::{expr, types};
+    <span class="kw">use </span>noir_ast_fuzzer::{Config, expr, types};
     <span class="kw">use </span>noirc_frontend::{
         ast::BinaryOpKind,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
@@ -1244,7 +1244,7 @@
                 <span class="kw">let </span>Expression::Literal(Literal::Integer(a, typ, loc)) = expr <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"matched only integer literals, got {expr}"</span>);
                 };
-                <span class="kw">let </span><span class="kw-2">mut </span>b_expr = expr::gen_literal(u, typ)<span class="question-mark">?</span>;
+                <span class="kw">let </span><span class="kw-2">mut </span>b_expr = expr::gen_literal(u, typ, <span class="kw-2">&amp;</span>Config::default())<span class="question-mark">?</span>;
                 <span class="kw">let </span>Expression::Literal(Literal::Integer(b, <span class="kw">_</span>, <span class="kw">_</span>)) = <span class="kw-2">&amp;mut </span>b_expr <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"generated a literal of the same type"</span>);
                 };
@@ -1295,7 +1295,7 @@
     </span><span class="kw">pub fn </span>bool_xor_rand() -&gt; Rule {
         Rule::new(bool_rule_matches, |u, _locals, expr| {
             <span class="comment">// This is where we could access the scope to look for a random bool variable.
-            </span><span class="kw">let </span>rnd = expr::gen_literal(u, <span class="kw-2">&amp;</span>Type::Bool)<span class="question-mark">?</span>;
+            </span><span class="kw">let </span>rnd = expr::gen_literal(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="kw-2">&amp;</span>Config::default())<span class="question-mark">?</span>;
             expr::replace(expr, |expr| {
                 <span class="kw">let </span>rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
                 expr::binary(rnd, BinaryOpKind::Xor, rhs)
@@ -1438,7 +1438,7 @@
     <span class="kw">use </span>std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     <span class="kw">use </span>arbitrary::Unstructured;
-    <span class="kw">use </span>noir_ast_fuzzer::{expr, types, visitor::visit_expr_be_mut};
+    <span class="kw">use </span>noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
     <span class="kw">use </span>noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
         monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
@@ -1479,7 +1479,7 @@
                 }
             }
         }
-        expr::gen_literal(u, typ)
+        expr::gen_literal(u, typ, <span class="kw-2">&amp;</span>Config::default())
     }
 
     <span class="doccomment">/// Generate an arbitrary unary expression, returning a specific type.

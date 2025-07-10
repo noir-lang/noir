@@ -583,7 +583,59 @@
 <a href="#582" id="582">582</a>
 <a href="#583" id="583">583</a>
 <a href="#584" id="584">584</a>
-<a href="#585" id="585">585</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -606,13 +658,20 @@
     </span><span class="kw">pub </span>comptime: bool,
 }
 
+<span class="doccomment">/// Some calls can be printed with the intention of parsing the code.
+</span><span class="attr">#[derive(PartialEq)]
+</span><span class="kw">enum </span>SpecialCall {
+    Print,
+    Object(String),
+}
+
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub struct </span>AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     <span class="kw">pub </span>show_id: bool,
     <span class="kw">pub </span>show_clone_and_drop: bool,
-    <span class="kw">pub </span>show_print_as_std: bool,
+    <span class="kw">pub </span>show_specials_as_std: bool,
     <span class="kw">pub </span>show_type_in_let: bool,
     <span class="kw">pub </span>show_type_of_int_literal: bool,
 }
@@ -624,7 +683,7 @@
             in_unconstrained: <span class="bool-val">false</span>,
             show_id: <span class="bool-val">true</span>,
             show_clone_and_drop: <span class="bool-val">true</span>,
-            show_print_as_std: <span class="bool-val">false</span>,
+            show_specials_as_std: <span class="bool-val">false</span>,
             show_type_in_let: <span class="bool-val">false</span>,
             show_type_of_int_literal: <span class="bool-val">false</span>,
         }
@@ -1077,22 +1136,32 @@
         call: <span class="kw-2">&amp;</span><span class="kw">super</span>::ast::Call,
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
-        <span class="kw">let </span>(print_unsafe, print_oracle) = <span class="kw">match </span>call.func.as_ref() {
+        <span class="kw">let </span>(print_unsafe, special) = <span class="kw">match </span>call.func.as_ref() {
             Expression::Ident(Ident {
                 typ: Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained),
                 definition,
+                name,
                 ..
             }) =&gt; {
                 <span class="kw">let </span>is_unsafe = <span class="kw-2">*</span>unconstrained &amp;&amp; !<span class="self">self</span>.in_unconstrained;
-                <span class="kw">let </span>is_print = <span class="macro">matches!</span>(definition, Definition::Oracle(s) <span class="kw">if </span>s == <span class="string">"print"</span>);
-                (is_unsafe, is_print)
+                <span class="kw">let </span>special = <span class="kw">match </span>definition {
+                    Definition::Oracle(s) <span class="kw">if </span>s == <span class="string">"print" </span>=&gt; <span class="prelude-val">Some</span>(SpecialCall::Print),
+                    Definition::Builtin(s) <span class="kw">if </span>s.starts_with(<span class="string">"array"</span>) || s.starts_with(<span class="string">"slice"</span>) =&gt; {
+                        <span class="prelude-val">Some</span>(SpecialCall::Object(name.clone()))
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+                };
+                (is_unsafe, special)
             }
-            <span class="kw">_ </span>=&gt; (<span class="bool-val">false</span>, <span class="bool-val">false</span>),
+            <span class="kw">_ </span>=&gt; (<span class="bool-val">false</span>, <span class="prelude-val">None</span>),
         };
-        <span class="comment">// If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        </span><span class="kw">if </span>print_oracle &amp;&amp; <span class="self">self</span>.show_print_as_std &amp;&amp; <span class="self">self</span>.print_println(<span class="kw-2">&amp;</span>call.arguments, f)<span class="question-mark">? </span>{
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(special) = special {
+            <span class="kw">if </span><span class="self">self</span>.print_special_call(special, <span class="kw-2">&amp;</span>call.arguments, f)<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(());
+            }
         }
+
         <span class="kw">if </span>print_unsafe {
             <span class="macro">write!</span>(f, <span class="string">"unsafe {{ "</span>)<span class="question-mark">?</span>;
         }
@@ -1104,6 +1173,25 @@
             <span class="macro">write!</span>(f, <span class="string">" }}"</span>)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())
+    }
+
+    <span class="doccomment">/// Try to display a special call as Noir.
+    </span><span class="kw">fn </span>print_special_call(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        special: SpecialCall,
+        args: <span class="kw-2">&amp;</span>[Expression],
+        f: <span class="kw-2">&amp;mut </span>Formatter,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, std::fmt::Error&gt; {
+        <span class="kw">if </span>!<span class="self">self</span>.show_specials_as_std {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">false</span>);
+        }
+        <span class="kw">match </span>special {
+            SpecialCall::Print =&gt; <span class="self">self</span>.print_println(args, f),
+            SpecialCall::Object(method) =&gt; {
+                <span class="self">self</span>.print_object_method(<span class="kw-2">&amp;</span>method, args, f)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+            }
+        }
     }
 
     <span class="doccomment">/// Instead of printing a call to the print oracle as a regular function,
@@ -1131,6 +1219,22 @@
         <span class="comment">// The 2nd parameter is the printed value. The 3rd and 4th parameter don't appear in Noir;
         // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         </span><span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>args[<span class="number">1</span>], f)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+    }
+
+    <span class="doccomment">/// Special method for printing builtin array method calls, turning e.g. `len$array_len(x)` into `x.len()`.
+    </span><span class="kw">fn </span>print_object_method(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        method: <span class="kw-2">&amp;</span>str,
+        args: <span class="kw-2">&amp;</span>[Expression],
+        f: <span class="kw-2">&amp;mut </span>Formatter,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, std::fmt::Error&gt; {
+        <span class="macro">assert!</span>(!args.is_empty(), <span class="string">"methods need at least a self argument"</span>);
+        <span class="kw">let </span>(arr, args) = args.split_at(<span class="number">1</span>);
+        <span class="self">self</span>.print_expr(<span class="kw-2">&amp;</span>arr[<span class="number">0</span>], f)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(f, <span class="string">".{method}("</span>)<span class="question-mark">?</span>;
+        <span class="self">self</span>.print_comma_separated(args, f)<span class="question-mark">?</span>;
         <span class="macro">write!</span>(f, <span class="string">")"</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
     }
