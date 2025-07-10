@@ -226,6 +226,9 @@ pub(super) struct FunctionContext<'a> {
     in_loop: bool,
     /// Indicator of computing an expression that should not contain dynamic input.
     in_no_dynamic: bool,
+    /// Indicator of being affected by dynamic input, in which case we should refrain
+    /// from using expression that requires no-dynamic mode.
+    in_dynamic: bool,
     /// All the functions callable from this one, with the types we can
     /// produce from their return value.
     call_targets: BTreeMap<CallableId, HashSet<Type>>,
@@ -284,6 +287,7 @@ impl<'a> FunctionContext<'a> {
             dynamics,
             in_loop: false,
             in_no_dynamic: false,
+            in_dynamic: false,
             call_targets,
             next_ident_id: 0,
             has_call: false,
@@ -359,6 +363,16 @@ impl<'a> FunctionContext<'a> {
         self.dynamics.contains(id)
     }
 
+    /// Check if a source type can be used inside a dynamic input context to produce some target type.
+    fn can_be_used_in_dynamic(&self, src_type: &Type, tgt_type: &Type) -> bool {
+        // Dynamic inputs are restricted only in ACIR
+        self.unconstrained()
+        // If we are looking for the exact type, it's okay.
+            || src_type == tgt_type
+            // But we can't index an array with references.
+            || !(types::is_array_or_slice(src_type) && types::contains_reference(src_type) )
+    }
+
     /// Choose a producer for a type, preferring local variables over global ones.
     fn choose_producer(
         &self,
@@ -367,10 +381,15 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<VariableId>> {
         // Check if we have something that produces this exact type.
         if u.ratio(7, 10)? {
-            let producer = if self.in_no_dynamic {
-                self.locals
-                    .current()
-                    .choose_producer_filtered(u, typ, |id, _| !self.is_dynamic(id))?
+            let producer = if self.in_no_dynamic || self.in_dynamic {
+                self.locals.current().choose_producer_filtered(
+                    u,
+                    typ,
+                    |id, (_, _, producer_type)| {
+                        (!self.in_no_dynamic || !self.is_dynamic(id))
+                            && (!self.in_dynamic || self.can_be_used_in_dynamic(producer_type, typ))
+                    },
+                )?
             } else {
                 self.locals.current().choose_producer(u, typ)?
             };
@@ -387,10 +406,13 @@ impl<'a> FunctionContext<'a> {
             return self
                 .locals
                 .current()
-                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, prod)| {
+                .choose_producer_filtered(u, typ.as_ref(), |id, (mutable, _, producer_type)| {
                     *mutable
-                        && (typ.as_ref() == prod || !types::is_array_or_slice(prod))
+                        && (typ.as_ref() == producer_type
+                            || !types::is_array_or_slice(producer_type))
                         && (!self.in_no_dynamic || !self.is_dynamic(id))
+                        && (!self.in_dynamic
+                            || self.can_be_used_in_dynamic(producer_type, typ.as_ref()))
                 })
                 .map(|id| id.map(VariableId::Local));
         }
@@ -601,7 +623,12 @@ impl<'a> FunctionContext<'a> {
             return Ok(Some((src_expr, src_dyn)));
         }
 
-        // Mutable references to array elements are currently unsupported
+        // Some types cannot be accessed in certain contexts.
+        if self.in_dynamic && !self.can_be_used_in_dynamic(src_type, tgt_type) {
+            return Ok(None);
+        }
+
+        // Mutable references to array elements are currently unsupported.
         if types::is_array_or_slice(src_type) {
             src_mutable = false;
         }
@@ -1314,6 +1341,12 @@ impl<'a> FunctionContext<'a> {
 
         let (cond, cond_dyn) = self.gen_expr(u, &Type::Bool, max_depth, Flags::CONDITION)?;
 
+        // If the `if` condition uses dynamic input, we cannot access certain constructs in the body in ACIR.
+        // Note that this would be the case for `while` and `for` as well, however `while` is not used in ACIR,
+        // and `for` has its own restriction of having to have compile-time boundaries, so this is only done where necessary.
+        let in_dynamic = self.in_dynamic || cond_dyn;
+        let was_in_dynamic = std::mem::replace(&mut self.in_dynamic, in_dynamic);
+
         let (cons, cons_dyn) = {
             if flags.allow_blocks {
                 self.gen_block(u, typ)?
@@ -1334,6 +1367,7 @@ impl<'a> FunctionContext<'a> {
             Some(expr)
         };
 
+        self.in_dynamic = was_in_dynamic;
         let alt_dyn = alt.as_ref().is_some_and(|(_, d)| *d);
         let is_dyn = cond_dyn || cons_dyn || alt_dyn;
 
