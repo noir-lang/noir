@@ -368,3 +368,34 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn turbofish_named_numeric() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    impl Bar for Field {
+        let N: u32 = 1;
+    }
+
+    impl Bar for i32 {
+        let N: u32 = 2;
+    }
+
+    fn foo<B>()
+    where
+        B: Bar<N = 1>,
+    {}
+
+    fn main() {
+        foo::<Field>();
+        foo::<i32>();
+        ^^^^^^^^^^ No matching impl found for `i32: Bar<N = 1>`
+        ~~~~~~~~~~ No impl for `i32: Bar<N = 1>`
+    }
+    "#;
+    check_errors!(src);
+}
