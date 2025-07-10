@@ -292,7 +292,7 @@ mod test {
         ssa::{
             SsaEvaluatorOptions,
             function_builder::FunctionBuilder,
-            ir::{cfg::ControlFlowGraph, map::Id, types::Type},
+            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
             opt::flatten_cfg::branch_analysis::find_branch_ends,
             primary_passes,
             ssa_gen::Ssa,
@@ -438,6 +438,65 @@ mod test {
         let function = ssa.main();
         let cfg = ControlFlowGraph::with_function(function);
         find_branch_ends(function, &cfg);
+    }
+
+    #[test]
+    fn test_find_branch_ends_with_documented_example() {
+        //                    b11
+        //                   /   \
+        //       b5        b9     b13
+        //      /  \      /  \   /   \
+        //    b1    b7--b8    b12     b15
+        //    / \  /      \          /   \
+        //  b0   b6        b10----b14    b4
+        //    \                          /
+        //    b2-----------------------b3
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmpif u1 0 then: b5, else: b6
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            return
+          b5():
+            jmp b7()
+          b6():
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmpif u1 0 then: b9, else: b10
+          b9():
+            jmpif u1 0 then: b11, else: b12
+          b10():
+            jmp b14()
+          b11():
+            jmp b13()
+          b12():
+            jmp b13()
+          b13():
+            jmp b15()
+          b14():
+            jmp b15()
+          b15():
+            jmp b4()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let cfg = ControlFlowGraph::with_function(main);
+        let ends = find_branch_ends(main, &cfg);
+
+        let b = |n| BasicBlockId::new(n);
+        assert_eq!(ends[&b(0)], b(4));
+        assert_eq!(ends[&b(1)], b(7));
+        assert_eq!(ends[&b(8)], b(15));
+        assert_eq!(ends[&b(9)], b(13));
     }
 
     #[test]
