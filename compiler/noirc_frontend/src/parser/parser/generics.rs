@@ -168,7 +168,10 @@ impl Parser<'_> {
 
             self.eat_assign();
 
-            let typ = self.parse_type_or_error();
+            let Some(typ) = self.parse_type_or_type_expression() else {
+                self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+                return None;
+            };
             return Some(GenericTypeArg::Named(ident, typ));
         }
 
@@ -255,14 +258,16 @@ mod tests {
 
     #[test]
     fn parses_generic_type_args() {
-        let src = "<i32, X = Field>";
+        let src = "<i32, X = Field, Y = 1>";
         let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
-        assert_eq!(generics.named_args.len(), 1);
+        assert_eq!(generics.named_args.len(), 2);
         assert_eq!(generics.named_args[0].0.to_string(), "X");
         assert_eq!(generics.named_args[0].1.to_string(), "Field");
+        assert_eq!(generics.named_args[1].0.to_string(), "Y");
+        assert_eq!(generics.named_args[1].1.to_string(), "1");
     }
 
     #[test]
