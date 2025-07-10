@@ -1274,7 +1274,14 @@
 <a href="#1273" id="1273">1273</a>
 <a href="#1274" id="1274">1274</a>
 <a href="#1275" id="1275">1275</a>
-<a href="#1276" id="1276">1276</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
@@ -1458,8 +1465,10 @@
             ModuleDefId::GlobalId(global_id) =&gt; {
                 <span class="self">self</span>.show_secondary_attributes(<span class="self">self</span>.interner.global_attributes(<span class="kw-2">&amp;</span>global_id));
             }
-            ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) =&gt; {
-            }
+            ModuleDefId::ModuleId(..)
+            | ModuleDefId::TypeAliasId(..)
+            | ModuleDefId::TraitId(..)
+            | ModuleDefId::TraitAssociatedTypeId(..) =&gt; {}
         }
     }
 
@@ -2481,6 +2490,10 @@
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 trait_.name.to_string()
             }
+            ModuleDefId::TraitAssociatedTypeId(id) =&gt; {
+                <span class="kw">let </span>associated_type = <span class="self">self</span>.interner.get_trait_associated_type(id);
+                associated_type.name.to_string()
+            }
             ModuleDefId::GlobalId(global_id) =&gt; {
                 <span class="kw">let </span>global_info = <span class="self">self</span>.interner.get_global(global_id);
                 global_info.ident.to_string()
@@ -2505,6 +2518,7 @@
                 <span class="kw">let </span>type_alias = <span class="self">self</span>.interner.get_type_alias(type_alias_id);
                 type_alias.borrow().visibility
             }
+            ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; ItemVisibility::Public,
             ModuleDefId::TraitId(trait_id) =&gt; {
                 <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(trait_id);
                 trait_.visibility

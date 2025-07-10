@@ -266,7 +266,8 @@
 <a href="#265" id="265">265</a>
 <a href="#266" id="266">266</a>
 <a href="#267" id="267">267</a>
-<a href="#268" id="268">268</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use crate</span>::{
     ast::{Ident, ItemVisibility},
@@ -290,6 +291,7 @@
         ModuleDefId::TypeId(id) =&gt; ReferenceId::Type(id),
         ModuleDefId::TypeAliasId(id) =&gt; ReferenceId::Alias(id),
         ModuleDefId::TraitId(id) =&gt; ReferenceId::Trait(id),
+        ModuleDefId::TraitAssociatedTypeId(id) =&gt; ReferenceId::TraitAssociatedType(id),
         ModuleDefId::GlobalId(id) =&gt; ReferenceId::Global(id),
     }
 }

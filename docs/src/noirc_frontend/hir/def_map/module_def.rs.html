@@ -99,7 +99,15 @@
 <a href="#98" id="98">98</a>
 <a href="#99" id="99">99</a>
 <a href="#100" id="100">100</a>
-<a href="#101" id="101">101</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 
 <span class="kw">use </span><span class="kw">super</span>::ModuleId;
 
@@ -111,6 +119,7 @@
     TypeId(TypeId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
+    TraitAssociatedTypeId(TraitAssociatedTypeId),
     GlobalId(GlobalId),
 }
 
@@ -158,6 +167,7 @@
             ModuleDefId::TypeId(<span class="kw">_</span>) =&gt; <span class="string">"type"</span>,
             ModuleDefId::TypeAliasId(<span class="kw">_</span>) =&gt; <span class="string">"type alias"</span>,
             ModuleDefId::TraitId(<span class="kw">_</span>) =&gt; <span class="string">"trait"</span>,
+            ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; <span class="string">"associated type"</span>,
             ModuleDefId::ModuleId(<span class="kw">_</span>) =&gt; <span class="string">"module"</span>,
             ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="string">"global"</span>,
         }
@@ -198,6 +208,12 @@
 <span class="kw">impl </span>From&lt;TraitId&gt; <span class="kw">for </span>ModuleDefId {
     <span class="kw">fn </span>from(trait_id: TraitId) -&gt; <span class="self">Self </span>{
         ModuleDefId::TraitId(trait_id)
+    }
+}
+
+<span class="kw">impl </span>From&lt;TraitAssociatedTypeId&gt; <span class="kw">for </span>ModuleDefId {
+    <span class="kw">fn </span>from(id: TraitAssociatedTypeId) -&gt; <span class="self">Self </span>{
+        ModuleDefId::TraitAssociatedTypeId(id)
     }
 }
 </code></pre></div></section></main></body></html>

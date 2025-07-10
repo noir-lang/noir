@@ -3010,7 +3010,14 @@
 <a href="#3009" id="3009">3009</a>
 <a href="#3010" id="3010">3010</a>
 <a href="#3011" id="3011">3011</a>
-<a href="#3012" id="3012">3012</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3012" id="3012">3012</a>
+<a href="#3013" id="3013">3013</a>
+<a href="#3014" id="3014">3014</a>
+<a href="#3015" id="3015">3015</a>
+<a href="#3016" id="3016">3016</a>
+<a href="#3017" id="3017">3017</a>
+<a href="#3018" id="3018">3018</a>
+<a href="#3019" id="3019">3019</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3023,7 +3030,7 @@
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::types::{<span class="self">self</span>},
-    node_interner::{NodeInterner, TraitId, TypeAliasId},
+    node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
@@ -3751,6 +3758,13 @@
         <span class="kw">let </span>args = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |<span class="kw">_</span>| interner.next_type_variable());
         <span class="self">self</span>.get_type(<span class="kw-2">&amp;</span>args)
     }
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>TraitAssociatedType {
+    <span class="kw">pub </span>id: TraitAssociatedTypeId,
+    <span class="kw">pub </span>trait_id: TraitId,
+    <span class="kw">pub </span>name: Ident,
 }
 
 <span class="doccomment">/// A shared, mutable reference to some T.

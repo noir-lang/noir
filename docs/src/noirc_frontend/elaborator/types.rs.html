@@ -2346,7 +2346,20 @@
 <a href="#2345" id="2345">2345</a>
 <a href="#2346" id="2346">2346</a>
 <a href="#2347" id="2347">2347</a>
-<a href="#2348" id="2348">2348</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2348" id="2348">2348</a>
+<a href="#2349" id="2349">2349</a>
+<a href="#2350" id="2350">2350</a>
+<a href="#2351" id="2351">2351</a>
+<a href="#2352" id="2352">2352</a>
+<a href="#2353" id="2353">2353</a>
+<a href="#2354" id="2354">2354</a>
+<a href="#2355" id="2355">2355</a>
+<a href="#2356" id="2356">2356</a>
+<a href="#2357" id="2357">2357</a>
+<a href="#2358" id="2358">2358</a>
+<a href="#2359" id="2359">2359</a>
+<a href="#2360" id="2360">2360</a>
+<a href="#2361" id="2361">2361</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2663,6 +2676,18 @@
                     }
                 }
                 typ
+            }
+            <span class="prelude-val">Ok</span>(PathResolutionItem::TraitAssociatedType(associated_type_id)) =&gt; {
+                <span class="kw">let </span>associated_type = <span class="self">self</span>.interner.get_trait_associated_type(associated_type_id);
+                <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(associated_type.trait_id);
+
+                <span class="self">self</span>.push_err(ResolverError::AmbiguousAssociatedType {
+                    trait_name: trait_.name.to_string(),
+                    associated_type_name: associated_type.name.to_string(),
+                    location,
+                });
+
+                Type::Error
             }
             <span class="prelude-val">Ok</span>(item) =&gt; {
                 <span class="self">self</span>.push_err(ResolverError::Expected {
@@ -3171,6 +3196,7 @@
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)

@@ -1768,8 +1768,7 @@
 <a href="#1767" id="1767">1767</a>
 <a href="#1768" id="1768">1768</a>
 <a href="#1769" id="1769">1769</a>
-<a href="#1770" id="1770">1770</a>
-<a href="#1771" id="1771">1771</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1770" id="1770">1770</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -1796,7 +1795,7 @@
 <span class="kw">use crate</span>::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FunctionModifiers, TraitId, TypeAliasId},
+    node_interner::{FunctionModifiers, TraitId},
     parser::{SortedModule, SortedSubModule},
 };
 
@@ -2422,12 +2421,11 @@
                         }
                     }
                     TraitItem::Type { name, bounds: <span class="kw">_ </span>} =&gt; {
-                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) =
-                            <span class="self">self</span>.def_collector.def_map[trait_id.<span class="number">0</span>.local_id].declare_type_alias(
-                                name.clone(),
-                                ItemVisibility::Public,
-                                TypeAliasId::dummy_id(),
-                            )
+                        <span class="kw">let </span>trait_associated_type_id =
+                            context.def_interner.push_trait_associated_type(trait_id, name.clone());
+                        <span class="kw">if let </span><span class="prelude-val">Err</span>((first_def, second_def)) = <span class="self">self</span>.def_collector.def_map
+                            [trait_id.<span class="number">0</span>.local_id]
+                            .declare_trait_associated_type(name.clone(), trait_associated_type_id)
                         {
                             <span class="kw">let </span>error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedItem,

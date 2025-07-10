@@ -2691,7 +2691,26 @@
 <a href="#2690" id="2690">2690</a>
 <a href="#2691" id="2691">2691</a>
 <a href="#2692" id="2692">2692</a>
-<a href="#2693" id="2693">2693</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2693" id="2693">2693</a>
+<a href="#2694" id="2694">2694</a>
+<a href="#2695" id="2695">2695</a>
+<a href="#2696" id="2696">2696</a>
+<a href="#2697" id="2697">2697</a>
+<a href="#2698" id="2698">2698</a>
+<a href="#2699" id="2699">2699</a>
+<a href="#2700" id="2700">2700</a>
+<a href="#2701" id="2701">2701</a>
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2725,6 +2744,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::GenericTypeVars;
 <span class="kw">use </span><span class="kw">crate</span>::Generics;
+<span class="kw">use </span><span class="kw">crate</span>::TraitAssociatedType;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::errors::ResolverError;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::expr::HirIdent;
@@ -2817,6 +2837,11 @@
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) type_aliases: Vec&lt;Shared&lt;TypeAlias&gt;&gt;,
+
+    <span class="doccomment">/// Each trait associated type. These are tracked so that we can distinguish them
+    /// from other types and know that, when directly referenced, they should also
+    /// lead to an "ambiguous associated type" error.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) trait_associated_types: Vec&lt;TraitAssociatedType&gt;,
 
     <span class="comment">// Trait map.
     //
@@ -3001,6 +3026,7 @@
     StructMember(TypeId, usize),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -3198,12 +3224,6 @@
 <span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>TypeAliasId(<span class="kw">pub </span>usize);
 
-<span class="kw">impl </span>TypeAliasId {
-    <span class="kw">pub fn </span>dummy_id() -&gt; TypeAliasId {
-        TypeAliasId(usize::MAX)
-    }
-}
-
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 </span><span class="kw">pub struct </span>TraitId(<span class="kw">pub </span>ModuleId);
 
@@ -3215,6 +3235,9 @@
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
+
+<span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+</span><span class="kw">pub struct </span>TraitAssociatedTypeId(<span class="kw">pub </span>usize);
 
 <span class="attr">#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 </span><span class="kw">pub struct </span>TraitImplId(<span class="kw">pub </span>usize);
@@ -3384,6 +3407,7 @@
             data_types: HashMap::default(),
             type_attributes: HashMap::default(),
             type_aliases: Vec::new(),
+            trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
             next_trait_implementation_id: <span class="number">0</span>,
@@ -3535,6 +3559,16 @@
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     </span><span class="kw">pub fn </span>add_type_alias_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeAliasId, location: Location) {
         <span class="self">self</span>.type_alias_ref.push((type_id, location));
+    }
+
+    <span class="kw">pub fn </span>push_trait_associated_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        trait_id: TraitId,
+        name: Ident,
+    ) -&gt; TraitAssociatedTypeId {
+        <span class="kw">let </span>id = TraitAssociatedTypeId(<span class="self">self</span>.trait_associated_types.len());
+        <span class="self">self</span>.trait_associated_types.push(TraitAssociatedType { id, trait_id, name });
+        id
     }
 
     <span class="kw">pub fn </span>update_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeId, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>DataType)) {
@@ -3976,6 +4010,10 @@
 
     <span class="kw">pub fn </span>get_trait(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TraitId) -&gt; <span class="kw-2">&amp;</span>Trait {
         <span class="kw-2">&amp;</span><span class="self">self</span>.traits[<span class="kw-2">&amp;</span>id]
+    }
+
+    <span class="kw">pub fn </span>get_trait_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TraitAssociatedTypeId) -&gt; <span class="kw-2">&amp;</span>TraitAssociatedType {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.trait_associated_types[id.<span class="number">0</span>]
     }
 
     <span class="kw">pub fn </span>get_trait_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TraitId) -&gt; <span class="kw-2">&amp;mut </span>Trait {

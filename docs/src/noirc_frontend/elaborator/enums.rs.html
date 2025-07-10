@@ -1404,7 +1404,8 @@
 <a href="#1403" id="1403">1403</a>
 <a href="#1404" id="1404">1404</a>
 <a href="#1405" id="1405">1405</a>
-<a href="#1406" id="1406">1406</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -2121,6 +2122,7 @@
             | PathResolutionItem::TypeAlias(<span class="kw">_</span>)
             | PathResolutionItem::PrimitiveType(<span class="kw">_</span>)
             | PathResolutionItem::Trait(<span class="kw">_</span>)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(<span class="kw">_</span>)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)

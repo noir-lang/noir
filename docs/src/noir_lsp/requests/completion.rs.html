@@ -2059,7 +2059,8 @@
 <a href="#2058" id="2058">2058</a>
 <a href="#2059" id="2059">2059</a>
 <a href="#2060" id="2060">2060</a>
-<a href="#2061" id="2061">2061</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2447,7 +2448,7 @@
                     );
                     <span class="kw">return</span>;
                 }
-                ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="kw">return</span>,
+                ModuleDefId::GlobalId(<span class="kw">_</span>) | ModuleDefId::TraitAssociatedTypeId(<span class="kw">_</span>) =&gt; <span class="kw">return</span>,
             }
         }
 
@@ -4094,6 +4095,7 @@
         ReferenceId::Module(module_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) =&gt; <span class="prelude-val">Some</span>(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(<span class="kw">_</span>, <span class="kw">_</span>)

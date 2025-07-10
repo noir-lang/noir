@@ -1072,7 +1072,8 @@
 <a href="#1071" id="1071">1071</a>
 <a href="#1072" id="1072">1072</a>
 <a href="#1073" id="1073">1073</a>
-<a href="#1074" id="1074">1074</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#1074" id="1074">1074</a>
+<a href="#1075" id="1075">1075</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types;
@@ -1185,6 +1186,7 @@
                     ReferenceId::Module(<span class="kw">_</span>)
                     | ReferenceId::Type(<span class="kw">_</span>)
                     | ReferenceId::Trait(<span class="kw">_</span>)
+                    | ReferenceId::TraitAssociatedType(<span class="kw">_</span>)
                     | ReferenceId::Function(<span class="kw">_</span>)
                     | ReferenceId::Alias(<span class="kw">_</span>)
                     | ReferenceId::Reference(..) =&gt; (),

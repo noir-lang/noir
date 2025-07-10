@@ -936,12 +936,31 @@
 <a href="#935" id="935">935</a>
 <a href="#936" id="936">936</a>
 <a href="#937" id="937">937</a>
-<a href="#938" id="938">938</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a>
+<a href="#952" id="952">952</a>
+<a href="#953" id="953">953</a>
+<a href="#954" id="954">954</a>
+<a href="#955" id="955">955</a>
+<a href="#956" id="956">956</a>
+<a href="#957" id="957">957</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_frontend::NamedGeneric;
 <span class="kw">use </span>noirc_frontend::hir::comptime::Value;
-<span class="kw">use </span>noirc_frontend::node_interner::GlobalValue;
+<span class="kw">use </span>noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
@@ -1008,6 +1027,7 @@
             <span class="prelude-val">Some</span>(format_enum_variant(id, variant_index, args))
         }
         ReferenceId::Trait(id) =&gt; <span class="prelude-val">Some</span>(format_trait(id, args)),
+        ReferenceId::TraitAssociatedType(id) =&gt; <span class="prelude-val">Some</span>(format_trait_associated_type(id, args)),
         ReferenceId::Global(id) =&gt; <span class="prelude-val">Some</span>(format_global(id, args)),
         ReferenceId::Function(id) =&gt; <span class="prelude-val">Some</span>(format_function(id, args)),
         ReferenceId::Alias(id) =&gt; <span class="prelude-val">Some</span>(format_alias(id, args)),
@@ -1199,6 +1219,24 @@
 
     append_doc_comments(args.interner, ReferenceId::Trait(id), <span class="kw-2">&amp;mut </span>string);
 
+    string
+}
+
+<span class="kw">fn </span>format_trait_associated_type(
+    id: TraitAssociatedTypeId,
+    args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
+) -&gt; String {
+    <span class="kw">let </span>associated_type = args.interner.get_trait_associated_type(id);
+    <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
+    <span class="kw">if </span>format_parent_module(ReferenceId::Trait(associated_type.trait_id), args, <span class="kw-2">&amp;mut </span>string) {
+        <span class="kw">let </span>trait_ = args.interner.get_trait(associated_type.trait_id);
+        string.push_str(<span class="string">"::"</span>);
+        string.push_str(trait_.name.as_str());
+        string.push(<span class="string">'\n'</span>);
+    }
+    string.push_str(<span class="string">"    "</span>);
+    string.push_str(<span class="string">"type "</span>);
+    string.push_str(associated_type.name.as_str());
     string
 }
 

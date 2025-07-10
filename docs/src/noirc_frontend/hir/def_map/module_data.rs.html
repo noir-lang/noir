@@ -202,13 +202,21 @@
 <a href="#201" id="201">201</a>
 <a href="#202" id="202">202</a>
 <a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use super</span>::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility};
-<span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+<span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 
 <span class="doccomment">/// Contains the actual contents of a module: its parent (if one exists),
@@ -357,6 +365,14 @@
         <span class="self">self</span>.traits_in_scope.insert(id, name.clone());
 
         <span class="self">self</span>.declare(name, visibility, ModuleDefId::TraitId(id), <span class="prelude-val">None</span>)
+    }
+
+    <span class="kw">pub fn </span>declare_trait_associated_type(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        name: Ident,
+        id: TraitAssociatedTypeId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), (Ident, Ident)&gt; {
+        <span class="self">self</span>.declare(name, ItemVisibility::Public, id.into(), <span class="prelude-val">None</span>)
     }
 
     <span class="kw">pub fn </span>declare_child_module(
