@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["find_branch_ends"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"enum":["Point"],"fn":["find_branch_ends"],"struct":["Context"]};
