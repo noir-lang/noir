@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752159075755,
+  "lastUpdate": 1752160610139,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18806,48 +18806,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "387e420667dc77b6ac70f3b28c047a5ce583b801",
-          "message": "chore: move a couple of test_utils functions into a module (#9052)",
-          "timestamp": "2025-06-30T13:40:31Z",
-          "tree_id": "3ec2691580151b1a8255d7272b32c047798f9704",
-          "url": "https://github.com/noir-lang/noir/commit/387e420667dc77b6ac70f3b28c047a5ce583b801"
-        },
-        "date": 1751292543873,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253286,
-            "range": "± 2477",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222669,
-            "range": "± 5976",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779217,
-            "range": "± 1347",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -20899,6 +20857,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2792962,
             "range": "± 3335",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2bffde404e59bdac6dbca583985db585dedd5ab5",
+          "message": "fix(ssa): Iterative branch analysis (#9139)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-10T14:34:49Z",
+          "tree_id": "98b7bbcbc53478842963f1a098dc2e9a7aa15902",
+          "url": "https://github.com/noir-lang/noir/commit/2bffde404e59bdac6dbca583985db585dedd5ab5"
+        },
+        "date": 1752160596561,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257162,
+            "range": "± 942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229212,
+            "range": "± 9465",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793122,
+            "range": "± 12406",
             "unit": "ns/iter"
           }
         ]
