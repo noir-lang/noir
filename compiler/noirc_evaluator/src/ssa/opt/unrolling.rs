@@ -225,6 +225,18 @@ impl Loops {
             if function.runtime().is_brillig() && !next_loop.is_small_loop(function, &self.cfg) {
                 continue;
             }
+
+            if next_loop.has_const_back_edge_induction_value(function) {
+                // Don't try to unroll this.
+                self.failed_to_unroll.insert(next_loop.header);
+                // If this Brillig, we can still evaluate this loop at runtime.
+                if function.runtime().is_acir() {
+                    unroll_errors
+                        .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
+                }
+                continue;
+            }
+
             // If we've previously modified a block in this loop we need to refresh the context.
             // This happens any time we have nested loops.
             if next_loop.blocks.iter().any(|block| self.modified_blocks.contains(block)) {
@@ -282,6 +294,39 @@ impl Loop {
         }
 
         Self { header, back_edge_start, blocks }
+    }
+
+    /// Check that the loop does not end with a constant value passed to the header
+    /// from the back-edge, which would result in a loop we would never finish unrolling.
+    ///
+    /// This can happen if constraint folding replaces a value with what it's asserted
+    /// to equal, which doesn't even need to be a valid in the loop range.
+    ///
+    /// For example:
+    /// ```text
+    /// brillig(inline) predicate_pure fn main f0 {
+    ///   b0():
+    ///     jmp b1(u32 10)               // Pre-header
+    ///   b1(v0: u32):                   // Header
+    ///     v3 = lt v0, u32 20
+    ///     jmpif v3 then: b2, else: b3
+    ///   b2():                          // Back edge
+    ///     constrain v0 == u32 1        // Constrain the induction variable to a known value
+    ///     jmp b1(u32 2)                // `v1 = unchecked_add v0, u32 1; jmp b1(v1)` replaced by `jmp b1 (1+1)`
+    ///   b3():
+    ///     return
+    /// }
+    /// ```
+    fn has_const_back_edge_induction_value(&self, function: &Function) -> bool {
+        let back_edge = &function.dfg[self.back_edge_start];
+        let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
+            back_edge.terminator()
+        else {
+            unreachable!("the back edge is expected to end in a `Jmp`");
+        };
+        assert_eq!(*destination, self.header, "back edge goes to the header");
+        assert_eq!(arguments.len(), 1);
+        function.dfg.get_numeric_constant(arguments[0]).is_some()
     }
 
     /// Find the lower bound of the loop in the pre-header and return it
@@ -1553,23 +1598,31 @@ mod tests {
         assert_eq!(errors.len(), 0, "All loops should be unrolled");
 
         // The SSA is expected to be unchanged
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn test_brillig_unroll_with_const_back_edge() {
+        // The loop is small enough that Brillig wants to unroll it,
+        // but the back edge passes a constant that would result in
+        // an infinite loop of attempting to unroll.
+        let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            jmp b1(u32 0)
+            jmp b1(u32 10)
           b1(v0: u32):
-            v3 = lt v0, u32 5
+            v3 = lt v0, u32 12
             jmpif v3 then: b2, else: b3
           b2():
-            jmpif u1 1 then: b4, else: b5
+            constrain v0 == u32 1
+            jmp b1(u32 2)
           b3():
-            return u1 1
-          b4():
-            jmp b3()
-          b5():
-            v6 = unchecked_add v0, u32 1
-            jmp b1(v6)
+            return
         }
-        "#);
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, errors) = try_unroll_loops(ssa);
+        assert_eq!(errors.len(), 0, "Unroll should have no errors");
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
