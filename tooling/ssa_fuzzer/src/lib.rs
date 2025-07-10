@@ -203,9 +203,8 @@ mod tests {
         let mut rhs: i64 = rng.r#gen();
 
         // to prevent `attempt to subtract with overflow`
-        if lhs < rhs {
-            (lhs, rhs) = (rhs, lhs);
-        }
+        lhs %= 12341234;
+        rhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
             (parse_integer_to_signed(lhs), ValueType::I64),
