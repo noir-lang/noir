@@ -24,6 +24,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         force_brillig: true,
         // Allow overflows half the time.
         avoid_overflow: u.arbitrary()?,
+        // Slices need some parts of the stdlib that we can't just append to the source
+        // the way it is currently done to support prints, because they are low level extensions.
+        avoid_slices: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
