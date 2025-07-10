@@ -466,8 +466,11 @@ impl<W: Write> Interpreter<'_, W> {
     }
 
     fn convert_error(err: BlackBoxResolutionError) -> InterpreterError {
-        let BlackBoxResolutionError::Failed(name, reason) = err;
-        InterpreterError::BlackBoxError { name: name.to_string(), reason }
+        let (name, reason) = match err {
+            BlackBoxResolutionError::Failed(name, reason) => (name.to_string(), reason),
+            BlackBoxResolutionError::AssertFailed(err) => ("Assertion failed".to_string(), err),
+        };
+        InterpreterError::BlackBoxError { name, reason }
     }
 
     fn to_radix(

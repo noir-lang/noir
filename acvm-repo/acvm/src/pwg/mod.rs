@@ -178,6 +178,12 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
             }
+            BlackBoxResolutionError::AssertFailed(error) => {
+                OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: Some(ResolvedAssertionPayload::String(error)),
+                }
+            }
         }
     }
 }
