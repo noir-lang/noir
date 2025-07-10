@@ -551,7 +551,13 @@
 <a href="#550" id="550">550</a>
 <a href="#551" id="551">551</a>
 <a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -745,7 +751,13 @@
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             <span class="string">"Verifying no dynamic array indices to reference value elements"</span>,
-        ),
+        )
+        .and_then(|ssa| {
+            <span class="comment">// Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+            // that we don't know how to attribute to a concrete error with the Noir code.
+            </span>ssa.dead_instruction_elimination_post_check(<span class="bool-val">true</span>);
+            ssa
+        }),
     ]
 }
 

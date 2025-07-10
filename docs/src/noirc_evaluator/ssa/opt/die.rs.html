@@ -1122,7 +1122,12 @@
 <a href="#1121" id="1121">1121</a>
 <a href="#1122" id="1122">1122</a>
 <a href="#1123" id="1123">1123</a>
-<a href="#1124" id="1124">1124</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1124" id="1124">1124</a>
+<a href="#1125" id="1125">1125</a>
+<a href="#1126" id="1126">1126</a>
+<a href="#1127" id="1127">1127</a>
+<a href="#1128" id="1128">1128</a>
+<a href="#1129" id="1129">1129</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1178,14 +1183,6 @@
         flattened: bool,
         skip_brillig: bool,
     ) -&gt; Ssa {
-        <span class="comment">// Perform post-checks on the SSA.
-        </span><span class="kw">let </span>check = |ssa: Ssa| {
-            <span class="comment">// Check that we have established the properties expected from this pass.
-            </span><span class="attr">#[cfg(debug_assertions)]
-            </span>ssa.functions.values().for_each(|f| die_post_check(f, flattened));
-            ssa
-        };
-
         <span class="kw">let </span><span class="kw-2">mut </span>previous_unused_params = <span class="prelude-val">None</span>;
         <span class="kw">loop </span>{
             <span class="kw">let </span>(new_ssa, result) =
@@ -1199,13 +1196,13 @@
 
             <span class="comment">// If there are no unused parameters, return early
             </span><span class="kw">if </span>!has_unused {
-                <span class="kw">return </span>check(new_ssa);
+                <span class="kw">return </span>new_ssa;
             }
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(previous) = <span class="kw-2">&amp;</span>previous_unused_params {
                 <span class="comment">// If no changes to dead parameters occurred, return early
                 </span><span class="kw">if </span>previous == <span class="kw-2">&amp;</span>result.unused_parameters {
-                    <span class="kw">return </span>check(new_ssa);
+                    <span class="kw">return </span>new_ssa;
                 }
             }
 
@@ -1237,6 +1234,19 @@
             });
 
         (<span class="self">self</span>, result)
+    }
+
+    <span class="doccomment">/// Sanity check on the final SSA, panicking if the assumptions don't hold.
+    ///
+    /// Done as a separate step so that we can put it after other passes which provide
+    /// concrete feedback about where the problem with the Noir code might be, such as
+    /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
+    /// of the offending instruction here as well, it's just not clear what error message
+    /// to return, besides the fact that mem2reg was unable to eliminate something.
+    </span><span class="attr">#[cfg_attr(not(debug_assertions), allow(unused_variables))]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination_post_check(<span class="kw-2">&amp;</span><span class="self">self</span>, flattened: bool) {
+        <span class="attr">#[cfg(debug_assertions)]
+        </span><span class="self">self</span>.functions.values().for_each(|f| die_post_check(f, flattened));
     }
 }
 
