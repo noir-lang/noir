@@ -182,8 +182,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::GlobalId(global_id) => {
                 self.show_secondary_attributes(self.interner.global_attributes(&global_id));
             }
-            ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) => {
-            }
+            ModuleDefId::ModuleId(..)
+            | ModuleDefId::TypeAliasId(..)
+            | ModuleDefId::TraitId(..)
+            | ModuleDefId::TraitAssociatedTypeId(..) => {}
         }
     }
 
@@ -1205,6 +1207,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.name.to_string()
             }
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                let associated_type = self.interner.get_trait_associated_type(id);
+                associated_type.name.to_string()
+            }
             ModuleDefId::GlobalId(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 global_info.ident.to_string()
@@ -1229,6 +1235,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 type_alias.borrow().visibility
             }
+            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
             ModuleDefId::TraitId(trait_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.visibility

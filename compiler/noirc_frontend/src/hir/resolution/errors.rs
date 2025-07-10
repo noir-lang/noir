@@ -180,6 +180,8 @@ pub enum ResolverError {
     UnreachableStatement { location: Location, break_or_continue_location: Location },
     #[error("Associated item constraints are not allowed here")]
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
+    #[error("Ambiguous associated type")]
+    AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
 }
 
 impl ResolverError {
@@ -240,9 +242,8 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
-            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location } => {
-                *location
-            }
+            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
+            | ResolverError::AmbiguousAssociatedType { location, .. } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -757,6 +758,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Associated item constraints are not allowed here".to_string(),
                     "Consider removing this associated item binding".to_string(),
+                    *location,
+                )
+            }
+            ResolverError::AmbiguousAssociatedType { trait_name, associated_type_name, location } => {
+                Diagnostic::simple_error(
+                    "Ambiguous associated type".to_string(),
+                    format!("If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `<Example as {trait_name}>::{associated_type_name}`"),
                     *location,
                 )
             }
