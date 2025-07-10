@@ -411,7 +411,15 @@
 <a href="#410" id="410">410</a>
 <a href="#411" id="411">411</a>
 <a href="#412" id="412">412</a>
-<a href="#413" id="413">413</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -758,8 +766,10 @@
             };
 
             <span class="kw">let </span><span class="kw-2">mut </span>input = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>input.to_be_bytes());
-            <span class="kw">let </span>radix = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>radix.to_be_bytes());
 
+            <span class="comment">// maximum number of bits that the limbs can hold
+            </span><span class="kw">let </span>max_bit_size = radix.ilog2() * num_limbs <span class="kw">as </span>u32;
+            <span class="kw">let </span>radix = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>radix.to_be_bytes());
             <span class="kw">let </span><span class="kw-2">mut </span>limbs: Vec&lt;MemoryValue&lt;F&gt;&gt; = <span class="macro">vec!</span>[MemoryValue::default(); num_limbs];
 
             <span class="macro">assert!</span>(
@@ -780,6 +790,12 @@
                 radix
             );
 
+            <span class="kw">if </span>(input.bits() <span class="kw">as </span>u32) &gt; max_bit_size {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::AssertFailed(<span class="macro">format!</span>(
+                    <span class="string">"Field failed to decompose into specified {} limbs"</span>,
+                    num_limbs
+                )));
+            }
             <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..num_limbs).rev() {
                 <span class="kw">let </span>limb = <span class="kw-2">&amp;</span>input % <span class="kw-2">&amp;</span>radix;
                 <span class="kw">if </span>output_bits {

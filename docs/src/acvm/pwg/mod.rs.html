@@ -865,7 +865,13 @@
 <a href="#864" id="864">864</a>
 <a href="#865" id="865">865</a>
 <a href="#866" id="866">866</a>
-<a href="#867" id="867">867</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a></pre></div><pre class="rust"><code><span class="comment">// Re-usable methods that backends can use to implement their PWG
 
 </span><span class="kw">use </span>std::collections::HashMap;
 
@@ -1044,6 +1050,12 @@
         <span class="kw">match </span>value {
             BlackBoxResolutionError::Failed(func, reason) =&gt; {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
+            }
+            BlackBoxResolutionError::AssertFailed(error) =&gt; {
+                OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: <span class="prelude-val">Some</span>(ResolvedAssertionPayload::String(error)),
+                }
             }
         }
     }

@@ -27,7 +27,9 @@
 <a href="#26" id="26">26</a>
 <a href="#27" id="27">27</a>
 <a href="#28" id="28">28</a>
-<a href="#29" id="29">29</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#29" id="29">29</a>
+<a href="#30" id="30">30</a>
+<a href="#31" id="31">31</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
@@ -55,5 +57,7 @@
 </span><span class="kw">pub enum </span>BlackBoxResolutionError {
     <span class="attr">#[error(<span class="string">"failed to solve blackbox function: {0}, reason: {1}"</span>)]
     </span>Failed(BlackBoxFunc, String),
+    <span class="attr">#[error(<span class="string">"{0}"</span>)]
+    </span>AssertFailed(String),
 }
 </code></pre></div></section></main></body></html>
