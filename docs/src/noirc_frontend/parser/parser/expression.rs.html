@@ -2216,7 +2216,13 @@
 <a href="#2215" id="2215">2215</a>
 <a href="#2216" id="2216">2216</a>
 <a href="#2217" id="2217">2217</a>
-<a href="#2218" id="2218">2218</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2218" id="2218">2218</a>
+<a href="#2219" id="2219">2219</a>
+<a href="#2220" id="2220">2220</a>
+<a href="#2221" id="2221">2221</a>
+<a href="#2222" id="2222">2222</a>
+<a href="#2223" id="2223">2223</a>
+<a href="#2224" id="2224">2224</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
@@ -3312,6 +3318,14 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="kw">fn </span>parses_double_negative_integer_literal() {
+        <span class="kw">let </span>src = <span class="string">"--42"</span>;
+        <span class="kw">let </span>expr = parse_expression_no_errors(src);
+        <span class="comment">// In the past we used to parse this as the literal 42 instead of a double negation
+        </span><span class="macro">assert!</span>(<span class="macro">matches!</span>(expr.kind, ExpressionKind::Prefix(..)));
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_parenthesized_expression() {
         <span class="kw">let </span>src = <span class="string">"(42)"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
@@ -4068,9 +4082,7 @@
     </span><span class="kw">fn </span>parses_cast_of_negated_literal_once() {
         <span class="kw">let </span>src = <span class="string">"-1 as u8"</span>;
         <span class="kw">let </span>expr = parse_expression_no_errors(src);
-        <span class="comment">// dbg!(&amp;expr);
-
-        </span><span class="kw">let </span>ExpressionKind::Cast(cast_expr) = expr.kind <span class="kw">else </span>{
+        <span class="kw">let </span>ExpressionKind::Cast(cast_expr) = expr.kind <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected cast"</span>);
         };
         <span class="macro">assert_eq!</span>(cast_expr.lhs.to_string(), <span class="string">"-1"</span>);

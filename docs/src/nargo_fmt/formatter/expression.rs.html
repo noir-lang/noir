@@ -2622,7 +2622,14 @@
 <a href="#2621" id="2621">2621</a>
 <a href="#2622" id="2622">2622</a>
 <a href="#2623" id="2623">2623</a>
-<a href="#2624" id="2624">2624</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -4010,6 +4017,13 @@
     </span><span class="kw">fn </span>format_negative_integer() {
         <span class="kw">let </span>src = <span class="string">"global x =  - 42 ;"</span>;
         <span class="kw">let </span>expected = <span class="string">"global x = -42;\n"</span>;
+        assert_format(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_double_negative_integer() {
+        <span class="kw">let </span>src = <span class="string">"global x =  - - 42 ;"</span>;
+        <span class="kw">let </span>expected = <span class="string">"global x = --42;\n"</span>;
         assert_format(src, expected);
     }
 
