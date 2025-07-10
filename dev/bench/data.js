@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752091880605,
+  "lastUpdate": 1752136902475,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18796,48 +18796,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "30a491dc54903658553b32906a9b2a510121a141",
-          "message": "feat: some `nargo expand` fixes related to function and method calls (#9038)",
-          "timestamp": "2025-06-27T16:28:38Z",
-          "tree_id": "a6ce3ece90aedecd8e0f82d0b1395feadcf74b33",
-          "url": "https://github.com/noir-lang/noir/commit/30a491dc54903658553b32906a9b2a510121a141"
-        },
-        "date": 1751043319355,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254294,
-            "range": "± 821",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223257,
-            "range": "± 3244",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2790803,
-            "range": "± 5056",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20889,6 +20847,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788629,
             "range": "± 2539",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "409c8386abbe83c133dfde1f4732d1b9834bb7cf",
+          "message": "fix: check for maximum limbs during radix decomposition (#9134)",
+          "timestamp": "2025-07-10T08:15:54Z",
+          "tree_id": "490117c70fed6a91d2f6fffd0a681c78c8e1ddb2",
+          "url": "https://github.com/noir-lang/noir/commit/409c8386abbe83c133dfde1f4732d1b9834bb7cf"
+        },
+        "date": 1752136887799,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256684,
+            "range": "± 1808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227759,
+            "range": "± 3418",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2813301,
+            "range": "± 3125",
             "unit": "ns/iter"
           }
         ]
