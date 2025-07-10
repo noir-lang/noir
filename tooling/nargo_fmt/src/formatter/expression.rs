@@ -1390,6 +1390,13 @@ mod tests {
     }
 
     #[test]
+    fn format_double_negative_integer() {
+        let src = "global x =  - - 42 ;";
+        let expected = "global x = --42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_ref_mut_integer() {
         let src = "global x = & mut 42 ;";
         let expected = "global x = &mut 42;\n";
