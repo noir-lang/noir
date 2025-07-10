@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752176133553,
+  "lastUpdate": 1752176154722,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6d973cc432257c4379752ccd2442ef04d5efeeac",
-          "message": "chore: remove accidentally committed files (#9048)",
-          "timestamp": "2025-06-30T14:15:38Z",
-          "tree_id": "b03658faf03f8c03e36a5c2bc900809344c407d1",
-          "url": "https://github.com/noir-lang/noir/commit/6d973cc432257c4379752ccd2442ef04d5efeeac"
-        },
-        "date": 1751295012666,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.35,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.836,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 183,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 190,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.298,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.484,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.786,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.783,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "692e94cbab199cd249d4b9d3016398be34402b07",
+          "message": "fix: track trait associated types as such (#9170)",
+          "timestamp": "2025-07-10T19:03:27Z",
+          "tree_id": "1b09d9e6aff17bcf3eea92f2bc6ba4909fc25f7d",
+          "url": "https://github.com/noir-lang/noir/commit/692e94cbab199cd249d4b9d3016398be34402b07"
+        },
+        "date": 1752176140549,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.754,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.184,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.508,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.354,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.43,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.78,
             "unit": "s"
           }
         ]
