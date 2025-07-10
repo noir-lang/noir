@@ -11,7 +11,7 @@ use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::types::{self},
-    node_interner::{NodeInterner, TraitId, TypeAliasId},
+    node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
@@ -739,6 +739,13 @@ impl TypeAlias {
         let args = vecmap(&self.generics, |_| interner.next_type_variable());
         self.get_type(&args)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TraitAssociatedType {
+    pub id: TraitAssociatedTypeId,
+    pub trait_id: TraitId,
+    pub name: Ident,
 }
 
 /// A shared, mutable reference to some T.

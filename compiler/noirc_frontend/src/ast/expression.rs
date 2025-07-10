@@ -183,7 +183,9 @@ impl ExpressionKind {
                 Expression {
                     kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
                 },
-            ) => ExpressionKind::Literal(Literal::Integer(-*field, *suffix)),
+            ) if !field.is_negative() => {
+                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+            }
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
