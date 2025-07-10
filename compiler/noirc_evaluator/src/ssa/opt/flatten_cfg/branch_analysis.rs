@@ -271,7 +271,7 @@ impl<'cfg> Context<'cfg> {
                 }
                 0 => {
                     unreachable!(
-                        "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jmping to a join block first"
+                        "return encountered before a join point was found. This can only happen if early-return was added to the language without implementing it by jumping to a join block first"
                     );
                 }
                 _ => {
