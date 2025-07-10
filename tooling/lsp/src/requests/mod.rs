@@ -688,6 +688,9 @@ fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option
             Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
         }
         ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::TraitAssociatedType(id) => {
+            Some(interner.get_trait_associated_type(id).name.to_string())
+        }
         ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
         ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
         ReferenceId::Alias(type_alias_id) => {

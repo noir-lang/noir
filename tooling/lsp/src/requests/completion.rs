@@ -386,7 +386,7 @@ impl<'a> NodeFinder<'a> {
                     );
                     return;
                 }
-                ModuleDefId::GlobalId(_) => return,
+                ModuleDefId::GlobalId(_) | ModuleDefId::TraitAssociatedTypeId(_) => return,
             }
         }
 
@@ -2033,6 +2033,7 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) => Some(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)

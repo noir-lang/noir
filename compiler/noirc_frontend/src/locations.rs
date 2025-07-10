@@ -7,7 +7,8 @@ use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
-        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId, TypeAliasId, TypeId,
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitAssociatedTypeId, TraitId,
+        TypeAliasId, TypeId,
     },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -103,6 +104,10 @@ impl NodeInterner {
                 let trait_type = self.get_trait(id);
                 Location::new(trait_type.name.span(), trait_type.location.file)
             }
+            ReferenceId::TraitAssociatedType(id) => {
+                let associated_type = self.get_trait_associated_type(id);
+                associated_type.name.location()
+            }
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => {
                 let alias_type = self.get_type_alias(id);
@@ -136,6 +141,9 @@ impl NodeInterner {
             }
             ModuleDefId::TraitId(trait_id) => {
                 self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            ModuleDefId::TraitAssociatedTypeId(trait_associated_type_id) => {
+                self.add_trait_associated_type_reference(trait_associated_type_id, location);
             }
             ModuleDefId::TypeAliasId(type_alias_id) => {
                 self.add_alias_reference(type_alias_id, location);
@@ -175,6 +183,14 @@ impl NodeInterner {
         is_self_type: bool,
     ) {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_trait_associated_type_reference(
+        &mut self,
+        id: TraitAssociatedTypeId,
+        location: Location,
+    ) {
+        self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {

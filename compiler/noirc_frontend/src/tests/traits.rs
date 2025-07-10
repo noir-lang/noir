@@ -1766,3 +1766,20 @@ fn as_trait_path_called_multiple_times_for_different_t_2() {
     "#;
     check_monomorphization_error!(src);
 }
+
+#[named]
+#[test]
+fn ambiguous_associated_type() {
+    let src = r#"
+    trait MyTrait {
+        type X;
+    }
+
+    fn main() {
+        let _: MyTrait::X = 1;
+               ^^^^^^^^^^ Ambiguous associated type
+               ~~~~~~~~~~ If there were a type named `Example` that implemented `MyTrait`, you could use the fully-qualified path: `<Example as MyTrait>::X`
+    }
+    "#;
+    check_errors!(src);
+}
