@@ -311,7 +311,12 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{
         GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedType, UnresolvedTypeData,
@@ -481,7 +486,10 @@
 
             <span class="self">self</span>.eat_assign();
 
-            <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
+            <span class="kw">let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.parse_type_or_type_expression() <span class="kw">else </span>{
+                <span class="self">self</span>.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
             <span class="kw">return </span><span class="prelude-val">Some</span>(GenericTypeArg::Named(ident, typ));
         }
 
@@ -568,14 +576,16 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>parses_generic_type_args() {
-        <span class="kw">let </span>src = <span class="string">"&lt;i32, X = Field&gt;"</span>;
+        <span class="kw">let </span>src = <span class="string">"&lt;i32, X = Field, Y = 1&gt;"</span>;
         <span class="kw">let </span>generics = parse_generic_type_args_no_errors(src);
         <span class="macro">assert!</span>(!generics.is_empty());
         <span class="macro">assert_eq!</span>(generics.ordered_args.len(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(generics.ordered_args[<span class="number">0</span>].to_string(), <span class="string">"i32"</span>);
-        <span class="macro">assert_eq!</span>(generics.named_args.len(), <span class="number">1</span>);
+        <span class="macro">assert_eq!</span>(generics.named_args.len(), <span class="number">2</span>);
         <span class="macro">assert_eq!</span>(generics.named_args[<span class="number">0</span>].<span class="number">0</span>.to_string(), <span class="string">"X"</span>);
         <span class="macro">assert_eq!</span>(generics.named_args[<span class="number">0</span>].<span class="number">1</span>.to_string(), <span class="string">"Field"</span>);
+        <span class="macro">assert_eq!</span>(generics.named_args[<span class="number">1</span>].<span class="number">0</span>.to_string(), <span class="string">"Y"</span>);
+        <span class="macro">assert_eq!</span>(generics.named_args[<span class="number">1</span>].<span class="number">1</span>.to_string(), <span class="string">"1"</span>);
     }
 
     <span class="attr">#[test]
