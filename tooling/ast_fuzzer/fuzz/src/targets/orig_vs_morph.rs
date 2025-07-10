@@ -780,6 +780,7 @@ mod helpers {
 
         visit_expr_be_mut(
             expr,
+            // Assign a new ID where variables are created, and remember what original value they replaced.
             &mut |expr| {
                 match expr {
                     Expression::Ident(ident) => {
@@ -795,6 +796,9 @@ mod helpers {
                     ),
                     Expression::Match(match_) => {
                         let mut replacements = replacements.borrow_mut();
+                        if let Some(replacement) = replacements.get(&match_.variable_to_match.0) {
+                            match_.variable_to_match.0 = *replacement;
+                        }
                         for case in match_.cases.iter_mut() {
                             for (arg, _) in case.arguments.iter_mut() {
                                 replace_local_id(vars, &mut replacements, arg);
@@ -806,6 +810,7 @@ mod helpers {
                 (true, ())
             },
             &mut |_, _| {},
+            // Update the IDs in identifiers based on the replacements we remember from above.
             &mut |ident| {
                 if let Definition::Local(id) = &mut ident.definition {
                     if let Some(replacement) = replacements.borrow().get(id) {
