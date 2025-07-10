@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752145956171,
+  "lastUpdate": 1752146308893,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "17bf172095ff30f7a4cf311ca947f6eec157e98f",
-          "message": "fix(ssa): Remove array from cache in constant folding if it's an argument to a `Call` (#9040)",
-          "timestamp": "2025-06-27T19:29:16Z",
-          "tree_id": "b4091c1931e98757c32a16f20e61b1dfb543cf2c",
-          "url": "https://github.com/noir-lang/noir/commit/17bf172095ff30f7a4cf311ca947f6eec157e98f"
-        },
-        "date": 1751054373051,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.386,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.518,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.062,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 189,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.352,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.78,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.777,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4092be1b01e83781481eeb92074b5bcf66a8e0a2",
+          "message": "fix: Make `<T as Trait>` no longer an assumed impl (#9146)",
+          "timestamp": "2025-07-10T10:48:16Z",
+          "tree_id": "882720e87731b551b2c772036b39a9c096c76f5f",
+          "url": "https://github.com/noir-lang/noir/commit/4092be1b01e83781481eeb92074b5bcf66a8e0a2"
+        },
+        "date": 1752146295047,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.812,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.03,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.31,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 197,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 222,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.49,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.786,
             "unit": "s"
           }
         ]
