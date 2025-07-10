@@ -582,8 +582,9 @@ mod rules {
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,
-                        Expression::Let(_) // Creating a variable needs a new ID
-                    | Expression::Block(_) // Applying logical operations on blocks would look odd
+                        Expression::Let(_)     // Creating a variable needs a new ID
+                        | Expression::Match(_) // Match creates variables which would need new IDs
+                        | Expression::Block(_) // Applying logical operations on blocks would look odd
                     )
                 })
         } else {
