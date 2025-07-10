@@ -121,7 +121,7 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 ];
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
-/// becuase they are too slow to run.
+/// because they are too slow to run.
 const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
     // slow
     "regression_4709",
@@ -779,7 +779,7 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
     writeln!(test_file, "}}").unwrap();
 }
 
-/// Here we check, for every program in `test_programs/exeuction_success`, that:
+/// Here we check, for every program in `test_programs/execution_success`, that:
 /// 1. `nargo expand` works on it
 /// 2. That the output of the original program is the same as the output of the expanded program
 ///    (that is, we run `nargo execute` on the original program and the expanded program and compare the output)

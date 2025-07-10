@@ -173,7 +173,7 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
                     BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
-                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?, // cSpell:disable-line
                 }
                 let witnesses =
                     init.iter().map(|w| format!("_{}", w.0)).collect::<Vec<String>>().join(", ");

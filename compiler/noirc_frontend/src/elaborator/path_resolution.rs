@@ -125,7 +125,7 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
-/// Determines whether datatypes found along a path are to be marked as referenced
+/// Determines whether data-types found along a path are to be marked as referenced
 /// or used (see [`crate::usage_tracker::UsageTracker::mark_as_referenced`]
 /// and [`crate::usage_tracker::UsageTracker::mark_as_used`])
 ///
@@ -157,7 +157,7 @@ pub(super) enum PathResolutionMode {
     MarkAsUsed,
 }
 
-/// Depenending on where a path appears in the source code it should either resolve to a type
+/// Depending on where a path appears in the source code it should either resolve to a type
 /// or a value. For example, in `let x: Foo::Bar = Foo::Bar {}` both `Foo::Bar` should resolve to
 /// types, never values. On the other hand, in `Foo::Bar()` `Foo::Bar` should resolve to a value,
 /// typically a function.

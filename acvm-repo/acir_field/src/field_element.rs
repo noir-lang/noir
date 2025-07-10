@@ -495,7 +495,7 @@ mod tests {
         assert_eq!(from_le, field);
 
         // Additional test with a larger number to ensure proper byte handling
-        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64); // cSpell:disable-line
         let large_le = large_field.to_le_bytes();
         let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
         assert_eq!(reconstructed, large_field);
