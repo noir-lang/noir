@@ -2346,12 +2346,7 @@
 <a href="#2345" id="2345">2345</a>
 <a href="#2346" id="2346">2346</a>
 <a href="#2347" id="2347">2347</a>
-<a href="#2348" id="2348">2348</a>
-<a href="#2349" id="2349">2349</a>
-<a href="#2350" id="2350">2350</a>
-<a href="#2351" id="2351">2351</a>
-<a href="#2352" id="2352">2352</a>
-<a href="#2353" id="2353">2353</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2348" id="2348">2348</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3075,12 +3070,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>trait_id = <span class="kw">if let </span><span class="prelude-val">Some</span>(current_trait) = <span class="self">self</span>.current_trait {
-            current_trait
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>trait_impl = <span class="self">self</span>.current_trait_impl<span class="question-mark">?</span>;
-            <span class="self">self</span>.interner.try_get_trait_implementation(trait_impl)<span class="question-mark">?</span>.borrow().trait_id
-        };
+        <span class="kw">let </span>trait_id = <span class="self">self</span>.current_trait<span class="question-mark">?</span>;
 
         <span class="kw">if </span>path.kind == PathKind::Plain &amp;&amp; path.segments.len() == <span class="number">2 </span>{
             <span class="kw">let </span>name = path.segments[<span class="number">0</span>].ident.as_str();

@@ -1817,7 +1817,19 @@
 <a href="#1816" id="1816">1816</a>
 <a href="#1817" id="1817">1817</a>
 <a href="#1818" id="1818">1818</a>
-<a href="#1819" id="1819">1819</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2863,6 +2875,18 @@
         <span class="kw">let </span>lhs = <span class="self">self</span>.convert_numeric_value(binary.lhs, dfg)<span class="question-mark">?</span>;
         <span class="kw">let </span>rhs = <span class="self">self</span>.convert_numeric_value(binary.rhs, dfg)<span class="question-mark">?</span>;
         <span class="kw">let </span>binary_type = <span class="self">self</span>.type_of_binary_operation(binary, dfg);
+
+        <span class="kw">if </span>binary_type.is_signed()
+            &amp;&amp; <span class="macro">matches!</span>(
+                binary.operator,
+                BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+                    | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+                    | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+            )
+        {
+            <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before ACIRgen"</span>)
+        }
+
         <span class="kw">let </span>binary_type = AcirType::from(binary_type);
         <span class="kw">let </span>bit_count = binary_type.bit_size::&lt;FieldElement&gt;();
         <span class="kw">let </span>num_type = binary_type.to_numeric_type();

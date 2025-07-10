@@ -561,7 +561,7 @@
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    <span class="doccomment">/// Inserts a bitwise XOR instruction between two values    
+    <span class="doccomment">/// Inserts a bitwise XOR instruction between two values
     </span><span class="kw">pub fn </span>insert_xor_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
         <span class="kw">if </span>!lhs.supports_bitwise() {
             <span class="kw">return </span>lhs;

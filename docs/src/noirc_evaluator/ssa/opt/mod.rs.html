@@ -117,7 +117,8 @@
 <a href="#116" id="116">116</a>
 <a href="#117" id="117">117</a>
 <a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a></pre></div><pre class="rust"><code><span class="doccomment">//! This folder contains each optimization pass for the SSA IR.
 //!
 //! Each pass is generally expected to mutate the SSA IR into a gradually
 //! simpler form until the IR only has a single function remaining with 1 block within it.
@@ -134,6 +135,7 @@
 <span class="kw">mod </span>constant_folding;
 <span class="kw">mod </span>defunctionalize;
 <span class="kw">mod </span>die;
+<span class="kw">mod </span>expand_signed_checks;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>flatten_cfg;
 <span class="kw">mod </span>hint;
 <span class="kw">mod </span>inline_simple_functions;

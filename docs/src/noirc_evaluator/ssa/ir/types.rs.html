@@ -391,7 +391,12 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -546,6 +551,11 @@
     <span class="doccomment">/// Returns whether the `Type` represents an unsigned numeric type.
     </span><span class="kw">pub fn </span>is_unsigned(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>, Type::Numeric(NumericType::Unsigned { .. }))
+    }
+
+    <span class="doccomment">/// Returns whether the `Type` represents an signed numeric type.
+    </span><span class="kw">pub fn </span>is_signed(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>, Type::Numeric(NumericType::Signed { .. }))
     }
 
     <span class="doccomment">/// Create a new signed integer type with the given amount of bits.

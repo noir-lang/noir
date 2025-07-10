@@ -2988,7 +2988,7 @@
             <span class="kw">return </span>(error, Type::Error);
         };
 
-        <span class="kw">let </span>trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: <span class="bool-val">true </span>};
+        <span class="kw">let </span>trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: <span class="bool-val">false </span>};
 
         <span class="kw">let </span>ident = HirIdent {
             location: path.impl_item.location(),

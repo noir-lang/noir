@@ -2310,7 +2310,17 @@
 <a href="#2309" id="2309">2309</a>
 <a href="#2310" id="2310">2310</a>
 <a href="#2311" id="2311">2311</a>
-<a href="#2312" id="2312">2312</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#2312" id="2312">2312</a>
+<a href="#2313" id="2313">2313</a>
+<a href="#2314" id="2314">2314</a>
+<a href="#2315" id="2315">2315</a>
+<a href="#2316" id="2316">2316</a>
+<a href="#2317" id="2317">2317</a>
+<a href="#2318" id="2318">2318</a>
+<a href="#2319" id="2319">2319</a>
+<a href="#2320" id="2320">2320</a>
+<a href="#2321" id="2321">2321</a>
+<a href="#2322" id="2322">2322</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
@@ -4073,6 +4083,16 @@
         <span class="kw">let </span>bit_size = left.bit_size;
 
         <span class="kw">if </span>bit_size == FieldElement::max_num_bits() || is_signed {
+            <span class="kw">if </span>is_signed
+                &amp;&amp; <span class="macro">matches!</span>(
+                    binary.operator,
+                    BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
+                        | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
+                        | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
+                )
+            {
+                <span class="macro">panic!</span>(<span class="string">"Checked signed operations should all be removed before brilliggen"</span>)
+            }
             <span class="kw">return</span>;
         }
 

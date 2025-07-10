@@ -249,7 +249,7 @@
     </span>)]
     </span>IncRcRevive { value_id: ValueId, value: String },
     <span class="attr">#[error(<span class="string">"An overflow occurred while evaluating {instruction}"</span>)]
-    </span>Overflow { instruction: String },
+    </span>Overflow { operator: BinaryOp, instruction: String },
     <span class="attr">#[error(
         <span class="string">"if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     </span>)]

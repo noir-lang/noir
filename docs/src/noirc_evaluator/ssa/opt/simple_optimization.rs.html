@@ -140,16 +140,39 @@
 <a href="#139" id="139">139</a>
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
+<a href="#152" id="152">152</a>
+<a href="#153" id="153">153</a>
+<a href="#154" id="154">154</a>
+<a href="#155" id="155">155</a>
+<a href="#156" id="156">156</a>
+<a href="#157" id="157">157</a>
+<a href="#158" id="158">158</a>
+<a href="#159" id="159">159</a>
+<a href="#160" id="160">160</a>
+<a href="#161" id="161">161</a>
+<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+
+<span class="kw">use </span>acvm::FieldElement;
 
 <span class="kw">use crate</span>::{
     errors::RtResult,
     ssa::ir::{
         basic_block::BasicBlockId,
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
         types::NumericType,
+        types::Type,
         value::{ValueId, ValueMapping},
     },
 };
@@ -215,9 +238,11 @@
                 <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
                     enable_side_effects = <span class="kw-2">*</span>condition;
                 }
+                <span class="kw">let </span>call_stack_id = <span class="self">self</span>.dfg.get_instruction_call_stack_id(instruction_id);
                 <span class="kw">let </span><span class="kw-2">mut </span>context = SimpleOptimizationContext {
                     block_id,
                     instruction_id,
+                    call_stack_id,
                     dfg: <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg,
                     values_to_replace: <span class="kw-2">&amp;mut </span>values_to_replace,
                     insert_current_instruction_at_callback_end: <span class="bool-val">true</span>,
@@ -242,6 +267,7 @@
     <span class="attr">#[allow(unused)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) block_id: BasicBlockId,
     <span class="kw">pub</span>(<span class="kw">crate</span>) instruction_id: InstructionId,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) call_stack_id: CallStackId,
     <span class="kw">pub</span>(<span class="kw">crate</span>) dfg: <span class="kw-2">&amp;</span><span class="lifetime">'dfg </span><span class="kw-2">mut </span>DataFlowGraph,
     <span class="kw">pub</span>(<span class="kw">crate</span>) enable_side_effects: ValueId,
     values_to_replace: <span class="kw-2">&amp;</span><span class="lifetime">'mapping </span><span class="kw-2">mut </span>ValueMapping,
@@ -273,7 +299,21 @@
     }
 
     <span class="doccomment">/// Inserts an instruction in the current block right away.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        instruction: Instruction,
+        ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
+    ) -&gt; InsertInstructionResult {
+        <span class="self">self</span>.dfg.insert_instruction_and_results(
+            instruction,
+            <span class="self">self</span>.block_id,
+            ctrl_typevars,
+            <span class="self">self</span>.call_stack_id,
+        )
+    }
+
+    <span class="doccomment">/// Inserts an instruction by id in the current block right away.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction_by_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, instruction_id: InstructionId) {
         <span class="self">self</span>.dfg[<span class="self">self</span>.block_id].insert_instruction(instruction_id);
     }
 

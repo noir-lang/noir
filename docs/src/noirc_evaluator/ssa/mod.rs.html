@@ -548,7 +548,10 @@
 <a href="#547" id="547">547</a>
 <a href="#548" id="548">548</a>
 <a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -657,6 +660,7 @@
 /// something we take can advantage of in the [secondary_passes].
 </span><span class="kw">pub fn </span>primary_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;SsaPass&gt; {
     <span class="macro">vec!</span>[
+        SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
         SsaPass::new(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
@@ -769,6 +773,8 @@
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 </span><span class="kw">pub fn </span>minimal_passes() -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'static</span>&gt;&gt; {
     <span class="macro">vec!</span>[
+        <span class="comment">// Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
+        </span>SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
         <span class="comment">// We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
         </span>SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
         <span class="comment">// Even the initial SSA generation can result in optimizations that leave a function

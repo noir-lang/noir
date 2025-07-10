@@ -530,24 +530,9 @@
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
 <a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#532" id="532">532</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
-<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -606,7 +591,6 @@
 
             context.remove_current_instruction();
 
-            <span class="kw">let </span>call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
             <span class="kw">let </span>old_result = <span class="kw-2">*</span>context.dfg.instruction_results(instruction_id).first().unwrap();
 
             <span class="kw">let </span>bit_size = <span class="kw">match </span>context.dfg.type_of_value(lhs) {
@@ -615,12 +599,11 @@
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: right-shift attempted on non-integer"</span>),
             };
 
+            <span class="kw">let </span><span class="kw-2">mut </span>bitshift_context = Context { context };
             <span class="kw">let </span>new_result = <span class="kw">if </span>operator == BinaryOp::Shl {
-                <span class="kw">let </span><span class="kw-2">mut </span>context = Context { context, call_stack };
-                context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+                bitshift_context.insert_wrapping_shift_left(lhs, rhs, bit_size)
             } <span class="kw">else </span>{
-                <span class="kw">let </span><span class="kw-2">mut </span>context = Context { context, call_stack };
-                context.insert_shift_right(lhs, rhs, bit_size)
+                bitshift_context.insert_shift_right(lhs, rhs, bit_size)
             };
 
             context.replace_value(old_result, new_result);
@@ -633,7 +616,6 @@
 
 <span class="kw">struct </span>Context&lt;<span class="lifetime">'m</span>, <span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt; {
     context: <span class="kw-2">&amp;</span><span class="lifetime">'m </span><span class="kw-2">mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'dfg</span>, <span class="lifetime">'mapping</span>&gt;,
-    call_stack: CallStackId,
 }
 
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
@@ -868,13 +850,13 @@
         rhs: ValueId,
     ) -&gt; ValueId {
         <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        <span class="self">self</span>.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
+        <span class="self">self</span>.context.insert_instruction(instruction, <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
-        <span class="self">self</span>.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
+        <span class="self">self</span>.context.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a truncate instruction at the end of the current block.
@@ -885,14 +867,15 @@
         bit_size: u32,
         max_bit_size: u32,
     ) -&gt; ValueId {
-        <span class="self">self</span>.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, <span class="prelude-val">None</span>)
+        <span class="self">self</span>.context
+            .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, <span class="prelude-val">None</span>)
             .first()
     }
 
     <span class="doccomment">/// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: ValueId, typ: NumericType) -&gt; ValueId {
-        <span class="self">self</span>.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
+        <span class="self">self</span>.context.insert_instruction(Instruction::Cast(value, typ), <span class="prelude-val">None</span>).first()
     }
 
     <span class="doccomment">/// Insert a call instruction at the end of the current block and return
@@ -903,7 +886,9 @@
         arguments: Vec&lt;ValueId&gt;,
         result_types: Vec&lt;Type&gt;,
     ) -&gt; Cow&lt;[ValueId]&gt; {
-        <span class="self">self</span>.insert_instruction(Instruction::Call { func, arguments }, <span class="prelude-val">Some</span>(result_types)).results()
+        <span class="self">self</span>.context
+            .insert_instruction(Instruction::Call { func, arguments }, <span class="prelude-val">Some</span>(result_types))
+            .results()
     }
 
     <span class="doccomment">/// Insert an instruction to extract an element from an array
@@ -916,20 +901,7 @@
         <span class="kw">let </span>element_type = <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[element_type]);
         <span class="kw">let </span>offset = ArrayOffset::None;
         <span class="kw">let </span>instruction = Instruction::ArrayGet { array, index, offset };
-        <span class="self">self</span>.insert_instruction(instruction, element_type).first()
-    }
-
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_instruction(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        instruction: Instruction,
-        ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
-    ) -&gt; InsertInstructionResult {
-        <span class="self">self</span>.context.dfg.insert_instruction_and_results(
-            instruction,
-            <span class="self">self</span>.context.block_id,
-            ctrl_typevars,
-            <span class="self">self</span>.call_stack,
-        )
+        <span class="self">self</span>.context.insert_instruction(instruction, element_type).first()
     }
 }
 
