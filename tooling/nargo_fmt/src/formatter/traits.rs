@@ -111,13 +111,13 @@ impl Formatter<'_> {
                 };
                 self.format_function_impl(func);
             }
-            TraitItem::Constant { name, typ, default_value } => {
+            TraitItem::Constant { name, typ } => {
                 let pattern = Pattern::Identifier(name);
                 let chunks = self.chunk_formatter().format_let_or_global(
                     Keyword::Let,
                     pattern,
                     typ,
-                    default_value,
+                    None,
                     Vec::new(), // Attributes
                 );
                 self.write_indentation();
