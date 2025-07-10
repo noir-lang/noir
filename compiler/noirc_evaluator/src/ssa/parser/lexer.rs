@@ -22,7 +22,7 @@ impl<'a> Lexer<'a> {
             chars: source.char_indices(),
             position: 0,
             done: false,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
                 - BigInt::one(),
         }
     }

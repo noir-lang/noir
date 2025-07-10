@@ -115,7 +115,7 @@ impl BigIntSolver {
                         "Attempted to divide BigInt by zero".to_string(),
                     ));
                 }
-                lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus)
+                lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus) // cSpell:disable-line
             }
             _ => unreachable!("ICE - bigint_op must be called for an operation"),
         };
@@ -221,7 +221,7 @@ impl BigIntSolverWithId {
 #[test]
 fn all_allowed_bigint_moduli_are_prime() {
     use num_prime::Primality;
-    use num_prime::nt_funcs::is_prime;
+    use num_prime::nt_funcs::is_prime; // cSpell:disable-line
 
     for modulus in BigIntSolver::allowed_bigint_moduli() {
         let modulus = BigUint::from_bytes_le(&modulus);

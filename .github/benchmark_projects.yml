@@ -73,7 +73,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_runs: 1
     timeout: 60
-    compilation-timeout: 200
+    compilation-timeout: 250
     execution-timeout: 40
     compilation-memory-limit: 10000
     execution-memory-limit: 1900

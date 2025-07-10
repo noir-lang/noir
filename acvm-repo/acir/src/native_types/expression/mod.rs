@@ -379,7 +379,7 @@ mod tests {
     use acir_field::{AcirField, FieldElement};
 
     #[test]
-    fn add_mul_smoketest() {
+    fn add_mul_smoke_test() {
         let a = Expression {
             mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
             ..Default::default()

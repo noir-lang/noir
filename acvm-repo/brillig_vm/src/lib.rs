@@ -1143,6 +1143,7 @@ mod tests {
     }
 
     #[test]
+    // cSpell:disable-next-line
     fn jmpifnot_opcode() {
         let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 
