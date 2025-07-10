@@ -352,14 +352,14 @@ mod tests {
     /// Test that an enum where each member wraps a struct serializes as a single item map keyed by the type.
     #[test]
     fn msgpack_repr_enum_of_structs() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value = ValueOrArray::HeapArray(HeapArray {
             pointer: brillig::MemoryAddress::Relative(0),
             size: 3,
         });
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         let Value::Map(fields) = msg else {
             panic!("expected Map: {msg:?}");
@@ -376,7 +376,7 @@ mod tests {
     fn msgpack_repr_enum_of_unit_structs() {
         let value = IntegerBitSize::U1;
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert_eq!(msg.as_str(), Some("U1"));
     }
@@ -386,7 +386,7 @@ mod tests {
     fn msgpack_repr_enum_of_mixed() {
         let value = vec![BitSize::Field, BitSize::Integer(IntegerBitSize::U64)];
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert_eq!(format!("{msg}"), r#"["Field", {"Integer": "U64"}]"#);
     }
@@ -394,11 +394,11 @@ mod tests {
     /// Test that a newtype, just wrapping a value, is serialized as the underlying value.
     #[test]
     fn msgpack_repr_newtype() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value = Witness(1);
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         assert!(matches!(msg, Value::Integer(_)));
     }
@@ -408,7 +408,7 @@ mod tests {
     /// but the `msgpack-c` library does not.
     #[test]
     fn msgpack_optional() {
-        use rmpv::Value;
+        use rmpv::Value; // cSpell:disable-line
 
         let value: Opcode<FieldElement> = Opcode::BrilligCall {
             id: BrilligFunctionId(1),
@@ -417,7 +417,7 @@ mod tests {
             predicate: None,
         };
         let bz = msgpack_serialize(&value, false).unwrap();
-        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap();
+        let msg = rmpv::decode::read_value::<&[u8]>(&mut bz.as_ref()).unwrap(); // cSpell:disable-line
 
         let fields = msg.as_map().expect("enum is a map");
         let fields = &fields.first().expect("enum is non-empty").1;

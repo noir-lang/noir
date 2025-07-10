@@ -1050,7 +1050,7 @@ mod tests {
     use super::{BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
-    /// bypassing the iterative loop done by the SSA which does further optimisations.
+    /// bypassing the iterative loop done by the SSA which does further optimizations.
     ///
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {

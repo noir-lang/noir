@@ -532,7 +532,7 @@ impl FunctionContext<'_> {
     ///   br loop_entry(v0)
     /// loop_entry(i: Field):
     ///   v2 = lt i v1
-    ///   brif v2, then: loop_body, else: loop_end
+    ///   jmpif v2, then: loop_body, else: loop_end
     /// loop_body():
     ///   v3 = ... codegen body ...
     ///   v4 = add 1, i
@@ -684,7 +684,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: else_block
+    ///   jmpif v0, then: then_block, else: else_block
     /// then_block():
     ///   v1 = ... codegen a ...
     ///   br end_if(v1)
@@ -699,7 +699,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_if
+    ///   jmpif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()

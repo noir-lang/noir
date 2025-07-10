@@ -1889,9 +1889,9 @@ mod tests {
         ctx.config.max_loop_size = 10;
         ctx.config.vary_loop_size = false;
         ctx.gen_main_decl(&mut u);
-        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-        fctx.budget = 2;
-        let loop_code = format!("{}", fctx.gen_loop(&mut u).unwrap()).replace(" ", "");
+        let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+        function_ctx.budget = 2;
+        let loop_code = format!("{}", function_ctx.gen_loop(&mut u).unwrap()).replace(" ", "");
 
         assert!(
             loop_code.starts_with(
@@ -1914,9 +1914,9 @@ mod tests {
         ctx.config.max_loop_size = 10;
         ctx.config.vary_loop_size = false;
         ctx.gen_main_decl(&mut u);
-        let mut fctx = FunctionContext::new(&mut ctx, FuncId(0));
-        fctx.budget = 2;
-        let while_code = format!("{}", fctx.gen_while(&mut u).unwrap()).replace(" ", "");
+        let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+        function_ctx.budget = 2;
+        let while_code = format!("{}", function_ctx.gen_while(&mut u).unwrap()).replace(" ", "");
 
         assert!(
             while_code.starts_with(

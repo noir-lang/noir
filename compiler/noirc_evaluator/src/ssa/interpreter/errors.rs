@@ -55,7 +55,7 @@ pub enum InterpreterError {
     )]
     IncRcRevive { value_id: ValueId, value: String },
     #[error("An overflow occurred while evaluating {instruction}")]
-    Overflow { instruction: String },
+    Overflow { operator: BinaryOp, instruction: String },
     #[error(
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]

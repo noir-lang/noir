@@ -223,7 +223,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values    
+    /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         if !lhs.supports_bitwise() {
             return lhs;

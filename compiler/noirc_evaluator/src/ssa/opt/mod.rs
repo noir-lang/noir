@@ -15,6 +15,7 @@ mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
