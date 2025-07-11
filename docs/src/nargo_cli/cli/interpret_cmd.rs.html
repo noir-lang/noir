@@ -311,7 +311,9 @@
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::PathBuf;
@@ -329,7 +331,7 @@
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_evaluator::ssa::interpreter::InterpreterOptions;
-<span class="kw">use </span>noirc_evaluator::ssa::interpreter::value::Value;
+<span class="kw">use </span>noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
 <span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
@@ -434,7 +436,7 @@
         </span><span class="kw">let </span>ssa_return = ssa_return.map(|ssa_return| {
             <span class="kw">let </span>main_function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>ssa.main_id];
             <span class="kw">if </span>main_function.has_data_bus_return_data() {
-                <span class="kw">let </span>values = flatten_values(ssa_return);
+                <span class="kw">let </span>values = flatten_databus_values(ssa_return);
                 <span class="macro">vec!</span>[Value::array(values, <span class="macro">vec!</span>[Type::Numeric(NumericType::NativeField)])]
             } <span class="kw">else </span>{
                 ssa_return
@@ -602,23 +604,25 @@
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
 
-<span class="kw">fn </span>flatten_values(values: Vec&lt;Value&gt;) -&gt; Vec&lt;Value&gt; {
+<span class="kw">fn </span>flatten_databus_values(values: Vec&lt;Value&gt;) -&gt; Vec&lt;Value&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>flattened_values = Vec::new();
     <span class="kw">for </span>value <span class="kw">in </span>values {
-        flatten_value(value, <span class="kw-2">&amp;mut </span>flattened_values);
+        flatten_databus_value(value, <span class="kw-2">&amp;mut </span>flattened_values);
     }
     flattened_values
 }
 
-<span class="kw">fn </span>flatten_value(value: Value, flattened_values: <span class="kw-2">&amp;mut </span>Vec&lt;Value&gt;) {
+<span class="kw">fn </span>flatten_databus_value(value: Value, flattened_values: <span class="kw-2">&amp;mut </span>Vec&lt;Value&gt;) {
     <span class="kw">match </span>value {
         Value::ArrayOrSlice(array_value) =&gt; {
             <span class="kw">for </span>value <span class="kw">in </span>array_value.elements.borrow().iter() {
-                flatten_value(value.clone(), flattened_values);
+                flatten_databus_value(value.clone(), flattened_values);
             }
         }
-        Value::Numeric(..)
-        | Value::Reference(..)
+        Value::Numeric(value) =&gt; {
+            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
+        }
+        Value::Reference(..)
         | Value::Function(..)
         | Value::Intrinsic(..)
         | Value::ForeignFunction(..) =&gt; flattened_values.push(value),

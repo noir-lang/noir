@@ -827,7 +827,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>convert_to_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldElement {
+    <span class="kw">pub fn </span>convert_to_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; FieldElement {
         <span class="kw">match </span><span class="self">self </span>{
             NumericValue::Field(field) =&gt; <span class="kw-2">*</span>field,
             NumericValue::U1(boolean) <span class="kw">if </span><span class="kw-2">*</span>boolean =&gt; FieldElement::one(),
