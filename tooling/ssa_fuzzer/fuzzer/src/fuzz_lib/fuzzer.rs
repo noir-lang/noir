@@ -160,7 +160,8 @@ impl Fuzzer {
             (Err(acir_error), Err(brillig_error)) => {
                 log::debug!("ACIR compilation error: {:?}", acir_error);
                 log::debug!("Brillig compilation error: {:?}", brillig_error);
-                panic!("ACIR and Brillig compilation failed");
+                log::debug!("ACIR and Brillig compilation failed");
+                return None;
             }
             (Ok(acir), Err(brillig_error)) => {
                 let acir_result = execute_single(&acir.program, initial_witness);
@@ -199,13 +200,8 @@ impl Fuzzer {
                 }
             }
         };
-        let comparison_result = run_and_compare(
-            &acir_program.program,
-            &brillig_program.program,
-            initial_witness,
-            acir_return_witness,
-            brillig_return_witness,
-        );
+        let comparison_result =
+            run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         log::debug!("Comparison result: {:?}", comparison_result);
         match comparison_result {
             CompareResults::Agree(result) => Some(result),

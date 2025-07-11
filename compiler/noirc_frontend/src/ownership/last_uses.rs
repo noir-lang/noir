@@ -288,7 +288,7 @@ impl LastUseContext {
             Expression::While(while_expr) => self.track_variables_in_while(while_expr),
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
-            Expression::Tuple(elems) => self.track_variables_in_tuple(elems),
+            Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
             Expression::ExtractTupleField(tuple, _index) => {
                 self.track_variables_in_expression(tuple);
             }
@@ -397,8 +397,8 @@ impl LastUseContext {
         }
     }
 
-    fn track_variables_in_tuple(&mut self, elems: &[Expression]) {
-        for elem in elems {
+    fn track_variables_in_tuple(&mut self, elements: &[Expression]) {
+        for elem in elements {
             self.track_variables_in_expression(elem);
         }
     }

@@ -1,7 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
@@ -60,7 +59,6 @@ impl Function {
 
             context.remove_current_instruction();
 
-            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
             let bit_size = match context.dfg.type_of_value(lhs) {
@@ -69,12 +67,11 @@ impl Function {
                 _ => unreachable!("ICE: right-shift attempted on non-integer"),
             };
 
+            let mut bitshift_context = Context { context };
             let new_result = if operator == BinaryOp::Shl {
-                let mut context = Context { context, call_stack };
-                context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+                bitshift_context.insert_wrapping_shift_left(lhs, rhs, bit_size)
             } else {
-                let mut context = Context { context, call_stack };
-                context.insert_shift_right(lhs, rhs, bit_size)
+                bitshift_context.insert_shift_right(lhs, rhs, bit_size)
             };
 
             context.replace_value(old_result, new_result);
@@ -87,7 +84,6 @@ impl Function {
 
 struct Context<'m, 'dfg, 'mapping> {
     context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
-    call_stack: CallStackId,
 }
 
 impl Context<'_, '_, '_> {
@@ -322,13 +318,13 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
     ) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
-        self.insert_instruction(instruction, None).first()
+        self.context.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
-        self.insert_instruction(Instruction::Not(rhs), None).first()
+        self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -339,14 +335,15 @@ impl Context<'_, '_, '_> {
         bit_size: u32,
         max_bit_size: u32,
     ) -> ValueId {
-        self.insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
+        self.context
+            .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
     }
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
     pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
-        self.insert_instruction(Instruction::Cast(value, typ), None).first()
+        self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a call instruction at the end of the current block and return
@@ -357,7 +354,9 @@ impl Context<'_, '_, '_> {
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
     ) -> Cow<[ValueId]> {
-        self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
+        self.context
+            .insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
+            .results()
     }
 
     /// Insert an instruction to extract an element from an array
@@ -370,20 +369,7 @@ impl Context<'_, '_, '_> {
         let element_type = Some(vec![element_type]);
         let offset = ArrayOffset::None;
         let instruction = Instruction::ArrayGet { array, index, offset };
-        self.insert_instruction(instruction, element_type).first()
-    }
-
-    pub(crate) fn insert_instruction(
-        &mut self,
-        instruction: Instruction,
-        ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
-        self.context.dfg.insert_instruction_and_results(
-            instruction,
-            self.context.block_id,
-            ctrl_typevars,
-            self.call_stack,
-        )
+        self.context.insert_instruction(instruction, element_type).first()
     }
 }
 

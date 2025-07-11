@@ -13,6 +13,8 @@ use noirc_frontend::{
     signed_field::SignedField,
 };
 
+use crate::Config;
+
 use super::{Name, VariableId, types, visitor::visit_expr};
 
 /// Boolean literal.
@@ -21,7 +23,11 @@ pub fn lit_bool(value: bool) -> Expression {
 }
 
 /// Generate a literal expression according to a type.
-pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expression> {
+pub fn gen_literal(
+    u: &mut Unstructured,
+    typ: &Type,
+    config: &Config,
+) -> arbitrary::Result<Expression> {
     use FieldElement as Field;
     use IntegerBitSize::*;
 
@@ -83,21 +89,29 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Array(len, item_type) => {
             let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
             for _ in 0..*len {
-                arr.contents.push(gen_literal(u, item_type)?);
+                arr.contents.push(gen_literal(u, item_type, config)?);
             }
             Expression::Literal(Literal::Array(arr))
+        }
+        Type::Slice(item_type) => {
+            let len = u.int_in_range(0..=config.max_array_size)?;
+            let mut arr = ArrayLiteral { contents: Vec::new(), typ: typ.clone() };
+            for _ in 0..len {
+                arr.contents.push(gen_literal(u, item_type, config)?);
+            }
+            Expression::Literal(Literal::Slice(arr))
         }
         Type::Tuple(items) => {
             let mut values = Vec::new();
             for item_type in items {
-                values.push(gen_literal(u, item_type)?);
+                values.push(gen_literal(u, item_type, config)?);
             }
             Expression::Tuple(values)
         }
         Type::Reference(typ, mutable) => {
             // In Noir we can return a reference for a value created in a function.
-            let value = gen_literal(u, typ.as_ref())?;
-            unary(UnaryOp::Reference { mutable: *mutable }, value, typ.as_ref().clone())
+            let value = gen_literal(u, typ.as_ref(), config)?;
+            ref_with_mut(value, typ.as_ref().clone(), *mutable)
         }
         _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
@@ -336,7 +350,11 @@ pub fn deref(rhs: Expression, tgt_type: Type) -> Expression {
 
 /// Reference an expression as a target type
 pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
-    unary(UnaryOp::Reference { mutable: true }, rhs, tgt_type)
+    ref_with_mut(rhs, tgt_type, true)
+}
+
+fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Box::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.

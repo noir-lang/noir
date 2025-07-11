@@ -687,7 +687,7 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
-        let returns = function.returns();
+        let returns = function.returns().unwrap_or_default();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()

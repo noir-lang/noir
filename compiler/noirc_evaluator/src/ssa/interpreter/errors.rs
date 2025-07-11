@@ -14,25 +14,33 @@ pub enum InterpreterError {
     /// These errors are all the result from malformed input SSA
     #[error("{0}")]
     Internal(InternalError),
-    #[error("constrain {lhs_id} == {rhs_id}{msg} failed:\n    {lhs} != {rhs}")]
-    ConstrainEqFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
-    #[error("constrain {lhs_id} != {rhs_id}{msg} failed:\n    {lhs} == {rhs}")]
-    ConstrainNeFailed { lhs: String, lhs_id: ValueId, rhs: String, rhs_id: ValueId, msg: String },
+    #[error("constrain {lhs_id} == {rhs_id}{message} failed:\n    {lhs} != {rhs}", message = constraint_message(.msg))]
+    ConstrainEqFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
+    #[error("constrain {lhs_id} != {rhs_id}{message} failed:\n    {lhs} == {rhs}", message = constraint_message(.msg))]
+    ConstrainNeFailed {
+        lhs: String,
+        lhs_id: ValueId,
+        rhs: String,
+        rhs_id: ValueId,
+        msg: Option<String>,
+    },
     #[error("static_assert `{condition}` failed: {message}")]
     StaticAssertFailed { condition: ValueId, message: String },
     #[error(
-        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}"
+        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}{message}", message = constraint_message(.msg)
     )]
-    RangeCheckFailed { value: String, value_id: ValueId, actual_bits: u32, max_bits: u32 },
-    #[error(
-        "Range check of {value_id} = {value} failed.\n  Max bits allowed by range check = {max_bits}\n  Actual bit count = {actual_bits}\n  {message}"
-    )]
-    RangeCheckFailedWithMessage {
+    RangeCheckFailed {
         value: String,
         value_id: ValueId,
         actual_bits: u32,
         max_bits: u32,
-        message: String,
+        msg: Option<String>,
     },
     /// This is not an internal error since the SSA is still valid. We're just not able to
     /// interpret it since we lack the context of what the external function is.
@@ -47,7 +55,7 @@ pub enum InterpreterError {
     )]
     IncRcRevive { value_id: ValueId, value: String },
     #[error("An overflow occurred while evaluating {instruction}")]
-    Overflow { instruction: String },
+    Overflow { operator: BinaryOp, instruction: String },
     #[error(
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
@@ -60,6 +68,8 @@ pub enum InterpreterError {
     BlackBoxError { name: String, reason: String },
     #[error("Reached the unreachable")]
     ReachedTheUnreachable,
+    #[error("Array index {index} is out of bounds for array of length {length}")]
+    IndexOutOfBounds { index: u32, length: u32 },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -157,7 +167,7 @@ pub enum InternalError {
         actual_type: String,
     },
     #[error(
-        "Expected result type to be `{expected_type} but it was `{actual_type}` in {instruction}"
+        "Expected result type to be `{expected_type}` but it was `{actual_type}` in {instruction}"
     )]
     UnexpectedResultType {
         expected_type: &'static str,
@@ -165,7 +175,7 @@ pub enum InternalError {
         instruction: &'static str,
     },
     #[error(
-        "Expected result length to be `{expected_length} but it was `{actual_length}` in {instruction}"
+        "Expected result length to be {expected_length} but it was {actual_length} in {instruction}"
     )]
     UnexpectedResultLength {
         expected_length: usize,
@@ -185,4 +195,13 @@ pub enum InternalError {
         expected_type: String,
         actual_type: String,
     },
+    #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
+    UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },
+    #[error("Error parsing `{name}` into `{expected_type}` from `{value}`: {error}")]
+    ParsingError { name: &'static str, expected_type: &'static str, value: String, error: String },
+}
+
+/// Format the message of a `constrain` instruction so that we can print it.
+fn constraint_message(msg: &Option<String>) -> String {
+    msg.as_ref().map(|msg| format!(", \"{msg}\"")).unwrap_or_default()
 }

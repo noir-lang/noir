@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 mod moo {
     pub(crate) struct Foo {
-        x: Field,
+        pub(crate) x: Field,
     }
 }
 

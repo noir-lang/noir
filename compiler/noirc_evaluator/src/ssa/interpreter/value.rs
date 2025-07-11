@@ -79,10 +79,11 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => Type::Array(
-                array.element_types.clone(),
-                (array.elements.borrow().len() / array.element_types.len()) as u32,
-            ),
+            Value::ArrayOrSlice(array) => {
+                let len = array.elements.borrow().len().checked_div(array.element_types.len());
+                let len = len.unwrap_or(0) as u32;
+                Type::Array(array.element_types.clone(), len)
+            }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
@@ -398,7 +399,7 @@ impl std::fmt::Display for NumericValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NumericValue::Field(value) => write!(f, "Field {value}"),
-            NumericValue::U1(value) => write!(f, "u1 {value}"),
+            NumericValue::U1(value) => write!(f, "u1 {}", if *value { "1" } else { "0" }),
             NumericValue::U8(value) => write!(f, "u8 {value}"),
             NumericValue::U16(value) => write!(f, "u16 {value}"),
             NumericValue::U32(value) => write!(f, "u32 {value}"),
@@ -424,11 +425,41 @@ impl std::fmt::Display for ReferenceValue {
 
 impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let elements = self.elements.borrow();
-        let elements = vecmap(elements.iter(), ToString::to_string).join(", ");
+        let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
+        write!(f, "rc{rc} {is_slice}[")?;
+
+        let length = self.elements.borrow().len() / self.element_types.len();
+        if length == 0 {
+            // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
+            let element_types = if self.element_types.len() == 1 {
+                self.element_types[0].to_string()
+            } else {
+                let element_types =
+                    vecmap(self.element_types.iter(), ToString::to_string).join(", ");
+                format!("({element_types})")
+            };
+            write!(f, "{element_types}; {length}")?;
+        } else {
+            // Otherwise we show the elements, but try to group them if the element type is a composite type
+            // (that way the element types can be inferred from the elements)
+            let element_types_len = self.element_types.len();
+            for (index, element) in self.elements.borrow().iter().enumerate() {
+                if index > 0 {
+                    write!(f, ", ")?;
+                }
+                if element_types_len > 1 && index % element_types_len == 0 {
+                    write!(f, "(")?;
+                }
+                write!(f, "{element}")?;
+                if element_types_len > 1 && index % element_types_len == element_types_len - 1 {
+                    write!(f, ")")?;
+                }
+            }
+        }
+
+        write!(f, "]")
     }
 }
 

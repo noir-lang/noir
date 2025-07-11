@@ -143,8 +143,8 @@ pub fn compare_results_comptime(
         eprintln!("{report:#}");
 
         // Showing the AST as Noir so we can easily create integration tests.
-        eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
         eprintln!("---\nComptime source:\n{}", &inputs.source);
+        eprintln!("---\nAST:\n{}", DisplayAstAsNoir(&inputs.program));
 
         eprintln!("---\nCompile options:\n{:?}", inputs.ssa.options);
         eprintln!("---\nCompiled program:\n{}", inputs.ssa.artifact.program);
@@ -197,7 +197,7 @@ pub fn compare_results_interpreted(
             "---\nSSA 1 after step {} ({}):\n{}",
             inputs.ssa1.step,
             inputs.ssa1.msg,
-            inputs.ssa2.ssa.print_without_locations()
+            inputs.ssa1.ssa.print_without_locations()
         );
         eprintln!(
             "---\nSSA 2 after step {} ({}):\n{}",

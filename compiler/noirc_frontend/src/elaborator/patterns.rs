@@ -18,14 +18,13 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem},
         stmt::HirPattern,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
         TypeAliasId, TypeId,
     },
-    signed_field::SignedField,
 };
 
 use super::{
@@ -680,28 +679,8 @@ impl Elaborator<'_> {
 
         let location = variable.location;
         let name = variable.segments[1].ident.as_str();
-
-        // Check the `Self::AssociatedConstant` case when inside a trait
-        if let Some(trait_id) = &self.current_trait {
-            let trait_ = self.interner.get_trait(*trait_id);
-            if let Some(associated_type) = trait_.get_associated_type(name) {
-                if let Kind::Numeric(numeric_type) = associated_type.kind() {
-                    // We can produce any value here because this trait method is never going to
-                    // produce code (only trait impl methods do)
-                    let numeric_type: Type = *numeric_type.clone();
-                    let value = SignedField::zero();
-                    return Some(self.constant_integer(numeric_type, value, location));
-                }
-            }
-        }
-
-        let Some(self_type) = &self.self_type else {
-            return None;
-        };
-
-        let Some(trait_impl_id) = &self.current_trait_impl else {
-            return None;
-        };
+        let self_type = self.self_type.as_ref()?;
+        let trait_impl_id = &self.current_trait_impl?;
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
         if let Some((definition_id, numeric_type)) =
@@ -751,19 +730,6 @@ impl Elaborator<'_> {
             })
         });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
-    }
-
-    fn constant_integer(
-        &mut self,
-        numeric_type: Type,
-        value: SignedField,
-        location: Location,
-    ) -> (ExprId, Type) {
-        let hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, location);
-        self.interner.push_expr_type(id, numeric_type.clone());
-        (id, numeric_type)
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -840,6 +806,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
         }
@@ -904,11 +871,11 @@ impl Elaborator<'_> {
                     trait_path_resolution.item,
                 ),
 
-                TraitPathResolutionMethod::TraitMethod(trait_method) => (
+                TraitPathResolutionMethod::TraitItem(item) => (
                     HirIdent {
                         location: path.location,
-                        id: self.interner.trait_method_id(trait_method.method_id),
-                        impl_kind: ImplKind::TraitMethod(trait_method),
+                        id: item.definition,
+                        impl_kind: ImplKind::TraitItem(item),
                     },
                     trait_path_resolution.item,
                 ),
@@ -1006,7 +973,7 @@ impl Elaborator<'_> {
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(method) = &ident.impl_kind {
+        if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,
@@ -1053,7 +1020,7 @@ impl Elaborator<'_> {
             }
         }
 
-        if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
@@ -1112,7 +1079,12 @@ impl Elaborator<'_> {
                         Type::Forall(generics, _) => generics.len() - function_generic_count,
                         _ => 0,
                     };
-                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                    typ.instantiate_with_bindings_and_turbofish(
+                        bindings,
+                        turbofish_generics,
+                        self.interner,
+                        implicit_generic_count,
+                    )
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
@@ -1196,11 +1168,11 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics, _) => {
+            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
+                    self.interner.get_trait(trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
-                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
+                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
 

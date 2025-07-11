@@ -218,10 +218,7 @@ mod test_as_typed_expr_5 {
     where
         T: Trait,
     {
-        fn pack(self)
-        where
-            T: Trait,
-        {}
+        fn pack(self) {}
     }
 
     fn foo() {

@@ -13,9 +13,8 @@ where
     fn greet<U>(object: U)
     where
         U: Greeter,
-        T: Greeter,
     {
-        Greeter::greet(object);
+        object.greet();
     }
 }
 
@@ -32,7 +31,7 @@ impl Foo<SomeGreeter> for Bar {
     where
         U: Greeter,
     {
-        Greeter::greet(object);
+        object.greet();
     }
 }
 
