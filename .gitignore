@@ -63,3 +63,6 @@ codegen
 
 mutants.out
 mutants.out.old
+
+# Artifacts created by `noir/bootstrap.sh build_packages` in aztec-packages
+**/package.tgz

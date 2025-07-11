@@ -358,9 +358,10 @@ impl<'a> Context<'a> {
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
         let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
@@ -915,8 +916,11 @@ impl<'a> Context<'a> {
     ) -> usize {
         let return_values = match terminator {
             TerminatorInstruction::Return { return_values, .. } => return_values,
+            TerminatorInstruction::Unreachable { .. } => return 0,
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            _ => unreachable!("ICE: Program must have a singular return"),
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
+                unreachable!("ICE: Program must have a singular return")
+            }
         };
 
         return_values
@@ -935,7 +939,10 @@ impl<'a> Context<'a> {
                 (return_values, *call_stack)
             }
             // TODO(https://github.com/noir-lang/noir/issues/4616): Enable recursion on foldable/non-inlined ACIR functions
-            _ => unreachable!("ICE: Program must have a singular return"),
+            TerminatorInstruction::JmpIf { .. } | TerminatorInstruction::Jmp { .. } => {
+                unreachable!("ICE: Program must have a singular return")
+            }
+            TerminatorInstruction::Unreachable { .. } => return Ok((vec![], vec![])),
         };
 
         let mut has_constant_return = false;
@@ -1037,6 +1044,18 @@ impl<'a> Context<'a> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
         let binary_type = self.type_of_binary_operation(binary, dfg);
+
+        if binary_type.is_signed()
+            && matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
+            )
+        {
+            panic!("Checked signed operations should all be removed before ACIRgen")
+        }
+
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
@@ -1067,10 +1086,10 @@ impl<'a> Context<'a> {
 
         if let NumericType::Unsigned { bit_size } = &num_type {
             // Check for integer overflow
-            self.check_unsigned_overflow(result, *bit_size, binary, predicate)?;
+            self.check_unsigned_overflow(result, *bit_size, binary, predicate)
+        } else {
+            Ok(result)
         }
-
-        Ok(result)
     }
 
     /// Adds a range check against the bit size of the result of addition, subtraction or multiplication
@@ -1080,12 +1099,12 @@ impl<'a> Context<'a> {
         bit_size: u32,
         binary: &Binary,
         predicate: AcirVar,
-    ) -> Result<(), RuntimeError> {
+    ) -> Result<AcirVar, RuntimeError> {
         let msg = match binary.operator {
             BinaryOp::Add { unchecked: false } => "attempt to add with overflow",
             BinaryOp::Sub { unchecked: false } => "attempt to subtract with overflow",
             BinaryOp::Mul { unchecked: false } => "attempt to multiply with overflow",
-            _ => return Ok(()),
+            _ => return Ok(result),
         };
 
         self.acir_context.range_constrain_var(
@@ -1093,8 +1112,7 @@ impl<'a> Context<'a> {
             &NumericType::Unsigned { bit_size },
             Some(msg.to_string()),
             predicate,
-        )?;
-        Ok(())
+        )
     }
 
     /// Operands in a binary operation are checked to have the same type.
@@ -1166,10 +1184,17 @@ impl<'a> Context<'a> {
                 ) {
                     // Subtractions must first have the integer modulus added before truncation can be
                     // applied. This is done in order to prevent underflow.
-                    let integer_modulus = power_of_two::<FieldElement>(bit_size);
-                    let integer_modulus = self.acir_context.add_constant(integer_modulus);
-                    var = self.acir_context.add_var(var, integer_modulus)?;
-                    max_bit_size += 1;
+                    //
+                    // FieldElements have max bit size equals to max_num_bits so
+                    // we filter out this bit size because there is no underflow
+                    // for FieldElements. Furthermore, adding a power of two
+                    // would be incorrect for a FieldElement (cf. #8519).
+                    if max_bit_size < FieldElement::max_num_bits() {
+                        let integer_modulus = power_of_two::<FieldElement>(max_bit_size);
+                        let integer_modulus = self.acir_context.add_constant(integer_modulus);
+                        var = self.acir_context.add_var(var, integer_modulus)?;
+                        max_bit_size += 1;
+                    }
                 }
             }
             Value::Param { .. } => {

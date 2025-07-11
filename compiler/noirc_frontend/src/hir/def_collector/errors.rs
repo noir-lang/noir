@@ -17,9 +17,7 @@ pub enum DuplicateType {
     Import,
     Trait,
     TraitImplementation,
-    TraitAssociatedType,
-    TraitAssociatedConst,
-    TraitAssociatedFunction,
+    TraitAssociatedItem,
     StructField,
     EnumVariant,
 }
@@ -67,8 +65,6 @@ pub enum DefCollectorErrorKind {
         trait_method_name: String,
         trait_method_location: Location,
     },
-    #[error("{0}")]
-    UnsupportedNumericGenericType(#[from] UnsupportedNumericGenericType),
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
     #[error("The `#[export]` attribute may only be used on a non-associated function")]
@@ -118,9 +114,6 @@ impl DefCollectorErrorKind {
             | DefCollectorErrorKind::EntryPointWithGenerics { location, .. } => *location,
             DefCollectorErrorKind::NotATrait { not_a_trait_name: path }
             | DefCollectorErrorKind::TraitNotFound { trait_path: path } => path.location,
-            DefCollectorErrorKind::UnsupportedNumericGenericType(
-                unsupported_numeric_generic_type,
-            ) => unsupported_numeric_generic_type.ident.location(),
         }
     }
 }
@@ -150,9 +143,7 @@ impl fmt::Display for DuplicateType {
             DuplicateType::Trait => write!(f, "trait definition"),
             DuplicateType::TraitImplementation => write!(f, "trait implementation"),
             DuplicateType::Import => write!(f, "import"),
-            DuplicateType::TraitAssociatedType => write!(f, "trait associated type"),
-            DuplicateType::TraitAssociatedConst => write!(f, "trait associated constant"),
-            DuplicateType::TraitAssociatedFunction => write!(f, "trait associated function"),
+            DuplicateType::TraitAssociatedItem => write!(f, "trait associated item"),
             DuplicateType::StructField => write!(f, "struct field"),
             DuplicateType::EnumVariant => write!(f, "enum variant"),
         }
@@ -279,7 +270,6 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_location);
                 diag
             }
-            DefCollectorErrorKind::UnsupportedNumericGenericType(err) => err.into(),
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[test]` attribute is disallowed on `impl` methods".into(),
                 String::new(),

@@ -1,1 +1,0 @@
-[brillig_uninitialized_arrays] Circuit output: Field(1)

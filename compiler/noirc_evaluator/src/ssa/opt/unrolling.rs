@@ -33,7 +33,7 @@ use crate::{
             dfg::DataFlowGraph,
             dom::DominatorTree,
             function::Function,
-            function_inserter::{ArrayCache, FunctionInserter},
+            function_inserter::FunctionInserter,
             instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
@@ -439,21 +439,9 @@ impl Loop {
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
         let mut jump_value = get_induction_variable(function, unroll_into)?;
-        let mut array_cache = Some(ArrayCache::default());
 
-        while let Some(mut context) = self.unroll_header(function, unroll_into, jump_value)? {
-            // The inserter's array cache must be explicitly enabled. This is to
-            // confirm that we're inserting in insertion order. This is true here since:
-            // 1. We have a fresh inserter for each loop
-            // 2. Each loop is unrolled in iteration order
-            //
-            // Within a loop we do not insert in insertion order. This is fine however since the
-            // array cache is buffered with a separate fresh_array_cache which collects arrays
-            // but does not deduplicate. When we later call `into_array_cache`, that will merge
-            // the fresh cache in with the old one so that each iteration of the loop can cache
-            // from previous iterations but not the current iteration.
-            context.inserter.set_array_cache(array_cache, unroll_into);
-            (unroll_into, jump_value, array_cache) = context.unroll_loop_iteration();
+        while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
+            (unroll_into, jump_value) = context.unroll_loop_iteration();
         }
 
         Ok(())
@@ -872,7 +860,7 @@ impl<'f> LoopIteration<'f> {
     /// It is expected the terminator instructions are set up to branch into an empty block
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
-    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId, Option<ArrayCache>) {
+    fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -890,7 +878,7 @@ impl<'f> LoopIteration<'f> {
             .induction_value
             .expect("Expected to find the induction variable by end of loop iteration");
 
-        (end_block, induction_value, self.inserter.into_array_cache())
+        (end_block, induction_value)
     }
 
     /// Unroll a single block in the current iteration of the loop
@@ -926,7 +914,9 @@ impl<'f> LoopIteration<'f> {
                 }
                 vec![*destination]
             }
-            TerminatorInstruction::Return { .. } => vec![],
+            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {
+                vec![]
+            }
         }
     }
 
@@ -1060,7 +1050,7 @@ mod tests {
     use super::{BoilerplateStats, Loops, is_new_size_ok};
 
     /// Tries to unroll all loops in each SSA function once, calling the `Function` directly,
-    /// bypassing the iterative loop done by the SSA which does further optimisations.
+    /// bypassing the iterative loop done by the SSA which does further optimizations.
     ///
     /// If any loop cannot be unrolled, it is left as-is or in a partially unrolled state.
     fn try_unroll_loops(mut ssa: Ssa) -> (Ssa, Vec<RuntimeError>) {
@@ -1083,26 +1073,26 @@ mod tests {
         let src = "
             acir(inline) fn main f0 {
                 b0():
-                    jmp b1(Field 0)
-                b1(v0: Field):  // header of outer loop
-                    v1 = lt v0, Field 3
+                    jmp b1(u32 0)
+                b1(v0: u32):  // header of outer loop
+                    v1 = lt v0, u32 3
                     jmpif v1 then: b2, else: b3
                 b2():
-                    jmp b4(Field 0)
-                b4(v2: Field):  // header of inner loop
-                    v3 = lt v2, Field 4
+                    jmp b4(u32 0)
+                b4(v2: u32):  // header of inner loop
+                    v3 = lt v2, u32 4
                     jmpif v3 then: b5, else: b6
                 b5():
                     v4 = add v0, v2
-                    v5 = lt Field 10, v4
-                    constrain v5 == Field 1
-                    v6 = add v2, Field 1
+                    v5 = lt u32 10, v4
+                    constrain v5 == u1 1
+                    v6 = add v2, u32 1
                     jmp b4(v6)
                 b6(): // end of inner loop
-                    v7 = add v0, Field 1
+                    v7 = add v0, u32 1
                     jmp b1(v7)
                 b3(): // end of outer loop
-                    return Field 0
+                    return u32 0
             }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1116,24 +1106,24 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b2()
           b1():
-            return Field 0
+            return u32 0
           b2():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b3()
           b3():
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
-            constrain u1 0 == Field 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
+            constrain u1 0 == u1 1
             jmp b4()
           b4():
             jmp b1()
@@ -1146,16 +1136,16 @@ mod tests {
     fn fail_to_unroll_loop() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u32):
             jmp b1(v0)
-          b1(v1: Field):
-            v2 = lt v1, Field 5
+          b1(v1: u32):
+            v2 = lt v1, u32 5
             jmpif v2 then: b2, else: b3
           b2():
-            v3 = add v1, Field 1
+            v3 = add v1, u32 1
             jmp b1(v3)
           b3():
-            return Field 0
+            return u32 0
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1243,15 +1233,15 @@ mod tests {
 
     #[test]
     fn test_boilerplate_stats_6470() {
-        let ssa = brillig_unroll_test_case_6470(3);
+        let ssa = brillig_unroll_test_case_6470(2);
         let stats = loop0_stats(&ssa);
-        assert_eq!(stats.iterations, 3);
-        assert_eq!(stats.all_instructions, 2 + 8); // Instructions in b1 and b3
+        assert_eq!(stats.iterations, 2);
+        assert_eq!(stats.all_instructions, 2 + 9); // Instructions in b1 and b3
         assert_eq!(stats.increments, 2);
         assert_eq!(stats.loads, 1);
         assert_eq!(stats.stores, 1);
-        assert_eq!(stats.useful_instructions(), 3); // array get, add, array set
-        assert_eq!(stats.baseline_instructions(), 11);
+        assert_eq!(stats.useful_instructions(), 4); // cast, array get, add, array set
+        assert_eq!(stats.baseline_instructions(), 12);
         assert!(stats.is_small());
     }
 
@@ -1296,7 +1286,7 @@ mod tests {
     #[test]
     fn test_brillig_unroll_6470_small() {
         // Few enough iterations so that we can perform the unroll.
-        let ssa = brillig_unroll_test_case_6470(3);
+        let ssa = brillig_unroll_test_case_6470(2);
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_eq!(ssa.main().reachable_blocks().len(), 2, "The loop should be unrolled");
@@ -1319,16 +1309,11 @@ mod tests {
             v13 = add v12, u64 1
             v14 = array_set v10, index u32 1, value v13
             store v14 at v3
-            v15 = load v3 -> [u64; 6]
-            v17 = array_get v0, index u32 2 -> u64
-            v18 = add v17, u64 1
-            v19 = array_set v15, index u32 2, value v18
-            store v19 at v3
             jmp b1()
           b1():
-            v20 = load v3 -> [u64; 6]
+            v15 = load v3 -> [u64; 6]
             dec_rc v0
-            return v20
+            return v15
         }
         ");
     }
@@ -1345,7 +1330,7 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         // Check that it's still the original
-        assert_normalized_ssa_equals(ssa, parse_ssa().to_string().as_str());
+        assert_normalized_ssa_equals(ssa, &parse_ssa().print_without_locations().to_string());
     }
 
     #[test]
@@ -1353,7 +1338,8 @@ mod tests {
         let ssa = brillig_unroll_test_case();
         let ssa = ssa.unroll_loops_iteratively(Some(-90)).unwrap();
         // Check that it's still the original
-        assert_normalized_ssa_equals(ssa, brillig_unroll_test_case().to_string().as_str());
+        let expected = brillig_unroll_test_case();
+        assert_normalized_ssa_equals(ssa, &expected.print_without_locations().to_string());
     }
 
     #[test]
@@ -1503,12 +1489,13 @@ mod tests {
             jmpif v7 then: b3, else: b2
           b3():
             v9 = load v4 -> [u64; 6]
-            v10 = array_get v0, index v1 -> u64
-            v12 = add v10, u64 1
-            v13 = array_set v9, index v1, value v12
-            v15 = add v1, {idx_type} 1
+            v10 = cast v1 as u32
+            v11 = array_get v0, index v10 -> u64
+            v12 = add v11, u64 1
+            v13 = array_set v9, index v10, value v12
+            v15 = unchecked_add v1, {idx_type} 1
             store v13 at v4
-            v16 = add v1, {idx_type} 1 // duplicate
+            v16 = unchecked_add v1, {idx_type} 1 // duplicate
             jmp b1(v16)
           b2():
             v8 = load v4 -> [u64; 6]

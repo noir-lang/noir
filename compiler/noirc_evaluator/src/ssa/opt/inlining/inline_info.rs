@@ -6,9 +6,10 @@ use petgraph::graph::NodeIndex as PetGraphIndex;
 
 use crate::ssa::{
     ir::{
-        call_graph::{CallGraph, called_functions, called_functions_vec},
+        call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -21,6 +22,7 @@ pub(crate) struct InlineInfo {
     is_acir_entry_point: bool,
     is_recursive: bool,
     pub(crate) should_inline: bool,
+    pub(super) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
@@ -54,6 +56,7 @@ pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
 /// The returned `InlineInfos` won't have every function in it, only the ones which the algorithm visited.
 pub(crate) fn compute_inline_infos(
     ssa: &Ssa,
+    call_graph: &CallGraph,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
 ) -> InlineInfos {
@@ -89,10 +92,7 @@ pub(crate) fn compute_inline_infos(
         }
     }
 
-    let callers = compute_callers(ssa);
-    let times_called = compute_times_called(&callers);
-
-    let call_graph = CallGraph::from_ssa(ssa);
+    let times_called = call_graph.times_called();
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
     for recursive_func in recursive_functions.iter() {
@@ -103,7 +103,7 @@ pub(crate) fn compute_inline_infos(
             aggressiveness,
             &times_called,
             &mut inline_infos,
-            &call_graph,
+            call_graph,
             call_graph.ids_to_indices()[recursive_func],
         );
     }
@@ -160,8 +160,22 @@ fn compute_function_should_be_inlined(
         return; // Already processed
     }
 
+    let function = &ssa.functions[&func_id];
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+    let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
+        function.dfg[*block].instructions().iter().any(|instruction| {
+            match &function.dfg[*instruction] {
+                Instruction::Call { func, .. } => {
+                    Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                }
+                _ => false,
+            }
+        })
+    });
+
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(&ssa.functions[&func_id]) as i64;
+    let mut total_weight = compute_function_own_weight(function) as i64;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
@@ -169,13 +183,14 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(&ssa.functions[&func_id]) as i64;
+    let interface_cost = compute_function_interface_cost(function) as i64;
     let inline_cost = times.saturating_mul(total_weight);
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
-    let runtime = ssa.functions[&func_id].runtime();
+    let runtime = function.runtime();
     let info = inline_infos.entry(func_id).or_default();
 
+    info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
 
@@ -185,60 +200,10 @@ fn compute_function_should_be_inlined(
 
     let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions);
+        || (runtime.is_no_predicates() && inline_no_predicates_functions)
+        || contains_static_assertion;
 
     info.should_inline = should_inline;
-}
-
-/// Compute the time each function is called from any other function.
-fn compute_times_called(
-    callers: &BTreeMap<FunctionId, BTreeMap<FunctionId, usize>>,
-) -> HashMap<FunctionId, usize> {
-    callers
-        .iter()
-        .map(|(callee, callers)| {
-            let total_calls = callers.values().sum();
-            (*callee, total_calls)
-        })
-        .collect()
-}
-
-/// Compute for each function the set of functions that call it, and how many times they do so.
-fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
-    ssa.functions
-        .iter()
-        .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
-            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
-        })
-        .fold(
-            // Make sure an entry exists even for ones that don't get called.
-            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
-            |mut acc, (caller_id, callee_id)| {
-                let callers = acc.entry(callee_id).or_default();
-                *callers.entry(caller_id).or_default() += 1;
-                acc
-            },
-        )
-}
-
-/// Compute for each function the set of functions called by it, and how many times it does so.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
-    ssa.functions
-        .iter()
-        .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
-            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
-        })
-        .fold(
-            // Make sure an entry exists even for ones that don't call anything.
-            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
-            |mut acc, (caller_id, callee_id)| {
-                let callees = acc.entry(caller_id).or_default();
-                *callees.entry(callee_id).or_default() += 1;
-                acc
-            },
-        )
 }
 
 /// Compute something like a topological order of the functions, starting with the ones
@@ -249,16 +214,19 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 ///
 /// Returns the functions paired with their own as well as transitive weight,
 /// which accumulates the weight of all the functions they call, as well as own.
-pub(crate) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, (usize, usize))> {
+pub(crate) fn compute_bottom_up_order(
+    ssa: &Ssa,
+    call_graph: &CallGraph,
+) -> Vec<(FunctionId, (usize, usize))> {
     let mut order = Vec::new();
     let mut visited = HashSet::default();
 
-    // Call graph which we'll repeatedly prune to find the "leaves".
-    let mut callees = compute_callees(ssa);
-    let callers = compute_callers(ssa);
+    // Construct a new "call graph" which we'll repeatedly prune to find the "leaves".
+    let mut callees = call_graph.callees();
+    let callers = call_graph.callers();
 
     // Number of times a function is called, used to break cycles in the call graph by popping the next candidate.
-    let mut times_called = compute_times_called(&callers).into_iter().collect::<Vec<_>>();
+    let mut times_called = call_graph.times_called().into_iter().collect::<Vec<_>>();
     times_called.sort_by_key(|(id, cnt)| {
         // Sort by called the *least* by others, as these are less likely to cut the graph when removed.
         let called_desc = -(*cnt as i64);
@@ -339,14 +307,14 @@ fn compute_function_own_weight(func: &Function) -> usize {
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().len()
+    func.parameters().len() + func.returns().unwrap_or_default().len()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
-        ir::map::Id,
-        opt::inlining::inline_info::{compute_bottom_up_order, compute_callees, compute_callers},
+        ir::{call_graph::CallGraph, map::Id},
+        opt::inlining::inline_info::compute_bottom_up_order,
         ssa_gen::Ssa,
     };
 
@@ -378,7 +346,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let inline_infos = compute_inline_infos(&ssa, false, i64::MAX);
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
@@ -391,116 +360,6 @@ mod tests {
 
         let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have computed inline info");
         assert!(func_3.is_recursive);
-    }
-
-    fn callers_and_callees_src() -> &'static str {
-        r#"
-        acir(inline) fn main f0 {
-          b0():
-            call f1()
-            call f1()
-            call f2()
-            return
-        }
-        acir(inline) fn foo f1 {
-          b0():
-            call f3()
-            return
-        }
-        brillig(inline) fn bar f2 {
-          b0():
-            call f3()
-            call f4()
-            call f4()
-            return
-        }
-        brillig(inline) fn baz f3 {
-          b0():
-            return
-        }
-        brillig(inline) fn qux f4 {
-          b0():
-            call f3()
-            return
-        }
-        "#
-    }
-
-    #[test]
-    fn callers() {
-        let ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
-        let callers = compute_callers(&ssa);
-
-        let f0_callers = callers.get(&Id::test_new(0)).expect("Should have callers");
-        assert!(f0_callers.is_empty());
-
-        let f1_callers = callers.get(&Id::test_new(1)).expect("Should have callers");
-        assert_eq!(f1_callers.len(), 1);
-        let times_f1_called_by_f0 =
-            *f1_callers.get(&Id::test_new(0)).expect("Should have times called");
-        assert_eq!(times_f1_called_by_f0, 2);
-
-        let f2_callers = callers.get(&Id::test_new(2)).expect("Should have callers");
-        assert_eq!(f2_callers.len(), 1);
-        let times_f2_called_by_f0 =
-            *f2_callers.get(&Id::test_new(0)).expect("Should have times called");
-        assert_eq!(times_f2_called_by_f0, 1);
-
-        let f3_callers = callers.get(&Id::test_new(3)).expect("Should have callers");
-        assert_eq!(f3_callers.len(), 3);
-        let times_f3_called_by_f1 =
-            *f3_callers.get(&Id::test_new(1)).expect("Should have times called");
-        assert_eq!(times_f3_called_by_f1, 1);
-        let times_f3_called_by_f2 =
-            *f3_callers.get(&Id::test_new(2)).expect("Should have times called");
-        assert_eq!(times_f3_called_by_f2, 1);
-        let times_f3_called_by_f4 =
-            *f3_callers.get(&Id::test_new(4)).expect("Should have times called");
-        assert_eq!(times_f3_called_by_f4, 1);
-
-        let f4_callers = callers.get(&Id::test_new(4)).expect("Should have callers");
-        assert_eq!(f4_callers.len(), 1);
-        let times_f4_called_by_f2 =
-            *f4_callers.get(&Id::test_new(2)).expect("Should have times called");
-        assert_eq!(times_f4_called_by_f2, 2);
-    }
-
-    #[test]
-    fn callees() {
-        let ssa = Ssa::from_str(callers_and_callees_src()).unwrap();
-        let callees = compute_callees(&ssa);
-
-        let f0_callees = callees.get(&Id::test_new(0)).expect("Should have callees");
-        assert_eq!(f0_callees.len(), 2);
-        let times_f0_calls_f1 =
-            *f0_callees.get(&Id::test_new(1)).expect("Should have times called");
-        assert_eq!(times_f0_calls_f1, 2);
-        let times_f0_calls_f2 =
-            *f0_callees.get(&Id::test_new(2)).expect("Should have times called");
-        assert_eq!(times_f0_calls_f2, 1);
-
-        let f1_callees = callees.get(&Id::test_new(1)).expect("Should have callees");
-        assert_eq!(f1_callees.len(), 1);
-        let times_f1_calls_f3 =
-            *f1_callees.get(&Id::test_new(3)).expect("Should have times called");
-        assert_eq!(times_f1_calls_f3, 1);
-
-        let f2_callees = callees.get(&Id::test_new(2)).expect("Should have callees");
-        assert_eq!(f2_callees.len(), 2);
-        let times_f2_calls_f3 =
-            *f2_callees.get(&Id::test_new(3)).expect("Should have times called");
-        assert_eq!(times_f2_calls_f3, 1);
-        let times_f2_calls_f4 =
-            *f2_callees.get(&Id::test_new(4)).expect("Should have times called");
-        assert_eq!(times_f2_calls_f4, 2);
-
-        let f3_callees = callees.get(&Id::test_new(3)).expect("Should have callees");
-        assert!(f3_callees.is_empty());
-
-        let f4_callees = callees.get(&Id::test_new(4)).expect("Should have callees");
-        let times_f4_calls_f3 =
-            *f4_callees.get(&Id::test_new(3)).expect("Should have times called");
-        assert_eq!(times_f4_calls_f3, 1);
     }
 
     #[test]
@@ -554,7 +413,8 @@ mod tests {
         //      decrement
 
         let ssa = Ssa::from_str(src).unwrap();
-        let order = compute_bottom_up_order(&ssa);
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let order = compute_bottom_up_order(&ssa, &call_graph);
 
         assert_eq!(order.len(), 4);
         let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();

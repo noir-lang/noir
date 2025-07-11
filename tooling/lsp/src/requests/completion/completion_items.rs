@@ -8,7 +8,9 @@ use noirc_frontend::{
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
     modules::{relative_module_full_path, relative_module_id_path},
-    node_interner::{FuncId, GlobalId, ReferenceId, TraitId, TypeAliasId, TypeId},
+    node_interner::{
+        FuncId, GlobalId, ReferenceId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
+    },
 };
 
 use crate::use_segment_positions::{
@@ -38,7 +40,8 @@ impl NodeFinder<'_> {
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeId(_)
                 | ModuleDefId::TypeAliasId(_)
-                | ModuleDefId::TraitId(_) => (),
+                | ModuleDefId::TraitId(_)
+                | ModuleDefId::TraitAssociatedTypeId(_) => (),
             },
             RequestedItems::OnlyTraits => match module_def_id {
                 ModuleDefId::FunctionId(_) | ModuleDefId::GlobalId(_) | ModuleDefId::TypeId(_) => {
@@ -46,7 +49,8 @@ impl NodeFinder<'_> {
                 }
                 ModuleDefId::ModuleId(_)
                 | ModuleDefId::TypeAliasId(_)
-                | ModuleDefId::TraitId(_) => (),
+                | ModuleDefId::TraitId(_)
+                | ModuleDefId::TraitAssociatedTypeId(_) => (),
             },
             RequestedItems::OnlyAttributeFunctions(..) => {
                 if !matches!(module_def_id, ModuleDefId::FunctionId(..)) {
@@ -93,6 +97,9 @@ impl NodeFinder<'_> {
                 }
             }
             ModuleDefId::TypeAliasId(id) => vec![self.type_alias_completion_item(name, id)],
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                vec![self.trait_associated_type_completion_item(name, id)]
+            }
             ModuleDefId::TraitId(trait_id) => vec![self.trait_completion_item(name, trait_id)],
             ModuleDefId::GlobalId(global_id) => vec![self.global_completion_item(name, global_id)],
         }
@@ -141,6 +148,15 @@ impl NodeFinder<'_> {
     fn type_alias_completion_item(&self, name: String, id: TypeAliasId) -> CompletionItem {
         let item = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
         self.completion_item_with_doc_comments(ReferenceId::Alias(id), item)
+    }
+
+    fn trait_associated_type_completion_item(
+        &self,
+        name: String,
+        id: TraitAssociatedTypeId,
+    ) -> CompletionItem {
+        let item = simple_completion_item(name.clone(), CompletionItemKind::STRUCT, Some(name));
+        self.completion_item_with_doc_comments(ReferenceId::TraitAssociatedType(id), item)
     }
 
     fn trait_completion_item(&self, name: String, trait_id: TraitId) -> CompletionItem {

@@ -12,6 +12,7 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -181,6 +182,13 @@ impl StatementKind {
 #[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
 
+impl Ident {
+    /// Gets the underlying identifier without its location.
+    pub fn identifier(&self) -> &str {
+        &self.0.contents
+    }
+}
+
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
         self.as_str() == other.as_str()
@@ -310,6 +318,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -572,9 +582,6 @@ pub enum Pattern {
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
-    }
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
@@ -718,7 +725,7 @@ pub struct ForBounds {
 }
 
 impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
     /// desugaring `start..=end` into `start..end+1` if necessary.
     ///
     /// Returns the `start` and `end` expressions.
@@ -729,7 +736,7 @@ impl ForBounds {
                 lhs: self.end,
                 operator: Located::from(end_location, BinaryOpKind::Add),
                 rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32)),
+                    ExpressionKind::integer(FieldElement::from(1u32), None),
                     end_location,
                 ),
             }));
@@ -752,16 +759,6 @@ impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
     pub fn range(start: Expression, end: Expression) -> Self {
         Self::Range(ForBounds { start, end, inclusive: false })
-    }
-
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -792,7 +789,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;
@@ -966,6 +963,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
@@ -987,7 +985,11 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));

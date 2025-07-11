@@ -1,8 +1,0 @@
-error: No matching impl found for `myStruct: Eq`
-  ┌─ src/main.nr:4:15
-  │
-4 │     assert_eq(x, y);
-  │               ---- No impl for `myStruct: Eq`
-  │
-
-Aborting due to 1 previous error

@@ -280,12 +280,14 @@ pub enum Instruction {
     EnableSideEffectsIf { condition: ValueId },
 
     /// Retrieve a value from an array at the given index
-    ArrayGet { array: ValueId, index: ValueId },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArrayGet { array: ValueId, index: ValueId, offset: ArrayOffset },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
     /// to those in the given array. This will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
-    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
+    /// `offset` determines whether the index has been shifted by some offset.
+    ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool, offset: ArrayOffset },
 
     /// An instruction to increment the reference count of a value.
     ///
@@ -376,7 +378,7 @@ impl Instruction {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 !dfg.is_safe_index(*index, *array)
             }
@@ -406,6 +408,63 @@ impl Instruction {
             | Instruction::DecrementRc { .. }
             | Instruction::Noop
             | Instruction::MakeArray { .. } => false,
+        }
+    }
+
+    /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
+    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+        use Instruction::*;
+
+        match self {
+            // These either have side-effects or interact with memory
+            EnableSideEffectsIf { .. }
+            | Allocate
+            | Load { .. }
+            | Store { .. }
+            | IncrementRc { .. }
+            | DecrementRc { .. } => true,
+
+            Call { func, .. } => match dfg[*func] {
+                Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
+                // Functions known to be pure have no side effects.
+                // `PureWithPredicates` functions may still have side effects.
+                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                _ => true, // Be conservative and assume other functions can have side effects.
+            },
+
+            // These can fail.
+            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
+
+            // This should never be side-effectual
+            MakeArray { .. } | Noop => false,
+
+            // Some binary math can overflow or underflow
+            Binary(binary) => match binary.operator {
+                BinaryOp::Add { unchecked: false }
+                | BinaryOp::Sub { unchecked: false }
+                | BinaryOp::Mul { unchecked: false }
+                | BinaryOp::Div
+                | BinaryOp::Mod => true,
+                BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+                | BinaryOp::Eq
+                | BinaryOp::Lt
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+                | BinaryOp::Shl
+                | BinaryOp::Shr => false,
+            },
+
+            // These don't have side effects
+            Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
+
+            // `ArrayGet`s which read from "known good" indices from an array have no side effects
+            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+
+            // ArraySet has side effects
+            ArraySet { .. } => true,
         }
     }
 
@@ -477,15 +536,18 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 Instruction::EnableSideEffectsIf { condition: f(*condition) }
             }
-            Instruction::ArrayGet { array, index } => {
-                Instruction::ArrayGet { array: f(*array), index: f(*index) }
+            Instruction::ArrayGet { array, index, offset } => {
+                Instruction::ArrayGet { array: f(*array), index: f(*index), offset: *offset }
             }
-            Instruction::ArraySet { array, index, value, mutable } => Instruction::ArraySet {
-                array: f(*array),
-                index: f(*index),
-                value: f(*value),
-                mutable: *mutable,
-            },
+            Instruction::ArraySet { array, index, value, mutable, offset } => {
+                Instruction::ArraySet {
+                    array: f(*array),
+                    index: f(*index),
+                    value: f(*value),
+                    mutable: *mutable,
+                    offset: *offset,
+                }
+            }
             Instruction::IncrementRc { value } => Instruction::IncrementRc { value: f(*value) },
             Instruction::DecrementRc { value } => Instruction::DecrementRc { value: f(*value) },
             Instruction::RangeCheck { value, max_bit_size, assert_message } => {
@@ -548,11 +610,11 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { condition } => {
                 *condition = f(*condition);
             }
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 *array = f(*array);
                 *index = f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 *array = f(*array);
                 *index = f(*index);
                 *value = f(*value);
@@ -614,11 +676,11 @@ impl Instruction {
                 f(*value);
             }
             Instruction::Allocate => (),
-            Instruction::ArrayGet { array, index } => {
+            Instruction::ArrayGet { array, index, offset: _ } => {
                 f(*array);
                 f(*index);
             }
-            Instruction::ArraySet { array, index, value, mutable: _ } => {
+            Instruction::ArraySet { array, index, value, mutable: _, offset: _ } => {
                 f(*array);
                 f(*index);
                 f(*value);
@@ -643,6 +705,37 @@ impl Instruction {
                 }
             }
             Instruction::Noop => (),
+        }
+    }
+}
+
+/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
+/// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
+/// and vectors with constant indices.
+#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+pub enum ArrayOffset {
+    None,
+    Array,
+    Slice,
+}
+
+impl ArrayOffset {
+    pub fn from_u32(value: u32) -> Option<Self> {
+        match value {
+            0 => Some(Self::None),
+            1 => Some(Self::Array),
+            3 => Some(Self::Slice),
+            _ => None,
+        }
+    }
+
+    pub fn to_u32(self) -> u32 {
+        match self {
+            Self::None => 0,
+            // Arrays in brillig are represented as [RC, ...items]
+            Self::Array => 1,
+            // Slices in brillig are represented as [RC, Size, Capacity, ...items]
+            Self::Slice => 3,
         }
     }
 }
@@ -760,6 +853,10 @@ pub(crate) enum TerminatorInstruction {
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
     Return { return_values: Vec<ValueId>, call_stack: CallStackId },
+
+    /// A terminator that will never be reached because an instruction in its block
+    /// will always produce an assertion failure.
+    Unreachable { call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -780,6 +877,7 @@ impl TerminatorInstruction {
                     *return_value = f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -800,6 +898,7 @@ impl TerminatorInstruction {
                     f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -820,6 +919,7 @@ impl TerminatorInstruction {
                     f(index, *return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -834,7 +934,7 @@ impl TerminatorInstruction {
             Jmp { destination, .. } => {
                 *destination = f(*destination);
             }
-            Return { .. } => (),
+            Return { .. } | Unreachable { .. } => (),
         }
     }
 
@@ -842,7 +942,8 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack,
         }
     }
 
@@ -850,7 +951,8 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack = new_call_stack,
         }
     }
 }

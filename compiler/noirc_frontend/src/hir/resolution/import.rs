@@ -213,19 +213,21 @@ struct PathResolutionTargetResolver<'def_maps, 'references_tracker> {
 impl PathResolutionTargetResolver<'_, '_> {
     fn resolve(&mut self, path: TypedPath) -> Result<(TypedPath, ModuleId), PathResolutionError> {
         match path.kind {
-            PathKind::Crate => self.resolve_crate_path(path),
+            PathKind::Crate => self.resolve_crate_path(path, self.importing_module.krate),
             PathKind::Plain => self.resolve_plain_path(path, self.importing_module),
             PathKind::Dep => self.resolve_dep_path(path),
             PathKind::Super => self.resolve_super_path(path),
+            PathKind::Resolved(crate_id) => self.resolve_crate_path(path, crate_id),
         }
     }
 
     fn resolve_crate_path(
         &mut self,
         path: TypedPath,
+        krate: CrateId,
     ) -> Result<(TypedPath, ModuleId), PathResolutionError> {
-        let root_module = self.def_maps[&self.importing_module.krate].root();
-        let current_module = ModuleId { krate: self.importing_module.krate, local_id: root_module };
+        let root_module = self.def_maps[&krate].root();
+        let current_module = ModuleId { krate, local_id: root_module };
         Ok((path, current_module))
     }
 
@@ -361,6 +363,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                     return Err(PathResolutionError::NotAModule {
                         ident: last_segment.ident.clone(),
                         kind: "type alias",
+                    });
+                }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "associated type",
                     });
                 }
                 ModuleDefId::TraitId(id) => id.0,

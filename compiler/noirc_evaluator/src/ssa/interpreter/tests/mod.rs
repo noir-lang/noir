@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use insta::assert_snapshot;
 
 use crate::ssa::{
     interpreter::value::NumericValue,
@@ -13,6 +14,7 @@ use super::{InterpreterError, Ssa, Value};
 
 mod black_box;
 mod instructions;
+mod intrinsics;
 
 #[track_caller]
 fn executes_with_no_errors(src: &str) {
@@ -51,14 +53,23 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     results.pop().unwrap()
 }
 
-fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+#[track_caller]
+fn expect_printed_output(src: &str) -> String {
+    let mut output = Vec::new();
+    let ssa = Ssa::from_str(src).unwrap();
+    let _ = ssa
+        .interpret_with_options(Vec::new(), Default::default(), &mut output)
+        .expect("interpret not expected to fail");
+    String::from_utf8(output).expect("not a UTF-8 string")
+}
+
+pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }
 
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
     let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
-    let types = slice.iter().map(|_| Type::Numeric(typ)).collect();
-    Value::array(values, types)
+    Value::array(values, vec![Type::Numeric(typ)])
 }
 
 #[test]
@@ -148,10 +159,10 @@ fn run_flattened_function() {
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 0]");
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
 }
 
 #[test]
@@ -172,7 +183,7 @@ fn loads_passed_to_a_call() {
         v10 = eq v9, Field 2
         constrain v9 == Field 2
         v11 = load v3 -> &mut Field
-        call f1(v3)
+        call f1(v11)
         v13 = load v3 -> &mut Field
         v14 = load v13 -> Field
         v15 = eq v14, Field 2

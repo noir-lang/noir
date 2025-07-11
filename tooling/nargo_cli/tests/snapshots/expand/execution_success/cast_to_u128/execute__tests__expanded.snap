@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(x: i8) {
-    let y: i8 = -1;
-    assert((x as u128) == 340282366920938463463374607431768211455);
-    assert((y as u128) == 340282366920938463463374607431768211455);
-}

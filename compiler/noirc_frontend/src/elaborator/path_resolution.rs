@@ -9,7 +9,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
 use super::Elaborator;
@@ -33,14 +33,25 @@ pub(crate) enum PathResolutionItem {
     TypeAlias(TypeAliasId),
     PrimitiveType(PrimitiveType),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
 
     // These are values
+    /// A reference to a global value.
     Global(GlobalId),
+    /// A function call on a module, for example `some::module::function()`.
     ModuleFunction(FuncId),
     Method(TypeId, Option<Turbofish>, FuncId),
+    /// A function call on `Self`, for example `Self::function()`. Turbofish is not allowed here.
     SelfMethod(FuncId),
+    /// A function call on a type alias, for example `TypeAlias::function()`.
     TypeAliasFunction(TypeAliasId, Option<Turbofish>, FuncId),
+    /// A function call on a trait, for example `Trait::function()` or `Trait::<A, B>::function()`.
     TraitFunction(TraitId, Option<Turbofish>, FuncId),
+    /// A function call on a type that resolves to a trait method, for example `SomeType::from(...)`
+    /// or `SomeType::<A, B>::from(..).`. The main difference from `TraitFunction` is that this
+    /// holds the self type, in this case `SomeType`.
+    TypeTraitFunction(Type, TraitId, FuncId),
+    /// A function call on a primitive type, for example `u64::from(...)` or `u64::<A, B>::from(..)`.
     PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
 }
 
@@ -52,12 +63,14 @@ impl PathResolutionItem {
             | PathResolutionItem::SelfMethod(func_id)
             | PathResolutionItem::TypeAliasFunction(_, _, func_id)
             | PathResolutionItem::TraitFunction(_, _, func_id)
+            | PathResolutionItem::TypeTraitFunction(_, _, func_id)
             | PathResolutionItem::PrimitiveFunction(_, _, func_id) => Some(*func_id),
             PathResolutionItem::Module(..)
             | PathResolutionItem::Type(..)
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..) => None,
         }
     }
@@ -69,12 +82,14 @@ impl PathResolutionItem {
             PathResolutionItem::TypeAlias(..) => "type alias",
             PathResolutionItem::PrimitiveType(..) => "primitive type",
             PathResolutionItem::Trait(..) => "trait",
+            PathResolutionItem::TraitAssociatedType(..) => "associated type",
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
             | PathResolutionItem::SelfMethod(..)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) => "function",
         }
     }
@@ -113,7 +128,7 @@ enum MethodLookupResult {
     FoundMultipleTraitMethods(Vec<(TraitId, Ident)>),
 }
 
-/// Determines whether datatypes found along a path are to be marked as referenced
+/// Determines whether data-types found along a path are to be marked as referenced
 /// or used (see [`crate::usage_tracker::UsageTracker::mark_as_referenced`]
 /// and [`crate::usage_tracker::UsageTracker::mark_as_used`])
 ///
@@ -145,7 +160,7 @@ pub(super) enum PathResolutionMode {
     MarkAsUsed,
 }
 
-/// Depenending on where a path appears in the source code it should either resolve to a type
+/// Depending on where a path appears in the source code it should either resolve to a type
 /// or a value. For example, in `let x: Foo::Bar = Foo::Bar {}` both `Foo::Bar` should resolve to
 /// types, never values. On the other hand, in `Foo::Bar()` `Foo::Bar` should resolve to a value,
 /// typically a function.
@@ -383,11 +398,13 @@ impl Elaborator<'_> {
                 | PathResolutionItem::TypeAlias(..)
                 | PathResolutionItem::PrimitiveType(..)
                 | PathResolutionItem::Trait(..)
+                | PathResolutionItem::TraitAssociatedType(..)
                 | PathResolutionItem::ModuleFunction(..)
                 | PathResolutionItem::Method(..)
                 | PathResolutionItem::SelfMethod(..)
                 | PathResolutionItem::TypeAliasFunction(..)
                 | PathResolutionItem::TraitFunction(..)
+                | PathResolutionItem::TypeTraitFunction(..)
                 | PathResolutionItem::PrimitiveFunction(..) => (),
             }
             resolution
@@ -519,6 +536,10 @@ impl Elaborator<'_> {
                     let item =
                         IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
                     (module_id, true, item)
+                }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    // There are no items inside an associated type so we return earlier
+                    return Err(PathResolutionError::Unresolved(current_ident.clone()));
                 }
                 ModuleDefId::TraitId(id) => {
                     let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
@@ -847,6 +868,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TypeId(type_id) => PathResolutionItem::Type(type_id),
         ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
+        ModuleDefId::TraitAssociatedTypeId(id) => PathResolutionItem::TraitAssociatedType(id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
             IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),

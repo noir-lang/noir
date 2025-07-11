@@ -1,6 +1,9 @@
+use std::io::Write;
+
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
+use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -15,7 +18,7 @@ use crate::ssa::{
 
 use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
 
-impl Interpreter<'_> {
+impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
         &mut self,
         intrinsic: Intrinsic,
@@ -49,13 +52,20 @@ impl Interpreter<'_> {
                 Ok(Vec::new())
             }
             Intrinsic::StaticAssert => {
-                check_argument_count(args, 2, intrinsic)?;
+                check_argument_count_is_at_least(args, 2, intrinsic)?;
 
                 let condition = self.lookup_bool(args[0], "static_assert")?;
                 if condition {
                     Ok(Vec::new())
                 } else {
-                    let message = self.lookup_string(args[1], "static_assert")?;
+                    // Static assert can either have 2 arguments, in which case the second one is a string,
+                    // or it can have more arguments in case fmtstr or some other non-string value is passed.
+                    // For simplicity, we won't build the dynamic message here.
+                    let message = if args.len() == 2 {
+                        self.lookup_string(args[1], "static_assert")?
+                    } else {
+                        "static_assert failed".to_string()
+                    };
                     Err(InterpreterError::StaticAssertFailed { condition: args[0], message })
                 }
             }
@@ -70,21 +80,28 @@ impl Interpreter<'_> {
                     reason: "Intrinsic::ApplyRangeConstraint should have been converted to a RangeCheck instruction",
                 }))
             }
-            // Both of these are no-ops
-            Intrinsic::StrAsBytes | Intrinsic::AsWitness => {
+            Intrinsic::StrAsBytes => {
+                // This one is a no-op
                 check_argument_count(args, 1, intrinsic)?;
                 Ok(vec![self.lookup(args[0])?])
+            }
+            Intrinsic::AsWitness => {
+                // This one is also a no-op, but it doesn't return anything
+                check_argument_count(args, 1, intrinsic)?;
+                Ok(vec![])
             }
             Intrinsic::ToBits(endian) => {
                 check_argument_count(args, 1, intrinsic)?;
                 let field = self.lookup_field(args[0], "call to to_bits")?;
-                self.to_radix(endian, args[0], field, 2, results[0])
+                let element_type = NumericType::bool();
+                self.to_radix(endian, element_type, args[0], field, 2, results[0])
             }
             Intrinsic::ToRadix(endian) => {
                 check_argument_count(args, 2, intrinsic)?;
-                let field = self.lookup_field(args[0], "call to to_bits")?;
-                let radix = self.lookup_u32(args[1], "call to to_bits")?;
-                self.to_radix(endian, args[0], field, radix, results[0])
+                let field = self.lookup_field(args[0], "call to to_radix")?;
+                let radix = self.lookup_u32(args[1], "call to to_radix")?;
+                let element_type = NumericType::Unsigned { bit_size: 8 };
+                self.to_radix(endian, element_type, args[0], field, radix, results[0])
             }
             Intrinsic::BlackBox(black_box_func) => match black_box_func {
                 acvm::acir::BlackBoxFunc::AES128Encrypt => {
@@ -110,7 +127,7 @@ impl Interpreter<'_> {
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
                     let result = result.iter().map(|v| (*v as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::AND => {
@@ -134,7 +151,7 @@ impl Interpreter<'_> {
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
                     let result = result.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Blake3 => {
@@ -143,7 +160,7 @@ impl Interpreter<'_> {
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
                     let results = results.iter().map(|e| (*e as u128).into());
-                    let results = Value::array_from_iter(results, NumericType::NativeField)?;
+                    let results = Value::array_from_iter(results, NumericType::unsigned(8))?;
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
@@ -272,8 +289,8 @@ impl Interpreter<'_> {
                     }
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
-                    let (a, b, c) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([a, b, c], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -313,8 +330,8 @@ impl Interpreter<'_> {
                     );
                     let result =
                         solver.ec_add(&lhs.0, &lhs.1, &lhs.2.into(), &rhs.0, &rhs.1, &rhs.2.into());
-                    let (x, y, inf) = result.map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter([x, y, inf], NumericType::NativeField)?;
+                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::BigIntAdd
@@ -328,12 +345,14 @@ impl Interpreter<'_> {
                     }))
                 }
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 1, intrinsic)?;
-                    let inputs =
-                        self.lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox")?;
+                    check_argument_count(args, 2, intrinsic)?;
+                    let inputs = self
+                        .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
+                    let length =
+                        self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let result = solver
-                        .poseidon2_permutation(&inputs, inputs.len() as u32)
+                        .poseidon2_permutation(&inputs, length)
                         .map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
@@ -358,7 +377,7 @@ impl Interpreter<'_> {
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
                     let result = state.iter().map(|e| (*e as u128).into());
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    let result = Value::array_from_iter(result, NumericType::unsigned(32))?;
                     Ok(vec![result])
                 }
             },
@@ -369,32 +388,61 @@ impl Interpreter<'_> {
             }
             Intrinsic::DerivePedersenGenerators => {
                 check_argument_count(args, 2, intrinsic)?;
+
                 let inputs =
                     self.lookup_bytes(args[0], "call DerivePedersenGenerators BlackBox")?;
                 let index = self.lookup_u32(args[1], "call DerivePedersenGenerators BlackBox")?;
-                let generators = derive_generators(&inputs, inputs.len() as u32, index);
+
+                // The definition is:
+                //
+                // ```noir
+                // fn __derive_generators<let N: u32, let M: u32>(
+                //     domain_separator_bytes: [u8; M],
+                //     starting_index: u32,
+                // ) -> [EmbeddedCurvePoint; N] {}
+                // ```
+                //
+                // We need to get N from the return type.
+                if results.len() != 1 {
+                    return Err(InterpreterError::Internal(
+                        InternalError::UnexpectedResultLength {
+                            actual_length: results.len(),
+                            expected_length: 1,
+                            instruction: "call DerivePedersenGenerators BlackBox",
+                        },
+                    ));
+                }
+
+                let result_type = self.dfg().type_of_value(results[0]);
+                let Type::Array(_, n) = result_type else {
+                    return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
+                        actual_type: result_type.to_string(),
+                        expected_type: "array",
+                        instruction: "call DerivePedersenGenerators BlackBox",
+                    }));
+                };
+
+                let generators = derive_generators(&inputs, n, index);
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in generators.iter() {
                     let x_big: BigUint = generator.x.into();
                     let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
                     let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
-                    let generator_slice = Value::array_from_iter(
-                        [x, y, generator.infinity.into()],
-                        NumericType::NativeField,
-                    )?;
-                    result.push(generator_slice);
+                    result.push(Value::from_constant(x, NumericType::NativeField)?);
+                    result.push(Value::from_constant(y, NumericType::NativeField)?);
+                    result.push(Value::from_constant(
+                        generator.infinity.into(),
+                        NumericType::bool(),
+                    )?);
                 }
                 let results = Value::array(
                     result,
-                    vec![Type::Array(
-                        std::sync::Arc::new(vec![
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                            Type::Numeric(NumericType::NativeField),
-                        ]),
-                        3,
-                    )],
+                    vec![
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::NativeField),
+                        Type::Numeric(NumericType::bool()),
+                    ],
                 );
                 Ok(vec![results])
             }
@@ -418,13 +466,17 @@ impl Interpreter<'_> {
     }
 
     fn convert_error(err: BlackBoxResolutionError) -> InterpreterError {
-        let BlackBoxResolutionError::Failed(name, reason) = err;
-        InterpreterError::BlackBoxError { name: name.to_string(), reason }
+        let (name, reason) = match err {
+            BlackBoxResolutionError::Failed(name, reason) => (name.to_string(), reason),
+            BlackBoxResolutionError::AssertFailed(err) => ("Assertion failed".to_string(), err),
+        };
+        InterpreterError::BlackBoxError { name, reason }
     }
 
     fn to_radix(
         &self,
         endian: Endian,
+        element_type: NumericType,
         field_id: ValueId,
         field: FieldElement,
         radix: u32,
@@ -444,9 +496,8 @@ impl Interpreter<'_> {
             return Err(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
-        let elements =
-            try_vecmap(limbs, |limb| Value::from_constant(limb, NumericType::unsigned(8)))?;
-        Ok(vec![Value::array(elements, vec![Type::unsigned(8)])])
+        let elements = try_vecmap(limbs, |limb| Value::from_constant(limb, element_type))?;
+        Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
     /// (length, slice, elem...) -> (length, slice)
@@ -576,8 +627,87 @@ impl Interpreter<'_> {
     }
 
     /// Print is not an intrinsic but it is treated like one.
-    pub(super) fn call_print(&mut self, _args: Vec<Value>) -> IResults {
-        // Stub the call for now
+    pub(super) fn call_print(&mut self, args: Vec<Value>) -> IResults {
+        fn get_arg<F, T>(
+            args: &[Value],
+            idx: usize,
+            name: &'static str,
+            typ: &'static str,
+            f: F,
+        ) -> IResult<T>
+        where
+            F: FnOnce(&Value) -> Option<T>,
+        {
+            let arg = &args[idx];
+            if let Some(v) = f(arg) {
+                Ok(v)
+            } else {
+                Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+                    name,
+                    expected_type: typ,
+                    value: arg.to_string(),
+                }))
+            }
+        }
+
+        let invalid_input_size = |expected_size| {
+            Err(InterpreterError::Internal(InternalError::InvalidInputSize {
+                expected_size,
+                size: args.len(),
+            }))
+        };
+
+        // We expect at least 4 arguments (tuples are passed as multiple values):
+        // * normal: newline, value.0, ..., value.i, meta, false
+        // * formatted: newline, msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+        if args.len() < 4 {
+            return invalid_input_size(4);
+        }
+
+        let print_newline = get_arg(&args, 0, "print_newline", "bool", |arg| arg.as_bool())?;
+        let is_fmt_str = get_arg(&args, args.len() - 1, "is_fmt_str", "bool", |arg| arg.as_bool())?;
+
+        let printable_display = if is_fmt_str {
+            let message = value_to_string("message", &args[1])?;
+            let num_values =
+                get_arg(&args, 2, "num_values", "Field", |arg| arg.as_field())?.to_u128() as usize;
+
+            // We expect at least 4 + num_values * 2 values, because each fragment will have 1 type descriptor, and at least 1 value.
+            let min_args = 4 + 2 * num_values;
+            if args.len() < min_args {
+                return invalid_input_size(min_args);
+            }
+
+            // Everything up to the first meta is part of _some_ value.
+            // We'll let each parser take as many fields as they need.
+            let meta_idx = args.len() - 1 - num_values;
+            let input_as_fields =
+                (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let field_iterator = &mut input_as_fields.into_iter();
+
+            let mut fragments = Vec::new();
+            for i in 0..num_values {
+                let printable_type = value_to_printable_type(&args[meta_idx + i])?;
+                let printable_value = decode_printable_value(field_iterator, &printable_type);
+                fragments.push((printable_value, printable_type));
+            }
+            PrintableValueDisplay::FmtString(message, fragments)
+        } else {
+            let meta_idx = args.len() - 2;
+            let input_as_fields =
+                (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let printable_type = value_to_printable_type(&args[meta_idx])?;
+            let printable_value =
+                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+            PrintableValueDisplay::Plain(printable_value, printable_type)
+        };
+
+        if print_newline {
+            writeln!(self.output, "{printable_display}").expect("writeln");
+        } else {
+            write!(self.output, "{printable_display}").expect("write");
+        }
+
         Ok(Vec::new())
     }
 }
@@ -589,6 +719,22 @@ fn check_argument_count(
 ) -> IResult<()> {
     if args.len() != expected_count {
         Err(InterpreterError::Internal(InternalError::IntrinsicArgumentCountMismatch {
+            intrinsic,
+            arguments: args.len(),
+            parameters: expected_count,
+        }))
+    } else {
+        Ok(())
+    }
+}
+
+fn check_argument_count_is_at_least(
+    args: &[ValueId],
+    expected_count: usize,
+    intrinsic: Intrinsic,
+) -> IResult<()> {
+    if args.len() < expected_count {
+        Err(InterpreterError::Internal(InternalError::IntrinsicMinArgumentCountMismatch {
             intrinsic,
             arguments: args.len(),
             parameters: expected_count,
@@ -610,4 +756,93 @@ fn check_slice_can_pop_all_element_types(slice_id: ValueId, slice: &ArrayValue) 
             element_types: vecmap(slice.element_types.iter(), ToString::to_string),
         }))
     }
+}
+
+fn new_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: FieldElement,
+) -> IResult<Value> {
+    let x = Value::from_constant(x, NumericType::NativeField)?;
+    let y = Value::from_constant(y, NumericType::NativeField)?;
+    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
+    Ok(Value::array(
+        vec![x, y, is_infinite],
+        vec![
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::NativeField),
+            Type::Numeric(NumericType::bool()),
+        ],
+    ))
+}
+
+/// Convert a [Value] to a vector of [FieldElement] for printing.
+fn value_to_fields(value: &Value) -> Vec<FieldElement> {
+    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
+        match value {
+            Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+            Value::Reference(reference_value) => {
+                if let Some(value) = reference_value.element.borrow().as_ref() {
+                    go(value, fields);
+                }
+            }
+            Value::ArrayOrSlice(array_value) => {
+                for value in array_value.elements.borrow().iter() {
+                    go(value, fields);
+                }
+            }
+            Value::Function(id) => {
+                // Based on `decode_printable_value` it will expect consume the environment as well,
+                // but that's catered for the by the SSA generation: the env is passed as separate values.
+                fields.push(FieldElement::from(id.to_u32()));
+            }
+            Value::Intrinsic(x) => {
+                panic!("didn't expect to print intrinsics: {x}")
+            }
+            Value::ForeignFunction(x) => {
+                panic!("didn't expect to print foreign functions: {x}")
+            }
+        }
+    }
+
+    let mut fields = Vec::new();
+    go(value, &mut fields);
+    fields
+}
+
+/// Parse a [Value] as [PrintableType].
+fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
+    let name = "type_metadata";
+    let json = value_to_string(name, value)?;
+    let printable_type = serde_json::from_str::<PrintableType>(&json).map_err(|e| {
+        InterpreterError::Internal(InternalError::ParsingError {
+            name,
+            expected_type: "PrintableType",
+            value: json,
+            error: e.to_string(),
+        })
+    })?;
+    Ok(printable_type)
+}
+
+/// Parse a value as `[u8]` and convert to UTF-8 `String`.
+fn value_to_string(name: &'static str, value: &Value) -> IResult<String> {
+    let arr = value.as_array_or_slice().and_then(|arr| {
+        arr.elements.borrow().iter().map(|v| v.as_u8()).collect::<Option<Vec<_>>>()
+    });
+    let Some(bz) = arr else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "[u8]",
+            value: value.to_string(),
+        }));
+    };
+    let Some(s) = String::from_utf8(bz).ok() else {
+        return Err(InterpreterError::Internal(InternalError::UnexpectedInput {
+            name,
+            expected_type: "String",
+            value: value.to_string(),
+        }));
+    };
+    Ok(s)
 }

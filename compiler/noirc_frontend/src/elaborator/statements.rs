@@ -3,10 +3,11 @@ use noirc_errors::Location;
 use crate::{
     DataType, Type,
     ast::{
-        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, ItemVisibility, LValue,
-        LetStatement, Statement, StatementKind, WhileStatement,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
+        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError,
             visibility::struct_member_is_visible,
@@ -21,9 +22,10 @@ use crate::{
         },
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
+    shared::Signedness,
 };
 
-use super::{Elaborator, Loop, TypedPath, lints};
+use super::{Elaborator, Loop, TypedPath};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -118,19 +120,12 @@ impl Elaborator<'_> {
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
         self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatch {
+            CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
                 expr_location,
-            }
+            })
         });
-
-        if annotated_type.is_integer() {
-            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
-            for error in errors {
-                self.push_err(error);
-            }
-        }
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
@@ -168,12 +163,12 @@ impl Elaborator<'_> {
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatchWithSource {
+            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
                 location: expr_location,
                 source: Source::Assignment,
-            }
+            })
         });
 
         let assign = HirAssignStatement { lvalue, expression };
@@ -453,13 +448,12 @@ impl Elaborator<'_> {
                 let expr_location = index.location;
                 let (mut index, index_type) = self.elaborate_expression(index);
 
-                self.push_index_to_check(index);
-
-                let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: "an integer".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_location,
+                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+                    expected: expected.clone(),
+                    actual: index_type.clone(),
+                    location: expr_location,
+                    source: Source::ArrayIndex,
                 });
 
                 let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =

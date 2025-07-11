@@ -7,9 +7,9 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
-use crate::ast::{BinaryOpKind, ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::ast::BinaryOpKind;
+use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
-use crate::hir_def::expr::HirBinaryOp;
 use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
@@ -25,30 +25,25 @@ pub enum Source {
     Binary,
     #[error("Assignment")]
     Assignment,
-    #[error("ArrayElements")]
-    ArrayElements,
-    #[error("ArrayLen")]
-    ArrayLen,
-    #[error("StringLen")]
-    StringLen,
-    #[error("Comparison")]
-    Comparison,
-    #[error("{0}")]
-    BinOp(BinaryOpKind),
     #[error("Return")]
     Return(FunctionReturnType, Location),
+    #[error("ArrayIndex")]
+    ArrayIndex,
 }
 
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
-    #[error("Operator {op:?} cannot be used in a {place:?}")]
-    OpCannotBeUsed { op: HirBinaryOp, place: &'static str, location: Location },
     #[error("Division by zero: {lhs} / {rhs}")]
     DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
     ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
-    OverflowingAssignment { expr: SignedField, ty: Type, range: String, location: Location },
+    IntegerLiteralDoesNotFitItsType {
+        expr: SignedField,
+        ty: Type,
+        range: String,
+        location: Location,
+    },
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
@@ -78,12 +73,12 @@ pub enum TypeCheckError {
     },
     #[error("Expected {expected:?} found {found:?}")]
     ArityMisMatch { expected: usize, found: usize, location: Location },
-    #[error("Return type in a function cannot be public")]
-    PublicReturnType { typ: Type, location: Location },
     #[error("Cannot cast type {from}, 'as' is only for primitive field or integer types")]
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Cannot cast `{typ}` as `bool`")]
+    CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
     ExpectedFunction { found: Type, location: Location },
     #[error("Type {lhs_type} has no member named {field_name}")]
@@ -98,6 +93,8 @@ pub enum TypeCheckError {
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { location: Location },
+    #[error("Only unsigned integer types may be casted to Field")]
+    UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
@@ -120,20 +117,12 @@ pub enum TypeCheckError {
     IntegerSignedness { sign_x: Signedness, sign_y: Signedness, location: Location },
     #[error("Integers must have the same bit width LHS is {bit_width_x}, RHS is {bit_width_y}")]
     IntegerBitWidth { bit_width_x: IntegerBitSize, bit_width_y: IntegerBitSize, location: Location },
-    #[error("{kind} cannot be used in an infix operation")]
-    InvalidInfixOp { kind: &'static str, location: Location },
-    #[error("{kind} cannot be used in a unary operation")]
-    InvalidUnaryOp { kind: String, location: Location },
+    #[error("Cannot apply unary operator `{operator}` to type `{typ}`")]
+    InvalidUnaryOp { operator: &'static str, typ: String, location: Location },
     #[error(
         "Bitwise operations are invalid on Field types. Try casting the operands to a sized integer type first."
     )]
     FieldBitwiseOp { location: Location },
-    #[error("Integer cannot be used with type {typ}")]
-    IntegerTypeMismatch { typ: Type, location: Location },
-    #[error(
-        "Cannot use an integer and a Field in a binary operation, try converting the Field into an integer first"
-    )]
-    IntegerAndFieldBinaryOperation { location: Location },
     #[error("Cannot do modulo on Fields, try casting to an integer first")]
     FieldModulo { location: Location },
     #[error("Cannot do not (`!`) on Fields, try casting to an integer first")]
@@ -144,10 +133,8 @@ pub enum TypeCheckError {
         "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
     )]
     InvalidShiftSize { location: Location },
-    #[error(
-        "The number of bits to use for this bitwise operation is ambiguous. Either the operand's type or return type should be specified"
-    )]
-    AmbiguousBitWidth { location: Location },
+    #[error("Cannot `bool {op} bool`")]
+    InvalidBoolInfixOp { op: BinaryOpKind, location: Location },
     #[error("Error with additional context")]
     Context { err: Box<TypeCheckError>, ctx: &'static str },
     #[error("Array is not homogeneous")]
@@ -211,8 +198,6 @@ pub enum TypeCheckError {
     UnsafeFn { location: Location },
     #[error("Expected a constant, but found `{typ}`")]
     NonConstantEvaluated { typ: Type, location: Location },
-    #[error("Slices must have constant length")]
-    NonConstantSliceLength { location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
@@ -252,6 +237,16 @@ pub enum TypeCheckError {
     MissingManyCases { typ: String, location: Location },
     #[error("Expected a tuple with {} elements, found one with {} elements", tuple_types.len(), actual_count)]
     TupleMismatch { tuple_types: Vec<Type>, actual_count: usize, location: Location },
+    #[error("Type annotation needed on item")]
+    TypeAnnotationNeededOnItem {
+        location: Location,
+        generic_name: String,
+        item_kind: &'static str,
+        item_name: String,
+        is_numeric: bool,
+    },
+    #[error("Type annotation needed on array literal")]
+    TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -271,10 +266,9 @@ impl TypeCheckError {
 
     pub fn location(&self) -> Location {
         match self {
-            TypeCheckError::OpCannotBeUsed { location, .. }
-            | TypeCheckError::DivisionByZero { location, .. }
+            TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
@@ -283,9 +277,9 @@ impl TypeCheckError {
             | TypeCheckError::TypeKindMismatch { expr_location: location, .. }
             | TypeCheckError::TypeCanonicalizationMismatch { location, .. }
             | TypeCheckError::ArityMisMatch { location, .. }
-            | TypeCheckError::PublicReturnType { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::ParameterCountMismatch { location, .. }
@@ -293,6 +287,7 @@ impl TypeCheckError {
             | TypeCheckError::GenericCountMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
@@ -302,16 +297,13 @@ impl TypeCheckError {
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
             | TypeCheckError::InvalidShiftSize { location }
-            | TypeCheckError::AmbiguousBitWidth { location }
+            | TypeCheckError::InvalidBoolInfixOp { location, .. }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
@@ -330,7 +322,6 @@ impl TypeCheckError {
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::InvalidTypeForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
@@ -344,7 +335,9 @@ impl TypeCheckError {
             | TypeCheckError::MissingCases { location, .. }
             | TypeCheckError::MissingManyCases { location, .. }
             | TypeCheckError::NestedUnsafeBlock { location }
-            | TypeCheckError::TupleMismatch { location, .. } => *location,
+            | TypeCheckError::TupleMismatch { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
+            | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
@@ -371,11 +364,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diag.add_note(ctx.to_string());
                 diag
             }
-            TypeCheckError::OpCannotBeUsed { op, place, location } => Diagnostic::simple_error(
-                format!("The operator {op:?} cannot be used in a {place}"),
-                String::new(),
-                *location,
-            ),
             TypeCheckError::DivisionByZero { lhs, rhs, location } => Diagnostic::simple_error(
                 format!("Division by zero: {lhs} / {rhs}"),
                 String::new(),
@@ -496,24 +484,25 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
+            TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
+                let secondary = "compare with zero instead: ` != 0`".to_string();
+                Diagnostic::simple_error(error.to_string(), secondary, *location)
+            }
 
             TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
             | TypeCheckError::IntegerBitWidth { location, .. }
-            | TypeCheckError::InvalidInfixOp { location, .. }
             | TypeCheckError::InvalidUnaryOp { location, .. }
             | TypeCheckError::FieldBitwiseOp { location, .. }
-            | TypeCheckError::IntegerTypeMismatch { location, .. }
             | TypeCheckError::FieldComparison { location, .. }
-            | TypeCheckError::AmbiguousBitWidth { location, .. }
-            | TypeCheckError::IntegerAndFieldBinaryOperation { location }
-            | TypeCheckError::OverflowingAssignment { location, .. }
+            | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
@@ -522,10 +511,30 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
-            | TypeCheckError::NonConstantSliceLength { location }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::InvalidShiftSize { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
+            }
+            TypeCheckError::InvalidBoolInfixOp { op, location } => {
+                let primary = match op {
+                    BinaryOpKind::Add => "Cannot add a `bool` to a `bool",
+                    BinaryOpKind::Subtract => "Cannot subtract a `bool` from a `bool",
+                    BinaryOpKind::Multiply => "Cannot multiply a `bool` by a `bool",
+                    BinaryOpKind::Divide => "Cannot divide a `bool` by a `bool`",
+                    BinaryOpKind::ShiftRight => "No implementation for `bool >> bool`",
+                    BinaryOpKind::ShiftLeft => "No implementation for `bool << bool`",
+                    BinaryOpKind::Modulo => "Cannot calculate the remainder of a `bool` divided by a `bool`",
+                    BinaryOpKind::Equal |
+                    BinaryOpKind::NotEqual |
+                    BinaryOpKind::Less |
+                    BinaryOpKind::LessEqual |
+                    BinaryOpKind::Greater |
+                    BinaryOpKind::GreaterEqual |
+                    BinaryOpKind::And |
+                    BinaryOpKind::Or |
+                    BinaryOpKind::Xor => panic!("Unexpected op in InvalidBoolInfixOp error: {op}"),
+                };
+                Diagnostic::simple_error(primary.to_string(), String::new(), *location)
             }
             TypeCheckError::MutableCaptureWithoutRef { name, location } => Diagnostic::simple_error(
                 format!("Mutable variable {name} captured in lambda must be a mutable reference"),
@@ -535,11 +544,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::MutableReferenceToArrayElement { location } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
             },
-            TypeCheckError::PublicReturnType { typ, location } => Diagnostic::simple_error(
-                "Functions cannot declare a public return type".to_string(),
-                format!("return type is {typ}"),
-                *location,
-            ),
             TypeCheckError::TypeAnnotationsNeededForMethodCall { location } => {
                 let mut error = Diagnostic::simple_error(
                     "Object type is unknown in method call".to_string(),
@@ -574,11 +578,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::Assignment => {
                         format!("Cannot assign an expression of type {actual} to a value of type {expected}")
                     }
-                    Source::ArrayElements => format!("Cannot compare {expected} and {actual}, the array element types differ"),
-                    Source::ArrayLen => format!("Can only compare arrays of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
-                    Source::StringLen => format!("Can only compare strings of the same length. Here LHS is of length {expected}, and RHS is {actual}"),
-                    Source::Comparison => format!("Unsupported types for comparison: {expected} and {actual}"),
-                    Source::BinOp(kind) => format!("Unsupported types for operator `{kind}`: {expected} and {actual}"),
                     Source::Return(ret_ty, expr_location) => {
                         let ret_ty_location = match ret_ty.clone() {
                             FunctionReturnType::Default(location) => location,
@@ -595,6 +594,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
 
                         return diagnostic
                     },
+                    Source::ArrayIndex => format!("Indexing arrays and slices must be done with `{expected}`, not `{actual}`"),
                 };
 
                 Diagnostic::simple_error(message, String::new(), *location)
@@ -738,6 +738,26 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 );
                 let secondary = format!("The expression the tuple is assigned to has type `({})`", vecmap(tuple_types, ToString::to_string).join(","));
                 Diagnostic::simple_error(msg, secondary, *location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnItem {
+                location,
+                generic_name,
+                item_kind,
+                item_name,
+                is_numeric,
+            } => {
+                let message = "Type annotation needed".into();
+                let type_or_value = if *is_numeric { "value" } else { "type" };
+                let secondary = format!(
+                    "Could not determine the {type_or_value} of the generic argument `{generic_name}` declared on the {item_kind} `{item_name}`",
+                );
+                Diagnostic::simple_error(message, secondary, *location)
+            }
+            TypeCheckError::TypeAnnotationNeededOnArrayLiteral { is_array, location } => {
+                let message = "Type annotation needed".into();
+                let array_or_slice = if *is_array { "array" } else { "slice" };
+                let secondary = format!("Could not determine the type of the {array_or_slice}");
+                Diagnostic::simple_error(message, secondary, *location)
             }
         }
     }

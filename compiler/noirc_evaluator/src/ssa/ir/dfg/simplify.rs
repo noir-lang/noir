@@ -2,7 +2,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            Binary, BinaryOp, Instruction,
+            ArrayOffset, Binary, BinaryOp, Instruction,
             binary::{truncate, truncate_field},
         },
         types::Type,
@@ -110,7 +110,7 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ConstrainNotEqual(..) => None,
-        Instruction::ArrayGet { array, index } => {
+        Instruction::ArrayGet { array, index, offset: _ } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
                 try_optimize_array_get_from_previous_set(dfg, *array, index)
             } else {
@@ -141,7 +141,7 @@ pub(crate) fn simplify(
             try_optimize_array_set_from_previous_get(dfg, *array_id, *index_id, *value)
         }
         Instruction::Truncate { value, bit_size, max_bit_size } => {
-            if bit_size == max_bit_size {
+            if bit_size >= max_bit_size {
                 return SimplifiedTo(*value);
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
@@ -375,8 +375,8 @@ fn try_optimize_array_set_from_previous_get(
     target_value: ValueId,
 ) -> SimplifyResult {
     let array_from_get = match dfg.get_local_or_global_instruction(target_value) {
-        Some(Instruction::ArrayGet { array, index }) => {
-            if *array == array_id && *index == target_index {
+        Some(Instruction::ArrayGet { array, index, offset }) => {
+            if *offset == ArrayOffset::None && *array == array_id && *index == target_index {
                 // If array and index match from the value, we can immediately simplify
                 return SimplifyResult::SimplifiedTo(array_id);
             } else if *index == target_index {
@@ -463,31 +463,83 @@ mod tests {
     #[test]
     fn simplifies_or_when_one_side_is_all_1s() {
         let test_cases = vec![
-            ("u128", "340282366920938463463374607431768211455"),
-            ("u64", "18446744073709551615"),
-            ("u32", "4294967295"),
-            ("u16", "65535"),
-            ("u8", "255"),
+            ("u128", u128::MAX.to_string()),
+            ("u64", u64::MAX.to_string()),
+            ("u32", u32::MAX.to_string()),
+            ("u16", u16::MAX.to_string()),
+            ("u8", u8::MAX.to_string()),
         ];
         const SRC_TEMPLATE: &str = "
         acir(inline) pure fn main f0 {
-        b0(v1: {typ}):
-        v2 = or {typ} {max}, v1
-        return v2
+          b0(v1: {typ}):
+            v2 = or {typ} {max}, v1
+            return v2
         }
         ";
 
         const EXPECTED_TEMPLATE: &str = "
         acir(inline) pure fn main f0 {
-        b0(v1: {typ}):
-        return {typ} {max}
+          b0(v1: {typ}):
+            return {typ} {max}
         }
         ";
         for (typ, max) in test_cases {
-            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", max);
-            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ).replace("{max}", max);
+            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
+            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
             let ssa: Ssa = Ssa::from_str_simplifying(&src).unwrap();
             assert_normalized_ssa_equals(ssa, &expected);
         }
+    }
+
+    #[test]
+    fn simplifies_noop_bitwise_and_truncation() {
+        let test_cases = vec![
+            ("u128", u128::MAX.to_string()),
+            ("u64", u64::MAX.to_string()),
+            ("u32", u32::MAX.to_string()),
+            ("u16", u16::MAX.to_string()),
+            ("u8", u8::MAX.to_string()),
+        ];
+        const SRC_TEMPLATE: &str = "
+        acir(inline) pure fn main f0 {
+          b0(v1: {typ}):
+            v2 = and {typ} {max}, v1
+            return v2
+        }
+        ";
+
+        const EXPECTED_TEMPLATE: &str = "
+        acir(inline) pure fn main f0 {
+          b0(v1: {typ}):
+            return v1
+        }
+        ";
+        for (typ, max) in test_cases {
+            let src = SRC_TEMPLATE.replace("{typ}", typ).replace("{max}", &max);
+            let expected = EXPECTED_TEMPLATE.replace("{typ}", typ);
+            let ssa: Ssa = Ssa::from_str_simplifying(&src).unwrap();
+            assert_normalized_ssa_equals(ssa, &expected);
+        }
+    }
+
+    #[test]
+    fn truncate_to_bit_size_bigger_than_value_max_bit_size() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = truncate v0 to 16 bits, max_bit_size: 8
+            v2 = cast v1 as u16
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = cast v0 as u16
+            return v1
+        }
+        ");
     }
 }

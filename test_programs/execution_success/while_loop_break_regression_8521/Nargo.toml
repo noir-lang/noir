@@ -1,0 +1,6 @@
+[package]
+name = "while_loop_break_regression_8521"
+type = "bin"
+authors = [""]
+
+[dependencies]

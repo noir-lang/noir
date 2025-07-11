@@ -9,7 +9,7 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
     hir::{
@@ -168,6 +168,7 @@ impl Elaborator<'_> {
             Vec::new(),
             false,
             false,
+            ItemVisibility::Public,
         );
 
         let mut typ = self_type.clone();
@@ -250,6 +251,7 @@ impl Elaborator<'_> {
             location,
             has_body: false,
             trait_constraints: Vec::new(),
+            extra_trait_constraints: Vec::new(),
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,
@@ -398,8 +400,11 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(value)) => {
-                let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+            ExpressionKind::Literal(Literal::Integer(value, suffix)) => {
+                let actual = match suffix {
+                    Some(suffix) => suffix.as_type(),
+                    None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
+                };
                 unify_with_expected_type(self, &actual);
                 Pattern::Int(value)
             }
@@ -559,7 +564,7 @@ impl Elaborator<'_> {
         let mut fields = BTreeMap::default();
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
-                expected_field_types.iter().position(|(name, _)| *name == field_name.as_str())
+                expected_field_types.iter().position(|(name, _, _)| *name == field_name.as_str())
             else {
                 let error = if fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
@@ -571,7 +576,8 @@ impl Elaborator<'_> {
                 continue;
             };
 
-            let (field_name, expected_field_type) = expected_field_types.swap_remove(field_index);
+            let (field_name, expected_field_type, _) =
+                expected_field_types.swap_remove(field_index);
             let pattern =
                 self.expression_to_pattern(field, &expected_field_type, variables_defined);
             fields.insert(field_name, pattern);
@@ -579,7 +585,7 @@ impl Elaborator<'_> {
 
         if !expected_field_types.is_empty() {
             let struct_definition = struct_name;
-            let missing_fields = vecmap(expected_field_types, |(name, _)| name);
+            let missing_fields = vecmap(expected_field_types, |(name, _, _)| name);
             let error =
                 ResolverError::MissingFields { location, missing_fields, struct_definition };
             self.push_err(error);
@@ -709,9 +715,11 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _)
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
             | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
@@ -807,11 +815,12 @@ impl Elaborator<'_> {
         Pattern::Int(value)
     }
 
+    #[allow(clippy::type_complexity)]
     fn struct_name_and_field_types(
         &mut self,
         typ: &Type,
         location: Location,
-    ) -> Option<(Ident, Vec<(String, Type)>)> {
+    ) -> Option<(Ident, Vec<(String, Type, ItemVisibility)>)> {
         if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref() {
             if let Some(fields) = typ.borrow().get_fields(generics) {
                 return Some((typ.borrow().name.clone(), fields));
@@ -899,7 +908,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
-            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+            Type::TypeVariable(typevar) if typevar.is_integer() || typevar.is_integer_or_field() => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
@@ -944,7 +953,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     let typ = Type::DataType(type_def, generics);
 
                     // Just treat structs as a single-variant type
-                    let fields = vecmap(fields, |(_name, typ)| typ);
+                    let fields = vecmap(fields, |(_name, typ, _)| typ);
                     let constructor = Constructor::Variant(typ, 0);
                     let field_variables = self.fresh_match_variables(fields, location);
                     let cases = vec![(constructor, field_variables, Vec::new())];
@@ -1005,7 +1014,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Compiles the cases and fallback cases for integer and range patterns.
     ///
-    /// Integers have an infinite number of constructors, so we specialise the
+    /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
     fn compile_int_cases(
         &mut self,

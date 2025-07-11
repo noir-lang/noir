@@ -82,6 +82,7 @@ fn recursive_type_with_alias_errors() {
 #[named]
 #[test]
 fn mutually_recursive_types_error() {
+    // cSpell:disable
     let src = "
         fn main() {
             let _zero = Even::Zero;
@@ -99,6 +100,7 @@ fn mutually_recursive_types_error() {
             Succ(Even),
         }
         ";
+    // cSpell:enable
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
 }
@@ -130,7 +132,7 @@ fn simple_closure_with_no_captured_variables() {
             tmp$l5.1(tmp$l5.0)
         }
     }
-    fn lambda$f1(mut env$l2: (Field)) -> Field {
+    fn lambda$f1(mut env$l2: (Field,)) -> Field {
         env$l2.0
     }
     ");

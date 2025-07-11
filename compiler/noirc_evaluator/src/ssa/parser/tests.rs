@@ -7,7 +7,7 @@ use crate::{
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    let ssa = ssa.to_string();
+    let ssa = ssa.print_without_locations().to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
@@ -127,6 +127,19 @@ fn test_make_byte_slice_with_string_literal() {
 }
 
 #[test]
+fn test_does_not_use_byte_array_literal_for_form_feed() {
+    // 12 is '\f', which isn't available in string literals (because in Rust it's the same)
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [u8 12] : [u8; 1]
+            return v1
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_block_parameters() {
     let src = "
         acir(inline) fn main f0 {
@@ -157,7 +170,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -169,7 +182,7 @@ fn test_jmpif() {
           b0(v0: Field):
             jmpif v0 then: b2, else: b1
           b1():
-            return
+            jmp b2()
           b2():
             return
         }
@@ -184,10 +197,12 @@ fn test_multiple_jmpif() {
           b0(v0: Field, v1: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            return
+            jmp b4()
           b2():
             jmpif v1 then: b3, else: b1
           b3():
+            jmp b4()
+          b4():
             return
         }
     ";
@@ -245,6 +260,17 @@ fn test_call_no_return_value() {
 }
 
 #[test]
+fn test_unreachable() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            unreachable
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_call_intrinsic() {
     let src = "
         acir(inline) fn main f0 {
@@ -257,12 +283,25 @@ fn test_call_intrinsic() {
 }
 
 #[test]
+fn test_recursive_call_to_main_function() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call f0(v0)
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_cast() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v1 = cast v0 as i32
-            return v1
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = cast v1 as i32
+            return v2
         }
         ";
     assert_ssa_roundtrip(src);
@@ -334,7 +373,31 @@ fn test_array_get() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v2 = array_get v0, index Field 0 -> Field
+            v2 = array_get v0, index u32 0 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_with_index_minus_1() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index u32 3 minus 1 -> Field
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_get_with_index_minus_3() {
+    let src: &'static str = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index u32 6 minus 3 -> Field
             return
         }
         ";
@@ -346,7 +409,7 @@ fn test_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set v0, index Field 0, value Field 1
+            v3 = array_set v0, index u32 0, value Field 1
             return
         }
         ";
@@ -358,7 +421,31 @@ fn test_mutable_array_set() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            v3 = array_set mut v0, index Field 0, value Field 1
+            v3 = array_set mut v0, index u32 0, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_1() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 2 minus 1, value Field 1
+            return
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_array_set_with_index_minus_3() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_set v0, index u32 4 minus 3, value Field 1
             return
         }
         ";
@@ -391,8 +478,6 @@ fn test_binary() {
         "and",
         "or",
         "xor",
-        "shl",
-        "shr",
         "unchecked_add",
         "unchecked_sub",
         "unchecked_mul",
@@ -401,6 +486,19 @@ fn test_binary() {
             "
             acir(inline) fn main f0 {{
               b0(v0: u32, v1: u32):
+                v2 = {op} v0, v1
+                return
+            }}
+            "
+        );
+        assert_ssa_roundtrip(&src);
+    }
+
+    for op in ["shl", "shr"] {
+        let src = format!(
+            "
+            acir(inline) fn main f0 {{
+              b0(v0: u32, v1: u8):
                 v2 = {op} v0, v1
                 return
             }}
@@ -443,6 +541,18 @@ fn test_range_check() {
             return
         }
         ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn test_range_check_with_message() {
+    let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            range_check v0 to 8 bits, "overflow error\n\t"
+            return
+        }
+        "#;
     assert_ssa_roundtrip(src);
 }
 
@@ -685,4 +795,91 @@ fn test_parses_print() {
         }
         ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            jmp b2()
+          b1():
+            v5 = add v2, v4
+            return
+          b2():
+            v2 = add Field 1, Field 2
+            v4 = add v2, Field 3
+            jmp b1()
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmpif() {
+    let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b3
+          b1():
+            v6 = add v3, v5
+            return
+          b2():
+            jmp b3()
+          b3():
+            v3 = add Field 1, Field 2
+            v5 = add v3, Field 3
+            jmp b1()
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn function_pointer_in_global_array() {
+    let src = "
+    g2 = make_array [f1, f2] : [function; 2]
+    acir(inline) fn main f0 {
+      b0(v3: u32, v4: Field):
+        v6 = call f1() -> Field
+        v8 = call f2() -> Field
+        v10 = lt v3, u32 2
+        constrain v10 == u1 1
+        v12 = array_get g2, index v3 -> function
+        v13 = call v12() -> Field
+        v14 = eq v13, v4
+        constrain v13 == v4
+        return
+    }
+    acir(inline) fn f1 f1 {
+      b0():
+        return Field 1
+    }
+    acir(inline) fn f2 f2 {
+      b0():
+        return Field 2
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Unknown global")]
+fn unknown_function_global_function_pointer() {
+    let src = "
+    g2 = make_array [f1, f2] : [function; 2]
+    acir(inline) fn main f0 {
+      b0(v3: u32, v4: Field):
+        v6 = call f1() -> Field
+        v8 = call f2() -> Field
+        v10 = lt v3, u32 2
+        constrain v10 == u1 1
+        v12 = array_get g2, index v3 -> function
+        v13 = call v12() -> Field
+        v14 = eq v13, v4
+        constrain v13 == v4
+        return
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
 }

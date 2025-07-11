@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: checked_transmute failed: `[Field; (1: numeric u32)]` != `[Field; ((1: numeric u32) + (1: numeric u32))]`
+  ┌─ src/main.nr:8:5
+  │
+8 │     checked_transmute(x)
+  │     --------------------
+  │
+
+Aborting due to 1 previous error

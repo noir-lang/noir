@@ -1,0 +1,6 @@
+[package]
+name = "nested_array_with_refs"
+type = "bin"
+authors = [""]
+
+[dependencies]

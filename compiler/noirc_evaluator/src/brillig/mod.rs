@@ -1,3 +1,10 @@
+//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+//! for generating Brillig bytecode from [Ssa].
+//!
+//! # Usage
+//!
+//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 
@@ -23,7 +30,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -129,18 +136,11 @@ impl std::ops::Index<FunctionId> for Brillig {
 }
 
 impl Ssa {
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        self.to_brillig_with_globals(options, HashMap::default())
-    }
-
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn to_brillig_with_globals(
-        &self,
-        options: &BrilligOptions,
-        used_globals_map: HashMap<FunctionId, HashSet<ValueId>>,
-    ) -> Brillig {
+    pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
+        let used_globals_map = self.used_globals_in_brillig_functions();
+
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
         let brillig_reachable_function_ids = self

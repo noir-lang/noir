@@ -1,3 +1,4 @@
+//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
 use acvm::acir::brillig::MemoryAddress;
 
 use crate::brillig::brillig_ir::{
@@ -185,7 +186,7 @@ mod tests {
     fn create_test_environment() -> (Ssa, FunctionContext, BrilligContext<FieldElement, Stack>) {
         let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
         builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-
+        builder.terminate_with_return(vec![]);
         let ssa = builder.finish();
         let mut brillig_context = create_context(ssa.main_id);
         brillig_context.enter_context(Label::block(ssa.main_id, Id::test_new(0)));

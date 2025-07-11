@@ -1,21 +1,25 @@
 //! Pre-process functions before inlining them into others.
 
 use crate::ssa::{
-    Ssa,
-    ir::function::{Function, RuntimeType},
+    RuntimeError, Ssa,
+    ir::{
+        call_graph::CallGraph,
+        function::{Function, RuntimeType},
+    },
 };
 
 use super::inlining::{self, InlineInfo};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
-    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Ssa {
+    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
+        let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
-        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self);
+        let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
         let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, false, aggressiveness);
+            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {
@@ -49,7 +53,7 @@ impl Ssa {
             }
 
             // Start with an inline pass.
-            let mut function = function.inlined(&self, &should_inline_call);
+            let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling
@@ -69,7 +73,7 @@ impl Ssa {
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
         // Remove leftover instructions.
-        ssa.dead_instruction_elimination_pre_flattening()
+        Ok(ssa.dead_instruction_elimination_pre_flattening())
     }
 }
 
@@ -107,7 +111,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.preprocess_functions(i64::MAX);
+        let ssa = ssa.preprocess_functions(i64::MAX).unwrap();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {

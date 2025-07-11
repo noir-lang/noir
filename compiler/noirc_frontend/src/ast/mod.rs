@@ -34,6 +34,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
+use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
     node_interner::{InternedUnresolvedTypeData, QuotedTypeId},
@@ -233,7 +234,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Location),
+    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -279,7 +280,11 @@ impl std::fmt::Display for UnresolvedTypeData {
             TraitAsType(s, args) => write!(f, "impl {s}{args}"),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Expression(expression) => expression.fmt(f),
             Function(args, ret, env, unconstrained) => {
@@ -323,7 +328,8 @@ impl std::fmt::Display for UnresolvedTypeExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             UnresolvedTypeExpression::Variable(name) => name.fmt(f),
-            UnresolvedTypeExpression::Constant(x, _) => x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, None, _) => x.fmt(f),
+            UnresolvedTypeExpression::Constant(x, Some(suffix), _) => write!(f, "{x}_{suffix}"),
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
                 write!(f, "({lhs} {op} {rhs})")
             }
@@ -504,7 +510,7 @@ impl UnresolvedTypeExpression {
     pub fn location(&self) -> Location {
         match self {
             UnresolvedTypeExpression::Variable(path) => path.location,
-            UnresolvedTypeExpression::Constant(_, location) => *location,
+            UnresolvedTypeExpression::Constant(_, _, location) => *location,
             UnresolvedTypeExpression::BinaryOperation(_, _, _, location) => *location,
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 path.trait_path.location.merge(path.impl_item.location())
@@ -518,14 +524,19 @@ impl UnresolvedTypeExpression {
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
-            ExpressionKind::Literal(Literal::Integer(int)) => match int.try_to_unsigned::<u32>() {
-                Some(int) => Ok(UnresolvedTypeExpression::Constant(int.into(), expr.location)),
-                None => Err(expr),
-            },
+            ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
+                match int.try_to_unsigned::<u32>() {
+                    Some(int) => {
+                        Ok(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location))
+                    }
+                    None => Err(expr),
+                }
+            }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
                     FieldElement::zero(),
+                    None,
                     expr.location,
                 ));
                 let rhs = Box::new(UnresolvedTypeExpression::from_expr_helper(prefix.rhs)?);
@@ -558,9 +569,7 @@ impl UnresolvedTypeExpression {
                 };
                 Ok(UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, expr.location))
             }
-            ExpressionKind::AsTraitPath(path) => {
-                Ok(UnresolvedTypeExpression::AsTraitPath(Box::new(path)))
-            }
+            ExpressionKind::AsTraitPath(path) => Ok(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
         }
@@ -584,7 +593,7 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, _op, rhs, _span) => {
                 lhs.contains_unspecified() || rhs.contains_unspecified()
             }
-            UnresolvedTypeExpression::Constant(_, _) | UnresolvedTypeExpression::AsTraitPath(_) => {
+            UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(_) => {
                 false
             }
         }

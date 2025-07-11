@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: pub bool) {
+    for _ in 0_u32..1_u32 {
+        if a {
+            for _ in 0_u32..1_u32 {
+                let _: Field = 1_Field / (a as Field);
+            }
+        };
+    }
+}

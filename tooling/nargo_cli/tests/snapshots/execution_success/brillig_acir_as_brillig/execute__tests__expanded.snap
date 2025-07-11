@@ -1,0 +1,49 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert(entry_point(x) == 2_u32);
+        swap_entry_point(x, x + 1_u32);
+        assert(deep_entry_point(x) == 4_u32);
+    }
+}
+
+fn inner(x: u32) -> u32 {
+    x + 1_u32
+}
+
+unconstrained fn entry_point(x: u32) -> u32 {
+    inner(x + 1_u32)
+}
+
+fn swap(x: u32, y: u32) -> (u32, u32) {
+    (y, x)
+}
+
+unconstrained fn swap_entry_point(x: u32, y: u32) {
+    let swapped: (u32, u32) = swap(x, y);
+    assert(swapped.0 == y);
+    assert(swapped.1 == x);
+    let swapped_twice: (u32, u32) = swap(swapped.0, swapped.1);
+    assert(swapped_twice.0 == x);
+    assert(swapped_twice.1 == y);
+}
+
+fn level_3(x: u32) -> u32 {
+    x + 1_u32
+}
+
+fn level_2(x: u32) -> u32 {
+    level_3(x + 1_u32)
+}
+
+fn level_1(x: u32) -> u32 {
+    level_2(x + 1_u32)
+}
+
+unconstrained fn deep_entry_point(x: u32) -> u32 {
+    level_1(x + 1_u32)
+}

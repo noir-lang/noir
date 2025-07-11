@@ -131,6 +131,8 @@
 //!   v11 = mul v4, Field 12
 //!   v12 = add v10, v11
 //!   store v12 at v5         (new store)
+use std::sync::Arc;
+
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -248,6 +250,8 @@ struct ConditionalContext {
     else_branch: Option<ConditionalBranch>,
     // Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
+    // List of predicated values, and their previous mapping
+    predicated_values: HashMap<ValueId, ValueId>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -464,6 +468,10 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.set_block_terminator(target, new_return);
                 vec![]
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                // Nothing to do
+                vec![]
+            }
         }
     }
 
@@ -497,6 +505,7 @@ impl<'f> Context<'f> {
             then_branch: branch,
             else_branch: None,
             call_stack,
+            predicated_values: HashMap::default(),
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -516,6 +525,7 @@ impl<'f> Context<'f> {
     /// Switch context to the 'else-branch':
     /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
     /// - Move the local allocations to the 'else_branch'
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Returns the exit block of the conditional statement
     fn then_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -537,6 +547,7 @@ impl<'f> Context<'f> {
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
+        self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
@@ -558,6 +569,7 @@ impl<'f> Context<'f> {
 
     /// Process the 'exit' block of a conditional statement:
     /// - Retrieves the local allocations from the Conditional Context
+    /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
@@ -574,6 +586,8 @@ impl<'f> Context<'f> {
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
+
+        self.reset_predicated_values(&mut cond_context);
 
         // We must remember to reset whether side effects are enabled when both branches
         // end, in addition to resetting the value of old_condition since it is set to
@@ -650,6 +664,26 @@ impl<'f> Context<'f> {
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
         destination
+    }
+
+    /// Map the value to its predicated value, and store the previous mapping
+    /// to the 'predicated_values' map if not already stored.
+    fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
+        let conditional_context = self.condition_stack.last_mut().unwrap();
+
+        conditional_context
+            .predicated_values
+            .entry(value)
+            .or_insert_with(|| self.inserter.resolve(value));
+
+        self.inserter.map_value(value, predicated_value);
+    }
+
+    /// Restore the previous mapping of predicated values.
+    fn reset_predicated_values(&mut self, conditional_context: &mut ConditionalContext) {
+        for (value, old_mapping) in conditional_context.predicated_values.drain() {
+            self.inserter.map_value(value, old_mapping);
+        }
     }
 
     /// Insert a new instruction into the target block.
@@ -781,8 +815,12 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let casted_condition =
                         self.cast_condition_to_value_type(condition, value, call_stack);
-                    let value = self.mul_by_condition(value, casted_condition, call_stack);
-                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                    let predicate_value =
+                        self.mul_by_condition(value, casted_condition, call_stack);
+                    // Issue #8617: update the value to be the predicated value.
+                    // This ensures that the value has the correct bit size in all cases.
+                    self.predicate_value(value, predicate_value);
+                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
@@ -798,42 +836,253 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to infinity if condition is false, to ensure that they are on the curve, if not the addition may fail.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
-                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
 
-                        Instruction::Call { func, arguments }
-                    }
-                    // For MSM, we also ensure the inputs are on the curve if the predicate is false.
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let points_array_idx = if matches!(
-                            self.inserter.function.dfg.type_of_value(arguments[0]),
-                            Type::Array { .. }
-                        ) {
-                            0
-                        } else {
-                            // if the first argument is not an array, we assume it is a slice
-                            // which means the array is the second argument
-                            1
-                        };
-                        let (elements, typ) = self.apply_predicate_to_msm_argument(
-                            arguments[points_array_idx],
-                            condition,
-                            call_stack,
-                        );
+                    Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => match blackbox {
+                        //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                        // If inputs are distinct curve points, then so is their predicate version.
+                        // If inputs are identical (point doubling), then so is their predicate version
+                        // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
+                        BlackBoxFunc::EmbeddedCurveAdd => {
+                            #[cfg(feature = "bn254")]
+                            {
+                                let generators = Self::grumpkin_generators();
+                                // Convert the generators to ValueId
+                                let generators = generators
+                                    .iter()
+                                    .map(|v| {
+                                        self.inserter
+                                            .function
+                                            .dfg
+                                            .make_constant(*v, NumericType::NativeField)
+                                    })
+                                    .collect::<Vec<ValueId>>();
+                                let (point1_x, point2_x) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    true,
+                                    condition,
+                                    call_stack,
+                                );
+                                let (point1_y, point2_y) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    false,
+                                    condition,
+                                    call_stack,
+                                );
+                                arguments[0] = point1_x;
+                                arguments[1] = point1_y;
+                                arguments[3] = point2_x;
+                                arguments[4] = point2_y;
+                            }
 
-                        let instruction = Instruction::MakeArray { elements, typ };
-                        let array = self.insert_instruction(instruction, call_stack);
-                        arguments[points_array_idx] = array;
-                        Instruction::Call { func, arguments }
-                    }
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                        BlackBoxFunc::MultiScalarMul => {
+                            let points_array_idx = if matches!(
+                                self.inserter.function.dfg.type_of_value(arguments[0]),
+                                Type::Array { .. }
+                            ) {
+                                0
+                            } else {
+                                // if the first argument is not an array, we assume it is a slice
+                                // which means the array is the second argument
+                                1
+                            };
+                            let (elements, typ) = self.apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack,
+                            );
+
+                            let instruction = Instruction::MakeArray { elements, typ };
+                            let array = self.insert_instruction(instruction, call_stack);
+                            arguments[points_array_idx] = array;
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
+                        // the public key doesn't not sit on the relevant curve.
+                        //
+                        // We then replace the public key with the generator point if the constraint is inactive to avoid
+                        // invalid public keys from causing constraints to fail.
+                        BlackBoxFunc::EcdsaSecp256k1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
+                            const GENERATOR_X: [u8; 32] = [
+                                0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
+                                0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
+                                0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
+                                0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
+                                0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+                        BlackBoxFunc::EcdsaSecp256r1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
+                            const GENERATOR_X: [u8; 32] = [
+                                0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
+                                0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
+                                0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+                                0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+                                0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // TODO: https://github.com/noir-lang/noir/issues/8998
+                        BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
+
+                        // These functions will always be satisfiable no matter the input so no modification is needed.
+                        BlackBoxFunc::AND
+                        | BlackBoxFunc::XOR
+                        | BlackBoxFunc::AES128Encrypt
+                        | BlackBoxFunc::Blake2s
+                        | BlackBoxFunc::Blake3
+                        | BlackBoxFunc::Keccakf1600
+                        | BlackBoxFunc::Poseidon2Permutation
+                        | BlackBoxFunc::Sha256Compression => Instruction::Call { func, arguments },
+
+                        BlackBoxFunc::RANGE => unreachable!(
+                            "RANGE should have been converted into `Instruction::RangeCheck`"
+                        ),
+
+                        BlackBoxFunc::BigIntAdd
+                        | BlackBoxFunc::BigIntSub
+                        | BlackBoxFunc::BigIntMul
+                        | BlackBoxFunc::BigIntDiv
+                        | BlackBoxFunc::BigIntFromLeBytes
+                        | BlackBoxFunc::BigIntToLeBytes => {
+                            todo!("BigInt opcodes are not supported yet")
+                        }
+                    },
+
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
             }
         } else {
             instruction
+        }
+    }
+
+    #[cfg(feature = "bn254")]
+    fn grumpkin_generators() -> Vec<FieldElement> {
+        let g1_x = FieldElement::from_hex("0x01").unwrap();
+        let g1_y =
+            FieldElement::from_hex("0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c").unwrap();
+        let g2_x = FieldElement::from_hex(
+            "0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe",
+        )
+        .unwrap();
+        let g2_y = FieldElement::from_hex(
+            "0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac",
+        )
+        .unwrap();
+        vec![g1_x, g1_y, g2_x, g2_y]
+    }
+
+    /// Merges the given array with a constant array of 32 elements of type `u8`.
+    ///
+    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
+    /// where the x and y coordinates of the generators are constant values.
+    fn merge_with_array_constant(
+        &mut self,
+        array: ValueId,
+        constant: [u8; 32],
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
+        let array_type = self.inserter.function.dfg.type_of_value(array);
+        assert_eq!(array_type, expected_array_type);
+
+        let elements = constant
+            .iter()
+            .map(|elem| {
+                self.inserter
+                    .function
+                    .dfg
+                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+            })
+            .collect();
+        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
+        let constant_array_value = self.insert_instruction(constant_array, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition: condition,
+                then_value: array,
+                else_condition: not_condition,
+                else_value: constant_array_value,
+            },
+            call_stack,
+        )
+    }
+
+    /// Returns the values corresponding to the given inputs by doing
+    /// 'if condition {inputs} else {generators}'
+    /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
+    /// Inputs are supposed to be of the form:
+    /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
+    /// - generators: [g1_x, g1_y, g2_x, g2_y]
+    /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
+    fn predicate_argument(
+        &mut self,
+        inputs: &[ValueId],
+        generators: &[ValueId],
+        abscissa: bool,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> (ValueId, ValueId) {
+        let index = !abscissa as usize;
+        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
+            // Point doubling
+            let predicated_value =
+                self.var_or(inputs[index], condition, generators[index], call_stack);
+            (predicated_value, predicated_value)
+        } else {
+            (
+                self.var_or(inputs[index], condition, generators[index], call_stack),
+                self.var_or(inputs[3 + index], condition, generators[2 + index], call_stack),
+            )
         }
     }
 
@@ -861,8 +1110,9 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> ValueId {
         // Unchecked mul because the condition is always 0 or 1
+        let cast_condition = self.cast_condition_to_value_type(condition, value, call_stack);
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, condition),
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
             call_stack,
         )
     }
@@ -904,6 +1154,24 @@ impl<'f> Context<'f> {
         // Unchecked add because of the values is guaranteed to be 0
         self.insert_instruction(
             Instruction::binary(BinaryOp::Add { unchecked: true }, field, not_condition),
+            call_stack,
+        )
+    }
+    // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
+    fn var_or(
+        &mut self,
+        var: ValueId,
+        condition: ValueId,
+        other: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let field = self.mul_by_condition(var, condition, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+        let else_field = self.mul_by_condition(other, not_condition, call_stack);
+        // Unchecked add because one of the values is guaranteed to be 0
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
             call_stack,
         )
     }
@@ -1333,7 +1601,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
@@ -1343,8 +1611,9 @@ mod test {
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
+            v10 = truncate v9 to 8 bits, max_bit_size: 254
+            v11 = cast v10 as u8
+            store v11 at v6
             jmp b3()
           b3():
             constrain v5 == u1 1
@@ -1356,7 +1625,6 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
 
@@ -1377,30 +1645,31 @@ mod test {
         assert_ssa_snapshot!(flattened_ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
             v6 = allocate -> &mut Field
             store u8 0 at v6
             enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as u8
-            v14 = cast v12 as u8
-            v15 = unchecked_mul v13, v10
-            v16 = unchecked_mul v14, v11
-            v17 = unchecked_add v15, v16
-            store v17 at v6
-            enable_side_effects v12
-            v18 = load v6 -> u8
-            v19 = cast v12 as u8
-            v20 = cast v4 as u8
-            v21 = unchecked_mul v20, v18
-            store v21 at v6
+            v8 = cast v2 as Field
+            v10 = add v8, Field 1
+            v11 = truncate v10 to 8 bits, max_bit_size: 254
+            v12 = cast v11 as u8
+            v13 = load v6 -> u8
+            v14 = not v5
+            v15 = cast v4 as u8
+            v16 = cast v14 as u8
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_mul v16, v13
+            v19 = unchecked_add v17, v18
+            store v19 at v6
+            enable_side_effects v14
+            v20 = load v6 -> u8
+            v21 = cast v14 as u8
+            v22 = cast v4 as u8
+            v23 = unchecked_mul v22, v20
+            store v23 at v6
             enable_side_effects u1 1
             constrain v5 == u1 1
             return
@@ -1416,41 +1685,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1477,10 +1746,10 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
         ");
     }
@@ -1513,8 +1782,8 @@ mod test {
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1553,9 +1822,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1568,6 +1837,7 @@ mod test {
             .flatten_cfg()
             .mem2reg()
             .remove_if_else()
+            .unwrap()
             .fold_constants()
             .dead_instruction_elimination();
 
@@ -1649,6 +1919,68 @@ mod test {
             enable_side_effects u1 1
             v12 = if v0 then v5 else (if v6) v10
             return v12
+        }
+        ");
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
+    fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
+        let generators = Context::grumpkin_generators();
+        let len = generators.len();
+        for i in (0..len).step_by(2) {
+            let gen_x = generators[i];
+            let gen_y = generators[i + 1];
+            assert!(
+                gen_y * gen_y - gen_x * gen_x * gen_x + FieldElement::from(17_u128)
+                    == FieldElement::zero()
+            );
+        }
+    }
+
+    #[test]
+    fn use_predicated_value() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: u32):
+            v3 = add u32 42, v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            range_check v3 to 16 bits
+            jmp b3(v3)
+          b2():
+            v4 = add u32 3, v3
+            jmp b3(v4)
+          b3(v5: u32):
+            return v5
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v3 = add u32 42, v1
+            enable_side_effects v0
+            v4 = cast v0 as u32
+            v5 = cast v0 as u32
+            v6 = unchecked_mul v3, v5
+            range_check v6 to 16 bits
+            v7 = not v0
+            enable_side_effects v7
+            v9 = add u32 3, v3
+            enable_side_effects u1 1
+            v11 = cast v0 as u32
+            v12 = cast v7 as u32
+            v13 = unchecked_mul v11, v3
+            v14 = unchecked_mul v12, v9
+            v15 = unchecked_add v13, v14
+            return v15
         }
         ");
     }

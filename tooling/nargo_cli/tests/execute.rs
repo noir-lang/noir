@@ -135,55 +135,63 @@ mod tests {
         mut nargo: Command,
         test_program_dir: PathBuf,
         check_stdout: bool,
+        check_artifact: bool,
         force_brillig: ForceBrillig,
         inliner: Inliner,
     ) {
-        let target_dir = tempfile::tempdir().unwrap().into_path();
+        let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
 
+        let mut has_circuit_output = false;
+
         if check_stdout {
             let output = nargo.output().unwrap();
             let stdout = String::from_utf8(output.stdout).unwrap();
+            has_circuit_output = stdout.contains("Circuit output:");
+
             let stdout = remove_noise_lines(stdout);
 
-            let stdout_path = test_program_dir.join("stdout.txt");
-            let expected_stdout = if stdout_path.exists() {
-                String::from_utf8(fs::read(stdout_path.clone()).unwrap()).unwrap()
-            } else {
-                String::new()
+            let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+            let snapshot_name = "stdout";
+            insta::with_settings!(
+                {
+                    snapshot_path => format!("./snapshots/execution_success/{test_name}")
+                },
+                {
+                insta::assert_snapshot!(snapshot_name, stdout);
+            });
+        }
+
+        if has_circuit_output {
+            let prover_toml_path = find_prover_toml_in_dir(&test_program_dir).expect(
+                "Expected a Prover.toml file to exist because the program produced an output",
+            );
+            let prover_toml_contents =
+                fs::read_to_string(prover_toml_path).expect("Failed to read Prover.toml");
+            let prover_toml: toml::Value =
+                toml::from_str(&prover_toml_contents).expect("Failed to parse Prover.toml");
+            let toml::Value::Table(table) = prover_toml else {
+                panic!("Expected Prover.toml to be a table");
             };
-
-            // Remove any trailing newlines added by some editors
-            let stdout = stdout.trim();
-            let expected_stdout = expected_stdout.trim();
-
-            if stdout != expected_stdout {
-                if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                    fs::write(stdout_path, stdout.to_string() + "\n").unwrap();
-                } else {
-                    println!(
-                        "stdout does not match expected output. Expected:\n{expected_stdout}\n\nActual:\n{stdout}"
-                    );
-                    if expected_stdout.is_empty() && !stdout_path.exists() {
-                        println!(
-                            "Hint: set the OVERWRITE_TEST_OUTPUT env var to establish a stdout.txt"
-                        )
-                    }
-                    assert_eq!(stdout, expected_stdout);
-                }
+            if !table.contains_key("return") {
+                panic!(
+                    "Expected Prover.toml to contain a `return` key because the program produced an output"
+                );
             }
         }
 
-        check_program_artifact(
-            "execution_success",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
+        if check_artifact {
+            check_program_artifact(
+                "execution_success",
+                &test_program_dir,
+                &target_dir,
+                force_brillig,
+                inliner,
+            );
+        }
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -291,8 +299,23 @@ mod tests {
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());
     }
 
-    fn compile_success_with_bug(mut nargo: Command) {
+    fn compile_success_with_bug(mut nargo: Command, test_program_dir: PathBuf) {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
+
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_success_with_bug/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
@@ -306,33 +329,19 @@ mod tests {
         let stderr = remove_noise_lines(stderr);
         let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
 
-        let stderr_path = test_program_dir.join("stderr.txt");
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_failure/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
+    }
 
-        let expected_stderr = if stderr_path.exists() {
-            String::from_utf8(fs::read(stderr_path.clone()).unwrap()).unwrap()
-        } else {
-            String::new()
-        };
-
-        // Remove any trailing newlines added by some editors
-        let stderr = stderr.trim();
-        let expected_stderr = expected_stderr.trim();
-
-        if stderr != expected_stderr {
-            if std::env::var("OVERWRITE_TEST_OUTPUT").is_ok() {
-                fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-            } else {
-                // If the expected stderr is empty this is likely a new test, so we produce the expected output for next time
-                if expected_stderr.is_empty() {
-                    fs::write(stderr_path, stderr.to_string() + "\n").unwrap();
-                }
-
-                println!(
-                    "stderr does not match expected output. Expected:\n{expected_stderr}\n\nActual:\n{stderr}"
-                );
-                assert_eq!(stderr, expected_stderr);
-            }
-        }
+    fn interpret_execution_success(mut nargo: Command) {
+        nargo.assert().success();
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
@@ -371,17 +380,17 @@ mod tests {
         let snapshot_name = "expanded";
         insta::with_settings!(
         {
-            snapshot_path => format!("./snapshots/expand/execution_success/{test_name}")
+            snapshot_path => format!("./snapshots/execution_success/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
@@ -432,17 +441,17 @@ mod tests {
         let snapshot_name = "expanded";
         insta::with_settings!(
         {
-            snapshot_path => format!("./snapshots/expand/{prefix}/{test_name}")
+            snapshot_path => format!("./snapshots/{prefix}/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
@@ -512,8 +521,8 @@ mod tests {
                     Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn check_contract_artifact(
@@ -543,8 +552,8 @@ mod tests {
                 ".noir_version" => "[noir_version]",
                 ".functions[].hash" => "[hash]",
                 ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
+            });
+        });
     }
 
     fn file_map_path_redaction() -> Redaction {
@@ -567,6 +576,34 @@ mod tests {
 
             let path = entry.path();
             if path.extension().is_none_or(|ext| ext != "json") {
+                continue;
+            };
+
+            return Some(path);
+        }
+
+        None
+    }
+
+    fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
+        if !dir.exists() {
+            return None;
+        }
+
+        for entry in fs::read_dir(dir).unwrap() {
+            let Ok(entry) = entry else {
+                continue;
+            };
+
+            let path = entry.path();
+
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
+                    return Some(prover_toml);
+                }
+            }
+
+            if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
             };
 

@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -42,6 +42,9 @@ fn main() {
     generate_compile_success_with_bug_tests(&mut test_file, &test_dir);
     generate_compile_failure_tests(&mut test_file, &test_dir);
 
+    generate_minimal_execution_success_tests(&mut test_file, &test_dir);
+    generate_interpret_execution_success_tests(&mut test_file, &test_dir);
+
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
     generate_nargo_expand_execution_success_tests(&mut test_file, &test_dir);
@@ -64,6 +67,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -103,7 +108,7 @@ const INLINER_OVERRIDES: [(&str, i64); 4] = [
 
 /// Some tests are expected to have warnings
 /// These should be fixed and removed from this list.
-const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
+const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
     "brillig_cast",
     // TODO(https://github.com/noir-lang/noir/issues/6238): remove from list once issue is closed
@@ -111,26 +116,56 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 4] = [
     // We issue a "experimental feature" warning for all enums until they're stabilized
     "enums",
     "comptime_enums",
+    // Testing unreachable instructions
+    "brillig_continue_break",
+];
+
+/// `nargo interpret` ignored tests, either because they don't currently work or
+/// because they are too slow to run.
+const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
+    // slow
+    "regression_4709",
+];
+
+/// `nargo execute --minimal-ssa` ignored tests
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
+    // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
+    // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
+    // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
+    // we don't have the other passes that would turn expressions into constants.
+    "array_to_slice_constant_length",
+    "static_assert_empty_loop",
+    "brillig_cow_regression",
+    "brillig_pedersen",
+    "import",
+    "merkle_insert",
+    "pedersen_check",
+    "pedersen_hash",
+    "pedersen_commitment",
+    "simple_shield",
+    "strings",
+    // The minimum SSA pipeline only works with Brillig: \'zeroed_lambda\' needs to be unconstrained
+    "lambda_from_dynamic_if",
+    // This relies on maximum inliner setting
+    "reference_counts_inliner_max",
 ];
 
 /// These tests are ignored because making them work involves a more complex test code that
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 7] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
+    // bug
+    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
     // bug
-    "poseidonsponge_x5_254",
-    // bug
-    "regression_5045",
-    // bug
-    "regression_7744",
+    "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -143,60 +178,53 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 16] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
+    // bug
+    "associated_type_bounds",
     // bug
     "enums",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
-    // bug
+    // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
+    // because it references another project by a relative path
     "reexports",
     // bug
-    "regression_7038",
+    "serialize_1",
     // bug
-    "regression_7038_2",
+    "serialize_2",
     // bug
-    "regression_7038_3",
+    "serialize_3",
     // bug
-    "regression_7038_4",
-    // bug
-    "serialize",
-    // bug
-    "trait_allowed_item_name_matches",
-    // bug
-    "trait_default_implementation",
+    "serialize_4",
     // bug
     "trait_function_calls",
     // bug
     "trait_method_mut_self",
     // bug
-    "trait_override_implementation",
-    // bug
     "trait_static_methods",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
-    "nested_trait_associated_type_regression_8252",
+    "type_trait_method_call_multiple_candidates",
+    // bug
+    "alias_trait_method_call_multiple_candidates",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 16] = [
-    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 10] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
-    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
     "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
-    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
+    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
-    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+    // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_1",
+    // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_2",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
@@ -269,10 +297,7 @@ impl Inliner {
 }
 
 /// Generate all test cases for a given test name (expected to be unique for the test directory),
-/// based on the matrix configuration. These will be executed serially, but concurrently with
-/// other test directories. Running multiple tests on the same directory would risk overriding
-/// each others compilation artifacts, which is why this method injects a mutex shared by
-/// all cases in the test matrix, as long as the test name and directory has a 1-to-1 relationship.
+/// based on the matrix configuration.
 fn generate_test_cases(
     test_file: &mut File,
     test_name: &str,
@@ -319,7 +344,8 @@ fn generate_test_cases(
 fn test_{test_name}(force_brillig: ForceBrillig, inliner_aggressiveness: Inliner) {{
     let test_program_dir = PathBuf::from("{test_dir}");
 
-    let nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
+    #[allow(unused_mut)]
+    let mut nargo = setup_nargo(&test_program_dir, "{test_command}", force_brillig, inliner_aggressiveness);
 
     {test_content}
 }}
@@ -359,6 +385,7 @@ fn test_{test_name}() {{
     )
     .expect("Could not write templated test file.");
 }
+
 fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
@@ -373,14 +400,16 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
     for (test_name, test_dir) in test_cases {
         let test_dir = test_dir.display();
 
+        let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
+        let check_artifact = true;
+
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "execute",
             &format!(
-                "execution_success(nargo, test_program_dir, {}, force_brillig, inliner_aggressiveness);",
-                !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str())
+                "execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);",
             ),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
@@ -644,7 +673,7 @@ fn generate_compile_success_with_bug_tests(test_file: &mut File, test_data_dir: 
             &test_name,
             &test_dir,
             "compile",
-            "compile_success_with_bug(nargo);",
+            "compile_success_with_bug(nargo, test_program_dir);",
             &MatrixConfig::default(),
         );
     }
@@ -677,7 +706,86 @@ fn generate_compile_failure_tests(test_file: &mut File, test_data_dir: &Path) {
     writeln!(test_file, "}}").unwrap();
 }
 
-/// Here we check, for every program in `test_programs/exeuction_success`, that:
+fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_INTERPRET_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "interpret",
+            "interpret_execution_success(nargo);",
+            &MatrixConfig {
+                vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
+                vary_inliner: true,
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
+            },
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Run integration tests with the `--minimal-ssa` option and check that the return
+/// value matches the expectations.
+fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod minimal_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_MINIMAL_EXECUTION_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+        let test_dir = test_dir.display();
+
+        let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
+        let check_artifact = false;
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "execute",
+            &format!(
+                r#"
+                nargo.arg("--minimal-ssa");
+                execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);
+                "#,
+            ),
+            &MatrixConfig {
+                vary_brillig: false,
+                vary_inliner: false,
+                min_inliner: min_inliner(&test_name),
+                max_inliner: max_inliner(&test_name),
+            },
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+/// Here we check, for every program in `test_programs/execution_success`, that:
 /// 1. `nargo expand` works on it
 /// 2. That the output of the original program is the same as the output of the expanded program
 ///    (that is, we run `nargo execute` on the original program and the expanded program and compare the output)

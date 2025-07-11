@@ -1,9 +1,9 @@
-fn main(x: bool, y: bool, z: bool) -> pub bool {
+fn main(x: u1, y: u1, z: u1) -> pub u1 {
     let p = y - z;
-    if p {
+    if p != 0 {
         let a = x / z;
         let b = a - z;
-        if b {
+        if b != 0 {
             let _ = a / b;
         }
     }

@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::collections::vec::Vec;
+
+fn main(x: Field, y: pub Field) {
+    let mut vector: Vec<u32> = Vec::<u32>::new();
+    assert(vector.len() == 0_u32);
+    for i in 0_u32..5_u32 {
+        vector.push(i);
+    }
+    assert(vector.len() == 5_u32);
+    for i in 0_u32..5_u32 {
+        assert(i == vector.get(i));
+    }
+    let last_elem: u32 = vector.pop();
+    assert(last_elem == 4_u32);
+    assert(vector.len() == 4_u32);
+    vector.insert(2_u32, 100_u32);
+    assert(vector.get(2_u32) == 100_u32);
+    assert(vector.get(4_u32) == 3_u32);
+    assert(vector.len() == 5_u32);
+    let removed_elem: u32 = vector.remove(3_u32);
+    assert(removed_elem == 2_u32);
+    assert(vector.get(3_u32) == 3_u32);
+    assert(vector.len() == 4_u32);
+    let mut inputs_vector: Vec<Field> = Vec::<Field>::from_slice(&[x, y]);
+    assert(inputs_vector.get(0_u32) == x);
+    assert(inputs_vector.get(1_u32) == y);
+}

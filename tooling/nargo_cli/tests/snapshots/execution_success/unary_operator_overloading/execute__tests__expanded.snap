@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::ops::{Neg, Not};
+
+fn main(x: u32) {
+    let wx: Wrapper = Wrapper::new(x as i32);
+    let ex: i32 = 3_i32;
+    assert(-wx.inner == -ex);
+    assert(!wx.inner == !ex);
+    let x: Field = 3_Field;
+    assert(-3_Field == -x);
+}
+
+struct Wrapper {
+    inner: i32,
+}
+
+impl Wrapper {
+    fn new(inner: i32) -> Self {
+        Self { inner: inner }
+    }
+}
+
+impl Neg for Wrapper {
+    fn neg(self) -> Self {
+        Self::new(-self.inner)
+    }
+}
+
+impl Not for Wrapper {
+    fn not(self) -> Self {
+        Self::new(!self.inner)
+    }
+}

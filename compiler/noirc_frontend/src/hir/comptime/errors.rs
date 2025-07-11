@@ -63,11 +63,6 @@ pub enum InterpreterError {
         location: Location,
         call_stack: im::Vector<Location>,
     },
-    NoMethodFound {
-        name: String,
-        typ: Type,
-        location: Location,
-    },
     NonIntegerUsedInLoop {
         typ: Type,
         location: Location,
@@ -93,6 +88,11 @@ pub enum InterpreterError {
         location: Location,
     },
     NonIntegerArrayLength {
+        typ: Type,
+        err: Option<Box<TypeCheckError>>,
+        location: Location,
+    },
+    NonIntegerAssociatedConstant {
         typ: Type,
         err: Option<Box<TypeCheckError>>,
         location: Location,
@@ -126,15 +126,19 @@ pub enum InterpreterError {
         operator: &'static str,
         location: Location,
     },
-    MathError {
+    BinaryOperationOverflow {
         operator: &'static str,
         location: Location,
     },
-    CastToNonNumericType {
-        typ: Type,
+    NegateWithOverflow {
         location: Location,
     },
-    QuoteInRuntimeCode {
+    CannotApplyMinusToType {
+        location: Location,
+        typ: &'static str,
+    },
+    CastToNonNumericType {
+        typ: Type,
         location: Location,
     },
     NonStructInConstructor {
@@ -290,7 +294,6 @@ impl InterpreterError {
             | InterpreterError::NonBoolUsedInWhile { location, .. }
             | InterpreterError::NonBoolUsedInConstrain { location, .. }
             | InterpreterError::FailingConstraint { location, .. }
-            | InterpreterError::NoMethodFound { location, .. }
             | InterpreterError::NonIntegerUsedInLoop { location, .. }
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
@@ -298,15 +301,17 @@ impl InterpreterError {
             | InterpreterError::NonIntegerUsedAsIndex { location, .. }
             | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::NonIntegerArrayLength { location, .. }
+            | InterpreterError::NonIntegerAssociatedConstant { location, .. }
             | InterpreterError::NonNumericCasted { location, .. }
             | InterpreterError::IndexOutOfBounds { location, .. }
             | InterpreterError::ExpectedStructToHaveField { location, .. }
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
-            | InterpreterError::MathError { location, .. }
+            | InterpreterError::BinaryOperationOverflow { location, .. }
+            | InterpreterError::NegateWithOverflow { location, .. }
+            | InterpreterError::CannotApplyMinusToType { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
-            | InterpreterError::QuoteInRuntimeCode { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
             | InterpreterError::CannotInlineMacro { location, .. }
@@ -427,10 +432,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
 
                 diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
             }
-            InterpreterError::NoMethodFound { name, typ, location } => {
-                let msg = format!("No method named `{name}` found for type `{typ}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
                 let secondary = if matches!(typ, Type::FieldElement) {
@@ -475,6 +476,17 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
+            InterpreterError::NonIntegerAssociatedConstant { typ, err, location } => {
+                let msg = format!("Non-integer associated constant: `{typ}`");
+                let secondary = if let Some(err) = err {
+                    format!(
+                        "Associated constants must be integers, but evaluating `{typ}` resulted in `{err}`"
+                    )
+                } else {
+                    "Associated constants must be integers".to_string()
+                };
+                CustomDiagnostic::simple_error(msg, secondary, *location)
+            }
             InterpreterError::NonNumericCasted { typ, location } => {
                 let msg = "Only numeric types may be casted".into();
                 let secondary = format!("`{typ}` is non-numeric");
@@ -501,7 +513,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
-            InterpreterError::MathError { operator, location } => {
+            InterpreterError::BinaryOperationOverflow { operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
                 } else {
@@ -517,12 +529,16 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
-            InterpreterError::CastToNonNumericType { typ, location } => {
-                let msg = format!("Cannot cast to non-numeric type `{typ}`");
+            InterpreterError::NegateWithOverflow { location } => {
+                let msg = "Attempt to negate with overflow".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
-            InterpreterError::QuoteInRuntimeCode { location } => {
-                let msg = "`quote` may only be used in comptime code".into();
+            InterpreterError::CannotApplyMinusToType { location, typ } => {
+                let msg = format!("Cannot apply unary operator `-` to type `{typ}`");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::CastToNonNumericType { typ, location } => {
+                let msg = format!("Cannot cast to non-numeric type `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NonStructInConstructor { typ, location } => {

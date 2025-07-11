@@ -522,7 +522,7 @@ impl DependencyContext {
                     // For array get operations, we check the Brillig calls for
                     // results involving the array in question, to properly
                     // populate the array element tainted sets
-                    Instruction::ArrayGet { array, index } => {
+                    Instruction::ArrayGet { array, index, offset: _ } => {
                         self.process_array_get(*array, *index, &results, function);
                         // Record all the used arguments as parents of the results
                         self.update_children(&arguments, &results);
@@ -687,7 +687,7 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
-        let returns = function.returns();
+        let returns = function.returns().unwrap_or_default();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()

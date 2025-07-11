@@ -30,15 +30,7 @@ impl Formatter<'_> {
             }
 
             self.write_space();
-
-            for (index, trait_bound) in noir_trait.bounds.into_iter().enumerate() {
-                if index > 0 {
-                    self.write_space();
-                    self.write_token(Token::Plus);
-                    self.write_space();
-                }
-                self.format_trait_bound(trait_bound);
-            }
+            self.format_trait_bounds(noir_trait.bounds);
         }
 
         if !noir_trait.where_clause.is_empty() {
@@ -131,11 +123,16 @@ impl Formatter<'_> {
                 self.write_indentation();
                 self.format_chunk_group(chunks);
             }
-            TraitItem::Type { name } => {
+            TraitItem::Type { name, bounds } => {
                 self.write_indentation();
                 self.write_keyword(Keyword::Type);
                 self.write_space();
                 self.write_identifier(name);
+                if !bounds.is_empty() {
+                    self.write_token(Token::Colon);
+                    self.write_space();
+                    self.format_trait_bounds(bounds);
+                }
                 self.write_semicolon();
             }
         }
@@ -201,6 +198,22 @@ mod tests {
     trait Foo {
         /// hello
         type X;
+    }
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_trait_with_type_and_bounds() {
+        let src = " mod moo { trait Foo { 
+    /// hello
+            type X : A  +  B  ;
+         } }";
+        let expected = "mod moo {
+    trait Foo {
+        /// hello
+        type X: A + B;
     }
 }
 ";

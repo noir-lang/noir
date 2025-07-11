@@ -15,6 +15,7 @@ cargo-fuzz = true
 arbitrary.workspace = true
 color-eyre.workspace = true
 libfuzzer-sys.workspace = true
+strum.workspace = true
 
 acir.workspace = true
 noirc_abi.workspace = true
@@ -26,6 +27,7 @@ noir_ast_fuzzer = { path = ".." }
 [dev-dependencies]
 arbtest.workspace = true
 env_logger.workspace = true
+proptest.workspace = true
 
 
 [[bin]]
@@ -43,8 +45,15 @@ doc = false
 bench = false
 
 [[bin]]
-name = "comptime_vs_brillig"
-path = "fuzz_targets/comptime_vs_brillig.rs"
+name = "comptime_vs_brillig_nargo"
+path = "fuzz_targets/comptime_vs_brillig_nargo.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "comptime_vs_brillig_direct"
+path = "fuzz_targets/comptime_vs_brillig_direct.rs"
 test = false
 doc = false
 bench = false

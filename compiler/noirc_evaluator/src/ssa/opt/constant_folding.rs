@@ -37,7 +37,7 @@ use crate::{
             dfg::{DataFlowGraph, InsertInstructionResult},
             dom::DominatorTree,
             function::{Function, FunctionId, RuntimeType},
-            instruction::{BinaryOp, Instruction, InstructionId},
+            instruction::{ArrayOffset, Instruction, InstructionId},
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
@@ -311,13 +311,24 @@ impl<'brillig> Context<'brillig> {
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
-                    // We track whether we may mutate MakeArray instructions before we deduplicate
+                    // We track whether we may mutate `MakeArray` instructions before we deduplicate
                     // them but we still need to issue an extra inc_rc in case they're mutated afterward.
-                    if runtime_is_brillig && matches!(instruction, Instruction::MakeArray { .. }) {
-                        let value = *cached.last().unwrap();
-                        let inc_rc = Instruction::IncrementRc { value };
-                        let call_stack = dfg.get_instruction_call_stack_id(id);
-                        dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
+                    //
+                    // This also applies to calls that return arrays.
+                    if runtime_is_brillig
+                        && matches!(
+                            instruction,
+                            Instruction::MakeArray { .. } | Instruction::Call { .. }
+                        )
+                    {
+                        for &value in cached {
+                            let value_type = dfg.type_of_value(value);
+                            if value_type.is_array() {
+                                let inc_rc = Instruction::IncrementRc { value };
+                                let call_stack = dfg.get_instruction_call_stack_id(id);
+                                dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
+                            }
+                        }
                     }
 
                     let cached = cached.to_vec();
@@ -478,8 +489,11 @@ impl<'brillig> Context<'brillig> {
         if let Instruction::ArraySet { index, value, .. } = &instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
-            let array_get = Instruction::ArrayGet { array: instruction_results[0], index: *index };
+            let offset = ArrayOffset::None;
+            let array_get =
+                Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
+            // If we encounter an array_get for this address, we know what the result will be.
             self.cached_instruction_results
                 .entry(array_get)
                 .or_default()
@@ -503,6 +517,7 @@ impl<'brillig> Context<'brillig> {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
+            // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
@@ -541,7 +556,7 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, has_side_effects(instruction, dfg))
+        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -614,8 +629,13 @@ impl<'brillig> Context<'brillig> {
             brillig_arguments.push(parameter);
         }
 
+        // Check that the function returns (doesn't always fail)
+        let Some(returns) = func.returns() else {
+            return EvaluationResult::CannotEvaluate;
+        };
+
         // Check that return value types are supported by brillig
-        for return_id in func.returns().iter() {
+        for return_id in returns {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
                 return EvaluationResult::CannotEvaluate;
@@ -702,28 +722,73 @@ impl<'brillig> Context<'brillig> {
         }
     }
 
+    /// Remove previously cached instructions that created arrays,
+    /// if the current instruction is such that it could modify that array.
     fn remove_possibly_mutated_cached_make_arrays(
         &mut self,
         instruction: &Instruction,
         function: &Function,
     ) {
-        use Instruction::{ArraySet, Store};
+        use Instruction::{ArraySet, Call, MakeArray, Store};
 
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        if let Store { value: array, .. } | ArraySet { array, .. } = instruction {
-            if function.dfg.is_global(*array) {
-                // Early return as we expect globals to be immutable.
+        /// Recursively remove from the cache any array values.
+        fn go(
+            function: &Function,
+            cached_instruction_results: &mut InstructionResultCache,
+            value: &ValueId,
+        ) {
+            // We expect globals to be immutable, so we can cache those results indefinitely.
+            if function.dfg.is_global(*value) {
                 return;
             };
 
-            let instruction = match &function.dfg[*array] {
+            // We only care about arrays and slices. (`Store` can act on non-array values as well)
+            if !function.dfg.type_of_value(*value).is_array() {
+                return;
+            };
+
+            // Look up the original instruction that created the value, which is the cache key.
+            let instruction = match &function.dfg[*value] {
                 Value::Instruction { instruction, .. } => &function.dfg[*instruction],
                 _ => return,
             };
 
-            if matches!(instruction, Instruction::MakeArray { .. }) {
-                self.cached_instruction_results.remove(instruction);
+            // Remove the creator instruction from the cache.
+            if matches!(instruction, MakeArray { .. } | Call { .. }) {
+                cached_instruction_results.remove(instruction);
             }
+
+            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
+            // can be passed around, and through them their sub-arrays might be modified.
+            if let MakeArray { elements, .. } = instruction {
+                for elem in elements {
+                    go(function, cached_instruction_results, elem);
+                }
+            }
+        }
+
+        let mut remove_if_array = |value| go(function, &mut self.cached_instruction_results, value);
+
+        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
+        match instruction {
+            Store { value, .. } | ArraySet { array: value, .. } => {
+                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
+                remove_if_array(value);
+            }
+            Call { arguments, func } if function.runtime().is_brillig() => {
+                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
+                let Value::Function(func_id) = &function.dfg[*func] else { return };
+                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
+                    // placed *before* the call to protect them. Currently we don't track the ref count in this
+                    // context, so be conservative and do not reuse any array shared with a callee.
+                    // In ACIR we don't track refcounts, so it should be fine.
+                    for arg in arguments {
+                        remove_if_array(arg);
+                    }
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -831,66 +896,6 @@ fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId,
     }
 }
 
-/// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
-///
-/// This is similar to `can_be_deduplicated`, but it doesn't depend on whether the caller takes
-/// constraints into account, because it might not use it to isolate the side effects across branches.
-fn has_side_effects(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
-    use Instruction::*;
-
-    match instruction {
-        // These either have side-effects or interact with memory
-        EnableSideEffectsIf { .. }
-        | Allocate
-        | Load { .. }
-        | Store { .. }
-        | IncrementRc { .. }
-        | DecrementRc { .. } => true,
-
-        Call { func, .. } => match dfg[*func] {
-            Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
-            // Functions known to be pure have no side effects.
-            // `PureWithPredicates` functions may still have side effects.
-            Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
-            _ => true, // Be conservative and assume other functions can have side effects.
-        },
-
-        // These can fail.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => true,
-
-        // This should never be side-effectual
-        MakeArray { .. } | Noop => false,
-
-        // Some binary math can overflow or underflow
-        Binary(binary) => match binary.operator {
-            BinaryOp::Add { unchecked: false }
-            | BinaryOp::Sub { unchecked: false }
-            | BinaryOp::Mul { unchecked: false }
-            | BinaryOp::Div
-            | BinaryOp::Mod => true,
-            BinaryOp::Add { unchecked: true }
-            | BinaryOp::Sub { unchecked: true }
-            | BinaryOp::Mul { unchecked: true }
-            | BinaryOp::Eq
-            | BinaryOp::Lt
-            | BinaryOp::And
-            | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
-        },
-
-        // These don't have side effects
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
-
-        // `ArrayGet`s which read from "known good" indices from an array have no side effects
-        ArrayGet { array, index } => !dfg.is_safe_index(*index, *array),
-
-        // ArraySet has side effects
-        ArraySet { .. } => true,
-    }
-}
-
 /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
 /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
 /// and its predicate, rather than just the instruction. Setting this means instructions that
@@ -958,10 +963,6 @@ pub(crate) fn can_be_deduplicated(
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use noirc_frontend::monomorphization::ast::InlineType;
-
     use crate::{
         assert_ssa_snapshot,
         brillig::BrilligOptions,
@@ -969,7 +970,6 @@ mod test {
             Ssa,
             function_builder::FunctionBuilder,
             ir::{
-                function::RuntimeType,
                 map::Id,
                 types::{NumericType, Type},
                 value::ValueMapping,
@@ -1186,7 +1186,7 @@ mod test {
         // is disabled (only gets from index 0) and thus returns the wrong result.
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: u1, v1: u64):
+          b0(v0: u1, v1: u32):
             enable_side_effects v0
             v4 = make_array [Field 0, Field 1] : [Field; 2]
             v5 = array_get v4, index v1 -> Field
@@ -1255,63 +1255,38 @@ mod test {
 
     #[test]
     fn constant_array_deduplication() {
-        // fn main f0 {
-        //   b0(v0: u64):
-        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     v5 = call keccakf1600(v1)
-        //     v6 = call keccakf1600(v2)
-        // }
         // Here we're checking a situation where two identical arrays are being initialized twice and being assigned separate `ValueId`s.
         // This would result in otherwise identical instructions not being deduplicated.
-        let main_id = Id::test_new(0);
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u64):
+            v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            v5 = call keccakf1600(v1) -> [u64; 25]
+            v6 = call keccakf1600(v2) -> [u64; 25]
+            return
+        }
+        ";
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        builder.set_runtime(RuntimeType::Brillig(InlineType::default()));
-        let v0 = builder.add_parameter(Type::unsigned(64));
-        let zero = builder.numeric_constant(0u128, NumericType::unsigned(64));
-        let typ = Type::Array(Arc::new(vec![Type::unsigned(64)]), 25);
-
-        let array_contents = im::vector![
-            v0, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
-            zero, zero, zero, zero, zero, zero, zero, zero, zero, zero,
-        ];
-        let array1 = builder.insert_make_array(array_contents.clone(), typ.clone());
-        let array2 = builder.insert_make_array(array_contents, typ.clone());
-
-        assert_ne!(array1, array2, "arrays were not assigned different value ids");
-
-        let keccakf1600 =
-            builder.import_intrinsic("keccakf1600").expect("keccakf1600 intrinsic should exist");
-        let _v10 = builder.insert_call(keccakf1600, vec![array1], vec![typ.clone()]);
-        let _v11 = builder.insert_call(keccakf1600, vec![array2], vec![typ.clone()]);
-        builder.terminate_with_return(Vec::new());
-
-        let mut ssa = builder.finish();
-        ssa.normalize_ids();
-
-        println!("{ssa}");
+        let ssa = Ssa::from_str(src).unwrap();
 
         let main = ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
         let starting_instruction_count = instructions.len();
         assert_eq!(starting_instruction_count, 4);
 
-        // fn main f0 {
-        //   b0(v0: u64):
-        //     v1 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0]
-        //     inc_rc v1
-        //     v5 = call keccakf1600(v1)
-        // }
         let ssa = ssa.fold_constants();
 
-        println!("{ssa}");
-
-        let main = ssa.main();
-        let instructions = main.dfg[main.entry_block()].instructions();
-        let ending_instruction_count = instructions.len();
-        assert_eq!(ending_instruction_count, 3);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u64):
+            v2 = make_array [v0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0, u64 0] : [u64; 25]
+            inc_rc v2
+            v4 = call keccakf1600(v2) -> [u64; 25]
+            inc_rc v4
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1366,7 +1341,7 @@ mod test {
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
               b1():
-                v4 = shl v0, u32 1
+                v4 = shl v0, u8 1
                 v5 = lt v0, v4
                 constrain v5 == u1 1
                 jmp b2()
@@ -1374,7 +1349,7 @@ mod test {
                 v7 = lt u32 1000, v0
                 jmpif v7 then: b3, else: b4
               b3():
-                v8 = shl v0, u32 1
+                v8 = shl v0, u8 1
                 v9 = lt v0, v8
                 constrain v9 == u1 1
                 jmp b4()
@@ -1393,10 +1368,10 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
-            v4 = shl v0, u32 1
+            v4 = shl v0, u8 1
             jmpif v2 then: b1, else: b2
           b1():
-            v5 = shl v0, u32 1
+            v5 = shl v0, u8 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
@@ -1479,8 +1454,9 @@ mod test {
 
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
-                v2 = add v0, v1
-                return v2
+                v2 = unchecked_add v0, v1
+                v3 = truncate v2 to 32 bits, max_bit_size: 33
+                return v3
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1576,7 +1552,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
+        let ssa = ssa.brillig_array_get_and_set();
         let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
@@ -1608,9 +1584,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
@@ -1648,9 +1622,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.dead_instruction_elimination();
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         let ssa = ssa.fold_constants_with_brillig(&brillig);
         let ssa = ssa.remove_unreachable_functions();
@@ -1760,6 +1732,7 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: u1):
             v5 = call to_be_radix(v0, u32 256) -> [u8; 1]
+            inc_rc v5
             inc_rc v5
             inc_rc v5
             v6 = cast v2 as Field
@@ -2016,5 +1989,89 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn functions_returning_arrays_inc_rc_while_deduplicating() {
+        // Regression test for an issue discovered in https://github.com/AztecProtocol/aztec-packages/pull/14492
+        // Previously no `inc_rc` was being generated when deduplicating the calls to `f1`,
+        // resulting in both references mutating the same array as opposed to having their own copies.
+        let src = r#"
+        brillig(inline) impure fn constructor f0 {
+          b0():
+            v8 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v23 = call f1() -> [Field; 4]
+            v26 = allocate -> &mut [Field; 3]
+            store v8 at v26
+            v27 = allocate -> &mut [Field; 4]
+            store v23 at v27
+            v28 = allocate -> &mut u32
+            store u32 0 at v28
+            call f2(v26, v27, v28, Field 13)
+            call f2(v26, v27, v28, Field 0)
+            call f2(v26, v27, v28, Field 1)
+            v42 = load v26 -> [Field; 3]
+            v36 = load v28 -> u32
+            call f4(v42, v27, v36)
+            v31 = call f1() -> [Field; 4]
+            v35 = allocate -> &mut [Field; 4]
+            store v31 at v35
+            call f4(v8, v35, u32 0)
+            return v35
+        }
+        brillig(inline) predicate_pure fn new f1 {
+          b0():
+            v7 = make_array [Field 0, Field 0, Field 0, Field 55340232221128654848] : [Field; 4]
+            return v7
+        }
+        brillig(inline) impure fn absorb f2 {
+          b0(v4: &mut [Field; 3], v5: &mut [Field; 4], v6: &mut u32, v8: Field):
+            v13 = load v6 -> u32
+            v14 = load v4 -> [Field; 3]
+            v15 = load v5 -> [Field; 4]
+            v17 = lt v13, u32 3
+            constrain v17 == u1 1, "Index out of bounds"
+            v19 = array_set v14, index v13, value v8
+            v21 = add v13, u32 1
+            store v19 at v4
+            store v15 at v5
+            store v21 at v6
+            return
+        }
+        brillig(inline) impure fn perform_duplex f4 {
+          b0(v4: [Field; 3], v5: &mut [Field; 4], v18: u32):
+            jmp b1(u32 0)
+          b1(v8: u32):
+            v10 = lt v8, u32 3
+            jmpif v10 then: b2, else: b3
+          b2():
+            v19 = lt v8, v18
+            jmpif v19 then: b4, else: b5
+          b3():
+            v11 = load v5 -> [Field; 4]
+            inc_rc v11
+            v14 = call poseidon2_permutation(v11, u32 4) -> [Field; 4]
+            store v14 at v5
+            return
+          b4():
+            v20 = load v5 -> [Field; 4]
+            v21 = array_get v20, index v8 -> Field
+            v23 = array_get v4, index v8 -> Field
+            v24 = add v21, v23
+            v27 = array_set v20, index v8, value v24
+            store v27 at v5
+            jmp b5()
+          b5():
+            v29 = unchecked_add v8, u32 1
+            jmp b1(v29)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let result_before = ssa.interpret(vec![]);
+        let ssa = ssa.fold_constants_using_constraints();
+        let result_after = ssa.interpret(vec![]);
+        assert_eq!(result_before, result_after);
     }
 }

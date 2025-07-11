@@ -1,5 +1,5 @@
 use crate::{
-    NamedGeneric, ResolvedGeneric,
+    Kind, NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
     hir::def_collector::{
@@ -62,7 +62,9 @@ impl Elaborator<'_> {
                     let module = self.module_id();
                     let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.define_function_meta(&mut default_impl_clone, func_id, None);
+                    self.recover_generics(|this| {
+                        this.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                    });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
@@ -92,7 +94,7 @@ impl Elaborator<'_> {
 
                 if overrides.len() > 1 {
                     self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
+                        typ: DuplicateType::TraitAssociatedItem,
                         first_def: overrides[0].2.name_ident().clone(),
                         second_def: overrides[1].2.name_ident().clone(),
                     });
@@ -150,6 +152,7 @@ impl Elaborator<'_> {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
         let self_type = self.self_type.as_ref().unwrap().clone();
+
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
@@ -242,9 +245,11 @@ impl Elaborator<'_> {
     pub(super) fn take_unresolved_associated_types(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> Vec<(Ident, UnresolvedType)> {
+    ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
-        for (name, _, expr) in trait_impl.associated_constants.drain(..) {
+        for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
+            let resolved_type = self.resolve_type(typ);
+            let kind = Kind::Numeric(Box::new(resolved_type));
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
                 Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
@@ -253,10 +258,10 @@ impl Elaborator<'_> {
                     UnresolvedTypeData::Error.with_location(location)
                 }
             };
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, kind));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, Kind::Any));
         }
         associated_types
     }

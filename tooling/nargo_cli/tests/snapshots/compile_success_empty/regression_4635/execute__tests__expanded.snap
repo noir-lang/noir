@@ -1,0 +1,61 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait FromField {
+    fn from_field(field: Field) -> Self;
+}
+
+impl FromField for Field {
+    fn from_field(value: Self) -> Self {
+        value
+    }
+}
+
+trait Deserialize<let N: u32> {
+    fn deserialize(fields: [Field; N]) -> Self;
+}
+
+global AZTEC_ADDRESS_LENGTH: u32 = 1;
+
+struct AztecAddress {
+    inner: Field,
+}
+
+impl FromField for AztecAddress {
+    fn from_field(value: Field) -> Self {
+        Self { inner: value }
+    }
+}
+
+impl Deserialize<1> for AztecAddress {
+    fn deserialize(fields: [Field; 1]) -> Self {
+        Self::from_field(fields[0_u32])
+    }
+}
+
+impl Eq for AztecAddress {
+    fn eq(self, other: Self) -> bool {
+        self.inner == other.inner
+    }
+}
+
+struct MyStruct<T> {
+    a: T,
+}
+
+impl<T> Deserialize<1> for MyStruct<T>
+where
+    T: FromField,
+{
+    fn deserialize(fields: [Field; 1]) -> Self {
+        Self { a: T::from_field(fields[0_u32]) }
+    }
+}
+
+fn main() {
+    let fields: [Field; 1] = [5_Field; 1];
+    let foo: MyStruct<AztecAddress> = MyStruct::<AztecAddress>::deserialize(fields);
+    let bar: AztecAddress = AztecAddress { inner: 5_Field };
+    assert(foo.a == bar);
+}

@@ -1,1 +1,0 @@
-[brillig_entry_points_regression_8069] Circuit output: Field(0)

@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use noirc_printable_type::format_field_string;
 
 use crate::{
     Type,
@@ -204,6 +205,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
                 let value = Value::pattern(Pattern::Interned(*id, Location::dummy()));
                 self.print_value(&value, last_was_alphanumeric, f)
             }
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
@@ -363,12 +365,16 @@ impl Display for ValuePrinter<'_, '_> {
                 let msg = if *value { "true" } else { "false" };
                 write!(f, "{msg}")
             }
-            Value::Field(value) => write!(f, "{value}"),
+            Value::Field(value) => {
+                // write!(f, "{value}") // This would display the Field as a number, but it doesn't match the runtime.
+                write!(f, "{}", format_field_string(value.to_field_element()))
+            }
             Value::I8(value) => write!(f, "{value}"),
             Value::I16(value) => write!(f, "{value}"),
             Value::I32(value) => write!(f, "{value}"),
             Value::I64(value) => write!(f, "{value}"),
-            Value::U1(value) => write!(f, "{value}"),
+            Value::U1(false) => write!(f, "0"),
+            Value::U1(true) => write!(f, "1"),
             Value::U8(value) => write!(f, "{value}"),
             Value::U16(value) => write!(f, "{value}"),
             Value::U32(value) => write!(f, "{value}"),
@@ -738,7 +744,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_)
+        | Literal::Integer(..)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)

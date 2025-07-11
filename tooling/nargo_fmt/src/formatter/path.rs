@@ -23,6 +23,7 @@ impl Formatter<'_> {
                 self.write_keyword(Keyword::Super);
                 self.write_token(Token::DoubleColon);
             }
+            PathKind::Resolved(_) => unreachable!("$crate should be unreachable here"),
         }
 
         for (index, segment) in path.segments.into_iter().enumerate() {

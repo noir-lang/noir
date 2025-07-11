@@ -4,14 +4,14 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
-        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, PrefixExpression,
-        StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint, UnresolvedTypeData,
-        UnresolvedTypeExpression, UnsafeExpression,
+        Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility,
+        Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
+        UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
     hir::{
         comptime::{self, InterpreterError},
@@ -19,7 +19,7 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{TypeCheckError, generics::TraitGenerics},
+        type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
@@ -27,19 +27,21 @@ use crate::{
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
-            TraitMethod,
+            TraitItem,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
-    token::{FmtStrFragment, Tokens},
+    shared::Signedness,
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
 use super::{
     Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -53,6 +55,8 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
+
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
@@ -99,13 +103,18 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(path);
+                return self.elaborate_as_trait_path(*path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
+
+        if is_integer_literal {
+            self.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
     }
 
@@ -166,9 +175,7 @@ impl Elaborator<'_> {
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
 
-            if break_or_continue_location.is_none() {
-                statements.push(id);
-            }
+            statements.push(id);
 
             let stmt = self.interner.statement(&id);
 
@@ -182,6 +189,8 @@ impl Elaborator<'_> {
                 });
             }
 
+            let is_break_or_continue = matches!(stmt, HirStatement::Break | HirStatement::Continue);
+
             if let Some(break_or_continue_location) = break_or_continue_location {
                 if !errored_unreachable {
                     self.push_err(ResolverError::UnreachableStatement {
@@ -190,11 +199,12 @@ impl Elaborator<'_> {
                     });
                     errored_unreachable = true;
                 }
-            } else if matches!(stmt, HirStatement::Break | HirStatement::Continue) {
+            } else if is_break_or_continue {
                 break_or_continue_location = Some(location);
-                block_type = stmt_type;
-            } else if i + 1 == statements.len() {
-                block_type = stmt_type;
+            }
+
+            if i + 1 == statements.len() {
+                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
             }
         }
 
@@ -244,8 +254,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer) => {
-                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
+            Literal::Integer(integer, suffix) => {
+                (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -261,6 +271,24 @@ impl Elaborator<'_> {
         }
     }
 
+    fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
+        use {Signedness::*, Type::Integer};
+        match suffix {
+            Some(IntegerTypeSuffix::I8) => Integer(Signed, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
+            Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::U64) => Integer(Unsigned, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U128) => Integer(Unsigned, IntegerBitSize::HundredTwentyEight),
+            Some(IntegerTypeSuffix::Field) => Type::FieldElement,
+            None => self.polymorphic_integer_or_field(),
+        }
+    }
+
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
@@ -269,7 +297,16 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let first_elem_type = self.interner.next_type_variable();
+                let type_variable_id = self.interner.next_type_variable_id();
+                let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                let first_elem_type = Type::TypeVariable(type_variable);
                 let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -298,7 +335,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
+                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
                     },
                 );
 
@@ -368,7 +405,7 @@ impl Elaborator<'_> {
         let rhs_location = prefix.rhs.location;
 
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-        let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
+        let trait_method_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
 
         let operator = prefix.operator;
 
@@ -380,14 +417,18 @@ impl Elaborator<'_> {
             }
         }
 
-        let expr =
-            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
+        let expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location);
 
         let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
-        let typ =
-            self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, location);
+        let typ = self.handle_operand_type_rules_result(
+            result,
+            &rhs_type,
+            trait_method_id,
+            expr_id,
+            location,
+        );
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
@@ -442,13 +483,12 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        self.push_index_to_check(index);
-
-        let expected = self.polymorphic_integer_or_field();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-            expected_typ: "an integer".to_owned(),
-            expr_typ: index_type.to_string(),
-            expr_location: location,
+        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+            expected: expected.clone(),
+            actual: index_type.clone(),
+            location,
+            source: Source::ArrayIndex,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
@@ -844,6 +884,19 @@ impl Elaborator<'_> {
             );
         }
 
+        // Each of the struct generics must be bound at the end of the function
+        let struct_id = r#type.borrow().id;
+        for (index, generic) in generics.iter().enumerate() {
+            if let Type::TypeVariable(type_variable) = generic {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
+        }
+
         let struct_type = r#type.clone();
 
         let field_types = r#type
@@ -914,10 +967,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: field_type.to_string(),
-                        expr_location: field_location,
+                    || {
+                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                            expected_typ: expected_type.to_string(),
+                            expr_typ: field_type.to_string(),
+                            expr_location: field_location,
+                        })
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -1027,32 +1082,31 @@ impl Elaborator<'_> {
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
         operand_type: &Type,
-        trait_id: Option<TraitMethodId>,
+        trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
-                    let trait_id =
-                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+                    let trait_method_id = trait_method_id
+                        .expect("ice: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
-                    let constraint = TraitConstraint {
-                        typ: operand_type.clone(),
-                        trait_bound: ResolvedTraitBound {
-                            trait_id: trait_id.trait_id,
-                            trait_generics: TraitGenerics::default(),
-                            location,
-                        },
-                    };
-                    self.push_trait_constraint(
-                        constraint, expr_id,
-                        true, // this constraint should lead to choosing a trait impl
+                    let trait_id = trait_method_id.trait_id;
+                    let trait_generics = TraitGenerics::default();
+                    let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                    let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+                    let select_impl = true; // this constraint should lead to choosing a trait impl
+                    self.push_trait_constraint(constraint, expr_id, select_impl);
+                    self.type_check_operator_method(
+                        expr_id,
+                        trait_method_id,
+                        operand_type,
+                        location,
                     );
-                    self.type_check_operator_method(expr_id, trait_id, operand_type, location);
                 }
                 typ
             }
@@ -1420,7 +1474,9 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
+        let Some(definition) =
+            the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
+        else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
@@ -1429,15 +1485,12 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_method =
-            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
-
-        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: false };
 
         let ident = HirIdent {
             location: path.impl_item.location(),
-            id: definition_id,
-            impl_kind: ImplKind::TraitMethod(trait_method),
+            id: definition,
+            impl_kind: ImplKind::TraitItem(trait_item),
         };
 
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));

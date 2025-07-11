@@ -1,8 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
-use crate::ssa::ir::types::Type;
-
 use super::{
     basic_block::BasicBlockId,
     dfg::InsertInstructionResult,
@@ -19,26 +17,11 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
-
-    /// Map containing repeat array constants so that we do not initialize a new
-    /// array unnecessarily. An extra tuple field is included as part of the key to
-    /// distinguish between array/slice types.
-    ///
-    /// This is optional since caching arrays relies on the inserter inserting strictly
-    /// in control-flow order. Otherwise, if arrays later in the program are cached first,
-    /// they may be referred to by instructions earlier in the program.
-    array_cache: Option<ArrayCache>,
-
-    /// If this pass is loop unrolling, store the block before the loop to optionally
-    /// hoist any make_array instructions up to after they are retrieved from the `array_cache`.
-    pre_loop: Option<BasicBlockId>,
 }
-
-pub(crate) type ArrayCache = HashMap<im::Vector<ValueId>, HashMap<Type, ValueId>>;
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default(), array_cache: None, pre_loop: None }
+        Self { function, values: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.
@@ -120,7 +103,7 @@ impl<'f> FunctionInserter<'f> {
         &mut self,
         instruction: Instruction,
         id: InstructionId,
-        mut block: BasicBlockId,
+        block: BasicBlockId,
         call_stack: CallStackId,
     ) -> InsertInstructionResult {
         let results = self.function.dfg.instruction_results(id).to_vec();
@@ -129,30 +112,6 @@ impl<'f> FunctionInserter<'f> {
             .requires_ctrl_typevars()
             .then(|| vecmap(&results, |result| self.function.dfg.type_of_value(*result)));
 
-        // Large arrays can lead to OOM panics if duplicated from being unrolled in loops.
-        // To prevent this, try to reuse the same ID for identical arrays instead of inserting
-        // another MakeArray instruction. Note that this assumes the function inserter is inserting
-        // in control-flow order. Otherwise we could refer to ValueIds defined later in the program.
-        let make_array = if let Instruction::MakeArray { elements, typ } = &instruction {
-            if self.array_is_constant(elements) && self.function.runtime().is_acir() {
-                if let Some(fetched_value) = self.get_cached_array(elements, typ) {
-                    assert_eq!(results.len(), 1);
-                    self.values.insert(results[0], fetched_value);
-                    return InsertInstructionResult::SimplifiedTo(fetched_value);
-                }
-
-                // Hoist constant arrays out of the loop and cache their value
-                if let Some(pre_loop) = self.pre_loop {
-                    block = pre_loop;
-                }
-                Some((elements.clone(), typ.clone()))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
         let new_results = self.function.dfg.insert_instruction_and_results(
             instruction,
             block,
@@ -160,52 +119,8 @@ impl<'f> FunctionInserter<'f> {
             call_stack,
         );
 
-        // Cache an array in the fresh_array_cache if array caching is enabled.
-        // The fresh cache isn't used for deduplication until an external pass confirms we
-        // pass a sequence point and all blocks that may be before the current insertion point
-        // are finished.
-        if let Some((elements, typ)) = make_array {
-            Self::cache_array(&mut self.array_cache, elements, typ, new_results.first());
-        }
-
         Self::insert_new_instruction_results(&mut self.values, &results, &new_results);
         new_results
-    }
-
-    fn get_cached_array(&self, elements: &im::Vector<ValueId>, typ: &Type) -> Option<ValueId> {
-        self.array_cache.as_ref()?.get(elements)?.get(typ).copied()
-    }
-
-    fn cache_array(
-        arrays: &mut Option<ArrayCache>,
-        elements: im::Vector<ValueId>,
-        typ: Type,
-        result_id: ValueId,
-    ) {
-        if let Some(arrays) = arrays {
-            arrays.entry(elements).or_default().insert(typ, result_id);
-        }
-    }
-
-    fn array_is_constant(&self, elements: &im::Vector<ValueId>) -> bool {
-        elements.iter().all(|element| self.function.dfg.is_constant(*element))
-    }
-
-    pub(crate) fn set_array_cache(
-        &mut self,
-        new_cache: Option<ArrayCache>,
-        pre_loop: BasicBlockId,
-    ) {
-        self.array_cache = new_cache;
-        self.pre_loop = Some(pre_loop);
-    }
-
-    /// Finish this inserter, returning its array cache merged with the fresh array cache.
-    /// Since this consumes the inserter this assumes we're at a sequence point where all
-    /// predecessor blocks to the current block are finished. Since this is true, the fresh
-    /// array cache can be merged with the existing array cache.
-    pub(crate) fn into_array_cache(self) -> Option<ArrayCache> {
-        self.array_cache
     }
 
     /// Modify the values HashMap to remember the mapping between an instruction result's previous

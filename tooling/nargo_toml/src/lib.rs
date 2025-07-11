@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
@@ -298,29 +296,29 @@ pub struct NargoToml {
 #[serde(rename_all = "kebab-case")]
 pub struct WorkspaceConfig {
     /// List of members in this workspace.
-    members: Vec<PathBuf>,
+    pub members: Vec<PathBuf>,
     /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
-    default_member: Option<PathBuf>,
+    pub default_member: Option<PathBuf>,
 }
 
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
 pub struct PackageMetadata {
     pub name: Option<String>,
-    version: Option<String>,
+    pub version: Option<String>,
     #[serde(alias = "type")]
     pub package_type: Option<String>,
-    entry: Option<PathBuf>,
-    description: Option<String>,
-    authors: Option<Vec<String>>,
+    pub entry: Option<PathBuf>,
+    pub description: Option<String>,
+    pub authors: Option<Vec<String>>,
     // If no compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
-    compiler_version: Option<String>,
-    license: Option<String>,
-    expression_width: Option<String>,
+    pub compiler_version: Option<String>,
+    pub license: Option<String>,
+    pub expression_width: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -459,7 +457,17 @@ fn toml_to_workspace(
     Ok(workspace)
 }
 
-fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
+/// Attempts to read the file at the provided `toml_path` as a `Nargo.toml`
+/// file, returning it if the read was successful.
+///
+/// # Errors
+///
+/// - [`ManifestError::ReadFailed`] if the file could not be read.
+/// - [`ManifestError::MissingParent`] if the Nargo.toml file did not have a
+///   parent directory.
+/// - [`toml::de::Error`] if the Nargo.toml file could not be converted to a
+///   valid [`Config`].
+pub fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
     let toml_path = toml_path.normalize();
     let toml_as_string = std::fs::read_to_string(&toml_path)
         .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;

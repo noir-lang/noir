@@ -13,7 +13,7 @@ use acvm::{
     acir::{
         AcirField, BlackBoxFunc,
         circuit::{
-            AssertionPayload, ExpressionOrMemory, ExpressionWidth, Opcode,
+            AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
             opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
         },
         native_types::{Expression, Witness},
@@ -26,8 +26,11 @@ use num_bigint::BigUint;
 use num_integer::Integer;
 use std::{borrow::Cow, cmp::Ordering};
 
-use crate::errors::{InternalBug, InternalError, RuntimeError, SsaReport};
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
+use crate::{
+    ErrorType,
+    errors::{InternalBug, InternalError, RuntimeError, SsaReport},
+};
 
 mod big_int;
 mod black_box;
@@ -476,9 +479,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
         if diff_expr.is_const() {
             // Constraint is always false
-            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed {
-                call_stack: self.get_call_stack(),
-            }));
+            let message = self.get_assertion_payload_message(assert_message.as_ref());
+            let call_stack = self.get_call_stack();
+            self.warnings.push(SsaReport::Bug(InternalBug::AssertFailed { call_stack, message }));
         }
 
         self.acir_ir.assert_is_zero(diff_expr);
@@ -490,6 +493,22 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.mark_variables_equivalent(lhs, rhs)?;
 
         Ok(())
+    }
+
+    /// Returns Some(String) if the assertion message is present and it refers to a static string.
+    fn get_assertion_payload_message(
+        &self,
+        assert_message: Option<&AssertionPayload<F>>,
+    ) -> Option<String> {
+        assert_message.as_ref().and_then(|assertion_payload| {
+            if let Some(ErrorType::String(message)) =
+                self.acir_ir.error_types.get(&ErrorSelector::new(assertion_payload.error_selector))
+            {
+                Some(message.to_string())
+            } else {
+                None
+            }
+        })
     }
 
     /// Constrains the `lhs` and `rhs` to be non-equal.
@@ -899,10 +918,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Constrain `r < rhs`.
         //
-        // We need to use the predicate in case of `rhs` does not have the assumed bit size.
-        // This can happen when the predicate is false because the values
-        // in a non taken branch are not constrained (cf. issue #8329).
-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, predicate)?;
+        // `rhs` has the correct bit-size because either it is enforced by the overflow checks
+        // or `rhs` is zero when the overflow checks are disabled.
+        // Indeed, in that case, rhs is replaced with 'predicate * rhs'
+        //
+        // Using the predicate as an offset is a small optimization:
+        // * if the predicate is true, then the offset is one and this assert that 'r<rhs',
+        //   without using a predicate (because 'one' is given for the predicate argument).
+        // * if the predicate is false, then this will assert 'r<=rhs',
+        //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
+        //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
+        //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
+        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
         // => predicate * (a - b * q - r) == 0
@@ -930,7 +957,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // quotient_var is the output of a brillig call
                 self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)?;
 
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                // when q == q0, q*b+r can overflow so we need to bound r to avoid the overflow.
                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
                 let predicate = self.mul_var(size_predicate, predicate)?;
                 // Ensure that there is no overflow, under q == q0 predicate
@@ -938,11 +965,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let max_r = F::from_be_bytes_reduce(&max_r_big.to_bytes_be());
                 let max_r_var = self.add_constant(max_r);
 
-                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                // Bound the remainder to be <p-q0*b, if the predicate is true,
+                // that is, if q0 == q then assert(r < max_r), where is max_r = p-q0*b, and q0 = p/b, so that q*b+r<p
                 self.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    predicate,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )?;
@@ -1019,7 +1047,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let bit_size = bit_size_u128(rhs_offset);
             // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
-            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            let two_pow_bit_size_minus_one =
+                if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
+            let r = two_pow_bit_size_minus_one - rhs_offset;
             // however, since it is a constant, we can compute it's actual bit size
             let r_bit_size = bit_size_u128(r);
 
@@ -1106,7 +1136,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Performs the division using the unsigned values of lhs and rhs
         let (q1, r1) =
-            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size - 1, predicate)?;
+            self.euclidean_division_var(unsigned_lhs, unsigned_rhs, bit_size, predicate)?;
 
         // Unsigned to signed: derive q and r from q1,r1 and the signs of lhs and rhs
         // Quotient sign is lhs sign * rhs sign, whose resulting sign bit is the XOR of the sign bits
@@ -1183,12 +1213,13 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         .assertion_payloads
                         .insert(self.acir_ir.last_acir_opcode_location(), payload);
                 }
+                Ok(predicate_range)
             }
             NumericType::NativeField => {
                 // Range constraining a Field is a no-op
+                Ok(variable)
             }
         }
-        Ok(variable)
     }
 
     /// Returns an `AcirVar` which will be constrained to be lhs mod 2^{rhs}

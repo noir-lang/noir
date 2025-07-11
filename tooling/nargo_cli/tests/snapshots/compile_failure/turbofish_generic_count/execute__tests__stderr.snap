@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused function foo
+   ┌─ src/main.nr:13:4
+   │
+13 │ fn foo<T>(bar: Bar<T>) {
+   │    --- unused function
+   │
+
+error: Expected 1 generic from this function, but 2 were provided
+   ┌─ src/main.nr:20:12
+   │
+20 │     assert(bar1.zeroed::<u32, Field>() == 0);
+   │            ---------------------------
+   │
+
+Aborting due to 1 previous error

@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[databus_two_calldata_simple] Circuit output: Field(11)

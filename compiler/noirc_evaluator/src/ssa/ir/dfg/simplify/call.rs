@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -506,6 +506,7 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
+        offset: ArrayOffset::None,
     };
 
     let set_last_slice_value = dfg
@@ -518,12 +519,17 @@ fn simplify_slice_push_back(
 
     let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
 
-    let new_slice = value_merger.merge_values(
+    let Ok(new_slice) = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
         set_last_slice_value,
         new_slice,
-    );
+    ) else {
+        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
+        // all of ssa. Instead we just choose not to simplify the slice call since this should
+        // be a rare case.
+        return SimplifyResult::None;
+    };
 
     SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
 }
@@ -554,8 +560,11 @@ fn simplify_slice_pop_back(
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+        let get_last_elem_instr = Instruction::ArrayGet {
+            array: arguments[1],
+            index: flattened_len,
+            offset: ArrayOffset::None,
+        };
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg

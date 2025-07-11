@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(mut array: [Field; 2], i: u32) {
+    assert(array[i - 1_u32] == 5_Field);
+    assert(array[i] == 10_Field);
+    array[i] = 2_Field;
+    let array2: [[Field; 2]; 2] = [array, array];
+    assert(array2[0_u32][0_u32] == 5_Field);
+    assert(array2[0_u32][i] == 2_Field);
+    assert(array2[i][0_u32] == 5_Field);
+    assert(array2[i][i] == 2_Field);
+}

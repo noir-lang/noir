@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod Foo {
+    pub(crate) struct NewType {
+        pub(crate) a: Field,
+    }
+}
+
+mod Bar {
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
+
+}
+
+mod Baz {
+    pub(crate) use crate::Foo::{NewType, NewType as BarStruct};
+
+    pub(crate) struct Works {
+        pub(crate) a: Field,
+    }
+}
+
+fn main(works: Baz::Works, fails: Foo::NewType, also_fails: Foo::NewType) -> pub Field {
+    (works.a + fails.a) + also_fails.a
+}
