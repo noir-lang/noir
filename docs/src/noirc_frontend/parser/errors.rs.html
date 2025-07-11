@@ -321,7 +321,9 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, ItemVisibility, UnresolvedType};
 <span class="kw">use </span><span class="kw">crate</span>::lexer::errors::LexerErrorKind;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::token::Token;
 <span class="kw">use </span><span class="kw">crate</span>::token::TokenKind;
@@ -434,6 +436,8 @@
     </span>TraitBoundsNotAllowedHere,
     <span class="attr">#[error(<span class="string">"Missing type for associated constant"</span>)]
     </span>MissingTypeForAssociatedConstant,
+    <span class="attr">#[error(<span class="string">"Associated trait constant default values are not supported"</span>)]
+    </span>AssociatedTraitConstantDefaultValuesAreNotSupported,
 }
 
 <span class="doccomment">/// Represents a parsing error, or a parsing error in the making.

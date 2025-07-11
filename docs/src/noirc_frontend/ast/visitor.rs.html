@@ -1691,16 +1691,7 @@
 <a href="#1690" id="1690">1690</a>
 <a href="#1691" id="1691">1691</a>
 <a href="#1692" id="1692">1692</a>
-<a href="#1693" id="1693">1693</a>
-<a href="#1694" id="1694">1694</a>
-<a href="#1695" id="1695">1695</a>
-<a href="#1696" id="1696">1696</a>
-<a href="#1697" id="1697">1697</a>
-<a href="#1698" id="1698">1698</a>
-<a href="#1699" id="1699">1699</a>
-<a href="#1700" id="1700">1700</a>
-<a href="#1701" id="1701">1701</a>
-<a href="#1702" id="1702">1702</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#1693" id="1693">1693</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noirc_errors::Span;
 
 <span class="kw">use crate</span>::{
@@ -1825,12 +1816,7 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_trait_item_constant(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        _name: <span class="kw-2">&amp;</span>Ident,
-        _typ: <span class="kw-2">&amp;</span>UnresolvedType,
-        _default_value: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&gt;,
-    ) -&gt; bool {
+    <span class="kw">fn </span>visit_trait_item_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, _name: <span class="kw-2">&amp;</span>Ident, _typ: <span class="kw-2">&amp;</span>UnresolvedType) -&gt; bool {
         <span class="bool-val">true
     </span>}
 
@@ -2495,13 +2481,9 @@
                     }
                 }
             }
-            TraitItem::Constant { name, typ, default_value } =&gt; {
-                <span class="kw">if </span>visitor.visit_trait_item_constant(name, typ, default_value) {
+            TraitItem::Constant { name, typ } =&gt; {
+                <span class="kw">if </span>visitor.visit_trait_item_constant(name, typ) {
                     typ.accept(visitor);
-
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(default_value) = default_value {
-                        default_value.accept(visitor);
-                    }
                 }
             }
             TraitItem::Type { name, bounds } =&gt; {

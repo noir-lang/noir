@@ -2372,7 +2372,7 @@
                             }
                         }
                     }
-                    TraitItem::Constant { name, typ, default_value: <span class="kw">_ </span>} =&gt; {
+                    TraitItem::Constant { name, typ } =&gt; {
                         <span class="kw">let </span>global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.<span class="number">0</span>.local_id,

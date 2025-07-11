@@ -758,12 +758,7 @@
 <a href="#757" id="757">757</a>
 <a href="#758" id="758">758</a>
 <a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a>
-<a href="#761" id="761">761</a>
-<a href="#762" id="762">762</a>
-<a href="#763" id="763">763</a>
-<a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#760" id="760">760</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{
@@ -1092,17 +1087,12 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_trait_item_constant(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        name: <span class="kw-2">&amp;</span>Ident,
-        typ: <span class="kw-2">&amp;</span>UnresolvedType,
-        default_value: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Expression&gt;,
-    ) -&gt; bool {
+    <span class="kw">fn </span>visit_trait_item_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>Ident, typ: <span class="kw-2">&amp;</span>UnresolvedType) -&gt; bool {
         <span class="kw">if </span>name.is_empty() {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
-        <span class="self">self</span>.collect_in_constant(name, typ, default_value.as_ref());
+        <span class="self">self</span>.collect_in_constant(name, typ, <span class="prelude-val">None</span>);
         <span class="bool-val">false
     </span>}
 
