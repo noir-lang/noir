@@ -501,6 +501,10 @@ impl RcTracker {
 
         self.mutated_array_types.insert(typ);
 
+        if dfg.is_global(value) {
+            return;
+        }
+
         // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
         let Value::Instruction { instruction, .. } = &dfg[value] else {
             return;
@@ -510,9 +514,7 @@ impl RcTracker {
         };
 
         for element in elements {
-            if !dfg.is_global(*element) {
-                self.handle_value_for_mutated_array_types(*element, dfg);
-            }
+            self.handle_value_for_mutated_array_types(*element, dfg);
         }
     }
 
