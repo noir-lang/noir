@@ -517,7 +517,9 @@ impl FunctionContext<'_> {
         if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
             // If the array length is a power of two then we can make use of the range check opcode
             // to assert that the index fits in the relevant number of bits.
-            let array_len_bits = array_len_constant.expect("array checked to be constant").ilog2();
+            let array_len_constant= array_len_constant.expect("array checked to be constant");
+            let array_len_bits = array_len_constant.ilog2();
+            debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
             self.builder.insert_range_check(index, array_len_bits, assert_message);
         } else {
             // If it's not a power of two then we need to do an explicit inequality and constraint.
