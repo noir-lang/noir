@@ -213,6 +213,15 @@ impl Parser<'_> {
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
+        if self.eat_assign() {
+            let expr_start_location = self.current_token_location;
+            let _ = self.parse_expression_or_error();
+            self.push_error(
+                ParserErrorReason::AssociatedTraitConstantDefaultValuesAreNotSupported,
+                self.location_since(expr_start_location),
+            );
+        }
+
         self.eat_semicolon_or_error();
 
         Some(TraitItem::Constant { name, typ })
@@ -507,7 +516,7 @@ mod tests {
 
     #[test]
     fn parse_trait_with_constant() {
-        let src = "trait Foo { let x: Field; }";
+        let src = "trait Foo { let x: Field = 1; }";
         let mut noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.items.len(), 1);
 
@@ -518,6 +527,18 @@ mod tests {
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_default_value() {
+        let src = "
+        trait Foo { let x: Field = 1 + 2; }
+                                   ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_module, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span).to_string();
+        assert!(error.contains("Associated trait constant default values are not supported"));
     }
 
     #[test]
