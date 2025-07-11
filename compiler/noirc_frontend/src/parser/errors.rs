@@ -91,7 +91,7 @@ pub enum ParserErrorReason {
     #[error(
         "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
         name,
-        if min == max { min.to_string() } else { format!("between {} and {}", min, max) },
+        if min == max { min.to_string() } else { format!("between {min} and {max}") },
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
@@ -205,7 +205,7 @@ impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token_to_string = |token: &Token| match token {
             Token::EOF => token.to_string(),
-            _ => format!("'{}'", token),
+            _ => format!("'{token}'"),
         };
 
         let reason_str: String = if self.reason.is_none() {

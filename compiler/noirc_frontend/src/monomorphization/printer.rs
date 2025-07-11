@@ -55,7 +55,7 @@ impl Default for AstPrinter {
 
 impl AstPrinter {
     fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
-        if self.show_id { format!("{}${}", name, definition) } else { name.to_string() }
+        if self.show_id { format!("{name}${definition}") } else { name.to_string() }
     }
 
     fn fmt_local(&self, name: &str, id: LocalId) -> String {
@@ -628,7 +628,7 @@ impl Display for Definition {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
             Definition::Global(id) => write!(f, "g{}", id.0),
-            Definition::Function(id) => write!(f, "f{}", id),
+            Definition::Function(id) => write!(f, "f{id}"),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
             Definition::Oracle(name) => write!(f, "{name}"),

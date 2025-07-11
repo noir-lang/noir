@@ -62,7 +62,7 @@ impl FuzzerBuilder {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
                 Err(e) => {
-                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
+                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {e:?}")))
                 }
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),

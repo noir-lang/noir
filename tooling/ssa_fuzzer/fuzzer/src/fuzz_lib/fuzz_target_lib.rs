@@ -111,7 +111,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
     let (witness_map, values, types) = initialize_witness_map(&data);
 
     // to triage
-    log::debug!("initial_witness: {:?}", witness_map);
+    log::debug!("initial_witness: {witness_map:?}");
     log::debug!("commands: {:?}", data.commands);
 
     let mut fuzzer = Fuzzer::new(types, values, data.blocks, options);
@@ -195,7 +195,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {:?}", result);
+            panic!("Program executed successfully with result: {result:?}");
         }
     }
 
