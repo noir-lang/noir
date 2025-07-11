@@ -1012,7 +1012,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         // The number of elements in the array must be a multiple of the number of element types
         let element_types = result_type.clone().element_types();
-        if elements.len() % element_types.len() != 0 {
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
             return Err(internal(InternalError::MakeArrayElementCountMismatch {
                 result,
                 elements_count: elements.len(),
