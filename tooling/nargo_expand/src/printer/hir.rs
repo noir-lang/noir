@@ -49,14 +49,14 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    fn show_hir_expression_id_maybe_inside_curlies(&mut self, expr_id: ExprId) {
+    fn show_hir_expression_id_maybe_inside_curly_braces(&mut self, expr_id: ExprId) {
         let hir_expr = self.interner.expression(&expr_id);
-        let curlies = hir_expression_needs_parentheses(&hir_expr);
-        if curlies {
+        let needs_curly_braces = hir_expression_needs_parentheses(&hir_expr);
+        if needs_curly_braces {
             self.push('{');
         }
         self.show_hir_expression(hir_expr, expr_id);
-        if curlies {
+        if needs_curly_braces {
             self.push('}');
         }
     }
@@ -64,7 +64,7 @@ impl ItemPrinter<'_, '_> {
     pub(super) fn show_hir_expression(&mut self, hir_expr: HirExpression, expr_id: ExprId) {
         match hir_expr {
             HirExpression::Ident(hir_ident, generics) => {
-                self.show_hir_ident(hir_ident);
+                self.show_hir_ident(hir_ident, Some(expr_id));
                 if let Some(generics) = generics {
                     let use_colons = true;
                     self.show_generic_types(&generics, use_colons);
@@ -258,7 +258,7 @@ impl ItemPrinter<'_, '_> {
             self.show_type(&hir_lambda.return_type);
             self.push_str(" ");
         }
-        self.show_hir_expression_id_maybe_inside_curlies(hir_lambda.body);
+        self.show_hir_expression_id_maybe_inside_curly_braces(hir_lambda.body);
     }
 
     fn show_hir_match(&mut self, hir_match: HirMatch) {
@@ -386,19 +386,19 @@ impl ItemPrinter<'_, '_> {
             return false;
         };
 
-        // Is this `self.foo()` where `self` is currently a trait?
-        // If so, show it as `self.foo()` instead of `Self::foo(self)`.
-        let mut method_on_trait_self = false;
-
         // Special case: assumed trait method
-        if let ImplKind::TraitMethod(trait_method) = hir_ident.impl_kind {
+        if let ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
             if trait_method.assumed {
-                if let Type::NamedGeneric(NamedGeneric { name, .. }) = &trait_method.constraint.typ
-                {
-                    if name.to_string() == "Self" {
-                        method_on_trait_self = true;
-                    }
-                }
+                // Is this `self.foo()` where `self` is currently a trait?
+                // If so, show it as `self.foo()` instead of `Self::foo(self)`.
+                let method_on_trait_self =
+                    if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+                        &trait_method.constraint.typ
+                    {
+                        name.to_string() == "Self"
+                    } else {
+                        false
+                    };
 
                 if !method_on_trait_self {
                     self.show_type(&trait_method.constraint.typ);
@@ -419,11 +419,6 @@ impl ItemPrinter<'_, '_> {
         // The function must have a self type
         let func_meta = self.interner.function_meta(&func_id);
 
-        // Don't do this for trait methods (refer to the trait name instead)
-        if func_meta.trait_id.is_some() && !method_on_trait_self {
-            return false;
-        }
-
         let Some(self_type) = &func_meta.self_type else {
             return false;
         };
@@ -433,12 +428,20 @@ impl ItemPrinter<'_, '_> {
             return false;
         }
 
+        let (first_param_patten, first_param_type, _) = &func_meta.parameters.0[0];
+
+        // The first parameter must be `self` or `_self`
+        if !self.pattern_is_self_or_underscore_self(first_param_patten) {
+            return false;
+        }
+
         // The first parameter must unify with the self type (as-is or after removing `&mut`)
-        let param_type = func_meta.parameters.0[0].1.follow_bindings();
-        let param_type = if let Type::Reference(typ, ..) = param_type { *typ } else { param_type };
+        let first_param_type = first_param_type.follow_bindings();
+        let first_param_type =
+            if let Type::Reference(typ, ..) = first_param_type { *typ } else { first_param_type };
 
         let mut bindings = TypeBindings::default();
-        if self_type.try_unify(&param_type, &mut bindings).is_err() {
+        if self_type.try_unify(&first_param_type, &mut bindings).is_err() {
             return false;
         }
 
@@ -518,7 +521,7 @@ impl ItemPrinter<'_, '_> {
             }
             HirStatement::For(hir_for_statement) => {
                 self.push_str("for ");
-                self.show_hir_ident(hir_for_statement.identifier);
+                self.show_hir_ident(hir_for_statement.identifier, None);
                 self.push_str(" in ");
                 self.show_hir_expression_id(hir_for_statement.start_range);
                 self.push_str("..");
@@ -622,7 +625,7 @@ impl ItemPrinter<'_, '_> {
     fn show_hir_lvalue(&mut self, lvalue: HirLValue) {
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
-                self.show_hir_ident(hir_ident);
+                self.show_hir_ident(hir_ident, None);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
                 self.show_hir_lvalue(*object);
@@ -651,7 +654,7 @@ impl ItemPrinter<'_, '_> {
 
     fn show_hir_pattern(&mut self, pattern: HirPattern) {
         match pattern {
-            HirPattern::Identifier(hir_ident) => self.show_hir_ident(hir_ident),
+            HirPattern::Identifier(hir_ident) => self.show_hir_ident(hir_ident, None),
             HirPattern::Mutable(hir_pattern, _) => {
                 self.push_str("mut ");
                 self.show_hir_pattern(*hir_pattern);
@@ -687,28 +690,101 @@ impl ItemPrinter<'_, '_> {
     fn show_definition_id(&mut self, definition_id: DefinitionId) {
         let location = self.interner.definition(definition_id).location;
         let ident = HirIdent::non_trait_method(definition_id, location);
-        self.show_hir_ident(ident);
+        self.show_hir_ident(ident, None);
     }
 
-    fn show_hir_ident(&mut self, ident: HirIdent) {
+    fn show_hir_ident(&mut self, ident: HirIdent, expr_id: Option<ExprId>) {
+        let instantiation_bindings = if let Some(expr_id) = expr_id {
+            self.interner.try_get_instantiation_bindings(expr_id)
+        } else {
+            None
+        };
+
+        match ident.impl_kind {
+            ImplKind::NotATraitMethod => (),
+            ImplKind::TraitItem(trait_item) => {
+                let mut constraint = trait_item.constraint.clone();
+                constraint.typ = constraint.typ.follow_bindings();
+                if let Some(bindings) = instantiation_bindings {
+                    constraint.typ = constraint.typ.substitute(bindings);
+                    constraint.trait_bound.trait_generics =
+                        constraint.trait_bound.trait_generics.map(|typ| typ.substitute(bindings));
+                }
+
+                if self.trait_constraints.contains(&constraint) {
+                    self.show_type(&constraint.typ);
+                    self.push_str("::");
+                    let name = self.interner.definition_name(trait_item.definition);
+                    self.push_str(name);
+                    return;
+                } else {
+                    match &constraint.typ {
+                        Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
+                            // Don't show this as `AsTraitPath`
+                        }
+                        _ => {
+                            self.push('<');
+                            self.show_type(&constraint.typ);
+                            self.push_str(" as ");
+                            let trait_id = constraint.trait_bound.trait_id;
+                            let trait_ = self.interner.get_trait(trait_id);
+                            self.show_reference_to_module_def_id(
+                                ModuleDefId::TraitId(trait_id),
+                                trait_.visibility,
+                                true,
+                            );
+                            self.show_trait_generics(&constraint.trait_bound.trait_generics);
+                            self.push_str(">::");
+                            let name = self.interner.definition_name(trait_item.definition);
+                            self.push_str(name);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
         let definition = self.interner.definition(ident.id);
         match definition.kind {
             DefinitionKind::Function(func_id) => {
                 let func_meta = self.interner.function_meta(&func_id);
-                if func_meta.self_type.is_some() && func_meta.self_type == self.self_type {
+                let self_type = &func_meta.self_type;
+
+                if let Some(self_type) = self_type {
                     // No need to fully-qualify the function name if its self type is the current self type
-                    let name = self.interner.function_name(&func_id);
-                    self.push_str("Self::");
-                    self.push_str(name);
-                } else {
-                    let use_import = true;
-                    let visibility = self.interner.function_visibility(func_id);
-                    self.show_reference_to_module_def_id(
-                        ModuleDefId::FunctionId(func_id),
-                        visibility,
-                        use_import,
-                    );
+                    if Some(self_type) == self.self_type.as_ref() {
+                        let name = self.interner.function_name(&func_id);
+                        self.push_str("Self::");
+                        self.push_str(name);
+                        return;
+                    }
+
+                    // See if we can show this as `Self::method` by substituting instantiation type bindings for self_type
+                    if let Some(instantiation_bindings) = instantiation_bindings {
+                        let self_type = self_type.substitute(instantiation_bindings);
+                        let unbound = if let Type::TypeVariable(type_var) = &self_type {
+                            type_var.borrow().is_unbound()
+                        } else {
+                            false
+                        };
+
+                        if !unbound {
+                            self.show_type_as_expression(&self_type);
+                            self.push_str("::");
+                            let name = self.interner.function_name(&func_id);
+                            self.push_str(name);
+                            return;
+                        }
+                    }
                 }
+
+                let use_import = true;
+                let visibility = self.interner.function_visibility(func_id);
+                self.show_reference_to_module_def_id(
+                    ModuleDefId::FunctionId(func_id),
+                    visibility,
+                    use_import,
+                );
             }
             DefinitionKind::Global(global_id) => {
                 let global_info = self.interner.get_global(global_id);

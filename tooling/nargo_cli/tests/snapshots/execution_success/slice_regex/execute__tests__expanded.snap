@@ -63,14 +63,10 @@ where
     T: Regex,
     U: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-        U: Regex,
-    {
-        let lhs_result: Match = Regex::find_match(self.0, input);
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result: Match = self.0.find_match(input);
         if lhs_result.succeeded {
-            let rhs_result: Match = Regex::find_match(self.1, lhs_result.leftover);
+            let rhs_result: Match = self.1.find_match(lhs_result.leftover);
             if rhs_result.succeeded {
                 Match {
                     succeeded: true,
@@ -94,14 +90,11 @@ impl<let N: u32, T> Regex for Repeated<T, N>
 where
     T: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-    {
+    fn find_match(self, input: [u8]) -> Match {
         let mut result: Match = Match::empty(input);
         for _ in 0_u32..N {
             if result.succeeded {
-                let next_result: Match = Regex::find_match(self.inner, result.leftover);
+                let next_result: Match = self.inner.find_match(result.leftover);
                 result = Match {
                     succeeded: next_result.succeeded,
                     match_ends: result.match_ends + next_result.match_ends,
@@ -123,16 +116,12 @@ where
     T: Regex,
     U: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-        U: Regex,
-    {
-        let lhs_result: Match = Regex::find_match(self.lhs, input);
+    fn find_match(self, input: [u8]) -> Match {
+        let lhs_result: Match = self.lhs.find_match(input);
         if lhs_result.succeeded {
             lhs_result
         } else {
-            Regex::find_match(self.rhs, input)
+            self.rhs.find_match(input)
         }
     }
 }
@@ -145,10 +134,7 @@ impl<T> Regex for Question<T>
 where
     T: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-    {
+    fn find_match(self, input: [u8]) -> Match {
         Or::<T, ()> { lhs: self.inner, rhs: () }.find_match(input)
     }
 }
@@ -161,10 +147,7 @@ impl<let N: u32, T> Regex for Star<T, N>
 where
     T: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-    {
+    fn find_match(self, input: [u8]) -> Match {
         let regex: Repeated<Question<T>, N> =
             Repeated::<Question<T>, N> { inner: Question::<T> { inner: self.inner } };
         regex.find_match(input)
@@ -179,10 +162,7 @@ impl<let N: u32, let N_PRED: u32, T> Regex for Plus<T, N, N_PRED>
 where
     T: Regex,
 {
-    fn find_match(self, input: [u8]) -> Match
-    where
-        T: Regex,
-    {
+    fn find_match(self, input: [u8]) -> Match {
         std::static_assert((N_PRED + 1_u32) == N, "N - 1 != N_PRED");
         let star: Star<T, N_PRED> = Star::<T, N_PRED> { inner: self.inner };
         (self.inner, star).find_match(input)

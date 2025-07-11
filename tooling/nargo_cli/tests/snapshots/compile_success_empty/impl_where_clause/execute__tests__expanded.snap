@@ -12,7 +12,7 @@ impl<T> MyStruct<T> {
     where
         T: MyEq,
     {
-        (self.a == other.a) & MyEq::my_eq(self.b, other.b)
+        (self.a == other.a) & self.b.my_eq(other.b)
     }
 }
 

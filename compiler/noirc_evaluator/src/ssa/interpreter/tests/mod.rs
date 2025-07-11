@@ -3,6 +3,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use insta::assert_snapshot;
 
 use crate::ssa::{
     interpreter::value::NumericValue,
@@ -50,6 +51,16 @@ fn expect_value_with_args(src: &str, args: Vec<Value>) -> Value {
     let mut results = expect_values_with_args(src, args);
     assert_eq!(results.len(), 1);
     results.pop().unwrap()
+}
+
+#[track_caller]
+fn expect_printed_output(src: &str) -> String {
+    let mut output = Vec::new();
+    let ssa = Ssa::from_str(src).unwrap();
+    let _ = ssa
+        .interpret_with_options(Vec::new(), Default::default(), &mut output)
+        .expect("interpret not expected to fail");
+    String::from_utf8(output).expect("not a UTF-8 string")
 }
 
 pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
@@ -148,10 +159,10 @@ fn run_flattened_function() {
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 0]");
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
 }
 
 #[test]

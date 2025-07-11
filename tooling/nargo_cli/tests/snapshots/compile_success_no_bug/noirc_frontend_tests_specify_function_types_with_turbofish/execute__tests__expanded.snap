@@ -23,7 +23,7 @@ where
     T: Default2,
     U: Default2,
 {
-    (Default2::default2(), Default2::default2())
+    (T::default2(), U::default2())
 }
 
 fn main() {

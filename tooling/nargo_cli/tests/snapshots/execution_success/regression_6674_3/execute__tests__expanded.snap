@@ -5,13 +5,13 @@ expression: expanded_code
 use std::mem::zeroed;
 
 pub struct PrivateAccumulatedData {
-    public_call_requests: [Counted<Field>; 4],
+    pub public_call_requests: [Counted<Field>; 4],
 }
 
 pub struct PrivateAccumulatedDataBuilder {
-    l2_to_l1_msgs: BoundedVec<Field, 4>,
-    public_call_requests: BoundedVec<Counted<Field>, 4>,
-    private_call_stack: BoundedVec<Field, 4>,
+    pub l2_to_l1_msgs: BoundedVec<Field, 4>,
+    pub public_call_requests: BoundedVec<Counted<Field>, 4>,
+    pub private_call_stack: BoundedVec<Field, 4>,
 }
 
 impl PrivateAccumulatedDataBuilder {
@@ -21,8 +21,8 @@ impl PrivateAccumulatedDataBuilder {
 }
 
 pub struct Counted<T> {
-    inner: T,
-    counter: u32,
+    pub inner: T,
+    pub counter: u32,
 }
 
 impl<T> Counted<T> {
@@ -32,18 +32,18 @@ impl<T> Counted<T> {
 }
 
 pub struct PrivateKernelCircuitPublicInputs {
-    end: PrivateAccumulatedData,
+    pub end: PrivateAccumulatedData,
 }
 
 pub struct PrivateKernelData {
-    public_inputs: PrivateKernelCircuitPublicInputs,
+    pub public_inputs: PrivateKernelCircuitPublicInputs,
 }
 
 pub struct FixtureBuilder2 {
-    public_teardown_call_request: Field,
-    private_call_requests: BoundedVec<Field, 4>,
-    public_call_requests: BoundedVec<Counted<Field>, 4>,
-    counter: u32,
+    pub public_teardown_call_request: Field,
+    pub private_call_requests: BoundedVec<Field, 4>,
+    pub public_call_requests: BoundedVec<Counted<Field>, 4>,
+    pub counter: u32,
 }
 
 impl FixtureBuilder2 {
@@ -76,7 +76,7 @@ impl FixtureBuilder2 {
     }
 
     pub fn add_public_call_request(&mut self) {
-        self.public_call_requests.push(Counted::new(zeroed(), self.next_counter()));
+        self.public_call_requests.push(Counted::<Field>::new(zeroed(), self.next_counter()));
     }
 
     pub fn append_public_call_requests(&mut self, num: u32) {
@@ -126,11 +126,11 @@ pub struct PrivateKernelCircuitPublicInputsComposer {
 
 impl PrivateKernelCircuitPublicInputsComposer {
     pub unconstrained fn sort_ordered_values(&mut self) {
-        self.public_inputs.end.l2_to_l1_msgs = BoundedVec::from_parts_unchecked(
+        self.public_inputs.end.l2_to_l1_msgs = BoundedVec::<Field, 4>::from_parts_unchecked(
             sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage()),
             self.public_inputs.end.l2_to_l1_msgs.len(),
         );
-        self.public_inputs.end.public_call_requests = BoundedVec::from_parts_unchecked(
+        self.public_inputs.end.public_call_requests = BoundedVec::<Counted<Field>, 4>::from_parts_unchecked(
             sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage()),
             self.public_inputs.end.public_call_requests.len(),
         );
@@ -141,8 +141,10 @@ impl PrivateKernelCircuitPublicInputsComposer {
     ) -> Self {
         let mut public_inputs: PrivateKernelCircuitPublicInputsBuilder = zeroed();
         let start: PrivateAccumulatedData = previous_kernel_public_inputs.end;
-        public_inputs.end.public_call_requests =
-            BoundedVec::from_parts(start.public_call_requests, start.public_call_requests.len());
+        public_inputs.end.public_call_requests = BoundedVec::<Counted<Field>, 4>::from_parts(
+            start.public_call_requests,
+            start.public_call_requests.len(),
+        );
         Self { public_inputs: public_inputs }
     }
 }
@@ -152,7 +154,7 @@ pub struct PrivateKernelCircuitPublicInputsBuilder {
 }
 
 fn vec_reverse<T, let N: u32>(vec: BoundedVec<T, N>) -> BoundedVec<T, N> {
-    let mut reversed: BoundedVec<T, N> = BoundedVec::new();
+    let mut reversed: BoundedVec<T, N> = BoundedVec::<T, N>::new();
     let len: u32 = vec.len();
     for i in 0_u32..N {
         if i < len {

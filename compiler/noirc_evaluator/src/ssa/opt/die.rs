@@ -64,6 +64,7 @@ impl Ssa {
                 .unused_parameters
                 .values()
                 .any(|block_map| block_map.values().any(|params| !params.is_empty()));
+
             // If there are no unused parameters, return early
             if !has_unused {
                 return new_ssa;
@@ -87,46 +88,36 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> (Ssa, DIEResult) {
-        let mut result = self
+        let result = self
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let (used_globals, unused_params) =
-                    func.dead_instruction_elimination(flattened, skip_brillig);
+                let unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
                 let mut result = DIEResult::default();
 
-                if func.runtime().is_brillig() {
-                    result.used_globals.insert(*id, used_globals);
-                }
                 result.unused_parameters.insert(*id, unused_params);
 
                 result
             })
             .reduce(DIEResult::default, |mut a, b| {
-                a.used_globals.extend(b.used_globals);
                 a.unused_parameters.extend(b.unused_parameters);
                 a
             });
 
-        let globals = &self.functions[&self.main_id].dfg.globals;
-        for used_global_values in result.used_globals.values_mut() {
-            // DIE only tracks used instruction results, however, globals include constants.
-            // Back track globals for internal values which may be in use.
-            for (id, value) in globals.values_iter().rev() {
-                if used_global_values.contains(&id) {
-                    if let Value::Instruction { instruction, .. } = &value {
-                        let instruction = &globals[*instruction];
-                        instruction.for_each_value(|value_id| {
-                            used_global_values.insert(value_id);
-                        });
-                    }
-                }
-            }
-        }
-
-        self.used_globals = std::mem::take(&mut result.used_globals);
-
         (self, result)
+    }
+
+    /// Sanity check on the final SSA, panicking if the assumptions don't hold.
+    ///
+    /// Done as a separate step so that we can put it after other passes which provide
+    /// concrete feedback about where the problem with the Noir code might be, such as
+    /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
+    /// of the offending instruction here as well, it's just not clear what error message
+    /// to return, besides the fact that mem2reg was unable to eliminate something.
+    #[cfg_attr(not(debug_assertions), allow(unused_variables))]
+    pub(crate) fn dead_instruction_elimination_post_check(&self, flattened: bool) {
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(|f| die_post_check(f, flattened));
     }
 }
 
@@ -145,7 +136,6 @@ impl Function {
     /// of its instructions are needed elsewhere.
     ///
     /// # Returns
-    /// - The set of globals that were used in this function.
     ///   After processing all functions, the union of these sets enables determining the unused globals.
     /// - A mapping of (block id -> unused parameters) for the given function.
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
@@ -153,9 +143,9 @@ impl Function {
         &mut self,
         flattened: bool,
         skip_brillig: bool,
-    ) -> (HashSet<ValueId>, HashMap<BasicBlockId, Vec<ValueId>>) {
+    ) -> HashMap<BasicBlockId, Vec<ValueId>> {
         if skip_brillig && self.dfg.runtime().is_brillig() {
-            return (HashSet::default(), HashMap::default());
+            return HashMap::default();
         }
 
         let mut context = Context { flattened, ..Default::default() };
@@ -189,16 +179,12 @@ impl Function {
 
         context.remove_rc_instructions(&mut self.dfg);
 
-        (
-            context.used_values.into_iter().filter(|value| self.dfg.is_global(*value)).collect(),
-            unused_params_per_block,
-        )
+        unused_params_per_block
     }
 }
 
 #[derive(Default)]
 struct DIEResult {
-    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
@@ -431,16 +417,7 @@ fn can_be_eliminated_if_unused(
         | Noop
         | MakeArray { .. } => true,
 
-        // Store instructions must be removed by DIE in acir code, any load
-        // instructions should already be unused by that point.
-        //
-        // Note that this check assumes that it is being performed after the flattening
-        // pass and after the last mem2reg pass. This is currently the case for the DIE
-        // pass where this check is done, but does mean that we cannot perform mem2reg
-        // after the DIE pass.
-        Store { .. } => {
-            flattened && function.runtime().is_acir() && function.reachable_blocks().len() == 1
-        }
+        Store { .. } => should_remove_store(function, flattened),
 
         Constrain(..)
         | ConstrainNotEqual(..)
@@ -607,6 +584,38 @@ impl RcTracker {
             .flatten()
             .copied()
             .collect()
+    }
+}
+
+/// Store instructions must be removed by DIE in acir code, any load
+/// instructions should already be unused by that point.
+///
+/// Note that this check assumes that it is being performed after the flattening
+/// pass and after the last mem2reg pass. This is currently the case for the DIE
+/// pass where this check is done, but does mean that we cannot perform mem2reg
+/// after the DIE pass.
+fn should_remove_store(func: &Function, flattened: bool) -> bool {
+    flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+}
+
+/// Check post-execution properties:
+/// * Store and Load instructions should be removed from ACIR after flattening.
+#[cfg(debug_assertions)]
+fn die_post_check(func: &Function, flattened: bool) {
+    if should_remove_store(func, flattened) {
+        for block_id in func.reachable_blocks() {
+            for (i, instruction_id) in func.dfg[block_id].instructions().iter().enumerate() {
+                let instruction = &func.dfg[*instruction_id];
+                if matches!(instruction, Instruction::Load { .. } | Instruction::Store { .. }) {
+                    panic!(
+                        "not expected to have Load or Store instruction after DIE in an ACIR function: {} {} / {block_id} / {i}: {:?}",
+                        func.name(),
+                        func.id(),
+                        instruction
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -927,7 +936,7 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return u32 1
+            return Field 1
         }
         ";
 
@@ -1046,7 +1055,7 @@ mod test {
             v0 = allocate -> &mut Field
             store Field 0 at v0
             return
-        }  
+        }
         "#);
     }
 

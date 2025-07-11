@@ -67,7 +67,7 @@ fn assert_asd_eq_100<T>(t: T)
 where
     T: Asd,
 {
-    assert(Asd::asd(t) == 100_Field);
+    assert(t.asd() == 100_Field);
 }
 
 fn add_one_to_static_function<T>(t: T) -> Field

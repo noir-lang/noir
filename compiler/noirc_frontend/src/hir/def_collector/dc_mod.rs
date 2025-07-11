@@ -18,14 +18,14 @@ use crate::ast::{
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
-use crate::node_interner::{ModuleAttributes, NodeInterner, ReferenceId, TypeId};
+use crate::node_interner::{DefinitionKind, ModuleAttributes, NodeInterner, ReferenceId, TypeId};
 use crate::token::{SecondaryAttribute, TestScope};
 use crate::usage_tracker::{UnusedItem, UsageTracker};
 use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FunctionModifiers, TraitId, TypeAliasId},
+    node_interner::{FunctionModifiers, TraitId},
     parser::{SortedModule, SortedSubModule},
 };
 
@@ -513,6 +513,7 @@ impl ModCollector<'_> {
 
             let mut method_ids = HashMap::default();
             let mut associated_types = Generics::new();
+            let mut associated_constant_ids = HashMap::default();
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
@@ -593,7 +594,7 @@ impl ModCollector<'_> {
                             }
                             Err((first_def, second_def)) => {
                                 let error = DefCollectorErrorKind::Duplicate {
-                                    typ: DuplicateType::TraitAssociatedFunction,
+                                    typ: DuplicateType::TraitAssociatedItem,
                                     first_def,
                                     second_def,
                                 };
@@ -618,7 +619,7 @@ impl ModCollector<'_> {
                             .declare_global(name.clone(), ItemVisibility::Public, global_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedConst,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };
@@ -626,27 +627,38 @@ impl ModCollector<'_> {
                         } else {
                             let type_variable_id = context.def_interner.next_type_variable_id();
                             let typ = self.resolve_associated_constant_type(typ, &mut errors);
+                            let type_var =
+                                TypeVariable::unbound(type_variable_id, Kind::numeric(typ.clone()));
 
-                            associated_types.push(ResolvedGeneric {
-                                name: Rc::new(name.to_string()),
-                                type_var: TypeVariable::unbound(
-                                    type_variable_id,
-                                    Kind::numeric(typ),
-                                ),
-                                location: name.location(),
-                            });
+                            let definition = DefinitionKind::NumericGeneric(
+                                type_var.clone(),
+                                Box::new(typ.clone()),
+                            );
+
+                            let location = name.location();
+                            let definition_id = context.def_interner.push_definition(
+                                name.to_string(),
+                                false,
+                                false,
+                                definition,
+                                location,
+                            );
+                            context.def_interner.push_definition_type(definition_id, typ);
+
+                            associated_constant_ids.insert(name.to_string(), definition_id);
+                            let name = Rc::new(name.to_string());
+                            associated_types.push(ResolvedGeneric { name, type_var, location });
                         }
                     }
                     TraitItem::Type { name, bounds: _ } => {
-                        if let Err((first_def, second_def)) =
-                            self.def_collector.def_map[trait_id.0.local_id].declare_type_alias(
-                                name.clone(),
-                                ItemVisibility::Public,
-                                TypeAliasId::dummy_id(),
-                            )
+                        let trait_associated_type_id =
+                            context.def_interner.push_trait_associated_type(trait_id, name.clone());
+                        if let Err((first_def, second_def)) = self.def_collector.def_map
+                            [trait_id.0.local_id]
+                            .declare_trait_associated_type(name.clone(), trait_associated_type_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
-                                typ: DuplicateType::TraitAssociatedType,
+                                typ: DuplicateType::TraitAssociatedItem,
                                 first_def,
                                 second_def,
                             };
@@ -682,6 +694,7 @@ impl ModCollector<'_> {
                 &unresolved,
                 resolved_generics,
                 associated_types,
+                associated_constant_ids,
             );
 
             if context.def_interner.is_in_lsp_mode() {
@@ -936,7 +949,7 @@ fn push_child_module(
     //   if it's an inline module, or the first char of a the file if it's an external module.
     // - `location` will always point to the token "foo" in `mod foo` regardless of whether
     //   it's inline or external.
-    // Eventually the location put in `ModuleData` is used for codelenses about `contract`s,
+    // Eventually the location put in `ModuleData` is used for CodeLens about `contract`s,
     // so we keep using `location` so that it continues to work as usual.
     let location = Location::new(mod_name.span(), mod_location.file);
     let new_module = ModuleData::new(

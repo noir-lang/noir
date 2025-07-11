@@ -358,9 +358,10 @@ impl<'a> Context<'a> {
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
         let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
@@ -1043,6 +1044,18 @@ impl<'a> Context<'a> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
         let binary_type = self.type_of_binary_operation(binary, dfg);
+
+        if binary_type.is_signed()
+            && matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
+            )
+        {
+            panic!("Checked signed operations should all be removed before ACIRgen")
+        }
+
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();

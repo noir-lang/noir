@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, io::Write};
 
 use super::{
     Ssa,
@@ -27,7 +27,7 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa> {
+struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
@@ -41,9 +41,11 @@ struct Interpreter<'ssa> {
     side_effects_enabled: bool,
 
     options: InterpreterOptions,
+    /// Print output.
+    output: W,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
@@ -74,33 +76,35 @@ type IResults = IResult<Vec<Value>>;
 #[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
-        self.interpret_with_options(args, InterpreterOptions::default())
+        self.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())
     }
 
-    pub fn interpret_with_options(
+    pub fn interpret_with_options<W: Write>(
         &self,
         args: Vec<Value>,
         options: InterpreterOptions,
+        output: W,
     ) -> IResults {
-        self.interpret_function(self.main_id, args, options)
+        self.interpret_function(self.main_id, args, options, output)
     }
 
-    fn interpret_function(
+    fn interpret_function<W: Write>(
         &self,
         function: FunctionId,
         args: Vec<Value>,
         options: InterpreterOptions,
+        output: W,
     ) -> IResults {
-        let mut interpreter = Interpreter::new(self, options);
+        let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
         interpreter.call_function(function, args)
     }
 }
 
-impl<'ssa> Interpreter<'ssa> {
-    fn new(ssa: &'ssa Ssa, options: InterpreterOptions) -> Self {
+impl<'ssa, W: Write> Interpreter<'ssa, W> {
+    fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true, options }
+        Self { ssa, call_stack, side_effects_enabled: true, options, output }
     }
 
     fn call_context(&self) -> &CallContext {
@@ -507,9 +511,9 @@ impl<'ssa> Interpreter<'ssa> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -530,9 +534,9 @@ impl<'ssa> Interpreter<'ssa> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,
@@ -710,17 +714,13 @@ impl<'ssa> Interpreter<'ssa> {
             let actual_bits = bit_count;
             let max_bits = max_bit_size;
 
-            if let Some(message) = error_message {
-                Err(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } else {
-                Err(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            Err(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } else {
             Ok(())
         }
@@ -879,7 +879,11 @@ impl<'ssa> Interpreter<'ssa> {
             let array = self.lookup_array_or_slice(array, "array get")?;
             let index = self.lookup_u32(index, "array get index")?;
             let index = index - offset.to_u32();
-            array.elements.borrow()[index as usize].clone()
+            let elements = array.elements.borrow();
+            let element = elements.get(index as usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
+            })?;
+            element.clone()
         } else {
             let typ = self.dfg().type_of_value(result);
             Value::uninitialized(&typ, result)
@@ -908,6 +912,11 @@ impl<'ssa> Interpreter<'ssa> {
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            let len = array.elements.borrow().len();
+            if index as usize >= len {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            }
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
@@ -1087,7 +1096,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1096,7 +1105,7 @@ macro_rules! apply_int_binop_opt {
             } else {
                 let instruction =
                     format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1158,7 +1167,7 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-impl Interpreter<'_> {
+impl<W: Write> Interpreter<'_, W> {
     fn interpret_binary(&mut self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
         let lhs_id = binary.lhs;
         let rhs_id = binary.rhs;
@@ -1177,7 +1186,7 @@ impl Interpreter<'_> {
             }));
         }
 
-        // Disable this instruction if it is side-effectful and side effects are disabled.
+        // Disable this instruction if it is side-effectual and side effects are disabled.
         if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
@@ -1194,32 +1203,20 @@ impl Interpreter<'_> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
                 // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1355,7 +1352,8 @@ impl Interpreter<'_> {
     fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
         let overflow = || {
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
+            let operator = binary.operator;
+            InterpreterError::Overflow { operator, instruction }
         };
 
         let lhs_id = binary.lhs;

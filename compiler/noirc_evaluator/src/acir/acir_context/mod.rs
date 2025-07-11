@@ -921,6 +921,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         // `rhs` has the correct bit-size because either it is enforced by the overflow checks
         // or `rhs` is zero when the overflow checks are disabled.
         // Indeed, in that case, rhs is replaced with 'predicate * rhs'
+        //
+        // Using the predicate as an offset is a small optimization:
+        // * if the predicate is true, then the offset is one and this assert that 'r<rhs',
+        //   without using a predicate (because 'one' is given for the predicate argument).
+        // * if the predicate is false, then this will assert 'r<=rhs',
+        //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
+        //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
+        //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
         self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_rhs_bits, one)?;
 
         // a * predicate == (b * q + r) * predicate
@@ -949,7 +957,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // quotient_var is the output of a brillig call
                 self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)?;
 
-                // when q == q0, b*q+r can overflow so we need to bound r to avoid the overflow.
+                // when q == q0, q*b+r can overflow so we need to bound r to avoid the overflow.
                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
                 let predicate = self.mul_var(size_predicate, predicate)?;
                 // Ensure that there is no overflow, under q == q0 predicate
@@ -957,11 +965,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let max_r = F::from_be_bytes_reduce(&max_r_big.to_bytes_be());
                 let max_r_var = self.add_constant(max_r);
 
-                // Bound the remainder to be <p-q0*b, if the predicate is true.
+                // Bound the remainder to be <p-q0*b, if the predicate is true,
+                // that is, if q0 == q then assert(r < max_r), where is max_r = p-q0*b, and q0 = p/b, so that q*b+r<p
                 self.bound_constraint_with_offset(
                     remainder_var,
                     max_r_var,
-                    predicate,
+                    one,
                     rhs_const.num_bits(),
                     predicate,
                 )?;
@@ -1038,7 +1047,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let bit_size = bit_size_u128(rhs_offset);
             // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
-            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            let two_pow_bit_size_minus_one =
+                if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
+            let r = two_pow_bit_size_minus_one - rhs_offset;
             // however, since it is a constant, we can compute it's actual bit size
             let r_bit_size = bit_size_u128(r);
 

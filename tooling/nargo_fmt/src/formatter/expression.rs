@@ -98,9 +98,9 @@ impl ChunkFormatter<'_, '_> {
                     false, // force multiple lines
                 ));
             }
-            ExpressionKind::Unsafe(unsafe_xpression) => {
+            ExpressionKind::Unsafe(unsafe_expression) => {
                 group.group(self.format_unsafe_expression(
-                    unsafe_xpression.block,
+                    unsafe_expression.block,
                     false, // force multiple lines
                 ));
             }
@@ -1390,6 +1390,13 @@ mod tests {
     }
 
     #[test]
+    fn format_double_negative_integer() {
+        let src = "global x =  - - 42 ;";
+        let expected = "global x = --42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_ref_mut_integer() {
         let src = "global x = & mut 42 ;";
         let expected = "global x = &mut 42;\n";
@@ -1915,9 +1922,9 @@ global y = 1;
 
     #[test]
     fn format_method_call_chain_3() {
-        let src = "fn foo() {     assert(p4_affine.eq(Gaffine::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
+        let src = "fn foo() {     assert(p4_affine.eq(Something::new(6890855772600357754907169075114257697580319025794532037257385534741338397365, 4338620300185947561074059802482547481416142213883829469920100239455078257889)));  }";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));
@@ -1953,7 +1960,7 @@ global y = 1;
     fn format_nested_method_call_with_maximum_width_2() {
         let src = "fn foo() {
     assert(
-        p4_affine.eq(Gaffine::new(
+        p4_affine.eq(Something::new(
             6890855772600357754907169075114257697580319025794532037257385534741338397365,
             4338620300185947561074059802482547481416142213883829469920100239455078257889,
         )),
@@ -1961,7 +1968,7 @@ global y = 1;
 }
 ";
         let expected = "fn foo() {
-    assert(p4_affine.eq(Gaffine::new(
+    assert(p4_affine.eq(Something::new(
         6890855772600357754907169075114257697580319025794532037257385534741338397365,
         4338620300185947561074059802482547481416142213883829469920100239455078257889,
     )));

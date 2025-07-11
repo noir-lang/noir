@@ -3,13 +3,22 @@
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
+//!
+//! This pass might also add constrain checks after existing instructions,
+//! for example binary operations that are guaranteed to overflow.
+use acvm::AcirField;
 
 use crate::ssa::{
     ir::{
-        dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, TerminatorInstruction},
+        instruction::{
+            Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+        },
+        types::{NumericType, Type},
+        value::ValueId,
     },
+    opt::simple_optimization::SimpleOptimizationContext,
     ssa_gen::Ssa,
 };
 
@@ -31,12 +40,16 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_instructions_are_unreachable = false;
 
+        let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
+        let mut side_effects_condition = one;
+
         self.simple_reachable_blocks_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_instructions_are_unreachable = false;
+                side_effects_condition = one;
             }
 
             if current_block_instructions_are_unreachable {
@@ -44,7 +57,79 @@ impl Function {
                 return;
             }
 
-            if always_fails(context.dfg, context.instruction()) {
+            let instruction = context.instruction();
+            if let Instruction::EnableSideEffectsIf { condition } = instruction {
+                side_effects_condition = *condition;
+                return;
+            };
+
+            let always_fails = match instruction {
+                Instruction::Constrain(lhs, rhs, _) => {
+                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
+                        return;
+                    };
+                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
+                        return;
+                    };
+                    lhs_constant != rhs_constant
+                }
+                Instruction::ConstrainNotEqual(lhs, rhs, _) => {
+                    let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
+                        return;
+                    };
+                    let Some(rhs_constant) = context.dfg.get_numeric_constant(*rhs) else {
+                        return;
+                    };
+                    lhs_constant == rhs_constant
+                }
+                Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
+                    let requires_acir_gen_predicate =
+                        binary.requires_acir_gen_predicate(context.dfg);
+                    if requires_acir_gen_predicate {
+                        // If performing the binary operation depends on the side effects condition, then
+                        // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
+                        let predicate = context.dfg.get_numeric_constant(side_effects_condition);
+                        match predicate {
+                            Some(predicate) => {
+                                if predicate.is_zero() {
+                                    // The predicate is zero
+                                    return;
+                                }
+                            }
+                            None => {
+                                // The predicate is a variable
+                                return;
+                            }
+                        }
+                    }
+
+                    if let Some(message) =
+                        binary_operation_always_fails(*lhs, *operator, *rhs, context)
+                    {
+                        // Insert the instruction right away so we can add a constrain immediately after it
+                        context.insert_current_instruction();
+
+                        let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                        let one = context.dfg.make_constant(1_u128.into(), NumericType::bool());
+                        let message = Some(ConstrainError::StaticString(message));
+                        let instruction = Instruction::Constrain(zero, one, message);
+                        let call_stack =
+                            context.dfg.get_instruction_call_stack_id(context.instruction_id);
+                        context.dfg.insert_instruction_and_results(
+                            instruction,
+                            block_id,
+                            None,
+                            call_stack,
+                        );
+                        true
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            };
+
+            if always_fails {
                 current_block_instructions_are_unreachable = true;
 
                 let terminator = context.dfg[block_id].take_terminator();
@@ -56,34 +141,58 @@ impl Function {
     }
 }
 
-/// Returns `true` if the given instruction will always produce an asertion failure.
-fn always_fails(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
-    match instruction {
-        Instruction::Constrain(lhs, rhs, _) => {
-            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
-                return false;
-            };
-            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
-                return false;
-            };
-            lhs_constant != rhs_constant
+fn binary_operation_always_fails(
+    lhs: ValueId,
+    operator: BinaryOp,
+    rhs: ValueId,
+    context: &mut SimpleOptimizationContext,
+) -> Option<String> {
+    // Unchecked operations can never fail
+    match operator {
+        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
+            if unchecked {
+                return None;
+            }
         }
-        Instruction::ConstrainNotEqual(lhs, rhs, _) => {
-            let Some(lhs_constant) = dfg.get_numeric_constant(*lhs) else {
-                return false;
-            };
-            let Some(rhs_constant) = dfg.get_numeric_constant(*rhs) else {
-                return false;
-            };
-            lhs_constant == rhs_constant
-        }
-        _ => false,
+        BinaryOp::Div
+        | BinaryOp::Mod
+        | BinaryOp::Eq
+        | BinaryOp::Lt
+        | BinaryOp::And
+        | BinaryOp::Or
+        | BinaryOp::Xor
+        | BinaryOp::Shl
+        | BinaryOp::Shr => (),
+    };
+
+    let rhs_value = context.dfg.get_numeric_constant(rhs)?;
+
+    if matches!(operator, BinaryOp::Div) && rhs_value.is_zero() {
+        return Some("attempt to divide by zero".to_string());
+    }
+
+    if matches!(operator, BinaryOp::Mod) && rhs_value.is_zero() {
+        return Some("attempt to calculate the remainder with a divisor of zero".to_string());
+    }
+
+    let Type::Numeric(numeric_type) = context.dfg.type_of_value(lhs) else {
+        panic!("Expected numeric type for binary operation");
+    };
+
+    let lhs_value = context.dfg.get_numeric_constant(lhs)?;
+
+    match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
+        BinaryEvaluationResult::Failure(message) => Some(message),
+        BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+    };
 
     #[test]
     fn removes_unreachable_instructions_in_block_for_constrain_equal() {
@@ -133,6 +242,101 @@ mod test {
             unreachable
         }
         "#);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_in_block_for_sub_that_overflows() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = sub u32 0, u32 1
+            v1 = add v0, u32 1
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = sub u32 0, u32 1
+            constrain u1 0 == u1 1, "attempt to subtract with overflow"
+            unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_in_block_for_division_by_zero() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div u32 1, u32 0
+            v1 = add v0, u32 1
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = div u32 1, u32 0
+            constrain u1 0 == u1 1, "attempt to divide by zero"
+            unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_replace_unchecked_sub_that_overflows() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = unchecked_sub u32 0, u32 1
+            v1 = add v0, u32 1
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_replace_sub_that_overflows_but_is_disabled_because_of_unknown_side_effects_condition()
+     {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            v2 = add v1, u32 1
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_replace_sub_that_overflows_but_is_disabled_because_of_false_side_effects_condition()
+    {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v0 = sub u32 0, u32 1
+            v1 = add v0, u32 1
+            return v1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -304,7 +508,7 @@ mod test {
 
     #[test]
     fn does_not_removes_instructions_from_non_dominated_block_2() {
-        // Here b3 is a successof of b2 but is not dominated by it.
+        // Here b3 is a successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -381,7 +585,7 @@ mod test {
     #[test]
     fn does_not_removes_instructions_from_non_dominated_block_4() {
         // Here b5 is a transitive successor of b2, but is not dominated by it
-        // (it's a transitive successof of b1)
+        // (it's a transitive successor of b1)
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -425,7 +629,7 @@ mod test {
 
     #[test]
     fn removes_block_that_is_unreachable_when_all_of_its_predecessors_are_unreachable() {
-        // Here b4 won't be conisdered unreachable when we find that b2 or b3 are unreachable,
+        // Here b4 won't be considered unreachable when we find that b2 or b3 are unreachable,
         // because neither dominate it, but it will still not show up in the final SSA
         // because no block will be able to reach it.
         let src = r#"
