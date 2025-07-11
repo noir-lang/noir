@@ -65,11 +65,7 @@ impl NumericType {
                 if value.is_negative() {
                     return Some(format!("0..={max}"));
                 }
-                if value.absolute_value() <= max.into() {
-                    None
-                } else {
-                    Some(format!("0..={max}"))
-                }
+                if value.absolute_value() <= max.into() { None } else { Some(format!("0..={max}")) }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);

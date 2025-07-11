@@ -100,9 +100,9 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
 
 fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) -> String {
     match package {
-        Some(pkg) => format!(
-            r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#
-        ),
+        Some(pkg) => {
+            format!(r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#)
+        }
         None => format!(r#"Noir Debugger could not load program from {project_folder}"#),
     }
 }
