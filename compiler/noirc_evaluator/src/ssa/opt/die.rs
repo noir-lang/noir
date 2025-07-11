@@ -495,19 +495,23 @@ impl RcTracker {
 
     fn handle_value_for_mutated_array_types(&mut self, value: ValueId, dfg: &DataFlowGraph) {
         let typ = dfg.type_of_value(value);
-        if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
-            self.mutated_array_types.insert(typ);
+        if !matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
+            return;
+        }
 
-            // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
-            if let Value::Instruction { instruction, .. } = &dfg[value] {
-                let instruction = &dfg[*instruction];
-                if let Instruction::MakeArray { elements, typ: _ } = instruction {
-                    for element in elements {
-                        if !dfg.is_global(*element) {
-                            self.handle_value_for_mutated_array_types(*element, dfg);
-                        }
-                    }
-                }
+        self.mutated_array_types.insert(typ);
+
+        // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
+        let Value::Instruction { instruction, .. } = &dfg[value] else {
+            return;
+        };
+        let Instruction::MakeArray { elements, typ: _ } = &dfg[*instruction] else {
+            return;
+        };
+
+        for element in elements {
+            if !dfg.is_global(*element) {
+                self.handle_value_for_mutated_array_types(*element, dfg);
             }
         }
     }
