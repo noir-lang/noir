@@ -1152,16 +1152,6 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
-          b0():
-            v1 = make_array [u1 1] : [u1; 1]
-            v2 = make_array [v1] : [[u1; 1]; 1]
-            inc_rc v1
-            inc_rc v2
-            return v2
-        }
-        ");
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
