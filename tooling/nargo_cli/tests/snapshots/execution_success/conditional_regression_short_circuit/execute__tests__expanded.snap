@@ -3,32 +3,32 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {
-    if 35 == a { assert(false); };
+    if 35_u32 == a { assert(false); };
     bar(a as Field);
-    if a == 3 { c = test4(); };
-    assert(c[1] != 2);
+    if a == 3_u32 { c = test4(); };
+    assert(c[1_u32] != 2_u32);
     call_intrinsic(x, result);
 }
 
 fn foo() {
-    let mut x: Field = 1;
-    x = x / 0;
+    let mut x: Field = 1_Field;
+    x = x / 0_Field;
 }
 
 fn bar(x: Field) {
-    if x == 15 {
+    if x == 15_Field {
         foo();
     }
 }
 
 fn call_intrinsic(x: [u8; 5], result: [u8; 32]) {
     let mut digest: [u8; 32] = std::hash::blake3(x);
-    digest[0] = 5 as u8;
+    digest[0_u32] = 5_u8;
     digest = std::hash::blake3(x);
     assert(digest == result);
 }
 
 fn test4() -> [u32; 4] {
-    let b: [u32; 4] = [1, 2, 3, 4];
+    let b: [u32; 4] = [1_u32, 2_u32, 3_u32, 4_u32];
     b
 }

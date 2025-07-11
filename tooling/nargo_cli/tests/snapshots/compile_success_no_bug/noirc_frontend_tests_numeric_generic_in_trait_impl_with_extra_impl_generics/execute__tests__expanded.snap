@@ -21,7 +21,7 @@ where
     where
         T: Default2,
     {
-        Self { a: fields[0], b: fields[1], c: fields[2], d: Default2::default2() }
+        Self { a: fields[0_u32], b: fields[1_u32], c: fields[2_u32], d: Default2::default2() }
     }
 }
 

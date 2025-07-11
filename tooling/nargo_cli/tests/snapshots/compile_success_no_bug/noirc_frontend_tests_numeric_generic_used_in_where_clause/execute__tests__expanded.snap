@@ -10,9 +10,9 @@ pub fn read<T, let N: u32>() -> T
 where
     T: Deserialize<N>,
 {
-    let mut fields: [Field; N] = [0; N];
-    for i in 0..N {
-        fields[i] = (i as Field) + 1;
+    let mut fields: [Field; N] = [0_Field; N];
+    for i in 0_u32..N {
+        fields[i] = (i as Field) + 1_Field;
     }
     T::deserialize(fields)
 }

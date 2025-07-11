@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main(x: Field) {
-    let mut count: u32 = 0;
-    for i in 0..1 {
-        if x == 5 {
+    let mut count: u32 = 0_u32;
+    for i in 0_u32..1_u32 {
+        if x == 5_Field {
             count = i;
             break;
         }
     }
-    assert(count == 0);
+    assert(count == 0_u32);
 }

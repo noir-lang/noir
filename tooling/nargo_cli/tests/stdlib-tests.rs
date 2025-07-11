@@ -1,5 +1,5 @@
 //! Execute unit tests in the Noir standard library.
-#![allow(clippy::items_after_test_module)]
+
 use clap::Parser;
 use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;

@@ -5,7 +5,7 @@ expression: expanded_code
 use private_mod::Foo;
 
 fn main() {
-    let bar: Bar = Bar { x: 42 };
+    let bar: Bar = Bar { x: 42_i32 };
     let _: i32 = bar.foo();
 }
 

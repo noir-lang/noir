@@ -179,7 +179,8 @@ mod tests {
         assert_eq!(let_statement.pattern.span().start(), 16);
         assert_eq!(let_statement.pattern.span().end(), 19);
 
-        let ExpressionKind::Literal(Literal::Integer(value)) = let_statement.expression.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, _)) = let_statement.expression.kind
+        else {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 

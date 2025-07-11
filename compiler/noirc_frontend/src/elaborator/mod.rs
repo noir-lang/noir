@@ -24,7 +24,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::ComptimeError,
+        comptime::{ComptimeError, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, ImplMap, UnresolvedEnum, UnresolvedFunctions,
@@ -1318,10 +1318,11 @@ impl<'context> Elaborator<'context> {
             {
                 for trait_constrain in &trait_implementation.borrow().where_clause {
                     let trait_bound = &trait_constrain.trait_bound;
-                    self.interner.add_assumed_trait_implementation(
-                        trait_constrain.typ.clone(),
+                    self.add_trait_bound_to_scope(
+                        trait_bound.location,
+                        &trait_constrain.typ,
+                        trait_bound,
                         trait_bound.trait_id,
-                        trait_bound.trait_generics.clone(),
                     );
                 }
             }
@@ -2408,4 +2409,98 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
             self.idents.remove(ident);
         }
     }
+}
+
+/// The possible errors of interpreting given code
+/// into a monomorphized AST expression.
+#[cfg(feature = "test_utils")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ElaboratorError {
+    Parse(Vec<ParserError>),
+    Compile(Vec<CompilationError>),
+    Interpret(InterpreterError),
+    HIRConvert(InterpreterError),
+}
+
+/// Interpret source code using the elaborator, without
+/// parsing and compiling it with nargo, converting
+/// the result into a monomorphized AST expression.
+#[cfg(feature = "test_utils")]
+pub fn interpret(src: &str) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
+    use crate::hir::{
+        Context, ParsedFiles,
+        def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
+        def_map::{CrateDefMap, ModuleData},
+    };
+    use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+    use crate::parse_program;
+    use fm::{FileId, FileManager};
+    use std::path::PathBuf;
+
+    let file = FileId::default();
+
+    let location = Location::new(Default::default(), file);
+    let root_module = ModuleData::new(
+        None,
+        location,
+        Vec::new(),
+        Vec::new(),
+        false, // is contract
+        false, // is struct
+    );
+
+    let file_manager = FileManager::new(&PathBuf::new());
+    let parsed_files = ParsedFiles::new();
+    let mut context = Context::new(file_manager, parsed_files);
+    context.def_interner.populate_dummy_operator_traits();
+
+    let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+    let (module, errors) = parse_program(src, file);
+    // Skip parser warnings
+    let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
+    if !errors.is_empty() {
+        return Err(ElaboratorError::Parse(errors));
+    }
+
+    let ast = module.into_sorted();
+
+    let def_map = CrateDefMap::new(krate, root_module);
+    let root_module_id = def_map.root();
+    let mut collector = DefCollector::new(def_map);
+
+    collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+    context.def_maps.insert(krate, collector.def_map);
+
+    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+    let mut elaborator = Elaborator::elaborate_and_return_self(
+        &mut context,
+        krate,
+        collector.items,
+        ElaboratorOptions::test_default(),
+    );
+
+    // Skip the elaborator's compilation warnings
+    let errors: Vec<_> = elaborator.errors.iter().filter(|&e| e.is_error()).cloned().collect();
+    if !errors.is_empty() {
+        return Err(ElaboratorError::Compile(errors));
+    }
+
+    let mut interpreter = elaborator.setup_interpreter();
+
+    // The most straightforward way to convert the interpreter result into
+    // an acceptable monomorphized AST expression seems to be converting it
+    // into HIR first and then processing it with the monomorphizer
+    let expr_id =
+        match interpreter.call_function(main, Vec::new(), Default::default(), Location::dummy()) {
+            Err(e) => return Err(ElaboratorError::Interpret(e)),
+            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
+                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
+                Ok(expr_id) => expr_id,
+            },
+        };
+
+    let mut monomorphizer = Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+    Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
 }

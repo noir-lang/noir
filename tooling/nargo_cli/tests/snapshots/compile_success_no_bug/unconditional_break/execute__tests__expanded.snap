@@ -27,7 +27,7 @@ unconstrained fn break_in_if_body() -> bool {
 }
 
 unconstrained fn break_in_unary() {
-    let mut a: Field = 0;
+    let mut a: Field = 0_Field;
     loop {
         a = -{
             break;
@@ -37,23 +37,23 @@ unconstrained fn break_in_unary() {
 }
 
 unconstrained fn break_in_infix_lhs() {
-    let mut a: Field = 0;
+    let mut a: Field = 0_Field;
     loop {
         a = {
             break;
-            0
+            0_Field
         }
-            - 0;
+            - 0_Field;
     }
 }
 
 unconstrained fn break_in_infix_rhs() {
-    let mut a: Field = 0;
+    let mut a: Field = 0_Field;
     loop {
-        a = 0
+        a = 0_Field
             + {
                 break;
-                0
+                0_Field
             };
     }
 }
@@ -61,10 +61,12 @@ unconstrained fn break_in_infix_rhs() {
 unconstrained fn break_in_array_element() {
     loop {
         let _: [Field; 3] = [
-            1, {
+            1_Field,
+            {
                 break;
-                2
-            }, 3,
+                2_Field
+            },
+            3_Field,
         ];
     }
 }
@@ -75,7 +77,7 @@ unconstrained fn break_in_if_condition() {
             break;
             true
         } {
-            let _: Field = 10;
+            let _: Field = 10_Field;
         }
     }
 }
@@ -86,7 +88,7 @@ unconstrained fn break_in_while_condition() {
             break;
             true
         } {
-            let _: Field = 10;
+            let _: Field = 10_Field;
         }
         break;
     }

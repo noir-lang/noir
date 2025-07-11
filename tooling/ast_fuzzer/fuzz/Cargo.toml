@@ -45,8 +45,15 @@ doc = false
 bench = false
 
 [[bin]]
-name = "comptime_vs_brillig"
-path = "fuzz_targets/comptime_vs_brillig.rs"
+name = "comptime_vs_brillig_nargo"
+path = "fuzz_targets/comptime_vs_brillig_nargo.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "comptime_vs_brillig_direct"
+path = "fuzz_targets/comptime_vs_brillig_direct.rs"
 test = false
 doc = false
 bench = false

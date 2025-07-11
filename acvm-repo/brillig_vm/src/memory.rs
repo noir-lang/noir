@@ -26,7 +26,7 @@ pub enum MemoryTypeError {
     NotAnInteger,
 }
 
-impl<F> MemoryValue<F> {
+impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds a field-typed memory value.
     pub fn new_field(value: F) -> Self {
         MemoryValue::Field(value)
@@ -59,7 +59,7 @@ impl<F> MemoryValue<F> {
     pub fn to_usize(&self) -> usize {
         match self {
             MemoryValue::U32(value) => (*value).try_into().unwrap(),
-            _ => panic!("value is not typed as brillig usize"),
+            other => panic!("value is not typed as brillig usize: {other}"),
         }
     }
 }

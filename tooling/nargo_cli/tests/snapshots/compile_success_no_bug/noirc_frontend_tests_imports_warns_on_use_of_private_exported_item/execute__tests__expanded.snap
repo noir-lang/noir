@@ -15,5 +15,5 @@ mod foo {
 }
 
 fn main() {
-    crate::foo::bar::baz();
+    foo::bar::baz();
 }

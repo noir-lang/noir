@@ -89,7 +89,12 @@ impl CompareInterpreted {
                 .collect::<Vec<_>>()
                 .join("\n")
         );
-        log::debug!("SSA after step {} ({}):\n{}\n", self.ssa1.step, self.ssa1.msg, self.ssa1.ssa);
+        log::debug!(
+            "SSA after step {} ({}):\n{}\n",
+            self.ssa1.step,
+            self.ssa1.msg,
+            self.ssa1.ssa.print_without_locations()
+        );
 
         // Interpret an SSA with a fresh copy of the input values.
         let interpret = |ssa: &Ssa| ssa.interpret(Value::snapshot_args(&self.ssa_args));
@@ -132,6 +137,18 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // To deal with this we ignore these errors as long as both passes fail the same way.
                 c1 == c2 && t1 == t2
             }
+            (
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+            )
+            | (
+                RangeCheckFailed { value, .. } | RangeCheckFailedWithMessage { value, .. },
+                Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
+            ) => {
+                // The value should be a `NumericValue` display format, which is `<type> <value>`.
+                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                value == constant.to_string()
+            }
             (Internal(_), _) | (_, Internal(_)) => {
                 // We should not get, or ignore, internal errors.
                 // They mean the interpreter got something unexpected that we need to fix.
@@ -150,18 +167,16 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
             (
-                ConstrainEqFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainEqFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
-            )
-            | (
-                ConstrainNeFailed { lhs: _lhs1, rhs: _rhs1, msg: msg1, .. },
-                ConstrainNeFailed { lhs: _lhs2, rhs: _rhs2, msg: msg2, .. },
+                ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
+                ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },
             ) => {
-                // The sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`.
-                // Unfortunately we often see the type change as well, which makes it more difficult to compare,
-                // for example `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`,
-                // or `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
-                // (lhs1 == lhs2 && rhs1 == rhs2 || lhs1 == rhs2 && rhs1 == lhs2) && msg1 == msg2
+                // The `lhs` and `rhs` might change during passes, making direct comparison difficult:
+                // * the sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`
+                // * the condition might be flipped: `u1 true != u1 false` vs `Field 0 == Field 0`
+                // * types could change:
+                //      * `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`
+                //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
+                // So instead of reasoning about the `lhs` and `rhs` formats, let's just compare the message so we know it's the same constraint:
                 msg1 == msg2
             }
             (e1, e2) => {
