@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752254045590,
+  "lastUpdate": 1752254264124,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2b0f596b8dc153936f321e09adf2380d0ffeb845",
-          "message": "chore(debug): Toggle SSA locations when printing SSA  (#9066)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-07-01T12:57:53Z",
-          "tree_id": "6efc2475cddb610497f4a466ec04c58feef51ec7",
-          "url": "https://github.com/noir-lang/noir/commit/2b0f596b8dc153936f321e09adf2380d0ffeb845"
-        },
-        "date": 1751376549883,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.364,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.552,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 183,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 187,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.322,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.542,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.812,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.771,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "71f57a2e3ce850ce65d88a16598d665f99e311b0",
+          "message": "fix: disallow trait associated constants to have a default value (#9172)",
+          "timestamp": "2025-07-11T16:20:08Z",
+          "tree_id": "bd263b96001a1b0afcc7e789d6432e151259d01d",
+          "url": "https://github.com/noir-lang/noir/commit/71f57a2e3ce850ce65d88a16598d665f99e311b0"
+        },
+        "date": 1752254249550,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.842,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.852,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.324,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 24.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.338,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.472,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.773,
             "unit": "s"
           }
         ]
