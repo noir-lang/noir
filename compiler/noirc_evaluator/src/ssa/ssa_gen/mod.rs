@@ -520,7 +520,8 @@ impl FunctionContext<'_> {
             let array_len_constant = array_len_constant.expect("array checked to be constant");
             let array_len_bits = array_len_constant.ilog2();
             debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
-            self.builder.insert_range_check(index, array_len_bits, assert_message);
+            let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
+            self.builder.insert_range_check(index_as_field, array_len_bits, assert_message);
         } else {
             // If it's not a power of two then we need to do an explicit inequality and constraint.
             let is_offset_out_of_bounds =
