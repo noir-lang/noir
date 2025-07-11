@@ -108,3 +108,17 @@ fn self_referring_type_alias_is_not_allowed() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+#[should_panic]
+fn self_referring_type_alias_with_generics_is_not_allowed() {
+    let src = r#"
+        type Id<T> = T;
+
+        fn main() {
+            let x: Id<Id<Field>> = 1;
+        }
+    "#;
+    assert_no_errors!(src);
+}
