@@ -235,20 +235,6 @@ mod tests {
     }
 
     #[test]
-    fn format_trait_with_constant_with_value() {
-        let src = " mod moo { trait Foo { 
-            let  x  : i32  =  1 ;
-         } }";
-        let expected = "mod moo {
-    trait Foo {
-        let x: i32 = 1;
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_trait_with_function_without_body() {
         let src = " mod moo { trait Foo { 
     /// hello 

@@ -516,7 +516,7 @@ mod tests {
 
     #[test]
     fn parse_trait_with_constant() {
-        let src = "trait Foo { let x: Field = 1; }";
+        let src = "trait Foo { let x: Field; }";
         let mut noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.items.len(), 1);
 
