@@ -386,7 +386,7 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
-        Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
+        Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
     }
 }
 

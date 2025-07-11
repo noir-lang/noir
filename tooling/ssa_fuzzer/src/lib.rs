@@ -10,15 +10,13 @@ mod tests {
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
     use crate::typed_value::{TypedValue, ValueType};
-    use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
+    use acvm::{AcirField, FieldElement};
     use noirc_driver::{CompileOptions, CompiledProgram};
-    use rand::RngCore;
+    use rand::Rng;
 
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
     use noirc_evaluator::ssa::ir::types::NumericType;
-
-    const NUMBER_OF_VARIABLES_INITIAL: u32 = 7;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,
@@ -26,14 +24,18 @@ mod tests {
     }
 
     impl TestHelper {
-        fn new(types: Vec<ValueType>) -> Self {
-            let mut acir_builder = FuzzerBuilder::new_acir();
-            let mut brillig_builder = FuzzerBuilder::new_brillig();
-            for type_ in types {
-                acir_builder.insert_variable(type_.to_ssa_type());
-                brillig_builder.insert_variable(type_.to_ssa_type());
-            }
+        fn new() -> Self {
+            let acir_builder = FuzzerBuilder::new_acir();
+            let brillig_builder = FuzzerBuilder::new_brillig();
+
             Self { acir_builder, brillig_builder }
+        }
+
+        fn insert_variable(&mut self, variable_type: ValueType) -> TypedValue {
+            let acir_param = self.acir_builder.insert_variable(variable_type.to_ssa_type());
+            let brillig_param = self.brillig_builder.insert_variable(variable_type.to_ssa_type());
+            assert_eq!(acir_param, brillig_param);
+            acir_param
         }
 
         fn insert_instruction_double_arg(
@@ -54,175 +56,282 @@ mod tests {
         }
     }
 
-    /// Generates a random array with config::NUMBER_OF_VARIABLES_INITIAL elements
-    fn generate_values() -> Vec<u64> {
-        let mut rng = rand::thread_rng();
-        let mut values = Vec::with_capacity(NUMBER_OF_VARIABLES_INITIAL as usize);
-        for _ in 0..NUMBER_OF_VARIABLES_INITIAL {
-            values.push(rng.next_u64());
-        }
-        values
-    }
-
-    fn get_witness_map(values: Vec<u64>) -> WitnessMap<FieldElement> {
+    fn get_witness_map(values: &[FieldElement]) -> WitnessMap<FieldElement> {
         let mut witness_map = WitnessMap::new();
-        for i in 0..NUMBER_OF_VARIABLES_INITIAL {
-            let witness = Witness(i);
-            let value = FieldElement::from(values[i as usize]);
+        for (i, value) in values.iter().enumerate() {
+            let witness = Witness(i as u32);
+            let value = *value;
             witness_map.insert(witness, value);
         }
         witness_map
     }
 
-    fn compare_results(computed_rust: u64, computed_noir: FieldElement) {
-        let computed_rust = FieldElement::from(computed_rust);
-        assert_eq!(computed_rust, computed_noir, "Noir doesn't match Rust");
+    fn compare_results<T: Into<FieldElement>>(computed_rust: T, computed_noir: FieldElement) {
+        assert_eq!(computed_rust.into(), computed_noir, "Noir doesn't match Rust");
     }
 
     /// Runs the given instruction with the given values and returns the results of the ACIR and Brillig programs
-    /// Instruction runned with first and second witness given
+    /// Instruction runs with first and second witness given
     fn run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
-        values: Vec<u64>,
+        lhs: (FieldElement, ValueType),
+        rhs: (FieldElement, ValueType),
     ) -> FieldElement {
-        let lhs = TypedValue::from_value_type(0, &ValueType::U64);
-        let rhs = TypedValue::from_value_type(1, &ValueType::U64);
-        let mut test_helper = TestHelper::new(vec![ValueType::U64; 7]);
-        let witness_map = get_witness_map(values.clone());
-        let initial_witness = witness_map;
+        let mut test_helper = TestHelper::new();
+        let lhs_val = test_helper.insert_variable(lhs.1);
+        let rhs_val = test_helper.insert_variable(rhs.1);
+        let lhs = lhs.0;
+        let rhs = rhs.0;
+
         let (acir_result, brillig_result) =
-            test_helper.insert_instruction_double_arg(instruction, lhs, rhs);
+            test_helper.insert_instruction_double_arg(instruction, lhs_val, rhs_val);
         test_helper.finalize_function(acir_result);
         test_helper.finalize_function(brillig_result);
-        let acir_program = test_helper.acir_builder.compile(CompileOptions::default()).unwrap();
-        let brillig_program =
-            test_helper.brillig_builder.compile(CompileOptions::default()).unwrap();
-        let result_witness = Witness(NUMBER_OF_VARIABLES_INITIAL);
-        let compare_results = run_and_compare(
-            &acir_program.program,
-            &brillig_program.program,
-            initial_witness,
-            result_witness,
-            result_witness,
-        );
+
+        let compile_options = CompileOptions::default();
+        let acir_program = test_helper.acir_builder.compile(compile_options.clone()).unwrap();
+        let brillig_program = test_helper.brillig_builder.compile(compile_options).unwrap();
+
+        let witness_map = get_witness_map(&[lhs, rhs]);
+        let initial_witness = witness_map;
+        let compare_results =
+            run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         // If not agree throw panic, it is not intended to happen in tests
         match compare_results {
             CompareResults::Agree(result) => result,
             CompareResults::Disagree(acir_result, brillig_result) => {
                 panic!(
-                    "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_result, brillig_result, &values
+                    "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
+                    acir_result, brillig_result, lhs, rhs
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 panic!(
-                    "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error, brillig_error, &values
+                    "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
+                    acir_error, brillig_error, lhs, rhs
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
                 panic!(
-                    "ACIR failed: ACIR: {}, Brillig: {}, values: {:?}",
-                    acir_error, brillig_result, &values
+                    "ACIR failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
+                    acir_error, brillig_result, lhs, rhs
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
                 panic!(
-                    "Brillig failed: Brillig: {}, ACIR: {}, values: {:?}",
-                    brillig_error, acir_result, &values
+                    "Brillig failed: Brillig: {}, ACIR: {}, lhs: {}, rhs: {}",
+                    brillig_error, acir_result, lhs, rhs
                 );
             }
         }
     }
 
     #[test]
-    fn test_add() {
-        let mut values = generate_values();
+    fn test_unsigned_add() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to add with overflow`
-        values[0] %= 12341234;
+        lhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[0] + values[1], noir_res);
+        compare_results(lhs + rhs, noir_res);
+    }
+
+    fn parse_integer_to_signed<T: Into<i128>>(integer: T) -> FieldElement {
+        let integer: i128 = integer.into();
+        let width = 8 * size_of::<T>();
+
+        let min = if width == 128 { i128::MIN } else { -(1 << (width - 1)) };
+        let max = if width == 128 { i128::MAX } else { (1 << (width - 1)) - 1 };
+
+        if integer < min {
+            panic!("value is less than min");
+        } else if integer > max {
+            panic!("value is greater than max");
+        }
+
+        if integer < 0 {
+            FieldElement::from(2u32).pow(&width.into()) + FieldElement::from(integer)
+        } else {
+            FieldElement::from(integer)
+        }
     }
 
     #[test]
-    fn test_sub() {
-        let mut values = generate_values();
+    fn test_signed_add() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: i64 = rng.r#gen();
+        let rhs: i64 = rng.r#gen();
+
+        // to prevent `attempt to add with overflow`
+        lhs %= 12341234;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_add_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs + rhs), noir_res);
+    }
+
+    #[test]
+    fn test_unsigned_sub() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to subtract with overflow`
-        if values[0] < values[1] {
-            values.swap(0, 1);
+        if lhs < rhs {
+            (lhs, rhs) = (rhs, lhs);
         }
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[0] - values[1], noir_res);
+        compare_results(lhs - rhs, noir_res);
     }
 
     #[test]
-    fn test_mul() {
-        let mut values = generate_values();
+    fn test_signed_sub() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: i64 = rng.r#gen();
+        let mut rhs: i64 = rng.r#gen();
+
+        // to prevent `attempt to subtract with overflow`
+        lhs %= 12341234;
+        rhs %= 12341234;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_sub_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs - rhs), noir_res);
+    }
+
+    #[test]
+    fn test_unsigned_mul() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
         // to prevent `attempt to multiply with overflow`
-        values[0] %= 12341234;
-        values[1] %= 12341234;
+        lhs %= 12341234;
+        rhs %= 12341234;
         let noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            values.clone(),
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
         );
-        compare_results(values[0] * values[1], noir_res);
+        compare_results(lhs * rhs, noir_res);
+    }
+
+    #[test]
+    fn test_signed_mul() {
+        let mut rng = rand::thread_rng();
+        let mut lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
+        // to prevent `attempt to multiply with overflow`
+        lhs %= 12341234;
+        rhs %= 12341234;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_mul_instruction_checked,
+            (parse_integer_to_signed(lhs), ValueType::I64),
+            (parse_integer_to_signed(rhs), ValueType::I64),
+        );
+        compare_results(parse_integer_to_signed(lhs * rhs), noir_res);
     }
 
     #[test]
     fn test_div() {
-        let mut values = generate_values();
-        if values[1] == 0 {
-            values[1] = 1;
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
+        if rhs == 0 {
+            rhs = 1;
         }
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_div_instruction, values.clone());
-        compare_results(values[0] / values[1], noir_res);
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_div_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs / rhs, noir_res);
     }
 
     #[test]
     fn test_mod() {
-        let values = generate_values();
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_mod_instruction, values.clone());
-        compare_results(values[0] % values[1], noir_res);
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_mod_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs % rhs, noir_res);
     }
 
     #[test]
     fn test_and() {
-        let values = generate_values();
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_and_instruction, values.clone());
-        compare_results(values[0] & values[1], noir_res);
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_and_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs & rhs, noir_res);
     }
 
     #[test]
     fn test_or() {
-        let values = generate_values();
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_or_instruction, values.clone());
-        compare_results(values[0] | values[1], noir_res);
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_or_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs | rhs, noir_res);
     }
 
     #[test]
     fn test_xor() {
-        let values = generate_values();
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_xor_instruction, values.clone());
-        compare_results(values[0] ^ values[1], noir_res);
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let rhs: u64 = rng.r#gen();
+
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_xor_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs ^ rhs, noir_res);
     }
     #[test]
     fn test_shr() {
-        let mut values = generate_values();
-        values[1] %= 64;
-        let noir_res =
-            run_instruction_double_arg(FuzzerBuilder::insert_shr_instruction, values.clone());
-        compare_results(values[0] >> values[1], noir_res);
+        let mut rng = rand::thread_rng();
+        let lhs: u64 = rng.r#gen();
+        let mut rhs: u64 = rng.r#gen();
+
+        rhs %= 64;
+        let noir_res = run_instruction_double_arg(
+            FuzzerBuilder::insert_shr_instruction,
+            (lhs.into(), ValueType::U64),
+            (rhs.into(), ValueType::U64),
+        );
+        compare_results(lhs >> rhs, noir_res);
     }
 
     fn check_expected_validation_error(
@@ -235,62 +344,6 @@ mod tests {
                 assert!(error.contains(expected_message));
             }
         }
-    }
-
-    #[test]
-    fn regression_multiplication_without_range_check() {
-        let mut acir_builder = FuzzerBuilder::new_acir();
-        let mut brillig_builder = FuzzerBuilder::new_brillig();
-
-        let field_acir_var = acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-        let field_brillig_var =
-            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-
-        let truncated_acir = acir_builder.builder.insert_truncate(field_acir_var, 16, 254);
-        let truncated_brillig = brillig_builder.builder.insert_truncate(field_brillig_var, 16, 254);
-
-        let field_casted_i16_acir =
-            acir_builder.builder.insert_cast(truncated_acir, NumericType::Signed { bit_size: 16 });
-        let field_casted_i16_brillig = brillig_builder
-            .builder
-            .insert_cast(truncated_brillig, NumericType::Signed { bit_size: 16 });
-
-        let casted_pow_2_acir = acir_builder.builder.insert_binary(
-            field_casted_i16_acir,
-            BinaryOp::Mul { unchecked: false },
-            field_casted_i16_acir,
-        );
-        let casted_pow_2_brillig = brillig_builder.builder.insert_binary(
-            field_casted_i16_brillig,
-            BinaryOp::Mul { unchecked: false },
-            field_casted_i16_brillig,
-        );
-
-        let last_var = acir_builder.builder.insert_binary(
-            casted_pow_2_acir,
-            BinaryOp::Div,
-            field_casted_i16_acir,
-        );
-        let last_var_brillig = brillig_builder.builder.insert_binary(
-            casted_pow_2_brillig,
-            BinaryOp::Div,
-            field_casted_i16_brillig,
-        );
-
-        acir_builder.builder.terminate_with_return(vec![last_var]);
-        brillig_builder.builder.terminate_with_return(vec![last_var_brillig]);
-
-        let acir_result = acir_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            acir_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
-
-        let brillig_result = brillig_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            brillig_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
     }
 
     #[test]
@@ -336,44 +389,6 @@ mod tests {
         check_expected_validation_error(
             brillig_result,
             "Invalid cast from Field, not preceded by valid truncation or known safe value",
-        );
-    }
-
-    #[test]
-    fn regression_signed_sub() {
-        let mut acir_builder = FuzzerBuilder::new_acir();
-        let mut brillig_builder = FuzzerBuilder::new_brillig();
-
-        let i16_acir_var_1 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_acir_var_2 = acir_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_brillig_var_1 =
-            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-        let i16_brillig_var_2 =
-            brillig_builder.insert_variable(ValueType::I16.to_ssa_type()).value_id;
-
-        let sub_acir = acir_builder.builder.insert_binary(
-            i16_acir_var_1,
-            BinaryOp::Sub { unchecked: false },
-            i16_acir_var_2,
-        );
-        let sub_brillig = brillig_builder.builder.insert_binary(
-            i16_brillig_var_1,
-            BinaryOp::Sub { unchecked: false },
-            i16_brillig_var_2,
-        );
-
-        acir_builder.builder.terminate_with_return(vec![sub_acir]);
-        brillig_builder.builder.terminate_with_return(vec![sub_brillig]);
-
-        let acir_result = acir_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            acir_result,
-            "Signed binary operation does not follow overflow pattern",
-        );
-        let brillig_result = brillig_builder.compile(CompileOptions::default());
-        check_expected_validation_error(
-            brillig_result,
-            "Signed binary operation does not follow overflow pattern",
         );
     }
 }

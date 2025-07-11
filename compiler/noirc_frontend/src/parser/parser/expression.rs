@@ -1094,6 +1094,14 @@ mod tests {
     }
 
     #[test]
+    fn parses_double_negative_integer_literal() {
+        let src = "--42";
+        let expr = parse_expression_no_errors(src);
+        // In the past we used to parse this as the literal 42 instead of a double negation
+        assert!(matches!(expr.kind, ExpressionKind::Prefix(..)));
+    }
+
+    #[test]
     fn parses_parenthesized_expression() {
         let src = "(42)";
         let expr = parse_expression_no_errors(src);
@@ -1850,8 +1858,6 @@ mod tests {
     fn parses_cast_of_negated_literal_once() {
         let src = "-1 as u8";
         let expr = parse_expression_no_errors(src);
-        // dbg!(&expr);
-
         let ExpressionKind::Cast(cast_expr) = expr.kind else {
             panic!("Expected cast");
         };

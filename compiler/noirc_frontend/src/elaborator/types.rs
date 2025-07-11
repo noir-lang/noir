@@ -316,6 +316,18 @@ impl Elaborator<'_> {
                 }
                 typ
             }
+            Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
+                let associated_type = self.interner.get_trait_associated_type(associated_type_id);
+                let trait_ = self.interner.get_trait(associated_type.trait_id);
+
+                self.push_err(ResolverError::AmbiguousAssociatedType {
+                    trait_name: trait_.name.to_string(),
+                    associated_type_name: associated_type.name.to_string(),
+                    location,
+                });
+
+                Type::Error
+            }
             Ok(item) => {
                 self.push_err(ResolverError::Expected {
                     expected: "type",
@@ -676,8 +688,9 @@ impl Elaborator<'_> {
         let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
-            Ok((impl_kind, _instantiation_bindings)) => {
-                self.get_associated_type_from_trait_impl(path, impl_kind)
+            Ok((impl_kind, instantiation_bindings)) => {
+                let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
+                typ.substitute(&instantiation_bindings)
             }
             Err(constraints) => {
                 self.push_trait_constraint_error(&object_type, constraints, location);
@@ -724,12 +737,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let trait_id = if let Some(current_trait) = self.current_trait {
-            current_trait
-        } else {
-            let trait_impl = self.current_trait_impl?;
-            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
-        };
+        let trait_id = self.current_trait?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = path.segments[0].ident.as_str();
@@ -830,6 +838,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
@@ -1164,7 +1173,13 @@ impl Elaborator<'_> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
-            Type::FieldElement => Type::FieldElement,
+            Type::FieldElement => {
+                if from_follow_bindings.is_signed() {
+                    self.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                }
+
+                Type::FieldElement
+            }
             Type::Bool => {
                 let from_is_numeric = match from_follow_bindings {
                     Type::Integer(..) | Type::FieldElement => true,
@@ -2181,7 +2196,7 @@ impl Elaborator<'_> {
                             let existing = existing.follow_bindings();
                             let new = binding.2.follow_bindings();
 
-                            // Exact equality on types is intential here, we never want to
+                            // Exact equality on types is intentional here, we never want to
                             // overwrite even type variables but should probably avoid a panic if
                             // the types are exactly the same.
                             if existing != new {

@@ -879,7 +879,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let array = self.lookup_array_or_slice(array, "array get")?;
             let index = self.lookup_u32(index, "array get index")?;
             let index = index - offset.to_u32();
-            array.elements.borrow()[index as usize].clone()
+            let elements = array.elements.borrow();
+            let element = elements.get(index as usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
+            })?;
+            element.clone()
         } else {
             let typ = self.dfg().type_of_value(result);
             Value::uninitialized(&typ, result)
@@ -908,6 +912,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            let len = array.elements.borrow().len();
+            if index as usize >= len {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            }
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
@@ -1087,7 +1096,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1096,7 +1105,7 @@ macro_rules! apply_int_binop_opt {
             } else {
                 let instruction =
                     format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1177,7 +1186,7 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         }
 
-        // Disable this instruction if it is side-effectful and side effects are disabled.
+        // Disable this instruction if it is side-effectual and side effects are disabled.
         if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
@@ -1194,32 +1203,20 @@ impl<W: Write> Interpreter<'_, W> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
                 // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1355,7 +1352,8 @@ impl<W: Write> Interpreter<'_, W> {
     fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
         let overflow = || {
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
+            let operator = binary.operator;
+            InterpreterError::Overflow { operator, instruction }
         };
 
         let lhs_id = binary.lhs;

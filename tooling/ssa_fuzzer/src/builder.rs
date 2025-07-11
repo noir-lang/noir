@@ -91,11 +91,6 @@ impl FuzzerBuilder {
             BinaryOp::Add { unchecked: false },
             rhs.value_id,
         );
-        if lhs.to_value_type().bit_length() == 254 {
-            return TypedValue::new(res, lhs.type_of_variable);
-        }
-        let bit_size = lhs.to_value_type().bit_length();
-        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -110,11 +105,6 @@ impl FuzzerBuilder {
             BinaryOp::Sub { unchecked: false },
             rhs.value_id,
         );
-        if lhs.to_value_type().bit_length() == 254 {
-            return TypedValue::new(res, lhs.type_of_variable);
-        }
-        let bit_size = lhs.to_value_type().bit_length();
-        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -233,7 +223,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values    
+    /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         if !lhs.supports_bitwise() {
             return lhs;
@@ -281,7 +271,7 @@ impl FuzzerBuilder {
     }
 
     /// Gets the index of the entry block
-    pub fn get_current_block(&mut self) -> BasicBlockId {
+    pub fn get_current_block(&self) -> BasicBlockId {
         self.builder.get_current_block_index()
     }
 

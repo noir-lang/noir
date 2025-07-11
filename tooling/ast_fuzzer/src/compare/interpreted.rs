@@ -10,7 +10,7 @@ use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
-    ir::types::NumericType,
+    ir::{instruction::BinaryOp, types::NumericType},
     ssa_gen::Ssa,
 };
 use noirc_frontend::{Shared, monomorphization::ast::Program};
@@ -173,7 +173,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 // They mean the interpreter got something unexpected that we need to fix.
                 false
             }
-            (Overflow { instruction: i1 }, Overflow { instruction: i2 }) => {
+            (Overflow { instruction: i1, .. }, Overflow { instruction: i2, .. }) => {
                 // Overflows can occur or instructions with different IDs, but in a parentheses it contains the values that caused it.
                 fn details(s: &str) -> Option<&str> {
                     let start = s.find("(")?;
@@ -185,13 +185,29 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
+
+            // We expand checked operations on signed types into multiple instructions during the `expand_signed_checks`
+            // pass. This results in the error changing from an `Overflow` into a different error type so we match
+            // on the attached error message.
+            (Overflow { operator, .. }, ConstrainEqFailed { msg: Some(msg), .. }) => match operator
+            {
+                BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
+                BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
+
+                _ => false,
+            },
+            (
+                Overflow { operator: BinaryOp::Mul { unchecked: false }, .. },
+                RangeCheckFailed { msg: Some(msg), .. },
+            ) => msg == "attempt to multiply with overflow",
+
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
                 ConstrainEqFailed { msg: msg2, .. } | ConstrainNeFailed { msg: msg2, .. },
             ) => {
                 // The `lhs` and `rhs` might change during passes, making direct comparison difficult:
                 // * the sides might be flipped: `u1 0 == u1 1` vs `u1 1 == u1 0`
-                // * the condition might be flipped: `u1 true != u1 false` vs `Field 0 == Field 0`
+                // * the condition might be flipped: `u1 1 != u1 0` vs `Field 0 == Field 0`
                 // * types could change:
                 //      * `Field 313339671284855045676773137498590239475 != Field 0` vs `u128 313339671284855045676773137498590239475 != u128 0`
                 //      * `i64 -1615928006 != i64 -5568658583620095790` vs `u64 18446744072093623610 != u64 12878085490089455826`
@@ -344,7 +360,7 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),
         AbiType::Boolean => types.push(Type::bool()),
         AbiType::Struct { path: _, fields } => {
-            // Structs are flattend
+            // Structs are flattened
             for (_, typ) in fields {
                 append_input_type_to_ssa(typ, types);
             }

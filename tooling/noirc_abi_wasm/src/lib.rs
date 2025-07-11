@@ -120,7 +120,7 @@ pub fn abi_decode(abi: JsAbi, witness_map: JsWitnessMap) -> Result<JsValue, JsAb
 }
 
 #[wasm_bindgen(js_name = serializeWitness)]
-pub fn serialise_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
+pub fn serialize_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiError> {
     console_error_panic_hook::set_once();
     let converted_witness: WitnessMap<FieldElement> = witness_map.into();
     let witness_stack: WitnessStack<FieldElement> = converted_witness.into();

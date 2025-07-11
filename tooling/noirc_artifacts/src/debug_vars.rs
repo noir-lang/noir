@@ -36,8 +36,8 @@ impl<F: AcirField> DebugVars<F> {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let ptype = self.types.get(&debug_var.debug_type_id)?;
-            Some((debug_var.name.as_str(), ptype))
+            let printable_type = self.types.get(&debug_var.debug_type_id)?;
+            Some((debug_var.name.as_str(), printable_type))
         })
     }
 
@@ -66,13 +66,13 @@ impl<F: AcirField> DebugVars<F> {
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[F]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
-        let ptype = self.types.get(type_id).unwrap();
+        let printable_type = self.types.get(type_id).unwrap();
 
         self.frames
             .last_mut()
             .expect("unexpected empty stack frames")
             .1
-            .insert(var_id, decode_printable_value(&mut values.iter().copied(), ptype));
+            .insert(var_id, decode_printable_value(&mut values.iter().copied(), printable_type));
     }
 
     pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[F]) {

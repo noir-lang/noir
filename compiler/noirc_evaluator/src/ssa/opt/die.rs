@@ -54,14 +54,6 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> Ssa {
-        // Perform post-checks on the SSA.
-        let check = |ssa: Ssa| {
-            // Check that we have established the properties expected from this pass.
-            #[cfg(debug_assertions)]
-            ssa.functions.values().for_each(|f| die_post_check(f, flattened));
-            ssa
-        };
-
         let mut previous_unused_params = None;
         loop {
             let (new_ssa, result) =
@@ -75,13 +67,13 @@ impl Ssa {
 
             // If there are no unused parameters, return early
             if !has_unused {
-                return check(new_ssa);
+                return new_ssa;
             }
 
             if let Some(previous) = &previous_unused_params {
                 // If no changes to dead parameters occurred, return early
                 if previous == &result.unused_parameters {
-                    return check(new_ssa);
+                    return new_ssa;
                 }
             }
 
@@ -113,6 +105,19 @@ impl Ssa {
             });
 
         (self, result)
+    }
+
+    /// Sanity check on the final SSA, panicking if the assumptions don't hold.
+    ///
+    /// Done as a separate step so that we can put it after other passes which provide
+    /// concrete feedback about where the problem with the Noir code might be, such as
+    /// dynamic indexing of arrays with references in ACIR. We can look up the callstack
+    /// of the offending instruction here as well, it's just not clear what error message
+    /// to return, besides the fact that mem2reg was unable to eliminate something.
+    #[cfg_attr(not(debug_assertions), allow(unused_variables))]
+    pub(crate) fn dead_instruction_elimination_post_check(&self, flattened: bool) {
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(|f| die_post_check(f, flattened));
     }
 }
 
@@ -931,7 +936,7 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return u32 1
+            return Field 1
         }
         ";
 
