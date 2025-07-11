@@ -3017,7 +3017,27 @@
 <a href="#3016" id="3016">3016</a>
 <a href="#3017" id="3017">3017</a>
 <a href="#3018" id="3018">3018</a>
-<a href="#3019" id="3019">3019</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3019" id="3019">3019</a>
+<a href="#3020" id="3020">3020</a>
+<a href="#3021" id="3021">3021</a>
+<a href="#3022" id="3022">3022</a>
+<a href="#3023" id="3023">3023</a>
+<a href="#3024" id="3024">3024</a>
+<a href="#3025" id="3025">3025</a>
+<a href="#3026" id="3026">3026</a>
+<a href="#3027" id="3027">3027</a>
+<a href="#3028" id="3028">3028</a>
+<a href="#3029" id="3029">3029</a>
+<a href="#3030" id="3030">3030</a>
+<a href="#3031" id="3031">3031</a>
+<a href="#3032" id="3032">3032</a>
+<a href="#3033" id="3033">3033</a>
+<a href="#3034" id="3034">3034</a>
+<a href="#3035" id="3035">3035</a>
+<a href="#3036" id="3036">3036</a>
+<a href="#3037" id="3037">3037</a>
+<a href="#3038" id="3038">3038</a>
+<a href="#3039" id="3039">3039</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3328,6 +3348,26 @@
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.
 </span><span class="kw">pub type </span>TypeBindings = HashMap&lt;TypeVariableId, (TypeVariable, Kind, Type)&gt;;
+
+<span class="doccomment">/// Pretty print type bindings for debugging
+</span><span class="attr">#[allow(unused)]
+</span><span class="kw">pub fn </span>type_bindings_to_string(bindings: <span class="kw-2">&amp;</span>TypeBindings) -&gt; String {
+    <span class="kw">if </span>bindings.is_empty() {
+        <span class="kw">return </span><span class="string">"bindings: (none)"</span>.to_string();
+    }
+
+    <span class="kw">let </span><span class="kw-2">mut </span>ret = <span class="kw">if </span>bindings.len() == <span class="number">1 </span>{
+        <span class="string">"1 binding:"</span>.to_string()
+    } <span class="kw">else </span>{
+        <span class="macro">format!</span>(<span class="string">"{} bindings:"</span>, bindings.len())
+    };
+
+    <span class="kw">for </span>(var, <span class="kw">_</span>, binding) <span class="kw">in </span>bindings.values() {
+        ret += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"\n    {var:?} := {binding:?}"</span>);
+    }
+
+    ret
+}
 
 <span class="doccomment">/// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all Type::DataType variants that represent
