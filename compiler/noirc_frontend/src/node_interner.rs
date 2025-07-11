@@ -1529,6 +1529,26 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
+    /// Pretty print type bindings for debugging
+    #[allow(unused)]
+    pub fn type_bindings_string(&self, bindings: &TypeBindings) -> String {
+        if bindings.is_empty() {
+            return "bindings: (none)".to_string();
+        }
+
+        let mut ret = if bindings.len() == 1 {
+            "1 binding:".to_string()
+        } else {
+            format!("{} bindings:", bindings.len())
+        };
+
+        for (var, _, binding) in bindings.values() {
+            ret += &format!("\n    {var:?} := {binding:?}");
+        }
+
+        ret
+    }
+
     /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
     /// constraint. If an impl cannot be found, this will return a vector of each constraint
     /// in the path to get to the failing constraint. Usually this is just the single failing
