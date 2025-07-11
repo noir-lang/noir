@@ -634,14 +634,7 @@ impl<'a> Context<'a> {
                 unreachable!("Expected all store instructions to be removed before acir_gen")
             }
             Instruction::Load { .. } => {
-                // Load instructions should have been removed before acir_gen, unless the loaded memory cannot be resolved.
-                // In that case, we use an 'uninitialized witness' to represent an unresolved load.
-                // The resulting opcodes will not be solvable and will generate an error during execution.
-                let result_ids = dfg.instruction_results(instruction_id);
-                for result in result_ids {
-                    let value = AcirValue::uninitialized(dfg.type_of_value(*result).into());
-                    self.ssa_values.insert(*result, value);
-                }
+                unreachable!("Expected all load instructions to be removed before acir_gen")
             }
             Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. } => {
                 // Only Brillig needs to worry about reference counted arrays
