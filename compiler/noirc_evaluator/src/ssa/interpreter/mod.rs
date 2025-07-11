@@ -150,13 +150,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(InterpreterError::Internal(
-                    InternalError::ValueTypeDoesNotMatchReturnType {
-                        value_id: id,
-                        expected_type: expected_type.to_string(),
-                        actual_type: actual_type.to_string(),
-                    },
-                ));
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
             }
         }
 
@@ -1012,10 +1010,43 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
         let is_slice = matches!(&result_type, Type::Slice(..));
 
+        // The number of elements in the array must be a multiple of the number of element types
+        let element_types = result_type.clone().element_types();
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
+            return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                result,
+                elements_count: elements.len(),
+                types_count: element_types.len(),
+            }));
+        }
+
+        // Make sure each element's type matches the one in element_types
+        for (index, (element, expected_type)) in
+            elements.iter().zip(element_types.iter().cycle()).enumerate()
+        {
+            let actual_type = element.get_type();
+            if &actual_type != expected_type {
+                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                    result,
+                    index,
+                    actual_type: actual_type.to_string(),
+                    expected_type: expected_type.to_string(),
+                }));
+            }
+        }
+
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.clone().element_types(),
+            element_types,
             is_slice,
         });
         self.define(result, array)
