@@ -55,7 +55,7 @@ pub enum InterpreterError {
     )]
     IncRcRevive { value_id: ValueId, value: String },
     #[error("An overflow occurred while evaluating {instruction}")]
-    Overflow { instruction: String },
+    Overflow { operator: BinaryOp, instruction: String },
     #[error(
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
@@ -68,6 +68,8 @@ pub enum InterpreterError {
     BlackBoxError { name: String, reason: String },
     #[error("Reached the unreachable")]
     ReachedTheUnreachable,
+    #[error("Array index {index} is out of bounds for array of length {length}")]
+    IndexOutOfBounds { index: u32, length: u32 },
 }
 
 /// These errors can only result from interpreting malformed SSA

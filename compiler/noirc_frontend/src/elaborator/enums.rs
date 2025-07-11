@@ -715,6 +715,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
@@ -1013,7 +1014,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Compiles the cases and fallback cases for integer and range patterns.
     ///
-    /// Integers have an infinite number of constructors, so we specialise the
+    /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
     fn compile_int_cases(
         &mut self,

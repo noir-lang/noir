@@ -806,6 +806,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
         }
@@ -1078,7 +1079,12 @@ impl Elaborator<'_> {
                         Type::Forall(generics, _) => generics.len() - function_generic_count,
                         _ => 0,
                     };
-                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                    typ.instantiate_with_bindings_and_turbofish(
+                        bindings,
+                        turbofish_generics,
+                        self.interner,
+                        implicit_generic_count,
+                    )
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),

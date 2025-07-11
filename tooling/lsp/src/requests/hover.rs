@@ -81,8 +81,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 6, character: 9 },
+            // cSpell:disable
             r#"    one
     mod subone"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -93,11 +95,13 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 9, character: 20 },
+            // cSpell:disable
             r#"    one::subone
     struct SubOneStruct {
         some_field: i32,
         some_other_field: Field,
     }"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -108,9 +112,11 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 46, character: 17 },
+            // cSpell:disable
             r#"    one::subone
     struct GenericStruct<A, B> {
     }"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -121,8 +127,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 9, character: 35 },
+            // cSpell:disable
             r#"    one::subone::SubOneStruct
     some_field: i32"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -133,8 +141,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 12, character: 17 },
+            // cSpell:disable
             r#"    one::subone
     trait SomeTrait"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -145,8 +155,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 15, character: 25 },
+            // cSpell:disable
             r#"    one::subone
     global some_global: Field = 2"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -193,9 +205,11 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 20, character: 6 },
+            // cSpell:disable
             r#"    one::subone::SubOneStruct
     impl SubOneStruct
     fn foo(self, x: i32, y: i32) -> Field"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -257,8 +271,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 34, character: 17 },
+            // cSpell:disable
             r#"    one::subone
     type SomeAlias = i32"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -293,8 +309,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 15, character: 17 },
+            // cSpell:disable
             r#"    one
     mod subone"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -329,8 +347,10 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 19, character: 12 },
+            // cSpell:disable
             r#"    one
     mod subone"#,
+            // cSpell:enable
         )
         .await;
     }
@@ -341,11 +361,13 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 51, character: 30 },
+            // cSpell:disable
             r#"    one::subone
     struct SubOneStruct {
         some_field: i32,
         some_other_field: Field,
     }"#,
+            // cSpell:enable
         )
         .await;
     }
