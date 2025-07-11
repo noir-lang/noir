@@ -781,21 +781,28 @@ impl<'a> FunctionContext<'a> {
                     location: Location::dummy(),
                 });
 
-                let item_expr = if let Some(let_expr) = let_expr {
-                    Expression::Block(vec![let_expr, item_expr])
-                } else {
-                    item_expr
-                };
-
                 // Produce the target type from the item.
-                self.gen_expr_from_source(
+                let Some((expr, is_dyn)) = self.gen_expr_from_source(
                     u,
                     (item_expr, src_dyn || idx_dyn),
                     item_typ,
                     src_mutable,
                     tgt_type,
                     max_depth,
-                )
+                )?
+                else {
+                    return Ok(None);
+                };
+
+                // Append the let and the final expression if we needed a block,
+                // so we avoid suffixing a block with e.g. indexing, which would
+                // not be parsable by the frontend.
+                let expr = if let Some(let_expr) = let_expr {
+                    Expression::Block(vec![let_expr, expr])
+                } else {
+                    expr
+                };
+                Ok(Some((expr, is_dyn)))
             }
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
