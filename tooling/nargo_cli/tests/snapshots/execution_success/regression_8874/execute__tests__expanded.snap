@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(print: bool, i: u32) {
+    let array: [u32; 0] = [];
+    if print {
+        println(array[i]);
+    }
+}
