@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752252792822,
+  "lastUpdate": 1752252800637,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18825,48 +18825,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "c109ac7b68487a6b6fa76e0abf9911797f99ea91",
-          "message": "chore(acir_gen): Improve error message for radix decomposition (#9068)",
-          "timestamp": "2025-07-01T12:24:22Z",
-          "tree_id": "800830797cfc66364bfb1974a2ee9b90bcce86d2",
-          "url": "https://github.com/noir-lang/noir/commit/c109ac7b68487a6b6fa76e0abf9911797f99ea91"
-        },
-        "date": 1751374097219,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253146,
-            "range": "± 637",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222085,
-            "range": "± 7099",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778760,
-            "range": "± 2048",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "2b0f596b8dc153936f321e09adf2380d0ffeb845",
           "message": "chore(debug): Toggle SSA locations when printing SSA  (#9066)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
@@ -20909,6 +20867,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790823,
             "range": "± 1365",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fc79564ffe76da545e0db681b440524ecdeb9c39",
+          "message": "fix: handle MakeArray values in DIE for finding mutated array types (#9176)",
+          "timestamp": "2025-07-11T16:19:03Z",
+          "tree_id": "4d161a651bfe96f37dd10bf8776b09f1d37f1010",
+          "url": "https://github.com/noir-lang/noir/commit/fc79564ffe76da545e0db681b440524ecdeb9c39"
+        },
+        "date": 1752252785899,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261267,
+            "range": "± 1062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 233986,
+            "range": "± 997",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782680,
+            "range": "± 7081",
             "unit": "ns/iter"
           }
         ]
