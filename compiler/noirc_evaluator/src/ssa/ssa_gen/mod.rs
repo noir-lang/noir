@@ -503,15 +503,33 @@ impl FunctionContext<'_> {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
+        let assert_message = Some("Index out of bounds".to_owned());
 
-        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let true_const = self.builder.numeric_constant(true, NumericType::bool());
+        let array_len_constant = self
+            .builder
+            .current_function
+            .dfg
+            .get_numeric_constant(array_len)
+            .and_then(|value| value.try_to_u32());
+        let array_len_is_power_of_two =
+            array_len_constant.map(|val| (val & (val - 1)) == 0).unwrap_or(false);
+        if array_len_is_power_of_two {
+            self.builder.insert_range_check(
+                index,
+                array_len_constant.unwrap().ilog2(),
+                assert_message,
+            );
+        } else {
+            let is_offset_out_of_bounds =
+                self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+            let true_const = self.builder.numeric_constant(true, NumericType::bool());
 
-        self.builder.insert_constrain(
-            is_offset_out_of_bounds,
-            true_const,
-            Some("Index out of bounds".to_owned().into()),
-        );
+            self.builder.insert_constrain(
+                is_offset_out_of_bounds,
+                true_const,
+                assert_message.map(ConstrainError::from),
+            );
+        }
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {
