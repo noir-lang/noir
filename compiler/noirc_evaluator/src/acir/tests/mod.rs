@@ -926,9 +926,9 @@ fn do_not_overflow_with_constant_constrain_neq() {
     assert!(acir_functions[0].opcodes().is_empty());
 }
 
-// Convert the SSA input into ACIR and use ACVM to execute it
-// Returns the ACVM execution status and the value of the 'output' witness value,
-// unless the provided output is None or the ACVM fails during execution.
+/// Convert the SSA input into ACIR and use ACVM to execute it
+/// Returns the ACVM execution status and the value of the 'output' witness value,
+/// unless the provided output is None or the ACVM fails during execution.
 fn execute_ssa(
     ssa: Ssa,
     initial_witness: WitnessMap<FieldElement>,
@@ -965,9 +965,9 @@ fn get_main_src(typ: &str) -> String {
     )
 }
 
-// Create a ssa instruction corresponding to the operator, using v1 and v2 as operands.
-// Additional information can be added to the string,
-// for instance, "range_check 8" creates 'range_check v1 to 8 bits'
+/// Create a SSA instruction corresponding to the operator, using v1 and v2 as operands.
+/// Additional information can be added to the string,
+/// for instance, "range_check 8" creates 'range_check v1 to 8 bits'
 fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
     let ops = operator.split(" ").collect::<Vec<_>>();
     let op = ops[0];
@@ -1011,10 +1011,10 @@ fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
     }
 }
 
-// Execute a simple operation for each operators
-// The operation is executed from SSA IR using ACVM after acir-gen
-// and also directly on the SSA IR via constant folding, by hardcoding the values
-// via get_constant_main_src() prefix.
+/// Execute a simple operation for each operators
+/// The operation is executed from SSA IR using ACVM after acir-gen
+/// and also directly on the SSA IR using the SSA interpreter.
+/// The results are compared to ensure that both executions yield the same result.
 fn test_operators(
     // The list of operators to test
     operators: &[&str],
@@ -1041,21 +1041,21 @@ fn test_operators(
         let output = if with_output { Some(Witness(len)) } else { None };
         let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
         // ssa execution
-        let result = ssa.interpret(vec![inputs_int.clone()]);
+        let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
         // acir execution
-        let result2 = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+        let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
 
-        match (result, result2) {
+        match (ssa_interpreter_result, acir_execution_result) {
             // Both execution failed, so it is the same behavior, as expected.
             (Err(_), (ACVMStatus::Failure(_), _)) => (),
             // Both execution succeeded and output the same value
-            (Ok(ssa_result), (ACVMStatus::Solved, acvm_result)) => {
-                let result = if let Some(result) = ssa_result.first() {
+            (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
+                let ssa_result = if let Some(result) = ssa_inner_result.first() {
                     result.as_numeric().map(|v| v.convert_to_field())
                 } else {
                     None
                 };
-                assert_eq!(result, acvm_result);
+                assert_eq!(ssa_result, acvm_result);
             }
             _ => panic!("ssa and acvm execution should have the same result"),
         }
