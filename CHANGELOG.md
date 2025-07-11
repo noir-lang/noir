@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0-beta.9](https://github.com/noir-lang/noir/compare/v1.0.0-beta.8...v1.0.0-beta.9) (2025-07-11)
+
+
+### Bug Fixes
+
+* Cast values before inserting them in the databus ([#8918](https://github.com/noir-lang/noir/issues/8918)) ([1c7c6f2](https://github.com/noir-lang/noir/commit/1c7c6f28b1ffd8629b33848be61fe95f8770cd4a))
+* Disallow trait associated constants to have a default value ([#9172](https://github.com/noir-lang/noir/issues/9172)) ([71f57a2](https://github.com/noir-lang/noir/commit/71f57a2e3ce850ce65d88a16598d665f99e311b0))
+* Handle MakeArray values in DIE for finding mutated array types ([#9176](https://github.com/noir-lang/noir/issues/9176)) ([fc79564](https://github.com/noir-lang/noir/commit/fc79564ffe76da545e0db681b440524ecdeb9c39))
+
 ## [1.0.0-beta.8](https://github.com/noir-lang/noir/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-07-10)
 
 
