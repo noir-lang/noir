@@ -496,9 +496,9 @@ impl FunctionContext<'_> {
         }))
     }
 
-    /// Prepare a slice access.
-    /// Check that the index being used to access a slice element
-    /// is less than the dynamic slice length.
+    /// Prepare an array or slice access.
+    /// Check that the index being used to access an array/slice element
+    /// is less than the (potentially dynamic) array/slice length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
@@ -511,15 +511,14 @@ impl FunctionContext<'_> {
             .dfg
             .get_numeric_constant(array_len)
             .and_then(|value| value.try_to_u32());
-        let array_len_is_power_of_two =
-            array_len_constant.map(|val| (val & (val - 1)) == 0).unwrap_or(false);
-        if array_len_is_power_of_two {
-            self.builder.insert_range_check(
-                index,
-                array_len_constant.unwrap().ilog2(),
-                assert_message,
-            );
+
+        if array_len_constant.is_some_and(u32::is_power_of_two) {
+            // If the array length is a power of two then we can make use of the range check opcode
+            // to assert that the index fits in the relevant number of bits.
+            let array_len_bits = array_len_constant.expect("array checked to be constant").ilog2();
+            self.builder.insert_range_check(index, array_len_bits, assert_message);
         } else {
+            // If it's not a power of two then we need to do an explicit inequality and constraint.
             let is_offset_out_of_bounds =
                 self.builder.insert_binary(index, BinaryOp::Lt, array_len);
             let true_const = self.builder.numeric_constant(true, NumericType::bool());
