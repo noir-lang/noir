@@ -205,9 +205,9 @@ pub fn module_def_id_relative_path(
 
     let path = if defining_module.is_some() || !matches!(module_def_id, ModuleDefId::ModuleId(..)) {
         if let Some(reexport_name) = &intermediate_name {
-            format!("{}::{}::{}", module_path, reexport_name, name)
+            format!("{module_path}::{reexport_name}::{name}")
         } else {
-            format!("{}::{}", module_path, name)
+            format!("{module_path}::{name}")
         }
     } else {
         module_path.clone()

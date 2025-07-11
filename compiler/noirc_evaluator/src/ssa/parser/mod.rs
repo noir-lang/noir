@@ -93,7 +93,7 @@ impl Debug for SsaErrorWithSource {
                 writeln!(f)?;
             }
 
-            writeln!(f, "{}", line)?;
+            writeln!(f, "{line}")?;
 
             if has_error {
                 let offset = span.start() as usize - byte;

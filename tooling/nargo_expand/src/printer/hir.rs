@@ -579,7 +579,7 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(&typ.to_string());
             }
             HirLiteral::Str(string) => {
-                self.push_str(&format!("{:?}", string));
+                self.push_str(&format!("{string:?}"));
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
                 self.push_str("f\"");

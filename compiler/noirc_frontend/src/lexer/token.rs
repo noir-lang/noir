@@ -381,10 +381,10 @@ impl Display for FmtStrFragment {
                     .replace('\0', "\\0")
                     .replace('\'', "\\'")
                     .replace('\"', "\\\"");
-                write!(f, "{}", string)
+                write!(f, "{string}")
             }
             FmtStrFragment::Interpolation(string, _) => {
-                write!(f, "{{{}}}", string)
+                write!(f, "{{{string}}}")
             }
         }
     }
@@ -1137,7 +1137,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
+            SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttributeKind::Export => "export".to_string(),

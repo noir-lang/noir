@@ -127,7 +127,7 @@ fn insert_all_files_into_file_manager(
             src.to_string()
         } else {
             std::fs::read_to_string(filename.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", filename))
+                .unwrap_or_else(|_| panic!("could not read file {filename:?} into string"))
         };
 
         file_manager.add_file_with_source(filename.as_path(), source);

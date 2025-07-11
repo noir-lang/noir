@@ -114,7 +114,7 @@ where
 
     /// Get a variable in scope.
     pub fn get_variable(&self, id: &K) -> &Variable {
-        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
+        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {id:?}"))
     }
 }
 

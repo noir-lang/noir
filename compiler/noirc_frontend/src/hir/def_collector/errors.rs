@@ -260,7 +260,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 *location,
             ),
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } => {
-                let constraint = format!("{}{}", constraint_name, constraint_generics);
+                let constraint = format!("{constraint_name}{constraint_generics}");
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),

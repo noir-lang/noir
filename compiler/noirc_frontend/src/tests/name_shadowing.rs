@@ -412,7 +412,7 @@ fn test_name_shadowing() {
             if !cases_to_skip.contains(&(i, j)) {
                 let modified_src = src.replace(x, y);
                 let errors = get_program_errors(&modified_src, &format!("name_shadowing_{i}_{j}"));
-                assert!(!errors.is_empty(), "Expected errors, got: {:?}", errors);
+                assert!(!errors.is_empty(), "Expected errors, got: {errors:?}");
             }
         }
     }

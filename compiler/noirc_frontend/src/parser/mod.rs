@@ -190,7 +190,7 @@ impl std::fmt::Display for ItemKind {
                 }
                 c.fmt(f)
             }
-            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            ItemKind::InnerAttribute(a) => write!(f, "#![{a}]"),
         }
     }
 }

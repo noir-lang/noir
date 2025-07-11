@@ -343,7 +343,7 @@ impl ChunkFormatter<'_, '_> {
             '(' => ')',
             '{' => '}',
             '[' => ']',
-            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+            _ => panic!("Unexpected delimiter: {delimiter_start}"),
         };
 
         // We use the current token rather than the Tokens we got from `Token::Quote` because

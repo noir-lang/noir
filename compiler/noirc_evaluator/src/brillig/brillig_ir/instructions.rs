@@ -391,9 +391,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
-            "Constant {} does not fit in bit size {}",
-            constant,
-            bit_size
+            "Constant {constant} does not fit in bit size {bit_size}"
         );
         if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
@@ -489,7 +487,7 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {:?} on a field", operation),
+            _ => panic!("Unsupported operation: {operation:?} on a field"),
         }
     }
 }
@@ -509,7 +507,7 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {:?} on an integer", operation),
+            _ => panic!("Unsupported operation: {operation:?} on an integer"),
         }
     }
 }

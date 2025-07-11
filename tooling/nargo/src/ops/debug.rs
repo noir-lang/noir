@@ -35,7 +35,7 @@ pub fn get_test_function_for_debug(
 
     let (test_name, test_function) = match test_functions {
         matchings if matchings.is_empty() => {
-            return Err(format!("`{}` does not match with any test function", test_name));
+            return Err(format!("`{test_name}` does not match with any test function"));
         }
         matchings if matchings.len() == 1 => matchings.into_iter().next().unwrap(),
         matchings => {
@@ -53,7 +53,7 @@ pub fn get_test_function_for_debug(
             if exact_match_op.len() == 1 {
                 exact_match_op.into_iter().next().unwrap()
             } else {
-                return Err(format!("`{}` matches with more than one test function", test_name));
+                return Err(format!("`{test_name}` matches with more than one test function"));
             }
         }
     };

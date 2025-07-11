@@ -84,7 +84,7 @@ impl NodeFinder<'_> {
                     };
 
                     let mut label_details = completion_item.label_details.unwrap();
-                    label_details.detail = Some(format!("(use {})", full_path));
+                    label_details.detail = Some(format!("(use {full_path})"));
                     completion_item.label_details = Some(label_details);
                     completion_item.additional_text_edits =
                         Some(use_completion_item_additional_text_edits(

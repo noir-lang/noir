@@ -796,7 +796,7 @@ impl Display for TypePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.typ, self.item)?;
         if let Some(turbofish) = &self.turbofish {
-            write!(f, "::{}", turbofish)?;
+            write!(f, "::{turbofish}")?;
         }
         Ok(())
     }

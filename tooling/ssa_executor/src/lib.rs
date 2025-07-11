@@ -26,12 +26,11 @@ pub fn execute_ssa(
             match compiled_program {
                 Ok(compiled_program) => execute_single(&compiled_program.program, initial_witness),
                 Err(e) => Err(SsaExecutionError::SsaCompilationFailed(format!(
-                    "SSA compilation failed: {:?}",
-                    e
+                    "SSA compilation failed: {e:?}"
                 ))),
             }
         }
-        Err(e) => Err(SsaExecutionError::SsaParsingFailed(format!("SSA parsing failed: {:?}", e))),
+        Err(e) => Err(SsaExecutionError::SsaParsingFailed(format!("SSA parsing failed: {e:?}"))),
     }
 }
 
@@ -132,8 +131,8 @@ mod tests {
         let brillig_result =
             execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
         match (acir_result, brillig_result) {
-            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {}, brillig succeeded", acir),
-            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {}", brillig),
+            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
+            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
             _ => {}
         }
     }

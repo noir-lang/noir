@@ -1555,8 +1555,7 @@ mod tests {
                             }
                             Err(err) => {
                                 panic!(
-                                    "Unexpected lexer error found {:?} for input string {:?}",
-                                    err, big_list_program_str
+                                    "Unexpected lexer error found {err:?} for input string {big_list_program_str:?}"
                                 )
                             }
                         }

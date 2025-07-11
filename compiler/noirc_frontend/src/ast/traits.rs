@@ -143,12 +143,12 @@ impl Display for NoirTrait {
 
         if self.is_alias {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            return write!(f, " = {};", bounds);
+            return write!(f, " = {bounds};");
         }
 
         if !self.bounds.is_empty() {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            write!(f, ": {}", bounds)?;
+            write!(f, ": {bounds}")?;
         }
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);

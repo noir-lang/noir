@@ -1042,9 +1042,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1204,7 +1204,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,

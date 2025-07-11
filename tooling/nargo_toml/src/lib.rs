@@ -491,7 +491,7 @@ fn resolve_package_from_toml(
         for toml in processed {
             cycle = cycle || toml == str_path;
             if cycle {
-                message += &format!("{} referencing ", toml);
+                message += &format!("{toml} referencing ");
             }
         }
         message += str_path;

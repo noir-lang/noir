@@ -91,14 +91,14 @@ fn arithmetic_generics_checked_cast_zeros() {
                 assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
                 assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
             }
-            _ => panic!("unexpected length: {:?}", length),
+            _ => panic!("unexpected length: {length:?}"),
         }
         assert!(matches!(
             err,
             TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
         ));
     } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
+        panic!("unexpected error: {monomorphization_error:?}");
     }
 }
 
@@ -134,17 +134,17 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
                 assert!(matches!(*from.clone(), Type::InfixExpr { .. }));
                 assert!(matches!(*to.clone(), Type::InfixExpr { .. }));
             }
-            _ => panic!("unexpected length: {:?}", length),
+            _ => panic!("unexpected length: {length:?}"),
         }
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
                 assert_eq!(lhs.clone(), FieldElement::zero());
                 assert_eq!(rhs.clone(), FieldElement::zero());
             }
-            _ => panic!("expected ModuloOnFields, but found: {:?}", err),
+            _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }
     } else {
-        panic!("unexpected error: {:?}", monomorphization_error);
+        panic!("unexpected error: {monomorphization_error:?}");
     }
 }
 

@@ -24,7 +24,7 @@ pub struct ProgramInfo {
 impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
         let expression_width = if let Some(expression_width) = program_info.expression_width {
-            format!("{:?}", expression_width)
+            format!("{expression_width:?}")
         } else {
             "N/A".to_string()
         };

@@ -236,7 +236,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = self.lookup_all(jump_args)?;
                 }
@@ -252,7 +252,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         *else_destination
                     };
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = Vec::new();
                 }

@@ -182,7 +182,7 @@ fn evaluate_static_assert(
                 panic!("ICE: missing foreign call inputs")
             }
             TryFromParamsError::ParsingError(error) => {
-                panic!("ICE: could not decode printable type {:?}", error)
+                panic!("ICE: could not decode printable type {error:?}")
             }
         },
     };

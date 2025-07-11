@@ -150,7 +150,7 @@ mod tests {
             .ok()
             .and_then(|dir| test_program_path.strip_prefix(&dir).ok())
             .map(|stripped| format!("At {}", stripped.display()))
-            .unwrap_or_else(|| format!("At {}", test_program_dir));
+            .unwrap_or_else(|| format!("At {test_program_dir}"));
 
         for mut expected_lines in expected_lines_by_command {
             // While running the debugger, issue a "next" cmd,
@@ -181,9 +181,7 @@ mod tests {
                 let line_expected_to_contain = expected_line.trim();
                 assert!(
                     ascii_line.contains(line_expected_to_contain),
-                    "{:?}\ndid not contain\n{:?}",
-                    ascii_line,
-                    line_expected_to_contain,
+                    "{ascii_line:?}\ndid not contain\n{line_expected_to_contain:?}",
                 );
             }
         }

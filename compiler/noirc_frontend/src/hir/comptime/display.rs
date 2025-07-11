@@ -457,7 +457,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let generic_string = if generic_string.is_empty() {
                     generic_string
                 } else {
-                    format!("<{}>", generic_string)
+                    format!("<{generic_string}>")
                 };
 
                 let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
@@ -467,7 +467,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let where_clause = if where_clause.is_empty() {
                     where_clause
                 } else {
-                    format!(" where {}", where_clause)
+                    format!(" where {where_clause}")
                 };
 
                 write!(
@@ -487,11 +487,11 @@ impl Display for ValuePrinter<'_, '_> {
                 }
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{typ}"),
             Value::Expr(expr) => match expr.as_ref() {
                 ExprValue::Expression(expr) => {
                     let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                    write!(f, "{}", expr)
+                    write!(f, "{expr}")
                 }
                 ExprValue::Statement(statement) => {
                     write!(

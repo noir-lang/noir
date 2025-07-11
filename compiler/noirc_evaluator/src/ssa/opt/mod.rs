@@ -54,7 +54,7 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     let mut expected_ssa = match Ssa::from_str(&expected) {
         Ok(ssa) => ssa,
         Err(err) => {
-            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err)
+            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")
         }
     };
 

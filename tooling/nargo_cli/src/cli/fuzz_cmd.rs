@@ -494,13 +494,13 @@ fn display_fuzzing_report_and_store(
 
     if !status.failed() {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        write!(writer, "{} passed (didn't find any issues)", fuzzing_harness_name)
+        write!(writer, "{fuzzing_harness_name} passed (didn't find any issues)")
             .expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
         writeln!(writer).expect("Failed to write to stderr");
     } else {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        write!(writer, "{} failed", fuzzing_harness_name).expect("Failed to write to stderr");
+        write!(writer, "{fuzzing_harness_name} failed").expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
     }
 

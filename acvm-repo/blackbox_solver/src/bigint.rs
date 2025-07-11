@@ -67,7 +67,7 @@ impl BigIntSolver {
     ) -> Result<(), BlackBoxResolutionError> {
         if self.pedantic_solving {
             if !self.is_valid_modulus(modulus) {
-                panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
+                panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {modulus:?}");
             }
             if inputs.len() > modulus.len() {
                 panic!(
@@ -232,8 +232,7 @@ fn all_allowed_bigint_moduli_are_prime() {
             Primality::Probable(probability) => {
                 if probability < 0.90 {
                     panic!(
-                        "not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90",
-                        probability
+                        "not all allowed_bigint_moduli are prime within the allowed probability: {probability} < 0.90"
                     );
                 }
             }

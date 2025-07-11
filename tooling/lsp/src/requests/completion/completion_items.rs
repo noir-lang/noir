@@ -322,8 +322,8 @@ impl NodeFinder<'_> {
             false
         };
         let description = func_meta_type_to_string(func_meta, name, func_self_type.is_some());
-        let name = if self_prefix { format!("self.{}", name) } else { name.clone() };
-        let name = if is_macro_call { format!("{}!", name) } else { name };
+        let name = if self_prefix { format!("self.{name}") } else { name.clone() };
+        let name = if is_macro_call { format!("{name}!") } else { name };
         let name = &name;
         let mut has_arguments = false;
 
@@ -345,12 +345,12 @@ impl NodeFinder<'_> {
 
                 if insert_text.ends_with("()") {
                     let label =
-                        if skip_first_argument { name.to_string() } else { format!("{}()", name) };
+                        if skip_first_argument { name.to_string() } else { format!("{name}()") };
                     simple_completion_item(label, kind, Some(description.clone()))
                 } else {
                     has_arguments = true;
                     snippet_completion_item(
-                        format!("{}(…)", name),
+                        format!("{name}(…)"),
                         kind,
                         insert_text,
                         Some(description.clone()),
@@ -436,9 +436,9 @@ impl NodeFinder<'_> {
                 self.interner,
             )?
         };
-        let full_path = format!("{}::{}", module_full_path, trait_name);
+        let full_path = format!("{module_full_path}::{trait_name}");
         let mut label_details = completion_item.label_details.clone().unwrap();
-        label_details.detail = Some(format!("(use {})", full_path));
+        label_details.detail = Some(format!("(use {full_path})"));
         completion_item.label_details = Some(label_details);
         completion_item.additional_text_edits = Some(use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {

@@ -144,7 +144,7 @@ impl<'a> InlayHintCollector<'a> {
             text_edits: if editable {
                 Some(vec![TextEdit {
                     range: Range { start: location.range.end, end: location.range.end },
-                    new_text: format!(": {}", typ),
+                    new_text: format!(": {typ}"),
                 }])
             } else {
                 None
@@ -275,7 +275,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn push_parameter_hint(&mut self, position: Position, str: &str) {
-        self.push_text_hint(position, format!("{}: ", str));
+        self.push_text_hint(position, format!("{str}: "));
     }
 
     fn push_text_hint(&mut self, position: Position, str: String) {

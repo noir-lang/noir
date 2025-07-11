@@ -137,7 +137,7 @@ impl Segment {
         if other == Segment::SelfReference {
             self
         } else {
-            Segment::Plain(format!("{}::{}", self, other))
+            Segment::Plain(format!("{self}::{other}"))
         }
     }
 
@@ -158,7 +158,7 @@ impl Display for Segment {
             Segment::Crate => write!(f, "crate"),
             Segment::Super => write!(f, "super"),
             Segment::Dep => write!(f, "dep"),
-            Segment::Plain(s) => write!(f, "{}", s),
+            Segment::Plain(s) => write!(f, "{s}"),
             Segment::SelfReference => write!(f, "self"),
         }
     }
@@ -278,7 +278,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
         match import.kind {
             UseTreeKind::Path(ident, alias) => {
                 if let Some(alias) = alias {
-                    tree = tree.insert(Segment::Plain(format!("{} as {}", ident, alias)));
+                    tree = tree.insert(Segment::Plain(format!("{ident} as {alias}")));
                     tree.insert(Segment::SelfReference);
                 } else if ident.as_str() == "self" {
                     tree.insert(Segment::SelfReference);
