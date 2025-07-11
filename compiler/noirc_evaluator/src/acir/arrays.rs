@@ -110,10 +110,12 @@ impl Context<'_> {
             Type::Array(_, len) => {
                 let zero_var = self.acir_context.add_constant(FieldElement::zero());
                 let result_ids = dfg.instruction_results(instruction);
-                if result_ids.len() == 1 && *len == 0 {
-                    let acir_typ: AcirType = dfg.type_of_value(result_ids[0]).into();
-                    let zero_value = AcirValue::Var(zero_var, acir_typ);
-                    self.define_result(dfg, instruction, zero_value);
+                if *len == 0 {
+                    for result_id in result_ids {
+                        let acir_typ: AcirType = dfg.type_of_value(*result_id).into();
+                        let zero_value = AcirValue::Var(zero_var, acir_typ);
+                        self.ssa_values.insert(*result_id, zero_value);
+                    }
                     let msg = "Index out of bounds, array has size 0".to_string();
                     let msg = self.acir_context.generate_assertion_message_payload(msg);
                     return self.acir_context.assert_eq_var(
