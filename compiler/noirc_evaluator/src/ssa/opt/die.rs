@@ -499,12 +499,13 @@ impl RcTracker {
             self.mutated_array_types.insert(typ);
 
             // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
-            let value = &dfg[value];
-            if let Value::Instruction { instruction, .. } = value {
+            if let Value::Instruction { instruction, .. } = &dfg[value] {
                 let instruction = &dfg[*instruction];
                 if let Instruction::MakeArray { elements, typ: _ } = instruction {
                     for element in elements {
-                        self.handle_value_for_mutated_array_types(*element, dfg);
+                        if !dfg.is_global(*element) {
+                            self.handle_value_for_mutated_array_types(*element, dfg);
+                        }
                     }
                 }
             }
@@ -1147,6 +1148,24 @@ mod test {
             inc_rc v1
             inc_rc v2 
             return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_crash_for_value_pointing_to_make_array_pointing_to_global() {
+        let src = r#"
+        g0 = make_array [u1 1] : [u1; 1]
+
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [g0] : [[u1; 1]; 1]
+            inc_rc v0
+            return v0
         }
         "#;
 
