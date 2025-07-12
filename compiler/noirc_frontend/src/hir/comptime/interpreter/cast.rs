@@ -2,13 +2,14 @@ use std::cmp::Ordering;
 
 use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
+use num_bigint::{BigInt, BigUint};
 
 use crate::{
     Type,
     ast::IntegerBitSize,
     hir::comptime::{InterpreterError, Value, errors::IResult},
     shared::Signedness,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
 };
 
 fn bit_size(typ: &Type) -> u32 {
@@ -138,7 +139,7 @@ pub(super) fn evaluate_cast_one_step(
 
     // Now just wrap the Result in a Value
     match output_type.follow_bindings() {
-        Type::FieldElement => Ok(Value::Field(SignedField::new(lhs, lhs_is_negative))),
+        Type::FieldElement => Ok(Value::Field(SignedInteger::new(lhs, lhs_is_negative))),
         typ @ Type::Integer(sign, bit_size) => match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
                 Err(InterpreterError::TypeUnsupported { typ: output_type.clone(), location })
@@ -183,7 +184,7 @@ mod tests {
         let typ = Type::FieldElement;
 
         let lhs_values = [
-            Value::Field(SignedField::one()),
+            Value::Field(SignedInteger::one()),
             Value::Bool(true),
             Value::U1(true),
             Value::U8(1),
@@ -200,7 +201,7 @@ mod tests {
         for lhs in lhs_values {
             assert_eq!(
                 evaluate_cast_one_step(&typ, location, lhs),
-                Ok(Value::Field(SignedField::one()))
+                Ok(Value::Field(SignedInteger::one()))
             );
         }
     }
@@ -218,14 +219,14 @@ mod tests {
             (Value::U8(255), signed(SixtyFour), Value::I64(255)),
             // Reinterpret as negative
             (Value::U8(255), signed(Eight), Value::I8(-1)),
-            (Value::Field(SignedField::positive(255u32)), signed(Eight), Value::I8(-1)),
+            (Value::Field(SignedInteger::positive(255u32)), signed(Eight), Value::I8(-1)),
             // Truncate
             (Value::U16(300), unsigned(Eight), Value::U8(44)),
             (Value::U16(300), signed(Eight), Value::I8(44)),
             (Value::U16(255), signed(Eight), Value::I8(-1)),
-            (Value::Field(SignedField::positive(300u32)), unsigned(Eight), Value::U8(44)),
-            (Value::Field(SignedField::positive(300u32)), signed(Eight), Value::I8(44)),
-            (Value::Field(SignedField::positive(10u32)), unsigned(Sixteen), Value::U16(10)),
+            (Value::Field(SignedInteger::positive(300u32)), unsigned(Eight), Value::U8(44)),
+            (Value::Field(SignedInteger::positive(300u32)), signed(Eight), Value::I8(44)),
+            (Value::Field(SignedInteger::positive(10u32)), unsigned(Sixteen), Value::U16(10)),
         ];
 
         for (lhs, typ, expected) in tests {
@@ -254,7 +255,7 @@ mod tests {
             (Value::I8(-100), unsigned(Sixteen), Value::U16(65436)),
             // Casting a negative integer to a field always results in a positive value
             // This is the only case we zero-extend signed integers instead of sign-extending them
-            (Value::I8(-1), Type::FieldElement, Value::Field(SignedField::positive(255u32))),
+            (Value::I8(-1), Type::FieldElement, Value::Field(SignedInteger::positive(255u32))),
             // Widen negative: sign extend
             (Value::I8(-1), signed(Sixteen), Value::I16(-1)),
             (Value::I8(-100), signed(Sixteen), Value::I16(-100)),
@@ -266,10 +267,10 @@ mod tests {
             (Value::I16(255), signed(Eight), Value::I8(-1)),
             (Value::I16(i16::MIN + 5), signed(Eight), Value::I8(5)),
             (Value::I16(i16::MIN + 5), unsigned(Eight), Value::U8(5)),
-            (Value::Field(SignedField::negative(1u32)), unsigned(Eight), Value::U8(0)),
-            (Value::Field(SignedField::negative(1u32)), signed(Eight), Value::I8(0)),
-            (Value::Field(SignedField::negative(2u32)), unsigned(Sixteen), Value::U16(65535)),
-            (Value::Field(SignedField::negative(2u32)), signed(Sixteen), Value::I16(-1)),
+            (Value::Field(SignedInteger::negative(1u32)), unsigned(Eight), Value::U8(0)),
+            (Value::Field(SignedInteger::negative(1u32)), signed(Eight), Value::I8(0)),
+            (Value::Field(SignedInteger::negative(2u32)), unsigned(Sixteen), Value::U16(65535)),
+            (Value::Field(SignedInteger::negative(2u32)), signed(Sixteen), Value::I16(-1)),
         ];
 
         for (lhs, typ, expected) in tests {

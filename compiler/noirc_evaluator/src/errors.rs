@@ -10,7 +10,7 @@
 use iter_extended::vecmap;
 use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
 
-use noirc_frontend::signed_field::SignedField;
+use noirc_frontend::signed_field::SignedInteger;
 use thiserror::Error;
 
 use crate::ssa::ir::types::NumericType;
@@ -26,7 +26,7 @@ pub enum RuntimeError {
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
     #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
-        value: SignedField,
+        value: SignedInteger,
         typ: NumericType,
         range: String,
         call_stack: CallStack,

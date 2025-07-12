@@ -4,7 +4,7 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
-    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedField,
+    Type, ast::Visitor, node_interner::NodeInterner, parse_program, signed_field::SignedInteger,
     token::IntegerTypeSuffix,
 };
 use num_bigint::BigInt;
@@ -55,7 +55,7 @@ impl<'a> HoverFinder<'a> {
 impl Visitor for HoverFinder<'_> {
     fn visit_literal_integer(
         &mut self,
-        value: SignedField,
+        value: SignedInteger,
         _suffix: Option<IntegerTypeSuffix>,
         span: Span,
     ) {
@@ -77,7 +77,7 @@ impl Visitor for HoverFinder<'_> {
     }
 }
 
-fn format_integer(typ: &Type, value: SignedField) -> String {
+fn format_integer(typ: &Type, value: SignedInteger) -> String {
     let value_base_10 = value.absolute_value().to_string();
 
     // For simplicity we parse the value as a BigInt to convert it to hex
@@ -93,7 +93,7 @@ fn format_integer(typ: &Type, value: SignedField) -> String {
 #[cfg(test)]
 mod tests {
     use noirc_frontend::{
-        Type, ast::IntegerBitSize, shared::Signedness, signed_field::SignedField,
+        Type, ast::IntegerBitSize, shared::Signedness, signed_field::SignedInteger,
     };
 
     use super::format_integer;
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn format_integer_zero() {
         let typ = Type::FieldElement;
-        let value = SignedField::positive(0_u128);
+        let value = SignedInteger::positive(0_u128);
         let expected = "    Field\n---\nvalue of literal: `0 (0x00)`";
         assert_eq!(format_integer(&typ, value), expected);
     }
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn format_positive_integer() {
         let typ = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
-        let value = SignedField::positive(123456_u128);
+        let value = SignedInteger::positive(123456_u128);
         let expected = "    u32\n---\nvalue of literal: `123456 (0x1e240)`";
         assert_eq!(format_integer(&typ, value), expected);
     }
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn format_negative_integer() {
         let typ = Type::Integer(Signedness::Signed, IntegerBitSize::SixtyFour);
-        let value = SignedField::new(987654_u128.into(), true);
+        let value = SignedInteger::new((987654_u128).into(), true);
         let expected = "    i64\n---\nvalue of literal: `-987654 (-0xf1206)`";
         assert_eq!(format_integer(&typ, value), expected);
     }

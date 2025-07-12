@@ -15,7 +15,7 @@ use crate::{
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
     node_interner::NodeInterner,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
 };
 
 use super::{
@@ -367,14 +367,14 @@ fn poseidon2_permutation(
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
+    let input = vecmap(input, SignedInteger::to_field_element);
     let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array = fields.into_iter().map(|f| Value::Field(SignedInteger::positive(f))).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -460,8 +460,8 @@ fn to_embedded_curve_point(
 ) -> Value {
     to_struct(
         [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
+            ("x", Value::Field(SignedInteger::positive(x))),
+            ("y", Value::Field(SignedInteger::positive(y))),
             ("is_infinite", Value::Bool(is_infinite)),
         ],
         typ,

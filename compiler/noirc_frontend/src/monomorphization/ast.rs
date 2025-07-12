@@ -10,7 +10,7 @@ use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
     token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
@@ -270,7 +270,7 @@ pub struct While {
 pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
-    Integer(SignedField, Type, Location),
+    Integer(SignedInteger, Type, Location),
     Bool(bool),
     Unit,
     Str(String),

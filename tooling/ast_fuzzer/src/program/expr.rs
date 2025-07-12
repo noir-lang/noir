@@ -10,7 +10,7 @@ use noirc_frontend::{
         ArrayLiteral, Assign, Binary, BinaryOp, Call, Cast, Definition, Expression, FuncId, Ident,
         IdentId, If, LValue, Let, Literal, LocalId, Type, Unary,
     },
-    signed_field::SignedField,
+    signed_field::SignedInteger,
 };
 
 use super::{Name, VariableId, types, visitor::visit_expr};
@@ -29,7 +29,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Unit => Expression::Literal(Literal::Unit),
         Type::Bool => lit_bool(bool::arbitrary(u)?),
         Type::Field => {
-            let field = SignedField::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
+            let field = SignedInteger::new(Field::from(u128::arbitrary(u)?), bool::arbitrary(u)?);
             Expression::Literal(Literal::Integer(field, Type::Field, Location::dummy()))
         }
         Type::Integer(signedness, integer_bit_size) => {
@@ -66,7 +66,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
                 };
 
             Expression::Literal(Literal::Integer(
-                SignedField::new(field, is_negative),
+                SignedInteger::new(field, is_negative),
                 Type::Integer(*signedness, *integer_bit_size),
                 Location::dummy(),
             ))
@@ -197,7 +197,7 @@ pub fn gen_range(
 
     let to_lit = |(field, is_negative)| {
         Expression::Literal(Literal::Integer(
-            SignedField::new(field, is_negative),
+            SignedInteger::new(field, is_negative),
             Type::Integer(*signedness, *integer_bit_size),
             Location::dummy(),
         ))
@@ -244,7 +244,7 @@ where
     FieldElement: From<V>,
 {
     Expression::Literal(Literal::Integer(
-        SignedField::new(value.into(), is_negative),
+        SignedInteger::new(value.into(), is_negative),
         typ,
         Location::dummy(),
     ))

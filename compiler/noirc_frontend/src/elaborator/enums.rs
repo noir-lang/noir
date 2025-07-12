@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
+use num_bigint::BigUint;
 use rangemap::StepLite;
 
 use crate::{
@@ -27,7 +28,7 @@ use crate::{
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FunctionModifiers, GlobalValue, TypeId},
     shared::Visibility,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
     token::Attributes,
 };
 
@@ -49,7 +50,7 @@ enum Pattern {
     /// A pattern checking for a tag and possibly binding variables such as `Some(42)`
     Constructor(Constructor, Vec<Pattern>),
     /// An integer literal pattern such as `4`, `12345`, or `-56`
-    Int(SignedField),
+    Int(SignedInteger),
     /// A pattern binding a variable such as `a` or `_`
     Binding(DefinitionId),
 
@@ -61,7 +62,7 @@ enum Pattern {
     /// An integer range pattern such as `1..20` which will match any integer n such that
     /// 1 <= n < 20.
     #[allow(unused)]
-    Range(SignedField, SignedField),
+    Range(SignedInteger, SignedInteger),
 
     /// An error occurred while translating this pattern. This Pattern kind always translates
     /// to a Fail branch in the decision tree, although the compiler is expected to halt
@@ -778,8 +779,8 @@ impl Elaborator<'_> {
             expr_location: location,
         });
 
-        // Convert a signed integer type like i32 to SignedField
-        macro_rules! signed_to_signed_field {
+        // Convert a signed integer type like i32 to SignedInteger
+        macro_rules! signed_to_signed_integer {
             ($value:expr) => {{
                 let negative = $value < 0;
                 // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
@@ -787,24 +788,24 @@ impl Elaborator<'_> {
                 if negative {
                     widened = -widened;
                 }
-                SignedField::new(widened.into(), negative)
+                SignedInteger::new(BigUint::from(widened.abs() as u128), negative)
             }};
         }
 
         let value = match constant {
-            Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
-            Value::I8(value) => signed_to_signed_field!(value),
-            Value::I16(value) => signed_to_signed_field!(value),
-            Value::I32(value) => signed_to_signed_field!(value),
-            Value::I64(value) => signed_to_signed_field!(value),
-            Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(value as u128),
-            Value::U16(value) => SignedField::positive(value as u128),
-            Value::U32(value) => SignedField::positive(value),
-            Value::U64(value) => SignedField::positive(value),
-            Value::U128(value) => SignedField::positive(value),
-            Value::Zeroed(_) => SignedField::positive(0u32),
+            Value::Bool(value) => SignedInteger::positive(value),
+            Value::Field(value) => value,
+            Value::I8(value) => signed_to_signed_integer!(value),
+            Value::I16(value) => signed_to_signed_integer!(value),
+            Value::I32(value) => signed_to_signed_integer!(value),
+            Value::I64(value) => signed_to_signed_integer!(value),
+            Value::U1(value) => SignedInteger::positive(value),
+            Value::U8(value) => SignedInteger::positive(value as u128),
+            Value::U16(value) => SignedInteger::positive(value as u128),
+            Value::U32(value) => SignedInteger::positive(value),
+            Value::U64(value) => SignedInteger::positive(value),
+            Value::U128(value) => SignedInteger::positive(value),
+            Value::Zeroed(_) => SignedInteger::positive(0u32),
             _ => {
                 self.push_err(ResolverError::NonIntegerGlobalUsedInPattern { location });
                 return Pattern::Error;
@@ -1022,13 +1023,15 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     ) -> Result<(Vec<Case>, Box<HirMatch>), ResolverError> {
         let mut raw_cases: Vec<(Constructor, Vec<DefinitionId>, Vec<Row>)> = Vec::new();
         let mut fallback_rows = Vec::new();
-        let mut tested: HashMap<(SignedField, SignedField), usize> = HashMap::default();
+        let mut tested: HashMap<(SignedInteger, SignedInteger), usize> = HashMap::default();
 
         for mut row in rows {
             if let Some(col) = row.remove_column(branch_var) {
                 let (key, cons) = match col.pattern {
-                    Pattern::Int(val) => ((val, val), Constructor::Int(val)),
-                    Pattern::Range(start, stop) => ((start, stop), Constructor::Range(start, stop)),
+                    Pattern::Int(val) => ((val.clone(), val.clone()), Constructor::Int(val)),
+                    Pattern::Range(start, stop) => {
+                        ((start.clone(), stop.clone()), Constructor::Range(start, stop))
+                    }
                     // Any other pattern shouldn't have an integer type and we expect a type
                     // check error to already have been issued.
                     _ => continue,
@@ -1361,18 +1364,18 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let mut missing_cases = rangemap::RangeInclusiveSet::new();
 
-        let int_max = SignedField::positive(typ.integral_maximum_size().unwrap());
+        let int_max = SignedInteger::positive(typ.integral_maximum_size().unwrap());
         let int_min = typ.integral_minimum_size().unwrap();
         missing_cases.insert(int_min..=int_max);
 
         for case in cases {
             match &case.constructor {
                 Constructor::Int(signed_field) => {
-                    missing_cases.remove(*signed_field..=*signed_field);
+                    missing_cases.remove(signed_field.clone()..=signed_field.clone());
                 }
                 Constructor::Range(start, end) => {
                     // Our ranges are exclusive, so adjust for that
-                    missing_cases.remove(*start..=end.sub_one());
+                    missing_cases.remove(start.clone()..=end.sub_one());
                 }
                 _ => unreachable!(
                     "missing_integer_cases should only be called with Int or Range constructors"

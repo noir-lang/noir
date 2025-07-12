@@ -1,47 +1,48 @@
-use acvm::{AcirField, FieldElement};
+use num_bigint::{BigInt, BigUint, Sign};
+use num_traits::{One, ToPrimitive, Zero};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct SignedField {
-    field: FieldElement,
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SignedInteger {
+    integer: BigUint,
     is_negative: bool,
 }
 
-impl SignedField {
-    pub fn new(field: FieldElement, mut is_negative: bool) -> Self {
-        if field.is_zero() {
+impl SignedInteger {
+    pub fn new(integer: BigUint, mut is_negative: bool) -> Self {
+        if integer.is_zero() {
             is_negative = false;
         }
-        Self { field, is_negative }
+        Self { integer, is_negative }
     }
 
-    pub fn positive(field: impl Into<FieldElement>) -> Self {
-        Self { field: field.into(), is_negative: false }
+    pub fn positive(integer: impl Into<BigUint>) -> Self {
+        Self { integer: integer.into(), is_negative: false }
     }
 
-    pub fn negative(field: impl Into<FieldElement>) -> Self {
-        Self::new(field.into(), true)
+    pub fn negative(integer: impl Into<BigUint>) -> Self {
+        Self::new(integer.into(), true)
     }
 
-    pub fn zero() -> SignedField {
-        Self { field: FieldElement::zero(), is_negative: false }
+    pub fn zero() -> SignedInteger {
+        Self { integer: BigUint::zero(), is_negative: false }
     }
 
-    pub fn one() -> SignedField {
-        Self { field: FieldElement::one(), is_negative: false }
+    pub fn one() -> SignedInteger {
+        Self { integer: BigUint::one(), is_negative: false }
     }
 
     /// Returns the inner FieldElement which will always be positive
-    pub fn absolute_value(&self) -> FieldElement {
-        self.field
+    pub fn absolute_value(&self) -> BigUint {
+        self.integer.clone()
     }
 
     pub fn is_negative(&self) -> bool {
         self.is_negative
     }
 
-    /// Convert a signed integer to a SignedField, carefully handling
+    /// Convert a signed integer to a SignedInteger, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
-    /// you can call `SignedField::positive`.
+    /// you can call `SignedInteger::positive`.
     #[inline]
     pub fn from_signed<T>(value: T) -> Self
     where
@@ -49,10 +50,14 @@ impl SignedField {
     {
         let negative = value.is_negative();
         let value = value.abs_u128();
-        SignedField::new(value.into(), negative)
+        SignedInteger::new(value.into(), negative)
     }
 
-    /// Convert a SignedField into an unsigned integer type (up to u128),
+    fn integer_to_u128(&self) -> Option<u128> {
+        self.integer.to_u128()
+    }
+
+    /// Convert a SignedInteger into an unsigned integer type (up to u128),
     /// returning None if the value does not fit (e.g. if it is negative).
     #[inline]
     pub fn try_to_unsigned<T: TryFrom<u128>>(self) -> Option<T> {
@@ -61,11 +66,11 @@ impl SignedField {
         }
 
         assert!(std::mem::size_of::<T>() <= std::mem::size_of::<u128>());
-        let u128_value = self.field.try_into_u128()?;
+        let u128_value = self.integer_to_u128()?;
         u128_value.try_into().ok()
     }
 
-    /// Convert a SignedField into a signed integer type (up to i128),
+    /// Convert a SignedInteger into a signed integer type (up to i128),
     /// returning None if the value does not fit. This function is more complex
     /// for handling negative values, specifically INT_MIN which we can't cast from
     /// a u128 to i128 without wrapping it.
@@ -75,7 +80,7 @@ impl SignedField {
         T: TryFrom<u128> + TryFrom<i128> + num_traits::Signed + num_traits::Bounded + AbsU128,
         u128: TryFrom<T>,
     {
-        let u128_value = self.field.try_into_u128()?;
+        let u128_value = self.integer_to_u128()?;
 
         if self.is_negative {
             // The positive version of the minimum value of this type.
@@ -95,36 +100,37 @@ impl SignedField {
         }
     }
 
-    pub fn to_field_element(self) -> FieldElement {
-        if self.is_negative { -self.field } else { self.field }
+    // TODO: Figure out why this was earlier returing a -FieldElement for negative values
+    pub fn to_integer(self) -> BigUint {
+        self.integer.into()
     }
 }
 
-impl std::ops::Add for SignedField {
+impl std::ops::Add for SignedInteger {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         if self.is_negative == rhs.is_negative {
-            Self::new(self.field + rhs.field, self.is_negative)
+            Self::new(self.integer + rhs.integer, self.is_negative)
         } else if self.is_negative && !rhs.is_negative {
-            if self.field > rhs.field {
+            if self.integer > rhs.integer {
                 // For example "-4 + 3", so "-(4 - 3)"
-                Self::new(self.field - rhs.field, true)
+                Self::new(self.integer - rhs.integer, true)
             } else {
                 // For example "-4 + 5", so "5 - 4"
-                Self::new(rhs.field - self.field, false)
+                Self::new(rhs.integer - self.integer, false)
             }
-        } else if rhs.field > self.field {
+        } else if rhs.integer > self.integer {
             // For example "4 + (-5)", so "-(5 - 4)"
-            Self::new(rhs.field - self.field, true)
+            Self::new(rhs.integer - self.integer, true)
         } else {
             // For example "4 + (-3)", so "4 - 3"
-            Self::new(self.field - rhs.field, false)
+            Self::new(self.integer - rhs.integer, false)
         }
     }
 }
 
-impl std::ops::Sub for SignedField {
+impl std::ops::Sub for SignedInteger {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
@@ -132,98 +138,102 @@ impl std::ops::Sub for SignedField {
     }
 }
 
-impl std::ops::Mul for SignedField {
+impl std::ops::Mul for SignedInteger {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        if self.field.is_zero() || rhs.field.is_zero() {
+        if self.integer.is_zero() || rhs.integer.is_zero() {
             return Self::zero();
         }
 
-        Self::new(self.field * rhs.field, self.is_negative ^ rhs.is_negative)
+        Self::new(self.integer * rhs.integer, self.is_negative ^ rhs.is_negative)
     }
 }
 
-impl std::ops::Div for SignedField {
+impl std::ops::Div for SignedInteger {
     type Output = Self;
 
     fn div(self, rhs: Self) -> Self::Output {
-        if self.field.is_zero() {
+        if self.integer.is_zero() {
             return Self::zero();
         }
 
-        Self::new(self.field / rhs.field, self.is_negative ^ rhs.is_negative)
+        Self::new(self.integer / rhs.integer, self.is_negative ^ rhs.is_negative)
     }
 }
 
-impl std::ops::Neg for SignedField {
+impl std::ops::Neg for SignedInteger {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
-        Self::new(self.field, !self.is_negative)
+        Self::new(self.integer, !self.is_negative)
     }
 }
 
-impl Ord for SignedField {
+impl Ord for SignedInteger {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         if self.is_negative != other.is_negative {
             if self.is_negative { std::cmp::Ordering::Less } else { std::cmp::Ordering::Greater }
         } else if self.is_negative {
             // Negative comparisons should be reversed so that -2 < -1
-            other.field.cmp(&self.field)
+            other.integer.cmp(&self.integer)
         } else {
-            self.field.cmp(&other.field)
+            self.integer.cmp(&other.integer)
         }
     }
 }
 
-impl PartialOrd for SignedField {
+impl PartialOrd for SignedInteger {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl From<FieldElement> for SignedField {
-    fn from(value: FieldElement) -> Self {
+impl From<BigUint> for SignedInteger {
+    fn from(value: BigUint) -> Self {
         Self::new(value, false)
     }
 }
 
-impl From<SignedField> for FieldElement {
-    fn from(value: SignedField) -> Self {
-        if value.is_negative { -value.field } else { value.field }
+impl From<SignedInteger> for BigInt {
+    fn from(value: SignedInteger) -> Self {
+        if value.is_negative {
+            BigInt::new(Sign::Minus, value.integer.to_u32_digits())
+        } else {
+            BigInt::from(value.integer)
+        }
     }
 }
 
-impl std::fmt::Display for SignedField {
+impl std::fmt::Display for SignedInteger {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_negative {
             write!(f, "-")?;
         }
-        write!(f, "{}", self.field)
+        write!(f, "{}", self.integer)
     }
 }
 
-impl rangemap::StepLite for SignedField {
+impl rangemap::StepLite for SignedInteger {
     fn add_one(&self) -> Self {
         if self.is_negative {
-            if self.field.is_one() {
-                Self::new(FieldElement::zero(), false)
+            if self.integer.is_one() {
+                Self::new(BigUint::zero(), false)
             } else {
-                Self::new(self.field - FieldElement::one(), self.is_negative)
+                Self::new(self.integer.clone() - BigUint::one(), self.is_negative)
             }
         } else {
-            Self::new(self.field + FieldElement::one(), self.is_negative)
+            Self::new(self.integer.clone() + BigUint::one(), self.is_negative)
         }
     }
 
     fn sub_one(&self) -> Self {
         if self.is_negative {
-            Self::new(self.field + FieldElement::one(), self.is_negative)
-        } else if self.field.is_zero() {
-            Self::new(FieldElement::one(), true)
+            Self::new(self.integer.clone() + BigUint::one(), self.is_negative)
+        } else if self.integer.is_zero() {
+            Self::new(BigUint::one(), true)
         } else {
-            Self::new(self.field - FieldElement::one(), self.is_negative)
+            Self::new(self.integer.clone() - BigUint::one(), self.is_negative)
         }
     }
 }
@@ -251,22 +261,22 @@ impl_unsigned_abs_for!(i128);
 
 #[cfg(test)]
 mod tests {
-    use super::SignedField;
+    use super::SignedInteger;
 
     #[test]
     fn int_min_to_signed_field_roundtrip() {
         let x = i128::MIN;
-        let field = SignedField::from_signed(x);
+        let field = SignedInteger::from_signed(x);
         assert_eq!(field.try_to_signed(), Some(x));
     }
 
     #[test]
     fn comparisons() {
-        let neg_two = SignedField::negative(2u32);
-        let neg_one = SignedField::negative(1u32);
-        let zero = SignedField::positive(0u32);
-        let one = SignedField::positive(1u32);
-        let two = SignedField::positive(2u32);
+        let neg_two = SignedInteger::negative(2u32);
+        let neg_one = SignedInteger::negative(1u32);
+        let zero = SignedInteger::positive(0u32);
+        let one = SignedInteger::positive(1u32);
+        let two = SignedInteger::positive(2u32);
 
         assert!(one < two);
         assert!(zero < one);
@@ -278,84 +288,84 @@ mod tests {
 
     #[test]
     fn addition() {
-        let zero = SignedField::zero();
-        let one = SignedField::one();
-        let two = SignedField::positive(2_u32);
-        let three = SignedField::positive(3_u32);
-        assert_eq!(one + two, three); // positive + positive
+        let zero = SignedInteger::zero();
+        let one = SignedInteger::one();
+        let two = SignedInteger::positive(2_u32);
+        let three = SignedInteger::positive(3_u32);
+        assert_eq!(one.clone() + two.clone(), three.clone()); // positive + positive
 
-        let minus_one = SignedField::negative(1_u32);
-        let minus_two = SignedField::negative(2_u32);
-        let minus_three = SignedField::negative(3_u32);
-        assert_eq!(two + minus_one, one); // positive + negative
+        let minus_one = SignedInteger::negative(1_u32);
+        let minus_two = SignedInteger::negative(2_u32);
+        let minus_three = SignedInteger::negative(3_u32);
+        assert_eq!(two.clone() + minus_one.clone(), one.clone()); // positive + negative
 
-        assert_eq!(minus_three + one, minus_two); // negative + positive
+        assert_eq!(minus_three.clone() + one.clone(), minus_two.clone()); // negative + positive
 
-        assert_eq!(minus_one + minus_two, minus_three); // negative + negative
+        assert_eq!(minus_one.clone() + minus_two.clone(), minus_three.clone()); // negative + negative
 
-        assert_eq!(one + zero, one);
-        assert_eq!(zero + one, one);
-        assert_eq!(minus_one + zero, minus_one);
-        assert_eq!(zero + minus_one, minus_one);
+        assert_eq!(one.clone() + zero.clone(), one.clone());
+        assert_eq!(zero.clone() + one.clone(), one.clone());
+        assert_eq!(minus_one.clone() + zero.clone(), minus_one.clone());
+        assert_eq!(zero.clone() + minus_one.clone(), minus_one.clone());
     }
 
     #[test]
     fn subtraction() {
-        let zero = SignedField::zero();
-        let one = SignedField::one();
-        let two = SignedField::positive(2_u32);
-        let three = SignedField::positive(3_u32);
-        assert_eq!(three - two, one); // positive - positive
+        let zero = SignedInteger::zero();
+        let one = SignedInteger::one();
+        let two = SignedInteger::positive(2_u32);
+        let three = SignedInteger::positive(3_u32);
+        assert_eq!(three.clone() - two.clone(), one.clone()); // positive - positive
 
-        let minus_one = SignedField::negative(1_u32);
-        let minus_three = SignedField::negative(3_u32);
-        assert_eq!(two - minus_one, three); // positive - negative
+        let minus_one = SignedInteger::negative(1_u32);
+        let minus_three = SignedInteger::negative(3_u32);
+        assert_eq!(two.clone() - minus_one.clone(), three.clone()); // positive - negative
 
-        assert_eq!(minus_one - two, minus_three); // negative - positive
+        assert_eq!(minus_one.clone() - two.clone(), minus_three.clone()); // negative - positive
 
-        assert_eq!(minus_one - minus_three, two); // negative - negative
+        assert_eq!(minus_one.clone() - minus_three.clone(), two.clone()); // negative - negative
 
-        assert_eq!(one - zero, one);
-        assert_eq!(minus_one - zero, minus_one);
-        assert_eq!(zero - one, minus_one);
-        assert_eq!(zero - minus_one, one);
+        assert_eq!(one.clone() - zero.clone(), one.clone());
+        assert_eq!(minus_one.clone() - zero.clone(), minus_one.clone());
+        assert_eq!(zero.clone() - one.clone(), minus_one.clone());
+        assert_eq!(zero.clone() - minus_one.clone(), one.clone());
     }
 
     #[test]
     fn multiplication() {
-        let zero = SignedField::zero();
-        let two = SignedField::positive(2_u32);
-        let three = SignedField::positive(3_u32);
-        let six = SignedField::positive(6_u32);
-        let minus_two = SignedField::negative(2_u32);
-        let minus_three = SignedField::negative(3_u32);
-        let minus_six = SignedField::negative(6_u32);
+        let zero = SignedInteger::zero();
+        let two = SignedInteger::positive(2_u32);
+        let three = SignedInteger::positive(3_u32);
+        let six = SignedInteger::positive(6_u32);
+        let minus_two = SignedInteger::negative(2_u32);
+        let minus_three = SignedInteger::negative(3_u32);
+        let minus_six = SignedInteger::negative(6_u32);
 
-        assert_eq!(two * three, six); // positive * positive
-        assert_eq!(two * minus_three, minus_six); // positive * negative
-        assert_eq!(minus_two * three, minus_six); // negative * positive
-        assert_eq!(minus_two * minus_three, six); // negative * negative
-        assert_eq!(two * zero, zero);
-        assert_eq!(minus_two * zero, zero);
-        assert_eq!(zero * two, zero);
-        assert_eq!(zero * minus_two, zero);
+        assert_eq!(two.clone() * three.clone(), six.clone()); // positive * positive
+        assert_eq!(two.clone() * minus_three.clone(), minus_six.clone()); // positive * negative
+        assert_eq!(minus_two.clone() * three.clone(), minus_six.clone()); // negative * positive
+        assert_eq!(minus_two.clone() * minus_three.clone(), six.clone()); // negative * negative
+        assert_eq!(two.clone() * zero.clone(), zero.clone());
+        assert_eq!(minus_two.clone() * zero.clone(), zero.clone());
+        assert_eq!(zero.clone() * two.clone(), zero.clone());
+        assert_eq!(zero.clone() * minus_two.clone(), zero.clone());
     }
 
     #[test]
     fn division() {
-        let zero = SignedField::zero();
-        let two = SignedField::positive(2_u32);
-        let three = SignedField::positive(3_u32);
-        let six = SignedField::positive(6_u32);
-        let minus_two = SignedField::negative(2_u32);
-        let minus_three = SignedField::negative(3_u32);
-        let minus_six = SignedField::negative(6_u32);
+        let zero = SignedInteger::zero();
+        let two = SignedInteger::positive(2_u32);
+        let three = SignedInteger::positive(3_u32);
+        let six = SignedInteger::positive(6_u32);
+        let minus_two = SignedInteger::negative(2_u32);
+        let minus_three = SignedInteger::negative(3_u32);
+        let minus_six = SignedInteger::negative(6_u32);
 
-        assert_eq!(six / two, three); // positive / positive
-        assert_eq!(six / minus_three, minus_two); // positive / negative
-        assert_eq!(minus_six / three, minus_two); // negative / positive
-        assert_eq!(minus_six / minus_three, two); // negative / negative
-        assert_eq!(zero / two, zero);
-        assert_eq!(zero / minus_two, zero);
+        assert_eq!(six.clone() / two.clone(), three.clone()); // positive / positive
+        assert_eq!(six.clone() / minus_three.clone(), minus_two.clone()); // positive / negative
+        assert_eq!(minus_six.clone() / three.clone(), minus_two.clone()); // negative / positive
+        assert_eq!(minus_six.clone() / minus_three.clone(), two.clone()); // negative / negative
+        assert_eq!(zero.clone() / two.clone(), zero.clone());
+        assert_eq!(zero.clone() / minus_two.clone(), zero.clone());
     }
 }

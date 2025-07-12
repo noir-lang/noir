@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-use acvm::AcirField;
 use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
@@ -21,7 +20,7 @@ use crate::monomorphization::{
 };
 use crate::node_interner::GlobalValue;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
     Shared, Type, TypeBindings,
@@ -640,9 +639,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     unreachable!("Expected associated type to be numeric");
                 };
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => self.evaluate_integer(value.into(), id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
@@ -660,7 +657,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_integer(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
@@ -748,7 +745,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::FormatString(Rc::new(result), typ))
     }
 
-    fn evaluate_integer(&self, value: SignedField, id: ExprId) -> IResult<Value> {
+    fn evaluate_integer(&self, value: SignedInteger, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -907,9 +904,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         use BinaryOpKind::*;
         let less_or_greater = if matches!(operator, Less | GreaterEqual) {
-            SignedField::zero() // Ordering::Less
+            SignedInteger::zero() // Ordering::Less
         } else {
-            SignedField::positive(2u128) // Ordering::Greater
+            SignedInteger::positive(2u128) // Ordering::Greater
         };
 
         if matches!(operator, Less | Greater) {
@@ -1467,16 +1464,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 }
 
-fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResult<Value> {
+fn evaluate_integer(typ: Type, value: SignedInteger, location: Location) -> IResult<Value> {
     if let Type::FieldElement = &typ {
         Ok(Value::Field(value))
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
-                let field_value = value.to_field_element();
-                if field_value.is_zero() {
+                let field_value = value.clone().to_integer();
+                if field_value == 0_u128.into() {
                     Ok(Value::U1(false))
-                } else if field_value.is_one() {
+                } else if field_value == 1_u128.into() {
                     Ok(Value::U1(true))
                 } else {
                     Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
@@ -1484,30 +1481,35 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
             }
             (Signedness::Unsigned, IntegerBitSize::Eight) => {
                 let value = value
+                    .clone()
                     .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::U8(value))
             }
             (Signedness::Unsigned, IntegerBitSize::Sixteen) => {
                 let value = value
+                    .clone()
                     .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::U16(value))
             }
             (Signedness::Unsigned, IntegerBitSize::ThirtyTwo) => {
                 let value = value
+                    .clone()
                     .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::U32(value))
             }
             (Signedness::Unsigned, IntegerBitSize::SixtyFour) => {
                 let value = value
+                    .clone()
                     .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::U64(value))
             }
             (Signedness::Unsigned, IntegerBitSize::HundredTwentyEight) => {
                 let value: u128 = value
+                    .clone()
                     .try_to_unsigned()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::U128(value))
@@ -1517,24 +1519,28 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
             }
             (Signedness::Signed, IntegerBitSize::Eight) => {
                 let value = value
+                    .clone()
                     .try_to_signed()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::I8(value))
             }
             (Signedness::Signed, IntegerBitSize::Sixteen) => {
                 let value = value
+                    .clone()
                     .try_to_signed()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::I16(value))
             }
             (Signedness::Signed, IntegerBitSize::ThirtyTwo) => {
                 let value = value
+                    .clone()
                     .try_to_signed()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::I32(value))
             }
             (Signedness::Signed, IntegerBitSize::SixtyFour) => {
                 let value = value
+                    .clone()
                     .try_to_signed()
                     .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
                 Ok(Value::I64(value))
@@ -1548,6 +1554,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
             Ok(Value::Field(value))
         } else if variable.is_integer() {
             let value = value
+                .clone()
                 .try_to_unsigned()
                 .ok_or(InterpreterError::IntegerOutOfRangeForType { value, typ, location })?;
             Ok(Value::U64(value))
@@ -1573,10 +1580,10 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
 
     let index = match index {
         Value::Field(value) => {
-            let u64: Option<u64> = value.try_to_unsigned();
+            let u64: Option<u64> = value.clone().try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
-                let value = SignedField::positive(value);
+                let value = SignedInteger::positive(value.absolute_value());
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?
         }

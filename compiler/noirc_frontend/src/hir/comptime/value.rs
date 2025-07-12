@@ -1,9 +1,9 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
+use num_bigint::BigUint;
 use strum_macros::Display;
 
 use crate::{
@@ -25,7 +25,7 @@ use crate::{
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     shared::Signedness,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
     token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
@@ -39,7 +39,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(SignedField),
+    Field(SignedInteger),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -187,43 +187,43 @@ impl Value {
                 ExpressionKind::Literal(Literal::Integer(value, Some(IntegerTypeSuffix::Field)))
             }
             Value::I8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
+                SignedInteger::from_signed(value),
                 Some(IntegerTypeSuffix::I8),
             )),
             Value::I16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
+                SignedInteger::from_signed(value),
                 Some(IntegerTypeSuffix::I16),
             )),
             Value::I32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
+                SignedInteger::from_signed(value),
                 Some(IntegerTypeSuffix::I32),
             )),
             Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::from_signed(value),
+                SignedInteger::from_signed(value),
                 Some(IntegerTypeSuffix::I64),
             )),
             Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
+                SignedInteger::positive(value),
                 Some(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedInteger::positive(value as u128),
                 Some(IntegerTypeSuffix::U8),
             )),
             Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedInteger::positive(value as u128),
                 Some(IntegerTypeSuffix::U16),
             )),
             Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
+                SignedInteger::positive(value),
                 Some(IntegerTypeSuffix::U32),
             )),
             Value::U64(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
+                SignedInteger::positive(value),
                 Some(IntegerTypeSuffix::U64),
             )),
             Value::U128(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value),
+                SignedInteger::positive(value),
                 Some(IntegerTypeSuffix::U128),
             )),
             Value::String(value) | Value::CtString(value) => {
@@ -365,34 +365,34 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
             Value::I8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::from_signed(value)))
             }
             Value::I16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::from_signed(value)))
             }
             Value::I32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::from_signed(value)))
             }
             Value::I64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::from_signed(value)))
             }
             Value::U1(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value)))
             }
             Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value as u128)))
             }
             Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value as u128)))
             }
             Value::U32(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value)))
             }
             Value::U64(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value)))
             }
             Value::U128(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
+                HirExpression::Literal(HirLiteral::Integer(SignedInteger::positive(value)))
             }
             Value::String(value) | Value::CtString(value) => {
                 HirExpression::Literal(HirLiteral::Str(unwrap_rc(value)))
@@ -656,7 +656,7 @@ impl Value {
 
     /// Converts any non-negative `Value` into a `FieldElement`.
     /// Returns `None` for negative integers and non-integral `Value`s.
-    pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
+    pub(crate) fn to_field_element(&self) -> Option<BigUint> {
         match self {
             Self::Field(value) => {
                 if value.is_negative() {
@@ -670,7 +670,7 @@ impl Value {
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U1(value) => Some(FieldElement::from(*value)),
+            Self::U1(value) => Some((*value as u128).into()),
             Self::U8(value) => Some((*value as u128).into()),
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),

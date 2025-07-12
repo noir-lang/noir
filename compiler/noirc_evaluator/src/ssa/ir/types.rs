@@ -1,6 +1,6 @@
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
-use noirc_frontend::signed_field::SignedField;
+use noirc_frontend::signed_field::SignedInteger;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
@@ -58,7 +58,7 @@ impl NumericType {
     /// Returns None if the given Field value is within the numeric limits
     /// for the current NumericType. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: SignedInteger) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
@@ -365,20 +365,20 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
-        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
+        assert!(u8.value_is_outside_limits(SignedInteger::negative(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(0_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(255_i128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(256_i128)).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
-        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedInteger::negative(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedInteger::negative(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(0_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(127_i128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(128_i128)).is_some());
     }
 
     proptest! {
@@ -386,7 +386,7 @@ mod tests {
         fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
-                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+                prop_assert!(input.value_is_outside_limits(SignedInteger::from(max_value)).is_none());
             }
         }
     }

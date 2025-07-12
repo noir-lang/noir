@@ -12,7 +12,7 @@ use crate::{
     },
     parser::ParserErrorReason,
 };
-use acvm::AcirField;
+use num_traits::ToPrimitive;
 
 use noirc_errors::{Location, Span};
 
@@ -287,7 +287,7 @@ impl Parser<'_> {
                 if let Some((int, None)) = self.eat_int() {
                     self.eat_or_error(Token::RightParen);
 
-                    let id = int.to_u128() as u32;
+                    let id = int.to_u128().unwrap() as u32;
                     return Visibility::CallData(id);
                 } else {
                     self.expected_label(ParsingRuleLabel::Integer);

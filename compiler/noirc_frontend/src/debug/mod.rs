@@ -1,7 +1,7 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParsedSubModule};
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 use crate::{ast, ast::Path, parser::ItemKind};
 use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
@@ -786,13 +786,13 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 }
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
-    let value = SignedField::positive(x);
+    let value = SignedInteger::positive(x);
     let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
-    let value = SignedField::from_signed(x);
+    let value = SignedInteger::from_signed(x);
     let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }

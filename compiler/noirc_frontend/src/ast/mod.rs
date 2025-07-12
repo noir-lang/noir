@@ -15,6 +15,7 @@ mod type_alias;
 mod visitor;
 
 use noirc_errors::Location;
+use num_bigint::BigUint;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 
@@ -24,7 +25,6 @@ pub use function::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::FieldElement;
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
@@ -42,7 +42,6 @@ use crate::{
     shared::Signedness,
 };
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 use strum::IntoEnumIterator;
@@ -234,7 +233,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
+    Constant(BigUint, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -523,7 +522,7 @@ impl UnresolvedTypeExpression {
     }
 
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
-        match expr.kind {
+        match expr.kind.clone() {
             ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
                 match int.try_to_unsigned::<u32>() {
                     Some(int) => {
@@ -535,7 +534,7 @@ impl UnresolvedTypeExpression {
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
+                    0_u128.into(),
                     None,
                     expr.location,
                 ));

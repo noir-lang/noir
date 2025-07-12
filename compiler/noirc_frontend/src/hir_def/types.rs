@@ -2,17 +2,17 @@ use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use fxhash::FxHashMap as HashMap;
 
+use num_bigint::{BigInt, BigUint};
+use num_traits::{One, ToPrimitive, Zero};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-
-use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
     hir::type_check::{TypeCheckError, generics::TraitGenerics},
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitId, TypeAliasId},
-    signed_field::{AbsU128, SignedField},
+    signed_field::{AbsU128, SignedInteger},
     token::IntegerTypeSuffix,
 };
 use iter_extended::vecmap;
@@ -122,7 +122,7 @@ pub enum Type {
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    Constant(FieldElement, Kind),
+    Constant(BigUint, Kind),
 
     /// The type of quoted code in macros. This is always a comptime-only type
     Quoted(QuotedType),
@@ -239,7 +239,7 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<FieldElement> {
+    fn integral_maximum_size(&self) -> Option<BigUint> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
@@ -249,19 +249,21 @@ impl Kind {
     /// Ensure the given value fits in self.integral_maximum_size()
     pub(crate) fn ensure_value_fits(
         &self,
-        value: FieldElement,
+        value: BigUint,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         match self.integral_maximum_size() {
             None => Ok(value),
-            Some(maximum_size) => (value <= maximum_size).then_some(value).ok_or_else(|| {
-                TypeCheckError::OverflowingConstant {
-                    value,
-                    kind: self.clone(),
-                    maximum_size,
-                    location,
-                }
-            }),
+            Some(maximum_size) => {
+                (value <= maximum_size).then_some(value.clone()).ok_or_else(|| {
+                    TypeCheckError::OverflowingConstant {
+                        value,
+                        kind: self.clone(),
+                        maximum_size,
+                        location,
+                    }
+                })
+            }
         }
     }
 
@@ -1809,35 +1811,35 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_field_element(&Kind::u32(), location).map(|field_element| {
+        self.evaluate_to_integer(&Kind::u32(), location).map(|field_element| {
             field_element
-                .try_to_u32()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
+                .to_u32()
+                .expect("ICE: size should have already been checked by evaluate_to_integer")
         })
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    pub(crate) fn evaluate_to_field_element(
+    pub(crate) fn evaluate_to_integer(
         &self,
         kind: &Kind,
         location: Location,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        self.evaluate_to_integer_helper(kind, location, run_simplifications)
     }
 
-    /// evaluate_to_field_element with optional generic arithmetic simplifications
-    pub(crate) fn evaluate_to_field_element_helper(
+    /// evaluate_to_integer with optional generic arithmetic simplifications
+    pub(crate) fn evaluate_to_integer_helper(
         &self,
         kind: &Kind,
         location: Location,
         run_simplifications: bool,
-    ) -> Result<acvm::FieldElement, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
             if let TypeBinding::Bound(binding) = &*binding.borrow() {
                 if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element_helper(
+                    return binding.evaluate_to_integer_helper(
                         &binding_kind,
                         location,
                         run_simplifications,
@@ -1861,16 +1863,10 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let infix_kind = lhs.infix_kind(&rhs);
                 if kind.unifies(&infix_kind) {
-                    let lhs_value = lhs.evaluate_to_field_element_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
-                    let rhs_value = rhs.evaluate_to_field_element_helper(
-                        &infix_kind,
-                        location,
-                        run_simplifications,
-                    )?;
+                    let lhs_value =
+                        lhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
+                    let rhs_value =
+                        rhs.evaluate_to_integer_helper(&infix_kind, location, run_simplifications)?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
                 } else {
                     Err(TypeCheckError::TypeKindMismatch {
@@ -1881,13 +1877,13 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_field_element(kind, location)?;
+                let to_value = to.evaluate_to_integer(kind, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
                 if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_integer_helper(kind, location, skip_simplifications)
                 {
                     if to_value == from_value {
                         Ok(to_value)
@@ -2432,7 +2428,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<FieldElement> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<BigUint> {
         match self {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
@@ -2443,7 +2439,7 @@ impl Type {
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
                 Some(max.into())
             }
-            Type::Bool => Some(FieldElement::one()),
+            Type::Bool => Some(BigUint::one()),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2479,22 +2475,22 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_minimum_size(&self) -> Option<SignedField> {
+    pub(crate) fn integral_minimum_size(&self) -> Option<SignedInteger> {
         match self.follow_bindings_shallow().as_ref() {
             Type::FieldElement => None,
             Type::Integer(sign, num_bits) => {
                 if *sign == Signedness::Unsigned {
-                    return Some(SignedField::zero());
+                    return Some(SignedInteger::zero());
                 }
 
                 let max_bit_size = num_bits.bit_size() - 1;
                 Some(if max_bit_size == 128 {
-                    SignedField::negative(i128::MIN.abs_u128())
+                    SignedInteger::negative(i128::MIN.abs_u128())
                 } else {
-                    SignedField::negative(1u128 << max_bit_size)
+                    SignedInteger::negative(1u128 << max_bit_size)
                 })
             }
-            Type::Bool => Some(SignedField::zero()),
+            Type::Bool => Some(SignedInteger::zero()),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2572,26 +2568,36 @@ impl BinaryTypeOperator {
     /// Perform the actual rust numeric operation associated with this operator
     pub fn function(
         self,
-        a: FieldElement,
-        b: FieldElement,
+        a: BigUint,
+        b: BigUint,
         kind: &Kind,
         location: Location,
-    ) -> Result<FieldElement, TypeCheckError> {
+    ) -> Result<BigUint, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             None => match self {
                 BinaryTypeOperator::Addition => Ok(a + b),
                 BinaryTypeOperator::Subtraction => Ok(a - b),
                 BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (b != FieldElement::zero())
-                    .then(|| a / b)
+                BinaryTypeOperator::Division => (b != BigUint::zero())
+                    .then(|| a.clone() / b.clone())
                     .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
                 BinaryTypeOperator::Modulo => {
                     Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
                 }
             },
             Some(_maximum_size) => {
-                let a = a.to_i128();
-                let b = b.to_i128();
+                let a = a.to_i128().ok_or(TypeCheckError::OverflowingConstant {
+                    value: a,
+                    kind: kind.clone(),
+                    maximum_size: _maximum_size.clone(),
+                    location,
+                })?;
+                let b = b.to_i128().ok_or(TypeCheckError::OverflowingConstant {
+                    value: b,
+                    kind: kind.clone(),
+                    maximum_size: _maximum_size,
+                    location,
+                })?;
 
                 let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
                 let result = match self {
@@ -2602,7 +2608,7 @@ impl BinaryTypeOperator {
                     BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
                 };
 
-                Ok(result.into())
+                Ok(BigInt::from(result).magnitude().clone())
             }
         }
     }
