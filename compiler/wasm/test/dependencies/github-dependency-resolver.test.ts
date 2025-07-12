@@ -120,6 +120,17 @@ describe('GithubDependencyResolver', () => {
   );
 
   forEach([
+    { git: 'https://github.com/example/lib.nr', tag: 'main' },
+    { git: 'https://github.com/example/lib.nr', tag: 'feature-branch' },
+    { git: 'https://github.com/example/lib.nr', tag: 'v1.0.0-beta.1' },
+    { git: 'https://github.com/example/lib.nr', tag: 'release_2024' },
+    { git: 'https://github.com/example/lib.nr', tag: 'HEAD' },
+    { git: 'https://github.com/example/lib.nr', tag: 'commit-hash-123abc' },
+  ]).it('accepts valid git references %j', (dep) => {
+    expect(() => resolveGithubCodeArchive(dep, 'zip')).not.to.throw();
+  });
+
+  forEach([
     { git: 'https://github.com/', tag: 'v1' },
     { git: 'https://github.com/foo', tag: 'v1' },
     { git: 'https://example.com', tag: 'v1' },
@@ -127,6 +138,28 @@ describe('GithubDependencyResolver', () => {
     { git: 'https://github.com.otherdomain.com/example/repo', tag: 'v1' },
   ]).it('throws if the Github URL is invalid %j', (dep) => {
     expect(() => resolveGithubCodeArchive(dep, 'zip')).to.throw();
+  });
+
+  forEach([
+    { git: 'https://github.com/example/repo', tag: '../raw/malicious_file' },
+    { git: 'https://github.com/example/repo', tag: '../../etc/passwd' },
+    { git: 'https://github.com/example/repo', tag: 'valid/../invalid' },
+    { git: 'https://github.com/example/repo', tag: '/etc/passwd' },
+    { git: 'https://github.com/example/repo', tag: 'branch/with/slash' },
+    { git: 'https://github.com/example/repo', tag: 'windows\\path\\traversal' },
+    { git: 'https://github.com/example/repo', tag: '..\\windows\\path' },
+    // URL-encoded path traversal attacks
+    { git: 'https://github.com/example/repo', tag: '%2e%2e/raw/malicious_file' },
+    { git: 'https://github.com/example/repo', tag: '%2e%2e%2f%2e%2e%2fetc%2fpasswd' },
+    { git: 'https://github.com/example/repo', tag: '%2e%2e%5c' },
+    { git: 'https://github.com/example/repo', tag: 'valid%2f%2e%2e%2finvalid' },
+    { git: 'https://github.com/example/repo', tag: '%2fetc%2fpasswd' },
+    { git: 'https://github.com/example/repo', tag: 'branch%2fwith%2fslash' },
+    { git: 'https://github.com/example/repo', tag: 'windows%5cpath%5ctraversal' },
+  ]).it('throws if the git tag contains path traversal characters %j', (dep) => {
+    expect(() => resolveGithubCodeArchive(dep, 'zip')).to.throw(
+      'Invalid git reference. Git references cannot contain path traversal characters',
+    );
   });
 
   forEach([
