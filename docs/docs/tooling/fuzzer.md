@@ -166,6 +166,7 @@ You can create a simple python server to resolve the oracle (you'll have to inst
 
 ```python
 from werkzeug.serving import run_simple
+from werkzeug.wrappers import Response, Request
 
 from jsonrpc import JSONRPCResponseManager, dispatcher
 
