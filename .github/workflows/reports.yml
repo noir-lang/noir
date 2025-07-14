@@ -695,7 +695,7 @@ jobs:
           path: ./reports
           merge-multiple: true
 
-      - name: Merge artifact size reports using jq
+      - name: Merge opcode count reports using jq
         run: |
           # Github actions seems to not expand "**" in globs by default.
           shopt -s globstar
@@ -710,7 +710,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "120%"
+          alert-threshold: "110%"
           comment-on-alert: true
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
           fail-on-alert: false
