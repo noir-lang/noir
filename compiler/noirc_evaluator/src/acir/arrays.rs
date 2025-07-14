@@ -105,21 +105,24 @@ impl Context<'_> {
             unreachable!("ICE: expected array or slice type");
         };
 
-        if self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
-            // If the predicate is known to be false, we could be on the `then` branch of
-            // an `if-then-else` where we already called `mark_variables_equivalent(predicate, 0)`,
-            // so we know the rest of the instructions on this branch will be disabled.
-            if self.flattened_size(array, dfg) == 0 {
-                // For 0 length arrays, even the disabled memory operations would cause runtime failures,
-                // instead of reaching the `else` branch. Set them to a zero value that matches the type
-                // then bypass the rest of the operation.
-                let results = dfg.instruction_results(instruction);
-                let res_typ = dfg.type_of_value(results[0]);
-                let zero = self.array_zero_value(&res_typ)?;
-                self.define_result(dfg, instruction, zero);
-
-                return Ok(());
-            }
+        // For length arrays and slices, even the disabled memory operations would cause runtime failures.
+        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // leaving an assertion that the side effect variable must be false.
+        if self.flattened_size(array, dfg) == 0 {
+            // Zero result.
+            let results = dfg.instruction_results(instruction);
+            let res_typ = dfg.type_of_value(results[0]);
+            let zero = self.array_zero_value(&res_typ)?;
+            self.define_result(dfg, instruction, zero);
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "Index out of bounds, array has size 0".to_string();
+            let msg = self.acir_context.generate_assertion_message_payload(msg);
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            return self.acir_context.assert_eq_var(
+                self.current_side_effects_enabled_var,
+                zero,
+                Some(msg),
+            );
         }
 
         if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
