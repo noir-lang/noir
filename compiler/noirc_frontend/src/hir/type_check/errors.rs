@@ -746,7 +746,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 item_name,
                 is_numeric,
             } => {
-                eprintln!("error2");
                 let message = "Type annotation needed".into();
                 let type_or_value = if *is_numeric { "value" } else { "type" };
                 let secondary = format!(
