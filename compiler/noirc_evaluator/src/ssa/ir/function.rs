@@ -121,7 +121,7 @@ impl Function {
 
     /// The name of the function.
     /// Used exclusively for debugging purposes.
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
