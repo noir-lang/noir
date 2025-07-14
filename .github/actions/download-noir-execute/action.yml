@@ -1,18 +1,18 @@
-name: Download Nargo
-description: Downloads the nargo binary from an artifact and adds it to the path
+name: Download noir-execute
+description: Downloads the noir-execute binary from an artifact and adds it to the path
 
 runs:
   using: composite
   steps:
-    - name: Download nargo binary
+    - name: Download noir-execute binary
       uses: actions/download-artifact@v4
       with:
-        name: nargo
-        path: ./nargo
+        name: noir-execute
+        path: ./noir-execute
 
-    - name: Set nargo on PATH
+    - name: Set noir-execute on PATH
       shell: bash
       run: |
-        nargo_binary="${{ github.workspace }}/nargo/nargo"
-        chmod +x $nargo_binary
-        echo "$(dirname $nargo_binary)" >> $GITHUB_PATH
+        noir_binary="${{ github.workspace }}/noir-execute/noir-execute"
+        chmod +x $noir_binary
+        echo "$(dirname $noir_binary)" >> $GITHUB_PATH
