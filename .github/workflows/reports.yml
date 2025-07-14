@@ -125,7 +125,7 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Build Nargo
-        run: cargo build --package inspector --release
+        run: cargo build --package noir_inspector --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
