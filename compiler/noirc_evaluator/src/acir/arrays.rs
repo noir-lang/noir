@@ -105,7 +105,7 @@ impl Context<'_> {
             unreachable!("ICE: expected array or slice type");
         };
 
-        // For length arrays and slices, even the disabled memory operations would cause runtime failures.
+        // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
         // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
         if self.flattened_size(array, dfg) == 0 {
