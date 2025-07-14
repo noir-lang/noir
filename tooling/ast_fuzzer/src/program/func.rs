@@ -1714,23 +1714,6 @@ impl<'a> FunctionContext<'a> {
             return Ok(None);
         }
 
-        /// Generate a random field that can be used in the constructor of a numeric type.
-        fn gen_field(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<SignedField> {
-            let literal = expr::gen_literal(u, typ)?;
-            let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
-                unreachable!("expected Literal::Integer; got {literal:?}");
-            };
-            Ok(field)
-        }
-
-        /// Generate a constructor for a numeric type.
-        fn gen_num_constructor(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Constructor> {
-            // TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
-            // When it does, we should generate either a field, or a range.
-            let constructor = Constructor::Int(gen_field(u, typ)?);
-            Ok(constructor)
-        }
-
         let mut match_expr = Match {
             variable_to_match: (src_id, src_name),
             cases: vec![],
@@ -1764,7 +1747,7 @@ impl<'a> FunctionContext<'a> {
             }
             Type::Field | Type::Integer(_, _) => {
                 for _ in 0..num_cases {
-                    let constructor = gen_num_constructor(u, &src_typ)?;
+                    let constructor = self.gen_num_match_constructor(u, &src_typ)?;
                     let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
                     is_dyn |= branch_dyn;
                     let case = MatchCase { constructor, arguments: Vec::new(), branch };
@@ -1815,6 +1798,31 @@ impl<'a> FunctionContext<'a> {
         };
 
         Ok(Some((expr, is_dyn)))
+    }
+
+    /// Generate a random field that can be used in the match constructor of a numeric type.
+    fn gen_num_field(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<SignedField> {
+        let literal = self.gen_literal(u, typ)?;
+        let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
+            unreachable!("expected Literal::Integer; got {literal:?}");
+        };
+        Ok(field)
+    }
+
+    /// Generate a match constructor for a numeric type.
+    fn gen_num_match_constructor(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Constructor> {
+        // TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
+        // When it does, we should generate either a field, or a range.
+        let constructor = Constructor::Int(self.gen_num_field(u, typ)?);
+        Ok(constructor)
     }
 
     /// If this is main, and we could have made a call to another function, but we didn't,
