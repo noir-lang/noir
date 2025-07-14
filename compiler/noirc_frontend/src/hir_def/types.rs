@@ -310,6 +310,26 @@ pub enum QuotedType {
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
+/// Pretty print type bindings for debugging
+#[allow(unused)]
+pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
+    if bindings.is_empty() {
+        return "bindings: (none)".to_string();
+    }
+
+    let mut ret = if bindings.len() == 1 {
+        "1 binding:".to_string()
+    } else {
+        format!("{} bindings:", bindings.len())
+    };
+
+    for (var, _, binding) in bindings.values() {
+        ret += &format!("\n    {var:?} := {binding:?}");
+    }
+
+    ret
+}
+
 /// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all Type::DataType variants that represent
 /// the same struct or enum type.

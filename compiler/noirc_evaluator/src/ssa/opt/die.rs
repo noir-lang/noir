@@ -489,11 +489,33 @@ impl RcTracker {
 
     fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
         block.unwrap_terminator().for_each_value(|value| {
-            let typ = function.dfg.type_of_value(value);
-            if matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
-                self.mutated_array_types.insert(typ);
-            }
+            self.handle_value_for_mutated_array_types(value, &function.dfg);
         });
+    }
+
+    fn handle_value_for_mutated_array_types(&mut self, value: ValueId, dfg: &DataFlowGraph) {
+        let typ = dfg.type_of_value(value);
+        if !matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
+            return;
+        }
+
+        self.mutated_array_types.insert(typ);
+
+        if dfg.is_global(value) {
+            return;
+        }
+
+        // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
+        let Value::Instruction { instruction, .. } = &dfg[value] else {
+            return;
+        };
+        let Instruction::MakeArray { elements, typ: _ } = &dfg[*instruction] else {
+            return;
+        };
+
+        for element in elements {
+            self.handle_value_for_mutated_array_types(*element, dfg);
+        }
     }
 
     fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
@@ -549,20 +571,14 @@ impl RcTracker {
             }
             Instruction::Store { value, .. } => {
                 // We are very conservative and say that any store of an array type means it has the potential to be mutated.
-                let typ = function.dfg.type_of_value(*value);
-                if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                    self.mutated_array_types.insert(typ);
-                }
+                self.handle_value_for_mutated_array_types(*value, &function.dfg);
             }
             Instruction::Call { arguments, .. } => {
                 // Treat any array-type arguments to calls as possible sources of mutation.
                 // During the preprocessing of functions in isolation we don't want to
                 // get rid of IncRCs arrays that can potentially be mutated outside.
                 for arg in arguments {
-                    let typ = function.dfg.type_of_value(*arg);
-                    if matches!(&typ, Type::Array(..) | Type::Slice(..)) {
-                        self.mutated_array_types.insert(typ);
-                    }
+                    self.handle_value_for_mutated_array_types(*arg, &function.dfg);
                 }
             }
             _ => {}
@@ -1125,5 +1141,42 @@ mod test {
             return
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_remove_inc_rc_of_return_value_that_points_to_a_make_array() {
+        // Here we would previously incorrectly remove `inc_rc v1`
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = make_array [u1 1] : [u1; 1]
+            v2 = make_array [v1] : [[u1; 1]; 1]
+            inc_rc v1
+            inc_rc v2 
+            return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_crash_for_value_pointing_to_make_array_pointing_to_global() {
+        let src = r#"
+        g0 = make_array [u1 1] : [u1; 1]
+
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = make_array [g0] : [[u1; 1]; 1]
+            inc_rc v0
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

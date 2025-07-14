@@ -45,7 +45,6 @@ pub enum TraitItem {
     Constant {
         name: Ident,
         typ: UnresolvedType,
-        default_value: Option<Expression>,
     },
     Type {
         name: Ident,
@@ -207,15 +206,7 @@ impl Display for TraitItem {
 
                 if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
-            TraitItem::Constant { name, typ, default_value } => {
-                write!(f, "let {name}: {typ}")?;
-
-                if let Some(default_value) = default_value {
-                    write!(f, "{default_value};")
-                } else {
-                    write!(f, ";")
-                }
-            }
+            TraitItem::Constant { name, typ } => write!(f, "let {name}: {typ};"),
             TraitItem::Type { name, bounds } => {
                 if bounds.is_empty() {
                     write!(f, "type {name};")
