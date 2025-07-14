@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752272501665,
+  "lastUpdate": 1752484800293,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18831,48 +18831,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "de2a1bd493665d4d9b30bb1eb9e0f591ab3731de",
-          "message": "chore: bump cargo deny (#9077)",
-          "timestamp": "2025-07-01T15:42:24Z",
-          "tree_id": "7b9bee830216b429226d5b256588aa22f7a0a9ee",
-          "url": "https://github.com/noir-lang/noir/commit/de2a1bd493665d4d9b30bb1eb9e0f591ab3731de"
-        },
-        "date": 1751386017637,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253367,
-            "range": "± 887",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222851,
-            "range": "± 3044",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782283,
-            "range": "± 2290",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20924,6 +20882,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786576,
             "range": "± 1118",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe44a1e273ee55ae9cd713cc5baf43e5b51601d7",
+          "message": "fix(ssa): Do not unroll loops with a constant back-edge value (#9173)",
+          "timestamp": "2025-07-14T08:54:56Z",
+          "tree_id": "cc425196bcea0fa89de137971baa5d0b4d51ffe4",
+          "url": "https://github.com/noir-lang/noir/commit/fe44a1e273ee55ae9cd713cc5baf43e5b51601d7"
+        },
+        "date": 1752484785237,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256719,
+            "range": "± 1400",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230484,
+            "range": "± 640",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786223,
+            "range": "± 1766",
             "unit": "ns/iter"
           }
         ]
