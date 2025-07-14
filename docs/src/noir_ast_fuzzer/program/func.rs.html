@@ -1859,7 +1859,20 @@
 <a href="#1858" id="1858">1858</a>
 <a href="#1859" id="1859">1859</a>
 <a href="#1860" id="1860">1860</a>
-<a href="#1861" id="1861">1861</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1861" id="1861">1861</a>
+<a href="#1862" id="1862">1862</a>
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -2642,21 +2655,34 @@
                     location: Location::dummy(),
                 });
 
-                <span class="kw">let </span>item_expr = <span class="kw">if let </span><span class="prelude-val">Some</span>(let_expr) = let_expr {
-                    Expression::Block(<span class="macro">vec!</span>[let_expr, item_expr])
-                } <span class="kw">else </span>{
-                    item_expr
-                };
-
                 <span class="comment">// Produce the target type from the item.
-                </span><span class="self">self</span>.gen_expr_from_source(
+                </span><span class="kw">let </span><span class="prelude-val">Some</span>((expr, is_dyn)) = <span class="self">self</span>.gen_expr_from_source(
                     u,
                     (item_expr, src_dyn || idx_dyn),
                     item_typ,
                     src_mutable,
                     tgt_type,
                     max_depth,
-                )
+                )<span class="question-mark">?
+                </span><span class="kw">else </span>{
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+                };
+
+                <span class="comment">// Append the let and the final expression if we needed a block,
+                // so we avoid suffixing a block with e.g. indexing, which would
+                // not be parsable by the frontend. Another way to do this would
+                // be to surround the block with parentheses.
+                // So either of this should work:
+                // * { let s = todo!(); s[123 % s.len()][456] }
+                // * ( { let s = todo!(); s[123 % s.len()] } )[456]
+                // But not this:
+                // * { let s = todo!(); s[123 % s.len()] }[123]
+                </span><span class="kw">let </span>expr = <span class="kw">if let </span><span class="prelude-val">Some</span>(let_expr) = let_expr {
+                    Expression::Block(<span class="macro">vec!</span>[let_expr, expr])
+                } <span class="kw">else </span>{
+                    expr
+                };
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, is_dyn)))
             }
             (Type::Tuple(items), <span class="kw">_</span>) =&gt; {
                 <span class="comment">// Any of the items might be able to produce the target type.
