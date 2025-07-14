@@ -257,6 +257,14 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         }
     }
 
+    /// True if the given AcirVar refers to a constant zero value
+    pub(crate) fn is_constant_zero(&self, var: &AcirVar) -> bool {
+        match self.vars[var] {
+            AcirVarData::Const(field) => field.is_zero(),
+            _ => false,
+        }
+    }
+
     /// True if the given AcirVar refers to a constant value
     pub(crate) fn is_constant(&self, var: &AcirVar) -> bool {
         matches!(self.vars[var], AcirVarData::Const(_))

@@ -105,6 +105,23 @@ impl Context<'_> {
             unreachable!("ICE: expected array or slice type");
         };
 
+        if self.acir_context.is_constant_zero(&self.current_side_effects_enabled_var) {
+            // If the predicate is known to be false, we could be on the `then` branch of
+            // an `if-then-else` where we already called `mark_variables_equivalent(predicate, 0)`,
+            // so we know the rest of the instructions on this branch will be disabled.
+            if self.flattened_size(array, dfg) == 0 {
+                // For 0 length arrays, even the disabled memory operations would cause runtime failures,
+                // instead of reaching the `else` branch. Set them to a zero value that matches the type
+                // then bypass the rest of the operation.
+                let results = dfg.instruction_results(instruction);
+                let res_typ = dfg.type_of_value(results[0]);
+                let zero = self.array_zero_value(&res_typ)?;
+                self.define_result(dfg, instruction, zero);
+
+                return Ok(());
+            }
+        }
+
         if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
@@ -468,6 +485,31 @@ impl Context<'_> {
             Type::Reference(reference_type) => {
                 self.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
+            _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
+        }
+    }
+
+    /// Construct a value with all zero values, which we can use to provide a default value
+    /// when we cannot use `array_get_value` because the array length itself is zero, yet
+    /// we also don't want a memory operation to fail, because the operation will never
+    /// actually run, because we know that the side effect variable is false.
+    pub(super) fn array_zero_value(&mut self, ssa_type: &Type) -> Result<AcirValue, RuntimeError> {
+        match ssa_type.clone() {
+            Type::Numeric(numeric_type) => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                let typ = AcirType::NumericType(numeric_type);
+                Ok(AcirValue::Var(zero, typ))
+            }
+            Type::Array(element_types, len) => {
+                let mut values = im::Vector::new();
+                for _ in 0..len {
+                    for typ in element_types.as_ref() {
+                        values.push_back(self.array_zero_value(typ)?);
+                    }
+                }
+                Ok(AcirValue::Array(values))
+            }
+            Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
         }
     }
