@@ -347,6 +347,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
+            .github/actions/download-noir-inspector/action.yml
             scripts/gather_benchmark_data.sh
             scripts/process_benchmark_data.sh
           sparse-checkout-cone-mode: false
