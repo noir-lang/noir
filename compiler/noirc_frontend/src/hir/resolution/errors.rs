@@ -242,7 +242,7 @@ impl ResolverError {
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
             | ResolverError::RecursiveTypeAlias { location } => *location,
-            | ResolverError::NonU32Index { location }
+            ResolverError::NonU32Index { location }
             | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::OracleMarkedAsConstrained { location, .. }

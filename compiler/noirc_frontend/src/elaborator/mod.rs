@@ -1777,7 +1777,7 @@ impl<'context> Elaborator<'context> {
             }
         } else {
             (self.use_type(alias.type_alias_def.typ), None)
-        }; 
+        };
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);

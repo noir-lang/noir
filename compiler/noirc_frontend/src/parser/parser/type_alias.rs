@@ -34,7 +34,7 @@ impl Parser<'_> {
             // It must be a numeric type
             num_typ = Some(self.parse_type_or_error());
         }
-        let location;//TODO CHECK location_at_previous_token_end
+        let location; //TODO CHECK location_at_previous_token_end
         let typ = if !self.eat_assign() {
             self.expected_token(Token::Assign);
             location = self.location_since(start_location);

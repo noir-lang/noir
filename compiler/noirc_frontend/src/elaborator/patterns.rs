@@ -5,9 +5,8 @@ use rustc_hash::FxHashSet as HashSet;
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
-        ERROR_IDENT, Expression, ExpressionKind, Ident, ItemVisibility, Path, Pattern, TypePath,
-        UnresolvedTypeExpression,
-        GenericTypeArgs, PathSegment,
+        ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
+        PathSegment, Pattern, TypePath, UnresolvedTypeExpression,
     },
     elaborator::{
         Turbofish,
@@ -569,7 +568,7 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
-       // let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
+        // let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
         let variable = self.validate_path(variable);
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
@@ -597,7 +596,7 @@ impl Elaborator<'_> {
             }
         }
 
-    //    let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
+        //    let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
         } else {

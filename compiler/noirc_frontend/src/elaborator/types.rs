@@ -88,13 +88,13 @@ impl Elaborator<'_> {
 
     pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
         let location = typ.location;
-        let resolved_type =   self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced);
+        let resolved_type =
+            self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced);
         //self.resolve_type_inner(typ, kind);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
-      
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -619,7 +619,7 @@ impl Elaborator<'_> {
                         ab.ordered_args = generics.clone();
                     }
                 }
-                   let path = self.validate_path(path);
+                let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
                 let mut typ = self.resolve_named_type(path, ab, mode);
                 if let Type::Alias(alias, vec) = typ {

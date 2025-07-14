@@ -34,8 +34,8 @@ pub use structure::*;
 pub use traits::*;
 pub use type_alias::*;
 
-use crate::signed_field::SignedField;
 use crate::QuotedType;
+use crate::signed_field::SignedField;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,

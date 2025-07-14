@@ -2,22 +2,33 @@ use acvm::FieldElement;
 use noirc_errors::Span;
 
 use crate::{
+    BinaryTypeOperator, ParsedModule,
     ast::{
-        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind, ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path, PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UnresolvedGeneric, UseTree, UseTreeKind
-    }, node_interner::{
+        ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
+        CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
+        ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
+        Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
+        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
+        UnresolvedGeneric, UseTree, UseTreeKind,
+    },
+    node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
-    }, parser::{Item, ItemKind, ParsedSubModule}, signed_field::SignedField, token::{
+    },
+    parser::{Item, ItemKind, ParsedSubModule},
+    signed_field::SignedField,
+    token::{
         FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
-    }, BinaryTypeOperator, ParsedModule
+    },
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility,
-    MatchExpression, NoirEnumeration, Pattern, TraitBound, TraitImplItemKind,
-    TypeAlias, TypePath, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-    UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
+    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypeAlias, TypePath,
+    UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
+    UnresolvedTypeExpression, UnsafeExpression,
 };
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
