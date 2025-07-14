@@ -306,7 +306,7 @@ mod tests {
             enable_side_effects v0
             v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455
             v3 = cast v0 as u128
-            constrain v3 == u128 0, "attempt to multiply with overflow"
+            constrain v0 == u1 0, "attempt to multiply with overflow"
             v5 = not v0
             enable_side_effects u1 1
             return v0
