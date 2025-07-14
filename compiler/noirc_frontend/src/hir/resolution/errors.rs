@@ -292,14 +292,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
     fn from(error: &'a ResolverError) -> Diagnostic {
         match error {
             ResolverError::DuplicateDefinition { name, first_location, second_location} => {
-                                let mut diag = Diagnostic::simple_error(
-                                    format!("duplicate definitions of {name} found"),
-                                    "second definition found here".to_string(),
-                                    *second_location,
-                                );
-                                diag.add_secondary("first definition found here".to_string(), *first_location);
-                                diag
-                            }
+                        let mut diag = Diagnostic::simple_error(
+                            format!("duplicate definitions of {name} found"),
+                            "second definition found here".to_string(),
+                            *second_location,
+                        );
+                        diag.add_secondary("first definition found here".to_string(), *first_location);
+                        diag
+                    }
             ResolverError::UnusedVariable { ident } => {
                         let mut diagnostic = Diagnostic::simple_warning(
                             format!("unused variable {ident}"),

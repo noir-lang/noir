@@ -148,7 +148,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
 }
 
 #[test]
-fn disallows_numeric_type_aliases_to_expression_with_alias_1() {
+fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);

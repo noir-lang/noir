@@ -56,7 +56,7 @@ fn item_kind_with_file(item_kind: ItemKind, file: FileId) -> ItemKind {
         }
         ItemKind::Impl(type_impl) => ItemKind::Impl(type_impl_with_file(type_impl, file)),
         ItemKind::TypeAlias(noir_type_alias) => {
-            ItemKind::TypeAlias(noir_type_alias_with_file(noir_type_alias, file))
+            ItemKind::TypeAlias(type_alias_with_file(noir_type_alias, file))
         }
         ItemKind::Global(let_statement, item_visibility) => {
             ItemKind::Global(let_statement_with_file(let_statement, file), item_visibility)
@@ -142,10 +142,6 @@ fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
             .numeric_type
             .map(|num_type| unresolved_type_with_file(num_type, file)),
     }
-}
-
-fn noir_type_alias_with_file(noir_type_alias: TypeAlias, file: FileId) -> TypeAlias {
-    type_alias_with_file(noir_type_alias, file)
 }
 
 fn type_impl_with_file(type_impl: TypeImpl, file: FileId) -> TypeImpl {
