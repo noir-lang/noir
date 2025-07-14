@@ -796,7 +796,13 @@ impl<'a> FunctionContext<'a> {
 
                 // Append the let and the final expression if we needed a block,
                 // so we avoid suffixing a block with e.g. indexing, which would
-                // not be parsable by the frontend.
+                // not be parsable by the frontend. Another way to do this would
+                // be to surround the block with parentheses.
+                // So either of this should work:
+                // * { let s = todo!(); s[123 % s.len()][456] }
+                // * ( { let s = todo!(); s[123 % s.len()] } )[456]
+                // But not this:
+                // * { let s = todo!(); s[123 % s.len()] }[123]
                 let expr = if let Some(let_expr) = let_expr {
                     Expression::Block(vec![let_expr, expr])
                 } else {
