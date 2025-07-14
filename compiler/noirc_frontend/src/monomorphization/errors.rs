@@ -58,6 +58,7 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
             MonomorphizationError::NoDefaultType { location } => {
+                eprintln!("error4");
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);

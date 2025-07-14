@@ -607,11 +607,13 @@ impl Elaborator<'_> {
 
                 let generics = if func_id != FuncId::dummy_id() {
                     let function_type = self.interner.function_meta(&func_id).typ.clone();
+
                     self.try_add_mutable_reference_to_object(
                         &function_type,
                         &mut object_type,
                         &mut object,
                     );
+
                     let generics = method_call.generics;
                     let generics = generics.map(|generics| {
                         vecmap(generics, |generic| {
@@ -627,15 +629,36 @@ impl Elaborator<'_> {
 
                 let location = object_location.merge(method_name_location);
 
-                let (function_id, function_name) = method_ref.clone().into_function_id_and_name(
+                let (function_id, mut function_name) = method_ref.clone().into_function_id_and_name(
                     object_type.clone(),
                     generics.clone(),
                     location,
                     self.interner,
                 );
 
+                // Hack: match object_type against the first argument of the trait type here
+                // to try to find the value of `Self`. It can be either `object_type` or
+                // `*object_type` depending on if the method was declared as `self` or `&mut self`.
+                if let ImplKind::TraitItem(item) = &mut function_name.impl_kind {
+                    let function_type = self.interner.definition_type(item.definition);
+                    let function_type = function_type.as_monotype();
+
+                    if let Type::Function(args, ..) = function_type {
+                        if let Some(Type::Reference(..)) = args.get(0) {
+                            // First type is a reference, so we should have `&mut Self`,
+                            // Ensure the constraint is not also `&mut T` since we'd end up with
+                            // `&mut &mut T`.
+                            if let Type::Reference(inner, _) = &mut item.constraint.typ {
+                                let inner = std::mem::replace(inner.as_mut(), Type::Error);
+                                item.constraint.typ = inner;
+                            }
+                        }
+                    }
+                }
+
                 let func_type =
                     self.type_check_variable(function_name.clone(), function_id, generics.clone());
+
                 self.interner.push_expr_type(function_id, func_type.clone());
 
                 let func_arg_types =
@@ -1498,6 +1521,7 @@ impl Elaborator<'_> {
 
         let typ = self.type_check_variable(ident, id, None);
         self.interner.push_expr_type(id, typ.clone());
+
         (id, typ)
     }
 }

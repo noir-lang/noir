@@ -1863,7 +1863,7 @@ impl Elaborator<'_> {
 
         // If inside a trait method, check if it's a method on `self`
         if let Some(trait_id) = func_meta.trait_id {
-            if Some(object_type) == self.self_type.as_ref() {
+            if self.self_type.is_some() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
                 if let Some(HirMethodReference::TraitItemId(method_id, trait_id, generics, _)) =
@@ -2270,20 +2270,24 @@ impl Elaborator<'_> {
     }
 
     pub fn bind_generics_from_trait_constraint(
-        &self,
+        &mut self,
         constraint: &TraitConstraint,
-        assumed: bool,
         bindings: &mut TypeBindings,
+        location: Location,
     ) {
         self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
 
-        // If the trait impl is already assumed to exist we should add any type bindings for `Self`.
-        // Otherwise `self` will be replaced with a fresh type variable, which will require the user
-        // to specify a redundant type annotation.
-        if assumed {
-            let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-            let self_type = the_trait.self_type_typevar.clone();
-            let kind = the_trait.self_type_typevar.kind();
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let self_type = the_trait.self_type_typevar.clone();
+        let kind = the_trait.self_type_typevar.kind();
+
+        if let Some((_, _, existing)) = bindings.get(&self_type.id()) {
+            self.unify(existing, &constraint.typ, || TypeCheckError::TypeMismatch {
+                expected_typ: existing.to_string(),
+                expr_typ: constraint.typ.to_string(),
+                expr_location: location,
+            });
+        } else {
             bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
         }
     }
