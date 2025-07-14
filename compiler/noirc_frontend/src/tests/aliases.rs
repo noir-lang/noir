@@ -1,4 +1,4 @@
-use crate::{assert_no_errors, check_errors};
+use crate::{assert_no_errors, get_program_errors, hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError, type_check::TypeCheckError::TypeKindMismatch}};
 
 #[named]
 #[test]
@@ -130,7 +130,6 @@ fn disallows_composing_numeric_type_aliases() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Expected a numeric expression, but got `Double<Double<N>>`
     fn main() {
         let b: [u32; 12] = foo();
         assert(b[0] == 0);
@@ -144,7 +143,8 @@ fn disallows_composing_numeric_type_aliases() {
         a
     }
     "#;
-    check_errors!(src);
+    let errors = get_program_errors!(src);
+    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::ExpectedNumericExpression{..}) ));
 }
 
 #[named]
@@ -153,7 +153,6 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
     fn main() {
         let b: [u32; 12] = foo();
         assert(b[0] == 0);
@@ -167,7 +166,9 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
         a
     }
     "#;
-    check_errors!(src);
+
+    let errors = get_program_errors!(src);
+    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::RecursiveTypeAlias{..}) ));
 }
 
 #[named]
@@ -176,7 +177,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  Cannot use a type alias inside a type alias
+
     fn main() {
         let b: [u32; 12] = foo();
         assert(b[0] == 0);
@@ -190,7 +191,8 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         a
     }
     "#;
-    check_errors!(src);
+        let errors = get_program_errors!(src);
+    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::RecursiveTypeAlias{..}) ));
 }
 
 #[named]
@@ -198,12 +200,13 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
     type Foo: u32 = u32;
-    ^^^^^^^^^^^^^^^^^^^  Expected a numeric expression, but got `u32`
+
     fn main(a: Foo) -> pub Foo {
         a
     }
     "#;
-    check_errors!(src);
+    let errors = get_program_errors!(src);
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeKindMismatch{..}) ));
 }
 
 #[named]
