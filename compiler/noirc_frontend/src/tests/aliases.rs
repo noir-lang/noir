@@ -95,14 +95,16 @@ fn double_generic_alias_in_path() {
     assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn identity_numeric_type_alias_works() {
     let src = r#"
     pub type Identity<let N: u32>: u32 = N;
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_alias_to_numeric_generic() {
     let src = r#"
@@ -119,9 +121,10 @@ fn type_alias_to_numeric_generic() {
         a
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_composing_numeric_type_aliases() {
     let src = r#"
@@ -141,9 +144,10 @@ fn disallows_composing_numeric_type_aliases() {
         a
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
@@ -163,9 +167,10 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
         a
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
@@ -185,8 +190,10 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         a
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
+
+#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
@@ -196,9 +203,10 @@ fn disallows_numeric_type_aliases_to_type() {
         a
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn type_alias_to_numeric_as_generic() {
     let src = r#"
@@ -219,5 +227,5 @@ fn type_alias_to_numeric_as_generic() {
         }
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }

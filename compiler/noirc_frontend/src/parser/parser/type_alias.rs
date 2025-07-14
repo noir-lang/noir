@@ -54,7 +54,7 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{TypeAlias, UnresolvedTypeData},
+        ast::{TypeAlias},
         parse_program_with_dummy_file,
         parser::{ItemKind, parser::tests::expect_no_errors},
     };
