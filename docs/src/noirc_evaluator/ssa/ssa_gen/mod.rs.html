@@ -1970,7 +1970,7 @@
     }
 
     <span class="kw">fn </span>codegen_match(<span class="kw-2">&amp;mut </span><span class="self">self</span>, match_expr: <span class="kw-2">&amp;</span>ast::Match) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-        <span class="kw">let </span>variable = <span class="self">self</span>.lookup(match_expr.variable_to_match);
+        <span class="kw">let </span>variable = <span class="self">self</span>.lookup(match_expr.variable_to_match.<span class="number">0</span>);
 
         <span class="comment">// Any matches with only a single case we don't need to check the tag at all.
         // Note that this includes all matches on struct / tuple values.
@@ -2158,7 +2158,7 @@
             <span class="string">"Expected enum variant to contain a value for each variant argument"
         </span>);
 
-        <span class="kw">for </span>(value, arg) <span class="kw">in </span>variant.into_iter().zip(<span class="kw-2">&amp;</span>case.arguments) {
+        <span class="kw">for </span>(value, (arg, <span class="kw">_</span>)) <span class="kw">in </span>variant.into_iter().zip(<span class="kw-2">&amp;</span>case.arguments) {
             <span class="self">self</span>.define(<span class="kw-2">*</span>arg, value);
         }
     }
@@ -2174,7 +2174,7 @@
             <span class="string">"Expected field length to match constructor argument count"
         </span>);
 
-        <span class="kw">for </span>(value, arg) <span class="kw">in </span>fields.into_iter().zip(<span class="kw-2">&amp;</span>case.arguments) {
+        <span class="kw">for </span>(value, (arg, <span class="kw">_</span>)) <span class="kw">in </span>fields.into_iter().zip(<span class="kw-2">&amp;</span>case.arguments) {
             <span class="self">self</span>.define(<span class="kw-2">*</span>arg, value);
         }
     }

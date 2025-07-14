@@ -966,7 +966,7 @@
 
 <span class="attr">#[derive(Debug, Clone, Hash)]
 </span><span class="kw">pub struct </span>Match {
-    <span class="kw">pub </span>variable_to_match: LocalId,
+    <span class="kw">pub </span>variable_to_match: (LocalId, String),
     <span class="kw">pub </span>cases: Vec&lt;MatchCase&gt;,
     <span class="kw">pub </span>default_case: <span class="prelude-ty">Option</span>&lt;Box&lt;Expression&gt;&gt;,
     <span class="kw">pub </span>typ: Type,
@@ -975,7 +975,7 @@
 <span class="attr">#[derive(Debug, Clone, Hash)]
 </span><span class="kw">pub struct </span>MatchCase {
     <span class="kw">pub </span>constructor: Constructor,
-    <span class="kw">pub </span>arguments: Vec&lt;LocalId&gt;,
+    <span class="kw">pub </span>arguments: Vec&lt;(LocalId, String)&gt;,
     <span class="kw">pub </span>branch: Expression,
 }
 

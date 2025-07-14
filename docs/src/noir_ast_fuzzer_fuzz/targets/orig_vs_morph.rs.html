@@ -819,7 +819,23 @@
 <a href="#818" id="818">818</a>
 <a href="#819" id="819">819</a>
 <a href="#820" id="820">820</a>
-<a href="#821" id="821">821</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
@@ -1375,6 +1391,7 @@
 
                 <span class="comment">// Duplicate the expression, then assign new IDs to all variables created in it.
                 </span><span class="kw">let </span><span class="kw-2">mut </span>alt = expr.clone();
+
                 reassign_ids(vars, <span class="kw-2">&amp;mut </span>alt);
 
                 expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
@@ -1402,8 +1419,9 @@
                 &amp;&amp; !expr::exists(expr, |expr| {
                     <span class="macro">matches!</span>(
                         expr,
-                        Expression::Let(<span class="kw">_</span>) <span class="comment">// Creating a variable needs a new ID
-                    </span>| Expression::Block(<span class="kw">_</span>) <span class="comment">// Applying logical operations on blocks would look odd
+                        Expression::Let(<span class="kw">_</span>)     <span class="comment">// Creating a variable needs a new ID
+                        </span>| Expression::Match(<span class="kw">_</span>) <span class="comment">// Match creates variables which would need new IDs
+                        </span>| Expression::Block(<span class="kw">_</span>) <span class="comment">// Applying logical operations on blocks would look odd
                     </span>)
                 })
         } <span class="kw">else </span>{
@@ -1583,7 +1601,8 @@
     <span class="doccomment">/// Types we can consider using in this context.
     </span><span class="kw">static </span>TYPES: OnceLock&lt;Vec&lt;Type&gt;&gt; = OnceLock::new();
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reassign_ids(vars: <span class="kw-2">&amp;mut </span>VariableContext, expr: <span class="kw-2">&amp;mut </span>Expression) {
+    <span class="doccomment">/// Assign new IDs to variables and identifiers created in the expression.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>reassign_ids(vars: <span class="kw-2">&amp;mut </span>VariableContext, expr: <span class="kw-2">&amp;mut </span>Expression) {
         <span class="kw">fn </span>replace_local_id(
             vars: <span class="kw-2">&amp;mut </span>VariableContext,
             replacements: <span class="kw-2">&amp;mut </span>HashMap&lt;LocalId, LocalId&gt;,
@@ -1599,8 +1618,12 @@
 
         visit_expr_be_mut(
             expr,
-            <span class="kw-2">&amp;mut </span>|expr| {
+            <span class="comment">// Assign a new ID where variables are created, and remember what original value they replaced.
+            </span><span class="kw-2">&amp;mut </span>|expr| {
                 <span class="kw">match </span>expr {
+                    Expression::Ident(ident) =&gt; {
+                        ident.id = vars.next_ident_id();
+                    }
                     Expression::Let(let_) =&gt; {
                         replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id)
                     }
@@ -1609,15 +1632,24 @@
                         <span class="kw-2">&amp;mut </span>replacements.borrow_mut(),
                         <span class="kw-2">&amp;mut </span>for_.index_variable,
                     ),
-                    Expression::Ident(ident) =&gt; {
-                        ident.id = vars.next_ident_id();
+                    Expression::Match(match_) =&gt; {
+                        <span class="kw">let </span><span class="kw-2">mut </span>replacements = replacements.borrow_mut();
+                        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.get(<span class="kw-2">&amp;</span>match_.variable_to_match.<span class="number">0</span>) {
+                            match_.variable_to_match.<span class="number">0 </span>= <span class="kw-2">*</span>replacement;
+                        }
+                        <span class="kw">for </span>case <span class="kw">in </span>match_.cases.iter_mut() {
+                            <span class="kw">for </span>(arg, <span class="kw">_</span>) <span class="kw">in </span>case.arguments.iter_mut() {
+                                replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements, arg);
+                            }
+                        }
                     }
                     <span class="kw">_ </span>=&gt; (),
                 }
                 (<span class="bool-val">true</span>, ())
             },
             <span class="kw-2">&amp;mut </span>|<span class="kw">_</span>, <span class="kw">_</span>| {},
-            <span class="kw-2">&amp;mut </span>|ident| {
+            <span class="comment">// Update the IDs in identifiers based on the replacements we remember from above.
+            </span><span class="kw-2">&amp;mut </span>|ident| {
                 <span class="kw">if let </span>Definition::Local(id) = <span class="kw-2">&amp;mut </span>ident.definition {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.borrow().get(id) {
                         <span class="kw-2">*</span>id = <span class="kw-2">*</span>replacement;

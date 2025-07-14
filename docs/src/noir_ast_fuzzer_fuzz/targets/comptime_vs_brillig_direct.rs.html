@@ -71,7 +71,9 @@
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
 <a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
+<a href="#73" id="73">73</a>
+<a href="#74" id="74">74</a>
+<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the comptime execution
 //! (after converting the AST to Noir and running it through the comptime
 //! interpreter) vs when everything is forced to be Brillig.
 //! We choose Brillig here because it mostly matches comptime feature set
@@ -95,6 +97,8 @@
         </span>avoid_negative_int_literals: <span class="bool-val">true</span>,
         <span class="comment">// Avoid break/continue
         </span>avoid_loop_control: <span class="bool-val">true</span>,
+        <span class="comment">// Match is not yet implemented in comptime.
+        </span>avoid_match: <span class="bool-val">true</span>,
         <span class="comment">// Has to only use expressions valid in comptime
         </span>comptime_friendly: <span class="bool-val">true</span>,
         <span class="comment">// Force brillig, to generate loops that the interpreter can do but ACIR cannot.

@@ -1872,7 +1872,211 @@
 <a href="#1871" id="1871">1871</a>
 <a href="#1872" id="1872">1872</a>
 <a href="#1873" id="1873">1873</a>
-<a href="#1874" id="1874">1874</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo::errors::Location;
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a>
+<a href="#1970" id="1970">1970</a>
+<a href="#1971" id="1971">1971</a>
+<a href="#1972" id="1972">1972</a>
+<a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
@@ -1882,17 +2086,22 @@
 <span class="kw">use </span>arbitrary::{Arbitrary, Unstructured};
 <span class="kw">use </span>noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
-    hir_def::{<span class="self">self</span>, expr::HirIdent, stmt::HirPattern},
+    hir_def::{
+        <span class="self">self</span>,
+        expr::{Constructor, HirIdent},
+        stmt::HirPattern,
+    },
     monomorphization::{
         append_printable_type_info_for_type,
         ast::{
             ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
-            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-            Type, While,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, MatchCase,
+            Parameters, Program, Type, While,
         },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
+    signed_field::SignedField,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::Config;
@@ -2371,7 +2580,9 @@
         <span class="kw">let </span>allow_if_then = flags.allow_if_then
             &amp;&amp; allow_nested
             &amp;&amp; <span class="self">self</span>.budget &gt; <span class="number">0
-            </span>&amp;&amp; !types::contains_reference(typ);
+            </span>&amp;&amp; (<span class="self">self</span>.unconstrained() || !types::contains_reference(typ));
+
+        <span class="kw">let </span>allow_match = allow_if_then &amp;&amp; !<span class="self">self</span>.ctx.config.avoid_match;
 
         <span class="kw">if </span>freq.enabled_when(<span class="string">"unary"</span>, allow_nested &amp;&amp; types::can_unary_return(typ)) {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_unary(u, typ, max_depth)<span class="question-mark">? </span>{
@@ -2389,6 +2600,15 @@
         // Unlike blocks/loops it can appear in nested expressions.
         </span><span class="kw">if </span>freq.enabled_when(<span class="string">"if"</span>, allow_if_then) {
             <span class="kw">return </span><span class="self">self</span>.gen_if(u, typ, max_depth, flags);
+        }
+
+        <span class="comment">// Match expressions, returning a value.
+        // Treating them similarly to if-then-else.
+        </span><span class="kw">if </span>freq.enabled_when(<span class="string">"match"</span>, allow_match) {
+            <span class="comment">// It might not be able to generate the type, if we don't have a suitable variable to match on.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.gen_match(u, typ, max_depth)<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(expr);
+            }
         }
 
         <span class="comment">// Block of statements returning a value
@@ -2411,9 +2631,7 @@
             }
         }
 
-        <span class="comment">// TODO(#7926): Match
-
-        // If nothing else worked out we can always produce a random literal.
+        <span class="comment">// If nothing else worked out we can always produce a random literal.
         </span><span class="self">self</span>.gen_literal(u, typ).map(|expr| (expr, <span class="bool-val">false</span>))
     }
 
@@ -2919,6 +3137,12 @@
         <span class="comment">// Require a positive budget, so that we have some for the block itself and its contents.
         </span><span class="kw">if </span>freq.enabled_when(<span class="string">"if"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
             <span class="kw">return </span><span class="self">self</span>.gen_if(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth(), Flags::TOP).map(|(e, <span class="kw">_</span>)| e);
+        }
+
+        <span class="kw">if </span>freq.enabled_when(<span class="string">"match"</span>, <span class="self">self</span>.budget &gt; <span class="number">1 </span>&amp;&amp; !<span class="self">self</span>.ctx.config.avoid_match) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>((e, <span class="kw">_</span>)) = <span class="self">self</span>.gen_match(u, <span class="kw-2">&amp;</span>Type::Unit, <span class="self">self</span>.max_depth())<span class="question-mark">? </span>{
+                <span class="kw">return </span><span class="prelude-val">Ok</span>(e);
+            }
         }
 
         <span class="kw">if </span>freq.enabled_when(<span class="string">"for"</span>, <span class="self">self</span>.budget &gt; <span class="number">1</span>) {
@@ -3528,6 +3752,169 @@
         }
     }
 
+    <span class="doccomment">/// Generate a `match` expression, returning a given type.
+    ///
+    /// Match needs a variable; if we don't have one to produce the target type from,
+    /// it returns `None`.
+    </span><span class="kw">fn </span>gen_match(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+        max_depth: usize,
+    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
+        <span class="comment">// Decrease the budget so we avoid a potential infinite nesting of match expressions in the rows.
+        </span><span class="self">self</span>.decrease_budget(<span class="number">1</span>);
+
+        <span class="comment">// Pick a variable that can produce the type we are looking for.
+        </span><span class="kw">let </span>id = <span class="kw">if </span>types::is_unit(typ) {
+            <span class="comment">// If we are generating a statement (return unit), then let's just pick any local variable.
+            </span><span class="kw">if </span><span class="self">self</span>.locals.current().is_empty() {
+                <span class="prelude-val">None
+            </span>} <span class="kw">else </span>{
+                <span class="kw">let </span>id = u.choose_iter(<span class="self">self</span>.locals.current().variable_ids())<span class="question-mark">?</span>;
+                <span class="prelude-val">Some</span>(VariableId::Local(<span class="kw-2">*</span>id))
+            }
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.choose_producer(u, typ)<span class="question-mark">?
+        </span>};
+
+        <span class="comment">// If we have no viable candidate then do something else.
+        </span><span class="kw">let </span><span class="prelude-val">Some</span>(id) = id <span class="kw">else </span>{
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        };
+
+        <span class="comment">// If we picked a global variable, we need to create a local binding first,
+        // because the match only works with local variable IDs.
+        </span><span class="kw">let </span>(src_id, src_name, src_typ, src_dyn, src_expr) = <span class="kw">match </span>id {
+            VariableId::Local(id) =&gt; {
+                <span class="kw">let </span>(<span class="kw">_</span>, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id);
+                <span class="kw">let </span>is_dyn = <span class="self">self</span>.is_dynamic(<span class="kw-2">&amp;</span>id);
+                (id, name.clone(), typ.clone(), is_dyn, <span class="prelude-val">None</span>)
+            }
+            VariableId::Global(id) =&gt; {
+                <span class="kw">let </span>typ = <span class="self">self</span>.globals.get_variable(<span class="kw-2">&amp;</span>id).<span class="number">2</span>.clone();
+                <span class="comment">// The source is a technical variable that we don't want to access in the match rows.
+                </span><span class="kw">let </span>(id, name, let_expr) = <span class="self">self</span>.indirect_global(id, <span class="bool-val">false</span>, <span class="bool-val">false</span>);
+                (id, name, typ, <span class="bool-val">false</span>, <span class="prelude-val">Some</span>(let_expr))
+            }
+        };
+
+        <span class="comment">// We could add some filtering to `choose_producer`, but it's already complicated; maybe next time.
+        </span><span class="kw">if </span>!types::can_be_matched(<span class="kw-2">&amp;</span>src_typ) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+        }
+
+        <span class="kw">let </span><span class="kw-2">mut </span>match_expr = Match {
+            variable_to_match: (src_id, src_name),
+            cases: <span class="macro">vec!</span>[],
+            default_case: <span class="prelude-val">None</span>,
+            typ: typ.clone(),
+        };
+
+        <span class="kw">let </span>num_cases = u.int_in_range(<span class="number">0</span>..=<span class="self">self</span>.ctx.config.max_match_cases)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>is_dyn = src_dyn;
+
+        <span class="comment">// Generate a number of rows, depending on what we can do with the source type.
+        // See `MatchCompiler::compile_rows` for what is currently supported.
+        </span><span class="kw">let </span>gen_default = <span class="kw">match </span><span class="kw-2">&amp;</span>src_typ {
+            Type::Bool =&gt; {
+                <span class="comment">// There are only two possible values. Repeating one of them results in a warning,
+                // but let's allow it just so we cover that case, since it's not an error.
+                </span><span class="kw">for _ in </span><span class="number">0</span>..num_cases {
+                    <span class="kw">let </span>constructor = u.choose_iter([Constructor::True, Constructor::False])<span class="question-mark">?</span>;
+                    <span class="kw">let </span>(branch, branch_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+                    is_dyn |= branch_dyn;
+                    <span class="kw">let </span>case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+
+                <span class="comment">// If we have a non-exhaustive match we have to have a default; otherwise it's optional.
+                </span><span class="attr">#[allow(clippy::mutable_key_type)]
+                </span><span class="kw">let </span>cs =
+                    match_expr.cases.iter().map(|c| c.constructor.clone()).collect::&lt;HashSet&lt;<span class="kw">_</span>&gt;&gt;();
+
+                <span class="kw">if </span>cs.len() &lt; <span class="number">2 </span>{ <span class="bool-val">true </span>} <span class="kw">else </span>{ bool::arbitrary(u)<span class="question-mark">? </span>}
+            }
+            Type::Field | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                <span class="kw">for _ in </span><span class="number">0</span>..num_cases {
+                    <span class="kw">let </span>constructor = <span class="self">self</span>.gen_num_match_constructor(u, <span class="kw-2">&amp;</span>src_typ)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>(branch, branch_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+                    is_dyn |= branch_dyn;
+                    <span class="kw">let </span>case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+                <span class="comment">// We won't have an exhaustive match with random integers, so we need a default.
+                </span><span class="bool-val">true
+            </span>}
+            Type::Tuple(item_types) =&gt; {
+                <span class="comment">// There is only one case in the AST that we can generate, which is to unpack the tuple
+                // into its constituent fields. The compiler would do this, and then generate further
+                // matches on individual fields. We don't do that here, just make the fields available.
+                </span><span class="kw">let </span>constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
+                <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::new();
+                <span class="self">self</span>.locals.enter();
+                <span class="kw">for </span>item_type <span class="kw">in </span>item_types {
+                    <span class="kw">let </span>item_id = <span class="self">self</span>.next_local_id();
+                    <span class="kw">let </span>item_name = <span class="macro">format!</span>(<span class="string">"item_{}"</span>, local_name(item_id));
+                    <span class="self">self</span>.locals.add(item_id, <span class="bool-val">false</span>, item_name.clone(), item_type.clone());
+                    arguments.push((item_id, item_name));
+                }
+                <span class="comment">// Generate the original expression we wanted with the new arguments in scope.
+                </span><span class="kw">let </span>(branch, branch_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+                is_dyn |= branch_dyn;
+                <span class="kw">let </span>case = MatchCase { constructor, arguments, branch };
+                match_expr.cases.push(case);
+                <span class="self">self</span>.locals.exit();
+                <span class="comment">// We must not generate a default, or the compiler will panic.
+                </span><span class="bool-val">false
+            </span>}
+            other =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"unexpected type to generate match for: ${other}"</span>);
+            }
+        };
+
+        <span class="comment">// Optionally generate a default case.
+        </span><span class="kw">if </span>gen_default {
+            <span class="kw">let </span>(default_expr, default_dyn) = <span class="self">self</span>.gen_expr(u, typ, max_depth, Flags::TOP)<span class="question-mark">?</span>;
+            is_dyn |= default_dyn;
+            match_expr.default_case = <span class="prelude-val">Some</span>(Box::new(default_expr));
+        }
+
+        <span class="kw">let </span>match_expr = Expression::Match(match_expr);
+        <span class="kw">let </span>expr = <span class="kw">if let </span><span class="prelude-val">Some</span>(src_expr) = src_expr {
+            Expression::Block(<span class="macro">vec!</span>[src_expr, match_expr])
+        } <span class="kw">else </span>{
+            match_expr
+        };
+
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>((expr, is_dyn)))
+    }
+
+    <span class="doccomment">/// Generate a random field that can be used in the match constructor of a numeric type.
+    </span><span class="kw">fn </span>gen_num_field(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+    ) -&gt; arbitrary::Result&lt;SignedField&gt; {
+        <span class="kw">let </span>literal = <span class="self">self</span>.gen_literal(u, typ)<span class="question-mark">?</span>;
+        <span class="kw">let </span>Expression::Literal(Literal::Integer(field, <span class="kw">_</span>, <span class="kw">_</span>)) = literal <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"expected Literal::Integer; got {literal:?}"</span>);
+        };
+        <span class="prelude-val">Ok</span>(field)
+    }
+
+    <span class="doccomment">/// Generate a match constructor for a numeric type.
+    </span><span class="kw">fn </span>gen_num_match_constructor(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        u: <span class="kw-2">&amp;mut </span>Unstructured,
+        typ: <span class="kw-2">&amp;</span>Type,
+    ) -&gt; arbitrary::Result&lt;Constructor&gt; {
+        <span class="comment">// TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
+        // When it does, we should generate either a field, or a range.
+        </span><span class="kw">let </span>constructor = Constructor::Int(<span class="self">self</span>.gen_num_field(u, typ)<span class="question-mark">?</span>);
+        <span class="prelude-val">Ok</span>(constructor)
+    }
+
     <span class="doccomment">/// If this is main, and we could have made a call to another function, but we didn't,
     /// ensure we do, so as not to let all the others we generate go to waste.
     </span><span class="kw">fn </span>gen_guaranteed_call_from_main(
@@ -3686,6 +4073,25 @@
             <span class="self">self</span>.let_var_and_ident(<span class="bool-val">true</span>, typ.clone(), expr.clone(), <span class="bool-val">false</span>, is_dyn, local_name);
         <span class="kw">let </span>ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(<span class="macro">vec!</span>[let_expr, ref_expr])
+    }
+
+    <span class="doccomment">/// Create a local let binding over a global variable.
+    ///
+    /// Returns the local ID and the `Let` expression.
+    </span><span class="kw">fn </span>indirect_global(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        id: GlobalId,
+        mutable: bool,
+        add_to_scope: bool,
+    ) -&gt; (LocalId, String, Expression) {
+        <span class="kw">let </span>(<span class="kw">_</span>, name, typ) = <span class="self">self</span>.globals.get_variable(<span class="kw-2">&amp;</span>id).clone();
+        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>ident = expr::ident(VariableId::Global(id), ident_id, <span class="bool-val">false</span>, name, typ.clone());
+        <span class="kw">let </span>let_expr = <span class="self">self</span>.let_var(mutable, typ, ident, add_to_scope, <span class="bool-val">false</span>, local_name);
+        <span class="kw">let </span>Expression::Let(Let { id, name, .. }) = <span class="kw-2">&amp;</span>let_expr <span class="kw">else </span>{
+            <span class="macro">unreachable!</span>(<span class="string">"expected Let; got {let_expr:?}"</span>);
+        };
+        (<span class="kw-2">*</span>id, name.clone(), let_expr)
     }
 }
 

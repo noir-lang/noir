@@ -635,7 +635,12 @@
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
 <a href="#636" id="636">636</a>
-<a href="#637" id="637">637</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -705,6 +710,10 @@
 
     <span class="kw">fn </span>fmt_func(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: FuncId) -&gt; String {
         <span class="self">self</span>.fmt_ident(name, <span class="kw-2">&amp;</span>Definition::Function(id))
+    }
+
+    <span class="kw">fn </span>fmt_match(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: LocalId) -&gt; String {
+        <span class="kw">if </span><span class="self">self</span>.show_id { <span class="macro">format!</span>(<span class="string">"${}"</span>, id.<span class="number">0</span>) } <span class="kw">else </span>{ <span class="self">self</span>.fmt_local(name, id) }
     }
 
     <span class="kw">pub fn </span>print_program(<span class="kw-2">&amp;mut </span><span class="self">self</span>, program: <span class="kw-2">&amp;</span>Program, f: <span class="kw-2">&amp;mut </span>Formatter) -&gt; std::fmt::Result {
@@ -1074,13 +1083,14 @@
         match_expr: <span class="kw-2">&amp;</span><span class="kw">super</span>::ast::Match,
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
-        <span class="macro">write!</span>(f, <span class="string">"match ${} {{"</span>, match_expr.variable_to_match.<span class="number">0</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(var_id, var_name) = <span class="kw-2">&amp;</span>match_expr.variable_to_match;
+        <span class="macro">write!</span>(f, <span class="string">"match {} {{"</span>, <span class="self">self</span>.fmt_match(var_name, <span class="kw-2">*</span>var_id))<span class="question-mark">?</span>;
         <span class="self">self</span>.indent_level += <span class="number">1</span>;
         <span class="self">self</span>.next_line(f)<span class="question-mark">?</span>;
 
         <span class="kw">for </span>(i, case) <span class="kw">in </span>match_expr.cases.iter().enumerate() {
             <span class="macro">write!</span>(f, <span class="string">"{}"</span>, case.constructor)<span class="question-mark">?</span>;
-            <span class="kw">let </span>args = vecmap(<span class="kw-2">&amp;</span>case.arguments, |arg| <span class="macro">format!</span>(<span class="string">"${}"</span>, arg.<span class="number">0</span>)).join(<span class="string">", "</span>);
+            <span class="kw">let </span>args = vecmap(<span class="kw-2">&amp;</span>case.arguments, |(id, name)| <span class="self">self</span>.fmt_match(name, <span class="kw-2">*</span>id)).join(<span class="string">", "</span>);
             <span class="kw">if </span>!args.is_empty() {
                 <span class="macro">write!</span>(f, <span class="string">"({args})"</span>)<span class="question-mark">?</span>;
             }

@@ -138,7 +138,16 @@
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
 <a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>rand <span class="kw">as _</span>;
@@ -185,6 +194,8 @@
     </span><span class="kw">pub </span>vary_loop_size: bool,
     <span class="doccomment">/// Maximum number of recursive calls to make at runtime.
     </span><span class="kw">pub </span>max_recursive_calls: usize,
+    <span class="doccomment">/// Maximum number of match cases.
+    </span><span class="kw">pub </span>max_match_cases: usize,
     <span class="doccomment">/// Frequency of expressions, which produce a value.
     </span><span class="kw">pub </span>expr_freqs: Freqs,
     <span class="doccomment">/// Frequency of statements in ACIR functions.
@@ -210,6 +221,8 @@
     </span><span class="kw">pub </span>avoid_print: bool,
     <span class="doccomment">/// Avoid using constrain statements.
     </span><span class="kw">pub </span>avoid_constrain: bool,
+    <span class="doccomment">/// Avoid match statements and expressions.
+    </span><span class="kw">pub </span>avoid_match: bool,
     <span class="doccomment">/// Avoid using the slice type.
     </span><span class="kw">pub </span>avoid_slices: bool,
     <span class="doccomment">/// Only use comptime friendly expressions.
@@ -222,6 +235,7 @@
             (<span class="string">"unary"</span>, <span class="number">10</span>),
             (<span class="string">"binary"</span>, <span class="number">20</span>),
             (<span class="string">"if"</span>, <span class="number">15</span>),
+            (<span class="string">"match"</span>, <span class="number">30</span>),
             (<span class="string">"block"</span>, <span class="number">30</span>),
             (<span class="string">"vars"</span>, <span class="number">25</span>),
             (<span class="string">"literal"</span>, <span class="number">5</span>),
@@ -230,19 +244,21 @@
         <span class="kw">let </span>stmt_freqs_acir = Freqs::new(<span class="kw-2">&amp;</span>[
             (<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
-            (<span class="string">"for"</span>, <span class="number">22</span>),
+            (<span class="string">"match"</span>, <span class="number">10</span>),
+            (<span class="string">"for"</span>, <span class="number">25</span>),
             (<span class="string">"let"</span>, <span class="number">25</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
             (<span class="string">"constrain"</span>, <span class="number">4</span>),
         ]);
         <span class="kw">let </span>stmt_freqs_brillig = Freqs::new(<span class="kw-2">&amp;</span>[
-            (<span class="string">"break"</span>, <span class="number">20</span>),
-            (<span class="string">"continue"</span>, <span class="number">20</span>),
+            (<span class="string">"break"</span>, <span class="number">25</span>),
+            (<span class="string">"continue"</span>, <span class="number">25</span>),
             (<span class="string">"assign"</span>, <span class="number">30</span>),
             (<span class="string">"if"</span>, <span class="number">10</span>),
-            (<span class="string">"for"</span>, <span class="number">15</span>),
-            (<span class="string">"loop"</span>, <span class="number">15</span>),
-            (<span class="string">"while"</span>, <span class="number">15</span>),
+            (<span class="string">"match"</span>, <span class="number">15</span>),
+            (<span class="string">"for"</span>, <span class="number">17</span>),
+            (<span class="string">"loop"</span>, <span class="number">17</span>),
+            (<span class="string">"while"</span>, <span class="number">17</span>),
             (<span class="string">"let"</span>, <span class="number">20</span>),
             (<span class="string">"call"</span>, <span class="number">5</span>),
             (<span class="string">"print"</span>, <span class="number">15</span>),
@@ -261,6 +277,7 @@
             max_loop_size: <span class="number">10</span>,
             vary_loop_size: <span class="bool-val">true</span>,
             max_recursive_calls: <span class="number">25</span>,
+            max_match_cases: <span class="number">3</span>,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
@@ -273,6 +290,7 @@
             avoid_lambdas: <span class="bool-val">false</span>,
             avoid_print: <span class="bool-val">false</span>,
             avoid_constrain: <span class="bool-val">false</span>,
+            avoid_match: <span class="bool-val">false</span>,
             avoid_slices: <span class="bool-val">false</span>,
             comptime_friendly: <span class="bool-val">false</span>,
         }

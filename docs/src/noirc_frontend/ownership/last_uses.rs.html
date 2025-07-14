@@ -841,7 +841,7 @@
         <span class="kw">let </span>match_id = <span class="self">self</span>.next_if_or_match_id();
 
         <span class="kw">for </span>(i, case) <span class="kw">in </span>match_expr.cases.iter().enumerate() {
-            <span class="kw">for </span>argument <span class="kw">in </span><span class="kw-2">&amp;</span>case.arguments {
+            <span class="kw">for </span>(argument, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;</span>case.arguments {
                 <span class="self">self</span>.declare_variable(<span class="kw-2">*</span>argument);
             }
 
