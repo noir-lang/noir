@@ -13,6 +13,6 @@ runs:
     - name: Set noir-inspector on PATH
       shell: bash
       run: |
-        noir-inspector_binary="${{ github.workspace }}/noir-inspector/noir-inspector"
-        chmod +x $noir-inspector_binary
-        echo "$(dirname $noir-inspector_binary)" >> $GITHUB_PATH
+        noir_inspector_binary="${{ github.workspace }}/noir-inspector/noir-inspector"
+        chmod +x $noir_inspector_binary
+        echo "$(dirname $noir_inspector_binary)" >> $GITHUB_PATH
