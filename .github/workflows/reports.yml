@@ -703,7 +703,7 @@ jobs:
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
-          name: "Artifact Size"
+          name: "Opcode count"
           tool: "customSmallerIsBetter"
           output-file-path: ./num_opcodes.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
