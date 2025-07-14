@@ -301,24 +301,33 @@ pub(crate) fn simplify(
 /// constrain v1 == u32 0, "Index out of bounds"
 /// v4 = array_get v2, index u32 0 -> Field
 ///
-/// We expect that the constant-index array_get will be optimized out in later passes.
+/// We then attempt to resolve the array read immediately.
 fn optimize_length_one_array_read(
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
     array: ValueId,
-    target_index: ValueId,
+    index: ValueId,
     offset: ArrayOffset,
 ) -> SimplifyResult {
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
     let index_constraint = Instruction::Constrain(
-        target_index,
+        index,
         zero,
         Some(ConstrainError::from("Index out of bounds".to_string())),
     );
     dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
 
-    SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet { array, index: zero, offset })
+    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    if let SimplifyResult::None = result {
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+            array,
+            index: zero,
+            offset,
+        })
+    } else {
+        result
+    }
 }
 
 /// Given a chain of operations like:
@@ -598,8 +607,7 @@ mod tests {
           b0(v0: Field, v1: u32):
             v2 = make_array [v0] : [Field; 1]
             constrain v1 == u32 0, "Index out of bounds"
-            v4 = array_get v2, index u32 0 -> Field
-            return v4
+            return v0
         }
         "#);
     }
