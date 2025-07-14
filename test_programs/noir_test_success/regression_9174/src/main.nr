@@ -6,11 +6,12 @@ fn main(a: bool, b: bool, c: Field) -> pub (Field, Field) {
                 let i = G_A;
                 i[(2050918985_u32 % i.len())]
             },
+            // Safety: test
             unsafe {
                 func_1_proxy(
                     if a {
                         if b {
-                            (unsafe { func_1_proxy(0) } as u32)
+                            func_1_proxy(0) as u32
                         } else {
                             766482358_u32
                         }
@@ -34,7 +35,7 @@ unconstrained fn func_1_proxy(_a: u32) -> Field {
     0
 }
 
-#[fuzz(should_fail_with = "Cannot satisfy constraint")]
+#[test(should_fail_with = "Cannot satisfy constraint")]
 fn fuzz_main(a: bool, b: bool) -> (Field, Field) {
     main(
         a,
