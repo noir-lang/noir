@@ -904,7 +904,52 @@
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1010,6 +1055,26 @@
         <span class="kw">let </span>(Type::Array(<span class="kw">_</span>, <span class="kw">_</span>) | Type::Slice(<span class="kw">_</span>)) = <span class="kw-2">&amp;</span>array_typ <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"ICE: expected array or slice type"</span>);
         };
+
+        <span class="comment">// For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // leaving an assertion that the side effect variable must be false.
+        </span><span class="kw">if </span><span class="self">self</span>.flattened_size(array, dfg) == <span class="number">0 </span>{
+            <span class="comment">// Zero result.
+            </span><span class="kw">let </span>results = dfg.instruction_results(instruction);
+            <span class="kw">let </span>res_typ = dfg.type_of_value(results[<span class="number">0</span>]);
+            <span class="kw">let </span>zero = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
+            <span class="self">self</span>.define_result(dfg, instruction, zero);
+            <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
+            </span><span class="kw">let </span>msg = <span class="string">"Index out of bounds, array has size 0"</span>.to_string();
+            <span class="kw">let </span>msg = <span class="self">self</span>.acir_context.generate_assertion_message_payload(msg);
+            <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
+            <span class="kw">return </span><span class="self">self</span>.acir_context.assert_eq_var(
+                <span class="self">self</span>.current_side_effects_enabled_var,
+                zero,
+                <span class="prelude-val">Some</span>(msg),
+            );
+        }
 
         <span class="kw">if </span><span class="self">self</span>.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)<span class="question-mark">? </span>{
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
@@ -1374,6 +1439,31 @@
             Type::Reference(reference_type) =&gt; {
                 <span class="self">self</span>.array_get_value(reference_type.as_ref(), block_id, var_index)
             }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected an array or numeric but got {ssa_type:?}"</span>),
+        }
+    }
+
+    <span class="doccomment">/// Construct a value with all zero values, which we can use to provide a default value
+    /// when we cannot use `array_get_value` because the array length itself is zero, yet
+    /// we also don't want a memory operation to fail, because the operation will never
+    /// actually run, because we know that the side effect variable is false.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>array_zero_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ssa_type: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Result</span>&lt;AcirValue, RuntimeError&gt; {
+        <span class="kw">match </span>ssa_type.clone() {
+            Type::Numeric(numeric_type) =&gt; {
+                <span class="kw">let </span>zero = <span class="self">self</span>.acir_context.add_constant(FieldElement::zero());
+                <span class="kw">let </span>typ = AcirType::NumericType(numeric_type);
+                <span class="prelude-val">Ok</span>(AcirValue::Var(zero, typ))
+            }
+            Type::Array(element_types, len) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>values = im::Vector::new();
+                <span class="kw">for _ in </span><span class="number">0</span>..len {
+                    <span class="kw">for </span>typ <span class="kw">in </span>element_types.as_ref() {
+                        values.push_back(<span class="self">self</span>.array_zero_value(typ)<span class="question-mark">?</span>);
+                    }
+                }
+                <span class="prelude-val">Ok</span>(AcirValue::Array(values))
+            }
+            Type::Reference(reference_type) =&gt; <span class="self">self</span>.array_zero_value(reference_type.as_ref()),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: Expected an array or numeric but got {ssa_type:?}"</span>),
         }
     }
