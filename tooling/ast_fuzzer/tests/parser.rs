@@ -86,9 +86,6 @@ fn arb_ssa_roundtrip() {
 
         ssa2.normalize_ids();
 
-        // println!("{}", ssa1.print_without_locations());
-        // println!("{}", ssa2.print_without_locations());
-
         // Not everything is populated by the parser, and unfortunately serializing to JSON doesn't work either.
         for (func_id, func1) in ssa1.functions {
             if func1.name() == "apply_dummy" {
