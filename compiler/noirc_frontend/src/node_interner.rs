@@ -32,6 +32,7 @@ use crate::token::MetaAttributeName;
 
 use crate::GenericTypeVars;
 use crate::Generics;
+use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirIdent;
@@ -124,6 +125,11 @@ pub struct NodeInterner {
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
+
+    /// Each trait associated type. These are tracked so that we can distinguish them
+    /// from other types and know that, when directly referenced, they should also
+    /// lead to an "ambiguous associated type" error.
+    pub(crate) trait_associated_types: Vec<TraitAssociatedType>,
 
     // Trait map.
     //
@@ -308,6 +314,7 @@ pub enum ReferenceId {
     StructMember(TypeId, usize),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -505,12 +512,6 @@ impl TypeId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeAliasId(pub usize);
 
-impl TypeAliasId {
-    pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(usize::MAX)
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
 
@@ -522,6 +523,9 @@ impl TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+pub struct TraitAssociatedTypeId(pub usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
@@ -691,6 +695,7 @@ impl Default for NodeInterner {
             data_types: HashMap::default(),
             type_attributes: HashMap::default(),
             type_aliases: Vec::new(),
+            trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
             next_trait_implementation_id: 0,
@@ -842,6 +847,16 @@ impl NodeInterner {
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
+    }
+
+    pub fn push_trait_associated_type(
+        &mut self,
+        trait_id: TraitId,
+        name: Ident,
+    ) -> TraitAssociatedTypeId {
+        let id = TraitAssociatedTypeId(self.trait_associated_types.len());
+        self.trait_associated_types.push(TraitAssociatedType { id, trait_id, name });
+        id
     }
 
     pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
@@ -1283,6 +1298,10 @@ impl NodeInterner {
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
         &self.traits[&id]
+    }
+
+    pub fn get_trait_associated_type(&self, id: TraitAssociatedTypeId) -> &TraitAssociatedType {
+        &self.trait_associated_types[id.0]
     }
 
     pub fn get_trait_mut(&mut self, id: TraitId) -> &mut Trait {

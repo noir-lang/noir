@@ -192,7 +192,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
-        ),
+        )
+        .and_then(|ssa| {
+            // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+            // that we don't know how to attribute to a concrete error with the Noir code.
+            ssa.dead_instruction_elimination_post_check(true);
+            ssa
+        }),
     ]
 }
 

@@ -9,7 +9,7 @@ use crate::hir::resolution::errors::ResolverError;
 use crate::hir::resolution::visibility::item_in_module_is_visible;
 
 use crate::locations::ReferencesTracker;
-use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 use crate::{Shared, Type, TypeAlias};
 
 use super::Elaborator;
@@ -33,6 +33,7 @@ pub(crate) enum PathResolutionItem {
     TypeAlias(TypeAliasId),
     PrimitiveType(PrimitiveType),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
 
     // These are values
     /// A reference to a global value.
@@ -69,6 +70,7 @@ impl PathResolutionItem {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..) => None,
         }
     }
@@ -80,6 +82,7 @@ impl PathResolutionItem {
             PathResolutionItem::TypeAlias(..) => "type alias",
             PathResolutionItem::PrimitiveType(..) => "primitive type",
             PathResolutionItem::Trait(..) => "trait",
+            PathResolutionItem::TraitAssociatedType(..) => "associated type",
             PathResolutionItem::Global(..) => "global",
             PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
@@ -395,6 +398,7 @@ impl Elaborator<'_> {
                 | PathResolutionItem::TypeAlias(..)
                 | PathResolutionItem::PrimitiveType(..)
                 | PathResolutionItem::Trait(..)
+                | PathResolutionItem::TraitAssociatedType(..)
                 | PathResolutionItem::ModuleFunction(..)
                 | PathResolutionItem::Method(..)
                 | PathResolutionItem::SelfMethod(..)
@@ -532,6 +536,10 @@ impl Elaborator<'_> {
                     let item =
                         IntermediatePathResolutionItem::TypeAlias(id, last_segment.turbofish());
                     (module_id, true, item)
+                }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    // There are no items inside an associated type so we return earlier
+                    return Err(PathResolutionError::Unresolved(current_ident.clone()));
                 }
                 ModuleDefId::TraitId(id) => {
                     let item = IntermediatePathResolutionItem::Trait(id, last_segment.turbofish());
@@ -860,6 +868,7 @@ fn merge_intermediate_path_resolution_item_with_module_def_id(
         ModuleDefId::TypeId(type_id) => PathResolutionItem::Type(type_id),
         ModuleDefId::TypeAliasId(type_alias_id) => PathResolutionItem::TypeAlias(type_alias_id),
         ModuleDefId::TraitId(trait_id) => PathResolutionItem::Trait(trait_id),
+        ModuleDefId::TraitAssociatedTypeId(id) => PathResolutionItem::TraitAssociatedType(id),
         ModuleDefId::GlobalId(global_id) => PathResolutionItem::Global(global_id),
         ModuleDefId::FunctionId(func_id) => match intermediate_item {
             IntermediatePathResolutionItem::SelfType => PathResolutionItem::SelfMethod(func_id),

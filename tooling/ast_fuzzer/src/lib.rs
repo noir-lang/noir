@@ -74,6 +74,8 @@ pub struct Config {
     pub avoid_constrain: bool,
     /// Avoid match statements and expressions.
     pub avoid_match: bool,
+    /// Avoid using the slice type.
+    pub avoid_slices: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -140,6 +142,7 @@ impl Default for Config {
             avoid_print: false,
             avoid_constrain: false,
             avoid_match: false,
+            avoid_slices: false,
             comptime_friendly: false,
         }
     }

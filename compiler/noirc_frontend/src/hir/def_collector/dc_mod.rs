@@ -25,7 +25,7 @@ use crate::{Generics, Kind, ResolvedGeneric, Type, TypeVariable};
 use crate::{
     graph::CrateId,
     hir::def_collector::dc_crate::{UnresolvedStruct, UnresolvedTrait},
-    node_interner::{FunctionModifiers, TraitId, TypeAliasId},
+    node_interner::{FunctionModifiers, TraitId},
     parser::{SortedModule, SortedSubModule},
 };
 
@@ -602,7 +602,7 @@ impl ModCollector<'_> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, typ, default_value: _ } => {
+                    TraitItem::Constant { name, typ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,
@@ -651,12 +651,11 @@ impl ModCollector<'_> {
                         }
                     }
                     TraitItem::Type { name, bounds: _ } => {
-                        if let Err((first_def, second_def)) =
-                            self.def_collector.def_map[trait_id.0.local_id].declare_type_alias(
-                                name.clone(),
-                                ItemVisibility::Public,
-                                TypeAliasId::dummy_id(),
-                            )
+                        let trait_associated_type_id =
+                            context.def_interner.push_trait_associated_type(trait_id, name.clone());
+                        if let Err((first_def, second_def)) = self.def_collector.def_map
+                            [trait_id.0.local_id]
+                            .declare_trait_associated_type(name.clone(), trait_associated_type_id)
                         {
                             let error = DefCollectorErrorKind::Duplicate {
                                 typ: DuplicateType::TraitAssociatedItem,
