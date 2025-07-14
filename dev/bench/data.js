@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752520078848,
+  "lastUpdate": 1752524653681,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18836,48 +18836,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "077bb6d9cb08ef3f6c9eab33fef172c33f707f6e",
-          "message": "chore(docs): Brillig VM docs (#9078)",
-          "timestamp": "2025-07-01T20:19:03Z",
-          "tree_id": "79c2308931bd6b786296cb60dd0e0b4678ff66a9",
-          "url": "https://github.com/noir-lang/noir/commit/077bb6d9cb08ef3f6c9eab33fef172c33f707f6e"
-        },
-        "date": 1751403635973,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253380,
-            "range": "± 510",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223956,
-            "range": "± 10339",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780590,
-            "range": "± 3660",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -20929,6 +20887,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797892,
             "range": "± 1937",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "11d86ef432ffc23a2f90b55ba12833ded4c467a3",
+          "message": "fix(acir-gen): Do not generate ACIR array opcodes when the length is zero (#9195)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-07-14T19:58:25Z",
+          "tree_id": "d56c2ff2ede86268bff12704a5665532c9860355",
+          "url": "https://github.com/noir-lang/noir/commit/11d86ef432ffc23a2f90b55ba12833ded4c467a3"
+        },
+        "date": 1752524638481,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 273626,
+            "range": "± 959",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 249608,
+            "range": "± 3659",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798939,
+            "range": "± 2085",
             "unit": "ns/iter"
           }
         ]
