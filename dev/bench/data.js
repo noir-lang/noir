@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752525894060,
+  "lastUpdate": 1752531572076,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18841,48 +18841,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "11e956e49efecad5af922649f0b247607619c8ab",
-          "message": "chore: bump some deps (#9076)",
-          "timestamp": "2025-07-02T10:04:23Z",
-          "tree_id": "04a3cf16f6797afc72069ba98e8e776d583fc1c0",
-          "url": "https://github.com/noir-lang/noir/commit/11e956e49efecad5af922649f0b247607619c8ab"
-        },
-        "date": 1751452195613,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250225,
-            "range": "± 1750",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222386,
-            "range": "± 3991",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782244,
-            "range": "± 1160",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -20934,6 +20892,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798939,
             "range": "± 2085",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a",
+          "message": "feat(fuzz): Generate Match expressions and statements (#9108)",
+          "timestamp": "2025-07-14T21:53:02Z",
+          "tree_id": "a50c705b44243969ea228784a2219051b9ca8a69",
+          "url": "https://github.com/noir-lang/noir/commit/49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a"
+        },
+        "date": 1752531556962,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264782,
+            "range": "± 434",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235201,
+            "range": "± 2466",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785541,
+            "range": "± 1964",
             "unit": "ns/iter"
           }
         ]
