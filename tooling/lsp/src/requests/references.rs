@@ -1,7 +1,7 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use lsp_types::{Location, ReferenceParams};
+use async_lsp::lsp_types::{Location, ReferenceParams};
 
 use crate::LspState;
 
@@ -31,7 +31,7 @@ mod references_tests {
     use crate::test_utils::{self, search_in_file};
     use crate::utils::get_cursor_line_and_column;
     use crate::{notifications, on_did_open_text_document};
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         DidOpenTextDocumentParams, PartialResultParams, Position, Range, ReferenceContext,
         TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams, Url,
         WorkDoneProgressParams,
@@ -193,7 +193,7 @@ mod references_tests {
 
         let (line, column, src) = get_cursor_line_and_column(src);
 
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {

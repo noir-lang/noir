@@ -49,36 +49,51 @@ pub struct SortedModule {
 
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for inner_attribute in &self.inner_attributes {
+            writeln!(f, "#![{}]", inner_attribute.kind.contents())?;
+        }
+
         for decl in &self.module_decls {
             writeln!(f, "{decl};")?;
         }
 
         for import in &self.imports {
-            write!(f, "{import}")?;
+            writeln!(f, "{import};")?;
         }
 
         for (global_const, _visibility) in &self.globals {
-            write!(f, "{global_const}")?;
+            writeln!(f, "{global_const}")?;
         }
 
         for type_ in &self.structs {
-            write!(f, "{type_}")?;
+            writeln!(f, "{type_}")?;
+        }
+        for type_ in &self.enums {
+            writeln!(f, "{type_}")?;
         }
 
         for function in &self.functions {
-            write!(f, "{function}")?;
+            writeln!(f, "{function}")?;
+        }
+
+        for trait_ in &self.traits {
+            writeln!(f, "{trait_}")?;
         }
 
         for impl_ in &self.impls {
-            write!(f, "{impl_}")?;
+            writeln!(f, "{impl_}")?;
+        }
+
+        for trait_impl in &self.trait_impls {
+            writeln!(f, "{trait_impl}")?;
         }
 
         for type_alias in &self.type_aliases {
-            write!(f, "{type_alias}")?;
+            writeln!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {
-            write!(f, "{submodule}")?;
+            writeln!(f, "{submodule}")?;
         }
 
         Ok(())

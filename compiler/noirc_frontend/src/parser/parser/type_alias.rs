@@ -1,7 +1,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    ast::{Ident, ItemVisibility, TypeAlias, UnresolvedType, UnresolvedTypeData},
+    ast::{ItemVisibility, TypeAlias, UnresolvedType, UnresolvedTypeData},
     token::Token,
 };
 
@@ -14,26 +14,27 @@ impl Parser<'_> {
         visibility: ItemVisibility,
         start_location: Location,
     ) -> TypeAlias {
+        let location = self.location_at_previous_token_end();
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return TypeAlias {
                 visibility,
-                name: Ident::default(),
+                name: self.unknown_ident_at_previous_token_end(),
                 generics: Vec::new(),
-                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() },
+                typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,
                 numeric_type: None,
             };
         };
         // Optional numeric type for alias over numeric generics
         let mut num_typ = None;
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
         if self.eat_colon() {
             // To specify a type alias on a numeric generic expression, we need to specify the type of the expression
             // It must be a numeric type
             num_typ = Some(self.parse_type_or_error());
         }
-        let location;
+        let location;//TODO CHECK location_at_previous_token_end
         let typ = if !self.eat_assign() {
             self.expected_token(Token::Assign);
             location = self.location_since(start_location);
@@ -42,9 +43,7 @@ impl Parser<'_> {
         } else {
             let typ = self.parse_type_or_type_expression().unwrap();
             location = self.location_since(start_location);
-            if !self.eat_semicolons() {
-                self.expected_token(Token::Semicolon);
-            }
+            self.eat_semicolon_or_error();
             typ
         };
 
@@ -77,7 +76,7 @@ mod tests {
         let alias = parse_type_alias_no_errors(src);
         assert_eq!("Foo", alias.name.to_string());
         assert!(alias.generics.is_empty());
-        assert_eq!(alias.typ.typ, UnresolvedTypeData::FieldElement);
+        assert_eq!(alias.typ.typ.to_string(), "Field");
     }
 
     #[test]

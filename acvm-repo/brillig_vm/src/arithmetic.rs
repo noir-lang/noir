@@ -1,3 +1,5 @@
+//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+//! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use acir::AcirField;
@@ -24,17 +26,23 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
     rhs: MemoryValue<F>,
 ) -> Result<MemoryValue<F>, BrilligArithmeticError> {
     let a = lhs.expect_field().map_err(|err| {
-        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedLhsBitSize {
-            lhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } else {
+            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
         }
     })?;
     let b = rhs.expect_field().map_err(|err| {
-        let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err;
-        BrilligArithmeticError::MismatchedRhsBitSize {
-            rhs_bit_size: value_bit_size,
-            op_bit_size: expected_bit_size,
+        if let MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } = err {
+            BrilligArithmeticError::MismatchedRhsBitSize {
+                rhs_bit_size: value_bit_size,
+                op_bit_size: expected_bit_size,
+            }
+        } else {
+            unreachable!("MemoryTypeError NotInteger is only produced by to_u128")
         }
     })?;
 
@@ -46,6 +54,10 @@ pub(crate) fn evaluate_binary_field_op<F: AcirField>(
         BinaryFieldOp::Div => {
             if b.is_zero() {
                 return Err(BrilligArithmeticError::DivisionByZero);
+            } else if b.is_one() {
+                MemoryValue::new_field(a)
+            } else if b == -F::one() {
+                MemoryValue::new_field(-a)
             } else {
                 MemoryValue::new_field(a / b)
             }
@@ -152,14 +164,15 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
         }
 
         BinaryIntOp::Shl | BinaryIntOp::Shr => {
-            let rhs = rhs.expect_u8().map_err(
-                |MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size }| {
+            let rhs = rhs.expect_u8().map_err(|error| match error {
+                MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
                     BrilligArithmeticError::MismatchedRhsBitSize {
                         rhs_bit_size: value_bit_size,
                         op_bit_size: expected_bit_size,
                     }
-                },
-            )?;
+                }
+                _ => unreachable!("MemoryTypeError NotInteger is only produced by to_u128"),
+            })?;
 
             match (lhs, bit_size) {
                 (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
@@ -190,6 +203,15 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     }
 }
 
+/// Evaluates binary operations on 1-bit unsigned integers (booleans).
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If an operation other than Add, Sub, Mul, Div, And, Or, Xor, Equals, LessThan,
+/// or LessThanEquals is supplied as an argument.
 fn evaluate_binary_int_op_u1(
     op: &BinaryIntOp,
     lhs: bool,
@@ -214,6 +236,11 @@ fn evaluate_binary_int_op_u1(
     Ok(result)
 }
 
+/// Evaluates comparison operations (Equals, LessThan, LessThanEquals)
+/// between two values of an ordered type (e.g., fields are unordered).
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Equals, LessThan, or LessThanEquals).
 fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
     match op {
         BinaryIntOp::Equals => lhs == rhs,
@@ -223,6 +250,11 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
     }
 }
 
+/// Evaluates shift operations (Shl, Shr) for unsigned integers.
+/// Ensures that shifting beyond the type width returns zero.
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Shl or Shr).
 fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
@@ -241,6 +273,15 @@ fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Outp
     }
 }
 
+/// Evaluates arithmetic or bitwise operations on unsigned integer types,
+/// using wrapping arithmetic for [add][BinaryIntOp::Add], [sub][BinaryIntOp::Sub], and [mul][BinaryIntOp::Mul].
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If there an operation other than Add, Sub, Mul, Div, And, Or, Xor is supplied as an argument.
 fn evaluate_binary_int_op_arith<
     T: WrappingAdd
         + WrappingSub

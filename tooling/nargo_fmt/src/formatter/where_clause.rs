@@ -68,6 +68,17 @@ impl Formatter<'_> {
         }
     }
 
+    pub(super) fn format_trait_bounds(&mut self, trait_bounds: Vec<TraitBound>) {
+        for (index, trait_bound) in trait_bounds.into_iter().enumerate() {
+            if index > 0 {
+                self.write_space();
+                self.write_token(Token::Plus);
+                self.write_space();
+            }
+            self.format_trait_bound(trait_bound);
+        }
+    }
+
     pub(super) fn format_trait_bound(&mut self, trait_bound: TraitBound) {
         self.format_path(trait_bound.trait_path);
         self.format_generic_type_args(trait_bound.trait_generics);

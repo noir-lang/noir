@@ -5,7 +5,7 @@ mod signature_help_tests {
         utils::get_cursor_line_and_column,
     };
 
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         DidOpenTextDocumentParams, ParameterLabel, Position, SignatureHelp, SignatureHelpParams,
         TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
         WorkDoneProgressParams,
@@ -17,7 +17,7 @@ mod signature_help_tests {
 
         let (line, column, src) = get_cursor_line_and_column(src);
 
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {

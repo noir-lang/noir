@@ -103,4 +103,6 @@ _Note_: Opcodes operate on witnesses, but we will see that some opcodes work on
     So basically, using witnesses or expressions is equivalent,
     but the latter can avoid the creation of witness in some cases.
 
-## Brillig
+## Documentation
+
+For detailed documentation, visit <https://noir-lang.github.io/noir/docs/acir/index.html>.

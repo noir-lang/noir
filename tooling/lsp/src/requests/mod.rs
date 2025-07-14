@@ -8,6 +8,7 @@ use crate::{
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
+use fm::FileId;
 use fm::{FileMap, PathString, codespan_files::Error};
 use lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
@@ -17,7 +18,7 @@ use lsp_types::{
 use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
-use noirc_frontend::graph::CrateId;
+use noirc_frontend::graph::{CrateGraph, CrateId};
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::parser::ParserError;
@@ -25,10 +26,14 @@ use noirc_frontend::usage_tracker::UsageTracker;
 use noirc_frontend::{graph::Dependency, node_interner::NodeInterner};
 use serde::{Deserialize, Serialize};
 
+use async_lsp::lsp_types;
+
 use crate::{
     LspState,
     types::{InitializeResult, NargoCapability, NargoTestsOptions, ServerCapabilities},
 };
+
+pub(crate) use workspace_symbol::WorkspaceSymbolCache;
 
 // Handlers
 // The handlers for `request` are not `async` because it compiles down to lifetimes that can't be added to
@@ -44,6 +49,7 @@ mod code_action;
 mod code_lens_request;
 mod completion;
 mod document_symbol;
+mod expand;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
@@ -53,16 +59,18 @@ mod rename;
 mod signature_help;
 mod test_run;
 mod tests;
+mod workspace_symbol;
 
 pub(crate) use {
     code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
     code_lens_request::on_code_lens_request, completion::on_completion_request,
-    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
-    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
-    hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
+    document_symbol::on_document_symbol_request, expand::on_expand_request,
+    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, test_run::on_test_run_request,
-    tests::on_tests_request,
+    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -189,6 +197,7 @@ impl Default for LspInitializationOptions {
     }
 }
 
+#[expect(deprecated)]
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
@@ -285,6 +294,14 @@ pub(crate) fn on_initialize(
                     },
                     resolve_provider: None,
                 })),
+                workspace_symbol_provider: Some(lsp_types::OneOf::Right(
+                    lsp_types::WorkspaceSymbolOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
+                    },
+                )),
             },
             server_info: None,
         })
@@ -417,25 +434,15 @@ fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> 
     }
 }
 
-pub(crate) fn to_lsp_location<'a, F>(
-    files: &'a F,
-    file_id: F::FileId,
+pub(crate) fn to_lsp_location(
+    files: &FileMap,
+    file_id: FileId,
     definition_span: noirc_errors::Span,
-) -> Option<Location>
-where
-    F: fm::codespan_files::Files<'a> + ?Sized,
-{
+) -> Option<Location> {
     let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
-    let file_name = files.name(file_id).ok()?;
-
+    let file_name = files.get_absolute_name(file_id).ok()?;
     let path = file_name.to_string();
-
-    // `path` might be a relative path so we canonicalize it to get an absolute path
-    let path_buf = PathBuf::from(path);
-    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
-
-    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
-
+    let uri = Url::from_file_path(path).ok()?;
     Some(Location { uri, range })
 }
 
@@ -453,9 +460,15 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     package_cache: &'a HashMap<PathBuf, PackageCacheData>,
     crate_id: CrateId,
     crate_name: String,
-    dependencies: &'a Vec<Dependency>,
+    crate_graph: &'a CrateGraph,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &'a UsageTracker,
+}
+
+impl<'a> ProcessRequestCallbackArgs<'a> {
+    pub(crate) fn dependencies(&self) -> &'a Vec<Dependency> {
+        &self.crate_graph[self.crate_id].dependencies
+    }
 }
 
 pub(crate) fn process_request<F, T>(
@@ -511,7 +524,7 @@ where
         package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &crate_graph[crate_id].dependencies,
+        crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -576,7 +589,7 @@ where
         package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &context.crate_graph[crate_id].dependencies,
+        crate_graph: &context.crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -675,6 +688,9 @@ fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option
             Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
         }
         ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::TraitAssociatedType(id) => {
+            Some(interner.get_trait_associated_type(id).name.to_string())
+        }
         ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
         ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
         ReferenceId::Alias(type_alias_id) => {
@@ -699,7 +715,7 @@ pub(crate) struct TraitReexport {
 mod initialization {
     use acvm::blackbox_solver::StubbedBlackBoxSolver;
     use async_lsp::ClientSocket;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
     use tokio::test;

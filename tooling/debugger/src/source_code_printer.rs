@@ -46,10 +46,10 @@ pub(super) fn print_source_code_location(
             match line {
                 PrintedLine::Skip => {}
                 PrintedLine::Ellipsis { line_number } => {
-                    print_ellipsis(line_number, raw_source_printing)
+                    print_ellipsis(line_number, raw_source_printing);
                 }
                 PrintedLine::Content { line_number, cursor, content, highlight } => {
-                    print_content(line_number, cursor, content, highlight, raw_source_printing)
+                    print_content(line_number, cursor, content, highlight, raw_source_printing);
                 }
             }
         }
@@ -218,8 +218,7 @@ fn render_location<'a>(
     let context_lines = 5;
 
     // Sub-range of lines that we'll print, which includes location + context lines
-    let first_line_to_print =
-        if location_lines.start < context_lines { 0 } else { location_lines.start - context_lines };
+    let first_line_to_print = location_lines.start.saturating_sub(context_lines);
     let last_line_to_print = std::cmp::min(location_lines.end + context_lines, file_lines.end);
     let printed_lines = Range { start: first_line_to_print, end: last_line_to_print };
 
@@ -246,9 +245,10 @@ fn render_location<'a>(
 mod tests {
     use crate::source_code_printer::PrintedLine::Content;
     use crate::source_code_printer::render_location;
-    use acvm::acir::circuit::OpcodeLocation;
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
     use noirc_artifacts::debug::DebugArtifact;
+    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
     use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
@@ -290,12 +290,20 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
+        let mut location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
 
         let debug_symbols = vec![DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

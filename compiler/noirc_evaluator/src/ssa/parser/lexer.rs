@@ -22,7 +22,7 @@ impl<'a> Lexer<'a> {
             chars: source.char_indices(),
             position: 0,
             done: false,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
                 - BigInt::one(),
         }
     }
@@ -49,6 +49,7 @@ impl<'a> Lexer<'a> {
             }
             Some('=') if self.peek_char() == Some('=') => self.double_char_token(Token::Equal),
             Some('=') => self.single_char_token(Token::Assign),
+            Some('!') if self.peek_char() == Some('=') => self.double_char_token(Token::NotEqual),
             Some(',') => self.single_char_token(Token::Comma),
             Some(':') => self.single_char_token(Token::Colon),
             Some(';') => self.single_char_token(Token::Semicolon),

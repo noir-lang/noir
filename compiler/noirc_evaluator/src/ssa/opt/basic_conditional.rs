@@ -200,7 +200,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
             | Instruction::Store { .. }
             | Instruction::ArraySet { .. } => return u32::MAX,
 
-            Instruction::ArrayGet { array, index  } => {
+            Instruction::ArrayGet { array, index, offset: _  } => {
                 // A get can fail because of out-of-bound index
                 let mut in_bound = false;
                 // check if index is in bound
@@ -361,6 +361,9 @@ impl Context<'_> {
                 let return_values = vecmap(return_values, |value| self.inserter.resolve(value));
                 TerminatorInstruction::Return { return_values, call_stack }
             }
+            TerminatorInstruction::Unreachable { call_stack } => {
+                TerminatorInstruction::Unreachable { call_stack }
+            }
         };
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);
         self.inserter.map_data_bus_in_place();
@@ -387,7 +390,10 @@ impl Context<'_> {
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
 
     #[test]
     fn basic_jmpif() {
@@ -407,22 +413,20 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
-        let expected = "
-            brillig(inline) fn foo f0 {
-              b0(v0: u32):
-                v2 = eq v0, u32 0
-                v3 = not v2
-                v4 = cast v2 as u32
-                v5 = cast v3 as u32
-                v7 = unchecked_mul v4, u32 3
-                v9 = unchecked_mul v5, u32 5
-                v10 = unchecked_add v7, v9
-                return v10
-            }
-            ";
-
         let ssa = ssa.flatten_basic_conditionals();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0(v0: u32):
+            v2 = eq v0, u32 0
+            v3 = not v2
+            v4 = cast v2 as u32
+            v5 = cast v3 as u32
+            v7 = unchecked_mul v4, u32 3
+            v9 = unchecked_mul v5, u32 5
+            v10 = unchecked_add v7, v9
+            return v10
+        }
+        ");
     }
 
     #[test]
@@ -486,7 +490,9 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 10);
 
-        let expected = "
+        let ssa = ssa.flatten_basic_conditionals();
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
           b0(v0: u32):
             v3 = eq v0, u32 5
@@ -517,10 +523,6 @@ mod test {
           b3(v1: u32):
             return v1
         }
-            ";
-
-        let ssa = ssa.flatten_basic_conditionals();
-        assert_eq!(ssa.main().reachable_blocks().len(), 4);
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }

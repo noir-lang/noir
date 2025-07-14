@@ -66,13 +66,12 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::ssa::{
     Ssa,
     ir::{
+        call_graph::called_functions_vec,
         function::{Function, FunctionId},
-        instruction::Instruction,
-        value::Value,
+        instruction::{Instruction, InstructionId},
+        value::{Value, ValueId},
     },
 };
-
-use super::inlining::called_functions_vec;
 
 impl Ssa {
     pub(crate) fn brillig_entry_point_analysis(mut self) -> Ssa {
@@ -80,37 +79,91 @@ impl Ssa {
             return self;
         }
 
+        // Build a call graph based upon the Brillig entry points and set up
+        // the functions needing specialization before performing the actual call site rewrites.
         let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
-
         let functions_to_clone_map = build_functions_to_clone(&brillig_entry_points);
+        let (calls_to_update, mut new_functions_map) =
+            build_calls_to_update(&mut self, functions_to_clone_map, &brillig_entry_points);
 
-        let calls_to_update = build_calls_to_update(&mut self, functions_to_clone_map);
+        // Now we want to actually rewrite the appropriate call sites
+        // First pass to rewrite the originally supplied call graph
+        for CallToUpdate {
+            entry_point,
+            function_to_update,
+            instruction,
+            new_func_to_call: new_id,
+            call_args: arguments,
+        } in calls_to_update
+        {
+            // Fetch the caller function whose call site we wish to update
+            let new_function_to_update = if entry_point == function_to_update {
+                // Do not fetch entry points from the new functions map.
+                // We leave resolving duplicated entry points to a later pass
+                entry_point
+            } else {
+                new_functions_map
+                    .entry(entry_point)
+                    .or_default()
+                    .get(&function_to_update)
+                    .copied()
+                    .unwrap_or(function_to_update)
+            };
 
-        let mut new_functions_map = HashMap::default();
-        for (entry_point, inner_calls) in brillig_entry_points {
-            let new_entry_point =
-                new_functions_map.get(&entry_point).copied().unwrap_or(entry_point);
+            let function = self
+                .functions
+                .get_mut(&new_function_to_update)
+                .expect("ICE: Function does not exist");
+            let new_function_value_id = function.dfg.import_function(new_id);
+            function.dfg[instruction] =
+                Instruction::Call { func: new_function_value_id, arguments };
+        }
 
-            let function =
-                self.functions.get_mut(&new_entry_point).expect("ICE: Function does not exist");
-            update_function_calls(function, entry_point, &mut new_functions_map, &calls_to_update);
-
-            for inner_call in inner_calls {
-                let new_inner_call =
-                    new_functions_map.get(&inner_call).copied().unwrap_or(inner_call);
-
+        // Second pass to rewrite the calls sites in the cloned functions
+        // The list of structs mapping call site updates in `calls_to_update` only includes the original function IDs
+        // so we risk potentially not rewriting the call sites within the cloned functions themselves.
+        // The cloned functions we are using are stored within the `new_functions_map`.
+        for (_, new_functions_per_entry) in new_functions_map {
+            for new_function in new_functions_per_entry.values() {
                 let function =
-                    self.functions.get_mut(&new_inner_call).expect("ICE: Function does not exist");
-                update_function_calls(
-                    function,
-                    entry_point,
-                    &mut new_functions_map,
-                    &calls_to_update,
-                );
+                    self.functions.get_mut(new_function).expect("ICE: Function does not exist");
+                resolve_cloned_function_call_sites(function, &new_functions_per_entry);
             }
         }
 
         self
+    }
+}
+
+/// Given that we have already rewritten all the call sites among the original SSA,
+/// this function provides a helper for resolving the call sites within cloned functions.
+/// This function will update a cloned function according to the supplied function mapping.
+/// The function assumes that the supplied mapping is per entry point and handled
+/// by the caller of this method.
+fn resolve_cloned_function_call_sites(
+    // Function that was cloned earlier in the pass to specialize functions
+    // in the original SSA
+    function: &mut Function,
+    // Per entry point, maps (old function -> new function)
+    new_functions_map: &HashMap<FunctionId, FunctionId>,
+) {
+    for block_id in function.reachable_blocks() {
+        #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
+        for instruction_id in function.dfg[block_id].instructions().to_vec() {
+            let instruction = function.dfg[instruction_id].clone();
+            let Instruction::Call { func: func_value_id, arguments } = instruction else {
+                continue;
+            };
+            let func_value = &function.dfg[func_value_id];
+            let Value::Function(func_id) = func_value else { continue };
+
+            let Some(new_func_id) = new_functions_map.get(func_id) else {
+                continue;
+            };
+            let new_function_value_id = function.dfg.import_function(*new_func_id);
+            function.dfg[instruction_id] =
+                Instruction::Call { func: new_function_value_id, arguments };
+        }
     }
 }
 
@@ -139,15 +192,23 @@ fn build_functions_to_clone(
     functions_to_clone_map
 }
 
+// Per entry point context, maps the original function to its new specialized function
+// (entry_point -> map(old_id, new_id))
+type NewCallSitesMap = HashMap<FunctionId, HashMap<FunctionId, FunctionId>>;
+
 /// Clones new functions and returns a mapping representing the calls to update.
 ///
-///  Returns a map of (entry point, callee function) -> new callee function id.
+/// Returns a set of [CallToUpdate] containing all information needed to rewrite
+/// a call site and a [NewCallSitesMap]
 fn build_calls_to_update(
     ssa: &mut Ssa,
     functions_to_clone_map: HashMap<FunctionId, Vec<FunctionId>>,
-) -> HashMap<(FunctionId, FunctionId), FunctionId> {
+    brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
+) -> (HashSet<CallToUpdate>, NewCallSitesMap) {
+    // Clone new functions
+    // Map of (entry point, callee function) -> new callee function id.
+    // This will be used internally for determining whether a call site needs to be rewritten.
     let mut calls_to_update: HashMap<(FunctionId, FunctionId), FunctionId> = HashMap::default();
-
     for (entry_point, functions_to_clone) in functions_to_clone_map {
         for old_id in functions_to_clone {
             let function = ssa.functions[&old_id].clone();
@@ -158,36 +219,89 @@ fn build_calls_to_update(
         }
     }
 
-    calls_to_update
+    // Maps a function to its new specialized function per entry point context
+    // (entry_point -> map(old_id, new_id))
+    let mut new_functions_map: NewCallSitesMap = HashMap::default();
+    // Collect extra information about the call sites we want to rewrite.
+    // We need to do this as the original calls to update were set up based upon
+    // the original call sites, not the soon-to-be rewritten call sites.
+    let mut new_calls_to_update = HashSet::default();
+    for (entry_point, inner_calls) in brillig_entry_points {
+        let function = ssa.functions.get(entry_point).expect("ICE: Function does not exist");
+        new_calls_to_update.extend(collect_callsites_to_rewrite(
+            function,
+            *entry_point,
+            &mut new_functions_map,
+            &calls_to_update,
+        ));
+        for inner_call in inner_calls {
+            let function = ssa.functions.get(inner_call).expect("ICE: Function does not exist");
+            new_calls_to_update.extend(collect_callsites_to_rewrite(
+                function,
+                *entry_point,
+                &mut new_functions_map,
+                &calls_to_update,
+            ));
+        }
+    }
+
+    (new_calls_to_update, new_functions_map)
 }
 
-fn update_function_calls(
-    function: &mut Function,
+/// Stores the information necessary to appropriately update
+/// the call sites across the Brillig entry point graph
+///
+/// This structure should be built by analyzing the unchanged SSA
+/// and later used to perform updates.
+#[derive(PartialEq, Eq, Hash)]
+struct CallToUpdate {
     entry_point: FunctionId,
-    new_functions_map: &mut HashMap<FunctionId, FunctionId>,
-    // Maps (entry point, callee function) -> new callee function id
+    function_to_update: FunctionId,
+    instruction: InstructionId,
+    new_func_to_call: FunctionId,
+    call_args: Vec<ValueId>,
+}
+
+/// Go through the supplied function and based upon the call sites
+/// set in the `calls_to_update` map build the set of call sites
+/// that should be rewritten.
+/// Upon finding call sites that should be rewritten this method will also
+/// update the mapping of old functions to new functions in the supplied [NewCallSitesMap].
+fn collect_callsites_to_rewrite(
+    function: &Function,
+    entry_point: FunctionId,
+    // Maps (entry_point -> map(old_id, new_id))
+    function_per_entry: &mut NewCallSitesMap,
+    // Maps (entry_point, callee function) -> new callee function id
     calls_to_update: &HashMap<(FunctionId, FunctionId), FunctionId>,
-) {
+) -> HashSet<CallToUpdate> {
+    let mut new_calls_to_update = HashSet::default();
     for block_id in function.reachable_blocks() {
         #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
         for instruction_id in function.dfg[block_id].instructions().to_vec() {
             let instruction = function.dfg[instruction_id].clone();
-            let Instruction::Call { func: func_id, arguments } = instruction else {
+            let Instruction::Call { func: func_value_id, arguments } = instruction else {
                 continue;
             };
 
-            let func_value = &function.dfg[func_id];
+            let func_value = &function.dfg[func_value_id];
             let Value::Function(func_id) = func_value else { continue };
             let Some(new_id) = calls_to_update.get(&(entry_point, *func_id)) else {
                 continue;
             };
 
-            new_functions_map.insert(*func_id, *new_id);
-            let new_function_value_id = function.dfg.import_function(*new_id);
-            function.dfg[instruction_id] =
-                Instruction::Call { func: new_function_value_id, arguments };
+            function_per_entry.entry(entry_point).or_default().insert(*func_id, *new_id);
+            let new_call = CallToUpdate {
+                entry_point,
+                function_to_update: function.id(),
+                instruction: instruction_id,
+                new_func_to_call: *new_id,
+                call_args: arguments,
+            };
+            new_calls_to_update.insert(new_call);
         }
     }
+    new_calls_to_update
 }
 
 /// Returns a map of Brillig entry points to all functions called in that entry point.
@@ -296,7 +410,8 @@ pub(crate) fn build_inner_call_to_entry_points(
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+
+    use crate::assert_ssa_snapshot;
 
     use super::Ssa;
 
@@ -343,11 +458,11 @@ mod tests {
         let ssa = ssa.remove_unreachable_functions();
 
         // We expect `inner_func` to be duplicated
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
         g1 = Field 2
         g2 = Field 3
-        
+
         acir(inline) fn main f0 {
           b0(v3: Field, v4: Field):
             call f1(v3, v4)
@@ -384,8 +499,7 @@ mod tests {
             constrain v6 == Field 4
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -438,10 +552,10 @@ mod tests {
         let ssa = ssa.remove_unreachable_functions();
 
         // We expect both `inner_func` and `nested_inner_func` to be duplicated
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
         g1 = Field 3
-        
+
         acir(inline) fn main f0 {
           b0(v2: Field, v3: Field):
             call f1(v2, v3)
@@ -494,8 +608,7 @@ mod tests {
             call f5(v2, v3)
             return
         }
-        ";
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -550,11 +663,11 @@ mod tests {
         let ssa = ssa.brillig_entry_point_analysis();
 
         // We expect `entry_point_one_global` and `entry_point_one_diff_global` to be duplicated
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
         g1 = Field 3
         g2 = Field 1
-        
+
         acir(inline) fn main f0 {
           b0(v3: Field, v4: Field):
             call f1(v3, v4)
@@ -604,7 +717,224 @@ mod tests {
             constrain v6 == Field 4
             return
         }
+        ");
+    }
+
+    #[test]
+    fn duplicate_recursive_shared_entry_points() {
+        // Check that we appropriately specialize functions when the entry point
+        // is recursive.
+        // f1 and f2 in the SSA below are recursive with themselves and another entry point.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            v3 = call f1(u1 1, u32 5) -> u1
+            constrain v3 == u1 0
+            v6 = call f2(u1 1, u32 5) -> u1
+            constrain v6 == u1 0
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f2(v0, v6) -> u1
+            v10 = call f1(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) impure fn func_2 f2 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f2(v0, v6) -> u1
+            v10 = call f1(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
         ";
-        assert_normalized_ssa_equals(ssa, expected);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        // We want no shared callees between entry points.
+        // Each Brillig entry point (f1 and f2 called from f0) should have its own
+        // specialized function call graph.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v3 = call f1(u1 1, u32 5) -> u1
+            constrain v3 == u1 0
+            v6 = call f2(u1 1, u32 5) -> u1
+            constrain v6 == u1 0
+            return
+        }
+        brillig(inline) impure fn func_1 f1 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) impure fn func_2 f2 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_1 f3 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_2 f4 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f4(v0, v6) -> u1
+            v10 = call f3(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_1 f5 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        brillig(inline) fn func_2 f6 {
+          b0(v0: u1, v1: u32):
+            v4 = eq v1, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v6 = sub v1, u32 1
+            v8 = call f6(v0, v6) -> u1
+            v10 = call f5(v8, v6) -> u1
+            jmp b3(v10)
+          b3(v2: u1):
+            return v2
+        }
+        "#);
+    }
+
+    #[test]
+    fn duplicate_recursive_shared_entry_points_indirect_recursion() {
+        // This test is essentially identical to `duplicate_recursive_shared_entry_points`
+        // except that the one recursive entry point does not recurse on itself directly.
+        // f1 is recursive, but only through calling itself in f2.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0():
+            call f1(Field 1)
+            call f2(Field 1)
+            return
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: Field):
+            call f2(v0)
+            return
+        }
+        brillig(inline) impure fn bar f2 {
+          b0(v0: Field):
+            call f1(Field 1)
+            call f2(Field 1)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.brillig_entry_point_analysis();
+
+        // We want no shared callees between entry points.
+        // Each Brillig entry point (f1 and f2 called from f0) should have its own
+        // specialized function call graph.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            call f1(Field 1)
+            call f2(Field 1)
+            return
+        }
+        brillig(inline) impure fn foo f1 {
+          b0(v0: Field):
+            call f4(v0)
+            return
+        }
+        brillig(inline) impure fn bar f2 {
+          b0(v0: Field):
+            call f5(Field 1)
+            call f6(Field 1)
+            return
+        }
+        brillig(inline) fn foo f3 {
+          b0(v0: Field):
+            call f4(v0)
+            return
+        }
+        brillig(inline) fn bar f4 {
+          b0(v0: Field):
+            call f3(Field 1)
+            call f4(Field 1)
+            return
+        }
+        brillig(inline) fn foo f5 {
+          b0(v0: Field):
+            call f6(v0)
+            return
+        }
+        brillig(inline) fn bar f6 {
+          b0(v0: Field):
+            call f5(Field 1)
+            call f6(Field 1)
+            return
+        }
+        "#);
     }
 }

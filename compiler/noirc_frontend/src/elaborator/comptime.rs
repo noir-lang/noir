@@ -4,7 +4,7 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Type, TypeBindings, UnificationError,
+    Type, TypeBindings,
     ast::{Documented, Expression, ExpressionKind},
     hir::{
         comptime::{Interpreter, InterpreterError, Value},
@@ -21,10 +21,10 @@ use crate::{
     hir_def::expr::{HirExpression, HirIdent},
     node_interner::{DefinitionKind, DependencyId, FuncId, NodeInterner, TraitId, TypeId},
     parser::{Item, ItemKind},
-    token::{MetaAttribute, SecondaryAttribute},
+    token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, FunctionContext, ResolverMeta};
+use super::{ElaborateReason, Elaborator, ResolverMeta};
 
 #[derive(Debug, Copy, Clone)]
 struct AttributeContext {
@@ -89,13 +89,14 @@ impl<'context> Elaborator<'context> {
             self.def_maps,
             self.usage_tracker,
             self.crate_graph,
+            self.interpreter_output,
             self.crate_id,
             self.interpreter_call_stack.clone(),
             self.options,
             self.elaborate_reasons.clone(),
         );
 
-        elaborator.function_context.push(FunctionContext::default());
+        elaborator.push_function_context();
         elaborator.scopes.start_function();
 
         elaborator.local_module = self.local_module;
@@ -160,10 +161,11 @@ impl<'context> Elaborator<'context> {
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) {
-        if let SecondaryAttribute::Meta(attribute) = attribute {
+        if let SecondaryAttributeKind::Meta(meta) = &attribute.kind {
             self.elaborate_in_comptime_context(|this| {
                 if let Err(error) = this.collect_comptime_attribute_name_on_item(
-                    attribute,
+                    meta,
+                    attribute.location,
                     item.clone(),
                     attribute_context,
                     attributes_to_run,
@@ -178,15 +180,19 @@ impl<'context> Elaborator<'context> {
     fn collect_comptime_attribute_name_on_item(
         &mut self,
         attribute: &MetaAttribute,
+        location: Location,
         item: Value,
         attribute_context: AttributeContext,
         attributes_to_run: &mut CollectedAttributes,
     ) -> Result<(), CompilationError> {
         self.local_module = attribute_context.attribute_module;
-        let location = attribute.location;
 
-        let function =
-            Expression { kind: ExpressionKind::Variable(attribute.name.clone()), location };
+        let kind = match &attribute.name {
+            MetaAttributeName::Path(path) => ExpressionKind::Variable(path.clone()),
+            MetaAttributeName::Resolved(expr_id) => ExpressionKind::Resolved(*expr_id),
+        };
+
+        let function = Expression { kind, location };
         let arguments = attribute.arguments.clone();
 
         // Elaborate the function, rolling back any errors generated in case it is unknown
@@ -238,13 +244,12 @@ impl<'context> Elaborator<'context> {
             function,
             arguments,
             location,
-        )
-        .map_err(CompilationError::from)?;
+        )?;
 
         arguments.insert(0, (item, location));
 
         let value = interpreter
-            .call_function(function, arguments, TypeBindings::new(), location)
+            .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
@@ -265,7 +270,7 @@ impl<'context> Elaborator<'context> {
         function: FuncId,
         arguments: Vec<Expression>,
         location: Location,
-    ) -> Result<Vec<(Value, Location)>, InterpreterError> {
+    ) -> Result<Vec<(Value, Location)>, CompilationError> {
         let meta = interpreter.elaborator.interner.function_meta(&function);
 
         let mut parameters = vecmap(&meta.parameters.0, |(_, typ, _)| typ.clone());
@@ -275,7 +280,8 @@ impl<'context> Elaborator<'context> {
                 expected: 0,
                 actual: arguments.len() + 1,
                 location,
-            });
+            }
+            .into());
         }
 
         let expected_type = item.get_type();
@@ -286,7 +292,8 @@ impl<'context> Elaborator<'context> {
                 expected: parameters[0].clone(),
                 actual: expected_type.clone(),
                 location,
-            });
+            }
+            .into());
         }
 
         // Remove the initial parameter for the comptime item since that is not included
@@ -318,22 +325,38 @@ impl<'context> Elaborator<'context> {
 
             if *param_type == Type::Quoted(crate::QuotedType::TraitDefinition) {
                 let trait_id = match arg.kind {
-                    ExpressionKind::Variable(path) => interpreter
-                        .elaborator
-                        .resolve_trait_by_path(path)
-                        .ok_or(InterpreterError::FailedToResolveTraitDefinition { location }),
+                    ExpressionKind::Variable(path) => {
+                        let path = interpreter.elaborator.validate_path(path);
+                        interpreter
+                            .elaborator
+                            .resolve_trait_by_path(path)
+                            .ok_or(InterpreterError::FailedToResolveTraitDefinition { location })
+                    }
                     _ => Err(InterpreterError::TraitDefinitionMustBeAPath { location }),
                 }?;
                 push_arg(Value::TraitDefinition(trait_id));
             } else {
                 let (expr_id, expr_type) = interpreter.elaborator.elaborate_expression(arg);
-                if let Err(UnificationError) = expr_type.unify(param_type) {
-                    return Err(InterpreterError::TypeMismatch {
-                        expected: param_type.clone(),
-                        actual: expr_type,
-                        location: arg_location,
-                    });
+                let mut errors = Vec::new();
+                expr_type.clone().unify_with_coercions(
+                    param_type,
+                    expr_id,
+                    arg_location,
+                    interpreter.elaborator.interner,
+                    &mut errors,
+                    || {
+                        CompilationError::InterpreterError(InterpreterError::TypeMismatch {
+                            expected: param_type.clone(),
+                            actual: expr_type,
+                            location: arg_location,
+                        })
+                    },
+                );
+
+                if !errors.is_empty() {
+                    return Err(errors.swap_remove(0));
                 }
+
                 push_arg(interpreter.evaluate(expr_id)?);
             };
         }
@@ -414,6 +437,7 @@ impl<'context> Elaborator<'context> {
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
                     resolved_trait_generics: Vec::new(),
+                    unresolved_associated_types: Vec::new(),
                 });
             }
             ItemKind::Global(global, visibility) => {
@@ -634,7 +658,7 @@ impl<'context> Elaborator<'context> {
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
         // call is not yet solved for.
-        self.function_context.push(Default::default());
+        self.push_function_context();
 
         let result = f(self);
 

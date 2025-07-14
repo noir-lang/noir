@@ -1,13 +1,18 @@
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
+use fxhash::FxHashSet as HashSet;
 use im::HashMap;
+use petgraph::graph::NodeIndex as PetGraphIndex;
 
 use crate::ssa::{
-    ir::function::{Function, FunctionId},
+    ir::{
+        call_graph::{CallGraph, called_functions},
+        dfg::DataFlowGraph,
+        function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
+    },
     ssa_gen::Ssa,
 };
-
-use super::{called_functions, called_functions_vec};
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -17,17 +22,22 @@ pub(crate) struct InlineInfo {
     is_acir_entry_point: bool,
     is_recursive: bool,
     pub(crate) should_inline: bool,
+    pub(super) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
 
 impl InlineInfo {
     /// Functions which are to be retained, not inlined.
-    pub(crate) fn is_inline_target(&self) -> bool {
+    pub(crate) fn is_inline_target(&self, dfg: &DataFlowGraph) -> bool {
         self.is_brillig_entry_point
             || self.is_acir_entry_point
-            || self.is_recursive
-            || !self.should_inline
+            // We still want to attempt inlining recursive ACIR functions in case
+            // they have a compile-time completion point. 
+            // A recursive function is going to set `should_inline` to false as well,
+            // so we need to determine whether a function is an inline target 
+            // with auxiliary runtime information.
+            || ((self.is_recursive || !self.should_inline) && !dfg.runtime().is_acir())
     }
 
     pub(crate) fn should_inline(inline_infos: &InlineInfos, called_func_id: FunctionId) -> bool {
@@ -46,6 +56,7 @@ pub(crate) type InlineInfos = BTreeMap<FunctionId, InlineInfo>;
 /// The returned `InlineInfos` won't have every function in it, only the ones which the algorithm visited.
 pub(crate) fn compute_inline_infos(
     ssa: &Ssa,
+    call_graph: &CallGraph,
     inline_no_predicates_functions: bool,
     aggressiveness: i64,
 ) -> InlineInfos {
@@ -81,69 +92,118 @@ pub(crate) fn compute_inline_infos(
         }
     }
 
-    let callers = compute_callers(ssa);
-    let times_called = compute_times_called(&callers);
+    let times_called = call_graph.times_called();
+    // Find mutual recursion in our call graph
+    let recursive_functions = call_graph.get_recursive_functions();
+    for recursive_func in recursive_functions.iter() {
+        inline_infos.entry(*recursive_func).or_default().is_recursive = true;
+        compute_function_should_be_inlined(
+            ssa,
+            inline_no_predicates_functions,
+            aggressiveness,
+            &times_called,
+            &mut inline_infos,
+            call_graph,
+            call_graph.ids_to_indices()[recursive_func],
+        );
+    }
 
-    mark_brillig_functions_to_retain(
-        ssa,
-        inline_no_predicates_functions,
-        aggressiveness,
-        &times_called,
-        &mut inline_infos,
-    );
+    let acyclic_graph = call_graph.build_acyclic_subgraph(&recursive_functions);
+    let topological_order = petgraph::algo::toposort(acyclic_graph.graph(), None).unwrap();
+
+    // We need to reverse the topological sort as we want to process the weight of the leaves first,
+    // as the weight of all callees will be used to compute a function's total weight.
+    for index in topological_order.into_iter().rev() {
+        compute_function_should_be_inlined(
+            ssa,
+            inline_no_predicates_functions,
+            aggressiveness,
+            &times_called,
+            &mut inline_infos,
+            &acyclic_graph,
+            index,
+        );
+    }
 
     inline_infos
 }
 
-/// Compute the time each function is called from any other function.
-fn compute_times_called(
-    callers: &BTreeMap<FunctionId, BTreeMap<FunctionId, usize>>,
-) -> HashMap<FunctionId, usize> {
-    callers
-        .iter()
-        .map(|(callee, callers)| {
-            let total_calls = callers.values().sum();
-            (*callee, total_calls)
-        })
-        .collect()
-}
+/// Determines whether a function should be inlined.
+///
+/// Inlining is determined by the following:
+/// - the function is not recursive
+/// - the cost of inlining outweighs the cost of not doing so
+///
+/// The total weight of a function and its cost are computed in this method.
+/// The total weight is calculated by taking the function's own weight and multiplying
+/// it by the weight of each callee. We then determine the cost of inlining to be
+/// the times a function has been called multiplied by its total weight.
+///
+/// To determine the cost of retaining a function we first need the function interface cost,
+/// computed in [compute_function_interface_cost].
+/// The cost of retaining of a function is then (times a function has been called) * (interface cost) + total weight.
+///
+/// A function's net cost is then (cost of inlining - cost of retaining).
+/// The net cost is then compared against the inliner aggressiveness setting. If the net cost is less than the aggressiveness,
+/// we inline the function (granted there are not other restrictions such as recursion).
+fn compute_function_should_be_inlined(
+    ssa: &Ssa,
+    inline_no_predicates_functions: bool,
+    aggressiveness: i64,
+    times_called: &HashMap<FunctionId, usize>,
+    inline_infos: &mut InlineInfos,
+    call_graph: &CallGraph,
+    index: PetGraphIndex,
+) {
+    let func_id = call_graph.indices_to_ids()[&index];
+    if inline_infos.get(&func_id).is_some_and(|info| info.should_inline || info.weight != 0) {
+        return; // Already processed
+    }
 
-/// Compute for each function the set of functions that call it, and how many times they do so.
-fn compute_callers(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
-    ssa.functions
-        .iter()
-        .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
-            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
+    let function = &ssa.functions[&func_id];
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+    let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
+        function.dfg[*block].instructions().iter().any(|instruction| {
+            match &function.dfg[*instruction] {
+                Instruction::Call { func, .. } => {
+                    Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                }
+                _ => false,
+            }
         })
-        .fold(
-            // Make sure an entry exists even for ones that don't get called.
-            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
-            |mut acc, (caller_id, callee_id)| {
-                let callers = acc.entry(callee_id).or_default();
-                *callers.entry(caller_id).or_default() += 1;
-                acc
-            },
-        )
-}
+    });
 
-/// Compute for each function the set of functions called by it, and how many times it does so.
-fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize>> {
-    ssa.functions
-        .iter()
-        .flat_map(|(caller_id, function)| {
-            let called_functions = called_functions_vec(function);
-            called_functions.into_iter().map(|callee_id| (*caller_id, callee_id))
-        })
-        .fold(
-            // Make sure an entry exists even for ones that don't call anything.
-            ssa.functions.keys().map(|id| (*id, BTreeMap::new())).collect(),
-            |mut acc, (caller_id, callee_id)| {
-                let callees = acc.entry(caller_id).or_default();
-                *callees.entry(callee_id).or_default() += 1;
-                acc
-            },
-        )
+    let neighbors = call_graph.graph().neighbors(index);
+    let mut total_weight = compute_function_own_weight(function) as i64;
+    for neighbor_index in neighbors {
+        let callee = call_graph.indices_to_ids()[&neighbor_index];
+        if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
+            total_weight = total_weight.saturating_add(inline_infos[&callee].weight);
+        }
+    }
+    let times = times_called[&func_id] as i64;
+    let interface_cost = compute_function_interface_cost(function) as i64;
+    let inline_cost = times.saturating_mul(total_weight);
+    let retain_cost = times.saturating_mul(interface_cost) + total_weight;
+    let net_cost = inline_cost.saturating_sub(retain_cost);
+    let runtime = function.runtime();
+    let info = inline_infos.entry(func_id).or_default();
+
+    info.contains_static_assertion = contains_static_assertion;
+    info.weight = total_weight;
+    info.cost = net_cost;
+
+    if info.is_recursive {
+        return;
+    }
+
+    let should_inline = (net_cost < aggressiveness)
+        || runtime.is_inline_always()
+        || (runtime.is_no_predicates() && inline_no_predicates_functions)
+        || contains_static_assertion;
+
+    info.should_inline = should_inline;
 }
 
 /// Compute something like a topological order of the functions, starting with the ones
@@ -154,16 +214,19 @@ fn compute_callees(ssa: &Ssa) -> BTreeMap<FunctionId, BTreeMap<FunctionId, usize
 ///
 /// Returns the functions paired with their own as well as transitive weight,
 /// which accumulates the weight of all the functions they call, as well as own.
-pub(crate) fn compute_bottom_up_order(ssa: &Ssa) -> Vec<(FunctionId, (usize, usize))> {
+pub(crate) fn compute_bottom_up_order(
+    ssa: &Ssa,
+    call_graph: &CallGraph,
+) -> Vec<(FunctionId, (usize, usize))> {
     let mut order = Vec::new();
-    let mut visited = HashSet::new();
+    let mut visited = HashSet::default();
 
-    // Call graph which we'll repeatedly prune to find the "leaves".
-    let mut callees = compute_callees(ssa);
-    let callers = compute_callers(ssa);
+    // Construct a new "call graph" which we'll repeatedly prune to find the "leaves".
+    let mut callees = call_graph.callees();
+    let callers = call_graph.callers();
 
     // Number of times a function is called, used to break cycles in the call graph by popping the next candidate.
-    let mut times_called = compute_times_called(&callers).into_iter().collect::<Vec<_>>();
+    let mut times_called = call_graph.times_called().into_iter().collect::<Vec<_>>();
     times_called.sort_by_key(|(id, cnt)| {
         // Sort by called the *least* by others, as these are less likely to cut the graph when removed.
         let called_desc = -(*cnt as i64);
@@ -244,124 +307,150 @@ fn compute_function_own_weight(func: &Function) -> usize {
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().len()
+    func.parameters().len() + func.returns().unwrap_or_default().len()
 }
 
-/// Traverse the call graph starting from a given function, marking function to be retained if they are:
-/// * recursive functions, or
-/// * the cost of inlining outweighs the cost of not doing so
-fn mark_functions_to_retain_recursive(
-    ssa: &Ssa,
-    inline_no_predicates_functions: bool,
-    aggressiveness: i64,
-    times_called: &HashMap<FunctionId, usize>,
-    inline_infos: &mut InlineInfos,
-    mut explored_functions: im::HashSet<FunctionId>,
-    func: FunctionId,
-) {
-    // Check if we have set any of the fields this method touches.
-    let decided = |inline_infos: &InlineInfos| {
-        inline_infos
-            .get(&func)
-            .map(|info| info.is_recursive || info.should_inline || info.weight != 0)
-            .unwrap_or_default()
+#[cfg(test)]
+mod tests {
+    use crate::ssa::{
+        ir::{call_graph::CallGraph, map::Id},
+        opt::inlining::inline_info::compute_bottom_up_order,
+        ssa_gen::Ssa,
     };
 
-    // Check if we have already decided on this function
-    if decided(inline_infos) {
-        return;
+    use super::compute_inline_infos;
+
+    #[test]
+    fn mark_mutually_recursive_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
+
+        let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
+        assert!(!func_0.is_recursive);
+
+        let func_1 = inline_infos.get(&Id::test_new(1)).expect("Should have computed inline info");
+        assert!(!func_1.is_recursive);
+
+        let func_2 = inline_infos.get(&Id::test_new(2)).expect("Should have computed inline info");
+        assert!(func_2.is_recursive);
+
+        let func_3 = inline_infos.get(&Id::test_new(3)).expect("Should have computed inline info");
+        assert!(func_3.is_recursive);
     }
 
-    // If recursive, this function won't be inlined
-    if explored_functions.contains(&func) {
-        inline_infos.entry(func).or_default().is_recursive = true;
-        return;
-    }
-    explored_functions.insert(func);
+    #[test]
+    fn bottom_up_order_and_weights() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: u32, v1: u1):
+              v3 = call f2(v0) -> u1
+              v4 = eq v3, v1
+              constrain v3 == v1
+              return
+          }
+          brillig(inline) fn is_even f1 {
+            b0(v0: u32):
+              v3 = eq v0, u32 0
+              jmpif v3 then: b2, else: b1
+            b1():
+              v5 = call f3(v0) -> u32
+              v7 = call f2(v5) -> u1
+              jmp b3(v7)
+            b2():
+              jmp b3(u1 1)
+            b3(v1: u1):
+              return v1
+          }
+          brillig(inline) fn is_odd f2 {
+            b0(v0: u32):
+              v3 = eq v0, u32 0
+              jmpif v3 then: b2, else: b1
+            b1():
+              v5 = call f3(v0) -> u32
+              v7 = call f1(v5) -> u1
+              jmp b3(v7)
+            b2():
+              jmp b3(u1 0)
+            b3(v1: u1):
+              return v1
+          }
+          brillig(inline) fn decrement f3 {
+            b0(v0: u32):
+              v2 = sub v0, u32 1
+              return v2
+          }
+        ";
+        // main
+        //   |
+        //   V
+        // is_odd <-> is_even
+        //      |     |
+        //      V     V
+        //      decrement
 
-    // Decide on dependencies first, so we know their weight.
-    let called_functions = called_functions_vec(&ssa.functions[&func]);
-    for callee in &called_functions {
-        mark_functions_to_retain_recursive(
-            ssa,
-            inline_no_predicates_functions,
-            aggressiveness,
-            times_called,
-            inline_infos,
-            explored_functions.clone(),
-            *callee,
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let order = compute_bottom_up_order(&ssa, &call_graph);
+
+        assert_eq!(order.len(), 4);
+        let (ids, ws): (Vec<_>, Vec<_>) = order.into_iter().map(|(id, w)| (id.to_u32(), w)).unzip();
+        let (ows, tws): (Vec<_>, Vec<_>) = ws.into_iter().unzip();
+
+        // Check order
+        assert_eq!(ids[0], 3, "decrement: first, it doesn't call anything");
+        assert_eq!(ids[1], 1, "is_even: called by is_odd; removing first avoids cutting the graph");
+        assert_eq!(ids[2], 2, "is_odd: called by is_odd and main");
+        assert_eq!(ids[3], 0, "main: last, it's the entry");
+
+        // Check own weights
+        assert_eq!(ows, [2, 7, 7, 4]);
+
+        // Check transitive weights
+        assert_eq!(tws[0], ows[0], "decrement");
+        assert_eq!(
+            tws[1],
+            ows[1] + // own
+            tws[0] + // pushed from decrement
+            (ows[2] + tws[0]), // pulled from is_odd at the time is_even is emitted
+            "is_even"
         );
-    }
-
-    // We could have decided on this function while deciding on dependencies
-    // if the function is recursive.
-    if decided(inline_infos) {
-        return;
-    }
-
-    // We'll use some heuristics to decide whether to inline or not.
-    // We compute the weight (roughly the number of instructions) of the function after inlining
-    // And the interface cost of the function (the inherent cost at the callsite, roughly the number of args and returns)
-    // We then can compute an approximation of the cost of inlining vs the cost of retaining the function
-    // We do this computation using saturating i64s to avoid overflows,
-    // and because we want to calculate a difference which can be negative.
-
-    // Total weight of functions called by this one, unless we decided not to inline them.
-    // Callees which appear multiple times would be inlined multiple times.
-    let inlined_function_weights: i64 = called_functions.iter().fold(0, |acc, callee| {
-        let info = &inline_infos[callee];
-        // If the callee is not going to be inlined then we can ignore its cost.
-        if info.should_inline { acc.saturating_add(info.weight) } else { acc }
-    });
-
-    let this_function_weight = inlined_function_weights
-        .saturating_add(compute_function_own_weight(&ssa.functions[&func]) as i64);
-
-    let interface_cost = compute_function_interface_cost(&ssa.functions[&func]) as i64;
-
-    let times_called = times_called[&func] as i64;
-
-    let inline_cost = times_called.saturating_mul(this_function_weight);
-    let retain_cost = times_called.saturating_mul(interface_cost) + this_function_weight;
-    let net_cost = inline_cost.saturating_sub(retain_cost);
-
-    let runtime = ssa.functions[&func].runtime();
-    // We inline if the aggressiveness is higher than inline cost minus the retain cost
-    // If aggressiveness is infinite, we'll always inline
-    // If aggressiveness is 0, we'll inline when the inline cost is lower than the retain cost
-    // If aggressiveness is minus infinity, we'll never inline (other than in the mandatory cases)
-    let should_inline = (net_cost < aggressiveness)
-        || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions);
-
-    let info = inline_infos.entry(func).or_default();
-    info.should_inline = should_inline;
-    info.weight = this_function_weight;
-    info.cost = net_cost;
-}
-
-/// Mark Brillig functions that should not be inlined because they are recursive or expensive.
-fn mark_brillig_functions_to_retain(
-    ssa: &Ssa,
-    inline_no_predicates_functions: bool,
-    aggressiveness: i64,
-    times_called: &HashMap<FunctionId, usize>,
-    inline_infos: &mut InlineInfos,
-) {
-    let brillig_entry_points = inline_infos
-        .iter()
-        .filter_map(|(id, info)| info.is_brillig_entry_point.then_some(*id))
-        .collect::<Vec<_>>();
-
-    for entry_point in brillig_entry_points {
-        mark_functions_to_retain_recursive(
-            ssa,
-            inline_no_predicates_functions,
-            aggressiveness,
-            times_called,
-            inline_infos,
-            im::HashSet::default(),
-            entry_point,
+        assert_eq!(
+            tws[2],
+            ows[2] + // own
+            tws[0] + // pushed from decrement
+            tws[1], // pushed from is_even
+            "is_odd"
         );
+        assert_eq!(
+            tws[3],
+            ows[3] + // own
+            tws[2], // pushed from is_odd
+            "main"
+        );
+        assert!(tws[3] > std::cmp::max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
 }

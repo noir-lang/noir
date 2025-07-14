@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_removes_assumed_parent_traits_after_function_ends"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

@@ -201,7 +201,7 @@ impl NodeInterner {
     ///
     /// ### Example:
     /// ```nr
-    /// trait Fieldable {
+    /// trait HasToField {
     ///     fn to_field(self) -> Field;
     ///        ^------------------------------\
     /// }                                     |    
@@ -228,13 +228,17 @@ impl NodeInterner {
 
     /// Attempts to resolve [Location] of [Type] based on [Location] of reference in code
     pub(crate) fn try_resolve_type_ref(&self, location: Location) -> Option<Location> {
+        self.try_type_ref_at_location(location).and_then(|typ| match typ {
+            Type::DataType(struct_typ, _) => Some(struct_typ.borrow().location),
+            _ => None,
+        })
+    }
+
+    pub fn try_type_ref_at_location(&self, location: Location) -> Option<Type> {
         self.type_ref_locations
             .iter()
             .find(|(_typ, type_ref_location)| type_ref_location.contains(&location))
-            .and_then(|(typ, _)| match typ {
-                Type::DataType(struct_typ, _) => Some(struct_typ.borrow().location),
-                _ => None,
-            })
+            .map(|(typ, _type_ref_location)| typ.clone())
     }
 
     fn try_resolve_type_alias(&self, location: Location) -> Option<Location> {

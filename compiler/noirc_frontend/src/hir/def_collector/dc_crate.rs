@@ -99,6 +99,7 @@ pub struct UnresolvedTraitImpl {
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: Generics,
+    pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -515,16 +516,22 @@ impl DefCollector {
     ) {
         let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
-
-        errors.extend(unused_imports.flat_map(|(_, usage_tracker)| {
-            usage_tracker.iter().map(|(ident, unused_item)| {
-                let ident = ident.clone();
-                CompilationError::ResolverError(ResolverError::UnusedItem {
-                    ident,
-                    item: *unused_item,
+        let mut unused_errors = unused_imports
+            .flat_map(|(_, unused_items)| {
+                unused_items.iter().map(|(ident, unused_item)| {
+                    let ident = ident.clone();
+                    CompilationError::ResolverError(ResolverError::UnusedItem {
+                        ident,
+                        item: *unused_item,
+                    })
                 })
             })
-        }));
+            .collect::<Vec<_>>();
+
+        // Make sure errors always show up in the same order when compiling the same codebase
+        unused_errors.sort_by_key(|error| error.location());
+
+        errors.extend(unused_errors);
     }
 }
 

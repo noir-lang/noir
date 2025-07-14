@@ -1,12 +1,13 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
+use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
     ParsedModule,
     ast::{
@@ -340,8 +341,9 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
-    fn visit_trait_item_type(&mut self, name: &Ident) {
+    fn visit_trait_item_type(&mut self, name: &Ident, _bounds: &[TraitBound]) -> bool {
         self.collect_in_type(name, None);
+        false
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
@@ -520,7 +522,7 @@ mod document_symbol_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;

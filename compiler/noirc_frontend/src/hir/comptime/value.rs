@@ -26,7 +26,7 @@ use crate::{
     parser::{Item, Parser},
     shared::Signedness,
     signed_field::SignedField,
-    token::{LocatedToken, Token, Tokens},
+    token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -39,7 +39,7 @@ use super::{
 pub enum Value {
     Unit,
     Bool(bool),
-    Field(FieldElement),
+    Field(SignedField),
     I8(i8),
     I16(i16),
     I32(i32),
@@ -89,6 +89,7 @@ pub struct Closure {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
+#[allow(clippy::large_enum_variant)] // Tested shrinking in https://github.com/noir-lang/noir/pull/8746 with minimal memory impact
 pub enum ExprValue {
     Expression(ExpressionKind),
     Statement(StatementKind),
@@ -111,8 +112,8 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
-    pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
+    pub(crate) fn lvalue(lvalue: LValue) -> Self {
+        Value::Expr(Box::new(ExprValue::LValue(lvalue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
@@ -183,38 +184,48 @@ impl Value {
             Value::Unit => ExpressionKind::Literal(Literal::Unit),
             Value::Bool(value) => ExpressionKind::Literal(Literal::Bool(value)),
             Value::Field(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
+                ExpressionKind::Literal(Literal::Integer(value, Some(IntegerTypeSuffix::Field)))
             }
-            Value::I8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::I64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::from_signed(value)))
-            }
-            Value::U1(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U8(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U32(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U64(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
-            Value::U128(value) => {
-                ExpressionKind::Literal(Literal::Integer(SignedField::positive(value)))
-            }
+            Value::I8(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I8),
+            )),
+            Value::I16(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I16),
+            )),
+            Value::I32(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I32),
+            )),
+            Value::I64(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::from_signed(value),
+                Some(IntegerTypeSuffix::I64),
+            )),
+            Value::U1(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U1),
+            )),
+            Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value as u128),
+                Some(IntegerTypeSuffix::U8),
+            )),
+            Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value as u128),
+                Some(IntegerTypeSuffix::U16),
+            )),
+            Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U32),
+            )),
+            Value::U64(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U64),
+            )),
+            Value::U128(value) => ExpressionKind::Literal(Literal::Integer(
+                SignedField::positive(value),
+                Some(IntegerTypeSuffix::U128),
+            )),
             Value::String(value) | Value::CtString(value) => {
                 ExpressionKind::Literal(Literal::Str(unwrap_rc(value)))
             }
@@ -288,8 +299,9 @@ impl Value {
 
                         Ok(expr)
                     }
-                    Err(mut errors) => {
-                        let error = Box::new(errors.swap_remove(0));
+                    Err(errors) => {
+                        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+                        let error = Box::new(error);
                         let rule = "an expression";
                         let tokens = tokens_to_string(&tokens, elaborator.interner);
                         Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
@@ -351,7 +363,7 @@ impl Value {
         let expression = match self {
             Value::Unit => HirExpression::Literal(HirLiteral::Unit),
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
-            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value.into())),
+            Value::Field(value) => HirExpression::Literal(HirLiteral::Integer(value)),
             Value::I8(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::from_signed(value)))
             }
@@ -518,40 +530,56 @@ impl Value {
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
-            Value::U1(bool) => vec![Token::Bool(bool)],
-            Value::U8(value) => vec![Token::Int((value as u128).into())],
-            Value::U16(value) => vec![Token::Int((value as u128).into())],
-            Value::U32(value) => vec![Token::Int((value as u128).into())],
-            Value::U64(value) => vec![Token::Int((value as u128).into())],
+            Value::Bool(bool) => vec![Token::Bool(bool)],
+            Value::U1(bool) => vec![Token::Int((bool as u128).into(), None)],
+            Value::U8(value) => {
+                vec![Token::Int((value as u128).into(), None)]
+            }
+            Value::U16(value) => {
+                vec![Token::Int((value as u128).into(), None)]
+            }
+            Value::U32(value) => {
+                vec![Token::Int((value as u128).into(), None)]
+            }
+            Value::U64(value) => {
+                vec![Token::Int((value as u128).into(), None)]
+            }
+            Value::U128(value) => vec![Token::Int(value.into(), None)],
             Value::I8(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I16(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I32(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), None)]
                 }
             }
             Value::I64(value) => {
                 if value < 0 {
-                    vec![Token::Minus, Token::Int((-value as u128).into())]
+                    vec![Token::Minus, Token::Int((-value as u128).into(), None)]
                 } else {
-                    vec![Token::Int((value as u128).into())]
+                    vec![Token::Int((value as u128).into(), None)]
                 }
             }
-            Value::Field(value) => vec![Token::Int(value)],
+            Value::Field(value) => {
+                if value.is_negative() {
+                    vec![Token::Minus, Token::Int(value.absolute_value(), None)]
+                } else {
+                    vec![Token::Int(value.absolute_value(), None)]
+                }
+            }
             other => vec![Token::UnquoteMarker(other.into_hir_expression(interner, location)?)],
         };
         let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
@@ -563,27 +591,91 @@ impl Value {
         use Value::*;
         matches!(
             self,
-            Field(_) | I8(_) | I16(_) | I32(_) | I64(_) | U8(_) | U16(_) | U32(_) | U64(_)
+            Field(_)
+                | I8(_)
+                | I16(_)
+                | I32(_)
+                | I64(_)
+                | U1(_)
+                | U8(_)
+                | U16(_)
+                | U32(_)
+                | U64(_)
+                | U128(_)
         )
     }
 
-    pub(crate) fn is_closure(&self) -> bool {
-        matches!(self, Value::Closure(..))
+    pub(crate) fn contains_function_or_closure(&self) -> bool {
+        match self {
+            Value::Function(..) => true,
+            Value::Closure(..) => true,
+            Value::Array(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Slice(values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Tuple(values) => values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Struct(fields, _) => {
+                fields.values().any(|value| value.contains_function_or_closure())
+            }
+            Value::Enum(_, values, _) => {
+                values.iter().any(|value| value.contains_function_or_closure())
+            }
+            Value::Pointer(shared, _, _) => shared.borrow().contains_function_or_closure(),
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Field(_)
+            | Value::I8(_)
+            | Value::I16(_)
+            | Value::I32(_)
+            | Value::I64(_)
+            | Value::U1(_)
+            | Value::U8(_)
+            | Value::U16(_)
+            | Value::U32(_)
+            | Value::U64(_)
+            | Value::U128(_)
+            | Value::String(_)
+            | Value::FormatString(_, _)
+            | Value::CtString(_)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitConstraint(_, _)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Zeroed(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_) => false,
+        }
     }
 
     /// Converts any non-negative `Value` into a `FieldElement`.
     /// Returns `None` for negative integers and non-integral `Value`s.
     pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
         match self {
-            Self::Field(value) => Some(*value),
+            Self::Field(value) => {
+                if value.is_negative() {
+                    None
+                } else {
+                    Some(value.absolute_value())
+                }
+            }
+
             Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
+            Self::U1(value) => Some(FieldElement::from(*value)),
             Self::U8(value) => Some((*value as u128).into()),
             Self::U16(value) => Some((*value as u128).into()),
             Self::U32(value) => Some((*value as u128).into()),
             Self::U64(value) => Some((*value as u128).into()),
+            Self::U128(value) => Some((*value).into()),
             _ => None,
         }
     }
@@ -603,6 +695,16 @@ impl Value {
                 let value = self.display(elaborator.interner).to_string();
                 Err(InterpreterError::CannotInlineMacro { value, typ, location })
             }
+        }
+    }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            Value::I8(x) => *x < 0,
+            Value::I16(x) => *x < 0,
+            Value::I32(x) => *x < 0,
+            Value::I64(x) => *x < 0,
+            _ => false, // Unsigned or Field types are never negative
         }
     }
 }
@@ -631,8 +733,9 @@ where
             }
             Ok(expr)
         }
-        Err(mut errors) => {
-            let error = Box::new(errors.swap_remove(0));
+        Err(errors) => {
+            let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+            let error = Box::new(error);
             let tokens = tokens_to_string(&tokens, elaborator.interner);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_entry_points_regression_8069"
+type = "bin"
+authors = [""]
+
+[dependencies]

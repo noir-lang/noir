@@ -11,10 +11,18 @@ use crate::{
 use super::{Parser, parse_many::separated_by_comma};
 
 impl Parser<'_> {
+    pub(super) fn parse_generics_disallowing_trait_bounds(&mut self) -> UnresolvedGenerics {
+        self.parse_generics(false)
+    }
+
+    pub(super) fn parse_generics_allowing_trait_bounds(&mut self) -> UnresolvedGenerics {
+        self.parse_generics(true)
+    }
+
     /// Generics = ( '<' GenericsList? '>' )?
     ///
     /// GenericsList = Generic ( ',' Generic )* ','?
-    pub(super) fn parse_generics(&mut self) -> UnresolvedGenerics {
+    fn parse_generics(&mut self, allow_trait_bounds: bool) -> UnresolvedGenerics {
         if !self.eat_less() {
             return Vec::new();
         }
@@ -22,12 +30,12 @@ impl Parser<'_> {
         self.parse_many(
             "generic parameters",
             separated_by_comma().until(Token::Greater),
-            Self::parse_generic_in_list,
+            |parser| parser.parse_generic_in_list(allow_trait_bounds),
         )
     }
 
-    fn parse_generic_in_list(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(generic) = self.parse_generic() {
+    fn parse_generic_in_list(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+        if let Some(generic) = self.parse_generic(allow_trait_bounds) {
             Some(generic)
         } else {
             self.expected_label(ParsingRuleLabel::GenericParameter);
@@ -39,8 +47,8 @@ impl Parser<'_> {
     ///     = VariableGeneric
     ///     | NumericGeneric
     ///     | ResolvedGeneric
-    fn parse_generic(&mut self) -> Option<UnresolvedGeneric> {
-        if let Some(generic) = self.parse_variable_generic() {
+    fn parse_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+        if let Some(generic) = self.parse_variable_generic(allow_trait_bounds) {
             return Some(generic);
         }
 
@@ -55,9 +63,22 @@ impl Parser<'_> {
         None
     }
 
-    /// VariableGeneric = identifier
-    fn parse_variable_generic(&mut self) -> Option<UnresolvedGeneric> {
-        self.eat_ident().map(UnresolvedGeneric::Variable)
+    /// VariableGeneric = identifier ( ':' TraitBounds ) ?
+    fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
+        let ident = self.eat_ident()?;
+        let trait_bounds = if self.eat_colon() {
+            if !allow_trait_bounds {
+                self.push_error(
+                    ParserErrorReason::TraitBoundsNotAllowedHere,
+                    self.previous_token_location,
+                );
+            }
+
+            self.parse_trait_bounds()
+        } else {
+            Vec::new()
+        };
+        Some(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
     /// NumericGeneric = 'let' identifier ':' Type
@@ -74,21 +95,19 @@ impl Parser<'_> {
                 ParserErrorReason::MissingTypeForNumericGeneric,
                 self.current_token_location,
             );
+            let location = self.location_at_previous_token_end();
             let typ = UnresolvedType {
-                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                location: self.location_at_previous_token_end(),
+                typ: UnresolvedTypeData::integer(
+                    Signedness::Unsigned,
+                    IntegerBitSize::ThirtyTwo,
+                    location,
+                ),
+                location,
             };
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
         let typ = self.parse_type_or_error();
-        if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
-            if matches!(signedness, Signedness::Signed)
-                || matches!(bit_size, IntegerBitSize::SixtyFour)
-            {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.location);
-            }
-        }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
     }
@@ -149,7 +168,10 @@ impl Parser<'_> {
 
             self.eat_assign();
 
-            let typ = self.parse_type_or_error();
+            let Some(typ) = self.parse_type_or_type_expression() else {
+                self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+                return None;
+            };
             return Some(GenericTypeArg::Named(ident, typ));
         }
 
@@ -166,19 +188,18 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, UnresolvedGeneric},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
         let mut parser = Parser::for_str_with_dummy_file(src);
-        let generics = parser.parse_generics();
+        let generics = parser.parse_generics(true /* allow trait bounds */);
         expect_no_errors(&parser.errors);
         generics
     }
@@ -199,25 +220,33 @@ mod tests {
 
     #[test]
     fn parses_generics() {
-        let src = "<A, let B: u32>";
+        let src = "<A, let B: u32, C: X + Y>";
         let mut generics = parse_generics_no_errors(src);
-        assert_eq!(generics.len(), 2);
+        assert_eq!(generics.len(), 3);
 
         let generic = generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32",);
+
+        let generic = generics.remove(0);
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+            panic!("Expected generic variable");
+        };
+        assert_eq!("C", ident.to_string());
+        assert_eq!(trait_bounds.len(), 2);
+
+        assert_eq!(trait_bounds[0].to_string(), "X");
+        assert_eq!(trait_bounds[1].to_string(), "Y");
     }
 
     #[test]
@@ -229,14 +258,16 @@ mod tests {
 
     #[test]
     fn parses_generic_type_args() {
-        let src = "<i32, X = Field>";
+        let src = "<i32, X = Field, Y = 1>";
         let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
-        assert_eq!(generics.named_args.len(), 1);
+        assert_eq!(generics.named_args.len(), 2);
         assert_eq!(generics.named_args[0].0.to_string(), "X");
         assert_eq!(generics.named_args[0].1.to_string(), "Field");
+        assert_eq!(generics.named_args[1].0.to_string(), "Y");
+        assert_eq!(generics.named_args[1].1.to_string(), "1");
     }
 
     #[test]
@@ -259,19 +290,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_numeric_generic_error_if_invalid_integer() {
-        let src = "
-        <let N: u64>
-                ^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_generics();
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
-    }
-
-    #[test]
     fn parse_arithmetic_generic_on_variable() {
         let src = "<N - 1>";
         let generics = parse_generic_type_args_no_errors(src);
@@ -283,5 +301,18 @@ mod tests {
         let src = "<N<1>>";
         let generics = parse_generic_type_args_no_errors(src);
         assert_eq!(generics.ordered_args[0].to_string(), "N<1>");
+    }
+
+    #[test]
+    fn parse_generic_trait_bound_not_allowed() {
+        let src = "
+        N: Trait
+         ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        parser.parse_generic(false);
+        let reason = get_single_error_reason(&parser.errors, span);
+        assert!(matches!(reason, ParserErrorReason::TraitBoundsNotAllowedHere));
     }
 }

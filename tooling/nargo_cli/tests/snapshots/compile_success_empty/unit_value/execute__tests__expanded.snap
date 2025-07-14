@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn get_transaction() {
+    std::mem::zeroed()
+}
+
+fn main() {
+    get_transaction();
+}

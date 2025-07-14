@@ -4,19 +4,20 @@ use std::fmt::Display;
 use thiserror::Error;
 
 use crate::ast::{
-    Ident, ItemVisibility, Path, Pattern, Statement, StatementKind, UnresolvedTraitConstraint,
-    UnresolvedType, UnresolvedTypeData,
+    Ident, ItemVisibility, Path, Pattern, Statement, UnresolvedTraitConstraint, UnresolvedType,
+    UnresolvedTypeData,
 };
+use crate::elaborator::PrimitiveType;
 use crate::node_interner::{ExprId, InternedExpressionKind, InternedStatementKind, QuotedTypeId};
 use crate::shared::Visibility;
 use crate::signed_field::SignedField;
-use crate::token::{Attributes, FmtStrFragment, FunctionAttribute, Token, Tokens};
+use crate::token::{Attributes, FmtStrFragment, IntegerTypeSuffix, Token, Tokens};
 use crate::{Kind, Type};
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
-use super::{AsTraitPath, TypePath, UnsafeExpression};
+use super::{AsTraitPath, TraitBound, TypePath, UnsafeExpression};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum ExpressionKind {
@@ -41,8 +42,8 @@ pub enum ExpressionKind {
     Unquote(Box<Expression>),
     Comptime(BlockExpression, Location),
     Unsafe(UnsafeExpression),
-    AsTraitPath(AsTraitPath),
-    TypePath(TypePath),
+    AsTraitPath(Box<AsTraitPath>),
+    TypePath(Box<TypePath>),
 
     // This variant is only emitted when inlining the result of comptime
     // code. It is used to translate function values back into the AST while
@@ -66,7 +67,7 @@ pub type UnresolvedGenerics = Vec<UnresolvedGeneric>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedGeneric {
-    Variable(Ident),
+    Variable(Ident, Vec<TraitBound>),
     Numeric {
         ident: Ident,
         typ: UnresolvedType,
@@ -89,7 +90,7 @@ pub struct UnsupportedNumericGenericType {
 impl UnresolvedGeneric {
     pub fn location(&self) -> Location {
         match self {
-            UnresolvedGeneric::Variable(ident) => ident.location(),
+            UnresolvedGeneric::Variable(ident, _) => ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } => ident.location().merge(typ.location),
             UnresolvedGeneric::Resolved(_, location) => *location,
         }
@@ -101,7 +102,7 @@ impl UnresolvedGeneric {
 
     pub fn kind(&self) -> Result<Kind, UnsupportedNumericGenericType> {
         match self {
-            UnresolvedGeneric::Variable(_) => Ok(Kind::Normal),
+            UnresolvedGeneric::Variable(_, _) => Ok(Kind::Normal),
             UnresolvedGeneric::Numeric { typ, .. } => {
                 let typ = self.resolve_numeric_kind_type(typ)?;
                 Ok(Kind::numeric(typ))
@@ -116,22 +117,31 @@ impl UnresolvedGeneric {
         &self,
         typ: &UnresolvedType,
     ) -> Result<Type, UnsupportedNumericGenericType> {
-        use crate::ast::UnresolvedTypeData::{FieldElement, Integer};
+        // TODO: this should be done with resolved types
+        // See https://github.com/noir-lang/noir/issues/8504
+        use crate::ast::UnresolvedTypeData::Named;
 
-        match typ.typ {
-            FieldElement => Ok(Type::FieldElement),
-            Integer(sign, bits) => Ok(Type::Integer(sign, bits)),
-            // Only fields and integers are supported for numeric kinds
-            _ => Err(UnsupportedNumericGenericType {
-                ident: self.ident().clone(),
-                typ: typ.typ.clone(),
-            }),
+        if let Named(path, _generics, _) = &typ.typ {
+            if path.segments.len() == 1 {
+                if let Some(primitive_type) =
+                    PrimitiveType::lookup_by_name(path.segments[0].ident.as_str())
+                {
+                    if let Some(typ) = primitive_type.to_integer_or_field() {
+                        return Ok(typ);
+                    }
+                }
+            }
         }
+
+        // Only fields and integers are supported for numeric kinds
+        Err(UnsupportedNumericGenericType { ident: self.ident().clone(), typ: typ.typ.clone() })
     }
 
     pub(crate) fn ident(&self) -> &Ident {
         match self {
-            UnresolvedGeneric::Variable(ident) | UnresolvedGeneric::Numeric { ident, .. } => ident,
+            UnresolvedGeneric::Variable(ident, _) | UnresolvedGeneric::Numeric { ident, .. } => {
+                ident
+            }
             UnresolvedGeneric::Resolved(..) => panic!("UnresolvedGeneric::Resolved no ident"),
         }
     }
@@ -140,7 +150,19 @@ impl UnresolvedGeneric {
 impl Display for UnresolvedGeneric {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            UnresolvedGeneric::Variable(ident) => write!(f, "{ident}"),
+            UnresolvedGeneric::Variable(ident, trait_bounds) => {
+                write!(f, "{ident}")?;
+                if !trait_bounds.is_empty() {
+                    write!(f, ": ")?;
+                    for (index, trait_bound) in trait_bounds.iter().enumerate() {
+                        if index > 0 {
+                            write!(f, " + ")?;
+                        }
+                        write!(f, "{trait_bound}")?;
+                    }
+                }
+                Ok(())
+            }
             UnresolvedGeneric::Numeric { ident, typ } => write!(f, "let {ident}: {typ}"),
             UnresolvedGeneric::Resolved(..) => write!(f, "(resolved)"),
         }
@@ -149,59 +171,27 @@ impl Display for UnresolvedGeneric {
 
 impl From<Ident> for UnresolvedGeneric {
     fn from(value: Ident) -> Self {
-        UnresolvedGeneric::Variable(value)
+        UnresolvedGeneric::Variable(value, Vec::new())
     }
 }
 
 impl ExpressionKind {
-    pub fn into_path(self) -> Option<Path> {
-        match self {
-            ExpressionKind::Variable(path) => Some(path),
-            _ => None,
-        }
-    }
-
-    pub fn into_infix(self) -> Option<InfixExpression> {
-        match self {
-            ExpressionKind::Infix(infix) => Some(*infix),
-            _ => None,
-        }
-    }
-
     pub fn prefix(operator: UnaryOp, rhs: Expression) -> ExpressionKind {
         match (operator, &rhs) {
             (
                 UnaryOp::Minus,
-                Expression { kind: ExpressionKind::Literal(Literal::Integer(field)), .. },
-            ) => ExpressionKind::Literal(Literal::Integer(-*field)),
+                Expression {
+                    kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
+                },
+            ) if !field.is_negative() => {
+                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+            }
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
 
-    pub fn array(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Standard(contents)))
-    }
-
-    pub fn repeated_array(repeated_element: Expression, length: Expression) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Array(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
-    }
-
-    pub fn slice(contents: Vec<Expression>) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Standard(contents)))
-    }
-
-    pub fn repeated_slice(repeated_element: Expression, length: Expression) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Slice(ArrayLiteral::Repeated {
-            repeated_element: Box::new(repeated_element),
-            length: Box::new(length),
-        }))
-    }
-
-    pub fn integer(contents: FieldElement) -> ExpressionKind {
-        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents)))
+    pub fn integer(contents: FieldElement, suffix: Option<IntegerTypeSuffix>) -> ExpressionKind {
+        ExpressionKind::Literal(Literal::Integer(SignedField::positive(contents), suffix))
     }
 
     pub fn boolean(contents: bool) -> ExpressionKind {
@@ -218,12 +208,6 @@ impl ExpressionKind {
 
     pub fn format_string(fragments: Vec<FmtStrFragment>, length: u32) -> ExpressionKind {
         ExpressionKind::Literal(Literal::FmtStr(fragments, length))
-    }
-
-    pub fn constructor(
-        (typ, fields): (UnresolvedType, Vec<(Ident, Expression)>),
-    ) -> ExpressionKind {
-        ExpressionKind::Constructor(Box::new(ConstructorExpression { typ, fields }))
     }
 }
 
@@ -288,8 +272,7 @@ impl Expression {
 
 pub type BinaryOp = Located<BinaryOpKind>;
 
-#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone)]
-#[cfg_attr(test, derive(strum_macros::EnumIter))]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Hash, Debug, Copy, Clone, strum_macros::EnumIter)]
 pub enum BinaryOpKind {
     Add,
     Subtract,
@@ -325,6 +308,31 @@ impl BinaryOpKind {
         )
     }
 
+    /// `==` and `!=`
+    pub fn is_equality(self) -> bool {
+        matches!(self, BinaryOpKind::Equal | BinaryOpKind::NotEqual)
+    }
+
+    /// `+`, `-`, `*`, `/` and `%`
+    pub fn is_arithmetic(self) -> bool {
+        matches!(
+            self,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::Divide
+                | BinaryOpKind::Modulo
+        )
+    }
+
+    pub fn is_bitwise(self) -> bool {
+        matches!(self, BinaryOpKind::And | BinaryOpKind::Or | BinaryOpKind::Xor)
+    }
+
+    pub fn is_bitshift(self) -> bool {
+        matches!(self, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight)
+    }
+
     pub fn is_valid_for_field_type(self) -> bool {
         matches!(
             self,
@@ -335,48 +343,6 @@ impl BinaryOpKind {
                 | BinaryOpKind::Equal
                 | BinaryOpKind::NotEqual
         )
-    }
-
-    pub fn as_string(self) -> &'static str {
-        match self {
-            BinaryOpKind::Add => "+",
-            BinaryOpKind::Subtract => "-",
-            BinaryOpKind::Multiply => "*",
-            BinaryOpKind::Divide => "/",
-            BinaryOpKind::Equal => "==",
-            BinaryOpKind::NotEqual => "!=",
-            BinaryOpKind::Less => "<",
-            BinaryOpKind::LessEqual => "<=",
-            BinaryOpKind::Greater => ">",
-            BinaryOpKind::GreaterEqual => ">=",
-            BinaryOpKind::And => "&",
-            BinaryOpKind::Or => "|",
-            BinaryOpKind::Xor => "^",
-            BinaryOpKind::ShiftRight => ">>",
-            BinaryOpKind::ShiftLeft => "<<",
-            BinaryOpKind::Modulo => "%",
-        }
-    }
-
-    pub fn as_token(self) -> Token {
-        match self {
-            BinaryOpKind::Add => Token::Plus,
-            BinaryOpKind::Subtract => Token::Minus,
-            BinaryOpKind::Multiply => Token::Star,
-            BinaryOpKind::Divide => Token::Slash,
-            BinaryOpKind::Equal => Token::Equal,
-            BinaryOpKind::NotEqual => Token::NotEqual,
-            BinaryOpKind::Less => Token::Less,
-            BinaryOpKind::LessEqual => Token::LessEqual,
-            BinaryOpKind::Greater => Token::Greater,
-            BinaryOpKind::GreaterEqual => Token::GreaterEqual,
-            BinaryOpKind::And => Token::Ampersand,
-            BinaryOpKind::Or => Token::Pipe,
-            BinaryOpKind::Xor => Token::Caret,
-            BinaryOpKind::ShiftLeft => Token::ShiftLeft,
-            BinaryOpKind::ShiftRight => Token::ShiftRight,
-            BinaryOpKind::Modulo => Token::Percent,
-        }
     }
 }
 
@@ -413,7 +379,7 @@ pub enum Literal {
     Array(ArrayLiteral),
     Slice(ArrayLiteral),
     Bool(bool),
-    Integer(SignedField),
+    Integer(SignedField, Option<IntegerTypeSuffix>),
     Str(String),
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
@@ -486,20 +452,6 @@ pub struct FunctionDefinition {
     pub return_visibility: Visibility,
 }
 
-impl FunctionDefinition {
-    pub fn is_private(&self) -> bool {
-        self.visibility == ItemVisibility::Private
-    }
-
-    pub fn is_test(&self) -> bool {
-        if let Some(attribute) = self.attributes.function() {
-            matches!(attribute, FunctionAttribute::Test(..))
-        } else {
-            false
-        }
-    }
-}
-
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Param {
     pub visibility: Visibility,
@@ -563,14 +515,6 @@ pub struct BlockExpression {
 }
 
 impl BlockExpression {
-    pub fn pop(&mut self) -> Option<StatementKind> {
-        self.statements.pop().map(|stmt| stmt.kind)
-    }
-
-    pub fn len(&self) -> usize {
-        self.statements.len()
-    }
-
     pub fn is_empty(&self) -> bool {
         self.statements.is_empty()
     }
@@ -651,7 +595,11 @@ impl Display for ExpressionKind {
             MemberAccess(access) => access.fmt(f),
             Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Lambda(lambda) => lambda.fmt(f),
             Parenthesized(sub_expr) => write!(f, "({sub_expr})"),
@@ -690,9 +638,8 @@ impl Display for Literal {
                 write!(f, "&[{repeated_element}; {length}]")
             }
             Literal::Bool(boolean) => write!(f, "{}", if *boolean { "true" } else { "false" }),
-            Literal::Integer(signed_field) => {
-                write!(f, "{signed_field}")
-            }
+            Literal::Integer(signed_field, Some(suffix)) => write!(f, "{signed_field}_{suffix}"),
+            Literal::Integer(signed_field, None) => write!(f, "{signed_field}"),
             Literal::Str(string) => write!(f, "\"{string}\""),
             Literal::RawStr(string, num_hashes) => {
                 let hashes: String =

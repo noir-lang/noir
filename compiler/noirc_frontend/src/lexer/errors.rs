@@ -22,10 +22,10 @@ pub enum LexerErrorKind {
     MalformedFuncAttribute { location: Location, found: String },
     #[error("Malformed test attribute")]
     MalformedTestAttribute { location: Location },
+    #[error("Malformed fuzz attribute")]
+    MalformedFuzzAttribute { location: Location },
     #[error("{:?} is not a valid inner attribute", found)]
     InvalidInnerAttribute { location: Location, found: String },
-    #[error("Logical and used instead of bitwise and")]
-    LogicalAnd { location: Location },
     #[error("Unterminated block comment")]
     UnterminatedBlockComment { location: Location },
     #[error("Unterminated string literal")]
@@ -44,6 +44,8 @@ pub enum LexerErrorKind {
     NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
     UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
+    #[error("Unicode character '{}' looks like space, but is it not", char)]
+    UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
@@ -68,15 +70,18 @@ impl LexerErrorKind {
             LexerErrorKind::IntegerLiteralTooLarge { location, .. } => *location,
             LexerErrorKind::MalformedFuncAttribute { location, .. } => *location,
             LexerErrorKind::MalformedTestAttribute { location, .. } => *location,
+            LexerErrorKind::MalformedFuzzAttribute { location, .. } => *location,
             LexerErrorKind::InvalidInnerAttribute { location, .. } => *location,
-            LexerErrorKind::LogicalAnd { location } => *location,
             LexerErrorKind::UnterminatedBlockComment { location } => *location,
             LexerErrorKind::UnterminatedStringLiteral { location } => *location,
             LexerErrorKind::InvalidFormatString { location, .. } => *location,
             LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
             LexerErrorKind::InvalidEscape { location, .. } => *location,
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
-            LexerErrorKind::NonAsciiComment { location, .. } => *location,
+            LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
+                *location
+            }
             LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
@@ -123,14 +128,14 @@ impl LexerErrorKind {
                 "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
                 *location,
             ),
+            LexerErrorKind::MalformedFuzzAttribute { location } => (
+                "Malformed fuzz attribute".to_string(),
+                "The fuzz attribute can be written in one of these forms: `#[fuzz]`, `#[fuzz(should_fail)]`, `#[fuzz(should_fail_with = \"message\")]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
+                *location,
+            ),
             LexerErrorKind::InvalidInnerAttribute { location, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
-                *location,
-            ),
-            LexerErrorKind::LogicalAnd { location } => (
-                "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
-                "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
                 *location,
             ),
             LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *location),
@@ -172,6 +177,46 @@ impl LexerErrorKind {
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
                 ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
+            }
+            LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, location } => {
+                // List taken from https://en.wikipedia.org/wiki/Whitespace_character
+                let char_name = match char {
+                    '\u{0085}' => Some("Next Line"),
+                    '\u{00A0}' => Some("No-Break Space"),
+                    '\u{1680}' => Some("Ogham Space Mark"),
+                    '\u{2000}' => Some("En Quad"),
+                    '\u{2001}' => Some("Em Quad"),
+                    '\u{2002}' => Some("En Space"),
+                    '\u{2003}' => Some("Em Space"),
+                    '\u{2004}' => Some("Three-Per-Em Space"),
+                    '\u{2005}' => Some("Four-Per-Em Space"),
+                    '\u{2006}' => Some("Six-Per-Em Space"),
+                    '\u{2007}' => Some("Figure Space"),
+                    '\u{2008}' => Some("Punctuation Space"),
+                    '\u{2009}' => Some("Thin Space"),
+                    '\u{200A}' => Some("Hair Space"),
+                    '\u{2028}' => Some("Line Separator"),
+                    '\u{2029}' => Some("Paragraph Separator"),
+                    '\u{202F}' => Some("Narrow No-Break Space"),
+                    '\u{205F}' => Some("Medium Mathematical Space"),
+                    '\u{3000}' => Some("Ideographic Space"),
+                    '\u{180E}' => Some("Mongolian Vowel Separator"),
+                    '\u{200B}' => Some("Zero Width Space"),
+                    '\u{200C}' => Some("Zero Width Non-Joiner"),
+                    '\u{200D}' => Some("Zero Width Joiner"),
+                    '\u{2060}' => Some("Word Joiner"),
+                    '\u{FEFF}' => Some("Zero Width No-Break Space"), // cSpell:disable-line
+                    _ => None,
+                };
+
+                let primary = format!("Unknown start of token: \\u{{{:x}}}", (*char as u32));
+                let secondary = match char_name {
+                    Some(name) => format!("Unicode character '{char}' ({name}) looks like ' ' (Space), but is it not"),
+                    None => {
+                        format!("Unicode character '{char}' looks like ' ' (Space), but is it not")
+                    }
+                };
+                (primary, secondary, *location)
             }
         }
     }

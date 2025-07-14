@@ -166,6 +166,8 @@ jobs:
           cross build --package nargo_cli --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cross build --package noir_profiler --release --target=${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
           cross build --package noir_inspector --release --target ${{ matrix.target }} --no-default-features --features "${{ inputs.features }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |

@@ -1,5 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
 
 use clap::{Parser, Subcommand, command};
 use color_eyre::eyre;

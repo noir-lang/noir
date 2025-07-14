@@ -1,11 +1,10 @@
 use std::fmt::Display;
 
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
     ast::{FunctionReturnType, Ident, Param},
-    shared::Visibility,
-    token::{Attributes, FunctionAttribute, SecondaryAttribute},
+    token::{Attributes, FunctionAttributeKind, SecondaryAttribute},
 };
 
 use super::{FunctionDefinition, UnresolvedType, UnresolvedTypeData};
@@ -50,19 +49,6 @@ impl NoirFunction {
     pub fn normal(def: FunctionDefinition) -> NoirFunction {
         NoirFunction { kind: FunctionKind::Normal, def }
     }
-    pub fn builtin(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Builtin, def }
-    }
-    pub fn low_level(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::LowLevel, def }
-    }
-    pub fn oracle(def: FunctionDefinition) -> NoirFunction {
-        NoirFunction { kind: FunctionKind::Oracle, def }
-    }
-
-    pub fn return_visibility(&self) -> Visibility {
-        self.def.return_visibility
-    }
 
     pub fn return_type(&self) -> UnresolvedType {
         match &self.def.return_type {
@@ -84,49 +70,26 @@ impl NoirFunction {
     pub fn attributes(&self) -> &Attributes {
         &self.def.attributes
     }
-    pub fn function_attribute(&self) -> Option<&FunctionAttribute> {
-        self.def.attributes.function()
-    }
     pub fn secondary_attributes(&self) -> &[SecondaryAttribute] {
         self.def.attributes.secondary.as_ref()
     }
-    pub fn def(&self) -> &FunctionDefinition {
-        &self.def
-    }
-    pub fn def_mut(&mut self) -> &mut FunctionDefinition {
-        &mut self.def
-    }
-    pub fn number_of_statements(&self) -> usize {
-        self.def.body.statements.len()
-    }
     pub fn location(&self) -> Location {
         self.def.location
-    }
-    pub fn span(&self) -> Span {
-        self.location().span
-    }
-
-    pub fn foreign(&self) -> Option<&FunctionDefinition> {
-        match &self.kind {
-            FunctionKind::LowLevel => {}
-            _ => return None,
-        }
-        assert!(self.function_attribute().unwrap().is_foreign());
-        Some(&self.def)
     }
 }
 
 impl From<FunctionDefinition> for NoirFunction {
     fn from(fd: FunctionDefinition) -> Self {
         // The function type is determined by the existence of a function attribute
-        let kind = match fd.attributes.function() {
-            Some(FunctionAttribute::Builtin(_)) => FunctionKind::Builtin,
-            Some(FunctionAttribute::Foreign(_)) => FunctionKind::LowLevel,
-            Some(FunctionAttribute::Test { .. }) => FunctionKind::Normal,
-            Some(FunctionAttribute::Oracle(_)) => FunctionKind::Oracle,
-            Some(FunctionAttribute::Fold) => FunctionKind::Normal,
-            Some(FunctionAttribute::NoPredicates) => FunctionKind::Normal,
-            Some(FunctionAttribute::InlineAlways) => FunctionKind::Normal,
+        let kind = match fd.attributes.function().map(|attr| &attr.kind) {
+            Some(FunctionAttributeKind::Builtin(_)) => FunctionKind::Builtin,
+            Some(FunctionAttributeKind::Foreign(_)) => FunctionKind::LowLevel,
+            Some(FunctionAttributeKind::Test { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::FuzzingHarness { .. }) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::Oracle(_)) => FunctionKind::Oracle,
+            Some(FunctionAttributeKind::Fold) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::NoPredicates) => FunctionKind::Normal,
+            Some(FunctionAttributeKind::InlineAlways) => FunctionKind::Normal,
             None => FunctionKind::Normal,
         };
 

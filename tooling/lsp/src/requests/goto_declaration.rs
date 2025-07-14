@@ -4,7 +4,7 @@ use crate::LspState;
 use crate::types::GotoDeclarationResult;
 use async_lsp::ResponseError;
 
-use lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
+use async_lsp::lsp_types::request::{GotoDeclarationParams, GotoDeclarationResponse};
 
 use super::{process_request, to_lsp_location};
 

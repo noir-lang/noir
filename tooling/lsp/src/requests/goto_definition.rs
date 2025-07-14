@@ -5,6 +5,7 @@ use crate::utils;
 use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
+use async_lsp::lsp_types;
 use fm::PathString;
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
@@ -76,7 +77,7 @@ mod goto_definition_tests {
     use std::panic;
 
     use crate::test_utils::{self, search_in_file};
-    use lsp_types::{Position, Range};
+    use async_lsp::lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;

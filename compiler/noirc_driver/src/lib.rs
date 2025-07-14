@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
@@ -14,7 +12,9 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
-use noirc_evaluator::ssa::{SsaLogging, SsaProgramArtifact};
+use noirc_evaluator::ssa::{
+    SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
+};
 use noirc_frontend::debug::build_debug_crate_file;
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::Context;
@@ -23,9 +23,9 @@ use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
-use noirc_frontend::token::SecondaryAttribute;
+use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -36,6 +36,7 @@ mod stdlib;
 
 use debug::filter_relevant_files;
 
+pub use abi_gen::gen_abi;
 pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
@@ -76,17 +77,33 @@ pub struct CompileOptions {
     /// Only show SSA passes whose name contains the provided string.
     /// This setting takes precedence over `show_ssa` if it's not empty.
     #[arg(long, hide = true)]
-    pub show_ssa_pass: Option<String>,
+    pub show_ssa_pass: Vec<String>,
+
+    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations will be shown.
+    #[arg(long, hide = true)]
+    pub no_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
     pub show_contract_fn: Option<String>,
+
+    /// Skip SSA passes whose name contains the provided string(s).
+    #[arg(long, hide = true)]
+    pub skip_ssa_pass: Vec<String>,
 
     /// Emit the unoptimized SSA IR to file.
     /// The IR will be dumped into the workspace target directory,
     /// under `[compiled-package].ssa.json`.
     #[arg(long, hide = true)]
     pub emit_ssa: bool,
+
+    /// Only perform the minimum number of SSA passes.
+    ///
+    /// The purpose of this is to be able to debug fuzzing failures.
+    /// It implies `--force-brillig`.
+    #[arg(long, hide = true)]
+    pub minimal_ssa: bool,
 
     #[arg(long, hide = true)]
     pub show_brillig: bool,
@@ -144,6 +161,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub enable_brillig_debug_assertions: bool,
 
+    /// Count the number of arrays that are copied in an unconstrained context for performance debugging
+    #[arg(long)]
+    pub count_array_copies: bool,
+
     /// Flag to turn on the lookback feature of the Brillig call constraints
     /// check, allowing tracking argument values before the call happens preventing
     /// certain rare false positives (leads to a slowdown on large rollout functions)
@@ -170,9 +191,16 @@ pub struct CompileOptions {
     #[arg(long, default_value = "false")]
     pub pedantic_solving: bool,
 
-    /// Used internally to test for non-determinism in the compiler.
-    #[clap(long, hide = true)]
-    pub check_non_determinism: bool,
+    /// Skip reading files/folders from the root directory and instead accept the
+    /// contents of `main.nr` through STDIN.
+    ///
+    /// The implicit package structure is:
+    /// ```
+    /// src/main.nr // STDIN
+    /// Nargo.toml // fixed "bin" Nargo.toml
+    /// ```
+    #[arg(long, hide = true)]
+    pub debug_compile_stdin: bool,
 
     /// Unstable features to enable for this current build
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
@@ -182,6 +210,40 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+}
+
+impl CompileOptions {
+    pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
+        SsaEvaluatorOptions {
+            ssa_logging: if !self.show_ssa_pass.is_empty() {
+                SsaLogging::Contains(self.show_ssa_pass.clone())
+            } else if self.show_ssa {
+                SsaLogging::All
+            } else {
+                SsaLogging::None
+            },
+            brillig_options: BrilligOptions {
+                enable_debug_trace: self.show_brillig,
+                enable_debug_assertions: self.enable_brillig_debug_assertions,
+                enable_array_copy_counter: self.count_array_copies,
+            },
+            print_codegen_timings: self.benchmark_codegen,
+            expression_width: if self.bounded_codegen {
+                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+            } else {
+                ExpressionWidth::default()
+            },
+            emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
+            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
+            enable_brillig_constraints_check_lookback: self
+                .enable_brillig_constraints_check_lookback,
+            skip_brillig_constraints_check: !self.silence_warnings
+                && self.skip_brillig_constraints_check,
+            inliner_aggressiveness: self.inliner_aggressiveness,
+            max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            skip_passes: self.skip_ssa_pass.clone(),
+        }
+    }
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -201,7 +263,7 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 }
 
 impl CompileOptions {
-    pub fn frontend_options(&self) -> FrontendOptions {
+    pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,
@@ -211,6 +273,7 @@ impl CompileOptions {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum CompileError {
     MonomorphizationError(MonomorphizationError),
     RuntimeError(RuntimeError),
@@ -411,7 +474,9 @@ pub fn compile_main(
     if options.deny_warnings && !compilation_warnings.is_empty() {
         return Err(compilation_warnings);
     }
-    warnings.extend(compilation_warnings);
+    if !options.silence_warnings {
+        warnings.extend(compilation_warnings);
+    }
 
     if options.print_acir {
         println!("Compiled ACIR for main (unoptimized):");
@@ -488,7 +553,7 @@ pub fn compile_contract(
 fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
     let module = context.module(module_id);
 
-    let functions = module
+    let functions: Vec<ContractFunctionMeta> = module
         .value_definitions()
         .filter_map(|id| {
             id.as_function().map(|function_id| {
@@ -503,7 +568,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
 
     context.def_interner.get_all_globals().iter().for_each(|global_info| {
         context.def_interner.global_attributes(&global_info.id).iter().for_each(|attr| {
-            if let SecondaryAttribute::Abi(tag) = attr {
+            if let SecondaryAttributeKind::Abi(tag) = &attr.kind {
                 if let Some(tagged) = outputs.globals.get_mut(tag) {
                     tagged.push(global_info.id);
                 } else {
@@ -516,7 +581,7 @@ fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contra
     module.type_definitions().for_each(|id| {
         if let ModuleDefId::TypeId(struct_id) = id {
             context.def_interner.type_attributes(&struct_id).iter().for_each(|attr| {
-                if let SecondaryAttribute::Abi(tag) = attr {
+                if let SecondaryAttributeKind::Abi(tag) = &attr.kind {
                     if let Some(tagged) = outputs.structs.get_mut(tag) {
                         tagged.push(struct_id);
                     } else {
@@ -563,7 +628,9 @@ fn compile_contract_inner(
         if let Some(ref name_filter) = options.show_contract_fn {
             let show = name == *name_filter;
             options.show_ssa &= show;
-            options.show_ssa_pass = options.show_ssa_pass.filter(|_| show);
+            if !show {
+                options.show_ssa_pass.clear();
+            }
         };
 
         let function = match compile_no_check(context, &options, function_id, None, true) {
@@ -580,9 +647,11 @@ fn compile_contract_inner(
             .attributes
             .secondary
             .iter()
-            .filter_map(|attr| match attr {
-                SecondaryAttribute::Tag(attribute) => Some(attribute.contents.clone()),
-                SecondaryAttribute::Meta(attribute) => Some(attribute.to_string()),
+            .filter_map(|attr| match &attr.kind {
+                SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
+                SecondaryAttributeKind::Meta(meta_attribute) => {
+                    context.def_interner.get_meta_attribute_name(meta_attribute)
+                }
                 _ => None,
             })
             .collect();
@@ -616,7 +685,7 @@ fn compile_contract_inner(
                         let typ = context.def_interner.get_type(struct_id);
                         let typ = typ.borrow();
                         let fields =
-                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ)| {
+                            vecmap(typ.get_fields(&[]).unwrap_or_default(), |(name, typ, _)| {
                                 (name, abi_type_from_hir_type(context, &typ))
                             });
                         let path =
@@ -679,6 +748,7 @@ pub const DEFAULT_EXPRESSION_WIDTH: ExpressionWidth = ExpressionWidth::Bounded {
 /// [`ast::Program`][noirc_frontend::monomorphization::ast::Program], whereas the output [`circuit::Program`][acvm::acir::circuit::Program]
 /// contains the final optimized ACIR opcodes, including the transformation done after this compilation.
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
+#[allow(clippy::result_large_err)]
 pub fn compile_no_check(
     context: &mut Context,
     options: &CompileOptions,
@@ -686,7 +756,7 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
-    let force_unconstrained = options.force_brillig;
+    let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
     let program = if options.instrument_debug {
         monomorphize_debug(
@@ -709,8 +779,11 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
+        || options.count_array_copies
         || options.show_ssa
-        || options.emit_ssa;
+        || !options.show_ssa_pass.is_empty()
+        || options.emit_ssa
+        || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
     let hash = fxhash::hash64(&program);
@@ -722,41 +795,25 @@ pub fn compile_no_check(
         }
     }
 
-    let return_visibility = program.return_visibility;
-    let ssa_evaluator_options = noirc_evaluator::ssa::SsaEvaluatorOptions {
-        ssa_logging: match &options.show_ssa_pass {
-            Some(string) => SsaLogging::Contains(string.clone()),
-            None => {
-                if options.show_ssa {
-                    SsaLogging::All
-                } else {
-                    SsaLogging::None
-                }
-            }
-        },
-        brillig_options: BrilligOptions {
-            enable_debug_trace: options.show_brillig,
-            enable_debug_assertions: options.enable_brillig_debug_assertions,
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: if options.bounded_codegen {
-            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-        } else {
-            ExpressionWidth::default()
-        },
-        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: options.skip_underconstrained_check,
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-    };
+    let return_visibility = program.return_visibility();
+    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
-        create_program(program, &ssa_evaluator_options)?;
+        if options.minimal_ssa {
+            create_program_with_minimal_passes(
+                program,
+                &ssa_evaluator_options,
+                &context.file_manager,
+            )?
+        } else {
+            create_program(
+                program,
+                &ssa_evaluator_options,
+                if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+            )?
+        };
 
-    let abi = abi_gen::gen_abi(context, &main_function, return_visibility, error_types);
+    let abi = gen_abi(context, &main_function, return_visibility, error_types);
     let file_map = filter_relevant_files(&debug, &context.file_manager);
 
     Ok(CompiledProgram {

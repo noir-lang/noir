@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub str<3> {
+    let mut a: &mut str<3> = &mut "ABC";
+    a = a;
+    let mut idx_b: Field = 0_Field;
+    loop {
+        if idx_b == 0_Field {
+            break;
+        }
+    }
+    *a
+}

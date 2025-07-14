@@ -1,14 +1,16 @@
+//! Codegen for converting SSA globals to Brillig bytecode.
 use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use super::{
-    BrilligArtifact, BrilligBlock, BrilligVariable, Function, FunctionContext, Label, ValueId,
-};
-use crate::brillig::{Brillig, BrilligOptions, FunctionId};
+use super::brillig_block::BrilligBlock;
+use super::{BrilligVariable, Function, FunctionContext, ValueId};
 use crate::{
-    brillig::{ConstantAllocation, DataFlowGraph, brillig_ir::BrilligContext},
+    brillig::{
+        Brillig, BrilligOptions, ConstantAllocation, DataFlowGraph, FunctionId, Label,
+        brillig_ir::{BrilligContext, artifact::BrilligArtifact},
+    },
     ssa::ir::types::NumericType,
     ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
 };
@@ -45,7 +47,7 @@ pub(crate) struct BrilligGlobals {
 
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
-
+/// Mapping of constant values shared across functions hoisted to the global memory space
 pub(crate) type HoistedConstantsToBrilligGlobals =
     HashMap<(FieldElement, NumericType), BrilligVariable>;
 /// Mapping of a constant value and the number of functions in which it occurs
@@ -100,6 +102,10 @@ impl BrilligGlobals {
         }
     }
 
+    pub(crate) fn entry_points(&self) -> &BTreeMap<FunctionId, BTreeSet<FunctionId>> {
+        &self.brillig_entry_points
+    }
+
     /// Helper for marking that a constant was instantiated in a given function.
     /// For a given entry point, we want to determine which constants are shared across multiple functions.
     fn mark_globals_for_hoisting(
@@ -151,8 +157,8 @@ impl BrilligGlobals {
                     },
                 )
                 .collect();
-            let (artifact, brillig_globals, globals_size, hoisted_global_constants) =
-                convert_ssa_globals(
+            let (artifact, brillig_globals, globals_size, hoisted_global_constants) = brillig
+                .convert_ssa_globals(
                     options,
                     globals_dfg,
                     &used_globals,
@@ -235,44 +241,50 @@ pub(crate) type BrilligGlobalsArtifact = (
     HashMap<(FieldElement, NumericType), BrilligVariable>,
 );
 
-pub(crate) fn convert_ssa_globals(
-    options: &BrilligOptions,
-    globals_dfg: &DataFlowGraph,
-    used_globals: &HashSet<ValueId>,
-    hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
-    entry_point: FunctionId,
-) -> BrilligGlobalsArtifact {
-    let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
-    // The global space does not have globals itself
-    let empty_globals = HashMap::default();
-    // We can use any ID here as this context is only going to be used for globals which does not differentiate
-    // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-    let mut function_context = FunctionContext::default();
-    brillig_context.enter_context(Label::globals_init(entry_point));
+impl Brillig {
+    pub(crate) fn convert_ssa_globals(
+        &mut self,
+        options: &BrilligOptions,
+        globals_dfg: &DataFlowGraph,
+        used_globals: &HashSet<ValueId>,
+        hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
+        entry_point: FunctionId,
+    ) -> BrilligGlobalsArtifact {
+        let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
+        // The global space does not have globals itself
+        let empty_globals = HashMap::default();
+        // We can use any ID here as this context is only going to be used for globals which does not differentiate
+        // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
+        let mut function_context = FunctionContext::default();
+        brillig_context.enter_context(Label::globals_init(entry_point));
 
-    let block_id = DataFlowGraph::default().make_block();
-    let mut brillig_block = BrilligBlock {
-        function_context: &mut function_context,
-        block_id,
-        brillig_context: &mut brillig_context,
-        variables: Default::default(),
-        last_uses: HashMap::default(),
-        globals: &empty_globals,
-        hoisted_global_constants: &HashMap::default(),
-        building_globals: true,
-    };
+        let block_id = DataFlowGraph::default().make_block();
+        let mut brillig_block = BrilligBlock {
+            function_context: &mut function_context,
+            block_id,
+            brillig_context: &mut brillig_context,
+            variables: Default::default(),
+            last_uses: HashMap::default(),
+            globals: &empty_globals,
+            hoisted_global_constants: &HashMap::default(),
+            building_globals: true,
+        };
 
-    let hoisted_global_constants =
-        brillig_block.compile_globals(globals_dfg, used_globals, hoisted_global_constants);
+        let hoisted_global_constants = brillig_block.compile_globals(
+            globals_dfg,
+            used_globals,
+            &mut self.call_stacks,
+            hoisted_global_constants,
+        );
 
-    let globals_size = brillig_context.global_space_size();
+        let globals_size = brillig_context.global_space_size();
 
-    brillig_context.return_instruction();
+        brillig_context.return_instruction();
 
-    let artifact = brillig_context.artifact();
-    (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+        let artifact = brillig_context.artifact();
+        (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
+    }
 }
-
 #[cfg(test)]
 mod tests {
     use acvm::{
@@ -313,11 +325,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
-
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),
@@ -431,12 +439,9 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
+        let ssa = ssa.brillig_array_get_and_set();
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),
@@ -516,8 +521,6 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
 
         // Show that the constants in each function have different SSA value IDs
         for (func_id, function) in &ssa.functions {
@@ -546,8 +549,7 @@ mod tests {
             }
         }
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
         for (func_id, artifact) in brillig.globals {
@@ -606,11 +608,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),

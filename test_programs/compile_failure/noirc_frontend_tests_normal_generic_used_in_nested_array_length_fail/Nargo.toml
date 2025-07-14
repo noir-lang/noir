@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_normal_generic_used_in_nested_array_length_fail"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

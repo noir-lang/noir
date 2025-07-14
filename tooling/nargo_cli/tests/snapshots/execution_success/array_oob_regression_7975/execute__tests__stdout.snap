@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[array_oob_regression_7975] Circuit output: Vec([Vec([Field(0)])])

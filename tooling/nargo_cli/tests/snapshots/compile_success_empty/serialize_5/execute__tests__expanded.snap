@@ -1,0 +1,53 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Serialize {
+    let N: u32;
+
+    fn serialize(self) -> [Field; N];
+}
+
+impl Serialize for Field {
+    let N: u32 = 1;
+
+    fn serialize(self) -> [Self; 1] {
+        [self]
+    }
+}
+
+pub struct Foo {
+    inner: Field,
+}
+
+impl Serialize for Foo {
+    let N: u32 = 1;
+
+    fn serialize(self) -> [Field; 1] {
+        [0_Field; 1]
+    }
+}
+
+pub struct Bar {}
+
+impl Serialize for Bar {
+    let N: u32 = 1;
+
+    fn serialize(self) -> [Field; 1] {
+        [1_Field]
+    }
+}
+
+pub struct Baz {
+    inner: Bar,
+}
+
+impl Serialize for Baz {
+    let N: u32 = 1;
+
+    fn serialize(self) -> [Field; 1] {
+        [0_Field; 1]
+    }
+}
+
+fn main() {}

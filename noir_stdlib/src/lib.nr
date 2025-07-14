@@ -84,10 +84,12 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
 
-// Asserts that the given value is both true and known at compile-time
+// Asserts that the given value is both true and known at compile-time.
+// The message can be a string, a format string, or any value, as long as it is known at compile-time
 #[builtin(static_assert)]
-pub fn static_assert<let N: u32>(predicate: bool, message: str<N>) {}
+pub fn static_assert<T>(predicate: bool, message: T) {}
 
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_add(y)")]
 pub fn wrapping_add<T>(x: T, y: T) -> T
 where
     T: AsPrimitive<Field>,
@@ -95,7 +97,7 @@ where
 {
     AsPrimitive::as_(x.as_() + y.as_())
 }
-
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
 pub fn wrapping_sub<T>(x: T, y: T) -> T
 where
     T: AsPrimitive<Field>,
@@ -104,7 +106,7 @@ where
     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
     AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
 }
-
+#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)")]
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where
     T: AsPrimitive<Field>,
@@ -117,46 +119,44 @@ where
 pub fn as_witness(x: Field) {}
 
 mod tests {
-    use super::wrapping_mul;
+    use super::ops::arith::WrappingMul;
 
     #[test(should_fail_with = "custom message")]
     fn test_static_assert_custom_message() {
         super::static_assert(1 == 2, "custom message");
     }
 
-    #[test(should_fail)]
+    #[test]
     fn test_wrapping_mul() {
-        // This currently fails.
-        // See: https://github.com/noir-lang/noir/issues/7528
         let zero: u128 = 0;
         let one: u128 = 1;
         let two_pow_64: u128 = 0x10000000000000000;
         let u128_max: u128 = 0xffffffffffffffffffffffffffffffff;
 
         // 1*0==0
-        assert_eq(zero, wrapping_mul(zero, one));
+        assert_eq(zero, zero.wrapping_mul(one));
 
         // 0*1==0
-        assert_eq(zero, wrapping_mul(one, zero));
+        assert_eq(zero, one.wrapping_mul(zero));
 
         // 1*1==1
-        assert_eq(one, wrapping_mul(one, one));
+        assert_eq(one, one.wrapping_mul(one));
 
         // 0 * ( 1 << 64 ) ==  0
-        assert_eq(zero, wrapping_mul(zero, two_pow_64));
+        assert_eq(zero, zero.wrapping_mul(two_pow_64));
 
         // ( 1 << 64 ) * 0 == 0
-        assert_eq(zero, wrapping_mul(two_pow_64, zero));
+        assert_eq(zero, two_pow_64.wrapping_mul(zero));
 
         // 1 * ( 1 << 64 ) == 1 << 64
-        assert_eq(two_pow_64, wrapping_mul(two_pow_64, one));
+        assert_eq(two_pow_64, two_pow_64.wrapping_mul(one));
 
         // ( 1 << 64 ) * 1 == 1 << 64
-        assert_eq(two_pow_64, wrapping_mul(one, two_pow_64));
+        assert_eq(two_pow_64, one.wrapping_mul(two_pow_64));
 
         // ( 1 << 64 ) * ( 1 << 64 ) == 1 << 64
-        assert_eq(zero, wrapping_mul(two_pow_64, two_pow_64));
+        assert_eq(zero, two_pow_64.wrapping_mul(two_pow_64));
         // -1 * -1 == 1
-        assert_eq(one, wrapping_mul(u128_max, u128_max));
+        assert_eq(one, u128_max.wrapping_mul(u128_max));
     }
 }

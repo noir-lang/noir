@@ -1,7 +1,14 @@
+use acvm::{FieldElement, acir::brillig::ForeignCallParam};
+use fxhash::FxHashSet as HashSet;
+use iter_extended::vecmap;
+use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+
 use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
+            cfg::ControlFlowGraph,
+            dfg::DataFlowGraph,
             function::Function,
             instruction::{Instruction, InstructionId, Intrinsic},
             value::ValueId,
@@ -9,6 +16,8 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+
+use super::unrolling::Loops;
 
 impl Ssa {
     /// A simple SSA pass to go through each instruction and evaluate each call
@@ -36,14 +45,39 @@ impl Function {
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         &mut self,
     ) -> Result<(), RuntimeError> {
+        let loops = Loops::find_all(self);
+
+        let cfg = ControlFlowGraph::with_function(self);
+        let mut blocks_within_empty_loop = HashSet::default();
+        for loop_ in loops.yet_to_unroll {
+            let Ok(pre_header) = loop_.get_pre_header(self, &cfg) else {
+                // If the loop does not have a preheader we skip checking whether the loop is empty
+                continue;
+            };
+            let const_bounds = loop_.get_const_bounds(self, pre_header);
+
+            let does_execute = const_bounds
+                .and_then(|(lower_bound, upper_bound)| {
+                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+                })
+                // We default to `true` if the bounds are dynamic so that we still
+                // evaluate static assertion in dynamic loops.
+                .unwrap_or(true);
+
+            if !does_execute {
+                blocks_within_empty_loop.extend(loop_.blocks);
+            }
+        }
+
         for block in self.reachable_blocks() {
             // Unfortunately we can't just use instructions.retain(...) here since
             // check_instruction can also return an error
             let instructions = self.dfg[block].take_instructions();
             let mut filtered_instructions = Vec::with_capacity(instructions.len());
 
+            let inside_empty_loop = blocks_within_empty_loop.contains(&block);
             for instruction in instructions {
-                if check_instruction(self, instruction)? {
+                if check_instruction(self, instruction, inside_empty_loop)? {
                     filtered_instructions.push(instruction);
                 }
             }
@@ -63,14 +97,27 @@ impl Function {
 fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
+    inside_empty_loop: bool,
 ) -> Result<bool, RuntimeError> {
-    let assert_constant_id = function.dfg.import_intrinsic(Intrinsic::AssertConstant);
-    let static_assert_id = function.dfg.import_intrinsic(Intrinsic::StaticAssert);
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant);
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert);
+    if assert_constant_id.is_none() && static_assert_id.is_none() {
+        return Ok(true);
+    }
+
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            if *func == assert_constant_id {
+            let is_assert_constant = Some(*func) == assert_constant_id.copied();
+            let is_static_assert = Some(*func) == static_assert_id.copied();
+
+            // Skip assertions inside known empty loops
+            if inside_empty_loop && (is_assert_constant || is_static_assert) {
+                return Ok(false);
+            }
+
+            if is_assert_constant {
                 evaluate_assert_constant(function, instruction, arguments)
-            } else if *func == static_assert_id {
+            } else if is_static_assert {
                 evaluate_static_assert(function, instruction, arguments)
             } else {
                 Ok(true)
@@ -108,27 +155,138 @@ fn evaluate_static_assert(
     instruction: InstructionId,
     arguments: &[ValueId],
 ) -> Result<bool, RuntimeError> {
-    if arguments.len() != 2 {
+    if arguments.len() < 2 {
         panic!("ICE: static_assert called with wrong number of arguments")
     }
 
-    if !function.dfg.is_constant(arguments[1]) {
-        let call_stack = function.dfg.get_instruction_call_stack(instruction);
-        return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
+    // To turn the arguments into a string we do the same as we'd do if the arguments
+    // were passed to the built-in foreign call "print" functions.
+    let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
+    for arg in arguments.iter().skip(1) {
+        if !function.dfg.is_constant(*arg) {
+            let call_stack = function.dfg.get_instruction_call_stack(instruction);
+            return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
+        }
+        append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
     }
 
     if function.dfg.is_constant_true(arguments[0]) {
-        Ok(false)
+        return Ok(false);
+    }
+
+    let message = match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params)
+    {
+        Ok(display_values) => display_values.to_string(),
+        Err(err) => match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                panic!("ICE: missing foreign call inputs")
+            }
+            TryFromParamsError::ParsingError(error) => {
+                panic!("ICE: could not decode printable type {:?}", error)
+            }
+        },
+    };
+
+    let call_stack = function.dfg.get_instruction_call_stack(instruction);
+    if !function.dfg.is_constant(arguments[0]) {
+        return Err(RuntimeError::StaticAssertDynamicPredicate { message, call_stack });
+    }
+
+    Err(RuntimeError::StaticAssertFailed { message, call_stack })
+}
+
+fn append_foreign_call_param(
+    value: ValueId,
+    dfg: &DataFlowGraph,
+    foreign_call_params: &mut Vec<ForeignCallParam<FieldElement>>,
+) {
+    if let Some(field) = dfg.get_numeric_constant(value) {
+        foreign_call_params.push(ForeignCallParam::Single(field));
+    } else if let Some((values, _typ)) = dfg.get_array_constant(value) {
+        let values = vecmap(values, |value| {
+            dfg.get_numeric_constant(value).expect("ICE: expected constant value")
+        });
+        foreign_call_params.push(ForeignCallParam::Array(values));
     } else {
-        let call_stack = function.dfg.get_instruction_call_stack(instruction);
-        if function.dfg.is_constant(arguments[0]) {
-            let message = function
-                .dfg
-                .get_string(arguments[1])
-                .expect("Expected second argument to be a string");
-            Err(RuntimeError::StaticAssertFailed { message, call_stack })
-        } else {
-            Err(RuntimeError::StaticAssertDynamicPredicate { call_stack })
+        panic!("ICE: expected constant value");
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn do_not_fail_on_assert_constant_in_empty_loop() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = lt v0, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            call assert_constant(v2)
+            v7 = unchecked_add v0, u32 1
+            jmp b1(v7)
+          b3():
+            return
         }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        // We expected the assert constant which would have otherwise returned a runtime error
+        // to be removed from the SSA.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1() -> [Field; 0]
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v4 = lt v0, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            v6 = unchecked_add v0, u32 1
+            jmp b1(v6)
+          b3():
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn fail_on_assert_constant_in_dynamic_loop() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(v0)
+          b1(v2: u32):
+            v3 = lt v2, v1                                   
+            jmpif v3 then: b2, else: b3
+          b2():
+            call assert_constant(v0)                          
+            v6 = unchecked_add v2, u32 1                      
+            jmp b1(v6)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(
+            ssa.evaluate_static_assert_and_assert_constant().err().unwrap(),
+            RuntimeError::AssertConstantFailed { .. }
+        ));
     }
 }

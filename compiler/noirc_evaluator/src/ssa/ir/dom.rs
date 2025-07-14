@@ -328,12 +328,12 @@ mod tests {
     use std::cmp::Ordering;
 
     use iter_extended::vecmap;
+    use noirc_errors::call_stack::CallStackId;
 
     use crate::ssa::{
         function_builder::FunctionBuilder,
         ir::{
             basic_block::{BasicBlock, BasicBlockId},
-            call_stack::CallStackId,
             cfg::ControlFlowGraph,
             dom::DominatorTree,
             function::Function,
@@ -494,9 +494,7 @@ mod tests {
         builder.terminate_with_jmp(block1_id, vec![]);
 
         let ssa = builder.finish();
-        let func = ssa.main().clone();
-
-        func
+        ssa.main().clone()
     }
 
     fn check_dom_matrix(

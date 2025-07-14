@@ -306,7 +306,12 @@ const codegenFunction = (
   compiled_program?: CompiledCircuit,
 ): string => {
   const args = function_signature.inputs.map(([name]) => `${name}`).join(', ');
-  const args_with_types = function_signature.inputs.map(([name, type]) => `${name}: ${type}`).join(', ');
+  const args_with_types = function_signature.inputs.map(([name, type]) => `${name}: ${type}`);
+  if (!compiled_program) {
+    args_with_types.push(`${name}_circuit: CompiledCircuit`);
+  }
+  args_with_types.push('foreignCallHandler?: ForeignCallHandler');
+  const args_with_types_joined_by_comma = args_with_types.join(', ');
 
   const artifact = compiled_program
     ? `export const ${name}_circuit: CompiledCircuit = ${JSON.stringify(compiled_program)};`
@@ -314,7 +319,7 @@ const codegenFunction = (
 
   return `${artifact}
 
-export async function ${name}(${args_with_types}${compiled_program ? '' : `, ${name}_circuit: CompiledCircuit`}, foreignCallHandler?: ForeignCallHandler): Promise<${function_signature.returnValue}> {
+export async function ${name}(${args_with_types_joined_by_comma}): Promise<${function_signature.returnValue}> {
   const program = new Noir(${name}_circuit);
   const args: InputMap = { ${args} };
   const { returnValue } = await program.execute(args, foreignCallHandler);

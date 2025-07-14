@@ -173,9 +173,11 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
                     BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
-                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?, // cSpell:disable-line
                 }
-                write!(f, "(id: {}, len: {}) ", block_id.0, init.len())
+                let witnesses =
+                    init.iter().map(|w| format!("_{}", w.0)).collect::<Vec<String>>().join(", ");
+                write!(f, "(id: {}, len: {}, witnesses: [{witnesses}])", block_id.0, init.len())
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
@@ -202,5 +204,57 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
 impl<F: AcirField> std::fmt::Debug for Opcode<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acir_field::FieldElement;
+
+    use crate::{
+        circuit::opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput},
+        native_types::Witness,
+    };
+
+    use super::Opcode;
+
+    #[test]
+    fn mem_init_display_snapshot() {
+        let mem_init: Opcode<FieldElement> = Opcode::MemoryInit {
+            block_id: BlockId(42),
+            init: (0..10u32).map(Witness).collect(),
+            block_type: BlockType::Memory,
+        };
+
+        insta::assert_snapshot!(
+            mem_init.to_string(),
+            @"INIT (id: 42, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])"
+        );
+    }
+
+    #[test]
+    fn blackbox_snapshot() {
+        let xor: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
+            lhs: FunctionInput::witness(0.into(), 32),
+            rhs: FunctionInput::witness(1.into(), 32),
+            output: Witness(3),
+        });
+
+        insta::assert_snapshot!(
+            xor.to_string(),
+            @"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+        );
+    }
+
+    #[test]
+    fn range_display_snapshot() {
+        let range: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput::witness(0.into(), 32),
+        });
+
+        insta::assert_snapshot!(
+            range.to_string(),
+            @"BLACKBOX::RANGE [(_0, 32)] []"
+        );
     }
 }

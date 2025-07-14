@@ -1,0 +1,226 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(mut x: Field) {
+    add1(&mut x);
+    assert(x == 3_Field);
+    let mut s: S = S { y: x };
+    s.add2();
+    assert(s.y == 5_Field);
+    let s_ref: &mut S = &mut s;
+    s_ref.add2();
+    assert(s.y == 7_Field);
+    let mut a: Field = 0_Field;
+    mutate_copy(a);
+    assert(a == 0_Field);
+    let mut nested_allocations: Nested = Nested { y: &mut &mut 0_Field };
+    add1(*nested_allocations.y);
+    assert(**nested_allocations.y == 1_Field);
+    let mut c: C = C { foo: 0_Field, bar: &mut C2 { array: &mut [1_Field, 2_Field] } };
+    *(c.bar.array) = [3_Field, 4_Field];
+    assert(*c.bar.array == [3_Field, 4_Field]);
+    regression_1887();
+    regression_2054();
+    regression_2030();
+    regression_2255();
+    regression_6443();
+    assert(x == 3_Field);
+    regression_2218_if_inner_if(x, 10_Field);
+    regression_2218_if_inner_else(20_Field, x);
+    regression_2218_else(x, 3_Field);
+    regression_2218_loop(x, 10_Field);
+    regression_2560(s_ref);
+}
+
+fn add1(x: &mut Field) {
+    *(x) = *x + 1_Field;
+}
+
+struct S {
+    y: Field,
+}
+
+impl S {
+    fn add2(&mut self) {
+        self.y = self.y + 2_Field;
+    }
+
+    fn get_y(self) -> Field {
+        self.y
+    }
+}
+
+struct Nested {
+    y: &mut &mut Field,
+}
+
+struct C {
+    foo: Field,
+    bar: &mut C2,
+}
+
+struct C2 {
+    array: &mut [Field; 2],
+}
+
+fn mutate_copy(mut a: Field) {
+    a = 7_Field;
+}
+
+fn regression_1887() {
+    let foo: &mut Foo = &mut Foo { bar: Bar { x: 0_Field } };
+    foo.bar.mutate();
+    assert(foo.bar.x == 32_Field);
+}
+
+struct Foo {
+    bar: Bar,
+}
+
+struct Bar {
+    x: Field,
+}
+
+impl Bar {
+    fn mutate(&mut self) {
+        self.x = 32_Field;
+    }
+}
+
+fn regression_2054() {
+    let mut x: Field = 2_Field;
+    let z: Field = x;
+    x = x + 1_Field;
+    assert(z == 2_Field);
+}
+
+fn regression_2030() {
+    let ref: &mut Field = &mut 0_Field;
+    let mut array: [&mut Field; 2] = [ref, ref];
+    let _: Field = *array[0_u32];
+    *(array[0_u32]) = 1_Field;
+}
+
+fn regression_2255() {
+    let x: &mut Field = &mut 0_Field;
+    regression_2255_helper(x);
+    assert(*x == 1_Field);
+}
+
+fn regression_2255_helper(mut x: &mut Field) {
+    *(x) = 1_Field;
+}
+
+fn regression_6443() {
+    let x: &mut Field = &mut 0_Field;
+    regression_6443_helper(x);
+    assert(*x == 1_Field);
+}
+
+fn regression_6443_helper(x: &mut Field) {
+    *(x) = 1_Field;
+}
+
+fn regression_2218(x: Field, y: Field) -> Field {
+    let q: &mut &mut Field = &mut &mut 0_Field;
+    let q1: &mut Field = *q;
+    let q2: &mut Field = *q;
+    if x != y {
+        *(q1) = 1_Field;
+        if x != 20_Field {
+            *(q1) = 10_Field;
+            *(q2) = 2_Field;
+            assert(*q1 == 2_Field);
+        } else {
+            *(q2) = 15_Field;
+            assert(*q1 == 15_Field);
+        }
+    } else {
+        *(q2) = 20_Field;
+        assert(*q1 == 20_Field);
+    };
+    let value: Field = *q1;
+    value
+}
+
+fn regression_2218_if_inner_if(x: Field, y: Field) {
+    let value: Field = regression_2218(x, y);
+    assert(value == 2_Field);
+}
+
+fn regression_2218_if_inner_else(x: Field, y: Field) {
+    let value: Field = regression_2218(x, y);
+    assert(value == 15_Field);
+}
+
+fn regression_2218_else(x: Field, y: Field) {
+    let value: Field = regression_2218(x, y);
+    assert(value == 20_Field);
+}
+
+fn regression_2218_loop(x: Field, y: Field) {
+    let q: &mut &mut Field = &mut &mut 0_Field;
+    let q1: &mut Field = *q;
+    let q2: &mut Field = *q;
+    for _ in 0_u32..1_u32 {
+        if x != y {
+            *(q1) = 10_Field;
+            *(q2) = 2_Field;
+            assert(*q1 == 2_Field);
+        } else {
+            *(q2) = 20_Field;
+            assert(*q1 == 20_Field);
+        }
+    }
+    assert(*q1 == 2_Field);
+    for _ in 0_u32..1_u32 {
+        for _ in 0_u32..5_u32 {
+            if x != y {
+                *(q1) = 1_Field;
+                if x != 20_Field {
+                    *(q1) = 10_Field;
+                    *(q2) = 2_Field;
+                    assert(*q1 == 2_Field);
+                }
+            } else {
+                *(q2) = 20_Field;
+                assert(*q1 == 20_Field);
+            }
+        }
+        if x != y {
+            *(q1) = 1_Field;
+            for _ in 0_u32..5_u32 {
+                if x != 20_Field {
+                    *(q1) = 10_Field;
+                    *(q2) = 2_Field;
+                    assert(*q1 == 2_Field);
+                }
+            }
+        } else {
+            *(q2) = 20_Field;
+            assert(*q1 == 20_Field);
+        }
+    }
+    assert(*q1 == 2_Field);
+    if x != y {
+        for _ in 0_u32..5_u32 {
+            if x != y {
+                *(q1) = 1_Field;
+                if x != 20_Field {
+                    *(q1) = 10_Field;
+                    *(q2) = 2_Field;
+                    assert(*q1 == 2_Field);
+                }
+            }
+        }
+    } else {
+        *(q2) = 20_Field;
+        assert(*q1 == 20_Field);
+    };
+    assert(*q1 == 2_Field);
+}
+
+fn regression_2560(s_ref: &mut S) {
+    assert(s_ref.get_y() == 7_Field);
+}

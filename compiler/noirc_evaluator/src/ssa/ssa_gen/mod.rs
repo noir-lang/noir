@@ -1,11 +1,13 @@
 pub(crate) mod context;
 mod program;
+mod tests;
 mod value;
 
 use acvm::AcirField;
+use noirc_errors::call_stack::CallStack;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
-pub(crate) use program::Ssa;
+pub use program::Ssa;
 
 use context::{Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
@@ -27,8 +29,9 @@ use self::{
 
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::GlobalsGraph;
-use super::ir::instruction::ErrorType;
+use super::ir::instruction::{ArrayOffset, ErrorType};
 use super::ir::types::NumericType;
+use super::validation::validate_function;
 use super::{
     function_builder::data_bus::DataBus,
     ir::{
@@ -44,11 +47,11 @@ pub(crate) const SSA_WORD_SIZE: u32 = 32;
 /// Generates SSA for the given monomorphized program.
 ///
 /// This function will generate the SSA but does not perform any optimizations on it.
-pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
+pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // see which parameter has call_data/return_data attribute
     let is_databus = DataBusBuilder::is_databus(&program.main_function_signature);
 
-    let is_return_data = matches!(program.return_visibility, Visibility::ReturnData);
+    let is_return_data = matches!(program.return_visibility(), Visibility::ReturnData);
 
     let return_location = program.return_location;
     let mut context = SharedContext::new(program);
@@ -129,17 +132,23 @@ pub(crate) fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     }
 
     let ssa = function_context.builder.finish();
+    validate_ssa(&ssa);
+
     Ok(ssa)
+}
+
+pub fn validate_ssa(ssa: &Ssa) {
+    for function in ssa.functions.values() {
+        validate_function(function, ssa);
+    }
 }
 
 impl FunctionContext<'_> {
     /// Codegen a function's body and set its return value to that of its last parameter.
     /// For functions returning nothing, this will be an empty list.
     fn codegen_function_body(&mut self, body: &Expression) -> Result<(), RuntimeError> {
-        let incremented_params = self.increment_parameter_rcs();
         let return_value = self.codegen_expression(body)?;
         let results = return_value.into_value_list(self);
-        self.end_scope(incremented_params, &results);
 
         self.builder.terminate_with_return(results);
         Ok(())
@@ -170,8 +179,10 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => self.codegen_assign(assign),
             Expression::Semi(semi) => self.codegen_semi(semi),
-            Expression::Break => Ok(self.codegen_break()),
-            Expression::Continue => Ok(self.codegen_continue()),
+            Expression::Break => self.codegen_break(),
+            Expression::Continue => self.codegen_continue(),
+            Expression::Clone(expr) => self.codegen_clone(expr),
+            Expression::Drop(expr) => self.codegen_drop(expr),
         }
     }
 
@@ -265,7 +276,9 @@ impl FunctionContext<'_> {
                 // A caller needs multiple pieces of information to make use of a format string
                 // The message string, the number of fields to be formatted, and the fields themselves
                 let string = self.codegen_string(&string);
-                let field_count = self.builder.length_constant(*number_of_fields as u128);
+                let field_count = self
+                    .builder
+                    .numeric_constant(*number_of_fields as u128, NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -277,17 +290,13 @@ impl FunctionContext<'_> {
     fn codegen_array_elements(
         &mut self,
         elements: &[Expression],
-    ) -> Result<Vec<(Values, bool)>, RuntimeError> {
-        try_vecmap(elements, |element| {
-            let value = self.codegen_expression(element)?;
-            Ok((value, element.is_array_or_slice_literal()))
-        })
+    ) -> Result<Vec<Values>, RuntimeError> {
+        try_vecmap(elements, |element| self.codegen_expression(element))
     }
 
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            let char = self.builder.numeric_constant(*byte as u128, NumericType::char());
-            (char.into(), false)
+            self.builder.numeric_constant(*byte as u128, NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
@@ -300,7 +309,7 @@ impl FunctionContext<'_> {
     /// constant to be moved into this larger array constant.
     fn codegen_array_checked(
         &mut self,
-        elements: Vec<(Values, bool)>,
+        elements: Vec<Values>,
         typ: Type,
     ) -> Result<Values, RuntimeError> {
         if typ.is_nested_slice() {
@@ -322,22 +331,12 @@ impl FunctionContext<'_> {
     /// constant to be moved into this larger array constant.
     ///
     /// The value returned from this function is always that of the allocate instruction.
-    fn codegen_array(&mut self, elements: Vec<(Values, bool)>, typ: Type) -> Values {
+    fn codegen_array(&mut self, elements: Vec<Values>, typ: Type) -> Values {
         let mut array = im::Vector::new();
 
-        for (element, is_array_constant) in elements {
+        for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
-
-                // If we're referencing a sub-array in a larger nested array we need to
-                // increase the reference count of the sub array. This maintains a
-                // pessimistic reference count (since some are likely moved rather than shared)
-                // which is important for Brillig's copy on write optimization. This has no
-                // effect in ACIR code.
-                if !is_array_constant {
-                    self.builder.increment_array_reference_count(element);
-                }
-
                 array.push_back(element);
             });
         }
@@ -458,8 +457,25 @@ impl FunctionContext<'_> {
         let type_size = Self::convert_type(element_type).size_of_type();
         let type_size =
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
-        // This shouldn't overflow as we are reaching for an initial array offset
-        // (otherwise it would have overflowed when creating the array)
+
+        let array_type = &self.builder.type_of_value(array);
+
+        // Checks for index Out-of-bounds
+        match array_type {
+            Type::Slice(_) => {
+                self.codegen_access_check(
+                    index,
+                    length.expect("ICE: a length must be supplied for checking index"),
+                );
+            }
+            Type::Array(_, len) => {
+                let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                self.codegen_access_check(index, len);
+            }
+            _ => unreachable!("must have array or slice but got {array_type}"),
+        }
+
+        // This shouldn't overflow because the initial index is within array bounds
         let base_index = self.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked: true },
@@ -468,25 +484,14 @@ impl FunctionContext<'_> {
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let offset = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index);
             field_index += 1;
-
-            let array_type = &self.builder.type_of_value(array);
-            match array_type {
-                Type::Slice(_) => {
-                    self.codegen_slice_access_check(index, length);
-                }
-                Type::Array(..) => {
-                    // Nothing needs to done to prepare an array access on an array
-                }
-                _ => unreachable!("must have array or slice but got {array_type}"),
-            }
 
             // Reference counting in brillig relies on us incrementing reference
             // counts when nested arrays/slices are constructed or indexed. This
             // has no effect in ACIR code.
-            let result = self.builder.insert_array_get(array, offset, typ);
-            self.builder.increment_array_reference_count(result);
+            let offset = ArrayOffset::None;
+            let result = self.builder.insert_array_get(array, index, offset, typ);
             result.into()
         }))
     }
@@ -494,11 +499,10 @@ impl FunctionContext<'_> {
     /// Prepare a slice access.
     /// Check that the index being used to access a slice element
     /// is less than the dynamic slice length.
-    fn codegen_slice_access_check(&mut self, index: ValueId, length: Option<ValueId>) {
+    fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
-        let array_len = self
-            .make_array_index(length.expect("ICE: a length must be supplied for indexing slices"));
+        let array_len = self.make_array_index(length);
 
         let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
         let true_const = self.builder.numeric_constant(true, NumericType::bool());
@@ -528,7 +532,7 @@ impl FunctionContext<'_> {
     ///   br loop_entry(v0)
     /// loop_entry(i: Field):
     ///   v2 = lt i v1
-    ///   brif v2, then: loop_body, else: loop_end
+    ///   jmpif v2, then: loop_body, else: loop_end
     /// loop_body():
     ///   v3 = ... codegen body ...
     ///   v4 = add 1, i
@@ -543,10 +547,11 @@ impl FunctionContext<'_> {
         self.builder.set_location(for_expr.end_range_location);
         let end_index = self.codegen_non_tuple_expression(&for_expr.end_range)?;
 
-        if let (Some(start_constant), Some(end_constant)) = (
-            self.builder.current_function.dfg.get_numeric_constant(start_index),
-            self.builder.current_function.dfg.get_numeric_constant(end_index),
-        ) {
+        let range_bound = |id| self.builder.current_function.dfg.get_integer_constant(id);
+
+        if let (Some(start_constant), Some(end_constant)) =
+            (range_bound(start_index), range_bound(end_index))
+        {
             // If we can determine that the loop contains zero iterations then there's no need to codegen the loop.
             if start_constant >= end_constant {
                 return Ok(Self::unit_value());
@@ -583,9 +588,12 @@ impl FunctionContext<'_> {
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
         self.define(for_expr.index_variable, loop_index.into());
-        self.codegen_expression(&for_expr.block)?;
-        let new_loop_index = self.make_offset(loop_index, 1);
-        self.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+
+        let result = self.codegen_expression(&for_expr.block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            let new_loop_index = this.make_offset(loop_index, 1);
+            this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
+        })?;
 
         // Finish by switching back to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -616,8 +624,10 @@ impl FunctionContext<'_> {
 
         // Compile the loop body
         self.builder.switch_to_block(loop_body);
-        self.codegen_expression(block)?;
-        self.builder.terminate_with_jmp(loop_body, vec![]);
+        let result = self.codegen_expression(block);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(loop_body, vec![]);
+        })?;
 
         // Finish by switching to the end of the loop
         self.builder.switch_to_block(loop_end);
@@ -634,7 +644,7 @@ impl FunctionContext<'_> {
     ///   jmp while_entry()
     /// while_entry:
     ///   v0 = ... codegen cond ...
-    ///   jmpif v0, then: while_body, else: while_end  
+    ///   jmpif v0, then: while_body, else: while_end
     /// while_body():
     ///   v3 = ... codegen body ...
     ///   jmp while_entry()
@@ -657,8 +667,10 @@ impl FunctionContext<'_> {
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
-        self.codegen_expression(&while_.body)?;
-        self.builder.terminate_with_jmp(while_entry, vec![]);
+        let result = self.codegen_expression(&while_.body);
+        self.codegen_unless_break_or_continue(result, |this, _| {
+            this.builder.terminate_with_jmp(while_entry, vec![]);
+        })?;
 
         // Finish by switching to the end of the while
         self.builder.switch_to_block(while_end);
@@ -672,7 +684,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: else_block
+    ///   jmpif v0, then: then_block, else: else_block
     /// then_block():
     ///   v1 = ... codegen a ...
     ///   br end_if(v1)
@@ -687,7 +699,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_if
+    ///   jmpif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
@@ -706,19 +718,24 @@ impl FunctionContext<'_> {
         self.builder.terminate_with_jmpif(condition, then_block, else_block);
 
         self.builder.switch_to_block(then_block);
-        let then_value = self.codegen_expression(&if_expr.consequence)?;
+        let then_result = self.codegen_expression(&if_expr.consequence);
 
         let mut result = Self::unit_value();
 
         if let Some(alternative) = &if_expr.alternative {
             let end_block = self.builder.insert_block();
-            let then_values = then_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, then_values);
+
+            self.codegen_unless_break_or_continue(then_result, |this, then_value| {
+                let then_values = then_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, then_values);
+            })?;
 
             self.builder.switch_to_block(else_block);
-            let else_value = self.codegen_expression(alternative)?;
-            let else_values = else_value.into_value_list(self);
-            self.builder.terminate_with_jmp(end_block, else_values);
+            let else_result = self.codegen_expression(alternative);
+            self.codegen_unless_break_or_continue(else_result, |this, else_value| {
+                let else_values = else_value.into_value_list(this);
+                this.builder.terminate_with_jmp(end_block, else_values);
+            })?;
 
             // Create block arguments for the end block as needed to branch to
             // with our then and else value.
@@ -801,13 +818,16 @@ impl FunctionContext<'_> {
 
             self.builder.switch_to_block(case_block);
             self.bind_case_arguments(variable.clone(), case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
 
-            // Each branch will jump to a different end block for now. We have to merge them all
-            // later since SSA doesn't support more than two blocks jumping to the same end block.
-            let local_end_block = make_end_block(self);
-            self.builder.terminate_with_jmp(local_end_block.0, results);
-            blocks_to_merge.push(local_end_block);
+                // Each branch will jump to a different end block for now. We have to merge them all
+                // later since SSA doesn't support more than two blocks jumping to the same end block.
+                let local_end_block = make_end_block(this);
+                this.builder.terminate_with_jmp(local_end_block.0, results);
+                blocks_to_merge.push(local_end_block);
+            })?;
 
             self.builder.switch_to_block(else_block);
         }
@@ -816,15 +836,21 @@ impl FunctionContext<'_> {
         blocks_to_merge.push((last_local_end_block, last_results));
 
         if let Some(branch) = &match_expr.default_case {
-            let results = self.codegen_expression(branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            let results = self.codegen_expression(branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
         } else {
             // If there is no default case, assume we saved the last case from the
             // last_case optimization above
             let case = match_expr.cases.last().unwrap();
             self.bind_case_arguments(variable, case);
-            let results = self.codegen_expression(&case.branch)?.into_value_list(self);
-            self.builder.terminate_with_jmp(last_local_end_block, results);
+            let results = self.codegen_expression(&case.branch);
+            self.codegen_unless_break_or_continue(results, |this, results| {
+                let results = results.into_value_list(this);
+                this.builder.terminate_with_jmp(last_local_end_block, results);
+            })?;
         }
 
         // Merge blocks as last-in first-out:
@@ -1010,10 +1036,10 @@ impl FunctionContext<'_> {
                         one,
                     );
 
-                    self.codegen_slice_access_check(arguments[2], Some(len_plus_one));
+                    self.codegen_access_check(arguments[2], len_plus_one);
                 }
                 Intrinsic::SliceRemove => {
-                    self.codegen_slice_access_check(arguments[2], Some(arguments[0]));
+                    self.codegen_access_check(arguments[2], arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
@@ -1029,22 +1055,12 @@ impl FunctionContext<'_> {
     fn codegen_let(&mut self, let_expr: &ast::Let) -> Result<Values, RuntimeError> {
         let mut values = self.codegen_expression(&let_expr.expression)?;
 
-        // Don't mutate the reference count if we're assigning an array literal to a Let:
-        // `let mut foo = [1, 2, 3];`
-        // we consider the array to be moved, so we should have an initial rc of just 1.
-        let should_inc_rc = !let_expr.expression.is_array_or_slice_literal();
-
         values = values.map(|value| {
             let value = value.eval(self);
 
             Tree::Leaf(if let_expr.mutable {
-                self.new_mutable_variable(value, should_inc_rc)
+                self.new_mutable_variable(value)
             } else {
-                // `new_mutable_variable` increments rcs internally so we have to
-                // handle it separately for the immutable case
-                if should_inc_rc {
-                    self.builder.increment_array_reference_count(value);
-                }
                 value::Value::Normal(value)
             })
         });
@@ -1101,19 +1117,13 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_assign(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let lhs = self.extract_current_value(&assign.lvalue)?;
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
         let rhs = self.codegen_expression(&assign.expression)?;
-        let should_inc_rc = !assign.expression.is_array_or_slice_literal();
-
-        rhs.clone().for_each(|value| {
-            let value = value.eval(self);
-
-            if should_inc_rc {
-                self.builder.increment_array_reference_count(value);
-            }
-        });
+        let lhs = self.extract_current_value(&assign.lvalue)?;
 
         self.assign_new_value(lhs, rhs);
+
         Ok(Self::unit_value())
     }
 
@@ -1122,13 +1132,14 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_break(&mut self) -> Values {
+    fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
         let loop_end = self.current_loop().loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
-        Self::unit_value()
+
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
     }
 
-    fn codegen_continue(&mut self) -> Values {
+    fn codegen_continue(&mut self) -> Result<Values, RuntimeError> {
         let loop_ = self.current_loop();
 
         // Must remember to increment i before jumping
@@ -1138,6 +1149,48 @@ impl FunctionContext<'_> {
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
         }
-        Self::unit_value()
+
+        Err(RuntimeError::BreakOrContinue { call_stack: CallStack::default() })
+    }
+
+    /// Evaluate the given expression, increment the reference count of each array within,
+    /// and return the evaluated expression.
+    fn codegen_clone(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        Ok(values.map(|value| {
+            let value = value.eval(self);
+            self.builder.increment_array_reference_count(value);
+            Values::from(value)
+        }))
+    }
+
+    /// Evaluate the given expression, decrement the reference count of each array within,
+    /// and return unit.
+    fn codegen_drop(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
+        let values = self.codegen_expression(expr)?;
+        values.for_each(|value| {
+            let value = value.eval(self);
+            self.builder.decrement_array_reference_count(value);
+        });
+        Ok(Self::unit_value())
+    }
+
+    #[must_use = "do not forget to add `?` at the end of this function call"]
+    fn codegen_unless_break_or_continue<T, F>(
+        &mut self,
+        result: Result<T, RuntimeError>,
+        f: F,
+    ) -> Result<(), RuntimeError>
+    where
+        F: FnOnce(&mut Self, T),
+    {
+        match result {
+            Ok(value) => {
+                f(self, value);
+                Ok(())
+            }
+            Err(RuntimeError::BreakOrContinue { .. }) => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 }

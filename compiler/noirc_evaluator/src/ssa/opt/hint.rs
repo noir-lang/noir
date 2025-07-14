@@ -3,12 +3,10 @@ mod tests {
     use acvm::acir::circuit::ExpressionWidth;
 
     use crate::{
+        assert_ssa_snapshot,
         brillig::BrilligOptions,
         errors::RuntimeError,
-        ssa::{
-            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, opt::assert_normalized_ssa_equals,
-            optimize_all,
-        },
+        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes},
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
@@ -23,15 +21,11 @@ mod tests {
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
+            skip_passes: Default::default(),
         };
 
-        let builder = SsaBuilder {
-            ssa,
-            ssa_logging: options.ssa_logging.clone(),
-            print_codegen_timings: false,
-        };
-
-        optimize_all(builder, options)
+        let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);
+        Ok(builder.run_passes(&primary_passes(options))?.finish())
     }
 
     /// Test that the `std::hint::black_box` function prevents some of the optimizations.
@@ -84,23 +78,20 @@ mod tests {
           }
         ";
 
-        // After Array Set Optimizations:
-        let expected = "
-          acir(inline) impure fn main f0 {
-            b0(v0: u32):
-              constrain u32 50 == v0
-              v4 = call black_box(u32 10) -> u32
-              v5 = add v4, v4
-              v6 = add v5, v4
-              v7 = add v6, v4
-              v8 = add v7, v4
-              constrain v8 == u32 50
-              return
-          }
-        ";
-
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = run_all_passes(ssa).unwrap();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u32):
+            constrain u32 50 == v0
+            v4 = call black_box(u32 10) -> u32
+            v5 = add v4, v4
+            v6 = add v5, v4
+            v7 = add v6, v4
+            v8 = add v7, v4
+            constrain v8 == u32 50
+            return
+        }
+        ");
     }
 }

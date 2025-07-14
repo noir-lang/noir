@@ -4,6 +4,7 @@ use std::{
 };
 
 use async_lsp::ResponseError;
+use async_lsp::lsp_types;
 use lsp_types::{
     PrepareRenameResponse, RenameParams, TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
@@ -44,7 +45,7 @@ pub(crate) fn on_rename_request(
             false,
         )
         .map(|locations| {
-            let rs = locations.iter().fold(
+            locations.iter().fold(
                 HashMap::new(),
                 |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
                     let edit =
@@ -52,8 +53,7 @@ pub(crate) fn on_rename_request(
                     acc.entry(location.uri.clone()).or_default().push(edit);
                     acc
                 },
-            );
-            rs
+            )
         });
 
         let response = WorkspaceEdit {
@@ -71,7 +71,7 @@ pub(crate) fn on_rename_request(
 mod rename_tests {
     use super::*;
     use crate::test_utils::{self, search_in_file};
-    use lsp_types::{Range, WorkDoneProgressParams};
+    use async_lsp::lsp_types::{Range, WorkDoneProgressParams};
     use tokio::test;
 
     async fn check_rename_succeeds(directory: &str, name: &str) {

@@ -9,10 +9,14 @@ use crate::{
     DataType, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        Literal, NoirEnumeration, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, NoirEnumeration, StatementKind, UnresolvedType,
     },
     elaborator::path_resolution::PathResolutionItem,
-    hir::{comptime::Value, resolution::errors::ResolverError, type_check::TypeCheckError},
+    hir::{
+        comptime::Value,
+        resolution::{errors::ResolverError, import::PathResolutionError},
+        type_check::TypeCheckError,
+    },
     hir_def::{
         expr::{
             Case, Constructor, HirBlockExpression, HirEnumConstructorExpression, HirExpression,
@@ -27,7 +31,7 @@ use crate::{
     token::Attributes,
 };
 
-use super::Elaborator;
+use super::{Elaborator, TypedPathSegment, path_resolution::PathResolutionTarget};
 
 const WILDCARD_PATTERN: &str = "_";
 
@@ -164,6 +168,7 @@ impl Elaborator<'_> {
             Vec::new(),
             false,
             false,
+            ItemVisibility::Public,
         );
 
         let mut typ = self_type.clone();
@@ -246,6 +251,7 @@ impl Elaborator<'_> {
             location,
             has_body: false,
             trait_constraints: Vec::new(),
+            extra_trait_constraints: Vec::new(),
             type_id: Some(type_id),
             trait_id: None,
             trait_impl: None,
@@ -394,8 +400,11 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(value)) => {
-                let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+            ExpressionKind::Literal(Literal::Integer(value, suffix)) => {
+                let actual = match suffix {
+                    Some(suffix) => suffix.as_type(),
+                    None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
+                };
                 unify_with_expected_type(self, &actual);
                 Pattern::Int(value)
             }
@@ -405,6 +414,8 @@ impl Elaborator<'_> {
                 Pattern::Constructor(constructor, Vec::new())
             }
             ExpressionKind::Variable(path) => {
+                let path = self.validate_path(path);
+
                 // A variable can be free or bound if it refers to an enum constant:
                 // - in `(a, b)`, both variables may be free and should be defined, or
                 //   may refer to an enum variant named `a` or `b` in scope.
@@ -412,14 +423,14 @@ impl Elaborator<'_> {
                 //   when there is a matching enum variant with name `Foo::a` which can
                 //   be imported. The user likely intended to reference the enum variant.
                 let location = path.location;
-                let last_ident = path.last_ident();
 
                 // Setting this to `Some` allows us to shadow globals with the same name.
                 // We should avoid this if there is a `::` in the path since that means the
                 // user is trying to resolve to a non-local item.
-                let shadow_existing = path.is_ident().then_some(last_ident);
 
-                match self.resolve_path_or_error(path) {
+                let shadow_existing = path.as_single_segment().cloned();
+
+                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     Ok(resolution) => self.path_resolution_to_constructor(
                         resolution,
                         shadow_existing,
@@ -430,7 +441,18 @@ impl Elaborator<'_> {
                     ),
                     Err(error) => {
                         if let Some(name) = shadow_existing {
-                            self.define_pattern_variable(name, expected_type, variables_defined)
+                            if name.generics.is_some() {
+                                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                                    item: "local variables".to_string(),
+                                    location: name.turbofish_location(),
+                                });
+                            }
+
+                            self.define_pattern_variable(
+                                name.ident,
+                                expected_type,
+                                variables_defined,
+                            )
                         } else {
                             self.push_err(error);
                             Pattern::Error
@@ -542,7 +564,7 @@ impl Elaborator<'_> {
         let mut fields = BTreeMap::default();
         for (field_name, field) in constructor.fields {
             let Some(field_index) =
-                expected_field_types.iter().position(|(name, _)| *name == field_name.as_str())
+                expected_field_types.iter().position(|(name, _, _)| *name == field_name.as_str())
             else {
                 let error = if fields.contains_key(field_name.as_str()) {
                     ResolverError::DuplicateField { field: field_name }
@@ -554,7 +576,8 @@ impl Elaborator<'_> {
                 continue;
             };
 
-            let (field_name, expected_field_type) = expected_field_types.swap_remove(field_index);
+            let (field_name, expected_field_type, _) =
+                expected_field_types.swap_remove(field_index);
             let pattern =
                 self.expression_to_pattern(field, &expected_field_type, variables_defined);
             fields.insert(field_name, pattern);
@@ -562,7 +585,7 @@ impl Elaborator<'_> {
 
         if !expected_field_types.is_empty() {
             let struct_definition = struct_name;
-            let missing_fields = vecmap(expected_field_types, |(name, _)| name);
+            let missing_fields = vecmap(expected_field_types, |(name, _, _)| name);
             let error =
                 ResolverError::MissingFields { location, missing_fields, struct_definition };
             self.push_err(error);
@@ -587,8 +610,9 @@ impl Elaborator<'_> {
         match name.kind {
             ExpressionKind::Variable(path) => {
                 let location = path.location;
+                let path = self.validate_path(path);
 
-                match self.resolve_path_or_error(path) {
+                match self.resolve_path_or_error(path, PathResolutionTarget::Value) {
                     // Use None for `name` here - we don't want to define a variable if this
                     // resolves to an existing item.
                     Ok(resolution) => self.path_resolution_to_constructor(
@@ -638,7 +662,7 @@ impl Elaborator<'_> {
     fn path_resolution_to_constructor(
         &mut self,
         resolution: PathResolutionItem,
-        name: Option<Ident>,
+        name: Option<TypedPathSegment>,
         args: Vec<Expression>,
         expected_type: &Type,
         location: Location,
@@ -669,7 +693,7 @@ impl Elaborator<'_> {
                 let actual_type = global_type.instantiate(self.interner).0;
                 (actual_type, Vec::new(), variant_index)
             }
-            PathResolutionItem::Method(_type_id, _type_turbofish, func_id) => {
+            PathResolutionItem::Method(_, _, func_id) | PathResolutionItem::SelfMethod(func_id) => {
                 // TODO(#7430): Take type_turbofish into account when instantiating the function's type
                 let meta = self.interner.function_meta(func_id);
                 let Some(variant_index) = meta.enum_variant_index else {
@@ -689,14 +713,28 @@ impl Elaborator<'_> {
             PathResolutionItem::Module(_)
             | PathResolutionItem::Type(_)
             | PathResolutionItem::TypeAlias(_)
+            | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(_)
-            | PathResolutionItem::TypeAliasFunction(_, _, _)
-            | PathResolutionItem::TraitFunction(_, _, _) => {
+            | PathResolutionItem::TypeAliasFunction(..)
+            | PathResolutionItem::TraitFunction(..)
+            | PathResolutionItem::TypeTraitFunction(..)
+            | PathResolutionItem::PrimitiveFunction(..) => {
                 // This variable refers to an existing item
                 if let Some(name) = name {
                     // If name is set, shadow the existing item
-                    return self.define_pattern_variable(name, expected_type, variables_defined);
+                    if name.generics.is_some() {
+                        self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                            item: "local variables".to_string(),
+                            location: name.turbofish_location(),
+                        });
+                    }
+                    return self.define_pattern_variable(
+                        name.ident,
+                        expected_type,
+                        variables_defined,
+                    );
                 } else {
                     let item = resolution.description();
                     self.push_err(ResolverError::UnexpectedItemInPattern { location, item });
@@ -777,11 +815,12 @@ impl Elaborator<'_> {
         Pattern::Int(value)
     }
 
+    #[allow(clippy::type_complexity)]
     fn struct_name_and_field_types(
         &mut self,
         typ: &Type,
         location: Location,
-    ) -> Option<(Ident, Vec<(String, Type)>)> {
+    ) -> Option<(Ident, Vec<(String, Type, ItemVisibility)>)> {
         if let Type::DataType(typ, generics) = typ.follow_bindings_shallow().as_ref() {
             if let Some(fields) = typ.borrow().get_fields(generics) {
                 return Some((typ.borrow().name.clone(), fields));
@@ -869,7 +908,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
-            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+            Type::TypeVariable(typevar) if typevar.is_integer() || typevar.is_integer_or_field() => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
@@ -914,7 +953,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     let typ = Type::DataType(type_def, generics);
 
                     // Just treat structs as a single-variant type
-                    let fields = vecmap(fields, |(_name, typ)| typ);
+                    let fields = vecmap(fields, |(_name, typ, _)| typ);
                     let constructor = Constructor::Variant(typ, 0);
                     let field_variables = self.fresh_match_variables(fields, location);
                     let cases = vec![(constructor, field_variables, Vec::new())];
@@ -936,7 +975,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
             | Type::TypeVariable(_)
             | Type::FmtString(_, _)
             | Type::TraitAsType(_, _, _)
-            | Type::NamedGeneric(_, _)
+            | Type::NamedGeneric(_)
             | Type::CheckedCast { .. }
             | Type::Function(_, _, _, _)
             | Type::Reference(..)
@@ -955,11 +994,18 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         variable_types: Vec<Type>,
         location: Location,
     ) -> Vec<DefinitionId> {
-        vecmap(variable_types, |typ| self.fresh_match_variable(typ, location))
+        vecmap(variable_types.into_iter().enumerate(), |(index, typ)| {
+            self.fresh_match_variable(index, typ, location)
+        })
     }
 
-    fn fresh_match_variable(&mut self, variable_type: Type, location: Location) -> DefinitionId {
-        let name = "internal_match_variable".to_string();
+    fn fresh_match_variable(
+        &mut self,
+        index: usize,
+        variable_type: Type,
+        location: Location,
+    ) -> DefinitionId {
+        let name = format!("internal_match_variable_{index}");
         let kind = DefinitionKind::Local(None);
         let id = self.elaborator.interner.push_definition(name, false, false, kind, location);
         self.elaborator.interner.push_definition_type(id, variable_type);
@@ -968,7 +1014,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Compiles the cases and fallback cases for integer and range patterns.
     ///
-    /// Integers have an infinite number of constructors, so we specialise the
+    /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
     fn compile_int_cases(
         &mut self,

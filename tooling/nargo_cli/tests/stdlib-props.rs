@@ -1,22 +1,19 @@
-use std::{cell::RefCell, collections::BTreeMap, path::Path};
+mod common;
 
-use acvm::{AcirField, FieldElement, acir::native_types::WitnessStack};
-use iter_extended::vecmap;
-use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program, parse_all};
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+
+use acvm::{FieldElement, acir::native_types::WitnessStack};
+use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
-use noirc_driver::{
-    CompilationResult, CompileOptions, CompiledProgram, CrateId, compile_main,
-    file_manager_with_stdlib, prepare_crate,
-};
-use noirc_frontend::hir::Context;
 use proptest::prelude::*;
 
 /// Inputs and expected output of a snippet encoded in ABI format.
 #[derive(Debug)]
 struct SnippetInputOutput {
-    description: String,
-    inputs: BTreeMap<String, InputValue>,
-    expected_output: InputValue,
+    pub description: String,
+    pub inputs: BTreeMap<String, InputValue>,
+    pub expected_output: InputValue,
 }
 impl SnippetInputOutput {
     fn new(inputs: Vec<(&str, InputValue)>, output: InputValue) -> Self {
@@ -26,42 +23,6 @@ impl SnippetInputOutput {
             expected_output: output,
         }
     }
-
-    /// Attach some description to hint at the scenario we are testing.
-    fn with_description(mut self, description: String) -> Self {
-        self.description = description;
-        self
-    }
-}
-
-/// Prepare a code snippet.
-fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
-    let root = Path::new("");
-    let file_name = Path::new("main.nr");
-    let mut file_manager = file_manager_with_stdlib(root);
-    file_manager.add_file_with_source(file_name, source).expect(
-        "Adding source buffer to file manager should never fail when file manager is empty",
-    );
-    let parsed_files = parse_all(&file_manager);
-
-    let mut context = Context::new(file_manager, parsed_files);
-    let root_crate_id = prepare_crate(&mut context, file_name);
-
-    (context, root_crate_id)
-}
-
-/// Compile the main function in a code snippet.
-///
-/// Use `force_brillig` to test it as an unconstrained function without having to change the code.
-/// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-fn prepare_and_compile_snippet(
-    source: String,
-    force_brillig: bool,
-) -> CompilationResult<CompiledProgram> {
-    let (mut context, root_crate_id) = prepare_snippet(source);
-    let options = CompileOptions { force_brillig, ..Default::default() };
-    // TODO: Run nargo::ops::transform_program?
-    compile_main(&mut context, root_crate_id, &options, None)
 }
 
 /// Compile a snippet and run property tests against it by generating random input/output pairs
@@ -72,7 +33,7 @@ fn run_snippet_proptest(
     force_brillig: bool,
     strategy: BoxedStrategy<SnippetInputOutput>,
 ) {
-    let program = match prepare_and_compile_snippet(source.clone(), force_brillig) {
+    let program = match common::prepare_and_compile_snippet(source.clone(), force_brillig) {
         Ok((program, _)) => program,
         Err(e) => panic!("failed to compile program; brillig = {force_brillig}:\n{source}\n{e:?}"),
     };
@@ -128,88 +89,264 @@ fn fuzz_basic() {
     run_snippet_proptest(program.to_string(), false, strategy);
 }
 
-#[test]
-fn fuzz_poseidon2_equivalence() {
-    use bn254_blackbox_solver::poseidon_hash;
-
-    // Test empty, small, then around the RATE value, then bigger inputs.
-    for max_len in [0, 1, 3, 4, 100] {
-        let source = format!(
-            "fn main(input: [Field; {max_len}], message_size: u32) -> pub Field {{
-                std::hash::poseidon2::Poseidon2::hash(input, message_size)
-            }}"
-        );
-
-        let strategy = (0..=max_len)
-            .prop_flat_map(field_vec_strategy)
-            .prop_map(move |mut msg| {
-                let output = poseidon_hash(&msg, msg.len() < max_len).expect("failed to hash");
-
-                // The input has to be padded to the maximum length.
-                let msg_size = msg.len();
-                msg.resize(max_len, FieldElement::from(0u64));
-
-                let inputs = vec![
-                    ("input", InputValue::Vec(vecmap(msg, InputValue::Field))),
-                    ("message_size", InputValue::Field(FieldElement::from(msg_size))),
-                ];
-
-                SnippetInputOutput::new(inputs, InputValue::Field(output))
-                    .with_description(format!("max_len = {max_len}"))
-            })
-            .boxed();
-
-        run_snippet_proptest(source.clone(), false, strategy);
+fn make_field_cast_test(size: u32, signed: bool) -> String {
+    if signed {
+        format!(
+            "fn main(x: i{size}) -> pub Field {{
+            x as u{size} as Field
+         }}
+         "
+        )
+    } else {
+        format!(
+            "fn main(x: u{size}) -> pub Field {{
+            x as Field
+}}"
+        )
     }
 }
 
+fn get_unsigned_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
+    let strategy_u8 = any::<u8>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    let strategy_u16 = any::<u16>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    let strategy_u32 = any::<u32>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    let strategy_u64 = any::<u64>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    let strategy_u128 = any::<u128>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field(x.into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    vec![
+        (8, strategy_u8),
+        (16, strategy_u16),
+        (32, strategy_u32),
+        (64, strategy_u64),
+        (128, strategy_u128),
+    ]
+}
+fn get_signed_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
+    let strategy_i8 = any::<u8>()
+        .prop_map(|mut x| {
+            if x == 128 {
+                x = 0;
+            }
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+
+    let strategy_i16 = any::<u16>()
+        .prop_map(|mut x| {
+            if x == 32768 {
+                x = 0;
+            }
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    let strategy_i32 = any::<u32>()
+        .prop_map(|mut x| {
+            if x == 2147483648 {
+                x = 0;
+            }
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field(0_u128.into()),
+            )
+        })
+        .boxed();
+    vec![(8, strategy_i8), (16, strategy_i16), (32, strategy_i32)]
+}
+
+fn get_truncate_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
+    let strategy_u16 = any::<u16>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field((x as u128).into()),
+            )
+        })
+        .boxed();
+    let strategy_u32 = any::<u32>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field((x as u128).into()),
+            )
+        })
+        .boxed();
+    let strategy_u64 = any::<u64>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field((x as u128).into()))],
+                InputValue::Field((x as u128).into()),
+            )
+        })
+        .boxed();
+    let strategy_u128 = any::<u128>()
+        .prop_map(|x| {
+            SnippetInputOutput::new(
+                vec![("x", InputValue::Field(x.into()))],
+                InputValue::Field(x.into()),
+            )
+        })
+        .boxed();
+
+    vec![(16, strategy_u16), (32, strategy_u32), (64, strategy_u64), (128, strategy_u128)]
+}
+
+/// The tests fuzz_zero_extend(), fuzz_signed_unsigned_same_size(), fuzz_sign_extend() and fuzz_truncate()
+/// ensure that casting between integer types is correct, assuming casting to Field is correct.
+/// Casting to Field is validated with the fuzz_field_cast() test.
+/// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
+/// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
+///
+/// Check that casting to Field is a no-op
 #[test]
-fn fuzz_poseidon_equivalence() {
-    use light_poseidon::{Poseidon, PoseidonHasher};
-
-    let poseidon_hash = |inputs: &[FieldElement]| {
-        let mut poseidon = Poseidon::<ark_bn254::Fr>::new_circom(inputs.len()).unwrap();
-        let frs: Vec<ark_bn254::Fr> = inputs.iter().map(|f| f.into_repr()).collect::<Vec<_>>();
-        let hash: ark_bn254::Fr = poseidon.hash(&frs).expect("failed to hash");
-        FieldElement::from_repr(hash)
-    };
-
-    // Noir has hashes up to length 16, but the reference library won't work with more than 12.
-    for len in 1..light_poseidon::MAX_X5_LEN {
-        let source = format!(
-            "
-            use std::hash::{{Hash, Hasher}};
-
-            fn main(input: [Field; {len}]) -> pub Field {{
-                let h1 = std::hash::poseidon::bn254::hash_{len}(input);
-                let h2 = {{
-                    let mut hasher = std::hash::poseidon::PoseidonHasher::default();
-                    input.hash(&mut hasher);
-                    hasher.finish()
-                }};
-                assert_eq(h1, h2);
-                h1
-            }}"
-        );
-
-        let strategy = field_vec_strategy(len)
-            .prop_map(move |msg| {
-                let output = poseidon_hash(&msg);
-                let inputs = vec![("input", InputValue::Vec(vecmap(msg, InputValue::Field)))];
-
-                SnippetInputOutput::new(inputs, InputValue::Field(output))
-                    .with_description(format!("len = {len}"))
-            })
-            .boxed();
-
-        run_snippet_proptest(source.clone(), false, strategy);
+fn fuzz_field_cast() {
+    for (size, strategy) in get_truncate_strategies().iter() {
+        if *size < 128 {
+            let signed_i = make_field_cast_test(*size, true);
+            run_snippet_proptest(signed_i.clone(), false, strategy.clone());
+            run_snippet_proptest(signed_i, true, strategy.clone());
+        }
+        let unsigned_i = make_field_cast_test(*size, false);
+        run_snippet_proptest(unsigned_i.clone(), false, strategy.clone());
+        run_snippet_proptest(unsigned_i, true, strategy.clone());
     }
 }
 
-fn field_vec_strategy(len: usize) -> impl Strategy<Value = Vec<FieldElement>> {
-    // Generate Field elements from random 32 byte vectors.
-    let field = prop::collection::vec(any::<u8>(), 32)
-        .prop_map(|bytes| FieldElement::from_be_bytes_reduce(&bytes));
+fn make_zero_extend_test(in_size: u32, out_size: u32) -> String {
+    format!(
+        "fn main(x: u{in_size}) -> pub Field {{
+        let y = x as u{out_size};
+        y as Field - x as Field
+}}"
+    )
+}
 
-    prop::collection::vec(field, len)
+/// Check that up-casting unsigned types is correct
+#[test]
+fn fuzz_zero_extend() {
+    let strategies = get_unsigned_strategies();
+    // zero extend 8, 16, 32, 64, 128 bits
+    for (size, strategy) in strategies.iter() {
+        for i in [8, 16, 32, 64, 128].iter() {
+            if *i >= *size {
+                let unsigned_j_i = make_zero_extend_test(*size, *i);
+                run_snippet_proptest(unsigned_j_i.clone(), false, strategy.clone());
+                run_snippet_proptest(unsigned_j_i, true, strategy.clone());
+            }
+        }
+    }
+}
+
+fn make_sign_unsigned_test(size: u32) -> String {
+    format!(
+        "fn main(x: i{size}) -> pub Field {{
+    let y = x as u{size};
+    let z = y as i{size};
+    assert(z == x);
+    0
+}}"
+    )
+}
+
+/// Check that signed to unsigned and unsigned to signed, with the same bit size, do not change the inner value.
+#[test]
+fn fuzz_signed_unsigned_same_size() {
+    let strategies = get_unsigned_strategies();
+
+    for (size, strategy) in strategies.iter() {
+        if *size < 128 {
+            let signed_unsigned_i_i = make_sign_unsigned_test(*size);
+            run_snippet_proptest(signed_unsigned_i_i.clone(), false, strategy.clone());
+            run_snippet_proptest(signed_unsigned_i_i, true, strategy.clone());
+        }
+    }
+}
+
+fn make_sign_extend_test(in_size: u32, out_size: u32) -> String {
+    format!(
+        "fn main(x: i{in_size}) -> pub Field {{
+         let neg = -x;
+     let y = x as i{out_size};
+     let neg_y = neg as i{out_size};
+     (neg_y+y) as u{out_size} as Field
+}}"
+    )
+}
+#[test]
+// Test sign extension
+fn fuzz_sign_extend() {
+    for (size, strategy) in get_signed_strategies().iter() {
+        for i in [16, 32, 64] {
+            if i > *size {
+                // sign extend
+                let signed_i_i = make_sign_extend_test(*size, i);
+                run_snippet_proptest(signed_i_i.clone(), false, strategy.clone());
+                run_snippet_proptest(signed_i_i, true, strategy.clone());
+            }
+        }
+    }
+}
+
+fn make_truncate_test(size: u32, truncate: u32) -> String {
+    let max: u128 = 1 << truncate;
+
+    format!(
+        "fn main(x: u{size}) -> pub u{size} {{
+        let y = x as u{truncate};
+        let q = (x as Field - y as Field)/{max};
+        (q as u{size})*{max} + y as u{size}
+}}"
+    )
+}
+/// Check that truncation between unsigned types is correct
+#[test]
+fn fuzz_truncate() {
+    for (size, strategy) in get_truncate_strategies().iter() {
+        for i in [8, 16, 32, 64] {
+            if i < *size {
+                let unsigned_j_i = make_truncate_test(*size, i);
+                run_snippet_proptest(unsigned_j_i.clone(), false, strategy.clone());
+                run_snippet_proptest(unsigned_j_i, true, strategy.clone());
+            }
+        }
+    }
 }

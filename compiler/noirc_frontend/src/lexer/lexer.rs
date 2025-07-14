@@ -2,7 +2,9 @@ use crate::token::DocStyle;
 
 use super::{
     errors::LexerErrorKind,
-    token::{FmtStrFragment, IntType, Keyword, LocatedToken, SpannedToken, Token, Tokens},
+    token::{
+        FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, SpannedToken, Token, Tokens,
+    },
 };
 use acvm::{AcirField, FieldElement};
 use fm::FileId;
@@ -52,7 +54,7 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
                 - BigInt::one(),
         }
     }
@@ -102,10 +104,9 @@ impl<'a> Lexer<'a> {
 
     fn ampersand(&mut self) -> SpannedTokenResult {
         if self.peek_char_is('&') {
-            // When we issue this error the first '&' will already be consumed
-            // and the next token issued will be the next '&'.
-            let span = Span::inclusive(self.position, self.position + 1);
-            Err(LexerErrorKind::LogicalAnd { location: self.location(span) })
+            let start = self.position;
+            self.next_char();
+            Ok(Token::LogicalAnd.into_span(start, start + 1))
         } else if self.peek_char_is('[') {
             self.single_char_token(Token::SliceStart)
         } else {
@@ -175,6 +176,23 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
+            // cSpell:disable
+            Some(ch)
+                if ch.is_whitespace()
+                    // These aren't unicode whitespace but look like '' so they are also misleading
+                    || ch == '\u{180E}'
+                    || ch == '\u{200B}'
+                    || ch == '\u{200C}'
+                    || ch == '\u{200D}'
+                    || ch == '\u{2060}'
+                    || ch == '\u{FEFF}' =>
+            {
+                // cSpell:enable
+                let span = Span::from(self.position..self.position + 1);
+                let location = Location::new(span, self.file_id);
+                self.next_char();
+                Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char: ch, location })
+            }
             Some(ch) if ch.is_ascii_alphanumeric() || ch == '_' => self.eat_alpha_numeric(ch),
             Some(ch) => {
                 // We don't report invalid tokens in the source as errors until parsing to
@@ -319,7 +337,7 @@ impl<'a> Lexer<'a> {
     fn eat_alpha_numeric(&mut self, initial_char: char) -> SpannedTokenResult {
         match initial_char {
             'A'..='Z' | 'a'..='z' | '_' => Ok(self.eat_word(initial_char)?),
-            '0'..='9' => self.eat_digit(initial_char),
+            '0'..='9' => self.eat_digits(initial_char),
             _ => Err(LexerErrorKind::UnexpectedCharacter {
                 location: self.location(Span::single_char(self.position)),
                 found: initial_char.into(),
@@ -384,46 +402,27 @@ impl<'a> Lexer<'a> {
             return Ok(keyword_token.into_span(start, end));
         }
 
-        // Check if word an int type
-        // if no error occurred, then it is either a valid integer type or it is not an int type
-        let parsed_token = IntType::lookup_int_type(&word);
-
-        // Check if it is an int type
-        if let Some(int_type) = parsed_token {
-            return Ok(Token::IntType(int_type).into_span(start, end));
-        }
-
         // Else it is just an identifier
         let ident_token = Token::Ident(word);
         Ok(ident_token.into_span(start, end))
     }
 
-    fn eat_digit(&mut self, initial_char: char) -> SpannedTokenResult {
+    fn eat_digits(&mut self, initial_char: char) -> SpannedTokenResult {
         let start = self.position;
 
-        let integer_str = self.eat_while(Some(initial_char), |ch| {
-            ch.is_ascii_digit() | ch.is_ascii_hexdigit() | (ch == 'x') | (ch == '_')
+        let original_str = self.eat_while(Some(initial_char), |ch| {
+            // We eat any alphanumeric character. Even though we're only expecting
+            // integers, we don't want to allow things like `1234abc` to be lexed
+            // as an integer followed by an ident. We'd rather an invalid integer error here.
+            // This also lets us parse integer type suffixes more easily.
+            ch.is_ascii_alphanumeric() | (ch == '_')
         });
 
         let end = self.position;
 
-        // We want to enforce some simple rules about usage of underscores:
-        // 1. Underscores cannot appear at the end of a integer literal. e.g. 0x123_.
-        // 2. There cannot be more than one underscore consecutively, e.g. 0x5__5, 5__5.
-        //
-        // We're not concerned with an underscore at the beginning of a decimal literal
-        // such as `_5` as this would be lexed into an ident rather than an integer literal.
-        let invalid_underscore_location = integer_str.ends_with('_');
-        let consecutive_underscores = integer_str.contains("__");
-        if invalid_underscore_location || consecutive_underscores {
-            return Err(LexerErrorKind::InvalidIntegerLiteral {
-                location: self.location(Span::inclusive(start, end)),
-                found: integer_str,
-            });
-        }
-
         // Underscores needs to be stripped out before the literal can be converted to a `FieldElement.
-        let integer_str = integer_str.replace('_', "");
+        let mut integer_str = original_str.replace('_', "");
+        let type_suffix = Self::check_for_integer_type_suffix(&mut integer_str);
 
         let bigint_result = match integer_str.strip_prefix("0x") {
             Some(integer_str) => BigInt::from_str_radix(integer_str, 16),
@@ -444,13 +443,41 @@ impl<'a> Lexer<'a> {
             Err(_) => {
                 return Err(LexerErrorKind::InvalidIntegerLiteral {
                     location: self.location(Span::inclusive(start, end)),
-                    found: integer_str,
+                    found: original_str,
                 });
             }
         };
 
-        let integer_token = Token::Int(integer);
+        let integer_token = Token::Int(integer, type_suffix);
         Ok(integer_token.into_span(start, end))
+    }
+
+    /// Check for and return the type suffix on the integer string if it exists.
+    /// If there is a type suffix, it is also stripped from the string
+    fn check_for_integer_type_suffix(integer_string: &mut String) -> Option<IntegerTypeSuffix> {
+        let cases = [
+            ("i8", IntegerTypeSuffix::I8),
+            ("i16", IntegerTypeSuffix::I16),
+            ("i32", IntegerTypeSuffix::I32),
+            ("i64", IntegerTypeSuffix::I64),
+            ("u1", IntegerTypeSuffix::U1),
+            ("u8", IntegerTypeSuffix::U8),
+            ("u16", IntegerTypeSuffix::U16),
+            ("u32", IntegerTypeSuffix::U32),
+            ("u64", IntegerTypeSuffix::U64),
+            ("u128", IntegerTypeSuffix::U128),
+            ("Field", IntegerTypeSuffix::Field),
+        ];
+
+        let len = integer_string.len();
+        for (suffix_string, suffix_value) in cases {
+            if integer_string.ends_with(suffix_string) {
+                integer_string.truncate(len - suffix_string.len());
+                return Some(suffix_value);
+            }
+        }
+
+        None
     }
 
     fn eat_string_literal(&mut self) -> SpannedTokenResult {
@@ -985,26 +1012,6 @@ mod tests {
     }
 
     #[test]
-    fn test_int_type() {
-        let input = "u16 i16 i108 u104.5";
-
-        let expected = vec![
-            Token::IntType(IntType::Unsigned(16)),
-            Token::IntType(IntType::Signed(16)),
-            Token::IntType(IntType::Signed(108)),
-            Token::IntType(IntType::Unsigned(104)),
-            Token::Dot,
-            Token::Int(5_i128.into()),
-        ];
-
-        let mut lexer = Lexer::new_with_dummy_file(input);
-        for token in expected.into_iter() {
-            let got = lexer.next_token().unwrap();
-            assert_eq!(got, token);
-        }
-    }
-
-    #[test]
     fn test_int_too_large() {
         let modulus = FieldElement::modulus();
         let input = modulus.to_string();
@@ -1061,7 +1068,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1083,7 +1090,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1131,7 +1138,7 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("x".to_string()),
             Token::Assign,
-            Token::Int(FieldElement::from(5_i128)),
+            Token::Int(FieldElement::from(5_i128), None),
         ];
 
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1320,31 +1327,21 @@ mod tests {
     #[test]
     fn test_eat_integer_literals() {
         let test_cases: Vec<(&str, Token)> = vec![
-            ("0x05", Token::Int(5_i128.into())),
-            ("5", Token::Int(5_i128.into())),
-            ("0x1234_5678", Token::Int(0x1234_5678_u128.into())),
-            ("0x_01", Token::Int(0x1_u128.into())),
-            ("1_000_000", Token::Int(1_000_000_u128.into())),
+            ("0x05", Token::Int(5_i128.into(), None)),
+            ("5", Token::Int(5_i128.into(), None)),
+            ("0x1234_5678", Token::Int(0x1234_5678_u128.into(), None)),
+            ("0x_01", Token::Int(0x1_u128.into(), None)),
+            ("1_000_000", Token::Int(1_000_000_u128.into(), None)),
+            ("1__0___Field", Token::Int(10_u32.into(), Some(IntegerTypeSuffix::Field))),
+            ("0x1u1", Token::Int(1_u32.into(), Some(IntegerTypeSuffix::U1))),
+            ("97_i64", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::I64))),
+            ("97_u128", Token::Int(97_u32.into(), Some(IntegerTypeSuffix::U128))),
         ];
 
         for (input, expected_token) in test_cases {
             let mut lexer = Lexer::new_with_dummy_file(input);
             let got = lexer.next_token().unwrap();
             assert_eq!(got.token(), &expected_token);
-        }
-    }
-
-    #[test]
-    fn test_reject_invalid_underscores_in_integer_literal() {
-        let test_cases: Vec<&str> = vec!["0x05_", "5_", "5__5", "0x5__5"];
-
-        for input in test_cases {
-            let mut lexer = Lexer::new_with_dummy_file(input);
-            let token = lexer.next_token();
-            assert!(
-                matches!(token, Err(LexerErrorKind::InvalidIntegerLiteral { .. })),
-                "expected {input} to throw error"
-            );
         }
     }
 
@@ -1376,7 +1373,7 @@ mod tests {
 
         // Int position
         let int_position = whitespace_position + 1;
-        let int_token = Token::Int(5_i128.into()).into_single_span(int_position);
+        let int_token = Token::Int(5_i128.into(), None).into_single_span(int_position);
 
         let expected = vec![let_token, ident_token, assign_token, int_token];
         let mut lexer = Lexer::new_with_dummy_file(input);
@@ -1404,14 +1401,14 @@ mod tests {
             Token::Keyword(Keyword::Let),
             Token::Ident("five".to_string()),
             Token::Assign,
-            Token::Int(5_i128.into()),
+            Token::Int(5_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("ten".to_string()),
             Token::Colon,
-            Token::Keyword(Keyword::Field),
+            Token::Ident("Field".to_string()),
             Token::Assign,
-            Token::Int(10_i128.into()),
+            Token::Int(10_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Let),
             Token::Ident("mul".to_string()),
@@ -1437,7 +1434,7 @@ mod tests {
             Token::Ident("ten".to_string()),
             Token::RightParen,
             Token::Equal,
-            Token::Int(50_i128.into()),
+            Token::Int(50_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Assert),
             Token::LeftParen,
@@ -1445,7 +1442,7 @@ mod tests {
             Token::Plus,
             Token::Ident("five".to_string()),
             Token::Equal,
-            Token::Int(15_i128.into()),
+            Token::Int(15_i128.into(), None),
             Token::RightParen,
             Token::Semicolon,
             Token::EOF,
@@ -1462,7 +1459,7 @@ mod tests {
     //   (expected_token_discriminator, strings_to_lex)
     // expected_token_discriminator matches a given token when
     // std::mem::discriminant returns the same discriminant for both.
-    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+    fn big_list_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
         use base64::engine::general_purpose;
         use std::borrow::Cow;
         use std::io::Cursor;
@@ -1520,15 +1517,15 @@ mod tests {
     fn test_big_list_of_naughty_strings() {
         use std::mem::discriminant;
 
-        let blns_contents = include_str!("./blns/blns.base64.json");
-        let blns_base64: Vec<String> =
-            serde_json::from_str(blns_contents).expect("BLNS json invalid");
-        for blns_base64_str in blns_base64 {
-            let statements = blns_base64_to_statements(blns_base64_str);
-            for (token_discriminator_opt, blns_program_strs) in statements {
-                for blns_program_str in blns_program_strs {
+        let big_list_contents = include_str!("./blns/blns.base64.json"); // cSpell:disable-line
+        let big_list_base64: Vec<String> =
+            serde_json::from_str(big_list_contents).expect("BLNS json invalid"); // cSpell:disable-line
+        for big_list_base64_str in big_list_base64 {
+            let statements = big_list_base64_to_statements(big_list_base64_str);
+            for (token_discriminator_opt, big_list_program_strings) in statements {
+                for big_list_program_str in big_list_program_strings {
                     let mut expected_token_found = false;
-                    let mut lexer = Lexer::new_with_dummy_file(&blns_program_str);
+                    let mut lexer = Lexer::new_with_dummy_file(&big_list_program_str);
                     let mut result_tokens = Vec::new();
                     loop {
                         match lexer.next_token() {
@@ -1559,7 +1556,7 @@ mod tests {
                             Err(err) => {
                                 panic!(
                                     "Unexpected lexer error found {:?} for input string {:?}",
-                                    err, blns_program_str
+                                    err, big_list_program_str
                                 )
                             }
                         }
@@ -1620,6 +1617,7 @@ mod tests {
 
     #[test]
     fn test_non_ascii_comments() {
+        // cSpell:disable-next-line
         let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
 
         for source in cases {
@@ -1629,5 +1627,15 @@ mod tests {
                 "Expected NonAsciiComment error"
             );
         }
+    }
+
+    #[test]
+    fn errors_on_non_unicode_whitespace() {
+        let str = "\u{0085}";
+        let mut lexer = Lexer::new_with_dummy_file(str);
+        assert!(matches!(
+            lexer.next_token(),
+            Err(LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { .. })
+        ));
     }
 }

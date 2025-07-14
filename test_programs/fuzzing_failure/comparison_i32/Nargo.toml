@@ -1,0 +1,3 @@
+[package]
+name = "comparison_i32"
+type = "bin"

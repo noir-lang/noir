@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 //! Nargo is the package manager for Noir
 //! This name was used because it sounds like `cargo` and
@@ -15,8 +13,11 @@ pub mod package;
 pub mod workspace;
 
 pub use self::errors::NargoError;
-pub use self::foreign_calls::print::PrintOutput;
-
+pub use self::ops::FuzzExecutionConfig;
+pub use self::ops::FuzzFolderConfig;
+use std::sync::Mutex;
+use std::sync::mpsc;
+use std::thread;
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     path::PathBuf,
@@ -29,7 +30,6 @@ use noirc_frontend::{
     hir::{Context, ParsedFiles, def_map::parse_file},
 };
 use package::{Dependency, Package};
-use rayon::prelude::*;
 use walkdir::WalkDir;
 
 pub fn prepare_dependencies(
@@ -48,42 +48,96 @@ pub fn prepare_dependencies(
     }
 }
 
-pub fn insert_all_files_for_workspace_into_file_manager(
-    workspace: &workspace::Workspace,
-    file_manager: &mut FileManager,
-) {
-    insert_all_files_for_workspace_into_file_manager_with_overrides(
-        workspace,
-        file_manager,
-        &HashMap::new(),
-    );
-}
-
-pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
-    workspace: &workspace::Workspace,
-    file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
-) {
-    let mut processed_entry_paths = HashSet::new();
-    for package in workspace.clone().into_iter() {
-        insert_all_files_for_package_into_file_manager(
-            package,
-            file_manager,
-            overrides,
-            &mut processed_entry_paths,
-        );
-    }
-}
 // We will pre-populate the file manager with all the files in the package
 // This is so that we can avoid having to read from disk when we are compiling
 //
 // This does not require parsing because we are interested in the files under the src directory
 // it may turn out that we do not need to include some Noir files that we add to the file
 // manager
-fn insert_all_files_for_package_into_file_manager(
-    package: &Package,
+
+pub fn insert_all_files_for_workspace_into_file_manager(
+    workspace: &workspace::Workspace,
     file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
+) {
+    insert_all_files_for_workspace_into_file_manager_with_overrides(workspace, file_manager, None);
+}
+
+pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
+    workspace: &workspace::Workspace,
+    file_manager: &mut FileManager,
+    overrides: Option<&HashMap<PathBuf, &str>>,
+) {
+    let mut processed_entry_paths = HashSet::new();
+
+    // We first collect all files, then add the overrides, and sort all of them
+    // so we always get a consistent order of the files, even if an override
+    // doesn't exist in the filesystem.
+    let mut filenames = Vec::new();
+    let mut seen_filenames = HashSet::new();
+    for package in workspace.clone().into_iter() {
+        collect_all_files_in_package(
+            package,
+            &mut filenames,
+            &mut seen_filenames,
+            &mut processed_entry_paths,
+        );
+    }
+    if let Some(overrides) = overrides {
+        filenames.extend(overrides.keys().cloned());
+    }
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
+}
+
+pub fn insert_all_files_under_path(
+    file_manager: &mut FileManager,
+    path: &std::path::Path,
+    overrides: Option<&HashMap<PathBuf, &str>>,
+) {
+    let mut filenames = Vec::new();
+    let mut seen_filenames = HashSet::new();
+    collect_all_files_under_path(path, &mut filenames, &mut seen_filenames);
+
+    if let Some(overrides) = overrides {
+        for override_name in overrides.keys() {
+            if seen_filenames.insert(override_name.clone()) {
+                filenames.push(override_name.clone());
+            }
+        }
+    }
+
+    // Overrides can only happen in an LSP session. In that case we need to sort
+    // all filenames for a consistent order.
+    // Outside of LSP there are no overrides and the order given by the filesystem
+    // is good and consistent across machines.
+    if overrides.is_some() {
+        filenames.sort();
+    }
+
+    insert_all_files_into_file_manager(file_manager, overrides, filenames);
+}
+
+fn insert_all_files_into_file_manager(
+    file_manager: &mut FileManager,
+    overrides: Option<&HashMap<PathBuf, &str>>,
+    filenames: Vec<PathBuf>,
+) {
+    for filename in filenames {
+        let source = if let Some(src) = overrides.and_then(|overrides| overrides.get(&filename)) {
+            src.to_string()
+        } else {
+            std::fs::read_to_string(filename.as_path())
+                .unwrap_or_else(|_| panic!("could not read file {:?} into string", filename))
+        };
+
+        file_manager.add_file_with_source(filename.as_path(), source);
+    }
+}
+
+fn collect_all_files_in_package(
+    package: &Package,
+    filenames: &mut Vec<PathBuf>,
+    seen_filenames: &mut HashSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
     if processed_entry_paths.contains(&package.entry_path) {
@@ -97,7 +151,43 @@ fn insert_all_files_for_package_into_file_manager(
         .parent()
         .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {:?}", package.entry_path));
 
-    for entry in WalkDir::new(entry_path_parent).sort_by_file_name() {
+    collect_all_files_under_path(entry_path_parent, filenames, seen_filenames);
+
+    collect_all_files_in_packages_dependencies(
+        package,
+        filenames,
+        seen_filenames,
+        processed_entry_paths,
+    );
+}
+
+// Collect all files for the dependencies of the package too
+fn collect_all_files_in_packages_dependencies(
+    package: &Package,
+    filenames: &mut Vec<PathBuf>,
+    seen_filenames: &mut HashSet<PathBuf>,
+    processed_entry_paths: &mut HashSet<PathBuf>,
+) {
+    for (_, dep) in package.dependencies.iter() {
+        match dep {
+            Dependency::Local { package } | Dependency::Remote { package } => {
+                collect_all_files_in_package(
+                    package,
+                    filenames,
+                    seen_filenames,
+                    processed_entry_paths,
+                );
+            }
+        }
+    }
+}
+
+fn collect_all_files_under_path(
+    path: &std::path::Path,
+    filenames: &mut Vec<PathBuf>,
+    seen_filenames: &mut HashSet<PathBuf>,
+) {
+    for entry in WalkDir::new(path).sort_by_file_name() {
         let Ok(entry) = entry else {
             continue;
         };
@@ -111,53 +201,19 @@ fn insert_all_files_for_package_into_file_manager(
         };
 
         let path = entry.into_path();
-
-        // Avoid reading the source if the file is already there
-        if file_manager.has_file(&path) {
-            continue;
-        }
-
-        let source = if let Some(src) = overrides.get(path.as_path()) {
-            src.to_string()
-        } else {
-            std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path))
-        };
-
-        file_manager.add_file_with_source(path.as_path(), source);
-    }
-
-    insert_all_files_for_packages_dependencies_into_file_manager(
-        package,
-        file_manager,
-        overrides,
-        processed_entry_paths,
-    );
-}
-
-// Inserts all files for the dependencies of the package into the file manager
-// too
-fn insert_all_files_for_packages_dependencies_into_file_manager(
-    package: &Package,
-    file_manager: &mut FileManager,
-    overrides: &HashMap<&std::path::Path, &str>,
-    processed_entry_paths: &mut HashSet<PathBuf>,
-) {
-    for (_, dep) in package.dependencies.iter() {
-        match dep {
-            Dependency::Local { package } | Dependency::Remote { package } => {
-                insert_all_files_for_package_into_file_manager(
-                    package,
-                    file_manager,
-                    overrides,
-                    processed_entry_paths,
-                );
-            }
+        if seen_filenames.insert(path.clone()) {
+            filenames.push(path);
         }
     }
 }
 
+const STACK_SIZE: usize = 8 * 1024 * 1024;
+
+#[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    use rayon::iter::ParallelBridge as _;
+    use rayon::iter::ParallelIterator as _;
+
     file_manager
         .as_file_map()
         .all_file_ids()
@@ -170,6 +226,58 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         })
         .map(|&file_id| (file_id, parse_file(file_manager, file_id)))
         .collect()
+}
+
+#[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
+pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
+    let num_threads = rayon::current_num_threads();
+    let (sender, receiver) = mpsc::channel();
+    let iter = &Mutex::new(file_manager.as_file_map().all_file_ids());
+
+    thread::scope(|scope| {
+        // Start worker threads
+        for _ in 0..num_threads {
+            // Clone sender so it's dropped once the thread finishes
+            let thread_sender = sender.clone();
+            thread::Builder::new()
+                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
+                // (the default is 2MB)
+                .stack_size(STACK_SIZE)
+                .spawn_scoped(scope, move || {
+                    loop {
+                        // Get next file to process from the iterator.
+                        let Some(&file_id) = iter.lock().unwrap().next() else {
+                            break;
+                        };
+
+                        let file_path = file_manager.path(file_id).expect("expected file to exist");
+                        let file_extension = file_path
+                            .extension()
+                            .expect("expected all file paths to have an extension");
+                        if file_extension != "nr" {
+                            continue;
+                        }
+
+                        let parsed_file = parse_file(file_manager, file_id);
+
+                        if thread_sender.send((file_id, parsed_file)).is_err() {
+                            break;
+                        }
+                    }
+                })
+                .unwrap();
+        }
+
+        // Also drop main sender so the channel closes
+        drop(sender);
+
+        let mut parsed_files = ParsedFiles::default();
+        while let Ok((file_id, parsed_file)) = receiver.recv() {
+            parsed_files.insert(file_id, parsed_file);
+        }
+
+        parsed_files
+    })
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

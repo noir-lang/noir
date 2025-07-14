@@ -1,6 +1,7 @@
 use std::{future::Future, pin::Pin};
 
 use acvm::acir::circuit::brillig::BrilligBytecode;
+use acvm::acir::circuit::opcodes::AcirFunctionId;
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use acvm::{
     acir::circuit::{Circuit, Program},
@@ -88,7 +89,7 @@ async fn execute_circuit_with_return_witness_pedantic(
     console_error_panic_hook::set_once();
 
     let program: Program<FieldElement> = Program::deserialize_program(&program)
-    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None, None))?;
+    .map_err(|_| JsExecutionError::new("Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), None, None, None, None))?;
 
     let mut witness_stack = execute_program_with_native_program_and_return(
         &program,
@@ -103,7 +104,7 @@ async fn execute_circuit_with_return_witness_pedantic(
     let main_circuit = &program.functions[0];
     let return_witness =
         extract_indices(&solved_witness, main_circuit.return_values.0.iter().copied().collect())
-            .map_err(|err| JsExecutionError::new(err, None, None, None))?;
+            .map_err(|err| JsExecutionError::new(err, None, None, None, None))?;
 
     Ok((solved_witness, return_witness).into())
 }
@@ -155,7 +156,7 @@ async fn execute_program_with_native_type_return(
         "Failed to deserialize circuit. This is likely due to differing serialization formats between ACVM_JS and your compiler".to_string(), 
         None,
         None,
-    None))?;
+    None, None))?;
 
     execute_program_with_native_program_and_return(
         &program,
@@ -216,7 +217,9 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
         let main = &self.functions[0];
 
         let mut witness_stack = WitnessStack::default();
-        let main_witness = self.execute_circuit(main, initial_witness, &mut witness_stack).await?;
+        let main_witness = self
+            .execute_circuit(main, AcirFunctionId(0), initial_witness, &mut witness_stack)
+            .await?;
         witness_stack.push(0, main_witness);
         Ok(witness_stack)
     }
@@ -224,10 +227,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
     fn execute_circuit(
         &'a self,
         circuit: &'a Circuit<FieldElement>,
+        acir_function_id: AcirFunctionId,
         initial_witness: WitnessMap<FieldElement>,
         witness_stack: &'a mut WitnessStack<FieldElement>,
     ) -> Pin<Box<dyn Future<Output = Result<WitnessMap<FieldElement>, Error>> + 'a>> {
-        Box::pin(async {
+        Box::pin(async move {
             let mut acvm = ACVM::new(
                 self.blackbox_solver,
                 &circuit.opcodes,
@@ -297,6 +301,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                             message,
                             call_stack,
                             raw_assertion_payload,
+                            Some(acir_function_id),
                             brillig_function_id,
                         )
                         .into());
@@ -311,7 +316,12 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                         let acir_to_call = &self.functions[call_info.id.as_usize()];
                         let initial_witness = call_info.initial_witness;
                         let call_solved_witness = self
-                            .execute_circuit(acir_to_call, initial_witness, witness_stack)
+                            .execute_circuit(
+                                acir_to_call,
+                                call_info.id,
+                                initial_witness,
+                                witness_stack,
+                            )
                             .await?;
                         let mut call_resolved_outputs = Vec::new();
                         for return_witness_index in acir_to_call.return_values.indices() {
@@ -321,7 +331,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 call_resolved_outputs.push(*return_value);
                             } else {
                                 // TODO: look at changing this call stack from None
-                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None, None, None).into());
+                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None, None, None, None).into());
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);

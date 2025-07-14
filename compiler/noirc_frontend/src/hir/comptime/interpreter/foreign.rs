@@ -4,16 +4,18 @@ use acvm::{
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
-use im::Vector;
+use im::{Vector, vector};
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
-    Type,
+    Kind, Type,
     hir::comptime::{
         InterpreterError, Value, errors::IResult,
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
     node_interner::NodeInterner,
+    signed_field::SignedField,
 };
 
 use super::{
@@ -21,7 +23,7 @@ use super::{
     builtin::builtin_helpers::{
         check_arguments, check_one_argument, check_three_arguments, check_two_arguments,
         get_array_map, get_bool, get_field, get_fixed_array_map, get_slice_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_field_array, to_struct,
+        get_struct_fields, get_u8, get_u32, get_u64, to_byte_slice, to_struct,
     },
 };
 
@@ -69,20 +71,24 @@ fn call_foreign(
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
+        // cSpell:disable-next-line
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
             interner,
             args,
             location,
             acvm::blackbox_solver::ecdsa_secp256k1_verify,
         ),
+        // cSpell:disable-next-line
         "ecdsa_secp256r1" => ecdsa_secp256_verify(
             interner,
             args,
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        "embedded_curve_add" => embedded_curve_add(args, location, pedantic_solving),
-        "multi_scalar_mul" => multi_scalar_mul(interner, args, location, pedantic_solving),
+        "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
+        "multi_scalar_mul" => {
+            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
+        }
         "poseidon2_permutation" => {
             poseidon2_permutation(interner, args, location, pedantic_solving)
         }
@@ -127,9 +133,11 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
     let input = get_field(value)?;
+    let field = input.to_field_element();
+
     let num_bits = get_u32(num_bits)?;
 
-    if input.num_bits() < num_bits {
+    if field.num_bits() < num_bits {
         Ok(Value::Unit)
     } else {
         Err(InterpreterError::BlackBoxError(
@@ -226,6 +234,7 @@ fn blake_hash(
     Ok(to_byte_array(&output))
 }
 
+// cSpell:disable-next-line
 /// Run one of the Secp256 signature verifications.
 /// ```text
 /// pub fn verify_signature<let N: u32>(
@@ -242,6 +251,8 @@ fn blake_hash(
 ///   message_hash: [u8],
 /// ) -> bool
 /// ```
+///
+// cSpell:disable-next-line
 fn ecdsa_secp256_verify(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
@@ -271,14 +282,17 @@ fn ecdsa_secp256_verify(
 /// fn embedded_curve_add(
 ///     point1: EmbeddedCurvePoint,
 ///     point2: EmbeddedCurvePoint,
-/// ) -> [Field; 3]
+/// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn embedded_curve_add(
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
     let (point1, point2) = check_two_arguments(arguments, location)?;
+
+    let embedded_curve_point_typ = point1.0.get_type().into_owned();
 
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
@@ -287,18 +301,22 @@ fn embedded_curve_add(
         .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_field_array(&[x, y, inf]))
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 /// ```text
 /// pub fn multi_scalar_mul<let N: u32>(
 ///     points: [EmbeddedCurvePoint; N],
 ///     scalars: [EmbeddedCurveScalar; N],
-/// ) -> [Field; 3]
+/// ) -> [EmbeddedCurvePoint; 1]
 /// ```
 fn multi_scalar_mul(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
+    return_type: Type,
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
@@ -319,7 +337,24 @@ fn multi_scalar_mul(
         .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-    Ok(to_field_array(&[x, y, inf]))
+    let embedded_curve_point_typ = match &return_type {
+        Type::Array(_, item_type) => item_type.as_ref().clone(),
+        _ => {
+            return Err(InterpreterError::TypeMismatch {
+                expected: Type::Array(
+                    Box::new(Type::Constant(1_usize.into(), Kind::u32())),
+                    Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
+                ),
+                actual: return_type.clone(),
+                location,
+            });
+        }
+    };
+
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        return_type,
+    ))
 }
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
@@ -332,13 +367,14 @@ fn poseidon2_permutation(
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
+    let input = vecmap(input, SignedField::to_field_element);
     let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
         .poseidon2_permutation(&input, state_length)
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(Value::Field).collect();
+    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -397,7 +433,7 @@ fn get_embedded_curve_point(
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
     let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x, y, is_infinite))
+    Ok((x.to_field_element(), y.to_field_element(), is_infinite))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -409,11 +445,27 @@ fn get_embedded_curve_scalar(
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo, hi))
+    Ok((lo.to_field_element(), hi.to_field_element()))
 }
 
 fn to_bigint(id: u32, typ: Type) -> Value {
     to_struct([("pointer", Value::U32(id)), ("modulus", Value::U32(id))], typ)
+}
+
+fn to_embedded_curve_point(
+    x: FieldElement,
+    y: FieldElement,
+    is_infinite: bool,
+    typ: Type,
+) -> Value {
+    to_struct(
+        [
+            ("x", Value::Field(SignedField::positive(x))),
+            ("y", Value::Field(SignedField::positive(y))),
+            ("is_infinite", Value::Bool(is_infinite)),
+        ],
+        typ,
+    )
 }
 
 #[cfg(test)]

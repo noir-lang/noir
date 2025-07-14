@@ -6,10 +6,9 @@ pub mod opcodes;
 
 use crate::{
     native_types::{Expression, Witness},
-    proto::convert::ProtoSchema,
+    serialization::{deserialize_any_format, serialize_with_format_from_env},
 };
 use acir_field::AcirField;
-use noir_protobuf::ProtoCodec as _;
 pub use opcodes::Opcode;
 use thiserror::Error;
 
@@ -155,6 +154,24 @@ pub enum OpcodeLocation {
     Brillig { acir_index: usize, brillig_index: usize },
 }
 
+/// Opcodes are locatable so that callers can
+/// map opcodes to debug information related to their context.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct AcirOpcodeLocation(usize);
+impl std::fmt::Display for AcirOpcodeLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl AcirOpcodeLocation {
+    pub fn new(index: usize) -> Self {
+        AcirOpcodeLocation(index)
+    }
+    pub fn index(&self) -> usize {
+        self.0
+    }
+}
 /// Index of Brillig opcode within a list of Brillig opcodes.
 /// To be used by callers for resolving debug information.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
@@ -249,8 +266,11 @@ impl<F: AcirField> Circuit<F> {
 }
 
 impl<F: Serialize + AcirField> Program<F> {
+    /// Serialize and compress the [Program] into bytes.
     fn write<W: Write>(&self, writer: W) -> std::io::Result<()> {
-        let buf = self.bincode_serialize()?;
+        let buf = serialize_with_format_from_env(self)?;
+
+        // Compress the data, which should help with formats that uses field names.
         let mut encoder = flate2::write::GzEncoder::new(writer, Compression::default());
         encoder.write_all(&buf)?;
         encoder.finish()?;
@@ -274,38 +294,13 @@ impl<F: Serialize + AcirField> Program<F> {
     }
 }
 
-impl<F: Serialize + AcirField> Program<F> {
-    /// Serialize the program using `bincode`, which is what we have to use until Barretenberg can read another format.
-    pub(crate) fn bincode_serialize(&self) -> std::io::Result<Vec<u8>> {
-        bincode::serialize(self).map_err(std::io::Error::other)
-    }
-}
-
 impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
-    pub(crate) fn bincode_deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        bincode::deserialize(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-#[allow(dead_code)] // TODO: Remove once we switch to protobuf
-impl<F: AcirField> Program<F> {
-    /// Serialize the program using `protobuf`, which is what we try to replace `bincode` with.
-    pub(crate) fn proto_serialize(&self) -> Vec<u8> {
-        ProtoSchema::<F>::serialize_to_vec(self)
-    }
-    pub(crate) fn proto_deserialize(buf: &[u8]) -> std::io::Result<Self> {
-        ProtoSchema::<F>::deserialize_from_vec(buf)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
-    }
-}
-
-impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
+    /// Decompress and deserialize bytes into a [Program].
     fn read<R: Read>(reader: R) -> std::io::Result<Self> {
         let mut gz_decoder = flate2::read::GzDecoder::new(reader);
         let mut buf = Vec::new();
         gz_decoder.read_to_end(&mut buf)?;
-        let program = Self::bincode_deserialize(&buf)?;
+        let program = deserialize_any_format(&buf)?;
         Ok(program)
     }
 
@@ -330,13 +325,13 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness index : {}", self.current_witness_index)?;
+        writeln!(f, "current witness index : _{}", self.current_witness_index)?;
 
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
                 for (index, witness_index) in indices.iter().enumerate() {
-                    write!(f, "{witness_index}")?;
+                    write!(f, "_{witness_index}")?;
                     if index != indices.len() - 1 {
                         write!(f, ", ")?;
                     }
@@ -516,6 +511,44 @@ mod tests {
         assert!(deserialization_result.is_err());
     }
 
+    #[test]
+    fn circuit_display_snapshot() {
+        let circuit = Circuit {
+            current_witness_index: 3,
+            expression_width: ExpressionWidth::Unbounded,
+            opcodes: vec![
+                Opcode::AssertZero(crate::native_types::Expression {
+                    mul_terms: vec![],
+                    linear_combinations: vec![(FieldElement::from(2u128), Witness(1))],
+                    q_c: FieldElement::from(8u128),
+                }),
+                range_opcode(),
+                and_opcode(),
+                keccakf1600_opcode(),
+            ],
+            private_parameters: BTreeSet::new(),
+            public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
+            return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(2)])),
+            assert_messages: Default::default(),
+        };
+
+        // We want to make sure that we witness indices are displayed in a unified format.
+        // All witnesses are expected to be formatted as `_{witness_index}`.
+        insta::assert_snapshot!(
+            circuit.to_string(),
+            @r"
+            current witness index : _3
+            private parameters indices : []
+            public parameters indices : [_2]
+            return value indices : [_2]
+            EXPR [ (2, _1) 8 ]
+            BLACKBOX::RANGE [(_1, 8)] []
+            BLACKBOX::AND [(_1, 4), (_2, 4)] [_3]
+            BLACKBOX::KECCAKF1600 [(_1, 8), (_2, 8), (_3, 8), (_4, 8), (_5, 8), (_6, 8), (_7, 8), (_8, 8), (_9, 8), (_10, 8), (_11, 8), (_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8)] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
+            "
+        );
+    }
+
     /// Property based testing for serialization
     mod props {
         use acir_field::FieldElement;
@@ -524,6 +557,7 @@ mod tests {
 
         use crate::circuit::Program;
         use crate::native_types::{WitnessMap, WitnessStack};
+        use crate::serialization::*;
 
         // It's not possible to set the maximum size of collections via `ProptestConfig`, only an env var,
         // because e.g. the `VecStrategy` uses `Config::default().max_default_size_range`. On top of that,
@@ -550,6 +584,7 @@ mod tests {
         }
 
         /// Override the maximum size of collections created by `proptest`.
+        #[allow(unsafe_code)]
         fn run_with_max_size_range<T, F>(cases: u32, f: F)
         where
             T: Arbitrary,
@@ -577,8 +612,8 @@ mod tests {
         #[test]
         fn prop_program_proto_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = Program::proto_serialize(&program);
-                let de = Program::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&program);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -587,8 +622,18 @@ mod tests {
         #[test]
         fn prop_program_bincode_roundtrip() {
             run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = Program::bincode_serialize(&program)?;
-                let de = Program::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&program)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(program, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_program_msgpack_roundtrip() {
+            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
+                let bz = msgpack_serialize(&program, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(program, de);
                 Ok(())
             });
@@ -607,8 +652,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = WitnessStack::proto_serialize(&witness);
-                let de = WitnessStack::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&witness);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -617,8 +662,18 @@ mod tests {
         #[test]
         fn prop_witness_stack_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = WitnessStack::bincode_serialize(&witness)?;
-                let de = WitnessStack::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&witness)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_stack_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessStack<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -627,8 +682,8 @@ mod tests {
         #[test]
         fn prop_witness_stack_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {
-                let bz = Vec::<u8>::try_from(&witness)?;
-                let de = WitnessStack::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessStack::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -637,8 +692,8 @@ mod tests {
         #[test]
         fn prop_witness_map_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = WitnessMap::proto_serialize(&witness);
-                let de = WitnessMap::proto_deserialize(&bz)?;
+                let bz = proto_serialize(&witness);
+                let de = proto_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -647,8 +702,18 @@ mod tests {
         #[test]
         fn prop_witness_map_bincode_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = WitnessMap::bincode_serialize(&witness)?;
-                let de = WitnessMap::bincode_deserialize(&bz)?;
+                let bz = bincode_serialize(&witness)?;
+                let de = bincode_deserialize(&bz)?;
+                prop_assert_eq!(witness, de);
+                Ok(())
+            });
+        }
+
+        #[test]
+        fn prop_witness_map_msgpack_roundtrip() {
+            run_with_max_size_range(10, |(witness, compact): (WitnessMap<TestField>, bool)| {
+                let bz = msgpack_serialize(&witness, compact)?;
+                let de = msgpack_deserialize(&bz)?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });
@@ -657,8 +722,8 @@ mod tests {
         #[test]
         fn prop_witness_map_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessMap<TestField>| {
-                let bz = Vec::<u8>::try_from(witness.clone())?;
-                let de = WitnessMap::try_from(bz.as_slice())?;
+                let bz = witness.serialize()?;
+                let de = WitnessMap::deserialize(bz.as_slice())?;
                 prop_assert_eq!(witness, de);
                 Ok(())
             });

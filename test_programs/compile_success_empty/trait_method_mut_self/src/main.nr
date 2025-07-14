@@ -1,5 +1,5 @@
+use poseidon::poseidon2::Poseidon2Hasher;
 use std::hash::Hasher;
-use std::hash::poseidon2::Poseidon2Hasher;
 
 fn main(x: Field, y: pub Field) {
     let mut a_mut_ref = AType { x };

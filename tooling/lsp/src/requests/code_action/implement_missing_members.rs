@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    Kind,
     ast::{NoirTraitImpl, TraitImplItemKind, UnresolvedTypeData},
     node_interner::ReferenceId,
 };
@@ -47,7 +48,9 @@ impl CodeActionFinder<'_> {
                 TraitImplItemKind::Function(noir_function) => {
                     method_ids.remove(noir_function.name());
                 }
-                TraitImplItemKind::Constant(..) => (),
+                TraitImplItemKind::Constant(name, ..) => {
+                    associated_types.remove(name.as_string());
+                }
                 TraitImplItemKind::Type { name, alias } => {
                     if let UnresolvedTypeData::Unspecified = alias.typ {
                         continue;
@@ -99,8 +102,12 @@ impl CodeActionFinder<'_> {
 
         let mut stubs = Vec::new();
 
-        for (name, _) in associated_types {
-            stubs.push(format!("{}type {};\n", indent_string, name));
+        for (name, generic) in associated_types {
+            if let Kind::Numeric(typ) = generic.kind() {
+                stubs.push(format!("{}let {}: {};\n", indent_string, name, typ));
+            } else {
+                stubs.push(format!("{}type {};\n", indent_string, name));
+            }
         }
 
         for (name, func_id) in method_ids {
@@ -359,6 +366,46 @@ impl Trait for Foo {
     type Elem;
 
     fn foo(x: Self::Elem) -> [Self::Elem] {
+        panic(f"Implement foo")
+    }
+}"#;
+
+        assert_code_action(title, src, expected).await;
+    }
+
+    #[test]
+    async fn test_add_missing_impl_members_associated_constant() {
+        let title = "Implement missing members";
+
+        let src = r#"
+trait Trait {
+    let N: u32;
+    let M: u32;
+
+    fn foo(x: [Field; Self::N]) -> [Field; Self::N];
+}
+
+struct Foo {}
+
+impl Trait>|< for Foo {
+    let M: u32 = 1;
+}"#;
+
+        let expected = r#"
+trait Trait {
+    let N: u32;
+    let M: u32;
+
+    fn foo(x: [Field; Self::N]) -> [Field; Self::N];
+}
+
+struct Foo {}
+
+impl Trait for Foo {
+    let M: u32 = 1;
+    let N: u32;
+
+    fn foo(x: [Field; Self::N]) -> [Field; Self::N] {
         panic(f"Implement foo")
     }
 }"#;

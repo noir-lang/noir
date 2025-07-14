@@ -172,7 +172,7 @@ impl Block {
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.
-    fn for_each_alias_of<T>(
+    pub(super) fn for_each_alias_of<T>(
         &mut self,
         address: ValueId,
         mut f: impl FnMut(&mut Self, ValueId) -> T,
@@ -187,14 +187,11 @@ impl Block {
     }
 
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
     }
 
     fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
-
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
             // to go through its stored value and mark that used as well.
@@ -247,8 +244,7 @@ impl Block {
         self.last_loads.insert(address, instruction);
     }
 
-    pub(super) fn keep_last_load_for(&mut self, address: ValueId, function: &Function) {
-        let address = function.dfg.resolve(address);
+    pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
         self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
     }

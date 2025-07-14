@@ -23,13 +23,13 @@ noirc_printable_type.workspace = true
 iter-extended.workspace = true
 jsonrpsee.workspace = true
 rayon.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 walkdir = "2.5.0"
-noir_fuzzer = { workspace = true }
-proptest = { workspace = true }
+noir_greybox_fuzzer = { workspace = true }
 
 # Some dependencies are optional so we can compile to Wasm.
 tokio = { workspace = true, optional = true }

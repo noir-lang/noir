@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Noir formatter.
@@ -42,7 +40,7 @@ mod formatter;
 use formatter::Formatter;
 use noirc_frontend::ParsedModule;
 
-pub use config::Config;
+pub use config::{Config, ImportsGranularity};
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);

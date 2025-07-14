@@ -1,5 +1,5 @@
 [package]
-name = "comptime_as_field"
+name = "comptime_as_primitive"
 type = "bin"
 authors = [""]
 

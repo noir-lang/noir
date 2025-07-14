@@ -5,7 +5,7 @@ use crate::{
     utils::get_cursor_line_and_column,
 };
 
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
     TextDocumentItem, WorkDoneProgressParams,
@@ -20,7 +20,7 @@ async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
 
     let (line, column, src) = get_cursor_line_and_column(src);
 
-    on_did_open_text_document(
+    let _ = on_did_open_text_document(
         &mut state,
         DidOpenTextDocumentParams {
             text_document: TextDocumentItem {

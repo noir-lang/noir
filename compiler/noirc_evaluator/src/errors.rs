@@ -8,12 +8,15 @@
 //!
 //! An Error of the latter is an error in the implementation of the compiler
 use iter_extended::vecmap;
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+
 use noirc_frontend::signed_field::SignedField;
 use thiserror::Error;
 
-use crate::ssa::ir::{call_stack::CallStack, types::NumericType};
+use crate::ssa::ir::types::NumericType;
 use serde::{Deserialize, Serialize};
+
+pub type RtResult<T> = Result<T, RuntimeError>;
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum RuntimeError {
@@ -21,19 +24,19 @@ pub enum RuntimeError {
     InternalError(#[from] InternalError),
     #[error("Range constraint of {num_bits} bits is too large for the Field size")]
     InvalidRangeConstraint { num_bits: u32, call_stack: CallStack },
-    #[error("The value `{value:?}` cannot fit into `{typ}` which has range `{range}`")]
+    #[error("The value `{value}` cannot fit into `{typ}` which has range `{range}`")]
     IntegerOutOfBounds {
         value: SignedField,
         typ: NumericType,
         range: String,
         call_stack: CallStack,
     },
+    #[error(
+        "Attempted to recurse more than {limit} times during inlining function '{function_name}'"
+    )]
+    RecursionLimit { limit: u32, function_name: String, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
-    #[error("{name:?} is not initialized")]
-    UnInitialized { name: String, call_stack: CallStack },
-    #[error("Integer sized {num_bits:?} is over the max supported size of {max_num_bits:?}")]
-    UnsupportedIntegerSize { num_bits: u32, max_num_bits: u32, call_stack: CallStack },
     #[error(
         "Integer {value}, sized {num_bits:?}, is over the max supported size of {max_num_bits:?} for the blackbox function's inputs"
     )]
@@ -49,8 +52,10 @@ pub enum RuntimeError {
     AssertConstantFailed { call_stack: CallStack },
     #[error("The static_assert message is not constant")]
     StaticAssertDynamicMessage { call_stack: CallStack },
-    #[error("Argument is dynamic")]
-    StaticAssertDynamicPredicate { call_stack: CallStack },
+    #[error(
+        "Failed because the predicate is dynamic:\n{message}\nThe predicate must be known at compile time to be evaluated."
+    )]
+    StaticAssertDynamicPredicate { message: String, call_stack: CallStack },
     #[error("{message}")]
     StaticAssertFailed { message: String, call_stack: CallStack },
     #[error("Nested slices, i.e. slices within an array or slice, are not supported")]
@@ -65,6 +70,23 @@ pub enum RuntimeError {
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
     UnknownReference { call_stack: CallStack },
+    #[error(
+        "Cannot return references from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedReferenceFromDynamicIf { call_stack: CallStack },
+    #[error(
+        "Cannot return a function from an if or match expression, or assignment within these expressions"
+    )]
+    ReturnedFunctionFromDynamicIf { call_stack: CallStack },
+    /// This case is not an error. It's used during codegen to prevent inserting instructions after
+    /// code when a break or continue is generated.
+    #[error("Break or continue")]
+    BreakOrContinue { call_stack: CallStack },
+
+    #[error(
+        "Only constant indices are supported when indexing an array containing reference values"
+    )]
+    DynamicIndexingWithReference { call_stack: CallStack },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -83,7 +105,7 @@ impl From<SsaReport> for CustomDiagnostic {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
                     InternalWarning::VerifyProof { call_stack } => {
-                        ("verify_proof(...) aggregates data for the verifier, the actual verification will be done when the full proof is verified using nargo verify. nargo prove may generate an invalid proof if bad data is used as input to verify_proof".to_string(), call_stack)
+                        ("The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so witness execution will defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification".to_string(), call_stack)
                     },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
@@ -93,7 +115,7 @@ impl From<SsaReport> for CustomDiagnostic {
                 diagnostic.with_call_stack(call_stack)
             }
             SsaReport::Bug(bug) => {
-                let message = bug.to_string();
+                let mut message = bug.to_string();
                 let (secondary_message, call_stack) = match bug {
                     InternalBug::IndependentSubgraph { call_stack } => {
                         ("There is no path from the output of this Brillig call to either return values or inputs of the circuit, which creates an independent subgraph. This is quite likely a soundness vulnerability".to_string(), call_stack)
@@ -101,7 +123,12 @@ impl From<SsaReport> for CustomDiagnostic {
                     InternalBug::UncheckedBrilligCall { call_stack } => {
                         ("This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities".to_string(), call_stack)
                     }
-                    InternalBug::AssertFailed { call_stack } => ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
+                    InternalBug::AssertFailed { call_stack, message: assertion_failure_message } => {
+                        if let Some(assertion_failure_message) = assertion_failure_message {
+                            message.push_str(&format!(": {assertion_failure_message}"));
+                        }
+                        ("As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution".to_string(), call_stack)
+                    }
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
@@ -117,7 +144,7 @@ impl From<SsaReport> for CustomDiagnostic {
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
-    #[error("Calling std::verify_proof(...) does not verify a proof")]
+    #[error("Calling std::verify_proof(...) does not check that the provided proof is valid")]
     VerifyProof { call_stack: CallStack },
 }
 
@@ -128,7 +155,7 @@ pub enum InternalBug {
     #[error("Brillig function call isn't properly covered by a manual constraint")]
     UncheckedBrilligCall { call_stack: CallStack },
     #[error("Assertion is always false")]
-    AssertFailed { call_stack: CallStack },
+    AssertFailed { call_stack: CallStack, message: Option<String> },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
@@ -163,20 +190,23 @@ impl RuntimeError {
             )
             | RuntimeError::InvalidRangeConstraint { call_stack, .. }
             | RuntimeError::TypeConversion { call_stack, .. }
-            | RuntimeError::UnInitialized { call_stack, .. }
             | RuntimeError::UnknownLoopBound { call_stack }
             | RuntimeError::AssertConstantFailed { call_stack }
             | RuntimeError::StaticAssertDynamicMessage { call_stack }
-            | RuntimeError::StaticAssertDynamicPredicate { call_stack }
+            | RuntimeError::StaticAssertDynamicPredicate { call_stack, .. }
             | RuntimeError::StaticAssertFailed { call_stack, .. }
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
-            | RuntimeError::UnsupportedIntegerSize { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
             | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
-            | RuntimeError::UnknownReference { call_stack } => call_stack,
+            | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
+            | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
+            | RuntimeError::BreakOrContinue { call_stack }
+            | RuntimeError::DynamicIndexingWithReference { call_stack }
+            | RuntimeError::UnknownReference { call_stack }
+            | RuntimeError::RecursionLimit { call_stack, .. } => call_stack,
         }
     }
 }

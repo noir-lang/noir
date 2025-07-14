@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_turbofish_trait_function_with_turbofish_on_trait_gives_error"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

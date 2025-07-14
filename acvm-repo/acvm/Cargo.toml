@@ -2,7 +2,7 @@
 name = "acvm"
 description = "The virtual machine that processes ACIR given a backend/proof system."
 # x-release-please-start-version
-version = "1.0.0-beta.3"
+version = "1.0.0-beta.7"
 # x-release-please-end
 authors.workspace = true
 edition.workspace = true
@@ -22,7 +22,7 @@ acir.workspace = true
 brillig_vm.workspace = true
 acvm_blackbox_solver.workspace = true
 
-indexmap = "1.7.0"
+indexmap = "^2.10.0"
 
 [features]
 bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]
@@ -47,3 +47,13 @@ ark-bn254-v04 = { package = "ark-bn254", version = "^0.4.0", default-features = 
     "curve",
 ] }
 ark-ff-v04 = {  package = "ark-ff", version = "^0.4.0", default-features = false }
+criterion.workspace = true
+pprof.workspace = true
+
+[lib]
+# See https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options
+bench = false
+
+[[bench]]
+name = "arithmetic_solver"
+harness = false

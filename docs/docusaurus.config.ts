@@ -10,7 +10,7 @@ import katex from 'rehype-katex';
 export default {
   title: 'Noir Documentation',
   tagline: 'The Universal ZK Circuit Language',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
   url: 'https://noir-lang.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
@@ -57,8 +57,8 @@ export default {
     navbar: {
       logo: {
         alt: 'Noir Logo',
-        src: 'img/logoDark.svg',
-        srcDark: 'img/logo.svg',
+        src: 'img/logoDark.png',
+        srcDark: 'img/logo.png',
         href: '/',
       },
       items: [
@@ -88,7 +88,7 @@ export default {
           items: [
             {
               label: 'Noir Forum',
-              href: 'https://discourse.aztec.network/c/noir/7',
+              href: 'https://forum.aztec.network/c/noir/7',
             },
             {
               label: 'Twitter',

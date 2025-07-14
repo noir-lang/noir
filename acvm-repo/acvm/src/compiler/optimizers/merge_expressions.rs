@@ -27,9 +27,26 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         }
     }
     /// This pass analyzes the circuit and identifies intermediate variables that are
-    /// only used in two gates. It then merges the gate that produces the
+    /// only used in two arithmetic opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
     /// Note: This pass is only relevant for backends that can handle unlimited width
+    ///
+    /// The first pass maps witnesses to the index of the opcodes using them.
+    /// Public inputs are not considered because they cannot be simplified.
+    /// Witnesses used by MemoryInit opcodes are put in a separate map and marked as used by a Brillig call
+    /// if the memory block is an input to the call.
+    ///
+    /// The second pass looks for arithmetic opcodes having a witness which is only used by another arithmetic opcode.
+    /// In that case, the opcode with the smallest index is merged into the other one via Gaussian elimination.
+    /// For instance, if we have '_1' used only by these two opcodes,
+    /// where `_{value}` refers to a witness and `{value}` refers to a constant:
+    /// [(1, _2,_3), (2, _2), (2, _1), (1, _3)]
+    /// [(2, _3, _4), (2,_1), (1, _4)]
+    /// We will remove the first one and modify the second one like this:
+    /// [(2, _3, _4), (1, _4), (-1, _2), (-1/2, _3), (-1/2, _2, _3)]
+    ///
+    /// This transformation is relevant for Plonk-ish backends although they have a limited width because
+    /// they can potentially handle expressions with large linear combinations using 'big-add' gates.
     pub(crate) fn eliminate_intermediate_variable(
         &mut self,
         circuit: &Circuit<F>,
@@ -183,7 +200,7 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
                 witnesses
             }
             Opcode::MemoryOp { block_id: _, op, predicate } => {
-                //index et value, et predicate
+                //index, value, and predicate
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
                 if let Some(p) = predicate {
@@ -248,6 +265,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         None
     }
 
+    /// Returns the 'updated' opcode at index 'g' in the circuit
+    /// The modifications to the circuits are stored with 'deleted_gates' and 'modified_gates'
+    /// These structures are used to give the 'updated' opcode.
+    /// For instance, if the opcode has been deleted inside 'deleted_gates', then it returns None.
     fn get_opcode(&self, g: usize, circuit: &Circuit<F>) -> Option<Opcode<F>> {
         if self.deleted_gates.contains(&g) {
             return None;

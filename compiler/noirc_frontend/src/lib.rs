@@ -9,10 +9,12 @@
 //! perform optimizations, convert to ACIR and eventually prove/verify the program.
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 // Temporary allows.
 #![allow(clippy::mutable_key_type, clippy::result_large_err)]
+
+#[cfg(test)]
+#[macro_use]
+extern crate function_name;
 
 pub mod ast;
 pub mod debug;
@@ -20,8 +22,10 @@ pub mod elaborator;
 pub mod graph;
 pub mod lexer;
 pub mod locations;
+pub mod modules;
 pub mod monomorphization;
 pub mod node_interner;
+pub mod ownership;
 pub mod parser;
 pub mod resolve_locations;
 pub mod shared;
@@ -42,3 +46,5 @@ pub use hir_def::types::*;
 
 // Unit tests that involve all modules
 pub mod tests;
+// Utility functions for easily compiling the frontend for tests in other crates
+pub mod test_utils;

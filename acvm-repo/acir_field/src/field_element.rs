@@ -218,6 +218,21 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
+    fn try_into_i128(self) -> Option<i128> {
+        // Negative integers are represented by the range [p + i128::MIN, p) whilst
+        // positive integers are represented by the range [0, i128::MAX).
+        // We can then differentiate positive from negative values by their MSB.
+        let is_negative = self.neg().num_bits() < self.num_bits();
+        let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
+        // There is data in the first 16 bytes, so it cannot be represented as an i128
+        if bytes[0..16].iter().any(|b| *b != 0) {
+            return None;
+        }
+        Some(
+            i128::from_be_bytes(bytes[16..32].try_into().unwrap())
+                * if is_negative { -1 } else { 1 },
+        )
+    }
 
     fn try_to_u64(&self) -> Option<u64> {
         (self.num_bits() <= 64).then(|| self.to_u128() as u64)
@@ -278,7 +293,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// This method truncates
     fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
         fn nearest_bytes(num_bits: usize) -> usize {
-            ((num_bits + 7) / 8) * 8
+            num_bits.div_ceil(8) * 8
         }
 
         let num_bytes = nearest_bytes(num_bits);
@@ -352,9 +367,9 @@ struct BitCounter {
 impl BitCounter {
     fn bits(&self) -> u32 {
         // If we don't have a non-zero byte then the field element is zero,
-        // which we consider to require a single bit to represent.
+        // which we consider to require a zero bits to represent.
         if self.count == 0 {
-            return 1;
+            return 0;
         }
 
         let num_bits_for_head_byte = self.head_byte.ilog2();
@@ -391,8 +406,14 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn requires_one_bit_to_hold_zero() {
+    fn requires_zero_bit_to_hold_zero() {
         let field = FieldElement::<ark_bn254::Fr>::zero();
+        assert_eq!(field.num_bits(), 0);
+    }
+
+    #[test]
+    fn requires_one_bit_to_hold_one() {
+        let field = FieldElement::<ark_bn254::Fr>::one();
         assert_eq!(field.num_bits(), 1);
     }
 
@@ -474,7 +495,7 @@ mod tests {
         assert_eq!(from_le, field);
 
         // Additional test with a larger number to ensure proper byte handling
-        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64); // cSpell:disable-line
         let large_le = large_field.to_le_bytes();
         let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
         assert_eq!(reconstructed, large_field);

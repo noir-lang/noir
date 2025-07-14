@@ -1,10 +1,12 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, Path};
+use noirc_frontend::{
+    ast::{Ident, Path},
+    modules::module_def_id_relative_path,
+};
 
 use crate::{
     byte_span_to_range,
-    modules::module_def_id_relative_path,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },

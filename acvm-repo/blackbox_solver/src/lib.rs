@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! This crate provides the implementation of BlackBox functions of ACIR and Brillig.
@@ -28,4 +26,6 @@ pub use logic::{bit_and, bit_xor};
 pub enum BlackBoxResolutionError {
     #[error("failed to solve blackbox function: {0}, reason: {1}")]
     Failed(BlackBoxFunc, String),
+    #[error("{0}")]
+    AssertFailed(String),
 }

@@ -20,9 +20,52 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
+            #[cfg(debug_assertions)]
+            array_set_optimization_pre_check(func);
+
             func.array_set_optimization();
+
+            #[cfg(debug_assertions)]
+            array_set_optimization_post_check(func);
         }
         self
+    }
+}
+
+/// Pre-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - there already exists a mutable array set instruction.
+#[cfg(debug_assertions)]
+fn array_set_optimization_pre_check(func: &Function) {
+    // There should be no mutable array sets.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+        for instruction_id in instruction_ids {
+            if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
+                panic!("mutable ArraySet instruction exists before `array_set_optimization` pass");
+            }
+        }
+    }
+}
+
+/// Post-check condition for [Function::array_set_optimization].
+///
+/// Panics if:
+///   - Mutable array_set optimization has been applied to Brillig function
+#[cfg(debug_assertions)]
+fn array_set_optimization_post_check(func: &Function) {
+    // Brillig functions should be not have any mutable array sets.
+    if func.runtime().is_brillig() {
+        for block_id in func.reachable_blocks() {
+            let instruction_ids = func.dfg[block_id].instructions();
+            for instruction_id in instruction_ids {
+                if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. })
+                {
+                    panic!("Mutable array set instruction in Brillig function");
+                }
+            }
+        }
     }
 }
 
@@ -53,9 +96,7 @@ impl Function {
         }
 
         let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
-        for block in reachable_blocks {
-            make_mutable(&mut self.dfg, block, &instructions_to_update);
-        }
+        make_mutable(&mut self.dfg, &instructions_to_update);
     }
 }
 
@@ -86,14 +127,14 @@ impl<'f> Context<'f> {
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 Instruction::ArrayGet { array, .. } => {
-                    let array = self.dfg.resolve(*array);
+                    let array = *array;
 
                     if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
                     }
                 }
                 Instruction::ArraySet { array, .. } => {
-                    let array = self.dfg.resolve(*array);
+                    let array = *array;
 
                     if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
                         self.instructions_that_can_be_made_mutable.remove(&existing);
@@ -112,7 +153,7 @@ impl<'f> Context<'f> {
                     let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
                         // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
-                        if !is_array_in_terminator && self.dfg.resolve(value) == array {
+                        if !is_array_in_terminator && value == array {
                             is_array_in_terminator = true;
                         }
                     });
@@ -134,7 +175,7 @@ impl<'f> Context<'f> {
                     for argument in arguments {
                         if matches!(self.dfg.type_of_value(*argument), Array { .. } | Slice { .. })
                         {
-                            let argument = self.dfg.resolve(*argument);
+                            let argument = *argument;
 
                             if let Some(existing) =
                                 self.array_to_last_use.insert(argument, *instruction_id)
@@ -152,6 +193,15 @@ impl<'f> Context<'f> {
                         self.arrays_from_load.insert(result, is_reference_param);
                     }
                 }
+                Instruction::MakeArray { elements, .. } => {
+                    for element in elements {
+                        if let Some(existing) =
+                            self.array_to_last_use.insert(*element, *instruction_id)
+                        {
+                            self.instructions_that_can_be_made_mutable.remove(&existing);
+                        }
+                    }
+                }
                 _ => (),
             }
         }
@@ -159,39 +209,23 @@ impl<'f> Context<'f> {
 }
 
 /// Make each ArraySet instruction in `instructions_to_update` mutable.
-fn make_mutable(
-    dfg: &mut DataFlowGraph,
-    block_id: BasicBlockId,
-    instructions_to_update: &HashSet<InstructionId>,
-) {
-    if instructions_to_update.is_empty() {
-        return;
-    }
-
-    // Take the instructions temporarily so we can mutate the DFG while we iterate through them
-    let block = &mut dfg[block_id];
-    let instructions = block.take_instructions();
-
-    for instruction in &instructions {
-        if instructions_to_update.contains(instruction) {
-            let instruction = &mut dfg[*instruction];
-
-            if let Instruction::ArraySet { mutable, .. } = instruction {
-                *mutable = true;
-            } else {
-                unreachable!(
-                    "Non-ArraySet instruction in instructions_to_update!\n{instruction:?}"
-                );
-            }
+fn make_mutable(dfg: &mut DataFlowGraph, instructions_to_update: &HashSet<InstructionId>) {
+    for instruction_id in instructions_to_update {
+        let instruction = &mut dfg[*instruction_id];
+        if let Instruction::ArraySet { mutable, .. } = instruction {
+            *mutable = true;
+        } else {
+            unreachable!("Non-ArraySet instruction in instructions_to_update!\n{instruction:?}");
         }
     }
-
-    *dfg[block_id].instructions_mut() = instructions;
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::{Ssa, opt::assert_normalized_ssa_equals};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
 
     #[test]
     fn array_set_in_loop_with_conditional_clone() {
@@ -222,7 +256,7 @@ mod tests {
                 jmp b5()
               b5():
                 v11 = load v4 -> [[Field; 5]; 2]
-                v12 = array_get v11, index Field 0 -> [Field; 5]
+                v12 = array_get v11, index u32 0 -> [Field; 5]
                 v14 = array_set v12, index v0, value Field 20
                 v15 = array_set v11, index v0, value v14
                 store v15 at v4
@@ -235,5 +269,35 @@ mod tests {
         // We expect the same result as above
         let ssa = ssa.array_set_optimization();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_mutate_array_used_in_make_array() {
+        // Regression test for https://github.com/noir-lang/noir/issues/8563
+        // Previously `v2` would be marked as mutable in the first array_set, which results in `v5` being invalid.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v2 = make_array [Field 0] : [Field; 1]
+                v3 = array_set v2, index u32 0, value Field 2
+                v4 = make_array [v2, v2] : [[Field; 1]; 2]
+                v5 = array_set v4, index u32 0, value v2
+                return v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        // We expect the same result as above
+        let ssa = ssa.array_set_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 0] : [Field; 1]
+            v4 = array_set v1, index u32 0, value Field 2
+            v5 = make_array [v1, v1] : [[Field; 1]; 2]
+            v6 = array_set mut v5, index u32 0, value v1
+            return v6
+        }
+        ");
     }
 }

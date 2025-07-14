@@ -14,11 +14,12 @@ use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Generics, Kind, ParsedModule, ResolvedGeneric, TypeVariable};
 use def_collector::dc_crate::CompilationError;
-use def_map::{CrateDefMap, fully_qualified_module_path};
+use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -52,6 +53,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub parsed_files: Cow<'parsed_files, ParsedFiles>,
 
     pub package_build_path: PathBuf,
+
+    /// Writer for comptime prints.
+    pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 }
 
 #[derive(Debug)]
@@ -73,6 +77,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -90,6 +95,7 @@ impl Context<'_, '_> {
             debug_instrumenter: DebugInstrumenter::default(),
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
         }
     }
 
@@ -180,7 +186,7 @@ impl Context<'_, '_> {
             .get_all_test_functions(interner)
             .filter_map(|test_function| {
                 let fully_qualified_name =
-                    self.fully_qualified_function_name(crate_id, &test_function.get_id());
+                    self.fully_qualified_function_name(crate_id, &test_function.id);
                 match &pattern {
                     FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
                     FunctionNameMatch::Exact(patterns) => patterns
@@ -191,6 +197,37 @@ impl Context<'_, '_> {
                         .iter()
                         .any(|pattern| fully_qualified_name.contains(pattern))
                         .then_some((fully_qualified_name, test_function)),
+                }
+            })
+            .collect()
+    }
+
+    /// Returns a list of all functions in the current crate marked with `#[fuzz]`
+    /// whose names contain the given pattern string. An empty pattern string
+    /// will return all functions marked with `#[fuzz]`.
+    pub fn get_all_fuzzing_harnesses_in_crate_matching(
+        &self,
+        crate_id: &CrateId,
+        pattern: &FunctionNameMatch,
+    ) -> Vec<(String, FuzzingHarness)> {
+        let interner = &self.def_interner;
+        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
+
+        def_map
+            .get_all_fuzzing_harnesses(interner)
+            .filter_map(|fuzzing_harness| {
+                let fully_qualified_name =
+                    self.fully_qualified_function_name(crate_id, &fuzzing_harness.id);
+                match &pattern {
+                    FunctionNameMatch::Anything => Some((fully_qualified_name, fuzzing_harness)),
+                    FunctionNameMatch::Exact(patterns) => patterns
+                        .iter()
+                        .any(|pattern| &fully_qualified_name == pattern)
+                        .then_some((fully_qualified_name, fuzzing_harness)),
+                    FunctionNameMatch::Contains(patterns) => patterns
+                        .iter()
+                        .any(|pattern| fully_qualified_name.contains(pattern))
+                        .then_some((fully_qualified_name, fuzzing_harness)),
                 }
             })
             .collect()
@@ -253,6 +290,10 @@ impl Context<'_, '_> {
     }
 
     pub fn disable_comptime_printing(&mut self) {
-        self.def_interner.disable_comptime_printing = true;
+        self.interpreter_output = None;
+    }
+
+    pub fn set_comptime_printing(&mut self, output: Rc<RefCell<dyn std::io::Write>>) {
+        self.interpreter_output = Some(output);
     }
 }

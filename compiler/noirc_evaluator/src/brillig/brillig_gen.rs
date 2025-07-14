@@ -1,3 +1,4 @@
+//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.  
 pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
@@ -8,52 +9,36 @@ pub(crate) mod constant_allocation;
 mod variable_liveness;
 
 use acvm::FieldElement;
-use fxhash::FxHashMap as HashMap;
+use noirc_errors::call_stack::CallStack;
 
-use self::{brillig_block::BrilligBlock, brillig_fn::FunctionContext};
+use self::brillig_fn::FunctionContext;
 use super::{
     Brillig, BrilligOptions, BrilligVariable, ValueId,
     brillig_ir::{
         BrilligContext,
-        artifact::{BrilligArtifact, BrilligParameter, GeneratedBrillig, Label},
+        artifact::{BrilligParameter, GeneratedBrillig},
     },
 };
-use crate::{
-    errors::InternalError,
-    ssa::ir::{call_stack::CallStack, function::Function, types::NumericType},
-};
+use crate::{errors::InternalError, ssa::ir::function::Function};
 
-/// Converting an SSA function into Brillig bytecode.
-pub(crate) fn convert_ssa_function(
-    func: &Function,
-    options: &BrilligOptions,
-    globals: &HashMap<ValueId, BrilligVariable>,
-    hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
-) -> BrilligArtifact<FieldElement> {
-    let mut brillig_context = BrilligContext::new(options);
-
-    let mut function_context = FunctionContext::new(func);
-
-    brillig_context.enter_context(Label::function(func.id()));
-
-    brillig_context.call_check_max_stack_depth_procedure();
-
-    for block in function_context.blocks.clone() {
-        BrilligBlock::compile(
-            &mut function_context,
-            &mut brillig_context,
-            block,
-            &func.dfg,
-            globals,
-            hoisted_global_constants,
-        );
-    }
-
-    let mut artifact = brillig_context.artifact();
-    artifact.name = func.name().to_string();
-    artifact
-}
-
+/// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
+///
+/// This function is responsible for generating a final Brillig artifact corresponding to a compiled SSA [Function].
+/// It sets up the entry point context, registers input/output parameters, and recursively resolves and links
+/// all transitive Brillig function dependencies.
+///
+/// # Parameters
+/// - func: The SSA [Function] to compile as the entry point.
+/// - arguments: Brillig-compatible [BrilligParameter] inputs to the function
+/// - brillig: The [context structure][Brillig] of all known Brillig artifacts for dependency resolution.
+/// - options: Brillig compilation options (e.g., debug trace settings).
+///
+/// # Returns
+/// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
+/// - Err([InternalError]): If linking fails to find a dependency
+///
+/// # Panics
+/// - If the global memory size for the function has not been precomputed.
 pub(crate) fn gen_brillig_for(
     func: &Function,
     arguments: Vec<BrilligParameter>,

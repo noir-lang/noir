@@ -1,9 +1,8 @@
 #![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandomv3 as _; // cSpell:disable-line
 use rust_embed as _;
 
 use gloo_utils::format::JsValueSerdeExt;

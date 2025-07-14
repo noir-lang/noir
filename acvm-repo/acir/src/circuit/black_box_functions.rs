@@ -112,8 +112,29 @@ impl BlackBoxFunc {
         }
     }
 
-    pub fn is_valid_black_box_func_name(op_name: &str) -> bool {
-        BlackBoxFunc::lookup(op_name).is_some()
+    pub fn has_side_effects(&self) -> bool {
+        match self {
+            BlackBoxFunc::RecursiveAggregation
+            | BlackBoxFunc::MultiScalarMul
+            | BlackBoxFunc::EmbeddedCurveAdd => true,
+            BlackBoxFunc::AES128Encrypt
+            | BlackBoxFunc::AND
+            | BlackBoxFunc::XOR
+            | BlackBoxFunc::RANGE
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake3
+            | BlackBoxFunc::EcdsaSecp256k1
+            | BlackBoxFunc::EcdsaSecp256r1
+            | BlackBoxFunc::Keccakf1600
+            | BlackBoxFunc::BigIntAdd
+            | BlackBoxFunc::BigIntSub
+            | BlackBoxFunc::BigIntMul
+            | BlackBoxFunc::BigIntDiv
+            | BlackBoxFunc::BigIntFromLeBytes
+            | BlackBoxFunc::BigIntToLeBytes
+            | BlackBoxFunc::Poseidon2Permutation
+            | BlackBoxFunc::Sha256Compression => false,
+        }
     }
 }
 

@@ -122,7 +122,7 @@ enum Segment {
     /// Represents the end of a path.
     /// This is needed because we have want to merge "foo" and "foo::bar",
     /// we need to know that "foo" is the end of a path, and "foo::bar" is another one.
-    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", loosing "foo",
+    /// If we don't, merging "foo" and "foo::bar" will result in just "foo::bar", losing "foo",
     /// when we actually want "foo::{self, bar}".
     SelfReference,
     Crate,
@@ -268,6 +268,7 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
             PathKind::Super => tree.insert(Segment::Super),
             PathKind::Dep => tree.insert(Segment::Dep),
             PathKind::Plain => &mut tree,
+            PathKind::Resolved(_) => unreachable!("$crate shouldn't be possible here"),
         };
 
         for segment in import.prefix.segments {

@@ -5,10 +5,11 @@ use std::path::PathBuf;
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
-use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -62,6 +63,7 @@ pub(super) fn on_did_change_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = false;
@@ -78,6 +80,7 @@ pub(super) fn on_did_close_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.cached_lenses.remove(&params.text_document.uri.to_string());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     state.open_documents_count -= 1;
 
@@ -327,7 +330,7 @@ mod notification_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
         WorkDoneProgressParams,
@@ -339,7 +342,7 @@ mod notification_tests {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
 
         // Open the document, fake the text to be empty
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
@@ -352,7 +355,7 @@ mod notification_tests {
         );
 
         // Fake the text to change to "global a = 1;"
-        on_did_change_text_document(
+        let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {
                 text_document: VersionedTextDocumentIdentifier {

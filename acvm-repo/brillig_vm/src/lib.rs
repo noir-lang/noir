@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -9,6 +7,8 @@
 //!
 //! [acir]: https://crates.io/crates/acir
 //! [acvm]: https://crates.io/crates/acvm
+
+use std::collections::HashMap;
 
 use acir::AcirField;
 use acir::brillig::{
@@ -24,28 +24,53 @@ pub use acir::brillig;
 use memory::MemoryTypeError;
 pub use memory::{MEMORY_ADDRESSING_BIT_SIZE, Memory, MemoryValue};
 
+use num_bigint::BigUint;
 mod arithmetic;
 mod black_box;
+mod cast;
 mod memory;
 
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
+/// Represents the reason why the Brillig VM failed during execution.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureReason {
-    Trap { revert_data_offset: usize, revert_data_size: usize },
+    /// A trap was encountered, which indicates an explicit failure from within the VM program.
+    ///
+    /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
+    /// The revert data is referenced by the offset and size in the VM memory.
+    Trap {
+        /// Offset in memory where the revert data begins.
+        revert_data_offset: usize,
+        /// Size of the revert data.
+        revert_data_size: usize,
+    },
+    /// A runtime failure during execution.
+    /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
+    /// For example, a [binary operation][Opcode::BinaryIntOp] can trigger a division by zero error.
     RuntimeError { message: String },
 }
 
+/// Represents the current execution status of the Brillig VM.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VMStatus<F> {
+    /// The VM has completed execution successfully.
+    /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
+        /// Offset in memory where the return data begins.
         return_data_offset: usize,
+        /// Size of the return data.
         return_data_size: usize,
     },
+    /// The VM is still in progress and has not yet completed execution.
+    /// This is used when simulating execution.
     InProgress,
+    /// The VM encountered a failure and halted execution.
     Failure {
+        /// The reason for the failure.
         reason: FailureReason,
+        /// The call stack at the time the failure occurred, useful for debugging nested calls.
         call_stack: ErrorCallStack,
     },
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
@@ -63,12 +88,36 @@ pub enum VMStatus<F> {
     },
 }
 
-// A sample for each opcode that was executed.
+/// All samples for each opcode that was executed
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
+/// The position of an opcode that is currently being executed in the bytecode
+pub type OpcodePosition = usize;
+
+/// The position of the next opcode that will be executed in the bytecode or an id of a specific state produced by the opcode
+pub type NextOpcodePositionOrState = usize;
+
+/// A state that represents a true comparison as part of a feature
+const FUZZING_COMPARISON_TRUE_STATE: usize = usize::MAX - 1;
+/// A state that represents a false comparison as part of a feature
+const FUZZING_COMPARISON_FALSE_STATE: usize = usize::MAX;
+
+/// The start of the range of the states that represent logarithm of the difference between the comparison arguments as part of a feature
+const FUZZING_COMPARISON_LOG_RANGE_START_STATE: usize = 0;
+
+/// A tuple of the current opcode position and the next opcode position or state
+pub type Branch = (OpcodePosition, NextOpcodePositionOrState);
+
+/// The index of a unique feature in the fuzzing trace
+pub type UniqueFeatureIndex = usize;
+
+/// A map for translating encountered branching logic to features for fuzzing
+pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
+
+/// A sample for an executed opcode
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
-    // The call stack when processing a given opcode.
+    /// The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 
@@ -95,12 +144,20 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
     black_box_solver: &'a B,
-    // The solver for big integers
+    // The solver for big integers, it is used by the blackbox solver
     bigint_solver: BrilligBigIntSolver,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
     // Samples for profiling the VM execution.
     profiling_samples: BrilligProfilingSamples,
+
+    // The vm should trace fuzzing
+    fuzzing_active: bool,
+    // Fuzzer tracing memory
+    fuzzer_trace: Vec<u32>,
+
+    // Branch to feature map for fuzzing
+    branch_to_feature_map: BranchToFeatureMap,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
@@ -110,7 +167,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         bytecode: &'a [Opcode<F>],
         black_box_solver: &'a B,
         profiling_active: bool,
+        with_branch_to_feature_map: Option<&BranchToFeatureMap>,
     ) -> Self {
+        let (fuzzing_active, fuzzer_trace, branch_to_feature_map) = match with_branch_to_feature_map
+        {
+            Some(branch_to_feature_map) => {
+                (true, vec![0u32; branch_to_feature_map.len()], branch_to_feature_map.clone())
+            }
+            None => (false, Vec::new(), HashMap::new()),
+        };
         let bigint_solver =
             BrilligBigIntSolver::with_pedantic_solving(black_box_solver.pedantic_solving());
         Self {
@@ -126,11 +191,18 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             bigint_solver,
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
+            fuzzing_active,
+            fuzzer_trace,
+            branch_to_feature_map,
         }
     }
 
     pub fn is_profiling_active(&self) -> bool {
         self.profiling_active
+    }
+
+    pub fn is_fuzzing_active(&self) -> bool {
+        self.fuzzing_active
     }
 
     pub fn take_profiling_samples(&mut self) -> BrilligProfilingSamples {
@@ -163,6 +235,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status(VMStatus::ForeignCallWait { function, inputs })
     }
 
+    /// Provide the results of a Foreign Call to the VM
+    /// and resume execution of the VM.
     pub fn resolve_foreign_call(&mut self, foreign_call_result: ForeignCallResult<F>) {
         if self.foreign_call_counter < self.foreign_call_results.len() {
             panic!("No unresolved foreign calls");
@@ -229,6 +303,141 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.process_opcode_internal()
     }
 
+    /// Mark the execution of a particular branch in the fuzzing trace
+    fn fuzzing_trace_branching(&mut self, destination: NextOpcodePositionOrState) {
+        if !self.fuzzing_active {
+            return;
+        }
+        let index = self.branch_to_feature_map[&(self.program_counter, destination)];
+        self.fuzzer_trace[index] += 1;
+    }
+
+    /// Mark the execution of a conditional move in the fuzzing trace
+    fn fuzzing_trace_conditional_mov(&mut self, branch: bool) {
+        if !self.fuzzing_active {
+            return;
+        }
+        let index = self.branch_to_feature_map[&(
+            self.program_counter,
+            if branch { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+        )];
+        self.fuzzer_trace[index] += 1;
+    }
+
+    /// Collect information about the comparison of two field values in the fuzzing trace
+    fn fuzzing_trace_binary_field_op_comparison(
+        &mut self,
+        op: &BinaryFieldOp,
+        lhs: MemoryValue<F>,
+        rhs: MemoryValue<F>,
+        result: MemoryValue<F>,
+    ) {
+        if !self.fuzzing_active {
+            return;
+        }
+        match op {
+            BinaryFieldOp::Add
+            | BinaryFieldOp::Sub
+            | BinaryFieldOp::Mul
+            | BinaryFieldOp::Div
+            | BinaryFieldOp::IntegerDiv => {}
+            BinaryFieldOp::Equals | BinaryFieldOp::LessThan | BinaryFieldOp::LessThanEquals => {
+                let a = match lhs {
+                    MemoryValue::Field(a) => a,
+                    _ => {
+                        return;
+                    }
+                };
+                let b = match rhs {
+                    MemoryValue::Field(b) => b,
+                    _ => {
+                        return;
+                    }
+                };
+                let c = match result {
+                    MemoryValue::Field(..) => {
+                        return;
+                    }
+                    MemoryValue::U1(value) => value,
+                    _ => {
+                        return;
+                    }
+                };
+                let approach_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
+                        + BigUint::from_bytes_be(&(b - a).to_be_bytes()).bits() as usize,
+                )];
+                let condition_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+                )];
+                self.fuzzer_trace[condition_index] += 1;
+                self.fuzzer_trace[approach_index] += 1;
+            }
+        }
+    }
+
+    /// Collect information about the comparison of two integer values in the fuzzing trace
+    fn fuzzing_trace_binary_int_op_comparison(
+        &mut self,
+        op: &BinaryIntOp,
+        lhs: MemoryValue<F>,
+        rhs: MemoryValue<F>,
+        result: MemoryValue<F>,
+    ) {
+        if !self.fuzzing_active {
+            return;
+        }
+        match op {
+            BinaryIntOp::Add
+            | BinaryIntOp::Sub
+            | BinaryIntOp::Mul
+            | BinaryIntOp::Div
+            | BinaryIntOp::And
+            | BinaryIntOp::Or
+            | BinaryIntOp::Xor
+            | BinaryIntOp::Shl
+            | BinaryIntOp::Shr => {}
+            BinaryIntOp::Equals | BinaryIntOp::LessThan | BinaryIntOp::LessThanEquals => {
+                let lhs_value = lhs.to_u128().expect("lhs is not an integer");
+                let rhs_value = rhs.to_u128().expect("rhs is not an integer");
+                let c = match result {
+                    MemoryValue::U1(value) => value,
+                    _ => {
+                        return;
+                    }
+                };
+                let approach_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    FUZZING_COMPARISON_LOG_RANGE_START_STATE
+                        + rhs_value.abs_diff(lhs_value).checked_ilog2().map_or_else(|| 0, |x| x + 1)
+                            as usize,
+                )];
+                let condition_index = self.branch_to_feature_map[&(
+                    self.program_counter,
+                    if c { FUZZING_COMPARISON_TRUE_STATE } else { FUZZING_COMPARISON_FALSE_STATE },
+                )];
+                self.fuzzer_trace[condition_index] += 1;
+                self.fuzzer_trace[approach_index] += 1;
+            }
+        }
+    }
+    pub fn get_fuzzing_trace(&self) -> Vec<u32> {
+        self.fuzzer_trace.clone()
+    }
+
+    /// Execute a single opcode:
+    /// 1. Retrieve the current opcode using the program counter
+    /// 2. Execute the opcode.
+    ///    - For instance a binary 'result = lhs+rhs' opcode will read the VM memory at the lhs and rhs addresses,
+    ///      compute the sum and write it to the 'result' memory address.
+    /// 3. Update the program counter, usually by incrementing it.
+    ///
+    /// - Control flow opcodes jump around the bytecode by setting the program counter.
+    /// - Foreign call opcodes pause the VM until the foreign call results are available
+    /// - Function call opcodes backup the current program counter into the call stack and jump to the function entry point.
+    ///   The stack frame for function calls is handled during codegen.
     fn process_opcode_internal(&mut self) -> VMStatus<F> {
         let opcode = &self.bytecode[self.program_counter];
         match opcode {
@@ -256,7 +465,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::Cast { destination: destination_address, source: source_address, bit_size } => {
                 let source_value = self.memory.read(*source_address);
-                let casted_value = self.cast(*bit_size, source_value);
+                let casted_value = cast::cast(source_value, *bit_size);
                 self.memory.write(*destination_address, casted_value);
                 self.increment_program_counter()
             }
@@ -266,15 +475,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // We use 0 to mean false and any other value to mean true
                 let condition_value = self.memory.read(*condition);
                 if condition_value.expect_u1().expect("condition value is not a boolean") {
+                    self.fuzzing_trace_branching(*destination);
                     return self.set_program_counter(*destination);
                 }
+                self.fuzzing_trace_branching(self.program_counter + 1);
                 self.increment_program_counter()
             }
             Opcode::JumpIfNot { condition, location: destination } => {
                 let condition_value = self.memory.read(*condition);
                 if condition_value.expect_u1().expect("condition value is not a boolean") {
+                    self.fuzzing_trace_branching(self.program_counter + 1);
                     return self.increment_program_counter();
                 }
+                self.fuzzing_trace_branching(*destination);
                 self.set_program_counter(*destination)
             }
             Opcode::CalldataCopy { destination_address, size_address, offset_address } => {
@@ -340,11 +553,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             Opcode::ConditionalMov { destination, source_a, source_b, condition } => {
                 let condition_value = self.memory.read(*condition);
-                if condition_value.expect_u1().expect("condition value is not a boolean") {
+
+                let condition_value_bool =
+                    condition_value.expect_u1().expect("condition value is not a boolean");
+                if condition_value_bool {
                     self.memory.write(*destination, self.memory.read(*source_a));
                 } else {
                     self.memory.write(*destination, self.memory.read(*source_b));
                 }
+                self.fuzzing_trace_conditional_mov(condition_value_bool);
                 self.increment_program_counter()
             }
             Opcode::Trap { revert_data } => {
@@ -528,6 +745,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         }
     }
 
+    /// Write a foreign call's results to the VM memory.
+    ///
+    /// We match the expected types with the actual results.
+    /// However foreign call results do not support nested structures:
+    /// They are either a single integer value or a vector of integer values (field elements).
+    /// Therefore, nested arrays returned from foreign call results are flattened.
+    /// If the expected array sizes do not match the actual size, we reconstruct the nested
+    /// structure from the flat output array.
     fn write_foreign_call_result(
         &mut self,
         destinations: &[ValueOrArray],
@@ -780,6 +1005,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         self.memory.write(result, result_value);
 
+        self.fuzzing_trace_binary_field_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
 
@@ -798,6 +1024,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);
+
+        self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
 
@@ -819,79 +1047,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         };
         self.memory.write(destination, negated_value);
         Ok(())
-    }
-
-    /// Casts a value to a different bit size.
-    fn cast(&self, target_bit_size: BitSize, source_value: MemoryValue<F>) -> MemoryValue<F> {
-        use MemoryValue::*;
-
-        match (source_value, target_bit_size) {
-            // Field downcast to u128
-            (Field(field), BitSize::Integer(IntegerBitSize::U128)) => U128(field.to_u128()),
-            // Field downcast to arbitrary bit size
-            (Field(field), BitSize::Integer(target_bit_size)) => {
-                let as_u128 = field.to_u128();
-                match target_bit_size {
-                    IntegerBitSize::U1 => U1(as_u128 & 0x01 == 1),
-                    IntegerBitSize::U8 => U8(as_u128 as u8),
-                    IntegerBitSize::U16 => U16(as_u128 as u16),
-                    IntegerBitSize::U32 => U32(as_u128 as u32),
-                    IntegerBitSize::U64 => U64(as_u128 as u64),
-                    IntegerBitSize::U128 => unreachable!(),
-                }
-            }
-
-            (U1(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
-            (U1(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-            (U1(value), BitSize::Field) => Field(value.into()),
-
-            (U8(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
-            (U8(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
-            (U8(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-            (U8(value), BitSize::Field) => Field((value as u128).into()),
-
-            (U16(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
-            (U16(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
-            (U16(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value.into()),
-            (U16(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
-            (U16(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-            (U16(value), BitSize::Field) => Field((value as u128).into()),
-
-            (U32(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
-            (U32(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
-            (U32(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
-            (U32(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value.into()),
-            (U32(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-            (U32(value), BitSize::Field) => Field((value as u128).into()),
-
-            (U64(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
-            (U64(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
-            (U64(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
-            (U64(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value as u32),
-            (U64(value), BitSize::Integer(IntegerBitSize::U128)) => U128(value.into()),
-            (U64(value), BitSize::Field) => Field((value as u128).into()),
-
-            (U128(value), BitSize::Integer(IntegerBitSize::U1)) => U1(value & 0x01 == 1),
-            (U128(value), BitSize::Integer(IntegerBitSize::U8)) => U8(value as u8),
-            (U128(value), BitSize::Integer(IntegerBitSize::U16)) => U16(value as u16),
-            (U128(value), BitSize::Integer(IntegerBitSize::U32)) => U32(value as u32),
-            (U128(value), BitSize::Integer(IntegerBitSize::U64)) => U64(value as u64),
-            (U128(value), BitSize::Field) => Field(value.into()),
-
-            // no ops
-            (Field(_), BitSize::Field) => source_value,
-            (U1(_), BitSize::Integer(IntegerBitSize::U1)) => source_value,
-            (U8(_), BitSize::Integer(IntegerBitSize::U8)) => source_value,
-            (U16(_), BitSize::Integer(IntegerBitSize::U16)) => source_value,
-            (U32(_), BitSize::Integer(IntegerBitSize::U32)) => source_value,
-            (U64(_), BitSize::Integer(IntegerBitSize::U64)) => source_value,
-            (U128(_), BitSize::Integer(IntegerBitSize::U128)) => source_value,
-        }
     }
 }
 
@@ -915,7 +1070,7 @@ mod tests {
 
         // Start VM
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
@@ -966,7 +1121,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -988,6 +1143,7 @@ mod tests {
     }
 
     #[test]
+    // cSpell:disable-next-line
     fn jmpifnot_opcode() {
         let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 
@@ -1035,7 +1191,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1108,7 +1264,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1169,7 +1325,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1215,7 +1371,7 @@ mod tests {
             Opcode::Mov { destination: MemoryAddress::direct(2), source: MemoryAddress::direct(0) },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1281,7 +1437,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1378,7 +1534,7 @@ mod tests {
             .chain([equal_opcode, not_equal_opcode, less_than_opcode, less_than_equal_opcode])
             .collect();
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
         // Calldata copy
         let status = vm.process_opcode();
@@ -1508,7 +1664,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(vec![], opcodes, &solver, false);
+        let mut vm = VM::new(vec![], opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);
@@ -1735,7 +1891,7 @@ mod tests {
         opcodes: &'a [Opcode<F>],
         solver: &'a StubbedBlackBoxSolver,
     ) -> VM<'a, F, StubbedBlackBoxSolver> {
-        let mut vm = VM::new(calldata, opcodes, solver, false);
+        let mut vm = VM::new(calldata, opcodes, solver, false, None);
         brillig_execute(&mut vm);
         assert!(vm.call_stack.is_empty());
         vm
@@ -2423,7 +2579,7 @@ mod tests {
         ];
 
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, &opcodes, &solver, false);
+        let mut vm = VM::new(calldata, &opcodes, &solver, false, None);
 
         vm.process_opcode();
         vm.process_opcode();
@@ -2460,7 +2616,7 @@ mod tests {
             },
         ];
         let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false);
+        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
 
         let status = vm.process_opcode();
         assert_eq!(status, VMStatus::InProgress);

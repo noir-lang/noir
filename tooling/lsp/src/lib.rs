@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
@@ -14,19 +12,19 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use async_lsp::lsp_types::{
+    CodeLens,
+    request::{
+        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
+        PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
+    },
+};
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
 use fxhash::FxHashSet;
-use lsp_types::{
-    CodeLens,
-    request::{
-        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-        PrepareRenameRequest, References, Rename, SignatureHelpRequest,
-    },
-};
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -52,11 +50,12 @@ use notifications::{
     on_did_open_text_document, on_did_save_text_document, on_exit, on_initialized,
 };
 use requests::{
-    LspInitializationOptions, on_code_action_request, on_code_lens_request, on_completion_request,
-    on_document_symbol_request, on_formatting, on_goto_declaration_request,
+    LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
+    on_completion_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
     on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
+    on_workspace_symbol_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
@@ -72,7 +71,6 @@ mod trait_impl_method_stub_generator;
 mod types;
 mod use_segment_positions;
 mod utils;
-mod visibility;
 mod with_file;
 
 #[cfg(test)]
@@ -81,6 +79,8 @@ mod test_utils;
 use solver::WrapperSolver;
 use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 use with_file::parsed_module_with_file;
+
+use crate::{requests::on_expand_request, types::request::NargoExpand};
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -100,6 +100,7 @@ pub struct LspState {
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
+    workspace_symbol_cache: WorkspaceSymbolCache,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -132,6 +133,7 @@ impl LspState {
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
+            workspace_symbol_cache: WorkspaceSymbolCache::default(),
             open_documents_count: 0,
             options: Default::default(),
             files_with_errors: HashMap::new(),
@@ -169,6 +171,8 @@ impl NargoLspService {
             .request::<Completion, _>(on_completion_request)
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .request::<CodeActionRequest, _>(on_code_action_request)
+            .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
+            .request::<NargoExpand, _>(on_expand_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -221,7 +225,7 @@ fn get_package_tests_in_crate(
     let package_tests: Vec<_> = tests
         .into_iter()
         .map(|(func_name, test_function)| {
-            let location = context.function_meta(&test_function.get_id()).name.location;
+            let location = context.function_meta(&test_function.id).name.location;
             let file_id = location.file;
             let file_path = fm.path(file_id).expect("file must exist to contain tests");
             let range =
@@ -429,18 +433,22 @@ pub fn insert_all_files_for_workspace_into_file_manager(
     workspace: &Workspace,
     file_manager: &mut FileManager,
 ) {
-    // Source code for files we cached override those that are read from disk.
-    let mut overrides: HashMap<&Path, &str> = HashMap::new();
-    for (path, source) in &state.input_files {
-        let path = path.strip_prefix("file://").unwrap();
-        overrides.insert(Path::new(path), source);
-    }
-
+    let overrides = source_code_overrides(&state.input_files);
     nargo::insert_all_files_for_workspace_into_file_manager_with_overrides(
         workspace,
         file_manager,
-        &overrides,
+        Some(&overrides),
     );
+}
+
+// Source code for files we cached override those that are read from disk.
+pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<PathBuf, &str> {
+    let mut overrides: HashMap<PathBuf, &str> = HashMap::new();
+    for (path, source) in input_files {
+        let path = path.strip_prefix("file://").unwrap();
+        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+    }
+    overrides
 }
 
 #[test]

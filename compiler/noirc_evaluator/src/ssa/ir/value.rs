@@ -1,3 +1,4 @@
+use fxhash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
 use acvm::FieldElement;
@@ -12,12 +13,12 @@ use super::{
     types::{NumericType, Type},
 };
 
-pub(crate) type ValueId = Id<Value>;
+pub type ValueId = Id<Value>;
 
 /// Value is the most basic type allowed in the IR.
 /// Transition Note: A `Id<Value>` is similar to `NodeId` in our previous IR.
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
-pub(crate) enum Value {
+pub enum Value {
     /// This value was created due to an instruction
     ///
     /// * `instruction`: This is the instruction which defined it
@@ -69,5 +70,33 @@ impl Value {
             }
             Value::Global(typ) => Cow::Borrowed(typ),
         }
+    }
+}
+
+/// Like `HashMap<ValueId, ValueId>` but handles:
+/// 1. recursion (if v0 -> v1 and v1 -> v2, then v0 -> v2)
+/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+#[derive(Default, Debug)]
+pub(crate) struct ValueMapping {
+    map: HashMap<ValueId, ValueId>,
+}
+
+impl ValueMapping {
+    pub(crate) fn insert(&mut self, from: ValueId, to: ValueId) {
+        if from == to {
+            return;
+        }
+
+        // If `to` is mapped to something, directly map `from` to that value
+        let to = self.get(to);
+        self.map.insert(from, to);
+    }
+
+    pub(crate) fn get(&self, value: ValueId) -> ValueId {
+        if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.map.is_empty()
     }
 }

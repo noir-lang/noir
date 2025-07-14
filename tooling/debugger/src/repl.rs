@@ -1,90 +1,219 @@
-use crate::context::{DebugCommandResult, DebugContext, DebugLocation};
-
-use acvm::AcirField;
-use acvm::acir::brillig::BitSize;
-use acvm::acir::circuit::brillig::{BrilligBytecode, BrilligFunctionId};
-use acvm::acir::circuit::{Circuit, Opcode, OpcodeLocation};
-use acvm::acir::native_types::{Witness, WitnessMap, WitnessStack};
-use acvm::brillig_vm::MemoryValue;
-use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
-use acvm::{BlackBoxFunctionSolver, FieldElement};
-use nargo::{NargoError, PrintOutput};
+use crate::DebugProject;
+use crate::context::{
+    DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
+    RunParams,
+};
 use noirc_driver::CompiledProgram;
 
 use crate::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
 
 use easy_repl::{CommandStatus, Repl, command};
-use noirc_printable_type::PrintableValueDisplay;
 use std::cell::RefCell;
+use std::sync::mpsc::{self, Receiver, Sender};
+use std::thread;
 
-use crate::source_code_printer::print_source_code_location;
+use acvm::brillig_vm::brillig::Opcode as BrilligOpcode;
+use acvm::{
+    AcirField, FieldElement,
+    acir::{
+        brillig::BitSize,
+        circuit::{
+            Circuit, Opcode, OpcodeLocation,
+            brillig::{BrilligBytecode, BrilligFunctionId},
+        },
+        native_types::{Witness, WitnessMap},
+    },
+    brillig_vm::MemoryValue,
+};
+use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use noirc_printable_type::PrintableValueDisplay;
 
-pub struct ReplDebugger<'a, B: BlackBoxFunctionSolver<FieldElement>> {
-    context: DebugContext<'a, B>,
-    blackbox_solver: &'a B,
+use crate::{
+    foreign_calls::DebugForeignCallExecutor, source_code_printer::print_source_code_location,
+};
+
+type Context<'a> = DebugContext<'a, Bn254BlackBoxSolver>;
+
+#[derive(Debug, Clone)]
+pub(super) enum DebugCommandAPI {
+    AddBreakpoint(DebugLocation),
+    AddBreakpointAtLine(i64),
+    DeleteBreakpoint(DebugLocation),
+    Restart,
+    StepAcirOpcode,
+    StepIntoOpcode,
+    NextInto,
+    NextOver,
+    NextOut,
+    Cont,
+    UpdateWitness(u32, String),
+    WriteBrilligMemory(usize, String, u32),
+    ShowVariables,
+    ShowWitnessMap,
+    ShowWitness(u32),
+    ShowBrilligMemory,
+    ShowCurrentCallStack,
+    ShowCurrentVmStatus,
+    ShowOpcodes,
+    Terminate,
+}
+
+#[derive(Debug)]
+pub(super) enum DebuggerStatus {
+    Idle,
+    Busy,
+    Final(DebugExecutionResult),
+}
+
+pub struct AsyncReplDebugger<'a> {
+    circuits: Vec<Circuit<FieldElement>>,
     debug_artifact: &'a DebugArtifact,
     initial_witness: WitnessMap<FieldElement>,
+    unconstrained_functions: Vec<BrilligBytecode<FieldElement>>,
+    command_receiver: Receiver<DebugCommandAPI>,
+    status_sender: Sender<DebuggerStatus>,
     last_result: DebugCommandResult,
-
-    // ACIR functions to debug
-    circuits: &'a [Circuit<FieldElement>],
-
-    // Brillig functions referenced from the ACIR circuits above
-    unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
-
-    // whether to print the source without highlighting, pretty-printing,
-    // or line numbers
+    pedantic_solving: bool,
     raw_source_printing: bool,
 }
 
-impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
+impl<'a> AsyncReplDebugger<'a> {
     pub fn new(
-        blackbox_solver: &'a B,
-        circuits: &'a [Circuit<FieldElement>],
+        compiled_program: &CompiledProgram,
         debug_artifact: &'a DebugArtifact,
         initial_witness: WitnessMap<FieldElement>,
-        unconstrained_functions: &'a [BrilligBytecode<FieldElement>],
+        status_sender: Sender<DebuggerStatus>,
+        command_receiver: Receiver<DebugCommandAPI>,
         raw_source_printing: bool,
+        pedantic_solving: bool,
     ) -> Self {
-        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
-            debug_artifact,
-        ));
-        let context = DebugContext::new(
-            blackbox_solver,
-            circuits,
-            debug_artifact,
-            initial_witness.clone(),
-            foreign_call_executor,
-            unconstrained_functions,
-        );
-        let last_result = if context.get_current_debug_location().is_none() {
-            // handle circuit with no opcodes
-            DebugCommandResult::Done
-        } else {
-            DebugCommandResult::Ok
-        };
+        let last_result = DebugCommandResult::Ok;
+
         Self {
-            context,
-            blackbox_solver,
-            circuits,
+            command_receiver,
+            status_sender,
+            circuits: compiled_program.program.functions.clone(),
             debug_artifact,
-            initial_witness,
             last_result,
-            unconstrained_functions,
+            unconstrained_functions: compiled_program.program.unconstrained_functions.clone(),
             raw_source_printing,
+            initial_witness,
+            pedantic_solving,
         }
     }
 
-    pub fn show_current_vm_status(&self) {
-        let location = self.context.get_current_debug_location();
+    fn send_status(&mut self, status: DebuggerStatus) {
+        self.status_sender.send(status).expect("Downstream channel closed");
+    }
+
+    pub(super) fn start_debugging(
+        mut self,
+        foreign_call_executor: Box<dyn DebugForeignCallExecutor + 'a>,
+    ) {
+        let blackbox_solver = &Bn254BlackBoxSolver(self.pedantic_solving);
+        let circuits = &self.circuits.clone();
+        let unconstrained_functions = &self.unconstrained_functions.clone();
+        let mut context = DebugContext::new(
+            blackbox_solver,
+            circuits,
+            self.debug_artifact,
+            self.initial_witness.clone(),
+            foreign_call_executor,
+            unconstrained_functions,
+        );
+
+        if context.get_current_debug_location().is_none() {
+            // handle circuit with no opcodes
+            self.last_result = DebugCommandResult::Done;
+        }
+
+        println!("Debugger ready to receive messages..");
+        loop {
+            // recv blocks until it receives message
+            if let Ok(received) = self.command_receiver.recv() {
+                self.send_status(DebuggerStatus::Busy);
+                match received {
+                    DebugCommandAPI::AddBreakpoint(debug_location) => {
+                        Self::add_breakpoint_at(&mut context, debug_location);
+                    }
+                    DebugCommandAPI::DeleteBreakpoint(debug_location) => {
+                        Self::delete_breakpoint_at(&mut context, debug_location);
+                    }
+                    DebugCommandAPI::Restart => {
+                        self.restart_session(&mut context);
+                    }
+                    DebugCommandAPI::WriteBrilligMemory(index, value, bit_size) => {
+                        Self::write_brillig_memory(&mut context, index, value, bit_size);
+                    }
+                    DebugCommandAPI::UpdateWitness(index, value) => {
+                        Self::update_witness(&mut context, index, value);
+                    }
+                    DebugCommandAPI::StepAcirOpcode => {
+                        self.handle_step(&mut context, |context| context.step_acir_opcode());
+                    }
+                    DebugCommandAPI::StepIntoOpcode => {
+                        self.handle_step(&mut context, |context| context.step_into_opcode());
+                    }
+                    DebugCommandAPI::NextInto => {
+                        self.handle_step(&mut context, |context| context.next_into());
+                    }
+                    DebugCommandAPI::NextOver => {
+                        self.handle_step(&mut context, |context| context.next_over());
+                    }
+                    DebugCommandAPI::NextOut => {
+                        self.handle_step(&mut context, |context| context.next_out());
+                    }
+                    DebugCommandAPI::Cont => self.handle_step(&mut context, |context| {
+                        println!("(Continuing execution...)");
+                        context.cont()
+                    }),
+                    DebugCommandAPI::AddBreakpointAtLine(line_number) => {
+                        Self::add_breakpoint_at_line(&mut context, line_number);
+                    }
+                    DebugCommandAPI::ShowVariables => {
+                        Self::show_variables(&mut context);
+                    }
+                    DebugCommandAPI::ShowWitnessMap => {
+                        Self::show_witness_map(&mut context);
+                    }
+                    DebugCommandAPI::ShowWitness(index) => {
+                        Self::show_witness(&mut context, index);
+                    }
+                    DebugCommandAPI::ShowBrilligMemory => {
+                        Self::show_brillig_memory(&mut context);
+                    }
+                    DebugCommandAPI::ShowCurrentCallStack => {
+                        self.show_current_call_stack(&mut context);
+                    }
+                    DebugCommandAPI::ShowOpcodes => {
+                        self.show_opcodes(&mut context);
+                    }
+                    DebugCommandAPI::ShowCurrentVmStatus => {
+                        self.show_current_vm_status(&mut context);
+                    }
+                    DebugCommandAPI::Terminate => {
+                        self.terminate(context);
+                        break;
+                    }
+                };
+            } else {
+                println!("Upstream channel closed. Terminating debugger");
+                break;
+            }
+            self.send_status(DebuggerStatus::Idle);
+        }
+    }
+
+    fn show_current_vm_status(&self, context: &mut Context<'_>) {
+        let location = context.get_current_debug_location();
 
         match location {
             None => println!("Finished execution"),
             Some(location) => {
                 let circuit_id = location.circuit_id;
-                let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
+                let opcodes = context.get_opcodes_of_circuit(circuit_id);
+
                 match &location.opcode_location {
                     OpcodeLocation::Acir(ip) => {
                         println!("At opcode {} :: {}", location, opcodes[*ip]);
@@ -102,7 +231,8 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                         );
                     }
                 }
-                let locations = self.context.get_source_location_for_debug_location(&location);
+                let locations = context.get_source_location_for_debug_location(&location);
+
                 print_source_code_location(
                     self.debug_artifact,
                     &locations,
@@ -112,14 +242,19 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         }
     }
 
-    fn show_stack_frame(&self, index: usize, debug_location: &DebugLocation) {
-        let opcodes = self.context.get_opcodes();
+    fn show_stack_frame(
+        &self,
+        context: &mut Context<'_>,
+        index: usize,
+        debug_location: &DebugLocation,
+    ) {
+        let opcodes = context.get_opcodes();
         match &debug_location.opcode_location {
             OpcodeLocation::Acir(instruction_pointer) => {
                 println!(
                     "Frame #{index}, opcode {} :: {}",
                     debug_location, opcodes[*instruction_pointer]
-                )
+                );
             }
             OpcodeLocation::Brillig { acir_index, brillig_index } => {
                 let brillig_bytecode = if let Opcode::BrilligCall { id, .. } = opcodes[*acir_index]
@@ -134,38 +269,39 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
                 );
             }
         }
-        let locations = self.context.get_source_location_for_debug_location(debug_location);
+        let locations = context.get_source_location_for_debug_location(debug_location);
         print_source_code_location(self.debug_artifact, &locations, self.raw_source_printing);
     }
 
-    pub fn show_current_call_stack(&self) {
-        let call_stack = self.context.get_call_stack();
+    fn show_current_call_stack(&mut self, context: &mut Context<'_>) {
+        let call_stack = context.get_call_stack();
+
         if call_stack.is_empty() {
             println!("Finished execution. Call stack empty.");
             return;
         }
 
         for (i, frame_location) in call_stack.iter().enumerate() {
-            self.show_stack_frame(i, frame_location);
+            self.show_stack_frame(context, i, frame_location);
         }
     }
 
-    fn display_opcodes(&self) {
+    fn show_opcodes(&mut self, context: &mut Context<'_>) {
         for i in 0..self.circuits.len() {
-            self.display_opcodes_of_circuit(i as u32);
+            self.show_opcodes_of_circuit(context, i as u32);
         }
     }
 
-    fn display_opcodes_of_circuit(&self, circuit_id: u32) {
+    fn show_opcodes_of_circuit(&mut self, context: &mut Context<'_>, circuit_id: u32) {
         let current_opcode_location =
-            self.context.get_current_debug_location().and_then(|debug_location| {
+            context.get_current_debug_location().and_then(|debug_location| {
                 if debug_location.circuit_id == circuit_id {
                     Some(debug_location.opcode_location)
                 } else {
                     None
                 }
             });
-        let opcodes = self.context.get_opcodes_of_circuit(circuit_id);
+        let opcodes = context.get_opcodes_of_circuit(circuit_id);
         let current_acir_index = match current_opcode_location {
             Some(OpcodeLocation::Acir(ip)) => Some(ip),
             Some(OpcodeLocation::Brillig { acir_index, .. }) => Some(acir_index),
@@ -178,7 +314,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         let outer_marker = |acir_index| {
             if current_acir_index == Some(acir_index) {
                 "->"
-            } else if self.context.is_breakpoint_set(&DebugLocation {
+            } else if context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Acir(acir_index),
                 brillig_function_id: None,
@@ -191,7 +327,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         let brillig_marker = |acir_index, brillig_index, brillig_function_id| {
             if current_acir_index == Some(acir_index) && brillig_index == current_brillig_index {
                 "->"
-            } else if self.context.is_breakpoint_set(&DebugLocation {
+            } else if context.is_breakpoint_set(&DebugLocation {
                 circuit_id,
                 opcode_location: OpcodeLocation::Brillig { acir_index, brillig_index },
                 brillig_function_id: Some(brillig_function_id),
@@ -233,44 +369,56 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         }
     }
 
-    fn add_breakpoint_at(&mut self, location: DebugLocation) {
-        if !self.context.is_valid_debug_location(&location) {
+    fn add_breakpoint_at(context: &mut Context<'_>, location: DebugLocation) {
+        if !context.is_valid_debug_location(&location) {
             println!("Invalid location {location}");
-        } else if self.context.add_breakpoint(location) {
+        } else if context.add_breakpoint(location) {
             println!("Added breakpoint at {location}");
         } else {
             println!("Breakpoint at {location} already set");
         }
     }
 
-    fn add_breakpoint_at_line(&mut self, line_number: i64) {
-        let Some(current_file) = self.context.get_current_file() else {
-            println!("No current file.");
-            return;
-        };
-
-        let best_location =
-            self.context.find_opcode_for_source_location(&current_file, line_number);
-
+    fn add_breakpoint_at_line(context: &mut Context<'_>, line_number: i64) {
+        let best_location = context.find_opcode_at_current_file_line(line_number);
         match best_location {
             Some(location) => {
                 println!("Added breakpoint at line {}", line_number);
-                self.add_breakpoint_at(location)
+                Self::add_breakpoint_at(context, location);
             }
             None => println!("No opcode at line {}", line_number),
         }
     }
 
-    fn delete_breakpoint_at(&mut self, location: DebugLocation) {
-        if self.context.delete_breakpoint(&location) {
+    fn delete_breakpoint_at(context: &mut Context<'_>, location: DebugLocation) {
+        if context.delete_breakpoint(&location) {
             println!("Breakpoint at {location} deleted");
         } else {
             println!("Breakpoint at {location} not set");
         }
     }
 
-    fn validate_in_progress(&self) -> bool {
-        match self.last_result {
+    fn handle_result(&mut self, result: DebugCommandResult) {
+        self.last_result = result;
+        match &self.last_result {
+            DebugCommandResult::Done => {
+                println!("Execution finished");
+            }
+            DebugCommandResult::Ok => (),
+            DebugCommandResult::BreakpointReached(location) => {
+                println!("Stopped at breakpoint in opcode {}", location);
+            }
+            DebugCommandResult::Error(error) => {
+                println!("ERROR: {}", error);
+            }
+        }
+    }
+
+    fn handle_step<F>(&mut self, context: &mut Context<'_>, step: F)
+    where
+        F: Fn(&mut Context) -> DebugCommandResult,
+    {
+        let should_execute = match self.last_result {
             DebugCommandResult::Ok | DebugCommandResult::BreakpointReached(..) => true,
             DebugCommandResult::Done => {
                 println!("Execution finished");
@@ -278,123 +426,56 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             }
             DebugCommandResult::Error(ref error) => {
                 println!("ERROR: {}", error);
-                self.show_current_vm_status();
+                self.show_current_vm_status(context);
                 false
             }
+        };
+        if should_execute {
+            let result = step(context);
+            self.show_current_vm_status(context);
+            self.handle_result(result);
         }
     }
 
-    fn handle_debug_command_result(&mut self, result: DebugCommandResult) {
-        match &result {
-            DebugCommandResult::BreakpointReached(location) => {
-                println!("Stopped at breakpoint in opcode {}", location);
-            }
-            DebugCommandResult::Error(error) => {
-                println!("ERROR: {}", error);
-            }
-            _ => (),
-        }
-        self.last_result = result;
-        self.show_current_vm_status();
-    }
-
-    fn step_acir_opcode(&mut self) {
-        if self.validate_in_progress() {
-            let result = self.context.step_acir_opcode();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn step_into_opcode(&mut self) {
-        if self.validate_in_progress() {
-            let result = self.context.step_into_opcode();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn next_into(&mut self) {
-        if self.validate_in_progress() {
-            let result = self.context.next_into();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn next_over(&mut self) {
-        if self.validate_in_progress() {
-            let result = self.context.next_over();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn next_out(&mut self) {
-        if self.validate_in_progress() {
-            let result = self.context.next_out();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn cont(&mut self) {
-        if self.validate_in_progress() {
-            println!("(Continuing execution...)");
-            let result = self.context.cont();
-            self.handle_debug_command_result(result);
-        }
-    }
-
-    fn restart_session(&mut self) {
-        let breakpoints: Vec<DebugLocation> = self.context.iterate_breakpoints().copied().collect();
-        let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
-            PrintOutput::Stdout,
-            self.debug_artifact,
-        ));
-        self.context = DebugContext::new(
-            self.blackbox_solver,
-            self.circuits,
-            self.debug_artifact,
-            self.initial_witness.clone(),
-            foreign_call_executor,
-            self.unconstrained_functions,
-        );
-        for debug_location in breakpoints {
-            self.context.add_breakpoint(debug_location);
-        }
+    fn restart_session(&mut self, context: &mut Context<'_>) {
+        context.restart();
         self.last_result = DebugCommandResult::Ok;
         println!("Restarted debugging session.");
-        self.show_current_vm_status();
+        self.show_current_vm_status(context);
     }
 
-    pub fn show_witness_map(&self) {
-        let witness_map = self.context.get_witness_map();
+    fn show_witness_map(context: &mut Context<'_>) {
+        let witness_map = context.get_witness_map();
         // NOTE: we need to clone() here to get the iterator
         for (witness, value) in witness_map.clone().into_iter() {
             println!("_{} = {value}", witness.witness_index());
         }
     }
 
-    pub fn show_witness(&self, index: u32) {
-        if let Some(value) = self.context.get_witness_map().get_index(index) {
+    fn show_witness(context: &mut Context<'_>, index: u32) {
+        if let Some(value) = context.get_witness_map().get_index(index) {
             println!("_{} = {value}", index);
         }
     }
 
-    pub fn update_witness(&mut self, index: u32, value: String) {
+    fn update_witness(context: &mut Context<'_>, index: u32, value: String) {
         let Some(field_value) = FieldElement::try_from_str(&value) else {
             println!("Invalid witness value: {value}");
             return;
         };
 
         let witness = Witness::from(index);
-        _ = self.context.overwrite_witness(witness, field_value);
+        _ = context.overwrite_witness(witness, field_value);
         println!("_{} = {value}", index);
     }
 
-    pub fn show_brillig_memory(&self) {
-        if !self.context.is_executing_brillig() {
+    fn show_brillig_memory(context: &mut Context<'_>) {
+        if !context.is_executing_brillig() {
             println!("Not executing a Brillig block");
             return;
         }
 
-        let Some(memory) = self.context.get_brillig_memory() else {
+        let Some(memory) = context.get_brillig_memory() else {
             // this can happen when just entering the Brillig block since ACVM
             // would have not initialized the Brillig VM yet; in fact, the
             // Brillig code may be skipped altogether
@@ -412,8 +493,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             println!("{index} = {}", value);
         }
     }
-
-    pub fn write_brillig_memory(&mut self, index: usize, value: String, bit_size: u32) {
+    fn write_brillig_memory(context: &mut Context<'_>, index: usize, value: String, bit_size: u32) {
         let Some(field_value) = FieldElement::try_from_str(&value) else {
             println!("Invalid value: {value}");
             return;
@@ -424,15 +504,17 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
             return;
         };
 
-        if !self.context.is_executing_brillig() {
+        if !context.is_executing_brillig() {
             println!("Not executing a Brillig block");
             return;
         }
-        self.context.write_brillig_memory(index, field_value, bit_size);
+        context.write_brillig_memory(index, field_value, bit_size);
     }
 
-    pub fn show_vars(&self) {
-        for frame in self.context.get_variables() {
+    fn show_variables(context: &mut Context<'_>) {
+        let variables: Vec<DebugStackFrame<FieldElement>> =
+            context.get_variables().iter().map(DebugStackFrame::from).collect();
+        for frame in variables {
             println!("{}({})", frame.function_name, frame.function_params.join(", "));
             for (var_name, value, var_type) in frame.variables.iter() {
                 let printable_value =
@@ -442,33 +524,150 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ReplDebugger<'a, B> {
         }
     }
 
-    fn is_solved(&self) -> bool {
-        self.context.is_solved()
-    }
-
-    fn finalize(self) -> WitnessStack<FieldElement> {
-        self.context.finalize()
+    fn terminate(self, context: Context<'_>) {
+        let result = if context.is_solved() {
+            let solved_witness_stack = context.finalize();
+            DebugExecutionResult::Solved(solved_witness_stack)
+        } else {
+            match self.last_result {
+                // Expose the last known error
+                DebugCommandResult::Error(error) => DebugExecutionResult::Error(error),
+                _ => DebugExecutionResult::Incomplete,
+            }
+        };
+        self.status_sender.send(DebuggerStatus::Final(result)).expect("Downstream channel closed");
     }
 }
 
-pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
-    blackbox_solver: &B,
-    program: CompiledProgram,
-    initial_witness: WitnessMap<FieldElement>,
-    raw_source_printing: bool,
-) -> Result<Option<WitnessStack<FieldElement>>, NargoError<FieldElement>> {
-    let circuits = &program.program.functions;
-    let debug_artifact =
-        &DebugArtifact { debug_symbols: program.debug, file_map: program.file_map };
-    let unconstrained_functions = &program.program.unconstrained_functions;
-    let context = RefCell::new(ReplDebugger::new(
-        blackbox_solver,
-        circuits,
-        debug_artifact,
-        initial_witness,
-        unconstrained_functions,
-        raw_source_printing,
+struct DebugController {
+    command_sender: Sender<DebugCommandAPI>,
+    status_receiver: Receiver<DebuggerStatus>,
+}
+impl DebugController {
+    fn debugger_status(&self) -> DebuggerStatus {
+        self.status_receiver.recv().expect("Debugger closed connection unexpectedly")
+    }
+
+    fn call_debugger(&self, command: DebugCommandAPI) {
+        self.call_debugger_no_wait_for_idle(command);
+        self.wait_for_idle();
+    }
+
+    fn call_debugger_no_wait_for_idle(&self, command: DebugCommandAPI) {
+        self.command_sender.send(command).expect("Could not communicate with debugger");
+    }
+
+    fn get_final_result(&self) -> DebugExecutionResult {
+        loop {
+            let status = self.debugger_status();
+            if let DebuggerStatus::Final(result) = status {
+                return result;
+            }
+        }
+    }
+
+    fn wait_for_idle(&self) {
+        loop {
+            let status = self.debugger_status();
+            if let DebuggerStatus::Idle = status {
+                break;
+            };
+        }
+    }
+
+    pub fn step_acir_opcode(&self) {
+        self.call_debugger(DebugCommandAPI::StepAcirOpcode);
+    }
+    pub fn cont(&self) {
+        self.call_debugger(DebugCommandAPI::Cont);
+    }
+    pub fn step_into_opcode(&self) {
+        self.call_debugger(DebugCommandAPI::StepIntoOpcode);
+    }
+    pub fn next_into(&self) {
+        self.call_debugger(DebugCommandAPI::NextInto);
+    }
+    pub fn next_over(&self) {
+        self.call_debugger(DebugCommandAPI::NextOver);
+    }
+    pub fn next_out(&self) {
+        self.call_debugger(DebugCommandAPI::NextOut);
+    }
+    pub fn restart_session(&self) {
+        self.call_debugger(DebugCommandAPI::Restart);
+    }
+    pub fn add_breakpoint_at_line(&self, line_number: i64) {
+        self.call_debugger(DebugCommandAPI::AddBreakpointAtLine(line_number));
+    }
+    pub fn add_breakpoint_at(&self, location: DebugLocation) {
+        self.call_debugger(DebugCommandAPI::AddBreakpoint(location));
+    }
+    pub fn delete_breakpoint_at(&self, location: DebugLocation) {
+        self.call_debugger(DebugCommandAPI::DeleteBreakpoint(location));
+    }
+    pub fn update_witness(&self, index: u32, value: String) {
+        self.call_debugger(DebugCommandAPI::UpdateWitness(index, value));
+    }
+    pub fn write_brillig_memory(&self, index: usize, value: String, bit_size: u32) {
+        self.call_debugger(DebugCommandAPI::WriteBrilligMemory(index, value, bit_size));
+    }
+    pub fn show_vars(&self) {
+        self.call_debugger(DebugCommandAPI::ShowVariables);
+    }
+    pub fn show_opcodes(&self) {
+        self.call_debugger(DebugCommandAPI::ShowOpcodes);
+    }
+    pub fn show_witness_map(&self) {
+        self.call_debugger(DebugCommandAPI::ShowWitnessMap);
+    }
+    pub fn show_witness(&self, index: u32) {
+        self.call_debugger(DebugCommandAPI::ShowWitness(index));
+    }
+    pub fn show_brillig_memory(&self) {
+        self.call_debugger(DebugCommandAPI::ShowBrilligMemory);
+    }
+    pub fn show_current_call_stack(&self) {
+        self.call_debugger(DebugCommandAPI::ShowCurrentCallStack);
+    }
+    pub fn show_current_vm_status(&self) {
+        self.call_debugger(DebugCommandAPI::ShowCurrentVmStatus);
+    }
+    pub fn terminate(&self) {
+        self.call_debugger_no_wait_for_idle(DebugCommandAPI::Terminate);
+    }
+}
+
+pub fn run(project: DebugProject, run_params: RunParams) -> DebugExecutionResult {
+    let debug_artifact = DebugArtifact {
+        debug_symbols: project.compiled_program.debug.clone(),
+        file_map: project.compiled_program.file_map.clone(),
+    };
+
+    let foreign_call_executor = Box::new(DefaultDebugForeignCallExecutor::from_artifact(
+        std::io::stdout(),
+        run_params.oracle_resolver_url,
+        &debug_artifact,
+        Some(project.root_dir),
+        project.package_name,
     ));
+
+    let (command_tx, command_rx) = mpsc::channel::<DebugCommandAPI>();
+    let (status_tx, status_rx) = mpsc::channel::<DebuggerStatus>();
+    thread::spawn(move || {
+        let debugger = AsyncReplDebugger::new(
+            &project.compiled_program,
+            &debug_artifact,
+            project.initial_witness,
+            status_tx,
+            command_rx,
+            run_params.raw_source_printing.unwrap_or(false),
+            run_params.pedantic_solving,
+        );
+        debugger.start_debugging(foreign_call_executor);
+    });
+
+    let context =
+        RefCell::new(DebugController { command_sender: command_tx, status_receiver: status_rx });
     let ref_context = &context;
 
     ref_context.borrow().show_current_vm_status();
@@ -549,7 +748,7 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
             command! {
                 "display ACIR opcodes",
                 () => || {
-                    ref_context.borrow().display_opcodes();
+                    ref_context.borrow().show_opcodes();
                     Ok(CommandStatus::Done)
                 }
             },
@@ -658,15 +857,10 @@ pub fn run<B: BlackBoxFunctionSolver<FieldElement>>(
         .expect("Failed to initialize debugger repl");
 
     repl.run().expect("Debugger error");
-
     // REPL execution has finished.
     // Drop it so that we can move fields out from `context` again.
     drop(repl);
 
-    if context.borrow().is_solved() {
-        let solved_witness_stack = context.into_inner().finalize();
-        Ok(Some(solved_witness_stack))
-    } else {
-        Ok(None)
-    }
+    context.borrow().terminate();
+    context.borrow().get_final_result()
 }

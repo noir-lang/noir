@@ -1,10 +1,19 @@
+//! Implementation of the VM's memory
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
 
+/// The bit size used for addressing memory within the Brillig VM.
+///
+/// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 
+/// A single typed value in the Brillig VM's memory.
+///
+/// Memory in the VM is strongly typed and can represent either a native field element
+/// or an integer of a specific bit width. This enum encapsulates all supported
+/// in-memory types and allows conversion between representations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemoryValue<F> {
     Field(F),
@@ -16,15 +25,21 @@ pub enum MemoryValue<F> {
     U128(u128),
 }
 
+/// Represents errors that can occur when interpreting or converting typed memory values.
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryTypeError {
+    /// The value's bit size does not match the expected bit size for the operation.
     #[error(
         "Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
     )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
+    /// The memory value is not an integer and cannot be interpreted as one.
+    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [MemoryValue::to_u128].
+    #[error("Value is not an integer")]
+    NotAnInteger,
 }
 
-impl<F> MemoryValue<F> {
+impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds a field-typed memory value.
     pub fn new_field(value: F) -> Self {
         MemoryValue::Field(value)
@@ -57,7 +72,7 @@ impl<F> MemoryValue<F> {
     pub fn to_usize(&self) -> usize {
         match self {
             MemoryValue::U32(value) => (*value).try_into().unwrap(),
-            _ => panic!("value is not typed as brillig usize"),
+            other => panic!("value is not typed as brillig usize: {other}"),
         }
     }
 }
@@ -93,6 +108,19 @@ impl<F: AcirField> MemoryValue<F> {
             MemoryValue::U32(value) => F::from(*value as u128),
             MemoryValue::U64(value) => F::from(*value as u128),
             MemoryValue::U128(value) => F::from(*value),
+        }
+    }
+
+    /// Converts the memory value to U128, if the value is an integer.
+    pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
+        match self {
+            MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
+            MemoryValue::U1(value) => Ok(*value as u8 as u128),
+            MemoryValue::U8(value) => Ok(*value as u128),
+            MemoryValue::U16(value) => Ok(*value as u128),
+            MemoryValue::U32(value) => Ok(*value as u128),
+            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U128(value) => Ok(*value),
         }
     }
 
@@ -269,11 +297,12 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
         memory_value.expect_u128()
     }
 }
-
+/// The VM's memory.
+/// Memory is internally represented as a vector of values.
+/// We grow the memory when values past the end are set, extending with 0s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Memory<F> {
-    // Memory is a vector of values.
-    // We grow the memory when values past the end are set, extending with 0s.
+    // Internal memory representation
     inner: Vec<MemoryValue<F>>,
 }
 

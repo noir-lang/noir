@@ -1,0 +1,33 @@
+[package]
+name = "noir_greybox_fuzzer"
+description = "A greybox (coverage) fuzzer for Noir programs"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build-dependencies]
+build-data.workspace = true
+
+[dependencies]
+acvm.workspace = true
+noirc_artifacts.workspace = true
+noirc_abi.workspace = true
+proptest.workspace = true
+rand.workspace = true
+num-traits.workspace = true
+fm.workspace=true
+rayon.workspace = true
+
+rand_xorshift="0.3.0"
+walkdir = "2.5.0"
+sha256={ version = "1.5.0", default-features = false }
+termcolor = "1.1.2"
+
+[dev-dependencies]
+num-bigint.workspace = true

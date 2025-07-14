@@ -15,6 +15,7 @@ use acir::{
     native_types::{Expression, Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
+use brillig_vm::BranchToFeatureMap;
 
 use self::{
     arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
@@ -55,7 +56,7 @@ pub enum ACVMStatus<F> {
     RequiresForeignCall(ForeignCallWaitInfo<F>),
 
     /// The ACVM has encountered a request for an ACIR [call][acir::circuit::Opcode]
-    /// to execute a separate ACVM instance. The result of the ACIR call must be passd back to the ACVM.
+    /// to execute a separate ACVM instance. The result of the ACIR call must be passed back to the ACVM.
     ///
     /// Once this is done, the ACVM can be restarted to solve the remaining opcodes.
     RequiresAcirCall(AcirCallWaitInfo<F>),
@@ -177,6 +178,12 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
             }
+            BlackBoxResolutionError::AssertFailed(error) => {
+                OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: Some(ResolvedAssertionPayload::String(error)),
+                }
+            }
         }
     }
 }
@@ -213,6 +220,8 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// Index of the next opcode to be executed.
     instruction_pointer: usize,
 
+    /// A mapping of witnesses to their solved values
+    /// The map is updated as the ACVM executes.
     witness_map: WitnessMap<F>,
 
     brillig_solver: Option<BrilligSolver<'a, F, B>>,
@@ -232,6 +241,14 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     profiling_active: bool,
 
     profiling_samples: ProfilingSamples,
+
+    // Whether we need to trace brillig execution for fuzzing
+    brillig_fuzzing_active: bool,
+
+    // Brillig branch to feature map
+    brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+
+    brillig_fuzzing_trace: Option<Vec<u32>>,
 }
 
 impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
@@ -259,12 +276,28 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             assertion_payloads,
             profiling_active: false,
             profiling_samples: Vec::new(),
+            brillig_fuzzing_active: false,
+            brillig_branch_to_feature_map: None,
+            brillig_fuzzing_trace: None,
         }
     }
 
     // Enable profiling
     pub fn with_profiler(&mut self, profiling_active: bool) {
         self.profiling_active = profiling_active;
+    }
+
+    // Enable brillig fuzzing
+    pub fn with_brillig_fuzzing(
+        &mut self,
+        brillig_branch_to_feature_map: Option<&'a BranchToFeatureMap>,
+    ) {
+        self.brillig_fuzzing_active = brillig_branch_to_feature_map.is_some();
+        self.brillig_branch_to_feature_map = brillig_branch_to_feature_map;
+    }
+
+    pub fn get_brillig_fuzzing_trace(&self) -> Option<Vec<u32>> {
+        self.brillig_fuzzing_trace.clone()
     }
 
     /// Returns a reference to the current state of the ACVM's [`WitnessMap`].
@@ -383,6 +416,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Executes a single opcode using the dedicated solver.
+    ///
+    /// Foreign or ACIR Calls are deferred to the caller, which will
+    /// either instantiate a new ACVM to execute the called ACIR function
+    /// or a custom implementation to execute the foreign call.
+    /// Then it will resume execution of the current ACVM with the results of the call.
     pub fn solve_opcode(&mut self) -> ACVMStatus<F> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
@@ -418,6 +457,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.handle_opcode_resolution(resolution)
     }
 
+    /// Returns the status of the ACVM
+    /// If the status is an error, it converts the error into [OpcodeResolutionError]
     fn handle_opcode_resolution(
         &mut self,
         resolution: Result<(), OpcodeResolutionError<F>>,
@@ -499,6 +540,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }))
     }
 
+    /// Solves a Brillig Call opcode, which represents a call to an unconstrained function.
+    /// It first handles the predicate and returns zero values if the predicate is false.
+    /// Then it executes (or resumes execution) the Brillig function using a Brillig VM.
     fn solve_brillig_call_opcode(
         &mut self,
     ) -> Result<Option<ForeignCallWaitInfo<F>>, OpcodeResolutionError<F>> {
@@ -533,10 +577,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 self.instruction_pointer,
                 *id,
                 self.profiling_active,
+                self.brillig_branch_to_feature_map,
             )?,
         };
 
-        let result = solver.solve()?;
+        // If we're fuzzing, we need to get the fuzzing trace on an error
+        let result = solver.solve().inspect_err(|_| {
+            if self.brillig_fuzzing_active {
+                self.brillig_fuzzing_trace = Some(solver.get_fuzzing_trace());
+            };
+        })?;
 
         match result {
             BrilligSolverStatus::ForeignCallWait(foreign_call) => {
@@ -548,6 +598,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                 unreachable!("Brillig solver still in progress")
             }
             BrilligSolverStatus::Finished => {
+                if self.brillig_fuzzing_active {
+                    self.brillig_fuzzing_trace = Some(solver.get_fuzzing_trace());
+                }
                 // Write execution outputs
                 if self.profiling_active {
                     let profiling_info =
@@ -576,6 +629,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
+    // This function is used by the debugger
     pub fn step_into_brillig(&mut self) -> StepResult<'a, F, B> {
         let Opcode::BrilligCall { id, inputs, outputs, predicate } =
             &self.opcodes[self.instruction_pointer]
@@ -609,6 +663,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
             self.instruction_pointer,
             *id,
             self.profiling_active,
+            self.brillig_branch_to_feature_map,
         );
         match solver {
             Ok(solver) => StepResult::IntoBrillig(solver),
@@ -616,6 +671,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         }
     }
 
+    // This function is used by the debugger
     pub fn finish_brillig_with_solver(&mut self, solver: BrilligSolver<'a, F, B>) -> ACVMStatus<F> {
         if !matches!(self.opcodes[self.instruction_pointer], Opcode::BrilligCall { .. }) {
             unreachable!("Not executing a Brillig/BrilligCall opcode");
@@ -624,6 +680,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         self.solve_opcode()
     }
 
+    /// Defer execution of the ACIR call opcode to the caller, or finalize the execution.
+    /// 1. It first handles the predicate and return zero values if the predicate is false.
+    /// 2. If the results of the execution are not available, it issues a 'AcirCallWaitInfo'
+    ///    to notify the caller that it (the caller) needs to execute the ACIR function.
+    /// 3. If the results are available, it updates the witness map and indicates that the opcode is solved.
     pub fn solve_call_opcode(
         &mut self,
     ) -> Result<Option<AcirCallWaitInfo<F>>, OpcodeResolutionError<F>> {
@@ -721,8 +782,8 @@ pub fn input_to_value<F: AcirField>(
     }
 }
 
-// TODO: There is an issue open to decide on whether we need to get values from Expressions
-// TODO versus just getting values from Witness
+/// Returns the concrete value for a particular expression
+/// If the value cannot be computed, it returns an 'OpcodeNotSolvable' error.
 pub fn get_value<F: AcirField>(
     expr: &Expression<F>,
     initial_witness: &WitnessMap<F>,

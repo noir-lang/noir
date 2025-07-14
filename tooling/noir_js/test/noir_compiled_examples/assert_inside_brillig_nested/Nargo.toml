@@ -1,0 +1,5 @@
+[package]
+name = "assert_inside_brillig_nested"
+type = "bin"
+authors = [""]
+[dependencies]

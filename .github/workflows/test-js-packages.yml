@@ -99,6 +99,8 @@ jobs:
 
       - name: Build noir-execute
         run: cargo build --package noir_artifact_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -541,6 +543,9 @@ jobs:
         include: ${{ fromJson( needs.critical-library-list.outputs.libraries )}}
 
     name: Check external repo - ${{ matrix.repo }}/${{ matrix.path }}
+    env:
+      OUTPUT_FILE: ${{ github.workspace }}/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
+
     steps:
       - name: Matrix Info
         run: |
@@ -551,8 +556,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: noir-repo
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -562,54 +565,47 @@ jobs:
           ref: ${{ matrix.ref }}
 
       - name: Download nargo binary
-        uses: ./noir-repo/.github/actions/download-nargo
+        uses: ./.github/actions/download-nargo
 
-      - name: Remove requirements on compiler version
-        working-directory: ./test-repo
+      - name: Generate paths
+        id: test_report_name
         run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          sed -i '/^compiler_version/d' ./**/Nargo.toml
-
-      - name: Run nargo test
-        id: test_report
-        working-directory: ./test-repo/${{ matrix.path }}
-        run: |
-          BEFORE=$SECONDS
-          nargo test --silence-warnings --skip-brillig-constraints-check --format json ${{ matrix.nargo_args }} | tee $OUTPUT_FILE
-          TIME=$(($SECONDS-$BEFORE))
-
-          if [ ! -s $OUTPUT_FILE ]; then
-            # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
-            rm -f $OUTPUT_FILE
-          fi
-
-          NAME=${{ matrix.repo }}/${{ matrix.path }}
           # Replace any slashes with underscores
           NAME=${NAME//\//_}
           TEST_REPORT_NAME=test_report_$NAME
           echo "test_report_name=$TEST_REPORT_NAME" >> $GITHUB_OUTPUT
-
-          jq --null-input "[{ name: \"$NAME\", value: (\"$TIME\" | tonumber), unit: \"s\" }]" > $TEST_REPORT_NAME.json
         env:
+          NAME: ${{ matrix.repo }}/${{ matrix.path }}
+
+      - name: Run nargo test
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+
+          .github/scripts/run-external-repo-tests.sh
+        env:
+          REPO_DIR: ./test-repo
+          PROJECT_PATH: ${{ matrix.path }}
           NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
-          OUTPUT_FILE: ${{ github.workspace }}/noir-repo/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
+          NARGO_ARGS: ${{ matrix.nargo_args }}
+          NAME: ${{ steps.test_report_name.outputs.test_report_name }}
+          BENCHMARK_FILE: ${{ steps.test_report_name.outputs.test_report_name }}.json
+
       - name: Compare test results
-        working-directory: ./noir-repo
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
 
       - name: Upload test report
-        if: ${{ matrix.timeout > 10 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
+        if: ${{ matrix.timeout > 20 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.test_report.outputs.test_report_name }}
-          path: ./test-repo/${{ matrix.path }}/${{ steps.test_report.outputs.test_report_name }}.json
+          name: ${{ steps.test_report_name.outputs.test_report_name }}
+          path: ${{ steps.test_report_name.outputs.test_report_name }}.json
           retention-days: 3
           overwrite: true
 
       - name: Check test time limit
         run: |
-          TIME=$(jq '.[0].value' ./test-repo/${{ matrix.path }}/${{ steps.test_report.outputs.test_report_name }}.json)
+          TIME=$(jq '.[0].value' ${{ steps.test_report_name.outputs.test_report_name }}.json)
           if awk 'BEGIN{exit !(ARGV[1]>ARGV[2])}' "$TIME" "${{ matrix.timeout }}"; then
             # Don't bump this timeout without understanding why this has happened and confirming that you're not the cause.
             echo "Failing due to test suite exceeding timeout..."
@@ -679,6 +675,8 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
+        # We don't run this step on external PRs
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
         with:
           name: "Test Suite Duration"

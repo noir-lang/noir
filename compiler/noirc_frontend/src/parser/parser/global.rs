@@ -6,7 +6,7 @@ use crate::{
         UnresolvedTypeData,
     },
     parser::ParserErrorReason,
-    token::{Attribute, Token},
+    token::Attribute,
 };
 
 use super::Parser;
@@ -26,14 +26,13 @@ impl Parser<'_> {
         let is_global_let = true;
 
         let Some(ident) = self.eat_ident() else {
-            self.eat_semicolons();
+            self.eat_semicolon();
+            let location = self.location_at_previous_token_end();
+            let ident = self.unknown_ident_at_previous_token_end();
             return LetStatement {
-                pattern: ident_to_pattern(Ident::default(), mutable),
-                r#type: UnresolvedType {
-                    typ: UnresolvedTypeData::Unspecified,
-                    location: Location::dummy(),
-                },
-                expression: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+                pattern: ident_to_pattern(ident, mutable),
+                r#type: UnresolvedType { typ: UnresolvedTypeData::Unspecified, location },
+                expression: Expression { kind: ExpressionKind::Error, location },
                 attributes,
                 comptime,
                 is_global_let,
@@ -48,12 +47,11 @@ impl Parser<'_> {
             self.parse_expression_or_error()
         } else {
             self.push_error(ParserErrorReason::GlobalWithoutValue, pattern.location());
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
-        if !self.eat_semicolons() {
-            self.expected_token(Token::Semicolon);
-        }
+        self.eat_semicolon_or_error();
 
         LetStatement { pattern, r#type: typ, expression, attributes, comptime, is_global_let }
     }
@@ -71,12 +69,10 @@ fn ident_to_pattern(ident: Ident, mutable: bool) -> Pattern {
 #[cfg(test)]
 mod tests {
     use acvm::FieldElement;
+    use insta::assert_snapshot;
 
     use crate::{
-        ast::{
-            ExpressionKind, IntegerBitSize, ItemVisibility, LetStatement, Literal, Pattern,
-            UnresolvedTypeData,
-        },
+        ast::{ExpressionKind, ItemVisibility, LetStatement, Literal, Pattern, UnresolvedTypeData},
         parse_program_with_dummy_file,
         parser::{
             ItemKind, ParserErrorReason,
@@ -85,7 +81,6 @@ mod tests {
                 get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_global_no_errors(src: &str) -> (LetStatement, ItemVisibility) {
@@ -121,10 +116,7 @@ mod tests {
             panic!("Expected identifier pattern");
         };
         assert_eq!("foo", name.to_string());
-        assert!(matches!(
-            let_statement.r#type.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(let_statement.r#type.typ.to_string(), "i32");
     }
 
     #[test]
@@ -171,7 +163,7 @@ mod tests {
         let (src, span) = get_source_with_error_span(src);
         let (_, errors) = parse_program_with_dummy_file(&src);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a ';' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a ';' but found end of input");
     }
 
     #[test]
@@ -187,11 +179,12 @@ mod tests {
         assert_eq!(let_statement.pattern.span().start(), 16);
         assert_eq!(let_statement.pattern.span().end(), 19);
 
-        let ExpressionKind::Literal(Literal::Integer(value)) = let_statement.expression.kind else {
+        let ExpressionKind::Literal(Literal::Integer(value, _)) = let_statement.expression.kind
+        else {
             panic!("Expected integer literal expression, got {:?}", let_statement.expression.kind);
         };
 
-        assert!(value.is_negative);
-        assert_eq!(value.field, FieldElement::from(17u128));
+        assert!(value.is_negative());
+        assert_eq!(value.absolute_value(), FieldElement::from(17u128));
     }
 }

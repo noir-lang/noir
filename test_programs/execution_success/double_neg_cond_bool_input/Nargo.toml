@@ -1,0 +1,6 @@
+[package]
+name = "double_neg_cond_bool_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

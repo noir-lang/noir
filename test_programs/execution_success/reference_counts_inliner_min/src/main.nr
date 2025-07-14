@@ -2,7 +2,7 @@ use std::mem::array_refcount;
 
 fn main() {
     let mut array = [0, 1, 2];
-    assert_refcount(array, 1);
+    assert_refcount(array, 1, true);
 
     borrow(array, array_refcount(array));
     borrow_mut(&mut array, array_refcount(array));
@@ -20,14 +20,12 @@ fn main() {
 }
 
 fn borrow(array: [Field; 3], rc_before_call: u32) {
-    assert_refcount(array, rc_before_call);
+    assert_refcount(array, rc_before_call, true);
     println(array[0]);
 }
 
 fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
-    // Optimization: inc_rc isn't needed since there is only one array (`array`)
-    // of the same type that `array` can be modified through
-    assert_refcount(*array, rc_before_call + 0);
+    assert_refcount(*array, rc_before_call, true);
     array[0] = 3;
     println(array[0]);
 }
@@ -35,17 +33,15 @@ fn borrow_mut(array: &mut [Field; 3], rc_before_call: u32) {
 // Returning a copy of the array, otherwise the SSA can end up optimizing away
 // the `array_set`, with the whole body just becoming basically `println(4);`.
 fn copy_mut(mut array: [Field; 3], rc_before_call: u32) -> [Field; 3] {
-    assert_refcount(array, rc_before_call + 1);
+    assert_refcount(array, rc_before_call, true);
     array[0] = 4;
     println(array[0]);
     array
 }
 
-/// Borrow the same array mutably through both parameters, inc_rc is necessary here, although
-/// only one is needed to bring the rc from 1 to 2.
 fn borrow_mut_two(array1: &mut [Field; 3], array2: &mut [Field; 3], rc_before_call: u32) {
-    assert_refcount(*array1, rc_before_call + 1);
-    assert_refcount(*array2, rc_before_call + 1);
+    assert_refcount(*array1, rc_before_call, true);
+    assert_refcount(*array2, rc_before_call + 1, true); // array should be copied from previous dereference
     array1[0] = 5;
     array2[0] = 6;
     println(array1[0]); // array1 & 2 alias, so this should also print 6
@@ -60,16 +56,20 @@ fn borrow_mut_two_separate(
     rc_before_call1: u32,
     rc_before_call2: u32,
 ) {
-    assert_refcount(*array1, rc_before_call1 + 0);
-    assert_refcount(*array2, rc_before_call2 + 0);
+    assert_refcount(*array1, rc_before_call1, true);
+    assert_refcount(*array2, rc_before_call2, true);
     array1[0] = 7;
     array2[0] = 8;
     println(array1[0]);
     println(array2[0]);
 }
 
-fn assert_refcount<T>(array: [T; 3], expected: u32) {
+fn assert_refcount<T>(array: [T; 3], mut expected: u32, expect_copy: bool) {
     let count = array_refcount(array);
+
+    if expect_copy {
+        expected += 1;
+    }
 
     // All ref counts are zero when running this as a constrained program
     if std::runtime::is_unconstrained() {
@@ -87,9 +87,12 @@ fn regression_7297() {
     let mut array = [0, 1, 2];
 
     let refcount_0 = array_refcount(array);
+
+    // This is currently copying the array due to the inc_rc in the array_refcount call above
     borrow_mut_two(&mut array, &mut array, refcount_0);
+
     let refcount_1 = array_refcount(array);
-    let array_2 = copy_mut(array, refcount_1);
+    let array_2 = copy_mut(array, refcount_1 + 1); // array was just copied on the previous line
     let refcount_2 = array_refcount(array);
 
     // Mutation of the original could occur if we double decremented the RC and then went back to 1 by accident.
@@ -107,12 +110,16 @@ fn regression_7297() {
             refcount_1 != 0,
             "borrow_mut_two should create a fresh array and not decrease its RC",
         );
-        assert_eq(refcount_1, 1, "borrow_mut_two should create a fresh array with an RC of 1");
-        // XXX: This assertion is here to demonstrate that this is happening, not because it must be like this
+        assert_eq(
+            refcount_1,
+            2,
+            "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
+        );
+
         assert_eq(
             refcount_2,
-            refcount_1 + 1,
-            "not ideal, but original RC permanently increased by copy_mut",
+            refcount_1 + 3,
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
         );
     }
 }

@@ -66,9 +66,11 @@ impl CSatTransformer {
         self.solvable_witness.insert(witness);
     }
 
-    // Still missing dead witness optimization.
-    // To do this, we will need the whole set of assert-zero opcodes
-    // I think it can also be done before the local optimization seen here, as dead variables will come from the user
+    /// Transform the input arithmetic expression into a new one having the correct 'width'
+    /// by creating intermediate variables as needed.
+    /// Having the correct width means:
+    /// - it has at most one multiplicative term
+    /// - it uses at most 'width-1' witness linear combination terms, to account for the new intermediate variable
     pub(crate) fn transform<F: AcirField>(
         &mut self,
         opcode: Expression<F>,

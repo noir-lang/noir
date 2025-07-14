@@ -1,9 +1,10 @@
-use crate::tests::check_errors;
+use crate::check_errors;
 
-use super::assert_no_errors;
+use crate::assert_no_errors;
 
+#[named]
 #[test]
-fn turbofish_numeric_generic_nested_call() {
+fn turbofish_numeric_generic_nested_function_call() {
     // Check for turbofish numeric generics used with function calls
     let src = r#"
     fn foo<let N: u32>() -> [u8; N] {
@@ -20,8 +21,12 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
+}
 
+#[named]
+#[test]
+fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
     let src = r#"
     struct Foo<T> {
@@ -39,7 +44,7 @@ fn turbofish_numeric_generic_nested_call() {
     }
 
     fn bar<let N: u32>() -> [u8; N] {
-        let _ = Foo::static_method::<N>();
+        let _ = Foo::<u8>::static_method::<N>();
         let x: Foo<u8> = Foo { a: 0 };
         x.impl_method::<N>()
     }
@@ -50,9 +55,10 @@ fn turbofish_numeric_generic_nested_call() {
         let _ = bar::<M>();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_constructor_generics_mismatch() {
     let src = r#"
@@ -65,9 +71,10 @@ fn turbofish_in_constructor_generics_mismatch() {
                    ^^^^^^^^^^^^ struct Foo expects 1 generic but 2 were given
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_constructor() {
     let src = r#"
@@ -81,9 +88,10 @@ fn turbofish_in_constructor() {
                                 ^ Expected type i32, found type Field
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_struct_pattern() {
     let src = r#"
@@ -97,9 +105,10 @@ fn turbofish_in_struct_pattern() {
         let _ = x;
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
     // TODO: maybe the error should be on the expression
@@ -115,9 +124,10 @@ fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
         let _ = x;
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_struct_pattern_generic_count_mismatch() {
     let src = r#"
@@ -132,9 +142,10 @@ fn turbofish_in_struct_pattern_generic_count_mismatch() {
         let _ = x;
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn numeric_turbofish() {
     let src = r#"
@@ -150,9 +161,10 @@ fn numeric_turbofish() {
         let _ = reader.read::<1234>();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_turbofish_after_module() {
     let src = r#"
@@ -165,9 +177,10 @@ fn errors_if_turbofish_after_module() {
            ^^^^^^^ turbofish (`::<_>`) not allowed on module `moo`
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_type_before_call_does_not_error() {
     let src = r#"
@@ -185,9 +198,10 @@ fn turbofish_in_type_before_call_does_not_error() {
         let _ = Foo::<i32>::new(1);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn turbofish_in_type_before_call_errors() {
     let src = r#"
@@ -206,9 +220,10 @@ fn turbofish_in_type_before_call_errors() {
                                 ^^^^ Expected type i32, found type bool
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -231,9 +246,10 @@ fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
             let _ = foo();
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     let src = r#"
@@ -254,9 +270,10 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
                                     ^^^^ Expected type i32, found type bool
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -277,9 +294,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_do
             let _ = Bar::<bool>::new(true, 1);
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_first_type() {
     let src = r#"
@@ -301,9 +319,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
                                      ^ Expected type bool, found type Field
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type() {
     let src = r#"
@@ -325,9 +344,10 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
                                            ^^^^ Expected type i32, found type bool
         }
     "#;
-    check_errors(src);
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn trait_function_with_turbofish_on_trait_gives_error() {
     let src = r#"
@@ -346,5 +366,36 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
                                       ^ Expected type bool, found type Field
     }
     "#;
-    check_errors(src);
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn turbofish_named_numeric() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    impl Bar for Field {
+        let N: u32 = 1;
+    }
+
+    impl Bar for i32 {
+        let N: u32 = 2;
+    }
+
+    fn foo<B>()
+    where
+        B: Bar<N = 1>,
+    {}
+
+    fn main() {
+        foo::<Field>();
+        foo::<i32>();
+        ^^^^^^^^^^ No matching impl found for `i32: Bar<N = 1>`
+        ~~~~~~~~~~ No impl for `i32: Bar<N = 1>`
+    }
+    "#;
+    check_errors!(src);
 }

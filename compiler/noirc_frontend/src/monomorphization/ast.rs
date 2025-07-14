@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use iter_extended::vecmap;
 use noirc_errors::{
@@ -6,15 +6,15 @@ use noirc_errors::{
     debug_info::{DebugFunctions, DebugTypes, DebugVariables},
 };
 
-use crate::shared::Visibility;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
     signed_field::SignedField,
-    token::{Attributes, FunctionAttribute},
+    token::Attributes,
 };
 use crate::{hir_def::function::FunctionSignature, token::FmtStrFragment};
+use crate::{shared::Visibility, token::FunctionAttributeKind};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -50,6 +50,8 @@ pub enum Expression {
     Constrain(Box<Expression>, Location, Option<Box<(Expression, HirType)>>),
     Assign(Assign),
     Semi(Box<Expression>),
+    Clone(Box<Expression>),
+    Drop(Box<Expression>),
     Break,
     Continue,
 }
@@ -57,6 +59,142 @@ pub enum Expression {
 impl Expression {
     pub fn is_array_or_slice_literal(&self) -> bool {
         matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
+    }
+
+    /// The return type of an expression, if it has an obvious one.
+    pub fn return_type(&self) -> Option<Cow<Type>> {
+        fn borrowed(typ: &Type) -> Option<Cow<Type>> {
+            Some(Cow::Borrowed(typ))
+        }
+        let owned = |typ: Type| Some(Cow::Owned(typ));
+
+        match self {
+            Expression::Ident(ident) => borrowed(&ident.typ),
+            Expression::Literal(literal) => match literal {
+                Literal::Array(literal) | Literal::Slice(literal) => borrowed(&literal.typ),
+                Literal::Integer(_, typ, _) => borrowed(typ),
+                Literal::Bool(_) => borrowed(&Type::Bool),
+                Literal::Unit => borrowed(&Type::Unit),
+                Literal::Str(s) => owned(Type::String(s.len() as u32)),
+                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
+                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
+                }),
+            },
+            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Unary(unary) => borrowed(&unary.result_type),
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    borrowed(&Type::Bool)
+                } else {
+                    binary.lhs.return_type()
+                }
+            }
+            Expression::Index(index) => borrowed(&index.element_type),
+            Expression::Cast(cast) => borrowed(&cast.r#type),
+            Expression::If(if_) => borrowed(&if_.typ),
+            Expression::ExtractTupleField(x, idx) => match x.as_ref() {
+                Expression::Tuple(xs) => {
+                    assert!(xs.len() > *idx, "index out of bounds in tuple return type");
+                    xs[*idx].return_type()
+                }
+                x => {
+                    let typ = x.return_type()?;
+                    let Type::Tuple(types) = typ.as_ref() else {
+                        unreachable!("unexpected type for tuple field extraction: {typ}");
+                    };
+                    assert!(types.len() > *idx, "index out of bounds in tuple return type");
+                    owned(types[*idx].clone())
+                }
+            },
+            Expression::Clone(x) => x.return_type(),
+            Expression::Call(call) => borrowed(&call.return_type),
+            Expression::Match(m) => borrowed(&m.typ),
+
+            Expression::Tuple(xs) => {
+                let types = xs
+                    .iter()
+                    .filter_map(|x| x.return_type())
+                    .map(|t| t.into_owned())
+                    .collect::<Vec<_>>();
+                if types.len() != xs.len() {
+                    return None;
+                }
+                owned(Type::Tuple(types))
+            }
+
+            Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => None,
+        }
+    }
+
+    /// Check if the expression will need to have its type deduced from a literal,
+    /// which could be ambiguous.
+    ///
+    /// For example:
+    /// ```ignore
+    /// let a = 1;
+    /// let b = if (a > 0) { 2 } else { 3 };
+    /// ```
+    pub fn needs_type_inference_from_literal(&self) -> bool {
+        match self {
+            Expression::Literal(_) => true,
+
+            Expression::Block(expressions) => expressions
+                .last()
+                .map(|x| x.needs_type_inference_from_literal())
+                .unwrap_or_default(),
+
+            Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
+
+            Expression::Binary(binary) => {
+                if binary.operator.is_comparator() {
+                    false
+                } else {
+                    binary.lhs.needs_type_inference_from_literal()
+                }
+            }
+            Expression::If(if_) => {
+                if_.consequence.needs_type_inference_from_literal()
+                    && if_
+                        .alternative
+                        .as_ref()
+                        .map(|x| x.needs_type_inference_from_literal())
+                        .unwrap_or_default()
+            }
+            Expression::Match(m) => {
+                m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
+                    && m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
+            }
+
+            Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
+
+            Expression::ExtractTupleField(x, _) => x.needs_type_inference_from_literal(),
+
+            // The following expressions either carry an obvious type, or return nothing.
+            Expression::Ident(_)
+            | Expression::Call(_)
+            | Expression::Index(_)
+            | Expression::Cast(_)
+            | Expression::For(_)
+            | Expression::Loop(_)
+            | Expression::While(_)
+            | Expression::Let(_)
+            | Expression::Constrain(_, _, _)
+            | Expression::Assign(_)
+            | Expression::Semi(_)
+            | Expression::Clone(_)
+            | Expression::Drop(_)
+            | Expression::Break
+            | Expression::Continue => false,
+        }
     }
 }
 
@@ -75,7 +213,7 @@ pub enum Definition {
 
 /// ID of a local definition, e.g. from a let binding or
 /// function parameter that should be compiled before it is referenced.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LocalId(pub u32);
 
 /// A function ID corresponds directly to an index of `Program::globals`
@@ -85,6 +223,12 @@ pub struct GlobalId(pub u32);
 /// A function ID corresponds directly to an index of `Program::functions`
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FuncId(pub u32);
+
+/// Each identifier is given a unique ID to distinguish different uses of identifiers.
+/// This is used, for example, in last use analysis to determine which identifiers represent
+/// the last use of their definition and can thus be moved instead of cloned.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct IdentId(pub u32);
 
 impl Display for FuncId {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -99,6 +243,7 @@ pub struct Ident {
     pub mutable: bool,
     pub name: String,
     pub typ: Type,
+    pub id: IdentId,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -148,12 +293,6 @@ pub struct Binary {
     pub operator: BinaryOp,
     pub rhs: Box<Expression>,
     pub location: Location,
-}
-
-#[derive(Debug, Clone)]
-pub struct Lambda {
-    pub function: Ident,
-    pub env: Ident,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -250,7 +389,8 @@ pub enum LValue {
     Dereference { reference: Box<LValue>, element_type: Type },
 }
 
-pub type Parameters = Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type)>;
+pub type Parameters =
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -268,8 +408,15 @@ pub enum InlineType {
     Fold,
     /// Functions marked to have no predicates will not be inlined in the default inlining pass
     /// and will be separately inlined after the flattening pass.
-    /// They are different from `Fold` as they are expected to be inlined into the program
+    ///
+    /// Flattening and inlining are necessary compiler passes in the ACIR runtime. More specifically,
+    /// flattening is the removal of control flow through predicating side-effectual instructions.
+    /// In some cases, a user may only want predicates applied to the result of a function call rather
+    /// than all of a function's internal execution. To allow this behavior, we can simply inline a function
+    /// after performing flattening (as ultimately in ACIR a non-entry point function will have to be inlined).
+    /// These functions are different from `Fold` as they are expected to be inlined into the program
     /// entry point before being used in the backend.
+    ///
     /// This attribute is unsafe and can cause a function whose logic relies on predicates from
     /// the flattening pass to fail.
     NoPredicates,
@@ -277,10 +424,12 @@ pub enum InlineType {
 
 impl From<&Attributes> for InlineType {
     fn from(attributes: &Attributes) -> Self {
-        attributes.function().map_or(InlineType::default(), |func_attribute| match func_attribute {
-            FunctionAttribute::Fold => InlineType::Fold,
-            FunctionAttribute::NoPredicates => InlineType::NoPredicates,
-            FunctionAttribute::InlineAlways => InlineType::InlineAlways,
+        attributes.function().map_or(InlineType::default(), |func_attribute| match &func_attribute
+            .kind
+        {
+            FunctionAttributeKind::Fold => InlineType::Fold,
+            FunctionAttributeKind::NoPredicates => InlineType::NoPredicates,
+            FunctionAttributeKind::InlineAlways => InlineType::InlineAlways,
             _ => InlineType::default(),
         })
     }
@@ -317,6 +466,7 @@ pub struct Function {
     pub body: Expression,
 
     pub return_type: Type,
+    pub return_visibility: Visibility,
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub func_sig: FunctionSignature,
@@ -327,7 +477,7 @@ pub struct Function {
 /// - Concrete lengths for each array and string
 /// - Several other variants removed (such as Type::Constant)
 /// - All structs replaced with tuples
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
     Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
@@ -338,7 +488,7 @@ pub enum Type {
     Unit,
     Tuple(Vec<Type>),
     Slice(Box<Type>),
-    MutableReference(Box<Type>),
+    Reference(Box<Type>, /*mutable:*/ bool),
     Function(
         /*args:*/ Vec<Type>,
         /*ret:*/ Box<Type>,
@@ -354,6 +504,14 @@ impl Type {
             _ => vec![self.clone()],
         }
     }
+
+    /// Returns the element type of this array or slice
+    pub fn array_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Array(_, elem) | Type::Slice(elem) => Some(elem),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Default)]
@@ -362,8 +520,7 @@ pub struct Program {
     pub function_signatures: Vec<FunctionSignature>,
     pub main_function_signature: FunctionSignature,
     pub return_location: Option<Location>,
-    pub return_visibility: Visibility,
-    pub globals: BTreeMap<GlobalId, Expression>,
+    pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
     pub debug_variables: DebugVariables,
     pub debug_functions: DebugFunctions,
     pub debug_types: DebugTypes,
@@ -376,8 +533,7 @@ impl Program {
         function_signatures: Vec<FunctionSignature>,
         main_function_signature: FunctionSignature,
         return_location: Option<Location>,
-        return_visibility: Visibility,
-        globals: BTreeMap<GlobalId, Expression>,
+        globals: BTreeMap<GlobalId, (String, Type, Expression)>,
         debug_variables: DebugVariables,
         debug_functions: DebugFunctions,
         debug_types: DebugTypes,
@@ -387,7 +543,6 @@ impl Program {
             function_signatures,
             main_function_signature,
             return_location,
-            return_visibility,
             globals,
             debug_variables,
             debug_functions,
@@ -421,6 +576,10 @@ impl Program {
         let replacement = Expression::Block(vec![]);
         std::mem::replace(&mut function_definition.body, replacement)
     }
+
+    pub fn return_visibility(&self) -> Visibility {
+        self.main().return_visibility
+    }
 }
 
 impl std::ops::Index<FuncId> for Program {
@@ -439,16 +598,17 @@ impl std::ops::IndexMut<FuncId> for Program {
 
 impl std::fmt::Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for function in &self.functions {
-            super::printer::AstPrinter::default().print_function(function, f)?;
-        }
-        Ok(())
+        super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
 impl std::fmt::Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        super::printer::AstPrinter::default().print_function(self, f)
+        super::printer::AstPrinter::default().print_function(
+            self,
+            f,
+            super::printer::FunctionPrintOptions::default(),
+        )
     }
 }
 
@@ -475,7 +635,11 @@ impl std::fmt::Display for Type {
             Type::Unit => write!(f, "()"),
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
-                write!(f, "({})", elements.join(", "))
+                if elements.len() == 1 {
+                    write!(f, "({},)", elements[0])
+                } else {
+                    write!(f, "({})", elements.join(", "))
+                }
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {
@@ -490,7 +654,8 @@ impl std::fmt::Display for Type {
                 write!(f, "fn({}) -> {}{}", args.join(", "), ret, closure_env_text)
             }
             Type::Slice(element) => write!(f, "[{element}]"),
-            Type::MutableReference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, mutable) if *mutable => write!(f, "&mut {element}"),
+            Type::Reference(element, _mutable) => write!(f, "&{element}"),
         }
     }
 }

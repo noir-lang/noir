@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let pub_x: Field = 1_Field;
+    let pub_y: Field = 17631683881184975370165255887551781615748388533673675138860_Field;
+    let g1: std::embedded_curve_ops::EmbeddedCurvePoint =
+        std::embedded_curve_ops::EmbeddedCurvePoint::generator();
+    let scalar: std::embedded_curve_ops::EmbeddedCurveScalar =
+        std::embedded_curve_ops::EmbeddedCurveScalar { lo: 1_Field, hi: 0_Field };
+    let res: std::embedded_curve_ops::EmbeddedCurvePoint =
+        std::embedded_curve_ops::multi_scalar_mul([g1], [scalar]);
+    assert(res.x == pub_x);
+    assert(res.y == pub_y);
+}
