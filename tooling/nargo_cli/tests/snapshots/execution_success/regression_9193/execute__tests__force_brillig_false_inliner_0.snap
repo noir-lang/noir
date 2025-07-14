@@ -17,6 +17,10 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "12639702852095440652": {
+        "error_kind": "string",
+        "string": "Index out of bounds, array has size 0"
+      },
       "14225679739041873922": {
         "error_kind": "string",
         "string": "Index out of bounds"
