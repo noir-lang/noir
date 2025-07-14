@@ -582,17 +582,15 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
-        if expr.id == DefinitionId::dummy_id() {
-            if let Some(PathResolutionItem::TypeAlias(alias)) = item {
-                // A type alias to a numeric generics is considered like a variable
-                // but it is not a real variable so it does not resolve to a valid Identifier
-                // In order to handle this, we retrieve the numeric generics expression that the type aliases to
-                let type_alias = self.interner.get_type_alias(alias);
-                if let Some(expr) = type_alias.borrow().numeric_expr.clone() {
-                    let expr = UnresolvedTypeExpression::to_expression_kind(&expr);
-                    let expr = Expression::new(expr, type_alias.borrow().location);
-                    return self.elaborate_expression(expr);
-                }
+        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
+            // A type alias to a numeric generics is considered like a variable
+            // but it is not a real variable so it does not resolve to a valid Identifier
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            let type_alias = self.interner.get_type_alias(alias);
+            if let Some(expr) = type_alias.borrow().numeric_expr.clone() {
+                let expr = UnresolvedTypeExpression::to_expression_kind(&expr);
+                let expr = Expression::new(expr, type_alias.borrow().location);
+                return self.elaborate_expression(expr);
             }
         }
 

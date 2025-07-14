@@ -601,23 +601,13 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 ExpressionKind::Infix(Box::new(InfixExpression {
                     lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
-                    operator: Located::from(*location, Self::operator_to_binary_op_kind_helper(op)),
+                    operator: Located::from(*location, op.operator_to_binary_op_kind_helper()),
                     rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
                 }))
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
                 ExpressionKind::AsTraitPath(Box::new(*path.clone()))
             }
-        }
-    }
-
-    fn operator_to_binary_op_kind_helper(op: &BinaryTypeOperator) -> BinaryOpKind {
-        match op {
-            BinaryTypeOperator::Addition => BinaryOpKind::Add,
-            BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
-            BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
-            BinaryTypeOperator::Division => BinaryOpKind::Divide,
-            BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
         }
     }
 

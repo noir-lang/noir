@@ -16,7 +16,7 @@ use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         Ident, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-        NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
+        Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, Visitor,
     },
     parser::ParsedSubModule,
 };
@@ -174,7 +174,7 @@ impl Visitor for WorkspaceSymbolGatherer<'_> {
         false
     }
 
-    fn visit_noir_type_alias(&mut self, alias: &NoirTypeAlias, _span: Span) -> bool {
+    fn visit_noir_type_alias(&mut self, alias: &TypeAlias, _span: Span) -> bool {
         self.push_symbol(&alias.name, SymbolKind::STRUCT);
         false
     }

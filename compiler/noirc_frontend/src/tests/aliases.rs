@@ -1,4 +1,10 @@
-use crate::{assert_no_errors, get_program_errors, hir::{def_collector::dc_crate::CompilationError, resolution::errors::ResolverError, type_check::TypeCheckError::TypeKindMismatch}};
+use crate::{
+    assert_no_errors, get_program_errors,
+    hir::{
+        def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
+        type_check::TypeCheckError::TypeKindMismatch,
+    },
+};
 
 #[named]
 #[test]
@@ -144,7 +150,10 @@ fn disallows_composing_numeric_type_aliases() {
     }
     "#;
     let errors = get_program_errors!(src);
-    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::ExpectedNumericExpression{..}) ));
+    assert!(matches!(
+        errors[0],
+        CompilationError::ResolverError(ResolverError::ExpectedNumericExpression { .. })
+    ));
 }
 
 #[named]
@@ -168,7 +177,10 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     "#;
 
     let errors = get_program_errors!(src);
-    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::RecursiveTypeAlias{..}) ));
+    assert!(matches!(
+        errors[0],
+        CompilationError::ResolverError(ResolverError::RecursiveTypeAlias { .. })
+    ));
 }
 
 #[named]
@@ -191,8 +203,11 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         a
     }
     "#;
-        let errors = get_program_errors!(src);
-    assert!(matches!(errors[0], CompilationError::ResolverError(ResolverError::RecursiveTypeAlias{..}) ));
+    let errors = get_program_errors!(src);
+    assert!(matches!(
+        errors[0],
+        CompilationError::ResolverError(ResolverError::RecursiveTypeAlias { .. })
+    ));
 }
 
 #[named]
@@ -206,7 +221,7 @@ fn disallows_numeric_type_aliases_to_type() {
     }
     "#;
     let errors = get_program_errors!(src);
-    assert!(matches!(errors[0], CompilationError::TypeError(TypeKindMismatch{..}) ));
+    assert!(matches!(errors[0], CompilationError::TypeError(TypeKindMismatch { .. })));
 }
 
 #[named]
