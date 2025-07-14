@@ -332,11 +332,6 @@ impl FunctionBuilder {
         max_bit_size: u32,
         assert_message: Option<String>,
     ) {
-        debug_assert_eq!(
-            self.current_function.dfg.type_of_value(value),
-            Type::field(),
-            "Attempted to range check a non-Field type"
-        );
         self.insert_instruction(
             Instruction::RangeCheck { value, max_bit_size, assert_message },
             None,
