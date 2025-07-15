@@ -106,3 +106,12 @@ projects:
     execution-timeout: 0.6
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  sha512-100-bytes:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/sha512_100_bytes
+    num_runs: 10
+    timeout: 300
+    compilation-timeout: 10
+    execution-timeout: 5
+    compilation-memory-limit: 450
+    execution-memory-limit: 400
