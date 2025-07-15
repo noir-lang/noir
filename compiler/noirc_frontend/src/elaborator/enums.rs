@@ -1376,7 +1376,8 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
         let mut missing_cases = rangemap::RangeInclusiveSet::new();
 
-        let int_max = SignedInteger::positive(typ.integral_maximum_size().unwrap());
+        let int_max =
+            SignedInteger::positive(typ.integral_maximum_size().unwrap().get_maximum_size());
         let int_min = typ.integral_minimum_size().unwrap();
         missing_cases.insert(int_min..=int_max);
 

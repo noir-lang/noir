@@ -1,5 +1,6 @@
+use acvm::{AcirField, FieldElement};
 use num_bigint::{BigInt, BigUint, Sign};
-use num_traits::{One, ToPrimitive, Zero};
+use num_traits::{FromBytes, One, ToPrimitive, Zero};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SignedInteger {
@@ -103,6 +104,14 @@ impl SignedInteger {
     // TODO: Figure out why this was earlier returing a -FieldElement for negative values
     pub fn to_integer(self) -> BigUint {
         self.integer.into()
+    }
+
+    pub fn to_field_element(self) -> FieldElement {
+        FieldElement::from_be_bytes_reduce(&self.integer.to_bytes_be())
+    }
+
+    pub fn from_field_element(field_element: FieldElement) -> Self {
+        Self::new(BigUint::from_be_bytes(&field_element.to_be_bytes()), false)
     }
 }
 

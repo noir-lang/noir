@@ -1150,6 +1150,7 @@ impl Elaborator<'_> {
         if let (Some(from_value), Some(to_maximum_size)) =
             (from_value_opt, to.integral_maximum_size())
         {
+            let to_maximum_size = to_maximum_size.get_maximum_size();
             if from_is_polymorphic && from_value > to_maximum_size {
                 let from = from.clone();
                 let to = to.clone();

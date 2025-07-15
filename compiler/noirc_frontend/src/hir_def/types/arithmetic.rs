@@ -499,7 +499,8 @@ mod proptests {
             strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
-                let maximum_size = typ.integral_maximum_size().unwrap().to_u128().unwrap();
+                let maximum_size =
+                    typ.integral_maximum_size().unwrap().get_maximum_size().to_u128().unwrap();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
             strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),

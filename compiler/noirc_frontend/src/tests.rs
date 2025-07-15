@@ -4610,9 +4610,8 @@ fn resolves_generic_type_argument_via_self() {
     }
 
     fn main() -> pub Field {
-        let neg: Field = -1;
-        Foo::<i32>::one();
-        neg + 1
+        let max_field: Field = 21888242871839275222246405745257275088548364400416034343698204186575808495619;
+        max_field
     }
     ";
     check_monomorphization_error!(src);

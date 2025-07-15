@@ -1,5 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+use acvm::{AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use num_bigint::{BigInt, BigUint};
@@ -240,7 +241,7 @@ impl Kind {
         }
     }
 
-    fn integral_maximum_size(&self) -> Option<BigUint> {
+    fn integral_maximum_size(&self) -> Option<MaximumIntegerValue> {
         match self.follow_bindings() {
             Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal => None,
             Self::Numeric(typ) => typ.integral_maximum_size(),
@@ -256,6 +257,7 @@ impl Kind {
         match self.integral_maximum_size() {
             None => Ok(value),
             Some(maximum_size) => {
+                let maximum_size = maximum_size.get_maximum_size();
                 (value <= maximum_size).then_some(value.clone()).ok_or_else(|| {
                     TypeCheckError::OverflowingConstant {
                         value,
@@ -1122,6 +1124,21 @@ impl std::fmt::Display for QuotedType {
             QuotedType::FunctionDefinition => write!(f, "FunctionDefinition"),
             QuotedType::Module => write!(f, "Module"),
             QuotedType::CtString => write!(f, "CtString"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum MaximumIntegerValue {
+    Field(BigUint),
+    Integer(BigUint),
+}
+
+impl MaximumIntegerValue {
+    pub fn get_maximum_size(&self) -> BigUint {
+        match self {
+            MaximumIntegerValue::Field(value) => value.clone(),
+            MaximumIntegerValue::Integer(value) => value.clone(),
         }
     }
 }
@@ -2430,18 +2447,20 @@ impl Type {
         }
     }
 
-    pub(crate) fn integral_maximum_size(&self) -> Option<BigUint> {
+    pub(crate) fn integral_maximum_size(&self) -> Option<MaximumIntegerValue> {
         match self {
-            Type::FieldElement => None,
+            Type::FieldElement => {
+                Some(MaximumIntegerValue::Field(FieldElement::modulus() - BigUint::one()))
+            }
             Type::Integer(sign, num_bits) => {
                 let mut max_bit_size = num_bits.bit_size();
                 if sign == &Signedness::Signed {
                     max_bit_size -= 1;
                 }
                 let max = if max_bit_size == 128 { u128::MAX } else { (1u128 << max_bit_size) - 1 };
-                Some(max.into())
+                Some(MaximumIntegerValue::Integer(max.into()))
             }
-            Type::Bool => Some(BigUint::one()),
+            Type::Bool => Some(MaximumIntegerValue::Integer(BigUint::one())),
             Type::TypeVariable(var) => {
                 let binding = &var.1;
                 match &*binding.borrow() {
@@ -2576,18 +2595,27 @@ impl BinaryTypeOperator {
         location: Location,
     ) -> Result<BigUint, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
-            None => match self {
-                BinaryTypeOperator::Addition => Ok(a + b),
-                BinaryTypeOperator::Subtraction => Ok(a - b),
-                BinaryTypeOperator::Multiplication => Ok(a * b),
-                BinaryTypeOperator::Division => (b != BigUint::zero())
-                    .then(|| a.clone() / b.clone())
-                    .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
-                BinaryTypeOperator::Modulo => {
-                    Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
+            // Expected that range check is done
+            Some(MaximumIntegerValue::Field(_)) => {
+                let a = FieldElement::from_be_bytes_reduce(&a.to_bytes_be());
+                let b = FieldElement::from_be_bytes_reduce(&b.to_bytes_be());
+                let result = match self {
+                    BinaryTypeOperator::Addition => Ok(a + b),
+                    BinaryTypeOperator::Subtraction => Ok(a - b),
+                    BinaryTypeOperator::Multiplication => Ok(a * b),
+                    BinaryTypeOperator::Division => (b != FieldElement::zero())
+                        .then(|| a.clone() / b.clone())
+                        .ok_or(TypeCheckError::DivisionByZeroField { lhs: a, rhs: b, location }),
+                    BinaryTypeOperator::Modulo => {
+                        Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
+                    }
+                };
+                match result {
+                    Ok(result) => Ok(BigUint::from_bytes_be(&result.to_be_bytes())),
+                    Err(e) => Err(e),
                 }
-            },
-            Some(_maximum_size) => {
+            }
+            Some(MaximumIntegerValue::Integer(_maximum_size)) => {
                 // TODO: Make sure negative ints are handled
                 let a = a.to_i128().ok_or(TypeCheckError::OverflowingConstant {
                     value: a,
@@ -2613,6 +2641,13 @@ impl BinaryTypeOperator {
 
                 // TODO: Make sure negative ints are handled
                 Ok(BigInt::from(result).magnitude().clone())
+            }
+            // TODO: Check if this case is needed
+            None => {
+                let a = a.to_i128().expect("Overflowing constant");
+                let b = b.to_i128().expect("Overflowing constant");
+                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
+                Err(err)
             }
         }
     }

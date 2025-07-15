@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
@@ -35,8 +36,10 @@ pub enum Source {
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
     DivisionByZero { lhs: BigUint, rhs: BigUint, location: Location },
+    #[error("Division by zero: {lhs} / {rhs}")]
+    DivisionByZeroField { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: BigUint, rhs: BigUint, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedInteger,
@@ -262,6 +265,7 @@ impl TypeCheckError {
     pub fn location(&self) -> Location {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
+            | TypeCheckError::DivisionByZeroField { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
@@ -333,10 +337,8 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
-
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
-
             TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
             }
@@ -360,6 +362,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diag
             }
             TypeCheckError::DivisionByZero { lhs, rhs, location } => Diagnostic::simple_error(
+                format!("Division by zero: {lhs} / {rhs}"),
+                String::new(),
+                *location,
+            ),
+            TypeCheckError::DivisionByZeroField { lhs, rhs, location } => Diagnostic::simple_error(
                 format!("Division by zero: {lhs} / {rhs}"),
                 String::new(),
                 *location,

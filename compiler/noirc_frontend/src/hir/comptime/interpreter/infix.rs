@@ -3,6 +3,7 @@ use num_traits::Zero;
 
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
+use crate::hir::comptime::interpreter::SignedInteger;
 use crate::hir_def::expr::HirBinaryOp;
 
 use super::{IResult, InterpreterError, Value};
@@ -51,7 +52,9 @@ pub(super) fn evaluate_infix(
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) { field: $field_expr:expr, int: $int_expr:expr, }) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (Field, Field) to Field => Some($field_expr),
+                    (Field, Field) to Field => {
+                        Some(SignedInteger::from_field_element($field_expr))
+                    },
                     (I8,  I8)      to I8    => $int_expr,
                     (I16, I16)     to I16   => $int_expr,
                     (I32, I32)     to I32   => $int_expr,
@@ -149,19 +152,19 @@ pub(super) fn evaluate_infix(
     match operator.kind {
         BinaryOpKind::Add => match_arithmetic! {
             (lhs_value as lhs "+" rhs_value as rhs) {
-                field: lhs + rhs,
+                field: lhs.to_field_element() + rhs.to_field_element(),
                 int: lhs.checked_add(rhs),
             }
         },
         BinaryOpKind::Subtract => match_arithmetic! {
             (lhs_value as lhs "-" rhs_value as rhs) {
-                field: lhs - rhs,
+                field: lhs.to_field_element() - rhs.to_field_element(),
                 int: lhs.checked_sub(rhs),
             }
         },
         BinaryOpKind::Multiply => match_arithmetic! {
             (lhs_value as lhs "*" rhs_value as rhs) {
-                field: lhs * rhs,
+                field: lhs.to_field_element() * rhs.to_field_element(),
                 int: lhs.checked_mul(rhs),
             }
         },
@@ -170,7 +173,7 @@ pub(super) fn evaluate_infix(
                 field: if rhs.absolute_value() == BigUint::zero() {
                     return Err(math_error("/"));
                 } else {
-                    lhs / rhs
+                    lhs.to_field_element() / rhs.to_field_element()
                 },
                 int: lhs.checked_div(rhs),
             }
