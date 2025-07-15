@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752590680028,
+  "lastUpdate": 1752591037273,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3968,85 +3968,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6145aaab2ac7ff370bc439f10844f2ecfc559d7a",
-          "message": "chore(fuzz): Recursively generate lvalue for multi dimensional arrays and nested tuples (#9086)",
-          "timestamp": "2025-07-03T08:52:31Z",
-          "tree_id": "145a132ebf995255698ca0f997e2be75170b3652",
-          "url": "https://github.com/noir-lang/noir/commit/6145aaab2ac7ff370bc439f10844f2ecfc559d7a"
-        },
-        "date": 1751534727325,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.392,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.034,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.164,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 200,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 215,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.314,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.468,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.778,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7921,6 +7842,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.015,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7a98f2ffb2521b834747bf9a40dc7be1f813bcd",
+          "message": "feat: optimize array reads from length 1 arrays (#9203)",
+          "timestamp": "2025-07-15T14:18:40Z",
+          "tree_id": "0d69c80bad46e1a72d1274b50199552d589c9e97",
+          "url": "https://github.com/noir-lang/noir/commit/e7a98f2ffb2521b834747bf9a40dc7be1f813bcd"
+        },
+        "date": 1752591022098,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.984,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.832,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.578,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.54,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 208,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.666,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.83,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.795,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.89,
             "unit": "s"
           }
         ]
