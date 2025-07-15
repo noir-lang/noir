@@ -146,10 +146,11 @@ impl Function {
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     match array_or_slice_type {
                         Type::Slice(_) => false,
-                        Type::Array(_, len) => {
+                        array_type @ Type::Array(_, len) => {
                             len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                                    (index.try_to_u32().unwrap() - offset.to_u32()) >= len
+                                    (index.try_to_u32().unwrap() - offset.to_u32())
+                                        >= array_type.flattened_size()
                                 })
                         }
                         _ => unreachable!(
