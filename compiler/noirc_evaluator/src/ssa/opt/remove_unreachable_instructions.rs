@@ -84,8 +84,9 @@ impl Function {
             };
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                // Instructions that don't have side effects can be left alone.
-                if !instruction.has_side_effects(context.dfg) {
+                // Instructions that don't interact with the predicate should be left alone,
+                // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
+                if !instruction.requires_acir_gen_predicate(context.dfg) {
                     return;
                 }
                 // Remove the current instruction and insert defaults for the results.
