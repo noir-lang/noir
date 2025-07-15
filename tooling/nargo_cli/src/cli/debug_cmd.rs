@@ -277,7 +277,7 @@ fn decode_and_save_program_witness(
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
 
     if let (_, Some(return_value)) = abi.decode(main_witness)? {
-        println!("[{}] Circuit output: {return_value:?}", package_name);
+        println!("[{package_name}] Circuit output: {return_value:?}");
     }
 
     if let Some(witness_name) = target_witness_name {

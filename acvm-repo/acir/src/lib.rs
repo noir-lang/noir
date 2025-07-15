@@ -565,7 +565,7 @@ mod reflection {
         #[allow(dead_code)]
         fn msgpack_fields(&mut self, name: &str, fields: impl Iterator<Item = String>) {
             let fields = fields.collect::<Vec<_>>().join(", ");
-            let code = format!("MSGPACK_FIELDS({});", fields);
+            let code = format!("MSGPACK_FIELDS({fields});");
             self.add_code(name, &code);
         }
 

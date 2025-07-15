@@ -305,7 +305,7 @@ impl<'a> Formatter<'a> {
         if let Some(token) = token {
             match token {
                 Ok(token) => token.into_spanned_token(),
-                Err(err) => panic!("Expected lexer not to error, but got: {:?}", err),
+                Err(err) => panic!("Expected lexer not to error, but got: {err:?}"),
             }
         } else {
             SpannedToken::new(Token::EOF, Default::default())

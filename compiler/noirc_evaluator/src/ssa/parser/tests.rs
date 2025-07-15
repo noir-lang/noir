@@ -11,7 +11,7 @@ fn assert_ssa_roundtrip(src: &str) {
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", src, ssa);
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{ssa}\n~~~");
         similar_asserts::assert_eq!(ssa, src);
     }
 }
