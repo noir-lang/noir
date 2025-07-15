@@ -1,5 +1,5 @@
-use acvm::FieldElement;
 use noirc_errors::Span;
+use num_bigint::BigUint;
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -17,7 +17,7 @@ use crate::{
         InternedUnresolvedTypeData, QuotedTypeId,
     },
     parser::{Item, ItemKind, ParsedSubModule},
-    signed_field::SignedField,
+    signed_field::SignedInteger,
     token::{
         FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
@@ -180,7 +180,7 @@ pub trait Visitor {
 
     fn visit_literal_integer(
         &mut self,
-        _value: SignedField,
+        _value: SignedInteger,
         _suffix: Option<IntegerTypeSuffix>,
         _: Span,
     ) {
@@ -474,7 +474,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: FieldElement,
+        _value: BigUint,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1006,7 +1006,7 @@ impl Literal {
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
             Literal::Integer(value, suffix) => {
-                visitor.visit_literal_integer(*value, *suffix, span);
+                visitor.visit_literal_integer(value.clone(), *suffix, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
@@ -1560,8 +1560,8 @@ impl UnresolvedTypeExpression {
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
-                visitor.visit_constant_type_expression(*field_element, *suffix, location.span);
+            UnresolvedTypeExpression::Constant(integer, suffix, location) => {
+                visitor.visit_constant_type_expression(integer.clone(), *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {

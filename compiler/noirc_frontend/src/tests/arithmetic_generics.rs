@@ -1,6 +1,7 @@
 #![cfg(test)]
 
-use acvm::{AcirField, FieldElement};
+use num_bigint::BigUint;
+use num_traits::Zero;
 
 use crate::assert_no_errors;
 use crate::get_monomorphized;
@@ -138,8 +139,8 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), FieldElement::zero());
-                assert_eq!(rhs.clone(), FieldElement::zero());
+                assert_eq!(lhs.clone(), BigUint::zero());
+                assert_eq!(rhs.clone(), BigUint::zero());
             }
             _ => panic!("expected ModuloOnFields, but found: {:?}", err),
         }

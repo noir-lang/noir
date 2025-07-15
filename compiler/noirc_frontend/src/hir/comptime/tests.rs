@@ -15,7 +15,7 @@ use crate::hir::def_map::{CrateDefMap, ModuleData};
 use crate::hir::{Context, ParsedFiles};
 use crate::node_interner::FuncId;
 use crate::parse_program;
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 
 /// Create an interpreter for a code snippet and pass it to a test function.
 ///
@@ -93,7 +93,7 @@ pub(super) fn interpret_expect_error(src: &str) -> InterpreterError {
 fn interpreter_works() {
     let program = "comptime fn main() -> pub Field { 3 }";
     let result = interpret(program);
-    assert_eq!(result, Value::Field(SignedField::positive(3u128)));
+    assert_eq!(result, Value::Field(SignedInteger::positive(3u128)));
 }
 
 #[test]

@@ -9,7 +9,7 @@ use std::{
 
 pub type Position = u32;
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Serialize)]
 pub struct Located<T> {
     pub contents: T,
     location: Location,

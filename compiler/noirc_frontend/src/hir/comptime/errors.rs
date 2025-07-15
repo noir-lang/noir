@@ -9,7 +9,7 @@ use crate::{
         type_check::{NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
 };
 use acvm::BlackBoxResolutionError;
 use noirc_errors::{CustomDiagnostic, Location};
@@ -35,7 +35,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: SignedField,
+        value: SignedInteger,
         typ: Type,
         location: Location,
     },

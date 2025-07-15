@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 use std::rc::Rc;
 
-use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
+use num_bigint::BigUint;
 use thiserror::Error;
 
 use crate::ast::BinaryOpKind;
@@ -14,7 +14,7 @@ use crate::hir_def::traits::TraitConstraint;
 use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 
 /// Rust also only shows 3 maximum, even for short patterns.
 pub const MAX_MISSING_CASES: usize = 3;
@@ -34,12 +34,12 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
+    DivisionByZero { lhs: BigUint, rhs: BigUint, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    ModuloOnFields { lhs: BigUint, rhs: BigUint, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
-        expr: SignedField,
+        expr: SignedInteger,
         ty: Type,
         range: String,
         location: Location,
@@ -47,12 +47,7 @@ pub enum TypeCheckError {
     #[error(
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
-    OverflowingConstant {
-        value: FieldElement,
-        kind: Kind,
-        maximum_size: FieldElement,
-        location: Location,
-    },
+    OverflowingConstant { value: BigUint, kind: Kind, maximum_size: BigUint, location: Location },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
     FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
@@ -67,8 +62,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: FieldElement,
-        from_value: FieldElement,
+        to_value: BigUint,
+        from_value: BigUint,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]

@@ -1,9 +1,8 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use serde::Serialize;
 
 use super::{
     BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -179,7 +178,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Serialize)]
 pub struct Ident(Located<String>);
 
 impl Ident {
@@ -735,10 +734,7 @@ impl ForBounds {
             let end = ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: self.end,
                 operator: Located::from(end_location, BinaryOpKind::Add),
-                rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32), None),
-                    end_location,
-                ),
+                rhs: Expression::new(ExpressionKind::integer(1_u128.into(), None), end_location),
             }));
             Expression::new(end, end_location)
         } else {
@@ -789,7 +785,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = ExpressionKind::integer(0_u128.into(), None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;

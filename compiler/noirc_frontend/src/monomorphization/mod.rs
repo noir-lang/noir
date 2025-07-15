@@ -14,7 +14,7 @@ use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
 use crate::shared::{Signedness, Visibility};
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 use crate::token::FmtStrFragment;
 use crate::{
     Kind, Type, TypeBinding, TypeBindings,
@@ -33,6 +33,7 @@ use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use num_bigint::BigUint;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -201,6 +202,7 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
+    println!("program: {:#?}", program);
     Ok(program.handle_ownership())
 }
 
@@ -905,8 +907,7 @@ impl<'interner> Monomorphizer<'interner> {
             Ok(ast::Expression::Tuple(fields))
         })?;
 
-        let tag_value = FieldElement::from(constructor.variant_index);
-        let tag_value = SignedField::positive(tag_value);
+        let tag_value = SignedInteger::positive(constructor.variant_index);
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         fields.insert(0, ast::Expression::Literal(tag));
 
@@ -1122,13 +1123,11 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                match associated_type.typ.evaluate_to_integer(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        let value = SignedField::positive(value);
+                        let value = SignedInteger::positive(value);
                         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
@@ -1151,7 +1150,7 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        let value = value.evaluate_to_field_element(&expected_kind, location).map_err(|err| {
+        let value = value.evaluate_to_integer(&expected_kind, location).map_err(|err| {
             MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
@@ -1166,7 +1165,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        let value = SignedField::positive(value);
+        let value = SignedInteger::positive(value);
         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 
@@ -1564,11 +1563,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind(), location);
+        let to_value = to.evaluate_to_integer(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
             let from_value =
-                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
+                from.evaluate_to_integer_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
@@ -1778,7 +1777,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let bits = FieldElement::max_num_bits();
                         let typ =
                             ast::Type::Integer(Signedness::Unsigned, IntegerBitSize::SixtyFour);
-                        let bits = SignedField::positive(bits);
+                        let bits = SignedInteger::positive(bits);
                         Some(ast::Expression::Literal(ast::Literal::Integer(bits, typ, location)))
                     }
                     "zeroed" => {
@@ -1843,7 +1842,7 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(byte as u32);
+            let value = SignedInteger::positive(byte as u32);
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 
@@ -2223,7 +2222,7 @@ impl<'interner> Monomorphizer<'interner> {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
-                let zero = SignedField::positive(0u32);
+                let zero = SignedInteger::positive(0u32);
                 ast::Expression::Literal(ast::Literal::Integer(zero, typ, location))
             }
             ast::Type::Bool => ast::Expression::Literal(ast::Literal::Bool(false)),
@@ -2375,15 +2374,15 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the fact the Ordering struct contains a single Field type, and our SSA
                 // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
-                    FieldElement::zero() // Ordering::Less
+                    BigUint::from(0u128) // Ordering::Less
                 } else {
-                    2u128.into() // Ordering::Greater
+                    (2u128).into() // Ordering::Greater
                 };
 
                 let operator =
                     if matches!(operator.kind, Less | Greater) { Equal } else { NotEqual };
 
-                let ordering_value = SignedField::positive(ordering_value);
+                let ordering_value = SignedInteger::positive(ordering_value);
                 let int_value = ast::Literal::Integer(ordering_value, ast::Type::Field, location);
                 let rhs = Box::new(ast::Expression::Literal(int_value));
                 let lhs = Box::new(ast::Expression::ExtractTupleField(Box::new(result), 0));

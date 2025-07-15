@@ -1,4 +1,5 @@
-use acvm::AcirField;
+use num_bigint::BigUint;
+use num_traits::Zero;
 
 use crate::ast::BinaryOpKind;
 use crate::hir::Location;
@@ -166,7 +167,7 @@ pub(super) fn evaluate_infix(
         },
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
-                field: if rhs.absolute_value().is_zero() {
+                field: if rhs.absolute_value() == BigUint::zero() {
                     return Err(math_error("/"));
                 } else {
                     lhs / rhs

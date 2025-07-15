@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
+use num_bigint::BigUint;
 
 use crate::{BinaryTypeOperator, Type};
 
@@ -68,16 +69,14 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
-                // evaluate_to_field_element also calls canonicalize so if we just called
-                // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
+                // evaluate_to_integer also calls canonicalize so if we just called
+                // `self.evaluate_to_integer(..)` we'd get infinite recursion.
                 if let Ok(lhs_value) =
-                    lhs.evaluate_to_field_element_helper(&kind, dummy_location, run_simplifications)
+                    lhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications)
                 {
-                    if let Ok(rhs_value) = rhs.evaluate_to_field_element_helper(
-                        &kind,
-                        dummy_location,
-                        run_simplifications,
-                    ) {
+                    if let Ok(rhs_value) =
+                        rhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications)
+                    {
                         if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
                         {
                             return Type::Constant(result, kind);
@@ -150,10 +149,13 @@ impl Type {
                 }
                 Type::Constant(new_constant, new_constant_kind) => {
                     let dummy_location = Location::dummy();
-                    if let Ok(result) =
-                        op.function(constant, new_constant, &new_constant_kind, dummy_location)
-                    {
-                        constant = result;
+                    if let Ok(result) = op.function(
+                        BigUint::from_bytes_be(&constant.to_be_bytes()),
+                        new_constant.clone(),
+                        &new_constant_kind,
+                        dummy_location,
+                    ) {
+                        constant = FieldElement::from_be_bytes_reduce(&result.to_bytes_be());
                     } else {
                         let constant = Type::Constant(new_constant, new_constant_kind);
                         *sorted.entry(constant).or_default() += 1;
@@ -180,14 +182,17 @@ impl Type {
             }
 
             if constant != zero_value {
-                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
+                let constant = Type::Constant(
+                    BigUint::from_bytes_be(&constant.to_be_bytes()),
+                    lhs.infix_kind(rhs),
+                );
                 typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
         } else {
             // Every type must have been a constant
-            Type::Constant(constant, lhs.infix_kind(rhs))
+            Type::Constant(BigUint::from_bytes_be(&constant.to_be_bytes()), lhs.infix_kind(rhs))
         }
     }
 
@@ -279,14 +284,19 @@ impl Type {
     ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
-        let rhs = rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
+        let rhs = rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
-        Some((l_type, l_op, l_rhs, rhs))
+        let l_rhs = l_rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
+        Some((
+            l_type,
+            l_op,
+            FieldElement::from_be_bytes_reduce(&l_rhs.to_bytes_be()),
+            FieldElement::from_be_bytes_reduce(&rhs.to_bytes_be()),
+        ))
     }
 
     /// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
@@ -311,8 +321,14 @@ impl Type {
                     op = op.inverse()?;
                 }
                 let dummy_location = Location::dummy();
-                let result =
-                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
+                let result = op
+                    .function(
+                        BigUint::from_bytes_be(&l_const.to_be_bytes()),
+                        BigUint::from_bytes_be(&r_const.to_be_bytes()),
+                        &lhs.infix_kind(rhs),
+                        dummy_location,
+                    )
+                    .ok()?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
@@ -326,8 +342,14 @@ impl Type {
                     None
                 } else {
                     let dummy_location = Location::dummy();
-                    let result =
-                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
+                    let result = op
+                        .function(
+                            BigUint::from_bytes_be(&l_const.to_be_bytes()),
+                            BigUint::from_bytes_be(&r_const.to_be_bytes()),
+                            &lhs.infix_kind(rhs),
+                            dummy_location,
+                        )
+                        .ok()?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::infix_expr(l_type, l_op, constant))
                 }
@@ -339,7 +361,8 @@ impl Type {
 
 #[cfg(test)]
 mod tests {
-    use acvm::{AcirField, FieldElement};
+    use num_bigint::BigUint;
+    use num_traits::One;
 
     use crate::{
         NamedGeneric,
@@ -359,7 +382,7 @@ mod tests {
         let n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(BigUint::one(), Kind::u32())),
         );
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
@@ -367,7 +390,7 @@ mod tests {
         let n_minus_one_plus_one = Type::infix_expr(
             Box::new(checked_cast_n_minus_one.clone()),
             BinaryTypeOperator::Addition,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(BigUint::one(), Kind::u32())),
         );
 
         let canonicalized_typ = n_minus_one_plus_one.canonicalize();
@@ -378,7 +401,7 @@ mod tests {
         // the expression `1 + (N - 1)` to `N`.
 
         let one_plus_n_minus_one = Type::infix_expr(
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(BigUint::one(), Kind::u32())),
             BinaryTypeOperator::Addition,
             Box::new(checked_cast_n_minus_one),
         );
@@ -393,7 +416,7 @@ mod tests {
         let field_element_kind = Kind::numeric(Type::FieldElement);
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
-        let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
+        let one = Type::Constant(BigUint::one(), field_element_kind.clone());
 
         let lhs = Type::infix_expr(
             Box::new(x_type.clone()),
@@ -408,7 +431,7 @@ mod tests {
         let rhs = rhs.canonicalize();
 
         // bind vars
-        let two = Type::Constant(FieldElement::from(2u128), field_element_kind.clone());
+        let two = Type::Constant(BigUint::from(2u128), field_element_kind.clone());
         x_var.bind(two);
 
         // canonicalize (expect constant)
@@ -432,6 +455,8 @@ mod tests {
 mod proptests {
 
     use acvm::{AcirField, FieldElement};
+    use num_bigint::BigUint;
+    use num_traits::ToPrimitive;
     use proptest::arbitrary::any;
     use proptest::collection;
     use proptest::prelude::*;
@@ -474,7 +499,7 @@ mod proptests {
             strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
-                let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
+                let maximum_size = typ.integral_maximum_size().unwrap().to_u128().unwrap();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
             strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
@@ -509,8 +534,10 @@ mod proptests {
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
             arbitrary_variable(typ.clone(), num_variables),
-            arbitrary_value
-                .prop_map(move |value| Type::Constant(value, Kind::numeric(typ.clone()))),
+            arbitrary_value.prop_map(move |value| Type::Constant(
+                BigUint::from_bytes_be(&value.to_be_bytes()),
+                Kind::numeric(typ.clone())
+            )),
         ];
 
         leaf.prop_recursive(
@@ -544,7 +571,7 @@ mod proptests {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(*value, Kind::numeric(typ.clone()))
+                    Type::Constant(BigUint::from_bytes_be(&value.to_be_bytes()), Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)

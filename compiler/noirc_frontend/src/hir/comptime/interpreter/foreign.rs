@@ -7,6 +7,7 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn25
 use im::{Vector, vector};
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use num_bigint::BigUint;
 
 use crate::{
     Kind, Type,
@@ -15,7 +16,7 @@ use crate::{
         interpreter::builtin::builtin_helpers::to_byte_array,
     },
     node_interner::NodeInterner,
-    signed_field::SignedField,
+    signed_field::SignedInteger,
 };
 
 use super::{
@@ -133,11 +134,11 @@ fn apply_range_constraint(arguments: Vec<(Value, Location)>, location: Location)
     let (value, num_bits) = check_two_arguments(arguments, location)?;
 
     let input = get_field(value)?;
-    let field = input.to_field_element();
+    let field = input.to_integer();
 
-    let num_bits = get_u32(num_bits)?;
+    let num_bits = get_u64(num_bits)?;
 
-    if field.num_bits() < num_bits {
+    if field.bits() < num_bits {
         Ok(Value::Unit)
     } else {
         Err(InterpreterError::BlackBoxError(
@@ -298,11 +299,23 @@ fn embedded_curve_add(
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(&p1x, &p1y, &p1inf.into(), &p2x, &p2y, &p2inf.into())
+        .ec_add(
+            &FieldElement::from_be_bytes_reduce(&p1x.to_bytes_be()),
+            &FieldElement::from_be_bytes_reduce(&p1y.to_bytes_be()),
+            &p1inf.into(),
+            &FieldElement::from_be_bytes_reduce(&p2x.to_bytes_be()),
+            &FieldElement::from_be_bytes_reduce(&p2y.to_bytes_be()),
+            &p2inf.into(),
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
-        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        vector![to_embedded_curve_point(
+            BigUint::from_bytes_be(&x.to_be_bytes()),
+            BigUint::from_bytes_be(&y.to_be_bytes()),
+            inf > 0_usize.into(),
+            embedded_curve_point_typ
+        )],
         return_type,
     ))
 }
@@ -334,7 +347,20 @@ fn multi_scalar_mul(
     }
 
     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(&points, &scalars_lo, &scalars_hi)
+        .multi_scalar_mul(
+            &points
+                .iter()
+                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+                .collect::<Vec<_>>(),
+            &scalars_lo
+                .iter()
+                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+                .collect::<Vec<_>>(),
+            &scalars_hi
+                .iter()
+                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+                .collect::<Vec<_>>(),
+        )
         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {
@@ -352,7 +378,12 @@ fn multi_scalar_mul(
     };
 
     Ok(Value::Array(
-        vector![to_embedded_curve_point(x, y, inf > 0_usize.into(), embedded_curve_point_typ)],
+        vector![to_embedded_curve_point(
+            BigUint::from_bytes_be(&x.to_be_bytes()),
+            BigUint::from_bytes_be(&y.to_be_bytes()),
+            inf > 0_usize.into(),
+            embedded_curve_point_typ
+        )],
         return_type,
     ))
 }
@@ -367,14 +398,23 @@ fn poseidon2_permutation(
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
-    let input = vecmap(input, SignedField::to_field_element);
+    let input = vecmap(input, SignedInteger::to_integer);
     let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
-        .poseidon2_permutation(&input, state_length)
+        .poseidon2_permutation(
+            &input
+                .iter()
+                .map(|i| FieldElement::from_be_bytes_reduce(&i.clone().to_bytes_be()))
+                .collect::<Vec<_>>(),
+            state_length,
+        )
         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
 
-    let array = fields.into_iter().map(|f| Value::Field(SignedField::positive(f))).collect();
+    let array = fields
+        .into_iter()
+        .map(|f| Value::Field(SignedInteger::positive(BigUint::from_bytes_be(&f.to_be_bytes()))))
+        .collect();
     Ok(Value::Array(array, typ))
 }
 
@@ -428,40 +468,33 @@ fn get_bigint_id((value, location): (Value, Location)) -> IResult<u32> {
 /// Returns `(x, y, is_infinite)`.
 fn get_embedded_curve_point(
     (value, location): (Value, Location),
-) -> IResult<(FieldElement, FieldElement, bool)> {
+) -> IResult<(BigUint, BigUint, bool)> {
     let (fields, typ) = get_struct_fields("EmbeddedCurvePoint", (value, location))?;
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
     let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x.to_field_element(), y.to_field_element(), is_infinite))
+    Ok((x.to_integer(), y.to_integer(), is_infinite))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
 ///
 /// Returns `(lo, hi)`.
-fn get_embedded_curve_scalar(
-    (value, location): (Value, Location),
-) -> IResult<(FieldElement, FieldElement)> {
+fn get_embedded_curve_scalar((value, location): (Value, Location)) -> IResult<(BigUint, BigUint)> {
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo.to_field_element(), hi.to_field_element()))
+    Ok((lo.to_integer(), hi.to_integer()))
 }
 
 fn to_bigint(id: u32, typ: Type) -> Value {
     to_struct([("pointer", Value::U32(id)), ("modulus", Value::U32(id))], typ)
 }
 
-fn to_embedded_curve_point(
-    x: FieldElement,
-    y: FieldElement,
-    is_infinite: bool,
-    typ: Type,
-) -> Value {
+fn to_embedded_curve_point(x: BigUint, y: BigUint, is_infinite: bool, typ: Type) -> Value {
     to_struct(
         [
-            ("x", Value::Field(SignedField::positive(x))),
-            ("y", Value::Field(SignedField::positive(y))),
+            ("x", Value::Field(SignedInteger::positive(x))),
+            ("y", Value::Field(SignedInteger::positive(y))),
             ("is_infinite", Value::Bool(is_infinite)),
         ],
         typ,

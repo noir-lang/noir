@@ -11,7 +11,7 @@ use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
@@ -242,7 +242,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedInteger> {
     match value {
         Value::Field(value) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -639,7 +639,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(hash as u128)))
+    Ok(Value::Field(SignedInteger::positive(hash as u128)))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -699,7 +699,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(unary_op_value)));
+    fields.insert(Rc::new("op".to_string()), Value::Field(SignedInteger::positive(unary_op_value)));
 
     Some(Value::Struct(fields, typ))
 }
@@ -709,7 +709,8 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(binary_op_value)));
+    fields
+        .insert(Rc::new("op".to_string()), Value::Field(SignedInteger::positive(binary_op_value)));
 
     Value::Struct(fields, typ)
 }

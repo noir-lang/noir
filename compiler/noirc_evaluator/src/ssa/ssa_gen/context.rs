@@ -9,7 +9,7 @@ use noirc_frontend::monomorphization::ast::{
     self, FuncId, GlobalId, InlineType, LocalId, Parameters, Program,
 };
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::signed_field::SignedField;
+use noirc_frontend::signed_field::SignedInteger;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -284,7 +284,7 @@ impl<'a> FunctionContext<'a> {
     /// otherwise values like 2^128 can be assigned to a u8 without error or wrapping.
     pub(super) fn checked_numeric_constant(
         &mut self,
-        value: SignedField,
+        value: SignedInteger,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
         if let Some(range) = numeric_type.value_is_outside_limits(value) {

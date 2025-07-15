@@ -9,7 +9,9 @@
         fn two() {}
     }
 
-    fn main() {
+    fn main() -> pub Field {
+        let neg: Field = -1;
         Foo::<i32>::one();
+        neg + 1
     }
     

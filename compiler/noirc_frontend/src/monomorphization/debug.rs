@@ -1,13 +1,13 @@
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use noirc_errors::debug_info::DebugVarId;
 use noirc_printable_type::PrintableType;
+use num_traits::ToPrimitive;
 
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
 use crate::node_interner::ExprId;
-use crate::signed_field::SignedField;
+use crate::signed_field::SignedInteger;
 
 use super::ast::{Expression, Ident};
 use super::{MonomorphizationError, Monomorphizer};
@@ -76,7 +76,7 @@ impl Monomorphizer<'_> {
         // instantiate tracked variable for the value type and associate it with
         // the ID used by the injected instrumentation code
         let var_type = self.interner.id_type(call.arguments[DEBUG_VALUE_ARG_SLOT]);
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.absolute_value().to_u128().unwrap().into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
         let interned_var_id = self.intern_var_id(var_id, &call.location);
@@ -98,7 +98,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_var_drop call");
         };
         // update variable ID for tracked drops (ie. when the var goes out of scope)
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.absolute_value().to_u128().unwrap().into();
         let var_id = self
             .debug_type_tracker
             .get_var_id(source_var_id)
@@ -126,7 +126,7 @@ impl Monomorphizer<'_> {
             unreachable!("Missing source_var_id in __debug_member_assign call");
         };
         // update variable member assignments
-        let source_var_id = source_var_id.absolute_value().to_u128().into();
+        let source_var_id = source_var_id.absolute_value().to_u128().unwrap().into();
 
         let var_type = self
             .debug_type_tracker
@@ -138,7 +138,7 @@ impl Monomorphizer<'_> {
             if let Some(HirExpression::Literal(HirLiteral::Integer(fe_i))) =
                 hir_arguments.get(DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i)
             {
-                let index = fe_i.absolute_value().to_i128().unsigned_abs();
+                let index = fe_i.absolute_value().to_i128().unwrap().unsigned_abs();
                 if fe_i.is_negative() {
                     // We use negative indices at instrumentation time to indicate
                     // and reference member accesses by name which cannot be
@@ -153,7 +153,7 @@ impl Monomorphizer<'_> {
                         });
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
-                    let integer = HirLiteral::Integer(SignedField::positive(field_index));
+                    let integer = HirLiteral::Integer(SignedInteger::positive(field_index));
                     let index_id = self.interner.push_expr(HirExpression::Literal(integer));
                     self.interner.push_expr_type(index_id, crate::Type::FieldElement);
                     self.interner.push_expr_location(index_id, call.location);
@@ -178,7 +178,7 @@ impl Monomorphizer<'_> {
     }
 
     fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let value = SignedField::positive(var_id.0);
+        let value = SignedInteger::positive(var_id.0);
         let var_id_literal = HirLiteral::Integer(value);
         let expr_id = self.interner.push_expr(HirExpression::Literal(var_id_literal));
         self.interner.push_expr_type(expr_id, crate::Type::FieldElement);

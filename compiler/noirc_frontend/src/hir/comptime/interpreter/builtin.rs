@@ -15,6 +15,7 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use num_bigint::BigUint;
+use num_traits::ToPrimitive;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -45,7 +46,7 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
-    signed_field::SignedField,
+    signed_field::SignedInteger,
     token::{Attribute, LocatedToken, Token},
 };
 
@@ -973,8 +974,8 @@ fn to_le_radix(
         *element_type == Type::Integer(Signedness::Unsigned, IntegerBitSize::One);
 
     // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = compute_to_radix_le(value.to_field_element(), radix);
-    let decomposed_integer = vecmap(0..limb_count.to_u128() as usize, |i| {
+    let decomposed_integer = compute_to_radix_le(value.to_integer(), radix);
+    let decomposed_integer = vecmap(0..limb_count.to_u128().unwrap() as usize, |i| {
         let digit = match decomposed_integer.get(i) {
             Some(digit) => *digit,
             None => 0,
@@ -991,11 +992,11 @@ fn to_le_radix(
     Ok(Value::Array(decomposed_integer.into(), result_type))
 }
 
-fn compute_to_radix_le(field: FieldElement, radix: u32) -> Vec<u8> {
+fn compute_to_radix_le(integer: BigUint, radix: u32) -> Vec<u8> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     assert_eq!(BigUint::from(2u128).pow(bit_size), radix_big, "ICE: Radix must be a power of 2");
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+    let big_integer = BigUint::from_bytes_be(&integer.to_bytes_be());
 
     // Decompose the integer into its radix digits in little endian form.
     big_integer.to_radix_le(radix)
@@ -1451,7 +1452,7 @@ where
 // fn zeroed<T>() -> T
 fn zeroed(return_type: Type, location: Location) -> Value {
     match return_type {
-        Type::FieldElement => Value::Field(SignedField::zero()),
+        Type::FieldElement => Value::Field(SignedInteger::zero()),
         Type::Array(length_type, elem) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
                 let element = zeroed(elem.as_ref().clone(), location);
@@ -1954,14 +1955,14 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
-                Value::Field(SignedField::positive(field.absolute_value())),
+                Value::Field(SignedInteger::positive(field.absolute_value())),
                 Value::Bool(field.is_negative()),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Value::Field(SignedField::positive(field.absolute_value())),
+                    Value::Field(SignedInteger::positive(field.absolute_value())),
                     Value::Bool(field.is_negative()),
                 ]))
             } else {
@@ -3090,7 +3091,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = FieldElement::zero();
+    let is_infinite = BigUint::from(0u128);
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());
@@ -3101,13 +3102,17 @@ fn derive_generators(
         let y_big: BigUint = generator.y.into();
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields
-            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
-        embedded_curve_point_fields
-            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+        embedded_curve_point_fields.insert(
+            x_field_name.clone(),
+            Value::Field(SignedInteger::positive(BigUint::from_bytes_be(&x.to_be_bytes()))),
+        );
+        embedded_curve_point_fields.insert(
+            y_field_name.clone(),
+            Value::Field(SignedInteger::positive(BigUint::from_bytes_be(&y.to_be_bytes()))),
+        );
         embedded_curve_point_fields.insert(
             is_infinite_field_name.clone(),
-            Value::Field(SignedField::positive(is_infinite)),
+            Value::Field(SignedInteger::positive(is_infinite.clone())),
         );
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());

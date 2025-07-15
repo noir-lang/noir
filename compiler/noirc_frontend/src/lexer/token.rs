@@ -1,5 +1,5 @@
-use acvm::FieldElement;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
+use num_bigint::BigUint;
 use std::fmt::{self, Display};
 
 use crate::{
@@ -19,7 +19,7 @@ use crate::{
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum BorrowedToken<'input> {
     Ident(&'input str),
-    Int(FieldElement, Option<IntegerTypeSuffix>),
+    Int(BigUint, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
@@ -168,7 +168,7 @@ impl IntegerTypeSuffix {
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement, Option<IntegerTypeSuffix>),
+    Int(BigUint, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
@@ -298,7 +298,7 @@ pub enum Token {
 pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     match token {
         Token::Ident(s) => BorrowedToken::Ident(s),
-        Token::Int(n, suffix) => BorrowedToken::Int(*n, *suffix),
+        Token::Int(n, suffix) => BorrowedToken::Int(n.clone(), *suffix),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(b) => BorrowedToken::Str(b),
         Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
@@ -505,40 +505,40 @@ impl std::fmt::Display for SpannedToken {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Token::Ident(ref s) => write!(f, "{s}"),
+        match self {
+            Token::Ident(s) => write!(f, "{s}"),
             Token::Int(n, Some(suffix)) => write!(f, "{n}_{suffix}"),
             Token::Int(n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
-            Token::Str(ref b) => write!(f, "{b:?}"),
-            Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
-            Token::RawStr(ref b, hashes) => {
-                let h: String = std::iter::once('#').cycle().take(hashes as usize).collect();
+            Token::Str(b) => write!(f, "{b:?}"),
+            Token::FmtStr(b, _length) => write!(f, "f{b:?}"),
+            Token::RawStr(b, hashes) => {
+                let h: String = std::iter::once('#').cycle().take(*hashes as usize).collect();
                 write!(f, "r{h}{b:?}{h}")
             }
             Token::Keyword(k) => write!(f, "{k}"),
             Token::AttributeStart { is_inner, is_tag } => {
                 write!(f, "#")?;
-                if is_inner {
+                if *is_inner {
                     write!(f, "!")?;
                 }
                 write!(f, "[")?;
-                if is_tag {
+                if *is_tag {
                     write!(f, "'")?;
                 }
                 Ok(())
             }
-            Token::LineComment(ref s, style) => match style {
+            Token::LineComment(s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "//!{s}"),
                 Some(DocStyle::Outer) => write!(f, "///{s}"),
                 None => write!(f, "//{s}"),
             },
-            Token::BlockComment(ref s, style) => match style {
+            Token::BlockComment(s, style) => match style {
                 Some(DocStyle::Inner) => write!(f, "/*!{s}*/"),
                 Some(DocStyle::Outer) => write!(f, "/**{s}*/"),
                 None => write!(f, "/*{s}*/"),
             },
-            Token::Quote(ref stream) => {
+            Token::Quote(stream) => {
                 write!(f, "quote {{")?;
                 for token in stream.0.iter() {
                     write!(f, " {token}")?;
@@ -594,7 +594,7 @@ impl fmt::Display for Token {
             Token::LogicalAnd => write!(f, "&&"),
             Token::EOF => write!(f, "end of input"),
             Token::Invalid(c) => write!(f, "{c}"),
-            Token::Whitespace(ref s) => write!(f, "{s}"),
+            Token::Whitespace(s) => write!(f, "{s}"),
             Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
         }
     }
