@@ -4,12 +4,16 @@ expression: expanded_code
 ---
 global G_A: [[u128; 0]; 2] = [[], []];
 
-fn main(b: u8) -> pub u8 {
+global G_S: [[u128; 0]] = &[[], []];
+
+fn main(i: u32) -> pub u32 {
     // Safety: comment added by `nargo expand`
-    let _d: [[u128; 0]; 2] = unsafe { func_3(func_3([], b)[1_u32], 0_u8) };
-    b
+    let _a: [u128; 0] = unsafe { func_3(G_A[i])[1_u32] };
+    // Safety: comment added by `nargo expand`
+    let _s: [u128; 0] = unsafe { func_3(G_S[i])[1_u32] };
+    i
 }
 
-unconstrained fn func_3(_a: [u128; 0], _b: u8) -> [[u128; 0]; 2] {
+unconstrained fn func_3(_a: [u128; 0]) -> [[u128; 0]; 2] {
     G_A
 }

@@ -814,24 +814,16 @@ impl Context<'_> {
         if !array_typ.contains_slice_element() {
             array_typ.flattened_size() as usize
         } else {
-            let mut size = 0;
             match &dfg[array] {
-                Value::NumericConstant { .. } => {
-                    size += 1;
-                }
-                Value::Instruction { .. } => {
+                Value::NumericConstant { .. } => 1,
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
-                }
-                Value::Param { .. } => {
-                    let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
+                    flattened_value_size(&array_acir_value)
                 }
                 _ => {
                     unreachable!("ICE: Unexpected SSA value when computing the slice size");
                 }
             }
-            size
         }
     }
 
@@ -844,7 +836,20 @@ impl Context<'_> {
         if let Type::Array(_, size) = dfg.type_of_value(array) {
             size == 0
         } else {
-            self.flattened_size(array, dfg) == 0
+            match &dfg[array] {
+                Value::NumericConstant { constant, .. } => constant.is_zero(),
+                Value::Instruction { .. } | Value::Param { .. } => {
+                    let array_acir_value = self.convert_value(array, dfg);
+                    match array_acir_value {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => len == 0,
+                        AcirValue::Var(_, _) => false,
+                        AcirValue::Array(values) => values.is_empty(),
+                    }
+                }
+                _ => {
+                    unreachable!("ICE: Unexpected SSA value when computing the slice size");
+                }
+            }
         }
     }
 
