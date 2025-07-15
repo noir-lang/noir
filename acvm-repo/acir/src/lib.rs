@@ -10,7 +10,6 @@
 #[doc = include_str!("../README.md")]
 pub mod circuit;
 pub mod native_types;
-mod proto;
 mod serialization;
 
 pub use acir_field;
