@@ -156,9 +156,9 @@ impl<'context> ItemBuilder<'context> {
 
         let items = definitions
             .into_iter()
-            .map(|(module_def_id, visibility, _location)| {
-                let structure = self.build_module_def_id(module_def_id);
-                (visibility, structure)
+            .filter_map(|(module_def_id, visibility, _location)| {
+                let structure = self.build_module_def_id(module_def_id)?;
+                Some((visibility, structure))
             })
             .collect();
 
@@ -171,15 +171,16 @@ impl<'context> ItemBuilder<'context> {
         self.interner.reference_location(reference_id)
     }
 
-    fn build_module_def_id(&mut self, module_def_id: ModuleDefId) -> Item {
-        match module_def_id {
+    fn build_module_def_id(&mut self, module_def_id: ModuleDefId) -> Option<Item> {
+        Some(match module_def_id {
             ModuleDefId::ModuleId(module_id) => self.build_module(module_id),
             ModuleDefId::TypeId(type_id) => self.build_data_type(type_id),
             ModuleDefId::TypeAliasId(type_alias_id) => Item::TypeAlias(type_alias_id),
             ModuleDefId::TraitId(trait_id) => self.build_trait(trait_id),
+            ModuleDefId::TraitAssociatedTypeId(_) => return None,
             ModuleDefId::GlobalId(global_id) => Item::Global(global_id),
             ModuleDefId::FunctionId(func_id) => Item::Function(func_id),
-        }
+        })
     }
 
     fn build_data_type(&mut self, type_id: TypeId) -> Item {

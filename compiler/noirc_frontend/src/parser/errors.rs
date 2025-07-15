@@ -111,6 +111,8 @@ pub enum ParserErrorReason {
     TraitBoundsNotAllowedHere,
     #[error("Missing type for associated constant")]
     MissingTypeForAssociatedConstant,
+    #[error("Associated trait constant default values are not supported")]
+    AssociatedTraitConstantDefaultValuesAreNotSupported,
 }
 
 /// Represents a parsing error, or a parsing error in the making.

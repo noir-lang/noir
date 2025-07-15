@@ -1,3 +1,10 @@
+//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+//! for generating Brillig bytecode from [Ssa].
+//!
+//! # Usage
+//!
+//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 

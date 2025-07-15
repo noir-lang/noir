@@ -181,12 +181,29 @@ impl<'f> PerFunctionContext<'f> {
 
         let mut all_terminator_values = HashSet::default();
         let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
-        for (block_id, _) in self.blocks.iter() {
+        for (block_id, references) in self.blocks.iter_mut() {
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
-            terminator.for_each_value(|value| all_terminator_values.insert(value));
+            terminator.for_each_value(|value| {
+                all_terminator_values.insert(value);
+                // Also insert all the aliases of this value as being used in the terminator,
+                // so that for example if the value is an array and contains a reference,
+                // then that reference gets to keep its last store.
+                let typ = self.inserter.function.dfg.type_of_value(value);
+                if Self::contains_references(&typ) {
+                    if let Some(expression) = references.expressions.get(&value) {
+                        if let Some(aliases) = references.aliases.get(expression) {
+                            aliases.for_each(|alias| {
+                                all_terminator_values.insert(alias);
+                            });
+                        }
+                    }
+                }
+            });
         }
+
+        // Add all the aliases of values used in the terminators.
 
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
@@ -241,12 +258,14 @@ impl<'f> PerFunctionContext<'f> {
                     return true;
                 }
 
+                // Is any alias of this address an input to some function call, or a return value?
                 let allocation_aliases_instr_input =
                     aliases.any(|alias| self.instruction_input_references.contains(&alias));
                 if allocation_aliases_instr_input == Some(true) {
                     return true;
                 }
 
+                // Is any alias of this address used in a block terminator?
                 let allocation_aliases_terminator_args =
                     aliases.any(|alias| all_terminator_values.contains(&alias));
                 if allocation_aliases_terminator_args == Some(true) {

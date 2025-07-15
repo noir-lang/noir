@@ -139,7 +139,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
 pub fn validate_ssa(ssa: &Ssa) {
     for function in ssa.functions.values() {
-        validate_function(function);
+        validate_function(function, ssa);
     }
 }
 
@@ -532,7 +532,7 @@ impl FunctionContext<'_> {
     ///   br loop_entry(v0)
     /// loop_entry(i: Field):
     ///   v2 = lt i v1
-    ///   brif v2, then: loop_body, else: loop_end
+    ///   jmpif v2, then: loop_body, else: loop_end
     /// loop_body():
     ///   v3 = ... codegen body ...
     ///   v4 = add 1, i
@@ -684,7 +684,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: else_block
+    ///   jmpif v0, then: then_block, else: else_block
     /// then_block():
     ///   v1 = ... codegen a ...
     ///   br end_if(v1)
@@ -699,7 +699,7 @@ impl FunctionContext<'_> {
     ///
     /// ```text
     ///   v0 = ... codegen cond ...
-    ///   brif v0, then: then_block, else: end_if
+    ///   jmpif v0, then: then_block, else: end_if
     /// then_block:
     ///   v1 = ... codegen a ...
     ///   br end_if()
@@ -774,7 +774,7 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_match(&mut self, match_expr: &ast::Match) -> Result<Values, RuntimeError> {
-        let variable = self.lookup(match_expr.variable_to_match);
+        let variable = self.lookup(match_expr.variable_to_match.0);
 
         // Any matches with only a single case we don't need to check the tag at all.
         // Note that this includes all matches on struct / tuple values.
@@ -962,7 +962,7 @@ impl FunctionContext<'_> {
             "Expected enum variant to contain a value for each variant argument"
         );
 
-        for (value, arg) in variant.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in variant.into_iter().zip(&case.arguments) {
             self.define(*arg, value);
         }
     }
@@ -978,7 +978,7 @@ impl FunctionContext<'_> {
             "Expected field length to match constructor argument count"
         );
 
-        for (value, arg) in fields.into_iter().zip(&case.arguments) {
+        for (value, (arg, _)) in fields.into_iter().zip(&case.arguments) {
             self.define(*arg, value);
         }
     }

@@ -111,6 +111,7 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::Module(_)
                     | ReferenceId::Type(_)
                     | ReferenceId::Trait(_)
+                    | ReferenceId::TraitAssociatedType(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
                     | ReferenceId::Reference(..) => (),

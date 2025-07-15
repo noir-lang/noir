@@ -200,7 +200,7 @@ impl Translator {
 
     /// Computes the order in which blocks should be translated. The order will be according
     /// to the block terminators, starting from the entry block. This is needed because a variable
-    /// in a block might refer to a variable that syntantically happens afterwards, but logically
+    /// in a block might refer to a variable that syntactically happens afterwards, but logically
     /// happens before.
     fn compute_blocks_order(
         &self,

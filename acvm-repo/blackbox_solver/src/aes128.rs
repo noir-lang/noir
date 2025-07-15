@@ -1,5 +1,5 @@
 use crate::BlackBoxResolutionError;
-use libaes::Cipher;
+use libaes::Cipher; // cSpell:disable-line
 
 pub fn aes128_encrypt(
     inputs: &[u8],

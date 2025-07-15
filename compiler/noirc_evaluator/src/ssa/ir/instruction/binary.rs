@@ -422,7 +422,7 @@ mod test {
 
             let integer_modulus = BigUint::from(2_u128).pow(bit_size);
             let truncated_as_bigint = BigUint::from(input)
-                        .modpow(&BigUint::one(), &integer_modulus);
+                        .modpow(&BigUint::one(), &integer_modulus); // cSpell:disable-line
             let truncated_as_bigint = FieldElement::from_be_bytes_reduce(&truncated_as_bigint.to_bytes_be());
             prop_assert_eq!(truncated_as_field, truncated_as_bigint);
         }
