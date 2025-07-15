@@ -263,7 +263,7 @@ impl AstPrinter {
                 write!(f, "]")
             }
             super::ast::Literal::Integer(x, typ, _) => {
-                if self.show_type_of_int_literal {
+                if self.show_type_of_int_literal && *typ != Type::Field {
                     write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
