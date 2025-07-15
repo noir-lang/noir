@@ -158,7 +158,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding using constraints"),
+        SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
