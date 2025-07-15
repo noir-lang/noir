@@ -264,13 +264,13 @@
         "sccs",
         "schnorr",
         "sdiv",
-        "seedable",
         "secp256k1",
         "secp256r1",
         "Secpk",
         "Secpr",
-        "signedness",
+        "seedable",
         "signedinteger",
+        "signedness",
         "signorecello",
         "signum",
         "smallvec",
@@ -307,6 +307,7 @@
         "unbindable",
         "unbranch",
         "underconstrained",
+        "underconstrainedness",
         "underflowing",
         "underflows",
         "ungzip",
@@ -336,9 +337,9 @@
         "whitespaces",
         "xorshift",
         "YOLO",
-        "Zenums", // For -Zenums
-        "Zownership", // For -Zownership
+        "Zenums",
         "zkhash",
+        "Zownership",
         "zshell"
     ],
     "ignorePaths": [
