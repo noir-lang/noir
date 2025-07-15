@@ -20,8 +20,8 @@ impl SignedInteger {
         Self { integer: integer.into(), is_negative: false }
     }
 
-    pub fn negative(integer: impl Into<BigUint>) -> Self {
-        Self::new(integer.into(), true)
+    pub fn negative(integer: impl Into<BigInt>) -> Self {
+        Self::new(integer.into().magnitude().clone(), true)
     }
 
     pub fn zero() -> SignedInteger {
@@ -101,9 +101,12 @@ impl SignedInteger {
         }
     }
 
-    // TODO: Figure out why this was earlier returing a -FieldElement for negative values
-    pub fn to_integer(self) -> BigUint {
-        self.integer.into()
+    pub fn to_integer(self) -> BigInt {
+        if self.is_negative {
+            BigInt::new(Sign::Minus, self.integer.to_u32_digits())
+        } else {
+            BigInt::from(self.integer)
+        }
     }
 
     pub fn to_field_element(self) -> FieldElement {

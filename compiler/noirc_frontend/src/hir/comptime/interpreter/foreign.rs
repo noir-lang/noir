@@ -398,7 +398,7 @@ fn poseidon2_permutation(
     let (input, state_length) = check_two_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(interner, input, get_field)?;
-    let input = vecmap(input, SignedInteger::to_integer);
+    let input = vecmap(input, |arg0: SignedInteger| SignedInteger::absolute_value(&arg0));
     let state_length = get_u32(state_length)?;
 
     let fields = Bn254BlackBoxSolver(pedantic_solving)
@@ -473,7 +473,7 @@ fn get_embedded_curve_point(
     let x = get_struct_field("x", &fields, &typ, location, get_field)?;
     let y = get_struct_field("y", &fields, &typ, location, get_field)?;
     let is_infinite = get_struct_field("is_infinite", &fields, &typ, location, get_bool)?;
-    Ok((x.to_integer(), y.to_integer(), is_infinite))
+    Ok((x.absolute_value(), y.absolute_value(), is_infinite))
 }
 
 /// Decode an `EmbeddedCurveScalar` struct.
@@ -483,7 +483,7 @@ fn get_embedded_curve_scalar((value, location): (Value, Location)) -> IResult<(B
     let (fields, typ) = get_struct_fields("EmbeddedCurveScalar", (value, location))?;
     let lo = get_struct_field("lo", &fields, &typ, location, get_field)?;
     let hi = get_struct_field("hi", &fields, &typ, location, get_field)?;
-    Ok((lo.to_integer(), hi.to_integer()))
+    Ok((lo.absolute_value(), hi.absolute_value()))
 }
 
 fn to_bigint(id: u32, typ: Type) -> Value {

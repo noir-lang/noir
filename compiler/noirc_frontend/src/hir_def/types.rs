@@ -4,7 +4,7 @@ use acvm::{AcirField, FieldElement};
 use fxhash::FxHashMap as HashMap;
 
 use num_bigint::{BigInt, BigUint};
-use num_traits::{One, ToPrimitive, Zero};
+use num_traits::{One, ToPrimitive};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 

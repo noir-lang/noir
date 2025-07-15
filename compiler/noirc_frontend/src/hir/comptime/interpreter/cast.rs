@@ -103,8 +103,14 @@ fn perform_cast(kind: CastType, lhs: FieldElement) -> FieldElement {
 /// positive absolute values.
 fn convert_to_integer(value: Value, location: Location) -> IResult<(BigUint, bool)> {
     Ok(match value {
-        Value::Field(value) if value.is_negative() => (FieldElement::modulus() - value.absolute_value(), true),
-        Value::Field(value) => (value.absolute_value(), false),
+        Value::Field(value) if value.is_negative() => {
+            let mut value = value.absolute_value();
+            while value >= FieldElement::modulus() {
+                value = value - FieldElement::modulus();
+            }
+            (FieldElement::modulus() - value, true)
+        }
+        Value::Field(value) => (value.absolute_value() % FieldElement::modulus(), false),
         Value::U1(value) => ((value as u128).into(), false),
         Value::U8(value) => ((value as u128).into(), false),
         Value::U16(value) => ((value as u128).into(), false),

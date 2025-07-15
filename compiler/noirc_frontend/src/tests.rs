@@ -52,9 +52,7 @@ pub(crate) fn get_program_errors(src: &str, test_path: &str) -> Vec<CompilationE
 }
 
 fn assert_no_errors(src: &str, test_path: &str) {
-    let (parsed_module, context, errors) = get_program(src, Some(test_path), Expect::Success);
-    // println!("parsed_module: {:#?}", parsed_module);
-    println!("context: {:#?}", context.def_maps);
+    let (_, context, errors) = get_program(src, Some(test_path), Expect::Success);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
         report_all(context.file_manager.as_file_map(), &errors, false, false);

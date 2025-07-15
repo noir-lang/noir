@@ -2,8 +2,6 @@
 
 use acvm::AcirField;
 use acvm::FieldElement;
-use num_bigint::BigUint;
-use num_traits::Zero;
 
 use crate::assert_no_errors;
 use crate::get_monomorphized;
