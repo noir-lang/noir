@@ -13,6 +13,7 @@ pub struct TypeAlias {
     pub visibility: ItemVisibility,
     pub location: Location,
     pub numeric_type: Option<UnresolvedType>,
+    pub numeric_location: Location,
 }
 
 impl Display for TypeAlias {

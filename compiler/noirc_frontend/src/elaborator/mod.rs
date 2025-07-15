@@ -1760,7 +1760,9 @@ impl<'context> Elaborator<'context> {
                 // Checks that the expression only references generics and constants
                 if !num_expr.is_valid_expression() {
                     self.errors.push(CompilationError::ResolverError(
-                        ResolverError::RecursiveTypeAlias { location },
+                        ResolverError::RecursiveTypeAlias {
+                            location: alias.type_alias_def.numeric_location,
+                        },
                     ));
                     (Type::Error, None)
                 } else {

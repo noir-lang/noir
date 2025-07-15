@@ -146,6 +146,7 @@ fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
         numeric_type: type_alias
             .numeric_type
             .map(|num_type| unresolved_type_with_file(num_type, file)),
+        numeric_location: location_with_file(type_alias.numeric_location, file),
     }
 }
 

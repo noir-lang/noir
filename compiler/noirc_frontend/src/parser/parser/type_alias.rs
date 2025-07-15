@@ -24,6 +24,7 @@ impl Parser<'_> {
                 typ: UnresolvedType { typ: UnresolvedTypeData::Error, location },
                 location: start_location,
                 numeric_type: None,
+                numeric_location: Location::dummy(),
             };
         };
         // Optional numeric type for alias over numeric generics
@@ -34,20 +35,33 @@ impl Parser<'_> {
             // It must be a numeric type
             num_typ = Some(self.parse_type_or_error());
         }
-        let location; //TODO CHECK location_at_previous_token_end
+        let expr_location = self.location_at_previous_token_end();
+        let location;
         let typ = if !self.eat_assign() {
             self.expected_token(Token::Assign);
             location = self.location_since(start_location);
             self.eat_semicolons();
-            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+            UnresolvedType {
+                typ: UnresolvedTypeData::Error,
+                location: self.location_at_previous_token_end(),
+            }
         } else {
             let typ = self.parse_type_or_type_expression().unwrap();
             location = self.location_since(start_location);
             self.eat_semicolon_or_error();
             typ
         };
+        let numeric_location = self.location_since(expr_location);
 
-        TypeAlias { visibility, name, generics, typ, location, numeric_type: num_typ }
+        TypeAlias {
+            visibility,
+            name,
+            generics,
+            typ,
+            location,
+            numeric_type: num_typ,
+            numeric_location,
+        }
     }
 }
 
