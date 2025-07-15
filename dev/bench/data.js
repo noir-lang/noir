@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752573699460,
+  "lastUpdate": 1752573703495,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,85 +3958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0098c45d5997ea70df22c98efec83c60ab578869",
-          "message": "fix(ssa): Do not fail for static assertions in a map over empty dynamic slices (#9060)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-02T16:20:32Z",
-          "tree_id": "a660a3ff2b476c7df9ba2d33b8091473618ff33d",
-          "url": "https://github.com/noir-lang/noir/commit/0098c45d5997ea70df22c98efec83c60ab578869"
-        },
-        "date": 1751475098895,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.438,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.224,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.164,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 194,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.43,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.765,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -7901,6 +7822,85 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.804,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b2efe05967610d2bc7547046019d24c12831439",
+          "message": "feat: optimize \"out of bounds\" checks on arrays with lengths which are powers of two (#9182)",
+          "timestamp": "2025-07-15T10:25:09+01:00",
+          "tree_id": "5583cb639f6202f7397eed1642835469fcb70b54",
+          "url": "https://github.com/noir-lang/noir/commit/6b2efe05967610d2bc7547046019d24c12831439"
+        },
+        "date": 1752573687961,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.038,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.824,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.618,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.668,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.822,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.776,
             "unit": "s"
           }
         ]
