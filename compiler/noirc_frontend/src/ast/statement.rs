@@ -911,7 +911,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {}", block),
+            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }
@@ -1006,7 +1006,7 @@ impl Display for Pattern {
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }
             Pattern::Parenthesized(pattern, _) => {
-                write!(f, "({})", pattern)
+                write!(f, "({pattern})")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

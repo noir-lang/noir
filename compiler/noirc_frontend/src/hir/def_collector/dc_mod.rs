@@ -602,7 +602,7 @@ impl ModCollector<'_> {
                             }
                         }
                     }
-                    TraitItem::Constant { name, typ, default_value: _ } => {
+                    TraitItem::Constant { name, typ } => {
                         let global_id = context.def_interner.push_empty_global(
                             name.clone(),
                             trait_id.0.local_id,

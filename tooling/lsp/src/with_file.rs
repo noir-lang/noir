@@ -280,10 +280,9 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             where_clause: unresolved_trait_constraints_with_file(where_clause, file),
             body: body.map(|body| block_expression_with_file(body, file)),
         },
-        TraitItem::Constant { name, typ, default_value } => TraitItem::Constant {
+        TraitItem::Constant { name, typ } => TraitItem::Constant {
             name: ident_with_file(name, file),
             typ: unresolved_type_with_file(typ, file),
-            default_value: default_value.map(|value| expression_with_file(value, file)),
         },
         TraitItem::Type { name, bounds } => TraitItem::Type {
             name: ident_with_file(name, file),

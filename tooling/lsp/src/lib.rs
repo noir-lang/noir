@@ -278,7 +278,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {:?}: {}", toml_path, error);
+                eprintln!("Error while processing {toml_path:?}: {error}");
             }
         }
     }
@@ -289,15 +289,14 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         .and_then(|file_name_os_str| file_name_os_str.to_str())
     else {
         return Err(LspError::WorkspaceResolutionError(format!(
-            "Could not resolve parent folder for file: {:?}",
-            file_path
+            "Could not resolve parent folder for file: {file_path:?}"
         )));
     };
 
     let crate_name = match CrateName::from_str(parent_folder) {
         Ok(name) => name,
         Err(error) => {
-            eprintln!("{}", error);
+            eprintln!("{error}");
             CrateName::from_str("root").unwrap()
         }
     };

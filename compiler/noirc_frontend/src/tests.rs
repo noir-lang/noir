@@ -203,7 +203,7 @@ fn check_errors_with_options(
         let secondary = error
             .secondaries
             .first()
-            .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
+            .unwrap_or_else(|| panic!("Expected {error:?} to have a secondary label"));
         let span = secondary.location.span;
         let message = &error.message;
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {

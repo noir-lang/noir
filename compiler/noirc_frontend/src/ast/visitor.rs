@@ -123,12 +123,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_trait_item_constant(
-        &mut self,
-        _name: &Ident,
-        _typ: &UnresolvedType,
-        _default_value: &Option<Expression>,
-    ) -> bool {
+    fn visit_trait_item_constant(&mut self, _name: &Ident, _typ: &UnresolvedType) -> bool {
         true
     }
 
@@ -793,13 +788,9 @@ impl TraitItem {
                     }
                 }
             }
-            TraitItem::Constant { name, typ, default_value } => {
-                if visitor.visit_trait_item_constant(name, typ, default_value) {
+            TraitItem::Constant { name, typ } => {
+                if visitor.visit_trait_item_constant(name, typ) {
                     typ.accept(visitor);
-
-                    if let Some(default_value) = default_value {
-                        default_value.accept(visitor);
-                    }
                 }
             }
             TraitItem::Type { name, bounds } => {

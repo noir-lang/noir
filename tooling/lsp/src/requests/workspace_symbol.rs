@@ -56,7 +56,7 @@ pub(crate) fn on_workspace_symbol_request(
             file_manager.add_file_with_source(path.as_path(), source.to_string());
         } else {
             let source = std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+                .unwrap_or_else(|_| panic!("could not read file {path:?} into string"));
             file_manager.add_file_with_source(path.as_path(), source);
         }
     }
@@ -262,7 +262,7 @@ mod tests {
         .unwrap();
 
         let WorkspaceSymbolResponse::Nested(symbols) = response else {
-            panic!("Expected Nested response, got {:?}", response);
+            panic!("Expected Nested response, got {response:?}");
         };
 
         assert_eq!(symbols.len(), 8);
