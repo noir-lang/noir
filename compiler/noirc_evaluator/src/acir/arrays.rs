@@ -108,7 +108,7 @@ impl Context<'_> {
         // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
         // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
-        if self.flattened_size(array, dfg) == 0 {
+        if self.has_zero_length(array, dfg) {
             // Zero result.
             let results = dfg.instruction_results(instruction);
             let res_typ = dfg.type_of_value(results[0]);
@@ -832,6 +832,19 @@ impl Context<'_> {
                 }
             }
             size
+        }
+    }
+
+    /// Check if the array or slice has 0 length.
+    ///
+    /// This is different from `flattened_size` in that a non-zero length
+    /// array containing zero length arrays has zero size, but we can still
+    /// access its elements.
+    fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
+        if let Type::Array(_, size) = dfg.type_of_value(array) {
+            size == 0
+        } else {
+            self.flattened_size(array, dfg) == 0
         }
     }
 
