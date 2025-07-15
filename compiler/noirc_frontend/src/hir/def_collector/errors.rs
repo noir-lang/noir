@@ -120,15 +120,10 @@ impl DefCollectorErrorKind {
 
 impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
-        let name = error.ident.as_str();
-        let typ = &error.typ;
-
         Diagnostic::simple_error(
-            format!(
-                "{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
-            ),
+            error.to_string(),
             "Unsupported numeric generic type".to_string(),
-            error.ident.location(),
+            error.location,
         )
     }
 }
