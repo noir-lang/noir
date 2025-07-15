@@ -116,7 +116,9 @@ pub(crate) fn simplify(
             }
 
             let array_or_slice_type = dfg.type_of_value(*array);
-            if array_or_slice_type.is_array() && array_or_slice_type.flattened_size() == 1 {
+            if matches!(array_or_slice_type, Type::Array(_, 1))
+                && array_or_slice_type.flattened_size() == 1
+            {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
                 optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
@@ -303,8 +305,10 @@ pub(crate) fn simplify(
 }
 
 /// Given an array access on a length 1 array such as:
+/// ```
 /// v2 = make_array [v0] : [Field; 1]
 /// v3 = array_get v2, index v1 -> Field
+/// ```
 ///
 /// We want to replace the array read with the only valid value which can be read from the array
 /// while ensuring that if there is an attempt to read past the end of the array then the program fails.
@@ -312,10 +316,11 @@ pub(crate) fn simplify(
 /// We then inject an explicit assertion that the index variable has the value zero while replacing the value
 /// being used in the `array_get` instruction with a constant value of zero. This then results in the SSA:
 ///
+/// ```
 /// v2 = make_array [v0] : [Field; 1]
 /// constrain v1 == u32 0, "Index out of bounds"
 /// v4 = array_get v2, index u32 0 -> Field
-///
+/// ```
 /// We then attempt to resolve the array read immediately.
 fn optimize_length_one_array_read(
     dfg: &mut DataFlowGraph,
