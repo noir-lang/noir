@@ -905,7 +905,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
             <span class="kw">super</span>::ast::Literal::Integer(x, typ, <span class="kw">_</span>) =&gt; {
-                <span class="kw">if </span><span class="self">self</span>.show_type_of_int_literal {
+                <span class="kw">if </span><span class="self">self</span>.show_type_of_int_literal &amp;&amp; <span class="kw-2">*</span>typ != Type::Field {
                     <span class="macro">write!</span>(f, <span class="string">"{x}_{typ}"</span>)
                 } <span class="kw">else </span>{
                     x.fmt(f)

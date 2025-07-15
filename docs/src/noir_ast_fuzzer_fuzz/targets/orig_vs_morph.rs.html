@@ -831,11 +831,7 @@
 <a href="#830" id="830">830</a>
 <a href="#831" id="831">831</a>
 <a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a>
-<a href="#834" id="834">834</a>
-<a href="#835" id="835">835</a>
-<a href="#836" id="836">836</a>
-<a href="#837" id="837">837</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
@@ -855,11 +851,7 @@
 <span class="kw">pub fn </span>fuzz(u: <span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt; {
     <span class="kw">let </span>rules = rules::all();
     <span class="kw">let </span>max_rewrites = <span class="number">10</span>;
-    <span class="kw">let </span>config = Config {
-        avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
-        avoid_large_int_literals: <span class="bool-val">true</span>,
-        ..Default::default()
-    };
+    <span class="kw">let </span>config = Config { avoid_overflow: u.arbitrary()<span class="question-mark">?</span>, ..Default::default() };
     <span class="kw">let </span>inputs = CompareMorph::arb(
         u,
         config,

@@ -54,8 +54,7 @@
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
+<a href="#56" id="56">56</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare the execution of random ASTs between the normal execution
 //! vs when everything is forced to be Brillig.
 </span><span class="kw">use crate</span>::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 <span class="kw">use </span>arbitrary::Arbitrary;
@@ -70,7 +69,6 @@
         <span class="comment">// Overflows can be triggered easily, so in half the cases we avoid them,
         // to make sure they don't mask other errors.
         </span>avoid_overflow: u.arbitrary()<span class="question-mark">?</span>,
-        avoid_large_int_literals: <span class="bool-val">true</span>,
         ..Default::default()
     };
 

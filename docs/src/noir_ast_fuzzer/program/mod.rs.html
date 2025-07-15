@@ -622,7 +622,9 @@
 <a href="#621" id="621">621</a>
 <a href="#622" id="622">622</a>
 <a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 
 </span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -1206,7 +1208,9 @@
         printer.show_type_in_let = <span class="bool-val">true</span>;
         <span class="comment">// Most of the time it doesn't affect testing, except the comptime tests where
         // we parse back the code. For that we use `DisplayAstAsNoirComptime`.
-        </span>printer.show_type_of_int_literal = <span class="bool-val">false</span>;
+        // But printing ints with their type makes it much easier to replicate errors in integration tests,
+        // otherwise the frontend rejects negative or large numbers in many contexts.
+        </span>printer.show_type_of_int_literal = <span class="bool-val">true</span>;
         printer.print_program(<span class="self">self</span>.<span class="number">0</span>, f)
     }
 }
