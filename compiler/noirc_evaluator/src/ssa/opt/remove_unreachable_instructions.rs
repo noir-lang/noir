@@ -126,6 +126,37 @@ impl Function {
                         false
                     }
                 }
+
+                Instruction::ArrayGet { array, index, offset }
+                | Instruction::ArraySet { array, index, offset, .. } => {
+                    let predicate = context.dfg.get_numeric_constant(side_effects_condition);
+                    match predicate {
+                        Some(predicate) => {
+                            if predicate.is_zero() {
+                                // The predicate is zero
+                                return;
+                            }
+                        }
+                        None => {
+                            // The predicate is a variable
+                            return;
+                        }
+                    }
+
+                    let array_or_slice_type = context.dfg.type_of_value(*array);
+                    match array_or_slice_type {
+                        Type::Slice(_) => false,
+                        Type::Array(_, len) => {
+                            len == 0
+                                || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                                    (index.try_to_u32().unwrap() - offset.to_u32()) >= len
+                                })
+                        }
+                        _ => unreachable!(
+                            "Encountered non-array type during array read/write operation"
+                        ),
+                    }
+                }
                 _ => false,
             };
 
@@ -303,6 +334,45 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_in_block_for_invalid_array_get() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 10], v1: u32):
+            v2 = make_array [] : [Field; 0]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v3 = array_get v2, index v1 -> Field
+            jmp b4()
+          b3():
+            v4 = array_get v0, index u32 11 -> Field
+            jmp b4()
+          b4():
+            return Field 1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 10]):
+            v1 = make_array [] : [Field; 0]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v4 = array_get v1, index u32 0 -> Field
+            unreachable
+          b3():
+            v6 = array_get v0, index u32 11 -> Field
+            unreachable
+        }
+        ");
     }
 
     #[test]
