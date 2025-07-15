@@ -85,7 +85,7 @@ impl Function {
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 // Instructions that don't have side effects can be left alone.
-                if !instruction.has_side_effects(&context.dfg) {
+                if !instruction.has_side_effects(context.dfg) {
                     return;
                 }
                 // Remove the current instruction and insert defaults for the results.
