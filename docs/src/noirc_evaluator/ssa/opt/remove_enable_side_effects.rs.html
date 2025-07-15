@@ -383,8 +383,7 @@
 <a href="#382" id="382">382</a>
 <a href="#383" id="383">383</a>
 <a href="#384" id="384">384</a>
-<a href="#385" id="385">385</a>
-<a href="#386" id="386">386</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffectsIf]
+<a href="#385" id="385">385</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffectsIf]
 //! instructions such that they cover the minimum number of instructions possible.
 //!
 //! The pass works as follows:
@@ -454,6 +453,7 @@
                     context.remove_current_instruction();
                     <span class="kw">return</span>;
                 }
+                active_condition = <span class="kw-2">*</span>condition;
 
                 <span class="comment">// If we're seeing an `enable_side_effects u1 1` then we want to insert it immediately.
                 // This is because we want to maximize the effect it will have.
@@ -461,15 +461,13 @@
                     .dfg
                     .get_numeric_constant(<span class="kw-2">*</span>condition)
                     .is_some_and(|condition| condition.is_one());
+
                 <span class="kw">if </span>condition_is_one {
                     last_side_effects_enabled_instruction = <span class="prelude-val">None</span>;
-                    active_condition = <span class="kw-2">*</span>condition;
-                    <span class="kw">return</span>;
+                } <span class="kw">else </span>{
+                    last_side_effects_enabled_instruction = <span class="prelude-val">Some</span>(instruction_id);
+                    context.remove_current_instruction();
                 }
-
-                last_side_effects_enabled_instruction = <span class="prelude-val">Some</span>(instruction_id);
-                active_condition = <span class="kw-2">*</span>condition;
-                context.remove_current_instruction();
                 <span class="kw">return</span>;
             }
 

@@ -956,11 +956,21 @@
 <a href="#955" id="955">955</a>
 <a href="#956" id="956">956</a>
 <a href="#957" id="957">957</a>
-<a href="#958" id="958">958</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a>
+<a href="#960" id="960">960</a>
+<a href="#961" id="961">961</a>
+<a href="#962" id="962">962</a>
+<a href="#963" id="963">963</a>
+<a href="#964" id="964">964</a>
+<a href="#965" id="965">965</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
-<span class="kw">use </span>acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
+<span class="kw">use </span>acvm::{
+    AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
+};
 <span class="kw">use </span>fxhash::FxHasher64;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::hir_def::types::Type <span class="kw">as </span>HirType;
@@ -1396,13 +1406,17 @@
             <span class="comment">// This should never be side-effectual
             </span>MakeArray { .. } | Noop =&gt; <span class="bool-val">false</span>,
 
-            <span class="comment">// Some binary math can overflow or underflow
+            <span class="comment">// Some binary math can overflow or underflow.
             </span>Binary(binary) =&gt; <span class="kw">match </span>binary.operator {
                 BinaryOp::Add { unchecked: <span class="bool-val">false </span>}
                 | BinaryOp::Sub { unchecked: <span class="bool-val">false </span>}
-                | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>}
-                | BinaryOp::Div
-                | BinaryOp::Mod =&gt; <span class="bool-val">true</span>,
+                | BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
+                    <span class="kw">let </span>typ = dfg.type_of_value(binary.lhs);
+                    !<span class="macro">matches!</span>(typ, Type::Numeric(NumericType::NativeField))
+                }
+                BinaryOp::Div | BinaryOp::Mod =&gt; {
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                }
                 BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
                 | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}
                 | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}

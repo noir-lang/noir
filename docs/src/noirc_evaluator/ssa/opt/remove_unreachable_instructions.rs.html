@@ -667,7 +667,135 @@
 <a href="#666" id="666">666</a>
 <a href="#667" id="667">667</a>
 <a href="#668" id="668">668</a>
-<a href="#669" id="669">669</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a>
+<a href="#689" id="689">689</a>
+<a href="#690" id="690">690</a>
+<a href="#691" id="691">691</a>
+<a href="#692" id="692">692</a>
+<a href="#693" id="693">693</a>
+<a href="#694" id="694">694</a>
+<a href="#695" id="695">695</a>
+<a href="#696" id="696">696</a>
+<a href="#697" id="697">697</a>
+<a href="#698" id="698">698</a>
+<a href="#699" id="699">699</a>
+<a href="#700" id="700">700</a>
+<a href="#701" id="701">701</a>
+<a href="#702" id="702">702</a>
+<a href="#703" id="703">703</a>
+<a href="#704" id="704">704</a>
+<a href="#705" id="705">705</a>
+<a href="#706" id="706">706</a>
+<a href="#707" id="707">707</a>
+<a href="#708" id="708">708</a>
+<a href="#709" id="709">709</a>
+<a href="#710" id="710">710</a>
+<a href="#711" id="711">711</a>
+<a href="#712" id="712">712</a>
+<a href="#713" id="713">713</a>
+<a href="#714" id="714">714</a>
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a>
+<a href="#717" id="717">717</a>
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
@@ -675,11 +803,16 @@
 //!
 //! This pass might also add constrain checks after existing instructions,
 //! for example binary operations that are guaranteed to overflow.
-</span><span class="kw">use </span>acvm::AcirField;
+</span><span class="kw">use </span>std::sync::Arc;
+
+<span class="kw">use </span>acvm::{AcirField, FieldElement};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
-        function::Function,
+        basic_block::BasicBlockId,
+        dfg::DataFlowGraph,
+        function::{Function, FunctionId},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
@@ -700,14 +833,26 @@
     </span>}
 }
 
+<span class="attr">#[derive(Debug, PartialEq)]
+</span><span class="kw">enum </span>Reachability {
+    <span class="doccomment">/// By default instructions are reachable.
+    </span>Reachable,
+    <span class="doccomment">/// We encountered an instruction that fails, but only under a predicate.
+    /// Until we encounter a new predicate, the instructions should have no side effect.
+    </span>UnreachableUnderPredicate,
+    <span class="doccomment">/// We encountered an instruction that always fails.
+    </span>Unreachable,
+}
+
 <span class="kw">impl </span>Function {
     <span class="kw">fn </span>remove_unreachable_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">let </span>func_id = <span class="self">self</span>.id();
         <span class="comment">// The current block we are currently processing
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_block_id = <span class="prelude-val">None</span>;
 
         <span class="comment">// Whether the current block instructions were determined to be unreachable
         // after an always failing one was found.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>current_block_instructions_are_unreachable = <span class="bool-val">false</span>;
+        </span><span class="kw">let </span><span class="kw-2">mut </span>current_block_reachability = Reachability::Reachable;
 
         <span class="kw">let </span>one = <span class="self">self</span>.dfg.make_constant(<span class="number">1_u32</span>.into(), NumericType::bool());
         <span class="kw">let </span><span class="kw-2">mut </span>side_effects_condition = one;
@@ -717,11 +862,11 @@
 
             <span class="kw">if </span>current_block_id != <span class="prelude-val">Some</span>(block_id) {
                 current_block_id = <span class="prelude-val">Some</span>(block_id);
-                current_block_instructions_are_unreachable = <span class="bool-val">false</span>;
+                current_block_reachability = Reachability::Reachable;
                 side_effects_condition = one;
             }
 
-            <span class="kw">if </span>current_block_instructions_are_unreachable {
+            <span class="kw">if </span>current_block_reachability == Reachability::Unreachable {
                 context.remove_current_instruction();
                 <span class="kw">return</span>;
             }
@@ -729,10 +874,32 @@
             <span class="kw">let </span>instruction = context.instruction();
             <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
                 side_effects_condition = <span class="kw-2">*</span>condition;
+                <span class="kw">if </span>current_block_reachability == Reachability::UnreachableUnderPredicate {
+                    current_block_reachability = Reachability::Reachable;
+                }
                 <span class="kw">return</span>;
             };
 
-            <span class="kw">let </span>always_fails = <span class="kw">match </span>instruction {
+            <span class="kw">if </span>current_block_reachability == Reachability::UnreachableUnderPredicate {
+                <span class="comment">// Instructions that don't interact with the predicate should be left alone,
+                // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
+                </span><span class="kw">if </span>!instruction.requires_acir_gen_predicate(context.dfg) {
+                    <span class="kw">return</span>;
+                }
+                <span class="comment">// Remove the current instruction and insert defaults for the results.
+                </span>context.remove_current_instruction();
+
+                <span class="kw">let </span>result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
+
+                <span class="kw">for </span>result_id <span class="kw">in </span>result_ids {
+                    <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>context.dfg.type_of_value(result_id);
+                    <span class="kw">let </span>default_value = zeroed_value(context.dfg, func_id, block_id, typ);
+                    context.replace_value(result_id, default_value);
+                }
+                <span class="kw">return</span>;
+            }
+
+            <span class="kw">match </span>instruction {
                 Instruction::Constrain(lhs, rhs, <span class="kw">_</span>) =&gt; {
                     <span class="kw">let </span><span class="prelude-val">Some</span>(lhs_constant) = context.dfg.get_numeric_constant(<span class="kw-2">*</span>lhs) <span class="kw">else </span>{
                         <span class="kw">return</span>;
@@ -740,7 +907,9 @@
                     <span class="kw">let </span><span class="prelude-val">Some</span>(rhs_constant) = context.dfg.get_numeric_constant(<span class="kw-2">*</span>rhs) <span class="kw">else </span>{
                         <span class="kw">return</span>;
                     };
-                    lhs_constant != rhs_constant
+                    <span class="kw">if </span>lhs_constant != rhs_constant {
+                        current_block_reachability = Reachability::Unreachable;
+                    }
                 }
                 Instruction::ConstrainNotEqual(lhs, rhs, <span class="kw">_</span>) =&gt; {
                     <span class="kw">let </span><span class="prelude-val">Some</span>(lhs_constant) = context.dfg.get_numeric_constant(<span class="kw-2">*</span>lhs) <span class="kw">else </span>{
@@ -749,58 +918,62 @@
                     <span class="kw">let </span><span class="prelude-val">Some</span>(rhs_constant) = context.dfg.get_numeric_constant(<span class="kw-2">*</span>rhs) <span class="kw">else </span>{
                         <span class="kw">return</span>;
                     };
-                    lhs_constant == rhs_constant
+                    <span class="kw">if </span>lhs_constant == rhs_constant {
+                        current_block_reachability = Reachability::Unreachable;
+                    }
                 }
                 Instruction::Binary(binary @ Binary { lhs, operator, rhs }) =&gt; {
-                    <span class="kw">let </span>requires_acir_gen_predicate =
-                        binary.requires_acir_gen_predicate(context.dfg);
-                    <span class="kw">if </span>requires_acir_gen_predicate {
-                        <span class="comment">// If performing the binary operation depends on the side effects condition, then
-                        // we can only simplify it if the condition is true: not when it's zero, and not when it's a variable.
-                        </span><span class="kw">let </span>predicate = context.dfg.get_numeric_constant(side_effects_condition);
-                        <span class="kw">match </span>predicate {
-                            <span class="prelude-val">Some</span>(predicate) =&gt; {
-                                <span class="kw">if </span>predicate.is_zero() {
-                                    <span class="comment">// The predicate is zero
-                                    </span><span class="kw">return</span>;
-                                }
-                            }
-                            <span class="prelude-val">None </span>=&gt; {
-                                <span class="comment">// The predicate is a variable
-                                </span><span class="kw">return</span>;
-                            }
-                        }
-                    }
-
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(message) =
                         binary_operation_always_fails(<span class="kw-2">*</span>lhs, <span class="kw-2">*</span>operator, <span class="kw-2">*</span>rhs, context)
                     {
+                        <span class="comment">// Check if this operation is one that should only fail if the predicate is enabled.
+                        </span><span class="kw">let </span>requires_acir_gen_predicate =
+                            binary.requires_acir_gen_predicate(context.dfg);
+
+                        <span class="comment">// Check if the current predicate is known to be enabled.
+                        </span><span class="kw">let </span>is_predicate_constant_one =
+                            <span class="kw">match </span>context.dfg.get_numeric_constant(side_effects_condition) {
+                                <span class="prelude-val">Some</span>(predicate) =&gt; predicate.is_one(),
+                                <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>, <span class="comment">// The predicate is a variable
+                            </span>};
+
+                        <span class="kw">let </span>fails_under_predicate =
+                            requires_acir_gen_predicate &amp;&amp; !is_predicate_constant_one;
+
                         <span class="comment">// Insert the instruction right away so we can add a constrain immediately after it
                         </span>context.insert_current_instruction();
 
+                        <span class="comment">// Insert a constraint which makes it easy to see that this instruction will fail.
+                        </span><span class="kw">let </span>guard = <span class="kw">if </span>fails_under_predicate {
+                            side_effects_condition
+                        } <span class="kw">else </span>{
+                            context.dfg.make_constant(<span class="number">1_u128</span>.into(), NumericType::bool())
+                        };
                         <span class="kw">let </span>zero = context.dfg.make_constant(<span class="number">0_u128</span>.into(), NumericType::bool());
-                        <span class="kw">let </span>one = context.dfg.make_constant(<span class="number">1_u128</span>.into(), NumericType::bool());
                         <span class="kw">let </span>message = <span class="prelude-val">Some</span>(ConstrainError::StaticString(message));
-                        <span class="kw">let </span>instruction = Instruction::Constrain(zero, one, message);
+                        <span class="kw">let </span>instruction = Instruction::Constrain(zero, guard, message);
                         <span class="kw">let </span>call_stack =
                             context.dfg.get_instruction_call_stack_id(context.instruction_id);
+
                         context.dfg.insert_instruction_and_results(
                             instruction,
                             block_id,
                             <span class="prelude-val">None</span>,
                             call_stack,
                         );
-                        <span class="bool-val">true
-                    </span>} <span class="kw">else </span>{
-                        <span class="bool-val">false
-                    </span>}
+
+                        <span class="comment">// Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
+                        </span>current_block_reachability = <span class="kw">if </span>fails_under_predicate {
+                            Reachability::UnreachableUnderPredicate
+                        } <span class="kw">else </span>{
+                            Reachability::Unreachable
+                        }
+                    }
                 }
-                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                <span class="kw">_ </span>=&gt; {}
             };
 
-            <span class="kw">if </span>always_fails {
-                current_block_instructions_are_unreachable = <span class="bool-val">true</span>;
-
+            <span class="kw">if </span>current_block_reachability == Reachability::Unreachable {
                 <span class="kw">let </span>terminator = context.dfg[block_id].take_terminator();
                 <span class="kw">let </span>call_stack = terminator.call_stack();
                 context.dfg[block_id]
@@ -814,7 +987,7 @@
     lhs: ValueId,
     operator: BinaryOp,
     rhs: ValueId,
-    context: <span class="kw-2">&amp;mut </span>SimpleOptimizationContext,
+    context: <span class="kw-2">&amp;</span>SimpleOptimizationContext,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;String&gt; {
     <span class="comment">// Unchecked operations can never fail
     </span><span class="kw">match </span>operator {
@@ -853,6 +1026,47 @@
     <span class="kw">match </span>eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
         BinaryEvaluationResult::Failure(message) =&gt; <span class="prelude-val">Some</span>(message),
         BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) =&gt; <span class="prelude-val">None</span>,
+    }
+}
+
+<span class="kw">fn </span>zeroed_value(
+    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+    typ: <span class="kw-2">&amp;</span>Type,
+) -&gt; ValueId {
+    <span class="kw">match </span>typ {
+        Type::Numeric(numeric_type) =&gt; dfg.make_constant(FieldElement::zero(), <span class="kw-2">*</span>numeric_type),
+        Type::Array(element_types, len) =&gt; {
+            <span class="kw">let </span><span class="kw-2">mut </span>array = im::Vector::new();
+            <span class="kw">for _ in </span><span class="number">0</span>..<span class="kw-2">*</span>len {
+                <span class="kw">for </span>typ <span class="kw">in </span>element_types.iter() {
+                    array.push_back(zeroed_value(dfg, func_id, block_id, typ));
+                }
+            }
+            <span class="kw">let </span>instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            <span class="kw">let </span>stack = CallStackId::root();
+            dfg.insert_instruction_and_results(instruction, block_id, <span class="prelude-val">None</span>, stack).first()
+        }
+        Type::Slice(<span class="kw">_</span>) =&gt; {
+            <span class="kw">let </span>array = im::Vector::new();
+            <span class="kw">let </span>instruction = Instruction::MakeArray { elements: array, typ: typ.clone() };
+            <span class="kw">let </span>stack = CallStackId::root();
+            dfg.insert_instruction_and_results(instruction, block_id, <span class="prelude-val">None</span>, stack).first()
+        }
+        Type::Reference(element_type) =&gt; {
+            <span class="kw">let </span>instruction = Instruction::Allocate;
+            <span class="kw">let </span>reference_type = Type::Reference(Arc::new((<span class="kw-2">**</span>element_type).clone()));
+
+            dfg.insert_instruction_and_results(
+                instruction,
+                block_id,
+                <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[reference_type]),
+                CallStackId::root(),
+            )
+            .first()
+        }
+        Type::Function =&gt; dfg.import_function(func_id),
     }
 }
 
@@ -975,8 +1189,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>does_not_replace_sub_that_overflows_but_is_disabled_because_of_unknown_side_effects_condition()
-     {
+    </span><span class="kw">fn </span>replaces_sub_that_overflows_with_constraint_under_unknown_side_effects_condition() {
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
@@ -988,12 +1201,25 @@
         "#</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        <span class="comment">// The sub is followed by a constraint predicated upon the side effect variable.
+        // The add is removed, because if the side effects are enabled the sub will fail,
+        // and if the side effects are not enabled, then the sub will have its default
+        // value and the add should not matter either.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = sub u32 0, u32 1
+            constrain u1 0 == v0, "attempt to subtract with overflow"
+            return u32 0
+        }
+        "#</span>);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>does_not_replace_sub_that_overflows_but_is_disabled_because_of_false_side_effects_condition()
-    {
+    </span><span class="kw">fn </span>replaces_instructions_following_sub_that_overflows_under_false_side_effects_condition_with_defaults()
+     {
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -1005,6 +1231,36 @@
         "#</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_instructions();
+
+        <span class="comment">// No constraint will be added because we know that the sub is disabled, (it would be the trivial `0 == 0`).
+        // The add is removed, because if we know that the sub is disabled and would fail, then we are dealing with
+        // default values all the way.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v3 = sub u32 0, u32 1
+            return u32 0
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_replace_instructions_following_sub_that_overflows_after_next_side_effects_condition()
+     {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            enable_side_effects u1 0
+            v0 = sub u32 0, u32 1
+            enable_side_effects u1 0
+            v1 = add v0, u32 1
+            return v1
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.remove_unreachable_instructions();
+
         assert_normalized_ssa_equals(ssa, src);
     }
 
