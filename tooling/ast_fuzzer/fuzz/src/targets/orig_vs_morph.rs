@@ -297,7 +297,10 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use crate::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
+    use crate::targets::orig_vs_morph::{
+        VariableContext,
+        helpers::{has_side_effect, reassign_ids},
+    };
 
     use super::helpers::gen_expr;
     use acir::{AcirField, FieldElement};
@@ -492,7 +495,7 @@ mod rules {
                         operator: BinaryOpKind::Add | BinaryOpKind::Multiply,
                         ..
                     })
-                ) && !expr::has_side_effect(expr)
+                ) && !has_side_effect(expr)
             },
             |_u, _locals, expr| {
                 let Expression::Binary(binary) = expr else {
@@ -574,7 +577,7 @@ mod rules {
         // unless the expression can have a side effect, which we don't want to duplicate.
         if let Some(typ) = expr.return_type() {
             matches!(typ.as_ref(), Type::Bool)
-                && !expr::has_side_effect(expr)
+                && !has_side_effect(expr)
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,
@@ -623,6 +626,18 @@ mod helpers {
     use strum::IntoEnumIterator;
 
     use crate::targets::orig_vs_morph::VariableContext;
+
+    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    pub(super) fn has_side_effect(expr: &Expression) -> bool {
+        expr::exists(expr, |expr| {
+            matches!(
+                expr,
+                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
+                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+            )
+        })
+    }
 
     /// Generate an arbitrary pure (free of side effects) expression, returning a specific type.
     pub(super) fn gen_expr(

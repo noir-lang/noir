@@ -97,7 +97,7 @@ pub fn gen_literal(u: &mut Unstructured, typ: &Type) -> arbitrary::Result<Expres
         Type::Reference(typ, mutable) => {
             // In Noir we can return a reference for a value created in a function.
             let value = gen_literal(u, typ.as_ref())?;
-            unary(UnaryOp::Reference { mutable: *mutable }, value, typ.as_ref().clone())
+            ref_with_mut(value, typ.as_ref().clone(), *mutable)
         }
         _ => unreachable!("unexpected type to generate a literal for: {typ}"),
     };
@@ -336,7 +336,11 @@ pub fn deref(rhs: Expression, tgt_type: Type) -> Expression {
 
 /// Reference an expression as a target type
 pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
-    unary(UnaryOp::Reference { mutable: true }, rhs, tgt_type)
+    ref_with_mut(rhs, tgt_type, true)
+}
+
+fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Box::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.
@@ -377,18 +381,6 @@ pub fn has_call(expr: &Expression) -> bool {
             Definition::Builtin(_) | Definition::Oracle(_) | Definition::LowLevel(_)
         );
         !is_builtin_or_oracle
-    })
-}
-
-/// Check if an expression can have a side effect, in which case duplicating or reordering it could
-/// change the behavior of the program.
-pub fn has_side_effect(expr: &Expression) -> bool {
-    exists(expr, |expr| {
-        matches!(
-            expr,
-            Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
-                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
-        )
     })
 }
 

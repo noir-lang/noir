@@ -9,7 +9,7 @@ fn main(a: Field, b: u32, c: Point, d: Field, e: i8, f: bool, g: str<11>, h: [Fi
         + c.x
         + c.y
         + d
-        + e as Field
+        + (e as u8) as Field
         + f as Field
         + g.as_bytes()[10] as Field
         + h[0]

@@ -26,7 +26,7 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -211,6 +211,45 @@ pub struct CompileOptions {
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
     pub disable_comptime_printing: bool,
+}
+
+impl CompileOptions {
+    pub fn as_ssa_options(&self, package_build_path: PathBuf, compiling_for_debug: bool) -> SsaEvaluatorOptions {
+        SsaEvaluatorOptions {
+            ssa_logging: if !self.show_ssa_pass.is_empty() {
+                SsaLogging::Contains(self.show_ssa_pass.clone())
+            } else if self.show_ssa {
+                SsaLogging::All
+            } else {
+                SsaLogging::None
+            },
+            brillig_options: BrilligOptions {
+                enable_debug_trace: self.show_brillig,
+                enable_debug_assertions: self.enable_brillig_debug_assertions,
+                enable_array_copy_counter: self.count_array_copies,
+            },
+            print_codegen_timings: self.benchmark_codegen,
+            expression_width: if self.bounded_codegen {
+                self.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
+            } else {
+                ExpressionWidth::default()
+            },
+            emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
+            skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
+            enable_brillig_constraints_check_lookback: self
+                .enable_brillig_constraints_check_lookback,
+            skip_brillig_constraints_check: !self.silence_warnings
+                && self.skip_brillig_constraints_check,
+            inliner_aggressiveness: self.inliner_aggressiveness,
+            max_bytecode_increase_percent: self.max_bytecode_increase_percent,
+            skip_passes: self.skip_ssa_pass.clone(),
+            optimization_level: if compiling_for_debug {
+                OptimizationLevel::Debug
+            } else {
+                OptimizationLevel::All
+            },
+        }
+    }
 }
 
 pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::Error> {
@@ -764,41 +803,7 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let ssa_evaluator_options = SsaEvaluatorOptions {
-        ssa_logging: if !options.show_ssa_pass.is_empty() {
-            SsaLogging::Contains(options.show_ssa_pass.clone())
-        } else if options.show_ssa {
-            SsaLogging::All
-        } else {
-            SsaLogging::None
-        },
-        optimization_level: if compiling_for_debug {
-            OptimizationLevel::Debug
-        } else {
-            OptimizationLevel::All
-        },
-        brillig_options: BrilligOptions {
-            enable_debug_trace: options.show_brillig,
-            enable_debug_assertions: options.enable_brillig_debug_assertions,
-            enable_array_copy_counter: options.count_array_copies,
-        },
-        print_codegen_timings: options.benchmark_codegen,
-        expression_width: if options.bounded_codegen {
-            options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH)
-        } else {
-            ExpressionWidth::default()
-        },
-        emit_ssa: if options.emit_ssa { Some(context.package_build_path.clone()) } else { None },
-        skip_underconstrained_check: !options.silence_warnings
-            && options.skip_underconstrained_check,
-        enable_brillig_constraints_check_lookback: options
-            .enable_brillig_constraints_check_lookback,
-        skip_brillig_constraints_check: !options.silence_warnings
-            && options.skip_brillig_constraints_check,
-        inliner_aggressiveness: options.inliner_aggressiveness,
-        max_bytecode_increase_percent: options.max_bytecode_increase_percent,
-        skip_passes: options.skip_ssa_pass.clone(),
-    };
+    let ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone(), options.instrument_debug);
 
     let SsaProgramArtifact { program, debug, warnings, names, brillig_names, error_types, .. } =
         if options.minimal_ssa {
