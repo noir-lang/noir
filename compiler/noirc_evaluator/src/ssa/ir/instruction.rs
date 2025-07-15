@@ -450,7 +450,7 @@ impl Instruction {
                     !matches!(typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
-                    dfg.get_numeric_constant(binary.rhs).map_or(true, |c| c.is_zero())
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
                 }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
