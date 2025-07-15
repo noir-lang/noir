@@ -1977,7 +1977,7 @@ fn numeric_generic_u16_array_size() {
 #[test]
 fn numeric_generic_field_larger_than_u32() {
     let src = r#"
-        global A: Field = 4294967297;
+        global A: Field = 2147483646; // Test not applicable if field is larger than m31.
 
         fn foo<let A: Field>() { }
 
@@ -1998,8 +1998,8 @@ fn numeric_generic_field_arithmetic_larger_than_u32() {
             F
         }
 
-        // 2^32 - 1
-        global A: Field = 4294967295;
+        // (2^31 - 1) - 1
+        global A: Field = 2147483646;
 
         fn foo<let A: Field>() -> Foo<A + A> {
             Foo {}

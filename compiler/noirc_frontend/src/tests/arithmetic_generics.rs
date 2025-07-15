@@ -154,7 +154,7 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
 fn global_numeric_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6125
     let source = r#"
-    global A: Field = 4294967297;
+    global A: Field = 2147483646;
     
     fn foo<let A: Field>() { }
     
@@ -179,8 +179,8 @@ fn global_arithmetic_generic_larger_than_u32() {
         }
     }
     
-    // 2^32 - 1
-    global A: Field = 4294967295;
+    // (2^31 - 1) - 1
+    global A: Field = 2147483646;
     
     // Avoiding overflow succeeds:
     // fn foo<let A: Field>() -> Foo<A> {

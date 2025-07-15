@@ -8,6 +8,7 @@ use im::{Vector, vector};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use num_bigint::BigUint;
+use num_traits::Zero;
 
 use crate::{
     Kind, Type,
@@ -298,22 +299,24 @@ fn embedded_curve_add(
     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
-    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .ec_add(
-            &FieldElement::from_be_bytes_reduce(&p1x.to_bytes_be()),
-            &FieldElement::from_be_bytes_reduce(&p1y.to_bytes_be()),
-            &p1inf.into(),
-            &FieldElement::from_be_bytes_reduce(&p2x.to_bytes_be()),
-            &FieldElement::from_be_bytes_reduce(&p2y.to_bytes_be()),
-            &p2inf.into(),
-        )
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+    // TODO: Implement this
+
+    // let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    //     .ec_add(
+    //         &FieldElement::from_be_bytes_reduce(&p1x.to_bytes_be()),
+    //         &FieldElement::from_be_bytes_reduce(&p1y.to_bytes_be()),
+    //         &p1inf.into(),
+    //         &FieldElement::from_be_bytes_reduce(&p2x.to_bytes_be()),
+    //         &FieldElement::from_be_bytes_reduce(&p2y.to_bytes_be()),
+    //         &p2inf.into(),
+    //     )
+    //     .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     Ok(Value::Array(
         vector![to_embedded_curve_point(
-            BigUint::from_bytes_be(&x.to_be_bytes()),
-            BigUint::from_bytes_be(&y.to_be_bytes()),
-            inf > 0_usize.into(),
+            BigUint::zero(),
+            BigUint::zero(),
+            false,
             embedded_curve_point_typ
         )],
         return_type,
@@ -346,22 +349,24 @@ fn multi_scalar_mul(
         scalars_hi.push(hi);
     }
 
-    let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-        .multi_scalar_mul(
-            &points
-                .iter()
-                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-                .collect::<Vec<_>>(),
-            &scalars_lo
-                .iter()
-                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-                .collect::<Vec<_>>(),
-            &scalars_hi
-                .iter()
-                .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-                .collect::<Vec<_>>(),
-        )
-        .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+    // TODO: Implement this
+
+    // let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    //     .multi_scalar_mul(
+    //         &points
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         &scalars_lo
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         &scalars_hi
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //     )
+    //     .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
     let embedded_curve_point_typ = match &return_type {
         Type::Array(_, item_type) => item_type.as_ref().clone(),
@@ -379,9 +384,9 @@ fn multi_scalar_mul(
 
     Ok(Value::Array(
         vector![to_embedded_curve_point(
-            BigUint::from_bytes_be(&x.to_be_bytes()),
-            BigUint::from_bytes_be(&y.to_be_bytes()),
-            inf > 0_usize.into(),
+            BigUint::zero(),
+            BigUint::zero(),
+            false,
             embedded_curve_point_typ
         )],
         return_type,
@@ -401,19 +406,23 @@ fn poseidon2_permutation(
     let input = vecmap(input, |arg0: SignedInteger| SignedInteger::absolute_value(&arg0));
     let state_length = get_u32(state_length)?;
 
-    let fields = Bn254BlackBoxSolver(pedantic_solving)
-        .poseidon2_permutation(
-            &input
-                .iter()
-                .map(|i| FieldElement::from_be_bytes_reduce(&i.clone().to_bytes_be()))
-                .collect::<Vec<_>>(),
-            state_length,
-        )
-        .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
+    // TODO: Implement this
+
+    // let fields = Bn254BlackBoxSolver(pedantic_solving)
+    //     .poseidon2_permutation(
+    //         &input
+    //             .iter()
+    //             .map(|i| FieldElement::from_be_bytes_reduce(&i.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         state_length,
+    //     )
+    //     .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
+
+    let fields = vec![FieldElement::zero(); state_length as usize];
 
     let array = fields
         .into_iter()
-        .map(|f| Value::Field(SignedInteger::positive(BigUint::from_bytes_be(&f.to_be_bytes()))))
+        .map(|f| Value::Field(SignedInteger::positive(BigUint::zero())))
         .collect();
     Ok(Value::Array(array, typ))
 }

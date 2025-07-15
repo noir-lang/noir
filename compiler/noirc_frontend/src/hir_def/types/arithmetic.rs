@@ -68,6 +68,7 @@ impl Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(rhs);
+
                 let dummy_location = Location::dummy();
                 // evaluate_to_integer also calls canonicalize so if we just called
                 // `self.evaluate_to_integer(..)` we'd get infinite recursion.
@@ -281,7 +282,7 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
+    ) -> Option<(Box<Type>, BinaryTypeOperator, BigUint, BigUint)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
         let rhs = rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
@@ -294,8 +295,8 @@ impl Type {
         Some((
             l_type,
             l_op,
-            FieldElement::from_be_bytes_reduce(&l_rhs.to_bytes_be()),
-            FieldElement::from_be_bytes_reduce(&rhs.to_bytes_be()),
+            l_rhs,
+            rhs,
         ))
     }
 
@@ -323,8 +324,8 @@ impl Type {
                 let dummy_location = Location::dummy();
                 let result = op
                     .function(
-                        BigUint::from_bytes_be(&l_const.to_be_bytes()),
-                        BigUint::from_bytes_be(&r_const.to_be_bytes()),
+                        l_const,
+                        r_const,
                         &lhs.infix_kind(rhs),
                         dummy_location,
                     )
@@ -333,19 +334,18 @@ impl Type {
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
-                // We need to ensure the result divides evenly to preserve integer division semantics
-                let divides_evenly = !lhs.infix_kind(rhs).is_type_level_field_element()
-                    && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
+                // Just divide l_const and r_const and return bool
+                let divides_evenly = (l_const.clone() / r_const.clone()) * r_const.clone() == l_const;
 
                 // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
+                if op == Division && (r_const == BigUint::from(0u128) || !divides_evenly) {
                     None
                 } else {
                     let dummy_location = Location::dummy();
                     let result = op
                         .function(
-                            BigUint::from_bytes_be(&l_const.to_be_bytes()),
-                            BigUint::from_bytes_be(&r_const.to_be_bytes()),
+                            l_const,
+                            r_const,
                             &lhs.infix_kind(rhs),
                             dummy_location,
                         )
