@@ -152,6 +152,31 @@ pub(super) fn decompose_constrain(
                         decompose_constrain(lhs, zero, msg, dfg)
                     }
 
+                    // Casting a value just to constrain it to a constant.
+                    //
+                    // Where the constant is representable in the original type we can perform the constraint
+                    // on the pre-cast value.
+                    Instruction::Cast(val, _) => {
+                        let original_typ = dfg.type_of_value(val).unwrap_numeric();
+                        let original_typ_max_value =
+                            original_typ.max_value().map(|max_value| *constant < max_value);
+
+                        match original_typ_max_value {
+                            Ok(true) => {
+                                // Constant fits in original type so we can assert against equivalent constant on pre-cast
+                                // value.
+                                let downcasted_constant =
+                                    dfg.make_constant(*constant, original_typ);
+                                vec![Instruction::Constrain(val, downcasted_constant, msg.clone())]
+                            }
+                            Ok(false) | Err(_) => {
+                                // Constant does not fit in original type or type does not have `max_value` defined.
+                                // We then leave in the cast.
+                                vec![Instruction::Constrain(lhs, rhs, msg.clone())]
+                            }
+                        }
+                    }
+
                     _ => vec![Instruction::Constrain(lhs, rhs, msg.clone())],
                 }
             }

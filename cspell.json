@@ -102,6 +102,7 @@
         "devcontainer",
         "diffable",
         "direnv",
+        "downcasted",
         "eachi",
         "eddsa",
         "effectful",
