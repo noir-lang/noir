@@ -175,8 +175,7 @@ impl<'f> Validator<'f> {
                     _ => {
                         if lhs_type != rhs_type {
                             panic!(
-                                "Left-hand side and right-hand side of `{}` must have the same type",
-                                operator
+                                "Left-hand side and right-hand side of `{operator}` must have the same type"
                             );
                         }
                     }

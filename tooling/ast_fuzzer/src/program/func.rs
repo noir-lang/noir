@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -8,17 +9,22 @@ use strum::IntoEnumIterator;
 use arbitrary::{Arbitrary, Unstructured};
 use noirc_frontend::{
     ast::{IntegerBitSize, UnaryOp},
-    hir_def::{self, expr::HirIdent, stmt::HirPattern},
+    hir_def::{
+        self,
+        expr::{Constructor, HirIdent},
+        stmt::HirPattern,
+    },
     monomorphization::{
         append_printable_type_info_for_type,
         ast::{
             ArrayLiteral, Assign, BinaryOp, Call, Definition, Expression, For, FuncId, GlobalId,
-            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Parameters, Program,
-            Type, While,
+            Ident, IdentId, Index, InlineType, LValue, Let, Literal, LocalId, Match, MatchCase,
+            Parameters, Program, Type, While,
         },
     },
     node_interner::DefinitionId,
     shared::{Signedness, Visibility},
+    signed_field::SignedField,
 };
 
 use crate::Config;
@@ -497,7 +503,9 @@ impl<'a> FunctionContext<'a> {
         let allow_if_then = flags.allow_if_then
             && allow_nested
             && self.budget > 0
-            && !types::contains_reference(typ);
+            && (self.unconstrained() || !types::contains_reference(typ));
+
+        let allow_match = allow_if_then && !self.ctx.config.avoid_match;
 
         if freq.enabled_when("unary", allow_nested && types::can_unary_return(typ)) {
             if let Some(expr) = self.gen_unary(u, typ, max_depth)? {
@@ -515,6 +523,15 @@ impl<'a> FunctionContext<'a> {
         // Unlike blocks/loops it can appear in nested expressions.
         if freq.enabled_when("if", allow_if_then) {
             return self.gen_if(u, typ, max_depth, flags);
+        }
+
+        // Match expressions, returning a value.
+        // Treating them similarly to if-then-else.
+        if freq.enabled_when("match", allow_match) {
+            // It might not be able to generate the type, if we don't have a suitable variable to match on.
+            if let Some(expr) = self.gen_match(u, typ, max_depth)? {
+                return Ok(expr);
+            }
         }
 
         // Block of statements returning a value
@@ -536,8 +553,6 @@ impl<'a> FunctionContext<'a> {
                 return Ok(expr);
             }
         }
-
-        // TODO(#7926): Match
 
         // If nothing else worked out we can always produce a random literal.
         self.gen_literal(u, typ).map(|expr| (expr, false))
@@ -781,21 +796,34 @@ impl<'a> FunctionContext<'a> {
                     location: Location::dummy(),
                 });
 
-                let item_expr = if let Some(let_expr) = let_expr {
-                    Expression::Block(vec![let_expr, item_expr])
-                } else {
-                    item_expr
-                };
-
                 // Produce the target type from the item.
-                self.gen_expr_from_source(
+                let Some((expr, is_dyn)) = self.gen_expr_from_source(
                     u,
                     (item_expr, src_dyn || idx_dyn),
                     item_typ,
                     src_mutable,
                     tgt_type,
                     max_depth,
-                )
+                )?
+                else {
+                    return Ok(None);
+                };
+
+                // Append the let and the final expression if we needed a block,
+                // so we avoid suffixing a block with e.g. indexing, which would
+                // not be parsable by the frontend. Another way to do this would
+                // be to surround the block with parentheses.
+                // So either of this should work:
+                // * { let s = todo!(); s[123 % s.len()][456] }
+                // * ( { let s = todo!(); s[123 % s.len()] } )[456]
+                // But not this:
+                // * { let s = todo!(); s[123 % s.len()] }[123]
+                let expr = if let Some(let_expr) = let_expr {
+                    Expression::Block(vec![let_expr, expr])
+                } else {
+                    expr
+                };
+                Ok(Some((expr, is_dyn)))
             }
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
@@ -1032,6 +1060,12 @@ impl<'a> FunctionContext<'a> {
         // Require a positive budget, so that we have some for the block itself and its contents.
         if freq.enabled_when("if", self.budget > 1) {
             return self.gen_if(u, &Type::Unit, self.max_depth(), Flags::TOP).map(|(e, _)| e);
+        }
+
+        if freq.enabled_when("match", self.budget > 1 && !self.ctx.config.avoid_match) {
+            if let Some((e, _)) = self.gen_match(u, &Type::Unit, self.max_depth())? {
+                return Ok(e);
+            }
         }
 
         if freq.enabled_when("for", self.budget > 1) {
@@ -1641,6 +1675,169 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
+    /// Generate a `match` expression, returning a given type.
+    ///
+    /// Match needs a variable; if we don't have one to produce the target type from,
+    /// it returns `None`.
+    fn gen_match(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+        max_depth: usize,
+    ) -> arbitrary::Result<Option<TrackedExpression>> {
+        // Decrease the budget so we avoid a potential infinite nesting of match expressions in the rows.
+        self.decrease_budget(1);
+
+        // Pick a variable that can produce the type we are looking for.
+        let id = if types::is_unit(typ) {
+            // If we are generating a statement (return unit), then let's just pick any local variable.
+            if self.locals.current().is_empty() {
+                None
+            } else {
+                let id = u.choose_iter(self.locals.current().variable_ids())?;
+                Some(VariableId::Local(*id))
+            }
+        } else {
+            self.choose_producer(u, typ)?
+        };
+
+        // If we have no viable candidate then do something else.
+        let Some(id) = id else {
+            return Ok(None);
+        };
+
+        // If we picked a global variable, we need to create a local binding first,
+        // because the match only works with local variable IDs.
+        let (src_id, src_name, src_typ, src_dyn, src_expr) = match id {
+            VariableId::Local(id) => {
+                let (_, name, typ) = self.locals.current().get_variable(&id);
+                let is_dyn = self.is_dynamic(&id);
+                (id, name.clone(), typ.clone(), is_dyn, None)
+            }
+            VariableId::Global(id) => {
+                let typ = self.globals.get_variable(&id).2.clone();
+                // The source is a technical variable that we don't want to access in the match rows.
+                let (id, name, let_expr) = self.indirect_global(id, false, false);
+                (id, name, typ, false, Some(let_expr))
+            }
+        };
+
+        // We could add some filtering to `choose_producer`, but it's already complicated; maybe next time.
+        if !types::can_be_matched(&src_typ) {
+            return Ok(None);
+        }
+
+        let mut match_expr = Match {
+            variable_to_match: (src_id, src_name),
+            cases: vec![],
+            default_case: None,
+            typ: typ.clone(),
+        };
+
+        let num_cases = u.int_in_range(0..=self.ctx.config.max_match_cases)?;
+        let mut is_dyn = src_dyn;
+
+        // Generate a number of rows, depending on what we can do with the source type.
+        // See `MatchCompiler::compile_rows` for what is currently supported.
+        let gen_default = match &src_typ {
+            Type::Bool => {
+                // There are only two possible values. Repeating one of them results in a warning,
+                // but let's allow it just so we cover that case, since it's not an error.
+                for _ in 0..num_cases {
+                    let constructor = u.choose_iter([Constructor::True, Constructor::False])?;
+                    let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                    is_dyn |= branch_dyn;
+                    let case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+
+                // If we have a non-exhaustive match we have to have a default; otherwise it's optional.
+                #[allow(clippy::mutable_key_type)]
+                let cs =
+                    match_expr.cases.iter().map(|c| c.constructor.clone()).collect::<HashSet<_>>();
+
+                if cs.len() < 2 { true } else { bool::arbitrary(u)? }
+            }
+            Type::Field | Type::Integer(_, _) => {
+                for _ in 0..num_cases {
+                    let constructor = self.gen_num_match_constructor(u, &src_typ)?;
+                    let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                    is_dyn |= branch_dyn;
+                    let case = MatchCase { constructor, arguments: Vec::new(), branch };
+                    match_expr.cases.push(case);
+                }
+                // We won't have an exhaustive match with random integers, so we need a default.
+                true
+            }
+            Type::Tuple(item_types) => {
+                // There is only one case in the AST that we can generate, which is to unpack the tuple
+                // into its constituent fields. The compiler would do this, and then generate further
+                // matches on individual fields. We don't do that here, just make the fields available.
+                let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
+                let mut arguments = Vec::new();
+                self.locals.enter();
+                for item_type in item_types {
+                    let item_id = self.next_local_id();
+                    let item_name = format!("item_{}", local_name(item_id));
+                    self.locals.add(item_id, false, item_name.clone(), item_type.clone());
+                    arguments.push((item_id, item_name));
+                }
+                // Generate the original expression we wanted with the new arguments in scope.
+                let (branch, branch_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+                is_dyn |= branch_dyn;
+                let case = MatchCase { constructor, arguments, branch };
+                match_expr.cases.push(case);
+                self.locals.exit();
+                // We must not generate a default, or the compiler will panic.
+                false
+            }
+            other => {
+                unreachable!("unexpected type to generate match for: ${other}");
+            }
+        };
+
+        // Optionally generate a default case.
+        if gen_default {
+            let (default_expr, default_dyn) = self.gen_expr(u, typ, max_depth, Flags::TOP)?;
+            is_dyn |= default_dyn;
+            match_expr.default_case = Some(Box::new(default_expr));
+        }
+
+        let match_expr = Expression::Match(match_expr);
+        let expr = if let Some(src_expr) = src_expr {
+            Expression::Block(vec![src_expr, match_expr])
+        } else {
+            match_expr
+        };
+
+        Ok(Some((expr, is_dyn)))
+    }
+
+    /// Generate a random field that can be used in the match constructor of a numeric type.
+    fn gen_num_field(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<SignedField> {
+        let literal = self.gen_literal(u, typ)?;
+        let Expression::Literal(Literal::Integer(field, _, _)) = literal else {
+            unreachable!("expected Literal::Integer; got {literal:?}");
+        };
+        Ok(field)
+    }
+
+    /// Generate a match constructor for a numeric type.
+    fn gen_num_match_constructor(
+        &mut self,
+        u: &mut Unstructured,
+        typ: &Type,
+    ) -> arbitrary::Result<Constructor> {
+        // TODO: Currently the parser does not seem to support the `Constructor::Range` syntax.
+        // When it does, we should generate either a field, or a range.
+        let constructor = Constructor::Int(self.gen_num_field(u, typ)?);
+        Ok(constructor)
+    }
+
     /// If this is main, and we could have made a call to another function, but we didn't,
     /// ensure we do, so as not to let all the others we generate go to waste.
     fn gen_guaranteed_call_from_main(
@@ -1799,6 +1996,25 @@ impl<'a> FunctionContext<'a> {
             self.let_var_and_ident(true, typ.clone(), expr.clone(), false, is_dyn, local_name);
         let ref_expr = expr::ref_mut(Expression::Ident(let_ident), typ);
         Expression::Block(vec![let_expr, ref_expr])
+    }
+
+    /// Create a local let binding over a global variable.
+    ///
+    /// Returns the local ID and the `Let` expression.
+    fn indirect_global(
+        &mut self,
+        id: GlobalId,
+        mutable: bool,
+        add_to_scope: bool,
+    ) -> (LocalId, String, Expression) {
+        let (_, name, typ) = self.globals.get_variable(&id).clone();
+        let ident_id = self.next_ident_id();
+        let ident = expr::ident(VariableId::Global(id), ident_id, false, name, typ.clone());
+        let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
+        let Expression::Let(Let { id, name, .. }) = &let_expr else {
+            unreachable!("expected Let; got {let_expr:?}");
+        };
+        (*id, name.clone(), let_expr)
     }
 }
 

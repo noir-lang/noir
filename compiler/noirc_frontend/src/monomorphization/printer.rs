@@ -55,7 +55,7 @@ impl Default for AstPrinter {
 
 impl AstPrinter {
     fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
-        if self.show_id { format!("{}${}", name, definition) } else { name.to_string() }
+        if self.show_id { format!("{name}${definition}") } else { name.to_string() }
     }
 
     fn fmt_local(&self, name: &str, id: LocalId) -> String {
@@ -68,6 +68,10 @@ impl AstPrinter {
 
     fn fmt_func(&self, name: &str, id: FuncId) -> String {
         self.fmt_ident(name, &Definition::Function(id))
+    }
+
+    fn fmt_match(&self, name: &str, id: LocalId) -> String {
+        if self.show_id { format!("${}", id.0) } else { self.fmt_local(name, id) }
     }
 
     pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
@@ -259,7 +263,7 @@ impl AstPrinter {
                 write!(f, "]")
             }
             super::ast::Literal::Integer(x, typ, _) => {
-                if self.show_type_of_int_literal {
+                if self.show_type_of_int_literal && *typ != Type::Field {
                     write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
@@ -437,13 +441,14 @@ impl AstPrinter {
         match_expr: &super::ast::Match,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "match ${} {{", match_expr.variable_to_match.0)?;
+        let (var_id, var_name) = &match_expr.variable_to_match;
+        write!(f, "match {} {{", self.fmt_match(var_name, *var_id))?;
         self.indent_level += 1;
         self.next_line(f)?;
 
         for (i, case) in match_expr.cases.iter().enumerate() {
             write!(f, "{}", case.constructor)?;
-            let args = vecmap(&case.arguments, |arg| format!("${}", arg.0)).join(", ");
+            let args = vecmap(&case.arguments, |(id, name)| self.fmt_match(name, *id)).join(", ");
             if !args.is_empty() {
                 write!(f, "({args})")?;
             }
@@ -628,7 +633,7 @@ impl Display for Definition {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
             Definition::Global(id) => write!(f, "g{}", id.0),
-            Definition::Function(id) => write!(f, "f{}", id),
+            Definition::Function(id) => write!(f, "f{id}"),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
             Definition::Oracle(name) => write!(f, "{name}"),

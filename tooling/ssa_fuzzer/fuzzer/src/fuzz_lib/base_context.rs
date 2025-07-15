@@ -783,7 +783,7 @@ impl FuzzerContext {
     /// so to merge blocks we need to merge every branch separately
     fn merge_one_block(&mut self, block_id: BasicBlockId) -> StoredBlock {
         let block = &self.stored_blocks[&block_id];
-        log::debug!("merging block {:?}", block_id);
+        log::debug!("merging block {block_id:?}");
         let block_end = self.end_of_block(block_id);
         if let Some(block_end) = block_end {
             return self.stored_blocks[&block_end].clone();
@@ -815,7 +815,7 @@ impl FuzzerContext {
         let cycle_info: Vec<_> = self.cycle_bodies_to_iters_ids.keys().cloned().collect();
         for body_id in cycle_info {
             let iter_id = self.cycle_bodies_to_iters_ids[&body_id].block_iter_id;
-            log::debug!("body_id: {:?}, iter_id: {:?}", body_id, iter_id);
+            log::debug!("body_id: {body_id:?}, iter_id: {iter_id:?}");
             self.switch_to_block(body_id);
             self.insert_jmp_instruction(iter_id, vec![]);
         }

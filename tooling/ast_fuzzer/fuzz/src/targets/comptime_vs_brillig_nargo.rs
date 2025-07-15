@@ -18,12 +18,10 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // It's easy to overflow.
         avoid_overflow: u.arbitrary()?,
-        // Avoid using large integers in for loops that the frontend would reject.
-        avoid_large_int_literals: true,
-        // Also avoid negative integers, because the frontend rejects them for loops.
-        avoid_negative_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
+        // Match is not yet implemented in comptime.
+        avoid_match: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
