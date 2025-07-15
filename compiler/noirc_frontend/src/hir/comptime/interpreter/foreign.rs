@@ -71,12 +71,14 @@ fn call_foreign(
         "bigint_div" => bigint_op(bigint_solver, BigIntDiv, args, return_type, location),
         "blake2s" => blake_hash(interner, args, location, acvm::blackbox_solver::blake2s),
         "blake3" => blake_hash(interner, args, location, acvm::blackbox_solver::blake3),
+        // cSpell:disable-next-line
         "ecdsa_secp256k1" => ecdsa_secp256_verify(
             interner,
             args,
             location,
             acvm::blackbox_solver::ecdsa_secp256k1_verify,
         ),
+        // cSpell:disable-next-line
         "ecdsa_secp256r1" => ecdsa_secp256_verify(
             interner,
             args,
@@ -232,6 +234,7 @@ fn blake_hash(
     Ok(to_byte_array(&output))
 }
 
+// cSpell:disable-next-line
 /// Run one of the Secp256 signature verifications.
 /// ```text
 /// pub fn verify_signature<let N: u32>(
@@ -248,6 +251,8 @@ fn blake_hash(
 ///   message_hash: [u8],
 /// ) -> bool
 /// ```
+///
+// cSpell:disable-next-line
 fn ecdsa_secp256_verify(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,

@@ -327,17 +327,12 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
-    fn visit_trait_item_constant(
-        &mut self,
-        name: &Ident,
-        typ: &UnresolvedType,
-        default_value: &Option<Expression>,
-    ) -> bool {
+    fn visit_trait_item_constant(&mut self, name: &Ident, typ: &UnresolvedType) -> bool {
         if name.is_empty() {
             return false;
         }
 
-        self.collect_in_constant(name, typ, default_value.as_ref());
+        self.collect_in_constant(name, typ, None);
         false
     }
 

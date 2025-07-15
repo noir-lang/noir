@@ -365,6 +365,12 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "type alias",
                     });
                 }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "associated type",
+                    });
+                }
                 ModuleDefId::TraitId(id) => id.0,
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),

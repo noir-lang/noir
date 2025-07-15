@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() -> pub str<2> {
+    let mut b: i8 = 0_i8;
+    // Safety: comment added by `nargo expand`
+    if unsafe { func_1_proxy() } {
+        b = 112_i8;
+        b = -b * b;
+    };
+    "ok"
+}
+
+unconstrained fn func_1_proxy() -> bool {
+    false
+}

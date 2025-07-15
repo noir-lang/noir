@@ -297,12 +297,15 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use crate::targets::orig_vs_morph::{VariableContext, helpers::reassign_ids};
+    use crate::targets::orig_vs_morph::{
+        VariableContext,
+        helpers::{has_side_effect, reassign_ids},
+    };
 
     use super::helpers::gen_expr;
     use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{expr, types};
+    use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
         ast::BinaryOpKind,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
@@ -420,7 +423,7 @@ mod rules {
                 let Expression::Literal(Literal::Integer(a, typ, loc)) = expr else {
                     unreachable!("matched only integer literals, got {expr}");
                 };
-                let mut b_expr = expr::gen_literal(u, typ)?;
+                let mut b_expr = expr::gen_literal(u, typ, &Config::default())?;
                 let Expression::Literal(Literal::Integer(b, _, _)) = &mut b_expr else {
                     unreachable!("generated a literal of the same type");
                 };
@@ -471,7 +474,7 @@ mod rules {
     pub fn bool_xor_rand() -> Rule {
         Rule::new(bool_rule_matches, |u, _locals, expr| {
             // This is where we could access the scope to look for a random bool variable.
-            let rnd = expr::gen_literal(u, &Type::Bool)?;
+            let rnd = expr::gen_literal(u, &Type::Bool, &Config::default())?;
             expr::replace(expr, |expr| {
                 let rhs = expr::binary(expr, BinaryOpKind::Xor, rnd.clone());
                 expr::binary(rnd, BinaryOpKind::Xor, rhs)
@@ -492,7 +495,7 @@ mod rules {
                         operator: BinaryOpKind::Add | BinaryOpKind::Multiply,
                         ..
                     })
-                ) && !expr::has_side_effect(expr)
+                ) && !has_side_effect(expr)
             },
             |_u, _locals, expr| {
                 let Expression::Binary(binary) = expr else {
@@ -551,6 +554,7 @@ mod rules {
 
                 // Duplicate the expression, then assign new IDs to all variables created in it.
                 let mut alt = expr.clone();
+
                 reassign_ids(vars, &mut alt);
 
                 expr::replace(expr, |expr| expr::if_else(cond, expr, alt, typ));
@@ -574,12 +578,13 @@ mod rules {
         // unless the expression can have a side effect, which we don't want to duplicate.
         if let Some(typ) = expr.return_type() {
             matches!(typ.as_ref(), Type::Bool)
-                && !expr::has_side_effect(expr)
+                && !has_side_effect(expr)
                 && !expr::exists(expr, |expr| {
                     matches!(
                         expr,
-                        Expression::Let(_) // Creating a variable needs a new ID
-                    | Expression::Block(_) // Applying logical operations on blocks would look odd
+                        Expression::Let(_)     // Creating a variable needs a new ID
+                        | Expression::Match(_) // Match creates variables which would need new IDs
+                        | Expression::Block(_) // Applying logical operations on blocks would look odd
                     )
                 })
         } else {
@@ -614,7 +619,7 @@ mod helpers {
     use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
 
     use arbitrary::Unstructured;
-    use noir_ast_fuzzer::{expr, types, visitor::visit_expr_be_mut};
+    use noir_ast_fuzzer::{Config, expr, types, visitor::visit_expr_be_mut};
     use noirc_frontend::{
         ast::{IntegerBitSize, UnaryOp},
         monomorphization::ast::{BinaryOp, Definition, Expression, LocalId, Type},
@@ -623,6 +628,18 @@ mod helpers {
     use strum::IntoEnumIterator;
 
     use crate::targets::orig_vs_morph::VariableContext;
+
+    /// Check if an expression can have a side effect, in which case duplicating or reordering it could
+    /// change the behavior of the program.
+    pub(super) fn has_side_effect(expr: &Expression) -> bool {
+        expr::exists(expr, |expr| {
+            matches!(
+                expr,
+                Expression::Call(_) // Functions can have side effects, maybe mutating some reference, printing
+                | Expression::Assign(_) // Assignment to a mutable variable could double up effects
+            )
+        })
+    }
 
     /// Generate an arbitrary pure (free of side effects) expression, returning a specific type.
     pub(super) fn gen_expr(
@@ -643,7 +660,7 @@ mod helpers {
                 }
             }
         }
-        expr::gen_literal(u, typ)
+        expr::gen_literal(u, typ, &Config::default())
     }
 
     /// Generate an arbitrary unary expression, returning a specific type.
@@ -747,6 +764,7 @@ mod helpers {
     /// Types we can consider using in this context.
     static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 
+    /// Assign new IDs to variables and identifiers created in the expression.
     pub(super) fn reassign_ids(vars: &mut VariableContext, expr: &mut Expression) {
         fn replace_local_id(
             vars: &mut VariableContext,
@@ -763,8 +781,12 @@ mod helpers {
 
         visit_expr_be_mut(
             expr,
+            // Assign a new ID where variables are created, and remember what original value they replaced.
             &mut |expr| {
                 match expr {
+                    Expression::Ident(ident) => {
+                        ident.id = vars.next_ident_id();
+                    }
                     Expression::Let(let_) => {
                         replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id)
                     }
@@ -773,14 +795,23 @@ mod helpers {
                         &mut replacements.borrow_mut(),
                         &mut for_.index_variable,
                     ),
-                    Expression::Ident(ident) => {
-                        ident.id = vars.next_ident_id();
+                    Expression::Match(match_) => {
+                        let mut replacements = replacements.borrow_mut();
+                        if let Some(replacement) = replacements.get(&match_.variable_to_match.0) {
+                            match_.variable_to_match.0 = *replacement;
+                        }
+                        for case in match_.cases.iter_mut() {
+                            for (arg, _) in case.arguments.iter_mut() {
+                                replace_local_id(vars, &mut replacements, arg);
+                            }
+                        }
                     }
                     _ => (),
                 }
                 (true, ())
             },
             &mut |_, _| {},
+            // Update the IDs in identifiers based on the replacements we remember from above.
             &mut |ident| {
                 if let Definition::Local(id) = &mut ident.definition {
                     if let Some(replacement) = replacements.borrow().get(id) {

@@ -36,6 +36,10 @@ pub(super) struct ItemPrinter<'context, 'string> {
     module_id: ModuleId,
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
+
+    /// Trait constraints in scope.
+    /// These are set when a trait, trait impl or function is visited.
+    trait_constraints: Vec<TraitConstraint>,
 }
 
 impl<'context, 'string> ItemPrinter<'context, 'string> {
@@ -59,6 +63,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             module_id,
             imports,
             self_type: None,
+            trait_constraints: Vec::new(),
         }
     }
 
@@ -177,8 +182,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::GlobalId(global_id) => {
                 self.show_secondary_attributes(self.interner.global_attributes(&global_id));
             }
-            ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) => {
-            }
+            ModuleDefId::ModuleId(..)
+            | ModuleDefId::TypeAliasId(..)
+            | ModuleDefId::TraitId(..)
+            | ModuleDefId::TraitAssociatedTypeId(..) => {}
         }
     }
 
@@ -338,17 +345,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         if !trait_.trait_bounds.is_empty() {
             self.push_str(": ");
-            for (index, trait_bound) in trait_.trait_bounds.iter().enumerate() {
-                if index != 0 {
-                    self.push_str(" + ");
-                }
-                self.show_trait_bound(trait_bound);
-            }
+            self.show_trait_bounds(&trait_.trait_bounds);
         }
 
         self.show_where_clause(&trait_.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
+
+        self.trait_constraints = trait_.where_clause.clone();
 
         let mut printed_type_or_function = false;
 
@@ -367,6 +371,14 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             } else {
                 self.push_str("type ");
                 self.push_str(&associated_type.name);
+                if let Some(trait_bounds) =
+                    trait_.associated_type_bounds.get(associated_type.name.as_str())
+                {
+                    if !trait_bounds.is_empty() {
+                        self.push_str(": ");
+                        self.show_trait_bounds(trait_bounds);
+                    }
+                }
             }
 
             self.push_str(";");
@@ -390,6 +402,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.decrease_indent();
         self.write_indent();
         self.push('}');
+
+        self.trait_constraints.clear();
 
         self.show_trait_impls(item_trait.trait_impls);
     }
@@ -420,6 +434,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.show_where_clause(&trait_impl.where_clause);
         self.push_str(" {\n");
         self.increase_indent();
+
+        self.trait_constraints = trait_impl.where_clause.clone();
 
         self.self_type = Some(trait_impl.typ.clone());
 
@@ -468,6 +484,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.self_type = None;
+        self.trait_constraints.clear();
     }
 
     fn show_global(&mut self, global_id: GlobalId) {
@@ -548,7 +565,19 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             }
         }
 
-        self.show_where_clause(&func_meta.trait_constraints);
+        // Only show trait constraints if they aren't already present because they exist in the
+        // parent trait/impl.
+        let func_trait_constraints = func_meta
+            .trait_constraints
+            .iter()
+            .filter(|trait_constraint| !self.trait_constraints.contains(trait_constraint))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.show_where_clause(&func_trait_constraints);
+
+        let previous_trait_constraints_length = self.trait_constraints.len();
+        self.trait_constraints.extend(func_trait_constraints);
 
         let hir_function = self.interner.function(&func_id);
         if let Some(expr) = hir_function.try_as_expr() {
@@ -587,6 +616,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
             }
         }
+
+        self.trait_constraints.truncate(previous_trait_constraints_length);
     }
 
     fn show_generic_types(&mut self, types: &[Type], use_colons: bool) {
@@ -643,13 +674,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             .named
             .iter()
             .filter(|named| {
-                if let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named.typ {
-                    if type_var.borrow().is_unbound() {
-                        return false;
+                let typ = named.typ.follow_bindings();
+                match &typ {
+                    Type::TypeVariable(type_var)
+                    | Type::NamedGeneric(NamedGeneric { type_var, .. })
+                        if type_var.borrow().is_unbound() =>
+                    {
+                        false
                     }
+                    Type::Constant(..) => false,
+                    _ => true,
                 }
-
-                true
             })
             .collect::<Vec<_>>();
 
@@ -719,6 +754,15 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         let trait_ = self.interner.get_trait(bound.trait_id);
         self.push_str(&trait_.name.to_string());
         self.show_trait_generics(&bound.trait_generics);
+    }
+
+    fn show_trait_bounds(&mut self, bounds: &[ResolvedTraitBound]) {
+        for (index, trait_bound) in bounds.iter().enumerate() {
+            if index != 0 {
+                self.push_str(" + ");
+            }
+            self.show_trait_bound(trait_bound);
+        }
     }
 
     fn show_pattern(&mut self, pattern: &HirPattern) {
@@ -1163,6 +1207,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.name.to_string()
             }
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                let associated_type = self.interner.get_trait_associated_type(id);
+                associated_type.name.to_string()
+            }
             ModuleDefId::GlobalId(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 global_info.ident.to_string()
@@ -1187,6 +1235,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 type_alias.borrow().visibility
             }
+            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
             ModuleDefId::TraitId(trait_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.visibility
