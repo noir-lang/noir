@@ -2596,7 +2596,8 @@ impl BinaryTypeOperator {
     ) -> Result<BigUint, TypeCheckError> {
         match kind.follow_bindings().integral_maximum_size() {
             // Expected that range check is done
-            Some(MaximumIntegerValue::Field(_)) => {
+            // This case is also handling Kind::IntegerOrField | Kind::Integer | Kind::Normal
+            Some(MaximumIntegerValue::Field(_)) | None => {
                 let a = FieldElement::from_be_bytes_reduce(&a.to_bytes_be());
                 let b = FieldElement::from_be_bytes_reduce(&b.to_bytes_be());
                 let result = match self {
@@ -2641,13 +2642,6 @@ impl BinaryTypeOperator {
 
                 // TODO: Make sure negative ints are handled
                 Ok(BigInt::from(result).magnitude().clone())
-            }
-            // TODO: Check if this case is needed
-            None => {
-                let a = a.to_i128().expect("Overflowing constant");
-                let b = b.to_i128().expect("Overflowing constant");
-                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
-                Err(err)
             }
         }
     }
