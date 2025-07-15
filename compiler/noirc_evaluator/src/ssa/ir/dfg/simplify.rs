@@ -112,8 +112,11 @@ pub(crate) fn simplify(
         Instruction::ConstrainNotEqual(..) => None,
         Instruction::ArrayGet { array, index, offset } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                try_optimize_array_get_from_previous_set(dfg, *array, index)
-            } else if dfg.type_of_value(*array).flattened_size() == 1 {
+                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+            }
+
+            let array_or_slice_type = dfg.type_of_value(*array);
+            if array_or_slice_type.is_array() && array_or_slice_type.flattened_size() == 1 {
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
                 optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
