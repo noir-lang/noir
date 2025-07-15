@@ -146,7 +146,7 @@ impl Function {
                         // Insert the instruction right away so we can add a constrain immediately after it
                         context.insert_current_instruction();
 
-                        // Insert a constraint which makes it easy to see that this instruction fill fail.
+                        // Insert a constraint which makes it easy to see that this instruction will fail.
                         let guard = if fails_under_predicate {
                             side_effects_condition
                         } else {
