@@ -8,6 +8,7 @@ use im::{Vector, vector};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use num_bigint::BigUint;
+use num_traits::Zero;
 
 use crate::{
     Kind, Type,
@@ -86,13 +87,13 @@ fn call_foreign(
             location,
             acvm::blackbox_solver::ecdsa_secp256r1_verify,
         ),
-        // "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
-        // "multi_scalar_mul" => {
-        //     multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
-        // }
-        // "poseidon2_permutation" => {
-        //     poseidon2_permutation(interner, args, location, pedantic_solving)
-        // }
+        "embedded_curve_add" => embedded_curve_add(args, return_type, location, pedantic_solving),
+        "multi_scalar_mul" => {
+            multi_scalar_mul(interner, args, return_type, location, pedantic_solving)
+        }
+        "poseidon2_permutation" => {
+            poseidon2_permutation(interner, args, location, pedantic_solving)
+        }
         "keccakf1600" => keccakf1600(interner, args, location),
         "range" => apply_range_constraint(args, location),
         "sha256_compression" => sha256_compression(interner, args, location),
@@ -279,144 +280,152 @@ fn ecdsa_secp256_verify(
     Ok(Value::Bool(is_valid))
 }
 
-// /// ```text
-// /// fn embedded_curve_add(
-// ///     point1: EmbeddedCurvePoint,
-// ///     point2: EmbeddedCurvePoint,
-// /// ) -> [EmbeddedCurvePoint; 1]
-// /// ```
-// fn embedded_curve_add(
-//     arguments: Vec<(Value, Location)>,
-//     return_type: Type,
-//     location: Location,
-//     pedantic_solving: bool,
-// ) -> IResult<Value> {
-//     let (point1, point2) = check_two_arguments(arguments, location)?;
+/// ```text
+/// fn embedded_curve_add(
+///     point1: EmbeddedCurvePoint,
+///     point2: EmbeddedCurvePoint,
+/// ) -> [EmbeddedCurvePoint; 1]
+/// ```
+fn embedded_curve_add(
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    pedantic_solving: bool,
+) -> IResult<Value> {
+    let (point1, point2) = check_two_arguments(arguments, location)?;
 
-//     let embedded_curve_point_typ = point1.0.get_type().into_owned();
+    let embedded_curve_point_typ = point1.0.get_type().into_owned();
 
-//     let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
-//     let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
+    let (p1x, p1y, p1inf) = get_embedded_curve_point(point1)?;
+    let (p2x, p2y, p2inf) = get_embedded_curve_point(point2)?;
 
-//     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-//         .ec_add(
-//             &FieldElement::from_be_bytes_reduce(&p1x.to_bytes_be()),
-//             &FieldElement::from_be_bytes_reduce(&p1y.to_bytes_be()),
-//             &p1inf.into(),
-//             &FieldElement::from_be_bytes_reduce(&p2x.to_bytes_be()),
-//             &FieldElement::from_be_bytes_reduce(&p2y.to_bytes_be()),
-//             &p2inf.into(),
-//         )
-//         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+    // TODO: Implement this
 
-//     Ok(Value::Array(
-//         vector![to_embedded_curve_point(
-//             BigUint::from_bytes_be(&x.to_be_bytes()),
-//             BigUint::from_bytes_be(&y.to_be_bytes()),
-//             inf > 0_usize.into(),
-//             embedded_curve_point_typ
-//         )],
-//         return_type,
-//     ))
-// }
+    // let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    //     .ec_add(
+    //         &FieldElement::from_be_bytes_reduce(&p1x.to_bytes_be()),
+    //         &FieldElement::from_be_bytes_reduce(&p1y.to_bytes_be()),
+    //         &p1inf.into(),
+    //         &FieldElement::from_be_bytes_reduce(&p2x.to_bytes_be()),
+    //         &FieldElement::from_be_bytes_reduce(&p2y.to_bytes_be()),
+    //         &p2inf.into(),
+    //     )
+    //     .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-// /// ```text
-// /// pub fn multi_scalar_mul<let N: u32>(
-// ///     points: [EmbeddedCurvePoint; N],
-// ///     scalars: [EmbeddedCurveScalar; N],
-// /// ) -> [EmbeddedCurvePoint; 1]
-// /// ```
-// fn multi_scalar_mul(
-//     interner: &mut NodeInterner,
-//     arguments: Vec<(Value, Location)>,
-//     return_type: Type,
-//     location: Location,
-//     pedantic_solving: bool,
-// ) -> IResult<Value> {
-//     let (points, scalars) = check_two_arguments(arguments, location)?;
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(
+            BigUint::zero(),
+            BigUint::zero(),
+            false,
+            embedded_curve_point_typ
+        )],
+        return_type,
+    ))
+}
 
-//     let (points, _) = get_array_map(interner, points, get_embedded_curve_point)?;
-//     let (scalars, _) = get_array_map(interner, scalars, get_embedded_curve_scalar)?;
+/// ```text
+/// pub fn multi_scalar_mul<let N: u32>(
+///     points: [EmbeddedCurvePoint; N],
+///     scalars: [EmbeddedCurveScalar; N],
+/// ) -> [EmbeddedCurvePoint; 1]
+/// ```
+fn multi_scalar_mul(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    return_type: Type,
+    location: Location,
+    pedantic_solving: bool,
+) -> IResult<Value> {
+    let (points, scalars) = check_two_arguments(arguments, location)?;
 
-//     let points: Vec<_> = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
-//     let mut scalars_lo = Vec::new();
-//     let mut scalars_hi = Vec::new();
-//     for (lo, hi) in scalars {
-//         scalars_lo.push(lo);
-//         scalars_hi.push(hi);
-//     }
+    let (points, _) = get_array_map(interner, points, get_embedded_curve_point)?;
+    let (scalars, _) = get_array_map(interner, scalars, get_embedded_curve_scalar)?;
 
-//     let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
-//         .multi_scalar_mul(
-//             &points
-//                 .iter()
-//                 .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-//                 .collect::<Vec<_>>(),
-//             &scalars_lo
-//                 .iter()
-//                 .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-//                 .collect::<Vec<_>>(),
-//             &scalars_hi
-//                 .iter()
-//                 .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
-//                 .collect::<Vec<_>>(),
-//         )
-//         .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
+    let points: Vec<_> = points.into_iter().flat_map(|(x, y, inf)| [x, y, inf.into()]).collect();
+    let mut scalars_lo = Vec::new();
+    let mut scalars_hi = Vec::new();
+    for (lo, hi) in scalars {
+        scalars_lo.push(lo);
+        scalars_hi.push(hi);
+    }
 
-//     let embedded_curve_point_typ = match &return_type {
-//         Type::Array(_, item_type) => item_type.as_ref().clone(),
-//         _ => {
-//             return Err(InterpreterError::TypeMismatch {
-//                 expected: Type::Array(
-//                     Box::new(Type::Constant(1_usize.into(), Kind::u32())),
-//                     Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
-//                 ),
-//                 actual: return_type.clone(),
-//                 location,
-//             });
-//         }
-//     };
+    // TODO: Implement this
 
-//     Ok(Value::Array(
-//         vector![to_embedded_curve_point(
-//             BigUint::from_bytes_be(&x.to_be_bytes()),
-//             BigUint::from_bytes_be(&y.to_be_bytes()),
-//             inf > 0_usize.into(),
-//             embedded_curve_point_typ
-//         )],
-//         return_type,
-//     ))
-// }
+    // let (x, y, inf) = Bn254BlackBoxSolver(pedantic_solving)
+    //     .multi_scalar_mul(
+    //         &points
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         &scalars_lo
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         &scalars_hi
+    //             .iter()
+    //             .map(|p| FieldElement::from_be_bytes_reduce(&p.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //     )
+    //     .map_err(|e| InterpreterError::BlackBoxError(e, location))?;
 
-// /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
-// fn poseidon2_permutation(
-//     interner: &mut NodeInterner,
-//     arguments: Vec<(Value, Location)>,
-//     location: Location,
-//     pedantic_solving: bool,
-// ) -> IResult<Value> {
-//     let (input, state_length) = check_two_arguments(arguments, location)?;
+    let embedded_curve_point_typ = match &return_type {
+        Type::Array(_, item_type) => item_type.as_ref().clone(),
+        _ => {
+            return Err(InterpreterError::TypeMismatch {
+                expected: Type::Array(
+                    Box::new(Type::Constant(1_usize.into(), Kind::u32())),
+                    Box::new(interner.next_type_variable()), // EmbeddedCurvePoint
+                ),
+                actual: return_type.clone(),
+                location,
+            });
+        }
+    };
 
-//     let (input, typ) = get_array_map(interner, input, get_field)?;
-//     let input = vecmap(input, |arg0: SignedInteger| SignedInteger::absolute_value(&arg0));
-//     let state_length = get_u32(state_length)?;
+    Ok(Value::Array(
+        vector![to_embedded_curve_point(
+            BigUint::zero(),
+            BigUint::zero(),
+            false,
+            embedded_curve_point_typ
+        )],
+        return_type,
+    ))
+}
 
-//     let fields = Bn254BlackBoxSolver(pedantic_solving)
-//         .poseidon2_permutation(
-//             &input
-//                 .iter()
-//                 .map(|i| FieldElement::from_be_bytes_reduce(&i.clone().to_bytes_be()))
-//                 .collect::<Vec<_>>(),
-//             state_length,
-//         )
-//         .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
+/// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
+fn poseidon2_permutation(
+    interner: &mut NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+    pedantic_solving: bool,
+) -> IResult<Value> {
+    let (input, state_length) = check_two_arguments(arguments, location)?;
 
-//     let array = fields
-//         .into_iter()
-//         .map(|f| Value::Field(SignedInteger::positive(BigUint::from_bytes_be(&f.to_be_bytes()))))
-//         .collect();
-//     Ok(Value::Array(array, typ))
-// }
+    let (input, typ) = get_array_map(interner, input, get_field)?;
+    let input = vecmap(input, |arg0: SignedInteger| SignedInteger::absolute_value(&arg0));
+    let state_length = get_u32(state_length)?;
+
+    // TODO: Implement this
+
+    // let fields = Bn254BlackBoxSolver(pedantic_solving)
+    //     .poseidon2_permutation(
+    //         &input
+    //             .iter()
+    //             .map(|i| FieldElement::from_be_bytes_reduce(&i.clone().to_bytes_be()))
+    //             .collect::<Vec<_>>(),
+    //         state_length,
+    //     )
+    //     .map_err(|error| InterpreterError::BlackBoxError(error, location))?;
+
+    let fields = vec![FieldElement::zero(); state_length as usize];
+
+    let array = fields
+        .into_iter()
+        .map(|f| Value::Field(SignedInteger::positive(BigUint::zero())))
+        .collect();
+    Ok(Value::Array(array, typ))
+}
 
 /// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
 fn keccakf1600(

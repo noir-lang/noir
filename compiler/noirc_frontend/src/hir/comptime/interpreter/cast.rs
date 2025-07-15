@@ -276,10 +276,11 @@ mod tests {
             (Value::I16(255), signed(Eight), Value::I8(-1)),
             (Value::I16(i16::MIN + 5), signed(Eight), Value::I8(5)),
             (Value::I16(i16::MIN + 5), unsigned(Eight), Value::U8(5)),
-            (Value::Field(SignedInteger::negative(1u32)), unsigned(Eight), Value::U8(0)),
-            (Value::Field(SignedInteger::negative(1u32)), signed(Eight), Value::I8(0)),
-            (Value::Field(SignedInteger::negative(2u32)), unsigned(Sixteen), Value::U16(65535)),
-            (Value::Field(SignedInteger::negative(2u32)), signed(Sixteen), Value::I16(-1)),
+            // The test below is specific to the M31 field
+            (Value::Field(SignedInteger::negative(1u32)), unsigned(Eight), Value::U8(254)),
+            (Value::Field(SignedInteger::negative(1u32)), signed(Eight), Value::I8(-2)),
+            (Value::Field(SignedInteger::negative(2u32)), unsigned(Sixteen), Value::U16(65533)),
+            (Value::Field(SignedInteger::negative(2u32)), signed(Sixteen), Value::I16(-3)),
         ];
 
         for (lhs, typ, expected) in tests {
