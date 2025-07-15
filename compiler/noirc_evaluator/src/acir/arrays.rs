@@ -721,7 +721,7 @@ impl Context<'_> {
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
-                found: format!("{:?}", array_acir_value),
+                found: format!("{array_acir_value:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into()),

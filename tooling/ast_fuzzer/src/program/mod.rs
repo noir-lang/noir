@@ -566,7 +566,7 @@ fn make_name(mut id: usize, is_global: bool) -> String {
     }
     name.reverse();
     let name = name.into_iter().collect::<String>();
-    if is_global { format!("G_{}", name) } else { name }
+    if is_global { format!("G_{name}") } else { name }
 }
 
 /// Wrapper around `Program` that prints the AST as close to being able to
