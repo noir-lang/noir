@@ -162,7 +162,8 @@ pprof = { version = "^0.15.0", features = ["flamegraph", "criterion"] }
 # Protobuf
 prost = "0.13"
 prost-build = "0.13"
-protoc-prebuilt = "0.3"
+protoc-bin-vendored = "3.1.0"
+
 
 # MessagePack
 rmp = "0.8.14"
@@ -184,7 +185,7 @@ url = "2.5.4"
 base64 = "^0.22.1"
 fxhash = "0.2.1"
 build-data = "^0.3.3"
-bincode =  { version = "^2.0.1", features = ["serde"] }
+bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 lazy_static = "1.4"
