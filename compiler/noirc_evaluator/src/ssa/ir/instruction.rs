@@ -444,7 +444,10 @@ impl Instruction {
                 | BinaryOp::Sub { unchecked: false }
                 | BinaryOp::Mul { unchecked: false }
                 | BinaryOp::Div
-                | BinaryOp::Mod => true,
+                | BinaryOp::Mod => !matches!(
+                    dfg.type_of_value(binary.lhs),
+                    Type::Numeric(NumericType::NativeField)
+                ),
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
