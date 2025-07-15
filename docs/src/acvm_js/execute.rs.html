@@ -637,7 +637,7 @@
                                     (<span class="string">"Assertion failed"</span>.to_string(), <span class="prelude-val">Some</span>(raw_payload))
                                 }
                                 ResolvedAssertionPayload::String(message) =&gt; {
-                                    (<span class="macro">format!</span>(<span class="string">"Assertion failed: {}"</span>, message), <span class="prelude-val">None</span>)
+                                    (<span class="macro">format!</span>(<span class="string">"Assertion failed: {message}"</span>), <span class="prelude-val">None</span>)
                                 }
                             },
                             <span class="kw">_ </span>=&gt; (error.to_string(), <span class="prelude-val">None</span>),
@@ -677,7 +677,7 @@
                                 call_resolved_outputs.push(<span class="kw-2">*</span>return_value);
                             } <span class="kw">else </span>{
                                 <span class="comment">// TODO: look at changing this call stack from None
-                                </span><span class="kw">return </span><span class="prelude-val">Err</span>(JsExecutionError::new(<span class="macro">format!</span>(<span class="string">"Failed to read from solved witness of ACIR call at witness {}"</span>, return_witness_index), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).into());
+                                </span><span class="kw">return </span><span class="prelude-val">Err</span>(JsExecutionError::new(<span class="macro">format!</span>(<span class="string">"Failed to read from solved witness of ACIR call at witness {return_witness_index}"</span>), <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>).into());
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);

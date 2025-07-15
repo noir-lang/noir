@@ -454,7 +454,7 @@
     <span class="kw">let </span>string = <span class="kw">if </span>nesting &gt; <span class="number">0 </span>&amp;&amp; string.contains(<span class="string">'\n'</span>) {
         <span class="comment">// If the import is nested in a module, we just formatted it without indents so we need to add them.
         </span><span class="kw">let </span>indent = <span class="string">" "</span>.repeat(nesting * <span class="number">4</span>);
-        string.lines().map(|line| <span class="macro">format!</span>(<span class="string">"{}{}"</span>, indent, line)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">"\n"</span>)
+        string.lines().map(|line| <span class="macro">format!</span>(<span class="string">"{indent}{line}"</span>)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">"\n"</span>)
     } <span class="kw">else </span>{
         string
     };

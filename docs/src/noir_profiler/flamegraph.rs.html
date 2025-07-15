@@ -559,7 +559,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>options = Options::default();
         options.hash = <span class="bool-val">true</span>;
         options.deterministic = <span class="bool-val">true</span>;
-        options.title = <span class="macro">format!</span>(<span class="string">"Artifact: {}, Function: {}"</span>, artifact_name, function_name);
+        options.title = <span class="macro">format!</span>(<span class="string">"Artifact: {artifact_name}, Function: {function_name}"</span>);
         options.frame_height = <span class="number">24</span>;
         options.color_diffusion = <span class="bool-val">true</span>;
         options.min_width = <span class="number">0.0</span>;
@@ -692,7 +692,7 @@
 
     <span class="kw">let </span>(line, column) = line_and_column_from_span(source.as_ref(), <span class="kw-2">&amp;</span>location.span);
 
-    <span class="macro">format!</span>(<span class="string">"{}:{}:{}::{}"</span>, filename, line, column, code_slice)
+    <span class="macro">format!</span>(<span class="string">"{filename}:{line}:{column}::{code_slice}"</span>)
 }
 
 <span class="kw">fn </span>add_locations_to_folded_stack_items(

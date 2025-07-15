@@ -3155,14 +3155,14 @@
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
             // appears in the "Noir Language Server" output window in case you want to see it.
             </span><span class="kw">if </span>print_newline {
-                <span class="macro">eprintln!</span>(<span class="string">"{}"</span>, contents);
+                <span class="macro">eprintln!</span>(<span class="string">"{contents}"</span>);
             } <span class="kw">else </span>{
-                <span class="macro">eprint!</span>(<span class="string">"{}"</span>, contents);
+                <span class="macro">eprint!</span>(<span class="string">"{contents}"</span>);
             }
         } <span class="kw">else if </span>print_newline {
-            <span class="macro">writeln!</span>(output, <span class="string">"{}"</span>, contents).expect(<span class="string">"write should succeed"</span>);
+            <span class="macro">writeln!</span>(output, <span class="string">"{contents}"</span>).expect(<span class="string">"write should succeed"</span>);
         } <span class="kw">else </span>{
-            <span class="macro">write!</span>(output, <span class="string">"{}"</span>, contents).expect(<span class="string">"write should succeed"</span>);
+            <span class="macro">write!</span>(output, <span class="string">"{contents}"</span>).expect(<span class="string">"write should succeed"</span>);
         }
 
         <span class="prelude-val">Ok</span>(Value::Unit)

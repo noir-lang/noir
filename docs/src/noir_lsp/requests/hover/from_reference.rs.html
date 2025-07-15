@@ -1267,7 +1267,7 @@
     string.push_str(<span class="string">"global "</span>);
     string.push_str(global_info.ident.as_str());
     string.push_str(<span class="string">": "</span>);
-    string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
+    string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{typ}"</span>));
 
     <span class="kw">if let </span>GlobalValue::Resolved(value) = <span class="kw-2">&amp;</span>global_info.value {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = value_to_string(value) {
@@ -1430,7 +1430,7 @@
         }
 
         <span class="kw">if </span>enum_variant.is_some() {
-            string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
+            string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{typ}"</span>));
         } <span class="kw">else </span>{
             format_pattern(pattern, args.interner, <span class="kw-2">&amp;mut </span>string);
 
@@ -1440,7 +1440,7 @@
                 <span class="kw">if </span><span class="macro">matches!</span>(visibility, Visibility::Public) {
                     string.push_str(<span class="string">"pub "</span>);
                 }
-                string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
+                string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{typ}"</span>));
             }
         }
 
@@ -1457,7 +1457,7 @@
             Type::Unit =&gt; (),
             <span class="kw">_ </span>=&gt; {
                 string.push_str(<span class="string">" -&gt; "</span>);
-                string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, return_type));
+                string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{return_type}"</span>));
             }
         }
 
@@ -1557,7 +1557,7 @@
     string.push_str(<span class="kw-2">&amp;</span>definition_info.name);
     <span class="kw">if </span>!<span class="macro">matches!</span>(typ, Type::Error) {
         string.push_str(<span class="string">": "</span>);
-        string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}"</span>, typ));
+        string.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{typ}"</span>));
     }
 
     string.push_str(<span class="kw-2">&amp;</span>go_to_type_links(<span class="kw-2">&amp;</span>typ, args.interner, args.files));

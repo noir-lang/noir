@@ -247,7 +247,7 @@
 
     <span class="kw">let </span>(test_name, test_function) = <span class="kw">match </span>test_functions {
         matchings <span class="kw">if </span>matchings.is_empty() =&gt; {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"`{}` does not match with any test function"</span>, test_name));
+            <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"`{test_name}` does not match with any test function"</span>));
         }
         matchings <span class="kw">if </span>matchings.len() == <span class="number">1 </span>=&gt; matchings.into_iter().next().unwrap(),
         matchings =&gt; {
@@ -265,7 +265,7 @@
             </span><span class="kw">if </span>exact_match_op.len() == <span class="number">1 </span>{
                 exact_match_op.into_iter().next().unwrap()
             } <span class="kw">else </span>{
-                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"`{}` matches with more than one test function"</span>, test_name));
+                <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"`{test_name}` matches with more than one test function"</span>));
             }
         }
     };

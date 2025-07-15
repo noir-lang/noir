@@ -572,13 +572,13 @@
 <span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>MemoryValue&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>::std::fmt::Formatter) -&gt; <span class="prelude-ty">Result</span>&lt;(), ::std::fmt::Error&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            MemoryValue::Field(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: field"</span>, value),
-            MemoryValue::U1(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u1"</span>, value),
-            MemoryValue::U8(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u8"</span>, value),
-            MemoryValue::U16(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u16"</span>, value),
-            MemoryValue::U32(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u32"</span>, value),
-            MemoryValue::U64(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u64"</span>, value),
-            MemoryValue::U128(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}: u128"</span>, value),
+            MemoryValue::Field(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: field"</span>),
+            MemoryValue::U1(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u1"</span>),
+            MemoryValue::U8(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u8"</span>),
+            MemoryValue::U16(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u16"</span>),
+            MemoryValue::U32(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u32"</span>),
+            MemoryValue::U64(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u64"</span>),
+            MemoryValue::U128(value) =&gt; <span class="macro">write!</span>(f, <span class="string">"{value}: u128"</span>),
         }
     }
 }

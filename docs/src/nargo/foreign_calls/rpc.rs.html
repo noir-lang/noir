@@ -565,7 +565,7 @@
         </span><span class="kw">let </span>server = Server::builder().build(<span class="string">"127.0.0.1:0"</span>).<span class="kw">await</span><span class="question-mark">?</span>;
         <span class="kw">let </span>addr = server.local_addr()<span class="question-mark">?</span>;
         <span class="kw">let </span>handle = server.start(OracleResolverImpl.into_rpc());
-        <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"http://{}"</span>, addr);
+        <span class="kw">let </span>url = <span class="macro">format!</span>(<span class="string">"http://{addr}"</span>);
         <span class="comment">// In this test we don't care about doing shutdown so let's it run forever.
         </span>tokio::spawn(handle.stopped());
         <span class="prelude-val">Ok</span>(url)

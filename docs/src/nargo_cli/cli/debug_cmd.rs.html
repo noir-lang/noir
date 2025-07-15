@@ -584,7 +584,7 @@
         <span class="kw-2">&amp;</span>witness_stack.peek().expect(<span class="string">"Should have at least one witness on the stack"</span>).witness;
 
     <span class="kw">if let </span>(<span class="kw">_</span>, <span class="prelude-val">Some</span>(return_value)) = abi.decode(main_witness)<span class="question-mark">? </span>{
-        <span class="macro">println!</span>(<span class="string">"[{}] Circuit output: {return_value:?}"</span>, package_name);
+        <span class="macro">println!</span>(<span class="string">"[{package_name}] Circuit output: {return_value:?}"</span>);
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(witness_name) = target_witness_name {

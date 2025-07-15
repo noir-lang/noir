@@ -230,13 +230,13 @@
     witness_dir: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
     witness_name: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
-    <span class="macro">println!</span>(<span class="string">"[{}] Circuit witness successfully solved"</span>, circuit_name);
+    <span class="macro">println!</span>(<span class="string">"[{circuit_name}] Circuit witness successfully solved"</span>);
     <span class="comment">// Save first, so that we can potentially look at the output if the expectations fail.
     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(witness_dir) = witness_dir {
         save_witness(<span class="kw-2">&amp;</span>results.witness_stack, circuit_name, witness_dir, witness_name)<span class="question-mark">?</span>;
     }
     <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>return_value) = results.return_values.actual_return {
-        <span class="macro">println!</span>(<span class="string">"[{}] Circuit output: {return_value:?}"</span>, circuit_name);
+        <span class="macro">println!</span>(<span class="string">"[{circuit_name}] Circuit output: {return_value:?}"</span>);
     }
     check_witness(circuit, results.return_values)
 }

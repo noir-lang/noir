@@ -730,14 +730,14 @@
 
         <span class="kw">if </span>!failed_tests.is_empty() {
             <span class="macro">writeln!</span>(writer)<span class="question-mark">?</span>;
-            <span class="macro">writeln!</span>(writer, <span class="string">"[{}] Failures:"</span>, package_name)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(writer, <span class="string">"[{package_name}] Failures:"</span>)<span class="question-mark">?</span>;
             <span class="kw">for </span>failed_test <span class="kw">in </span>failed_tests {
-                <span class="macro">writeln!</span>(writer, <span class="string">"     {}"</span>, failed_test)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(writer, <span class="string">"     {failed_test}"</span>)<span class="question-mark">?</span>;
             }
             <span class="macro">writeln!</span>(writer)<span class="question-mark">?</span>;
         }
 
-        <span class="macro">write!</span>(writer, <span class="string">"[{}] "</span>, package_name)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(writer, <span class="string">"[{package_name}] "</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>count_all = test_results.len();
         <span class="kw">let </span>count_failed =
@@ -830,7 +830,7 @@
         </span><span class="kw">const </span>MAX_TESTS_PER_LINE: usize = <span class="number">88</span>;
 
         <span class="kw">if </span>current_test_count % MAX_TESTS_PER_LINE == <span class="number">0 </span>&amp;&amp; current_test_count &lt; total_test_count {
-            <span class="macro">writeln!</span>(writer, <span class="string">" {}/{}"</span>, current_test_count, total_test_count)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(writer, <span class="string">" {current_test_count}/{total_test_count}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="prelude-val">Ok</span>(())
@@ -896,14 +896,14 @@
 
         <span class="kw">if </span>!failed_tests.is_empty() {
             <span class="macro">writeln!</span>(writer)<span class="question-mark">?</span>;
-            <span class="macro">writeln!</span>(writer, <span class="string">"[{}] Failures:"</span>, package_name)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(writer, <span class="string">"[{package_name}] Failures:"</span>)<span class="question-mark">?</span>;
             <span class="kw">for </span>failed_test <span class="kw">in </span>failed_tests {
-                <span class="macro">writeln!</span>(writer, <span class="string">"     {}"</span>, failed_test)<span class="question-mark">?</span>;
+                <span class="macro">writeln!</span>(writer, <span class="string">"     {failed_test}"</span>)<span class="question-mark">?</span>;
             }
             <span class="macro">writeln!</span>(writer)<span class="question-mark">?</span>;
         }
 
-        <span class="macro">write!</span>(writer, <span class="string">"[{}] "</span>, package_name)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(writer, <span class="string">"[{package_name}] "</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>count_all = test_results.len();
         <span class="kw">let </span>count_failed =

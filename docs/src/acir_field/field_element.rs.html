@@ -789,7 +789,7 @@
         <span class="kw">let </span>value = hex_str.strip_prefix(<span class="string">"0x"</span>).unwrap_or(hex_str);
         <span class="comment">// Values of odd length require an additional "0" prefix
         </span><span class="kw">let </span>sanitized_value =
-            <span class="kw">if </span>value.len() % <span class="number">2 </span>== <span class="number">0 </span>{ value.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"0{}"</span>, value) };
+            <span class="kw">if </span>value.len() % <span class="number">2 </span>== <span class="number">0 </span>{ value.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"0{value}"</span>) };
         <span class="kw">let </span>hex_as_bytes = hex::decode(sanitized_value).ok()<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>hex_as_bytes))
     }

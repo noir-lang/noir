@@ -1291,7 +1291,7 @@
                 <span class="macro">writeln!</span>(f)<span class="question-mark">?</span>;
             }
 
-            <span class="macro">writeln!</span>(f, <span class="string">"{}"</span>, line)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{line}"</span>)<span class="question-mark">?</span>;
 
             <span class="kw">if </span>has_error {
                 <span class="kw">let </span>offset = span.start() <span class="kw">as </span>usize - byte;

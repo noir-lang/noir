@@ -511,9 +511,7 @@
 <a href="#510" id="510">510</a>
 <a href="#511" id="511">511</a>
 <a href="#512" id="512">512</a>
-<a href="#513" id="513">513</a>
-<a href="#514" id="514">514</a>
-<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#513" id="513">513</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         AcirField,
@@ -906,10 +904,8 @@
     <span class="kw">fn </span>constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         <span class="macro">assert!</span>(
             bit_size &gt;= constant.num_bits(),
-            <span class="string">"Constant {} does not fit in bit size {}"</span>,
-            constant,
-            bit_size
-        );
+            <span class="string">"Constant {constant} does not fit in bit size {bit_size}"
+        </span>);
         <span class="kw">if </span>indirect {
             <span class="self">self</span>.push_opcode(BrilligOpcode::IndirectConst {
                 destination_pointer: result,
@@ -1004,7 +1000,7 @@
             BrilligBinaryOp::Equals =&gt; BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan =&gt; BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals =&gt; BinaryFieldOp::LessThanEquals,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operation: {:?} on a field"</span>, operation),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operation: {operation:?} on a field"</span>),
         }
     }
 }
@@ -1024,7 +1020,7 @@
             BrilligBinaryOp::Xor =&gt; BinaryIntOp::Xor,
             BrilligBinaryOp::Shl =&gt; BinaryIntOp::Shl,
             BrilligBinaryOp::Shr =&gt; BinaryIntOp::Shr,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operation: {:?} on an integer"</span>, operation),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unsupported operation: {operation:?} on an integer"</span>),
         }
     }
 }

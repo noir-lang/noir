@@ -3104,9 +3104,9 @@
         <span class="kw">for </span>name <span class="kw">in </span>attributes {
             <span class="kw">if </span>name_matches(name, prefix) {
                 <span class="self">self</span>.completion_items.push(snippet_completion_item(
-                    <span class="macro">format!</span>(<span class="string">"{}(…)"</span>, name),
+                    <span class="macro">format!</span>(<span class="string">"{name}(…)"</span>),
                     CompletionItemKind::METHOD,
-                    <span class="macro">format!</span>(<span class="string">"{}(${{1:name}})"</span>, name),
+                    <span class="macro">format!</span>(<span class="string">"{name}(${{1:name}})"</span>),
                     <span class="prelude-val">None</span>,
                 ));
             }
@@ -3266,7 +3266,7 @@
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">let </span>label = <span class="kw">if </span>module.has_semicolon { name.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{};"</span>, name) };
+            <span class="kw">let </span>label = <span class="kw">if </span>module.has_semicolon { name.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{name};"</span>) };
             <span class="self">self</span>.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,

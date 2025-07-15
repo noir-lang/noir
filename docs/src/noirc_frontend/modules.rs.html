@@ -474,9 +474,9 @@
 
     <span class="kw">let </span>path = <span class="kw">if </span>defining_module.is_some() || !<span class="macro">matches!</span>(module_def_id, ModuleDefId::ModuleId(..)) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(reexport_name) = <span class="kw-2">&amp;</span>intermediate_name {
-            <span class="macro">format!</span>(<span class="string">"{}::{}::{}"</span>, module_path, reexport_name, name)
+            <span class="macro">format!</span>(<span class="string">"{module_path}::{reexport_name}::{name}"</span>)
         } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, module_path, name)
+            <span class="macro">format!</span>(<span class="string">"{module_path}::{name}"</span>)
         }
     } <span class="kw">else </span>{
         module_path.clone()

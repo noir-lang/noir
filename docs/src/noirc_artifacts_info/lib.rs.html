@@ -146,7 +146,7 @@
 <span class="kw">impl </span>From&lt;ProgramInfo&gt; <span class="kw">for </span>Vec&lt;Row&gt; {
     <span class="kw">fn </span>from(program_info: ProgramInfo) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>expression_width = <span class="kw">if let </span><span class="prelude-val">Some</span>(expression_width) = program_info.expression_width {
-            <span class="macro">format!</span>(<span class="string">"{:?}"</span>, expression_width)
+            <span class="macro">format!</span>(<span class="string">"{expression_width:?}"</span>)
         } <span class="kw">else </span>{
             <span class="string">"N/A"</span>.to_string()
         };

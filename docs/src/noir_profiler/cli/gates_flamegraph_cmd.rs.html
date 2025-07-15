@@ -328,9 +328,9 @@
             .collect();
 
         <span class="kw">let </span>output_filename = <span class="kw">if let </span><span class="prelude-val">Some</span>(output_filename) = <span class="kw-2">&amp;</span>output_filename {
-            <span class="macro">format!</span>(<span class="string">"{}_{}_gates.svg"</span>, output_filename, function_name)
+            <span class="macro">format!</span>(<span class="string">"{output_filename}_{function_name}_gates.svg"</span>)
         } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">"{}_gates.svg"</span>, function_name)
+            <span class="macro">format!</span>(<span class="string">"{function_name}_gates.svg"</span>)
         };
         flamegraph_generator.generate_flamegraph(
             samples,

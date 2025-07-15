@@ -619,7 +619,7 @@
         <span class="kw">if let </span><span class="prelude-val">Some</span>(token) = token {
             <span class="kw">match </span>token {
                 <span class="prelude-val">Ok</span>(token) =&gt; token.into_spanned_token(),
-                <span class="prelude-val">Err</span>(err) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected lexer not to error, but got: {:?}"</span>, err),
+                <span class="prelude-val">Err</span>(err) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected lexer not to error, but got: {err:?}"</span>),
             }
         } <span class="kw">else </span>{
             SpannedToken::new(Token::EOF, Default::default())

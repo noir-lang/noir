@@ -415,11 +415,7 @@
 <a href="#414" id="414">414</a>
 <a href="#415" id="415">415</a>
 <a href="#416" id="416">416</a>
-<a href="#417" id="417">417</a>
-<a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
+<a href="#417" id="417">417</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for VM native [black box functions][acir::brillig::Opcode::BlackBox].
 </span><span class="kw">use </span>acir::brillig::{BlackBoxOp, HeapArray, HeapVector};
 <span class="kw">use </span>acir::{AcirField, BlackBoxFunc};
 <span class="kw">use </span>acvm_blackbox_solver::{
@@ -774,27 +770,23 @@
 
             <span class="macro">assert!</span>(
                 radix &gt;= BigUint::from(<span class="number">2u32</span>) &amp;&amp; radix &lt;= BigUint::from(<span class="number">256u32</span>),
-                <span class="string">"Radix out of the valid range [2,256]. Value: {}"</span>,
-                radix
-            );
+                <span class="string">"Radix out of the valid range [2,256]. Value: {radix}"
+            </span>);
 
             <span class="macro">assert!</span>(
                 num_limbs &gt;= <span class="number">1 </span>|| input == BigUint::from(<span class="number">0u32</span>),
-                <span class="string">"Input value {} is not zero but number of limbs is zero."</span>,
-                input
-            );
+                <span class="string">"Input value {input} is not zero but number of limbs is zero."
+            </span>);
 
             <span class="macro">assert!</span>(
                 !output_bits || radix == BigUint::from(<span class="number">2u32</span>),
-                <span class="string">"Radix {} is not equal to 2 and bit mode is activated."</span>,
-                radix
-            );
+                <span class="string">"Radix {radix} is not equal to 2 and bit mode is activated."
+            </span>);
 
             <span class="kw">if </span>(input.bits() <span class="kw">as </span>u32) &gt; max_bit_size {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::AssertFailed(<span class="macro">format!</span>(
-                    <span class="string">"Field failed to decompose into specified {} limbs"</span>,
-                    num_limbs
-                )));
+                    <span class="string">"Field failed to decompose into specified {num_limbs} limbs"
+                </span>)));
             }
             <span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..num_limbs).rev() {
                 <span class="kw">let </span>limb = <span class="kw-2">&amp;</span>input % <span class="kw-2">&amp;</span>radix;

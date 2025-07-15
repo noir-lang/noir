@@ -155,11 +155,11 @@
     <span class="kw">let </span>(parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     <span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = errors.into_iter().filter(|error| !error.is_warning()).collect();
     <span class="kw">if </span>!errors.is_empty() {
-        <span class="macro">panic!</span>(<span class="string">"Expected no errors, got: {:?}"</span>, errors);
+        <span class="macro">panic!</span>(<span class="string">"Expected no errors, got: {errors:?}"</span>);
     }
     <span class="kw">let </span>result = format(src, parsed_module, <span class="kw-2">&amp;</span>config);
     <span class="kw">if </span>result != expected {
-        <span class="macro">println!</span>(<span class="string">"Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~"</span>, expected, result);
+        <span class="macro">println!</span>(<span class="string">"Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~"</span>);
     }
 
     <span class="macro">similar_asserts::assert_eq!</span>(result, expected);
@@ -168,11 +168,11 @@
     <span class="kw">let </span>(parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     <span class="kw">let </span>errors: Vec&lt;<span class="kw">_</span>&gt; = errors.into_iter().filter(|error| !error.is_warning()).collect();
     <span class="kw">if </span>!errors.is_empty() {
-        <span class="macro">panic!</span>(<span class="string">"Expected no errors in idempotent check, got: {:?}"</span>, errors);
+        <span class="macro">panic!</span>(<span class="string">"Expected no errors in idempotent check, got: {errors:?}"</span>);
     }
     <span class="kw">let </span>result = format(src, parsed_module, <span class="kw-2">&amp;</span>config);
     <span class="kw">if </span>result != expected {
-        <span class="macro">println!</span>(<span class="string">"Expected (idempotent):\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~"</span>, expected, result);
+        <span class="macro">println!</span>(<span class="string">"Expected (idempotent):\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~"</span>);
     }
     <span class="macro">similar_asserts::assert_eq!</span>(result, expected, <span class="string">"idempotent check failed"</span>);
 }

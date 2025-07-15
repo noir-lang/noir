@@ -1430,7 +1430,7 @@
                 <span class="kw">let </span>generic_string = <span class="kw">if </span>generic_string.is_empty() {
                     generic_string
                 } <span class="kw">else </span>{
-                    <span class="macro">format!</span>(<span class="string">"&lt;{}&gt;"</span>, generic_string)
+                    <span class="macro">format!</span>(<span class="string">"&lt;{generic_string}&gt;"</span>)
                 };
 
                 <span class="kw">let </span>where_clause = vecmap(<span class="kw-2">&amp;</span>trait_impl.where_clause, |trait_constraint| {
@@ -1440,7 +1440,7 @@
                 <span class="kw">let </span>where_clause = <span class="kw">if </span>where_clause.is_empty() {
                     where_clause
                 } <span class="kw">else </span>{
-                    <span class="macro">format!</span>(<span class="string">" where {}"</span>, where_clause)
+                    <span class="macro">format!</span>(<span class="string">" where {where_clause}"</span>)
                 };
 
                 <span class="macro">write!</span>(
@@ -1460,11 +1460,11 @@
                 }
             }
             Value::Zeroed(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"(zeroed {typ})"</span>),
-            Value::Type(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, typ),
+            Value::Type(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"{typ}"</span>),
             Value::Expr(expr) =&gt; <span class="kw">match </span>expr.as_ref() {
                 ExprValue::Expression(expr) =&gt; {
                     <span class="kw">let </span>expr = remove_interned_in_expression_kind(<span class="self">self</span>.interner, expr.clone());
-                    <span class="macro">write!</span>(f, <span class="string">"{}"</span>, expr)
+                    <span class="macro">write!</span>(f, <span class="string">"{expr}"</span>)
                 }
                 ExprValue::Statement(statement) =&gt; {
                     <span class="macro">write!</span>(

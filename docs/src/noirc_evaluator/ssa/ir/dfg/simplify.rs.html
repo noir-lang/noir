@@ -543,11 +543,23 @@
 <a href="#542" id="542">542</a>
 <a href="#543" id="543">543</a>
 <a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
-            ArrayOffset, Binary, BinaryOp, Instruction,
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction,
             binary::{truncate, truncate_field},
         },
         types::Type,
@@ -748,9 +760,21 @@
         Instruction::Store { .. } =&gt; <span class="prelude-val">None</span>,
         Instruction::IncrementRc { .. } =&gt; <span class="prelude-val">None</span>,
         Instruction::DecrementRc { .. } =&gt; <span class="prelude-val">None</span>,
-        Instruction::RangeCheck { value, max_bit_size, .. } =&gt; {
+        Instruction::RangeCheck { value, max_bit_size, assert_message } =&gt; {
             <span class="kw">let </span>max_potential_bits = dfg.get_value_max_num_bits(<span class="kw-2">*</span>value);
-            <span class="kw">if </span>max_potential_bits &lt;= <span class="kw-2">*</span>max_bit_size { Remove } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+            <span class="kw">if </span>max_potential_bits &lt;= <span class="kw-2">*</span>max_bit_size {
+                Remove
+            } <span class="kw">else if </span><span class="kw-2">*</span>max_bit_size == <span class="number">0 </span>{
+                <span class="kw">let </span>typ = dfg.type_of_value(<span class="kw-2">*</span>value).unwrap_numeric();
+                <span class="kw">let </span>zero = dfg.make_constant(FieldElement::zero(), typ);
+                SimplifiedToInstruction(Instruction::Constrain(
+                    <span class="kw-2">*</span>value,
+                    zero,
+                    assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                ))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">None
+            </span>}
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } =&gt; {
             <span class="kw">let </span>then_condition = <span class="kw-2">*</span>then_condition;

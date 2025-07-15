@@ -332,7 +332,7 @@
 
     <span class="doccomment">/// Get a variable in scope.
     </span><span class="kw">pub fn </span>get_variable(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>K) -&gt; <span class="kw-2">&amp;</span>Variable {
-        <span class="self">self</span>.variables.get(id).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"variable doesn't exist: {:?}"</span>, id))
+        <span class="self">self</span>.variables.get(id).unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"variable doesn't exist: {id:?}"</span>))
     }
 }
 

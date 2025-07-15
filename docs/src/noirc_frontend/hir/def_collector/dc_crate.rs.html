@@ -835,13 +835,13 @@
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>CompilationError {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            CompilationError::ParseError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, error),
-            CompilationError::DefinitionError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, error),
-            CompilationError::ResolverError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, error),
-            CompilationError::TypeError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, error),
-            CompilationError::InterpreterError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, error),
-            CompilationError::DebugComptimeScopeNotFound(error, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, error),
-            CompilationError::ComptimeError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, error),
+            CompilationError::ParseError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error}"</span>),
+            CompilationError::DefinitionError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error}"</span>),
+            CompilationError::ResolverError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error}"</span>),
+            CompilationError::TypeError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error}"</span>),
+            CompilationError::InterpreterError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error:?}"</span>),
+            CompilationError::DebugComptimeScopeNotFound(error, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error:?}"</span>),
+            CompilationError::ComptimeError(error) =&gt; <span class="macro">write!</span>(f, <span class="string">"{error:?}"</span>),
         }
     }
 }

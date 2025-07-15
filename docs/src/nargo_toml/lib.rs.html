@@ -1246,7 +1246,7 @@
         <span class="kw">for </span>toml <span class="kw">in </span>processed {
             cycle = cycle || toml == str_path;
             <span class="kw">if </span>cycle {
-                message += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{} referencing "</span>, toml);
+                message += <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{toml} referencing "</span>);
             }
         }
         message += str_path;

@@ -2631,10 +2631,7 @@
 <a href="#2630" id="2630">2630</a>
 <a href="#2631" id="2631">2631</a>
 <a href="#2632" id="2632">2632</a>
-<a href="#2633" id="2633">2633</a>
-<a href="#2634" id="2634">2634</a>
-<a href="#2635" id="2635">2635</a>
-<a href="#2636" id="2636">2636</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#2633" id="2633">2633</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="doccomment">//! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -3522,9 +3519,8 @@
             <span class="self">self</span>.memory.write(destination, memory_value);
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                <span class="string">"Foreign call result value {} does not fit in bit size {:?}"</span>,
-                value, value_bit_size
-            ));
+                <span class="string">"Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
+            </span>));
         }
         <span class="prelude-val">Ok</span>(())
     }
@@ -3555,8 +3551,7 @@
             <span class="self">self</span>.memory.write_slice(destination, <span class="kw-2">&amp;</span>memory_values);
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                <span class="string">"Foreign call result values {:?} do not match expected bit sizes"</span>,
-                values,
+                <span class="string">"Foreign call result values {values:?} do not match expected bit sizes"</span>,
             ));
         }
         <span class="prelude-val">Ok</span>(())
@@ -3610,9 +3605,8 @@
                             }
                             HeapValueType::Vector { .. } =&gt; {
                                 <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(
-                                    <span class="string">"Unsupported returned type in foreign calls {:?}"</span>,
-                                    typ
-                                ));
+                                    <span class="string">"Unsupported returned type in foreign calls {typ:?}"
+                                </span>));
                             }
                         }
                     }
@@ -3620,7 +3614,7 @@
                 <span class="prelude-val">Ok</span>(())
             }
             HeapValueType::Vector { .. } =&gt; {
-                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Unsupported returned type in foreign calls {:?}"</span>, value_type))
+                <span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"Unsupported returned type in foreign calls {value_type:?}"</span>))
             }
         }
     }

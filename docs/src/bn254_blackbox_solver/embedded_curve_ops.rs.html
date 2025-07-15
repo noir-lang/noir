@@ -424,7 +424,7 @@
             <span class="kw">if </span>point == ark_grumpkin::Affine::zero() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::EmbeddedCurveAdd,
-                    <span class="macro">format!</span>(<span class="string">"Infinite input: embedded_curve_add({}, {})"</span>, point1, point2),
+                    <span class="macro">format!</span>(<span class="string">"Infinite input: embedded_curve_add({point1}, {point2})"</span>),
                 ));
             }
         }

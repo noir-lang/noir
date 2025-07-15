@@ -659,7 +659,7 @@
             }
         }
         (PrintableValue::Field(<span class="kw">_</span>), PrintableType::Function { arguments, return_type, .. }) =&gt; {
-            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;fn({:?}) -&gt; {:?}&gt;&gt;"</span>, arguments, return_type,));
+            output.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"&lt;&lt;fn({arguments:?}) -&gt; {return_type:?}&gt;&gt;"</span>,));
         }
         (<span class="kw">_</span>, PrintableType::Reference { mutable: <span class="bool-val">false</span>, .. }) =&gt; {
             output.push_str(<span class="string">"&lt;&lt;ref&gt;&gt;"</span>);
@@ -777,7 +777,7 @@
 
         <span class="comment">// Write the interpolation
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(string) = replacement() {
-            <span class="macro">write!</span>(fmt, <span class="string">"{}"</span>, string)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(fmt, <span class="string">"{string}"</span>)<span class="question-mark">?</span>;
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">Err</span>(std::fmt::Error);
         }

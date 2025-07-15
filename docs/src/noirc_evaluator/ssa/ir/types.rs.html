@@ -392,11 +392,7 @@
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
 <a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a>
-<a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::signed_field::SignedField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
@@ -461,13 +457,9 @@
             NumericType::Unsigned { bit_size } =&gt; {
                 <span class="kw">let </span>max = <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2u128</span>.pow(bit_size) - <span class="number">1 </span>};
                 <span class="kw">if </span>value.is_negative() {
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={}"</span>, max));
+                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={max}"</span>));
                 }
-                <span class="kw">if </span>value.absolute_value() &lt;= max.into() {
-                    <span class="prelude-val">None
-                </span>} <span class="kw">else </span>{
-                    <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={}"</span>, max))
-                }
+                <span class="kw">if </span>value.absolute_value() &lt;= max.into() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={max}"</span>)) }
             }
             NumericType::Signed { bit_size } =&gt; {
                 <span class="kw">let </span>min = <span class="number">2u128</span>.pow(bit_size - <span class="number">1</span>);
@@ -476,7 +468,7 @@
                 <span class="kw">if </span>value.absolute_value() &lt;= target_max.into() {
                     <span class="prelude-val">None
                 </span>} <span class="kw">else </span>{
-                    <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"-{}..={}"</span>, min, max))
+                    <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"-{min}..={max}"</span>))
                 }
             }
             NumericType::NativeField =&gt; <span class="prelude-val">None</span>,

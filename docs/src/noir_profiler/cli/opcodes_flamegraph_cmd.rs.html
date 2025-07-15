@@ -419,7 +419,7 @@
             artifact_path.to_str().unwrap(),
             <span class="kw-2">&amp;</span>function_name,
             <span class="kw-2">&amp;</span>Path::new(<span class="kw-2">&amp;</span>output_path)
-                .join(Path::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}_brillig_opcodes.svg"</span>, function_name))),
+                .join(Path::new(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{function_name}_brillig_opcodes.svg"</span>))),
         )<span class="question-mark">?</span>;
     }
 

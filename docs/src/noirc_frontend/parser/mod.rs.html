@@ -493,7 +493,7 @@
                 }
                 c.fmt(f)
             }
-            ItemKind::InnerAttribute(a) =&gt; <span class="macro">write!</span>(f, <span class="string">"#![{}]"</span>, a),
+            ItemKind::InnerAttribute(a) =&gt; <span class="macro">write!</span>(f, <span class="string">"#![{a}]"</span>),
         }
     }
 }

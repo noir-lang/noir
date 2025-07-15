@@ -310,7 +310,7 @@
 
     <span class="kw">fn </span>check_label(signature_label: <span class="kw-2">&amp;</span>str, parameter_label: <span class="kw-2">&amp;</span>ParameterLabel, expected_string: <span class="kw-2">&amp;</span>str) {
         <span class="kw">let </span>ParameterLabel::LabelOffsets(offsets) = parameter_label <span class="kw">else </span>{
-            <span class="macro">panic!</span>(<span class="string">"Expected label to be LabelOffsets, got {:?}"</span>, parameter_label);
+            <span class="macro">panic!</span>(<span class="string">"Expected label to be LabelOffsets, got {parameter_label:?}"</span>);
         };
 
         <span class="macro">assert_eq!</span>(<span class="kw-2">&amp;</span>signature_label[offsets[<span class="number">0</span>] <span class="kw">as </span>usize..offsets[<span class="number">1</span>] <span class="kw">as </span>usize], expected_string);

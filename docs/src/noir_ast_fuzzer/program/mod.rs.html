@@ -1192,7 +1192,7 @@
     }
     name.reverse();
     <span class="kw">let </span>name = name.into_iter().collect::&lt;String&gt;();
-    <span class="kw">if </span>is_global { <span class="macro">format!</span>(<span class="string">"G_{}"</span>, name) } <span class="kw">else </span>{ name }
+    <span class="kw">if </span>is_global { <span class="macro">format!</span>(<span class="string">"G_{name}"</span>) } <span class="kw">else </span>{ name }
 }
 
 <span class="doccomment">/// Wrapper around `Program` that prints the AST as close to being able to

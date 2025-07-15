@@ -550,7 +550,7 @@
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>traits = vecmap(traits, |trait_name| <span class="macro">format!</span>(<span class="string">"`{}`"</span>, trait_name));
+                <span class="kw">let </span><span class="kw-2">mut </span>traits = vecmap(traits, |trait_name| <span class="macro">format!</span>(<span class="string">"`{trait_name}`"</span>));
                 traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
@@ -562,7 +562,7 @@
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>traits = vecmap(traits, |trait_name| <span class="macro">format!</span>(<span class="string">"`{}`"</span>, trait_name));
+                <span class="kw">let </span><span class="kw-2">mut </span>traits = vecmap(traits, |trait_name| <span class="macro">format!</span>(<span class="string">"`{trait_name}`"</span>));
                 traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),

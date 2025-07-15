@@ -483,8 +483,8 @@
             <span class="string">"StackPointer"</span>.into()
         } <span class="kw">else </span>{
             <span class="kw">match </span><span class="self">self </span>{
-                MemoryAddress::Direct(address) =&gt; <span class="macro">format!</span>(<span class="string">"M{}"</span>, address),
-                MemoryAddress::Relative(offset) =&gt; <span class="macro">format!</span>(<span class="string">"S{}"</span>, offset),
+                MemoryAddress::Direct(address) =&gt; <span class="macro">format!</span>(<span class="string">"M{address}"</span>),
+                MemoryAddress::Relative(offset) =&gt; <span class="macro">format!</span>(<span class="string">"S{offset}"</span>),
             }
         }
     }

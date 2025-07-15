@@ -1451,8 +1451,7 @@
 <a href="#1450" id="1450">1450</a>
 <a href="#1451" id="1451">1451</a>
 <a href="#1452" id="1452">1452</a>
-<a href="#1453" id="1453">1453</a>
-<a href="#1454" id="1454">1454</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
+<a href="#1453" id="1453">1453</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines security SSA passes detecting constraint problems leading to possible
 //! soundness vulnerabilities.
 //! The compiler informs the developer of these as bugs.
 </span><span class="kw">use </span><span class="kw">crate</span>::errors::{InternalBug, SsaReport};
@@ -1888,9 +1887,8 @@
                             <span class="self">self</span>.update_children(<span class="kw-2">&amp;</span>[<span class="kw-2">*</span>value_id], <span class="kw-2">&amp;</span>results);
                         } <span class="kw">else </span>{
                             <span class="macro">panic!</span>(
-                                <span class="string">"load instruction {} has attempted to access previously unused memory location"</span>,
-                                instruction
-                            );
+                                <span class="string">"load instruction {instruction} has attempted to access previously unused memory location"
+                            </span>);
                         }
                     }
                     <span class="comment">// Record the condition to set as future parent for the following values

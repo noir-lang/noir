@@ -1103,11 +1103,11 @@
 <span class="kw">impl</span>&lt;F: AcirField&gt; std::fmt::Display <span class="kw">for </span>Program&lt;F&gt; {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">for </span>(func_index, function) <span class="kw">in </span><span class="self">self</span>.functions.iter().enumerate() {
-            <span class="macro">writeln!</span>(f, <span class="string">"func {}"</span>, func_index)<span class="question-mark">?</span>;
-            <span class="macro">writeln!</span>(f, <span class="string">"{}"</span>, function)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"func {func_index}"</span>)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"{function}"</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>(func_index, function) <span class="kw">in </span><span class="self">self</span>.unconstrained_functions.iter().enumerate() {
-            <span class="macro">writeln!</span>(f, <span class="string">"unconstrained func {}"</span>, func_index)<span class="question-mark">?</span>;
+            <span class="macro">writeln!</span>(f, <span class="string">"unconstrained func {func_index}"</span>)<span class="question-mark">?</span>;
             <span class="macro">writeln!</span>(f, <span class="string">"{:?}"</span>, function.bytecode)<span class="question-mark">?</span>;
         }
         <span class="prelude-val">Ok</span>(())

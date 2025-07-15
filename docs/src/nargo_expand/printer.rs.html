@@ -1280,8 +1280,7 @@
 <a href="#1279" id="1279">1279</a>
 <a href="#1280" id="1280">1280</a>
 <a href="#1281" id="1281">1281</a>
-<a href="#1282" id="1282">1282</a>
-<a href="#1283" id="1283">1283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1282" id="1282">1282</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
@@ -2104,19 +2103,18 @@
             Value::U32(value) =&gt; <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>value.to_string()),
             Value::U64(value) =&gt; <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>value.to_string()),
             Value::U128(value) =&gt; <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>value.to_string()),
-            Value::String(string) =&gt; <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{:?}"</span>, string)),
+            Value::String(string) =&gt; <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{string:?}"</span>)),
             Value::FormatString(string, _typ) =&gt; {
                 <span class="comment">// Note: at this point the format string was already expanded so we can't recover the original
                 // interpolation and this will result in a compile-error. But... the expanded code is meant
                 // to be browsed, not compiled.
-                </span><span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"f{:?}"</span>, string));
+                </span><span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"f{string:?}"</span>));
             }
             Value::CtString(string) =&gt; {
                 <span class="kw">let </span>std = <span class="kw">if </span><span class="self">self</span>.crate_id.is_stdlib() { <span class="string">"std" </span>} <span class="kw">else </span>{ <span class="string">"crate" </span>};
                 <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
-                    <span class="string">"{}::meta::ctstring::AsCtString::as_ctstring({:?})"</span>,
-                    std, string
-                ));
+                    <span class="string">"{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
+                </span>));
             }
             Value::Function(func_id, ..) =&gt; {
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;

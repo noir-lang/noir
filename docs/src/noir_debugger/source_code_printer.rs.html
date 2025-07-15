@@ -430,7 +430,7 @@
 ) {
     <span class="kw">if </span>raw_source_printing {
         <span class="kw">if </span>cursor == <span class="string">"-&gt;" </span>&amp;&amp; highlight.is_some() {
-            <span class="macro">println!</span>(<span class="string">"{}"</span>, content);
+            <span class="macro">println!</span>(<span class="string">"{content}"</span>);
         }
         <span class="kw">return</span>;
     }

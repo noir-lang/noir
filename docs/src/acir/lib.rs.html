@@ -1199,7 +1199,7 @@
         </span><span class="attr">#[allow(dead_code)]
         </span><span class="kw">fn </span>msgpack_fields(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, fields: <span class="kw">impl </span>Iterator&lt;Item = String&gt;) {
             <span class="kw">let </span>fields = fields.collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">", "</span>);
-            <span class="kw">let </span>code = <span class="macro">format!</span>(<span class="string">"MSGPACK_FIELDS({});"</span>, fields);
+            <span class="kw">let </span>code = <span class="macro">format!</span>(<span class="string">"MSGPACK_FIELDS({fields});"</span>);
             <span class="self">self</span>.add_code(name, <span class="kw-2">&amp;</span>code);
         }
 

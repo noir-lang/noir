@@ -604,8 +604,7 @@
 <a href="#603" id="603">603</a>
 <a href="#604" id="604">604</a>
 <a href="#605" id="605">605</a>
-<a href="#606" id="606">606</a>
-<a href="#607" id="607">607</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
+<a href="#606" id="606">606</a></pre></div><pre class="rust"><code><span class="doccomment">//! Validator that checks whether a function is well formed.
 //!
 //! It validates:
 //!
@@ -780,9 +779,8 @@
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">if </span>lhs_type != rhs_type {
                             <span class="macro">panic!</span>(
-                                <span class="string">"Left-hand side and right-hand side of `{}` must have the same type"</span>,
-                                operator
-                            );
+                                <span class="string">"Left-hand side and right-hand side of `{operator}` must have the same type"
+                            </span>);
                         }
                     }
                 }

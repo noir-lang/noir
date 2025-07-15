@@ -162,7 +162,7 @@
     <span class="kw">let </span>hex_str = js_value.as_string().ok_or(<span class="string">"failed to parse field element from non-string"</span>)<span class="question-mark">?</span>;
 
     FieldElement::from_hex(<span class="kw-2">&amp;</span>hex_str)
-        .ok_or_else(|| <span class="macro">format!</span>(<span class="string">"Invalid hex string: '{}'"</span>, hex_str).into())
+        .ok_or_else(|| <span class="macro">format!</span>(<span class="string">"Invalid hex string: '{hex_str}'"</span>).into())
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_element_to_js_string(field_element: <span class="kw-2">&amp;</span>FieldElement) -&gt; JsString {

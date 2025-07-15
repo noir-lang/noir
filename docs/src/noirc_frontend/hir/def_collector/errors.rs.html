@@ -560,7 +560,7 @@
                 <span class="kw-2">*</span>location,
             ),
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } =&gt; {
-                <span class="kw">let </span>constraint = <span class="macro">format!</span>(<span class="string">"{}{}"</span>, constraint_name, constraint_generics);
+                <span class="kw">let </span>constraint = <span class="macro">format!</span>(<span class="string">"{constraint_name}{constraint_generics}"</span>);
 
                 <span class="kw">let </span><span class="kw-2">mut </span>diag = Diagnostic::simple_error(
                     <span class="string">"impl has stricter requirements than trait"</span>.to_string(),

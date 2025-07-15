@@ -464,12 +464,12 @@
 
         <span class="kw">if </span><span class="self">self</span>.is_alias {
             <span class="kw">let </span>bounds = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.bounds, |bound| bound.to_string()).join(<span class="string">" + "</span>);
-            <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">" = {};"</span>, bounds);
+            <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">" = {bounds};"</span>);
         }
 
         <span class="kw">if </span>!<span class="self">self</span>.bounds.is_empty() {
             <span class="kw">let </span>bounds = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.bounds, |bound| bound.to_string()).join(<span class="string">" + "</span>);
-            <span class="macro">write!</span>(f, <span class="string">": {}"</span>, bounds)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">": {bounds}"</span>)<span class="question-mark">?</span>;
         }
 
         <span class="kw">let </span>where_clause = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.where_clause, ToString::to_string);

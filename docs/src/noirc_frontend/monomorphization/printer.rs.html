@@ -697,7 +697,7 @@
 
 <span class="kw">impl </span>AstPrinter {
     <span class="kw">fn </span>fmt_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, definition: <span class="kw-2">&amp;</span>Definition) -&gt; String {
-        <span class="kw">if </span><span class="self">self</span>.show_id { <span class="macro">format!</span>(<span class="string">"{}${}"</span>, name, definition) } <span class="kw">else </span>{ name.to_string() }
+        <span class="kw">if </span><span class="self">self</span>.show_id { <span class="macro">format!</span>(<span class="string">"{name}${definition}"</span>) } <span class="kw">else </span>{ name.to_string() }
     }
 
     <span class="kw">fn </span>fmt_local(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, id: LocalId) -&gt; String {
@@ -1275,7 +1275,7 @@
         <span class="kw">match </span><span class="self">self </span>{
             Definition::Local(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"l{}"</span>, id.<span class="number">0</span>),
             Definition::Global(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"g{}"</span>, id.<span class="number">0</span>),
-            Definition::Function(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"f{}"</span>, id),
+            Definition::Function(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"f{id}"</span>),
             Definition::Builtin(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
             Definition::LowLevel(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),
             Definition::Oracle(name) =&gt; <span class="macro">write!</span>(f, <span class="string">"{name}"</span>),

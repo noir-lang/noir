@@ -1925,7 +1925,7 @@
             StatementKind::Expression(expression) =&gt; expression.fmt(f),
             StatementKind::Assign(assign) =&gt; assign.fmt(f),
             StatementKind::For(for_loop) =&gt; for_loop.fmt(f),
-            StatementKind::Loop(block, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"loop {}"</span>, block),
+            StatementKind::Loop(block, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"loop {block}"</span>),
             StatementKind::While(while_) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"while {} {}"</span>, while_.condition, while_.body)
             }
@@ -2020,7 +2020,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"{} {{ {} }}"</span>, typename, fields.join(<span class="string">", "</span>))
             }
             Pattern::Parenthesized(pattern, <span class="kw">_</span>) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"({})"</span>, pattern)
+                <span class="macro">write!</span>(f, <span class="string">"({pattern})"</span>)
             }
             Pattern::Interned(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"?Interned"</span>)

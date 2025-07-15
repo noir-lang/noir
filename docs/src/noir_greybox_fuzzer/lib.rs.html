@@ -2499,10 +2499,10 @@
             }) =&gt; {
                 <span class="kw">let </span>reason = <span class="kw">match </span>acir_failed {
                     <span class="bool-val">true </span>=&gt; {
-                        <span class="macro">format!</span>(<span class="string">"ACIR failed while brillig executed with no issues: {}"</span>, status)
+                        <span class="macro">format!</span>(<span class="string">"ACIR failed while brillig executed with no issues: {status}"</span>)
                     }
                     <span class="bool-val">false </span>=&gt; {
-                        <span class="macro">format!</span>(<span class="string">"brillig failed while ACIR executed with no issues: {}"</span>, status)
+                        <span class="macro">format!</span>(<span class="string">"brillig failed while ACIR executed with no issues: {status}"</span>)
                     }
                 };
 
@@ -2792,11 +2792,11 @@
     <span class="kw">if </span>minimize_corpus {
         <span class="macro">write!</span>(writer, <span class="string">"Attempting to minimize corpus for fuzzing harness "</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(writer, <span class="string">"{}"</span>, fuzzing_harness_name)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name}"</span>)<span class="question-mark">?</span>;
         writer.reset()<span class="question-mark">?</span>;
         <span class="macro">write!</span>(writer, <span class="string">" of package "</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(writer, <span class="string">"{}"</span>, package_name)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(writer, <span class="string">"{package_name}"</span>)<span class="question-mark">?</span>;
         writer.reset()<span class="question-mark">?</span>;
         <span class="macro">write!</span>(writer, <span class="string">"Corpus path: \""</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
@@ -2815,11 +2815,11 @@
     } <span class="kw">else </span>{
         <span class="macro">write!</span>(writer, <span class="string">"Starting fuzzing with harness "</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-        <span class="macro">write!</span>(writer, <span class="string">"{}"</span>, fuzzing_harness_name)<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name}"</span>)<span class="question-mark">?</span>;
         writer.reset()<span class="question-mark">?</span>;
         <span class="macro">write!</span>(writer, <span class="string">" of package "</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-        <span class="macro">writeln!</span>(writer, <span class="string">"{}"</span>, package_name)<span class="question-mark">?</span>;
+        <span class="macro">writeln!</span>(writer, <span class="string">"{package_name}"</span>)<span class="question-mark">?</span>;
         writer.reset()<span class="question-mark">?</span>;
         <span class="macro">write!</span>(writer, <span class="string">"Corpus path: \""</span>)<span class="question-mark">?</span>;
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
@@ -2829,17 +2829,17 @@
     }
     <span class="macro">write!</span>(writer, <span class="string">"seed: "</span>)<span class="question-mark">?</span>;
     writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-    <span class="macro">write!</span>(writer, <span class="string">"{:#016x}"</span>, seed)<span class="question-mark">?</span>;
+    <span class="macro">write!</span>(writer, <span class="string">"{seed:#016x}"</span>)<span class="question-mark">?</span>;
     writer.reset()<span class="question-mark">?</span>;
 
     <span class="macro">write!</span>(writer, <span class="string">", starting_corpus_size: "</span>)<span class="question-mark">?</span>;
     writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-    <span class="macro">write!</span>(writer, <span class="string">"{}"</span>, starting_corpus_size)<span class="question-mark">?</span>;
+    <span class="macro">write!</span>(writer, <span class="string">"{starting_corpus_size}"</span>)<span class="question-mark">?</span>;
     writer.reset()<span class="question-mark">?</span>;
 
     <span class="macro">write!</span>(writer, <span class="string">", num_threads: "</span>)<span class="question-mark">?</span>;
     writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Blue)))<span class="question-mark">?</span>;
-    <span class="macro">writeln!</span>(writer, <span class="string">"{}"</span>, num_threads)<span class="question-mark">?</span>;
+    <span class="macro">writeln!</span>(writer, <span class="string">"{num_threads}"</span>)<span class="question-mark">?</span>;
     writer.reset()<span class="question-mark">?</span>;
 
     <span class="kw">if </span>abi_change_detected {
@@ -2873,7 +2873,7 @@
         } <span class="kw">else if </span>x &gt; microseconds_in_millisecond {
             <span class="macro">format!</span>(<span class="string">"{}ms"</span>, x / microseconds_in_millisecond)
         } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">"{}us"</span>, x)
+            <span class="macro">format!</span>(<span class="string">"{x}us"</span>)
         }
     };
     <span class="kw">let </span>format_count = |x: usize| {
@@ -2887,7 +2887,7 @@
         } <span class="kw">else if </span>x &gt; thousand {
             <span class="macro">format!</span>(<span class="string">"{}k"</span>, x / thousand)
         } <span class="kw">else </span>{
-            <span class="macro">format!</span>(<span class="string">"{}"</span>, x)
+            <span class="macro">format!</span>(<span class="string">"{x}"</span>)
         }
     };
     <span class="kw">if </span>metrics.found_new_with_acir_brillig || metrics.found_new_with_brillig {

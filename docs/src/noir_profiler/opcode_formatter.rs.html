@@ -234,7 +234,7 @@
         BrilligOpcode::ConditionalMov { .. } =&gt; <span class="string">"cmov"</span>.to_string(),
         BrilligOpcode::Const { .. } =&gt; <span class="string">"const"</span>.to_string(),
         BrilligOpcode::IndirectConst { .. } =&gt; <span class="string">"iconst"</span>.to_string(),
-        BrilligOpcode::ForeignCall { function, .. } =&gt; <span class="macro">format!</span>(<span class="string">"foreign_call({})"</span>, function),
+        BrilligOpcode::ForeignCall { function, .. } =&gt; <span class="macro">format!</span>(<span class="string">"foreign_call({function})"</span>),
         BrilligOpcode::Jump { .. } =&gt; <span class="string">"jump"</span>.to_string(),
         BrilligOpcode::JumpIf { .. } =&gt; <span class="string">"jump_if"</span>.to_string(),
         BrilligOpcode::JumpIfNot { .. } =&gt; <span class="string">"jump_if_not"</span>.to_string(),

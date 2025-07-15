@@ -441,7 +441,7 @@
     }
 
     <span class="kw">fn </span>push_import_code_action(<span class="kw-2">&amp;mut </span><span class="self">self</span>, full_path: <span class="kw-2">&amp;</span>str) {
-        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Import {}"</span>, full_path);
+        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Import {full_path}"</span>);
 
         <span class="kw">let </span>text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {
@@ -472,8 +472,8 @@
         prefix.pop();
         <span class="kw">let </span>prefix = prefix.join(<span class="string">"::"</span>);
 
-        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Qualify as {}"</span>, full_path);
-        <span class="kw">let </span>text_edit = TextEdit { range, new_text: <span class="macro">format!</span>(<span class="string">"{}::"</span>, prefix) };
+        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Qualify as {full_path}"</span>);
+        <span class="kw">let </span>text_edit = TextEdit { range, new_text: <span class="macro">format!</span>(<span class="string">"{prefix}::"</span>) };
 
         <span class="kw">let </span>code_action = <span class="self">self</span>.new_quick_fix(title, text_edit);
         <span class="self">self</span>.code_actions.push(code_action);

@@ -863,8 +863,7 @@
 <a href="#862" id="862">862</a>
 <a href="#863" id="863">863</a>
 <a href="#864" id="864">864</a>
-<a href="#865" id="865">865</a>
-<a href="#866" id="866">866</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
+<a href="#865" id="865">865</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::DebugProject;
 <span class="kw">use </span><span class="kw">crate</span>::context::{
     DebugCommandResult, DebugContext, DebugExecutionResult, DebugLocation, DebugStackFrame,
     RunParams,
@@ -1223,14 +1222,13 @@
             <span class="kw">match </span><span class="kw-2">&amp;</span>opcode {
                 Opcode::BrilligCall { id, inputs, outputs, .. } =&gt; {
                     <span class="macro">println!</span>(
-                        <span class="string">"{:&gt;2}:{:&gt;3} {:2} BRILLIG CALL id={} inputs={:?}"</span>,
-                        circuit_id, acir_index, marker, id, inputs
-                    );
-                    <span class="macro">println!</span>(<span class="string">"          |       outputs={:?}"</span>, outputs);
+                        <span class="string">"{circuit_id:&gt;2}:{acir_index:&gt;3} {marker:2} BRILLIG CALL id={id} inputs={inputs:?}"
+                    </span>);
+                    <span class="macro">println!</span>(<span class="string">"          |       outputs={outputs:?}"</span>);
                     <span class="kw">let </span>bytecode = <span class="kw-2">&amp;</span><span class="self">self</span>.unconstrained_functions[id.as_usize()].bytecode;
                     print_brillig_bytecode(acir_index, bytecode, <span class="kw-2">*</span>id);
                 }
-                <span class="kw">_ </span>=&gt; <span class="macro">println!</span>(<span class="string">"{:&gt;2}:{:&gt;3} {:2} {:?}"</span>, circuit_id, acir_index, marker, opcode),
+                <span class="kw">_ </span>=&gt; <span class="macro">println!</span>(<span class="string">"{circuit_id:&gt;2}:{acir_index:&gt;3} {marker:2} {opcode:?}"</span>),
             }
         }
     }
@@ -1249,10 +1247,10 @@
         <span class="kw">let </span>best_location = context.find_opcode_at_current_file_line(line_number);
         <span class="kw">match </span>best_location {
             <span class="prelude-val">Some</span>(location) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"Added breakpoint at line {}"</span>, line_number);
+                <span class="macro">println!</span>(<span class="string">"Added breakpoint at line {line_number}"</span>);
                 <span class="self">Self</span>::add_breakpoint_at(context, location);
             }
-            <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"No opcode at line {}"</span>, line_number),
+            <span class="prelude-val">None </span>=&gt; <span class="macro">println!</span>(<span class="string">"No opcode at line {line_number}"</span>),
         }
     }
 
@@ -1272,10 +1270,10 @@
             }
             DebugCommandResult::Ok =&gt; (),
             DebugCommandResult::BreakpointReached(location) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"Stopped at breakpoint in opcode {}"</span>, location);
+                <span class="macro">println!</span>(<span class="string">"Stopped at breakpoint in opcode {location}"</span>);
             }
             DebugCommandResult::Error(error) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"ERROR: {}"</span>, error);
+                <span class="macro">println!</span>(<span class="string">"ERROR: {error}"</span>);
             }
         }
     }
@@ -1291,7 +1289,7 @@
                 <span class="bool-val">false
             </span>}
             DebugCommandResult::Error(<span class="kw-2">ref </span>error) =&gt; {
-                <span class="macro">println!</span>(<span class="string">"ERROR: {}"</span>, error);
+                <span class="macro">println!</span>(<span class="string">"ERROR: {error}"</span>);
                 <span class="self">self</span>.show_current_vm_status(context);
                 <span class="bool-val">false
             </span>}
@@ -1320,7 +1318,7 @@
 
     <span class="kw">fn </span>show_witness(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: u32) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = context.get_witness_map().get_index(index) {
-            <span class="macro">println!</span>(<span class="string">"_{} = {value}"</span>, index);
+            <span class="macro">println!</span>(<span class="string">"_{index} = {value}"</span>);
         }
     }
 
@@ -1332,7 +1330,7 @@
 
         <span class="kw">let </span>witness = Witness::from(index);
         <span class="kw">_ </span>= context.overwrite_witness(witness, field_value);
-        <span class="macro">println!</span>(<span class="string">"_{} = {value}"</span>, index);
+        <span class="macro">println!</span>(<span class="string">"_{index} = {value}"</span>);
     }
 
     <span class="kw">fn </span>show_brillig_memory(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;) {
@@ -1356,7 +1354,7 @@
                     <span class="kw">continue</span>;
                 }
             }
-            <span class="macro">println!</span>(<span class="string">"{index} = {}"</span>, value);
+            <span class="macro">println!</span>(<span class="string">"{index} = {value}"</span>);
         }
     }
     <span class="kw">fn </span>write_brillig_memory(context: <span class="kw-2">&amp;mut </span>Context&lt;<span class="lifetime">'_</span>&gt;, index: usize, value: String, bit_size: u32) {
@@ -1385,7 +1383,7 @@
             <span class="kw">for </span>(var_name, value, var_type) <span class="kw">in </span>frame.variables.iter() {
                 <span class="kw">let </span>printable_value =
                     PrintableValueDisplay::Plain((<span class="kw-2">*</span>value).clone(), (<span class="kw-2">*</span>var_type).clone());
-                <span class="macro">println!</span>(<span class="string">"  {var_name}:{var_type:?} = {}"</span>, printable_value);
+                <span class="macro">println!</span>(<span class="string">"  {var_name}:{var_type:?} = {printable_value}"</span>);
             }
         }
     }

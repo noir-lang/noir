@@ -1755,7 +1755,7 @@
                 <span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) =&gt; {
                     block_id = <span class="kw-2">*</span>destination;
                     <span class="kw">if </span><span class="self">self</span>.options.trace {
-                        <span class="macro">println!</span>(<span class="string">"jump to {}"</span>, block_id);
+                        <span class="macro">println!</span>(<span class="string">"jump to {block_id}"</span>);
                     }
                     arguments = <span class="self">self</span>.lookup_all(jump_args)<span class="question-mark">?</span>;
                 }
@@ -1771,7 +1771,7 @@
                         <span class="kw-2">*</span>else_destination
                     };
                     <span class="kw">if </span><span class="self">self</span>.options.trace {
-                        <span class="macro">println!</span>(<span class="string">"jump to {}"</span>, block_id);
+                        <span class="macro">println!</span>(<span class="string">"jump to {block_id}"</span>);
                     }
                     arguments = Vec::new();
                 }

@@ -768,7 +768,7 @@
         <span class="kw">if </span>other == Segment::SelfReference {
             <span class="self">self
         </span>} <span class="kw">else </span>{
-            Segment::Plain(<span class="macro">format!</span>(<span class="string">"{}::{}"</span>, <span class="self">self</span>, other))
+            Segment::Plain(<span class="macro">format!</span>(<span class="string">"{self}::{other}"</span>))
         }
     }
 
@@ -789,7 +789,7 @@
             Segment::Crate =&gt; <span class="macro">write!</span>(f, <span class="string">"crate"</span>),
             Segment::Super =&gt; <span class="macro">write!</span>(f, <span class="string">"super"</span>),
             Segment::Dep =&gt; <span class="macro">write!</span>(f, <span class="string">"dep"</span>),
-            Segment::Plain(s) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, s),
+            Segment::Plain(s) =&gt; <span class="macro">write!</span>(f, <span class="string">"{s}"</span>),
             Segment::SelfReference =&gt; <span class="macro">write!</span>(f, <span class="string">"self"</span>),
         }
     }
@@ -909,7 +909,7 @@
         <span class="kw">match </span>import.kind {
             UseTreeKind::Path(ident, alias) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = alias {
-                    tree = tree.insert(Segment::Plain(<span class="macro">format!</span>(<span class="string">"{} as {}"</span>, ident, alias)));
+                    tree = tree.insert(Segment::Plain(<span class="macro">format!</span>(<span class="string">"{ident} as {alias}"</span>)));
                     tree.insert(Segment::SelfReference);
                 } <span class="kw">else if </span>ident.as_str() == <span class="string">"self" </span>{
                     tree.insert(Segment::SelfReference);

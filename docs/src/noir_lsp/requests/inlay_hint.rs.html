@@ -1219,7 +1219,7 @@
             text_edits: <span class="kw">if </span>editable {
                 <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[TextEdit {
                     range: Range { start: location.range.end, end: location.range.end },
-                    new_text: <span class="macro">format!</span>(<span class="string">": {}"</span>, typ),
+                    new_text: <span class="macro">format!</span>(<span class="string">": {typ}"</span>),
                 }])
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -1350,7 +1350,7 @@
     }
 
     <span class="kw">fn </span>push_parameter_hint(<span class="kw-2">&amp;mut </span><span class="self">self</span>, position: Position, str: <span class="kw-2">&amp;</span>str) {
-        <span class="self">self</span>.push_text_hint(position, <span class="macro">format!</span>(<span class="string">"{}: "</span>, str));
+        <span class="self">self</span>.push_text_hint(position, <span class="macro">format!</span>(<span class="string">"{str}: "</span>));
     }
 
     <span class="kw">fn </span>push_text_hint(<span class="kw-2">&amp;mut </span><span class="self">self</span>, position: Position, str: String) {

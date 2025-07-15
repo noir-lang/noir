@@ -1743,10 +1743,10 @@
                     .replace(<span class="string">'\0'</span>, <span class="string">"\\0"</span>)
                     .replace(<span class="string">'\''</span>, <span class="string">"\\'"</span>)
                     .replace(<span class="string">'\"'</span>, <span class="string">"\\\""</span>);
-                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, string)
+                <span class="macro">write!</span>(f, <span class="string">"{string}"</span>)
             }
             FmtStrFragment::Interpolation(string, <span class="kw">_</span>) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"{{{}}}"</span>, string)
+                <span class="macro">write!</span>(f, <span class="string">"{{{string}}}"</span>)
             }
         }
     }
@@ -2499,7 +2499,7 @@
             SecondaryAttributeKind::Deprecated(<span class="prelude-val">Some</span>(note)) =&gt; {
                 <span class="macro">format!</span>(<span class="string">"deprecated({note:?})"</span>)
             }
-            SecondaryAttributeKind::Tag(contents) =&gt; <span class="macro">format!</span>(<span class="string">"'{}"</span>, contents),
+            SecondaryAttributeKind::Tag(contents) =&gt; <span class="macro">format!</span>(<span class="string">"'{contents}"</span>),
             SecondaryAttributeKind::Meta(meta) =&gt; meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod =&gt; <span class="string">"contract_library_method"</span>.to_string(),
             SecondaryAttributeKind::Export =&gt; <span class="string">"export"</span>.to_string(),

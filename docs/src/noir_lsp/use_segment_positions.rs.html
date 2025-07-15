@@ -587,7 +587,7 @@
             </span><span class="kw">if let </span><span class="prelude-val">Some</span>(lsp_location) = to_lsp_location(request.files, request.file, span) {
                 <span class="kw">let </span>range = lsp_location.range;
                 <span class="macro">vec!</span>[TextEdit {
-                    new_text: <span class="macro">format!</span>(<span class="string">"::{{self, {}}}"</span>, name),
+                    new_text: <span class="macro">format!</span>(<span class="string">"::{{self, {name}}}"</span>),
                     range: Range { start: range.end, end: range.end },
                 }]
             } <span class="kw">else </span>{
@@ -622,7 +622,7 @@
                         range: Range { start: range.start, end: range.start },
                     },
                     TextEdit {
-                        new_text: <span class="macro">format!</span>(<span class="string">", {}}}"</span>, name),
+                        new_text: <span class="macro">format!</span>(<span class="string">", {name}}}"</span>),
                         range: Range { start: range.end, end: range.end },
                     },
                 ]
@@ -648,7 +648,7 @@
             {
                 <span class="kw">let </span>range = lsp_location.range;
                 <span class="macro">vec!</span>[TextEdit {
-                    new_text: <span class="kw">if </span>list_is_empty { name } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{}, "</span>, name) },
+                    new_text: <span class="kw">if </span>list_is_empty { name } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{name}, "</span>) },
                     range: Range { start: range.start, end: range.start },
                 }]
             } <span class="kw">else </span>{

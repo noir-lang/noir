@@ -444,13 +444,13 @@
         <span class="kw">match </span><span class="self">self </span>{
             LabelType::Function(function_id, block_id) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(block_id) = block_id {
-                    <span class="macro">write!</span>(f, <span class="string">"Function({:?}, {:?})"</span>, function_id, block_id)
+                    <span class="macro">write!</span>(f, <span class="string">"Function({function_id:?}, {block_id:?})"</span>)
                 } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">"Function({:?})"</span>, function_id)
+                    <span class="macro">write!</span>(f, <span class="string">"Function({function_id:?})"</span>)
                 }
             }
             LabelType::Entrypoint =&gt; <span class="macro">write!</span>(f, <span class="string">"Entrypoint"</span>),
-            LabelType::Procedure(procedure_id) =&gt; <span class="macro">write!</span>(f, <span class="string">"Procedure({:?})"</span>, procedure_id),
+            LabelType::Procedure(procedure_id) =&gt; <span class="macro">write!</span>(f, <span class="string">"Procedure({procedure_id:?})"</span>),
             LabelType::GlobalInit(function_id) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"Globals Initialization({function_id:?})"</span>)
             }

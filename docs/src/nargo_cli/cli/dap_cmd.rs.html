@@ -388,8 +388,7 @@
 <a href="#387" id="387">387</a>
 <a href="#388" id="388">388</a>
 <a href="#389" id="389">389</a>
-<a href="#390" id="390">390</a>
-<a href="#391" id="391">391</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
+<a href="#390" id="390">390</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>dap::errors::ServerError;
 <span class="kw">use </span>dap::events::OutputEventBody;
@@ -491,11 +490,10 @@
 
 <span class="kw">fn </span>workspace_not_found_error_msg(project_folder: <span class="kw-2">&amp;</span>str, package: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;) -&gt; String {
     <span class="kw">match </span>package {
-        <span class="prelude-val">Some</span>(pkg) =&gt; <span class="macro">format!</span>(
-            <span class="string">r#"Noir Debugger could not load program from {}, package {}"#</span>,
-            project_folder, pkg
-        ),
-        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(<span class="string">r#"Noir Debugger could not load program from {}"#</span>, project_folder),
+        <span class="prelude-val">Some</span>(pkg) =&gt; {
+            <span class="macro">format!</span>(<span class="string">r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#</span>)
+        }
+        <span class="prelude-val">None </span>=&gt; <span class="macro">format!</span>(<span class="string">r#"Noir Debugger could not load program from {project_folder}"#</span>),
     }
 }
 
@@ -625,9 +623,9 @@
                     .and_then(|v| v.as_str())
                     .map(String::from);
 
-                <span class="macro">eprintln!</span>(<span class="string">"Project folder: {}"</span>, project_folder);
+                <span class="macro">eprintln!</span>(<span class="string">"Project folder: {project_folder}"</span>);
                 <span class="macro">eprintln!</span>(<span class="string">"Package: {}"</span>, package.unwrap_or(<span class="string">"(default)"</span>));
-                <span class="macro">eprintln!</span>(<span class="string">"Prover name: {}"</span>, prover_name);
+                <span class="macro">eprintln!</span>(<span class="string">"Prover name: {prover_name}"</span>);
 
                 <span class="kw">let </span>compile_options = compile_options_for_debugging(
                     generate_acir,

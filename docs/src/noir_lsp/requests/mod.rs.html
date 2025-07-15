@@ -1121,7 +1121,7 @@
         <span class="prelude-val">Some</span>(file_path) =&gt; <span class="kw">match </span>Config::read(file_path) {
             <span class="prelude-val">Ok</span>(config) =&gt; config,
             <span class="prelude-val">Err</span>(err) =&gt; {
-                <span class="macro">eprintln!</span>(<span class="string">"{}"</span>, err);
+                <span class="macro">eprintln!</span>(<span class="string">"{err}"</span>);
                 Config::default()
             }
         },
@@ -1159,12 +1159,12 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;noirc_errors::Location, ResponseError&gt; {
     <span class="kw">let </span>file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
-        <span class="macro">format!</span>(<span class="string">"Could not find file in file manager. File path: {:?}"</span>, file_path),
+        <span class="macro">format!</span>(<span class="string">"Could not find file in file manager. File path: {file_path:?}"</span>),
     ))<span class="question-mark">?</span>;
     <span class="kw">let </span>byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
-            <span class="macro">format!</span>(<span class="string">"Could not convert position to byte index. Error: {:?}"</span>, err),
+            <span class="macro">format!</span>(<span class="string">"Could not convert position to byte index. Error: {err:?}"</span>),
         )
     })<span class="question-mark">?</span>;
 

@@ -524,10 +524,10 @@
     <span class="kw">use </span><span class="kw">crate</span>::Config;
 
     <span class="kw">fn </span>assert_format_type(src: <span class="kw-2">&amp;</span>str, expected: <span class="kw-2">&amp;</span>str) {
-        <span class="kw">let </span>module_src = <span class="macro">format!</span>(<span class="string">"type X = {};"</span>, src);
+        <span class="kw">let </span>module_src = <span class="macro">format!</span>(<span class="string">"type X = {src};"</span>);
         <span class="kw">let </span>(parsed_module, errors) = parser::parse_program_with_dummy_file(<span class="kw-2">&amp;</span>module_src);
         <span class="kw">if </span>!errors.is_empty() {
-            <span class="macro">panic!</span>(<span class="string">"Expected no errors, got: {:?}"</span>, errors);
+            <span class="macro">panic!</span>(<span class="string">"Expected no errors, got: {errors:?}"</span>);
         }
         <span class="kw">let </span>result = <span class="kw">crate</span>::format(<span class="kw-2">&amp;</span>module_src, parsed_module, <span class="kw-2">&amp;</span>Config::default());
         <span class="kw">let </span>type_result = <span class="kw-2">&amp;</span>result[<span class="string">"type X = "</span>.len()..];
@@ -536,7 +536,7 @@
 
         <span class="kw">let </span>(parsed_module, errors) = parser::parse_program_with_dummy_file(<span class="kw-2">&amp;</span>result);
         <span class="kw">if </span>!errors.is_empty() {
-            <span class="macro">panic!</span>(<span class="string">"Expected no errors in idempotent check, got: {:?}"</span>, errors);
+            <span class="macro">panic!</span>(<span class="string">"Expected no errors in idempotent check, got: {errors:?}"</span>);
         }
         <span class="kw">let </span>result = <span class="kw">crate</span>::format(<span class="kw-2">&amp;</span>result, parsed_module, <span class="kw-2">&amp;</span>Config::default());
         <span class="kw">let </span>type_result = <span class="kw-2">&amp;</span>result[<span class="string">"type X = "</span>.len()..];

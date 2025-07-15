@@ -137,8 +137,7 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#139" id="139">139</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 #![allow(clippy::result_large_err)]
 
@@ -166,12 +165,11 @@
             <span class="kw">match </span>compiled_program {
                 <span class="prelude-val">Ok</span>(compiled_program) =&gt; execute_single(<span class="kw-2">&amp;</span>compiled_program.program, initial_witness),
                 <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(SsaExecutionError::SsaCompilationFailed(<span class="macro">format!</span>(
-                    <span class="string">"SSA compilation failed: {:?}"</span>,
-                    e
-                ))),
+                    <span class="string">"SSA compilation failed: {e:?}"
+                </span>))),
             }
         }
-        <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(SsaExecutionError::SsaParsingFailed(<span class="macro">format!</span>(<span class="string">"SSA parsing failed: {:?}"</span>, e))),
+        <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(SsaExecutionError::SsaParsingFailed(<span class="macro">format!</span>(<span class="string">"SSA parsing failed: {e:?}"</span>))),
     }
 }
 
@@ -272,8 +270,8 @@
         <span class="kw">let </span>brillig_result =
             execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
         <span class="kw">match </span>(acir_result, brillig_result) {
-            (<span class="prelude-val">Err</span>(acir), <span class="prelude-val">Ok</span>(_brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir failed with: {}, brillig succeeded"</span>, acir),
-            (<span class="prelude-val">Ok</span>(_acir), <span class="prelude-val">Err</span>(brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir succeeded, brillig failed: {}"</span>, brillig),
+            (<span class="prelude-val">Err</span>(acir), <span class="prelude-val">Ok</span>(_brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir failed with: {acir}, brillig succeeded"</span>),
+            (<span class="prelude-val">Ok</span>(_acir), <span class="prelude-val">Err</span>(brillig)) =&gt; <span class="macro">panic!</span>(<span class="string">"Acir succeeded, brillig failed: {brillig}"</span>),
             <span class="kw">_ </span>=&gt; {}
         }
     }

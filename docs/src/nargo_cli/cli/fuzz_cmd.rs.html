@@ -1002,13 +1002,13 @@
 
     <span class="kw">if </span>!status.failed() {
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Green))).expect(<span class="string">"Failed to set color"</span>);
-        <span class="macro">write!</span>(writer, <span class="string">"{} passed (didn't find any issues)"</span>, fuzzing_harness_name)
+        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} passed (didn't find any issues)"</span>)
             .expect(<span class="string">"Failed to write to stderr"</span>);
         writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
         <span class="macro">writeln!</span>(writer).expect(<span class="string">"Failed to write to stderr"</span>);
     } <span class="kw">else </span>{
         writer.set_color(ColorSpec::new().set_fg(<span class="prelude-val">Some</span>(Color::Red))).expect(<span class="string">"Failed to set color"</span>);
-        <span class="macro">write!</span>(writer, <span class="string">"{} failed"</span>, fuzzing_harness_name).expect(<span class="string">"Failed to write to stderr"</span>);
+        <span class="macro">write!</span>(writer, <span class="string">"{fuzzing_harness_name} failed"</span>).expect(<span class="string">"Failed to write to stderr"</span>);
         writer.reset().expect(<span class="string">"Failed to reset writer"</span>);
     }
 

@@ -1130,14 +1130,14 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>debug_evaluate_comptime(expr: <span class="kw">impl </span>Display, location: Location) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>formatted_result = <span class="macro">format!</span>(<span class="string">"{}"</span>, expr);
+        <span class="kw">let </span><span class="kw-2">mut </span>formatted_result = <span class="macro">format!</span>(<span class="string">"{expr}"</span>);
         <span class="comment">// if multi-line, display on a separate line from the message
         </span><span class="kw">if </span>formatted_result.contains(<span class="string">'\n'</span>) {
             formatted_result.insert(<span class="number">0</span>, <span class="string">'\n'</span>);
         }
         <span class="kw">let </span>diagnostic = CustomDiagnostic::simple_info(
             <span class="string">"`comptime` expression ran:"</span>.to_string(),
-            <span class="macro">format!</span>(<span class="string">"After evaluation: {}"</span>, formatted_result),
+            <span class="macro">format!</span>(<span class="string">"After evaluation: {formatted_result}"</span>),
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }

@@ -3121,11 +3121,7 @@
 <a href="#3120" id="3120">3120</a>
 <a href="#3121" id="3121">3121</a>
 <a href="#3122" id="3122">3122</a>
-<a href="#3123" id="3123">3123</a>
-<a href="#3124" id="3124">3124</a>
-<a href="#3125" id="3125">3125</a>
-<a href="#3126" id="3126">3126</a>
-<a href="#3127" id="3127">3127</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3123" id="3123">3123</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3473,11 +3469,7 @@
     <span class="kw">if </span>predicate {
         <span class="prelude-val">Ok</span>(Value::Unit)
     } <span class="kw">else </span>{
-        failing_constraint(
-            <span class="macro">format!</span>(<span class="string">"static_assert failed: {}"</span>, message).clone(),
-            location,
-            call_stack,
-        )
+        failing_constraint(<span class="macro">format!</span>(<span class="string">"static_assert failed: {message}"</span>).clone(), location, call_stack)
     }
 }
 
@@ -3514,7 +3506,7 @@
     <span class="kw">let </span>(self_argument, attribute) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute_location = attribute.<span class="number">1</span>;
     <span class="kw">let </span>attribute = get_str(interner, attribute)<span class="question-mark">?</span>;
-    <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{}]"</span>, attribute);
+    <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{attribute}]"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
     <span class="kw">let </span><span class="prelude-val">Some</span>((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::InvalidAttribute {
@@ -5554,7 +5546,7 @@
     <span class="kw">let </span>(self_argument, attribute) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>attribute_location = attribute.<span class="number">1</span>;
     <span class="kw">let </span>attribute = get_str(interpreter.elaborator.interner, attribute)<span class="question-mark">?</span>;
-    <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{}]"</span>, attribute);
+    <span class="kw">let </span>attribute = <span class="macro">format!</span>(<span class="string">"#[{attribute}]"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>parser = Parser::for_str(<span class="kw-2">&amp;</span>attribute, attribute_location.file);
     <span class="kw">let </span><span class="prelude-val">Some</span>((attribute, _span)) = parser.parse_attribute() <span class="kw">else </span>{
         <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::InvalidAttribute {

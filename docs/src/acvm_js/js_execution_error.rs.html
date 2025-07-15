@@ -141,7 +141,7 @@ export type ExecutionError = Error &amp; {
             <span class="prelude-val">Some</span>(call_stack) =&gt; {
                 <span class="kw">let </span>js_array = Array::new();
                 <span class="kw">for </span>loc <span class="kw">in </span>call_stack {
-                    js_array.push(<span class="kw-2">&amp;</span>JsValue::from(<span class="macro">format!</span>(<span class="string">"{}"</span>, loc)));
+                    js_array.push(<span class="kw-2">&amp;</span>JsValue::from(<span class="macro">format!</span>(<span class="string">"{loc}"</span>)));
                 }
                 js_array.into()
             }

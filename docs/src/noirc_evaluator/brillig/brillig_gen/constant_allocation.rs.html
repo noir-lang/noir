@@ -327,7 +327,7 @@
 
     <span class="kw">fn </span>decide_allocation_points(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
         <span class="kw">for </span>(constant_id, usage_in_blocks) <span class="kw">in </span><span class="self">self</span>.constant_usage.iter() {
-            <span class="kw">let </span>block_ids: Vec&lt;<span class="kw">_</span>&gt; = usage_in_blocks.iter().map(|(block_id, <span class="kw">_</span>)| <span class="kw-2">*</span>block_id).collect();
+            <span class="kw">let </span>block_ids: Vec&lt;<span class="kw">_</span>&gt; = usage_in_blocks.keys().copied().collect();
 
             <span class="kw">let </span>allocation_point = <span class="self">self</span>.decide_allocation_point(<span class="kw-2">*</span>constant_id, <span class="kw-2">&amp;</span>block_ids, func);
 

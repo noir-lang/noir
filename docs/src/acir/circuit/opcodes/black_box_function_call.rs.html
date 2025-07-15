@@ -841,7 +841,7 @@
             <span class="prelude-val">Ok</span>(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } <span class="kw">else </span>{
             <span class="kw">let </span>value_num_bits = value.num_bits();
-            <span class="kw">let </span>value = <span class="macro">format!</span>(<span class="string">"{}"</span>, value);
+            <span class="kw">let </span>value = <span class="macro">format!</span>(<span class="string">"{value}"</span>);
             <span class="prelude-val">Err</span>(InvalidInputBitSize { value, value_num_bits, max_bits })
         }
     }

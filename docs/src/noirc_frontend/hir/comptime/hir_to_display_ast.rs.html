@@ -983,7 +983,7 @@
             Type::TypeVariable(binding) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
                 TypeBinding::Bound(typ) =&gt; <span class="kw">return </span>typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) =&gt; {
-                    <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"var_{:?}_{}"</span>, type_var_kind, id);
+                    <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"var_{type_var_kind:?}_{id}"</span>);
                     <span class="kw">let </span>path =
                         Path::from_single(name, Location::new(Span::empty(<span class="number">0</span>), FileId::dummy()));
                     <span class="kw">let </span>expression = UnresolvedTypeExpression::Variable(path);

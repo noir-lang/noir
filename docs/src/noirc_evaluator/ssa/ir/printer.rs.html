@@ -548,7 +548,7 @@
                     <span class="macro">panic!</span>(<span class="string">"Value::Global should only be in the function dfg"</span>);
                 }
                 Value::Function(id) =&gt; {
-                    <span class="macro">writeln!</span>(f, <span class="string">"{}"</span>, id)<span class="question-mark">?</span>;
+                    <span class="macro">writeln!</span>(f, <span class="string">"{id}"</span>)<span class="question-mark">?</span>;
                 }
                 <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected only numeric constant or instruction"</span>),
             };
@@ -720,7 +720,7 @@
         <span class="kw">if </span>in_global_space {
             value_list = value_list.replace(<span class="string">'v'</span>, <span class="string">"g"</span>);
         }
-        <span class="macro">write!</span>(buffer, <span class="string">"{} = "</span>, value_list).map_err(|<span class="kw">_</span>| ())<span class="question-mark">?</span>;
+        <span class="macro">write!</span>(buffer, <span class="string">"{value_list} = "</span>).map_err(|<span class="kw">_</span>| ())<span class="question-mark">?</span>;
     }
 
     display_instruction_inner(dfg, <span class="kw-2">&amp;</span>dfg[instruction], results, in_global_space, <span class="kw-2">&amp;mut </span>buffer)
@@ -767,7 +767,7 @@
             <span class="kw">else </span>{
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(());
             };
-            <span class="macro">write!</span>(buffer, <span class="string">":{}"</span>, column_number)<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(buffer, <span class="string">":{column_number}"</span>)<span class="question-mark">?</span>;
         }
     }
     <span class="prelude-val">Ok</span>(())
@@ -879,9 +879,9 @@
             {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(string) = try_byte_array_to_string(elements, dfg) {
                     <span class="kw">if </span>is_slice {
-                        <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array &amp;b{:?}"</span>, string);
+                        <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array &amp;b{string:?}"</span>);
                     } <span class="kw">else </span>{
-                        <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array b{:?}"</span>, string);
+                        <span class="kw">return </span><span class="macro">write!</span>(f, <span class="string">"make_array b{string:?}"</span>);
                     }
                 }
             }
@@ -896,7 +896,7 @@
                 <span class="kw">if </span>in_global_space {
                     value = value.replace(<span class="string">'v'</span>, <span class="string">"g"</span>);
                 }
-                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, value)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"{value}"</span>)<span class="question-mark">?</span>;
             }
 
             <span class="macro">write!</span>(f, <span class="string">"] : {typ}"</span>)

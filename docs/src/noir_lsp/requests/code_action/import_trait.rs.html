@@ -573,7 +573,7 @@
             <span class="kw">return</span>;
         };
 
-        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Import {}"</span>, full_path);
+        <span class="kw">let </span>title = <span class="macro">format!</span>(<span class="string">"Import {full_path}"</span>);
 
         <span class="kw">let </span>text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {

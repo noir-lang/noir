@@ -3321,7 +3321,7 @@
             Kind::Normal =&gt; <span class="macro">write!</span>(f, <span class="string">"normal"</span>),
             Kind::Integer =&gt; <span class="macro">write!</span>(f, <span class="string">"int"</span>),
             Kind::IntegerOrField =&gt; <span class="macro">write!</span>(f, <span class="string">"intOrField"</span>),
-            Kind::Numeric(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"numeric {}"</span>, typ),
+            Kind::Numeric(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"numeric {typ}"</span>),
         }
     }
 }
@@ -4062,7 +4062,7 @@
                         Kind::Numeric(_typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"_"</span>),
                     },
                     TypeBinding::Bound(binding) =&gt; {
-                        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, binding)
+                        <span class="macro">write!</span>(f, <span class="string">"{binding}"</span>)
                     }
                 }
             }
@@ -4083,7 +4083,7 @@
                 }
             }
             Type::TraitAsType(_id, name, generics) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"impl {}{}"</span>, name, generics)
+                <span class="macro">write!</span>(f, <span class="string">"impl {name}{generics}"</span>)
             }
             Type::Tuple(elements) =&gt; {
                 <span class="kw">let </span>elements = vecmap(elements, ToString::to_string);
@@ -4131,7 +4131,7 @@
             Type::Reference(element, <span class="kw">_</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"&amp;{element}"</span>)
             }
-            Type::Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, quoted),
+            Type::Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{quoted}"</span>),
             Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>this = <span class="self">self</span>.canonicalize_checked();
 
@@ -5807,17 +5807,17 @@
                 <span class="kw">let </span>binding = <span class="kw-2">&amp;</span>var.<span class="number">1</span>;
                 <span class="kw">if let </span>TypeBinding::Unbound(<span class="kw">_</span>, type_var_kind) = <span class="kw-2">&amp;*</span>binding.borrow() {
                     <span class="kw">match </span>type_var_kind {
-                        Kind::Any | Kind::Normal =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, var),
-                        Kind::IntegerOrField =&gt; <span class="macro">write!</span>(f, <span class="string">"IntOrField{:?}"</span>, binding),
-                        Kind::Integer =&gt; <span class="macro">write!</span>(f, <span class="string">"Int{:?}"</span>, binding),
-                        Kind::Numeric(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"Numeric({:?}: {:?})"</span>, binding, typ),
+                        Kind::Any | Kind::Normal =&gt; <span class="macro">write!</span>(f, <span class="string">"{var:?}"</span>),
+                        Kind::IntegerOrField =&gt; <span class="macro">write!</span>(f, <span class="string">"IntOrField{binding:?}"</span>),
+                        Kind::Integer =&gt; <span class="macro">write!</span>(f, <span class="string">"Int{binding:?}"</span>),
+                        Kind::Numeric(typ) =&gt; <span class="macro">write!</span>(f, <span class="string">"Numeric({binding:?}: {typ:?})"</span>),
                     }
                 } <span class="kw">else </span>{
                     <span class="macro">write!</span>(f, <span class="string">"{}"</span>, binding.borrow())
                 }
             }
             Type::DataType(s, args) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, arg));
+                <span class="kw">let </span>args = vecmap(args, |arg| <span class="macro">format!</span>(<span class="string">"{arg:?}"</span>));
                 <span class="kw">if </span>args.is_empty() {
                     <span class="macro">write!</span>(f, <span class="string">"{}"</span>, s.borrow())
                 } <span class="kw">else </span>{
@@ -5825,16 +5825,16 @@
                 }
             }
             Type::Alias(alias, args) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, arg));
+                <span class="kw">let </span>args = vecmap(args, |arg| <span class="macro">format!</span>(<span class="string">"{arg:?}"</span>));
                 <span class="kw">if </span>args.is_empty() {
                     <span class="macro">write!</span>(f, <span class="string">"{}"</span>, alias.borrow())
                 } <span class="kw">else </span>{
                     <span class="macro">write!</span>(f, <span class="string">"{}&lt;{}&gt;"</span>, alias.borrow(), args.join(<span class="string">", "</span>))
                 }
             }
-            Type::TraitAsType(_id, name, generics) =&gt; <span class="macro">write!</span>(f, <span class="string">"impl {}{:?}"</span>, name, generics),
+            Type::TraitAsType(_id, name, generics) =&gt; <span class="macro">write!</span>(f, <span class="string">"impl {name}{generics:?}"</span>),
             Type::Tuple(elements) =&gt; {
-                <span class="kw">let </span>elements = vecmap(elements, |arg| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, arg));
+                <span class="kw">let </span>elements = vecmap(elements, |arg| <span class="macro">format!</span>(<span class="string">"{arg:?}"</span>));
                 <span class="kw">if </span>elements.len() == <span class="number">1 </span>{
                     <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, elements[<span class="number">0</span>])
                 } <span class="kw">else </span>{
@@ -5848,18 +5848,18 @@
             }
             Type::Unit =&gt; <span class="macro">write!</span>(f, <span class="string">"()"</span>),
             Type::Error =&gt; <span class="macro">write!</span>(f, <span class="string">"error"</span>),
-            Type::CheckedCast { to, .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}"</span>, to),
+            Type::CheckedCast { to, .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"{to:?}"</span>),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; <span class="kw">match </span>type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField =&gt; {
-                    <span class="macro">write!</span>(f, <span class="string">"{}{:?}"</span>, name, type_var)
+                    <span class="macro">write!</span>(f, <span class="string">"{name}{type_var:?}"</span>)
                 }
                 Kind::Numeric(typ) =&gt; {
-                    <span class="macro">write!</span>(f, <span class="string">"({} : {}){:?}"</span>, name, typ, type_var)
+                    <span class="macro">write!</span>(f, <span class="string">"({name} : {typ}){type_var:?}"</span>)
                 }
             },
-            Type::Constant(x, kind) =&gt; <span class="macro">write!</span>(f, <span class="string">"({}: {})"</span>, x, kind),
+            Type::Constant(x, kind) =&gt; <span class="macro">write!</span>(f, <span class="string">"({x}: {kind})"</span>),
             Type::Forall(typevars, typ) =&gt; {
-                <span class="kw">let </span>typevars = vecmap(typevars, |var| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, var));
+                <span class="kw">let </span>typevars = vecmap(typevars, |var| <span class="macro">format!</span>(<span class="string">"{var:?}"</span>));
                 <span class="macro">write!</span>(f, <span class="string">"forall {}. {:?}"</span>, typevars.join(<span class="string">" "</span>), typ)
             }
             Type::Function(args, ret, env, unconstrained) =&gt; {
@@ -5872,7 +5872,7 @@
                     <span class="kw">_ </span>=&gt; <span class="macro">format!</span>(<span class="string">" with env {env:?}"</span>),
                 };
 
-                <span class="kw">let </span>args = vecmap(args.iter(), |arg| <span class="macro">format!</span>(<span class="string">"{:?}"</span>, arg));
+                <span class="kw">let </span>args = vecmap(args.iter(), |arg| <span class="macro">format!</span>(<span class="string">"{arg:?}"</span>));
 
                 <span class="macro">write!</span>(f, <span class="string">"fn({}) -&gt; {ret:?}{closure_env_text}"</span>, args.join(<span class="string">", "</span>))
             }
@@ -5882,7 +5882,7 @@
             Type::Reference(element, <span class="bool-val">true</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"&amp;mut {element:?}"</span>)
             }
-            Type::Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, quoted),
+            Type::Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{quoted}"</span>),
             Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; <span class="macro">write!</span>(f, <span class="string">"({lhs:?} {op} {rhs:?})"</span>),
         }
     }

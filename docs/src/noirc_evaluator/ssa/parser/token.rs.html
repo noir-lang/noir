@@ -397,12 +397,12 @@
 <span class="kw">impl </span>Display <span class="kw">for </span>Token {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            Token::Ident(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, ident),
-            Token::Int(int) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, int),
+            Token::Ident(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{ident}"</span>),
+            Token::Int(int) =&gt; <span class="macro">write!</span>(f, <span class="string">"{int}"</span>),
             Token::Str(string) =&gt; <span class="macro">write!</span>(f, <span class="string">"{string:?}"</span>),
             Token::ByteStr(string) =&gt; <span class="macro">write!</span>(f, <span class="string">"{string:?}"</span>),
-            Token::Keyword(keyword) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, keyword),
-            Token::IntType(int_type) =&gt; <span class="macro">write!</span>(f, <span class="string">"{}"</span>, int_type),
+            Token::Keyword(keyword) =&gt; <span class="macro">write!</span>(f, <span class="string">"{keyword}"</span>),
+            Token::IntType(int_type) =&gt; <span class="macro">write!</span>(f, <span class="string">"{int_type}"</span>),
             Token::Assign =&gt; <span class="macro">write!</span>(f, <span class="string">"="</span>),
             Token::LeftParen =&gt; <span class="macro">write!</span>(f, <span class="string">"("</span>),
             Token::RightParen =&gt; <span class="macro">write!</span>(f, <span class="string">")"</span>),
@@ -425,7 +425,7 @@
 
 <span class="kw">impl </span>std::fmt::Debug <span class="kw">for </span>Token {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>)
+        <span class="macro">write!</span>(f, <span class="string">"{self}"</span>)
     }
 }
 

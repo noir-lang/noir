@@ -2974,7 +2974,7 @@
             <span class="string">'(' </span>=&gt; <span class="string">')'</span>,
             <span class="string">'{' </span>=&gt; <span class="string">'}'</span>,
             <span class="string">'[' </span>=&gt; <span class="string">']'</span>,
-            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected delimiter: {}"</span>, delimiter_start),
+            <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Unexpected delimiter: {delimiter_start}"</span>),
         };
 
         <span class="comment">// We use the current token rather than the Tokens we got from `Token::Quote` because

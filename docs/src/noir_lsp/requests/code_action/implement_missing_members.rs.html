@@ -594,9 +594,9 @@
 
         <span class="kw">for </span>(name, generic) <span class="kw">in </span>associated_types {
             <span class="kw">if let </span>Kind::Numeric(typ) = generic.kind() {
-                stubs.push(<span class="macro">format!</span>(<span class="string">"{}let {}: {};\n"</span>, indent_string, name, typ));
+                stubs.push(<span class="macro">format!</span>(<span class="string">"{indent_string}let {name}: {typ};\n"</span>));
             } <span class="kw">else </span>{
-                stubs.push(<span class="macro">format!</span>(<span class="string">"{}type {};\n"</span>, indent_string, name));
+                stubs.push(<span class="macro">format!</span>(<span class="string">"{indent_string}type {name};\n"</span>));
             }
         }
 
@@ -615,7 +615,7 @@
                 <span class="self">self</span>.module_id,
                 indent + <span class="number">4</span>,
             );
-            generator.set_body(<span class="macro">format!</span>(<span class="string">"panic(f\"Implement {}\")"</span>, name));
+            generator.set_body(<span class="macro">format!</span>(<span class="string">"panic(f\"Implement {name}\")"</span>));
 
             <span class="kw">let </span>stub = generator.generate();
             stubs.push(stub);

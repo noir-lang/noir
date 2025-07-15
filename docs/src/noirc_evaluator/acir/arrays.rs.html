@@ -1672,7 +1672,7 @@
             }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(InternalError::Unexpected {
                 expected: <span class="string">"AcirValue::DynamicArray or AcirValue::Array"</span>.to_owned(),
-                found: <span class="macro">format!</span>(<span class="string">"{:?}"</span>, array_acir_value),
+                found: <span class="macro">format!</span>(<span class="string">"{array_acir_value:?}"</span>),
                 call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
             }
             .into()),

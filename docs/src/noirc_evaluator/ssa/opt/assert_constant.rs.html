@@ -474,7 +474,7 @@
                 <span class="macro">panic!</span>(<span class="string">"ICE: missing foreign call inputs"</span>)
             }
             TryFromParamsError::ParsingError(error) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"ICE: could not decode printable type {:?}"</span>, error)
+                <span class="macro">panic!</span>(<span class="string">"ICE: could not decode printable type {error:?}"</span>)
             }
         },
     };

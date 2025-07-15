@@ -432,7 +432,7 @@
             Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
                 <span class="kw">match </span>databus {
                     BlockType::Memory =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT "</span>)<span class="question-mark">?</span>,
-                    BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {} "</span>, id)<span class="question-mark">?</span>,
+                    BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {id} "</span>)<span class="question-mark">?</span>,
                     BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>, <span class="comment">// cSpell:disable-line
                 </span>}
                 <span class="kw">let </span>witnesses =
@@ -442,20 +442,20 @@
             <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func {}: "</span>, id)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func {id}: "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
                     <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE = {pred}"</span>)<span class="question-mark">?</span>;
                 }
-                <span class="macro">write!</span>(f, <span class="string">"inputs: {:?}, "</span>, inputs)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: {:?}"</span>, outputs)
+                <span class="macro">write!</span>(f, <span class="string">"inputs: {inputs:?}, "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"outputs: {outputs:?}"</span>)
             }
             Opcode::Call { id, inputs, outputs, predicate } =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"CALL func {}: "</span>, id)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"CALL func {id}: "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
                     <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE = {pred}"</span>)<span class="question-mark">?</span>;
                 }
-                <span class="macro">write!</span>(f, <span class="string">"inputs: {:?}, "</span>, inputs)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: {:?}"</span>, outputs)
+                <span class="macro">write!</span>(f, <span class="string">"inputs: {inputs:?}, "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"outputs: {outputs:?}"</span>)
             }
         }
     }

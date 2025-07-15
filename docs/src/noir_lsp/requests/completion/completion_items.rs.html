@@ -1041,8 +1041,8 @@
             <span class="bool-val">false
         </span>};
         <span class="kw">let </span>description = func_meta_type_to_string(func_meta, name, func_self_type.is_some());
-        <span class="kw">let </span>name = <span class="kw">if </span>self_prefix { <span class="macro">format!</span>(<span class="string">"self.{}"</span>, name) } <span class="kw">else </span>{ name.clone() };
-        <span class="kw">let </span>name = <span class="kw">if </span>is_macro_call { <span class="macro">format!</span>(<span class="string">"{}!"</span>, name) } <span class="kw">else </span>{ name };
+        <span class="kw">let </span>name = <span class="kw">if </span>self_prefix { <span class="macro">format!</span>(<span class="string">"self.{name}"</span>) } <span class="kw">else </span>{ name.clone() };
+        <span class="kw">let </span>name = <span class="kw">if </span>is_macro_call { <span class="macro">format!</span>(<span class="string">"{name}!"</span>) } <span class="kw">else </span>{ name };
         <span class="kw">let </span>name = <span class="kw-2">&amp;</span>name;
         <span class="kw">let </span><span class="kw-2">mut </span>has_arguments = <span class="bool-val">false</span>;
 
@@ -1064,12 +1064,12 @@
 
                 <span class="kw">if </span>insert_text.ends_with(<span class="string">"()"</span>) {
                     <span class="kw">let </span>label =
-                        <span class="kw">if </span>skip_first_argument { name.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{}()"</span>, name) };
+                        <span class="kw">if </span>skip_first_argument { name.to_string() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{name}()"</span>) };
                     simple_completion_item(label, kind, <span class="prelude-val">Some</span>(description.clone()))
                 } <span class="kw">else </span>{
                     has_arguments = <span class="bool-val">true</span>;
                     snippet_completion_item(
-                        <span class="macro">format!</span>(<span class="string">"{}(…)"</span>, name),
+                        <span class="macro">format!</span>(<span class="string">"{name}(…)"</span>),
                         kind,
                         insert_text,
                         <span class="prelude-val">Some</span>(description.clone()),
@@ -1155,9 +1155,9 @@
                 <span class="self">self</span>.interner,
             )<span class="question-mark">?
         </span>};
-        <span class="kw">let </span>full_path = <span class="macro">format!</span>(<span class="string">"{}::{}"</span>, module_full_path, trait_name);
+        <span class="kw">let </span>full_path = <span class="macro">format!</span>(<span class="string">"{module_full_path}::{trait_name}"</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>label_details = completion_item.label_details.clone().unwrap();
-        label_details.detail = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"(use {})"</span>, full_path));
+        label_details.detail = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"(use {full_path})"</span>));
         completion_item.label_details = <span class="prelude-val">Some</span>(label_details);
         completion_item.additional_text_edits = <span class="prelude-val">Some</span>(use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {

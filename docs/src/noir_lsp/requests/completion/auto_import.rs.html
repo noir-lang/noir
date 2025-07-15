@@ -207,7 +207,7 @@
                     };
 
                     <span class="kw">let </span><span class="kw-2">mut </span>label_details = completion_item.label_details.unwrap();
-                    label_details.detail = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"(use {})"</span>, full_path));
+                    label_details.detail = <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"(use {full_path})"</span>));
                     completion_item.label_details = <span class="prelude-val">Some</span>(label_details);
                     completion_item.additional_text_edits =
                         <span class="prelude-val">Some</span>(use_completion_item_additional_text_edits(
