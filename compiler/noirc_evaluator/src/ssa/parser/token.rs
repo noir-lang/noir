@@ -79,12 +79,12 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Ident(ident) => write!(f, "{}", ident),
-            Token::Int(int) => write!(f, "{}", int),
+            Token::Ident(ident) => write!(f, "{ident}"),
+            Token::Int(int) => write!(f, "{int}"),
             Token::Str(string) => write!(f, "{string:?}"),
             Token::ByteStr(string) => write!(f, "{string:?}"),
-            Token::Keyword(keyword) => write!(f, "{}", keyword),
-            Token::IntType(int_type) => write!(f, "{}", int_type),
+            Token::Keyword(keyword) => write!(f, "{keyword}"),
+            Token::IntType(int_type) => write!(f, "{int_type}"),
             Token::Assign => write!(f, "="),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
@@ -107,7 +107,7 @@ impl Display for Token {
 
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 

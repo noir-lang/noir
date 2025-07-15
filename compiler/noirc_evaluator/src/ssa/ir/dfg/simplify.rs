@@ -207,9 +207,21 @@ pub(crate) fn simplify(
         Instruction::Store { .. } => None,
         Instruction::IncrementRc { .. } => None,
         Instruction::DecrementRc { .. } => None,
-        Instruction::RangeCheck { value, max_bit_size, .. } => {
+        Instruction::RangeCheck { value, max_bit_size, assert_message } => {
             let max_potential_bits = dfg.get_value_max_num_bits(*value);
-            if max_potential_bits <= *max_bit_size { Remove } else { None }
+            if max_potential_bits <= *max_bit_size {
+                Remove
+            } else if *max_bit_size == 0 {
+                let typ = dfg.type_of_value(*value).unwrap_numeric();
+                let zero = dfg.make_constant(FieldElement::zero(), typ);
+                SimplifiedToInstruction(Instruction::Constrain(
+                    *value,
+                    zero,
+                    assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                ))
+            } else {
+                None
+            }
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = *then_condition;

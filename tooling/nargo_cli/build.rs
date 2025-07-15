@@ -512,7 +512,10 @@ fn generate_fuzzing_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             r#"
-                nargo.assert().failure().stderr(predicate::str::contains("Failing input"));
+                nargo.assert().failure().stderr(
+                    predicate::str::contains("Failing input").and(
+                    predicate::str::contains("got a different failing assertion").not())
+                );
             "#,
             240,
         );

@@ -42,7 +42,7 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
 /// Searches for all instances of `search_string` in file `file_name` and returns a list of their locations.
 pub(crate) fn search_in_file(filename: &str, search_string: &str) -> Vec<Range> {
     let file_contents = std::fs::read_to_string(filename)
-        .unwrap_or_else(|_| panic!("Couldn't read file {}", filename));
+        .unwrap_or_else(|_| panic!("Couldn't read file {filename}"));
     let file_lines: Vec<&str> = file_contents.lines().collect();
     file_lines
         .iter()
