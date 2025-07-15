@@ -5,15 +5,11 @@ expression: expanded_code
 global G_A: [Field] = &[];
 
 fn main(a: u32) -> pub Field {
-    {
-        let internal___variable: u32 = a;
-        match internal___variable {
-            10 => G_A[1_u32 % G_A.len()],
-            20 => a as Field,
-            _ => {
-                let _: u32 = internal___variable;
-                -1_Field
-            },
-        }
+    if a == 10_u32 {
+        G_A[1_u32 % G_A.len()]
+    } else if a == 20_u32 {
+        a as Field
+    } else {
+        -1_Field
     }
 }
