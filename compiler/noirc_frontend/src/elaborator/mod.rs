@@ -672,7 +672,7 @@ impl<'context> Elaborator<'context> {
     /// If a numeric generic has been specified, resolve the annotated type to make
     /// sure only primitive numeric types are being used.
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
-        if let UnresolvedGeneric::Numeric { ident: _, typ } = generic {
+        if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
@@ -685,8 +685,11 @@ impl<'context> Elaborator<'context> {
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
+                        name: ident.ident().map(|name| name.to_string()),
+                        typ: typ.to_string(),
                         location: unresolved_typ.location,
                     });
+
                 self.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)

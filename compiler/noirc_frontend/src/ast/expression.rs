@@ -99,8 +99,12 @@ impl IdentOrQuotedType {
 }
 
 #[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error("The only supported types of numeric generics are integers, fields, and booleans")]
+#[error(
+    "`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+)]
 pub struct UnsupportedNumericGenericType {
+    pub name: Option<String>,
+    pub typ: String,
     pub location: Location,
 }
 
@@ -147,7 +151,9 @@ impl UnresolvedGeneric {
         }
 
         // Only fields and integers are supported for numeric kinds
-        Err(UnsupportedNumericGenericType { location: typ.location })
+        let name = self.ident().ident().map(|name| name.to_string());
+        let type_string = typ.typ.to_string();
+        Err(UnsupportedNumericGenericType { name, typ: type_string, location: typ.location })
     }
 
     pub fn ident(&self) -> &IdentOrQuotedType {
