@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SimplifyResult"],"fn":["simplify","try_optimize_array_get_from_previous_set","try_optimize_array_set_from_previous_get"],"mod":["binary","call","cast","constrain"]};
+window.SIDEBAR_ITEMS = {"enum":["SimplifyResult"],"fn":["optimize_length_one_array_read","simplify","try_optimize_array_get_from_previous_set","try_optimize_array_set_from_previous_get"],"mod":["binary","call","cast","constrain"]};
