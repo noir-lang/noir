@@ -837,17 +837,22 @@ impl Context<'_> {
             size == 0
         } else {
             match &dfg[array] {
-                Value::NumericConstant { constant, .. } => constant.is_zero(),
                 Value::Instruction { .. } | Value::Param { .. } => {
                     let array_acir_value = self.convert_value(array, dfg);
                     match array_acir_value {
                         AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => len == 0,
-                        AcirValue::Var(_, _) => false,
                         AcirValue::Array(values) => values.is_empty(),
+                        AcirValue::Var(_, _) => {
+                            unreachable!(
+                                "ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                            )
+                        }
                     }
                 }
-                _ => {
-                    unreachable!("ICE: Unexpected SSA value when computing the slice size");
+                other => {
+                    unreachable!(
+                        "ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                    );
                 }
             }
         }
