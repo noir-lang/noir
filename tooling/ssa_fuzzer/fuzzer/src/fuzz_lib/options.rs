@@ -102,7 +102,7 @@ impl Default for FuzzerCommandOptions {
             jmp_if_enabled: true,
             jmp_block_enabled: true,
             switch_to_next_block_enabled: true,
-            loops_enabled: false,
+            loops_enabled: true,
         }
     }
 }
