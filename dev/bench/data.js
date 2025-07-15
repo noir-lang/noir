@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752571674703,
+  "lastUpdate": 1752571678706,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18851,48 +18851,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0098c45d5997ea70df22c98efec83c60ab578869",
-          "message": "fix(ssa): Do not fail for static assertions in a map over empty dynamic slices (#9060)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-02T16:20:32Z",
-          "tree_id": "a660a3ff2b476c7df9ba2d33b8091473618ff33d",
-          "url": "https://github.com/noir-lang/noir/commit/0098c45d5997ea70df22c98efec83c60ab578869"
-        },
-        "date": 1751474737052,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250400,
-            "range": "± 671",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220221,
-            "range": "± 3508",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785563,
-            "range": "± 13725",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20944,6 +20902,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2874030,
             "range": "± 18144",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6b2efe05967610d2bc7547046019d24c12831439",
+          "message": "feat: optimize \"out of bounds\" checks on arrays with lengths which are powers of two (#9182)",
+          "timestamp": "2025-07-15T10:25:09+01:00",
+          "tree_id": "5583cb639f6202f7397eed1642835469fcb70b54",
+          "url": "https://github.com/noir-lang/noir/commit/6b2efe05967610d2bc7547046019d24c12831439"
+        },
+        "date": 1752571663450,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262532,
+            "range": "± 1338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234282,
+            "range": "± 4080",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786515,
+            "range": "± 6169",
             "unit": "ns/iter"
           }
         ]
