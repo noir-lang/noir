@@ -88,7 +88,7 @@ impl FuzzTask {
     }
 
     /// Create a task for executing a testcase without mutation
-    pub(crate) fn mutationless(main_testcase_id: TestCaseId) -> Self {
+    pub(crate) fn without_mutation(main_testcase_id: TestCaseId) -> Self {
         Self {
             main_testcase_id,
             additional_testcase_id: None,
@@ -488,7 +488,7 @@ impl<
         // Generate a seed for the campaign
         let seed = thread_rng().r#gen::<u64>();
 
-        // Init a fast PRNG used throughout the campain
+        // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);
 
         // Initialize the starting corpus
@@ -643,7 +643,7 @@ impl<
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
                 for id in starting_corpus_ids.iter() {
-                    testcase_set.push(FuzzTask::mutationless(*id));
+                    testcase_set.push(FuzzTask::without_mutation(*id));
                 }
             }
             let mutation_and_fuzzing_time_tracker = Instant::now();

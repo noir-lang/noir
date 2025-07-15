@@ -55,7 +55,7 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                // `&` can be represented with Ampersando or SliceStart in the lexer depending
+                // `&` can be represented with Ampersand or SliceStart in the lexer depending
                 // on whether it's right next to a `[` or not.
                 match &self.token {
                     Token::Ampersand => {

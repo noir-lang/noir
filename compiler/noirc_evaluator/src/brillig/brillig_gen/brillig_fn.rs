@@ -97,6 +97,7 @@ impl FunctionContext {
     /// Collects the return values of a given function
     pub(crate) fn return_values(func: &Function) -> Vec<BrilligParameter> {
         func.returns()
+            .unwrap_or_default()
             .iter()
             .map(|&value_id| {
                 let typ = func.dfg.type_of_value(value_id);

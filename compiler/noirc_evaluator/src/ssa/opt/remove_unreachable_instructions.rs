@@ -4,7 +4,7 @@
 //! then removes those subsequent instructions and replaces the block's terminator
 //! with a special `unreachable` value.
 //!
-//! This pass might also add constrain checks after existing instuctions,
+//! This pass might also add constrain checks after existing instructions,
 //! for example binary operations that are guaranteed to overflow.
 use acvm::AcirField;
 
@@ -508,7 +508,7 @@ mod test {
 
     #[test]
     fn does_not_removes_instructions_from_non_dominated_block_2() {
-        // Here b3 is a successof of b2 but is not dominated by it.
+        // Here b3 is a successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -585,7 +585,7 @@ mod test {
     #[test]
     fn does_not_removes_instructions_from_non_dominated_block_4() {
         // Here b5 is a transitive successor of b2, but is not dominated by it
-        // (it's a transitive successof of b1)
+        // (it's a transitive successor of b1)
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -629,7 +629,7 @@ mod test {
 
     #[test]
     fn removes_block_that_is_unreachable_when_all_of_its_predecessors_are_unreachable() {
-        // Here b4 won't be conisdered unreachable when we find that b2 or b3 are unreachable,
+        // Here b4 won't be considered unreachable when we find that b2 or b3 are unreachable,
         // because neither dominate it, but it will still not show up in the final SSA
         // because no block will be able to reach it.
         let src = r#"

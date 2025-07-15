@@ -305,7 +305,7 @@ pub struct If {
 
 #[derive(Debug, Clone, Hash)]
 pub struct Match {
-    pub variable_to_match: LocalId,
+    pub variable_to_match: (LocalId, String),
     pub cases: Vec<MatchCase>,
     pub default_case: Option<Box<Expression>>,
     pub typ: Type,
@@ -314,7 +314,7 @@ pub struct Match {
 #[derive(Debug, Clone, Hash)]
 pub struct MatchCase {
     pub constructor: Constructor,
-    pub arguments: Vec<LocalId>,
+    pub arguments: Vec<(LocalId, String)>,
     pub branch: Expression,
 }
 

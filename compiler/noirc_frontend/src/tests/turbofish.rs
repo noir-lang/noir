@@ -24,11 +24,8 @@ fn turbofish_numeric_generic_nested_function_call() {
     assert_no_errors!(src);
 }
 
-// TODO: this test should pass, but it doesn't because of this issue:
-// https://github.com/noir-lang/noir/issues/8900
 #[named]
 #[test]
-#[should_panic]
 fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
     let src = r#"
@@ -367,6 +364,37 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     fn main() {
         let _: i32 = Foo::<bool>::foo(1);
                                       ^ Expected type bool, found type Field
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn turbofish_named_numeric() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    impl Bar for Field {
+        let N: u32 = 1;
+    }
+
+    impl Bar for i32 {
+        let N: u32 = 2;
+    }
+
+    fn foo<B>()
+    where
+        B: Bar<N = 1>,
+    {}
+
+    fn main() {
+        foo::<Field>();
+        foo::<i32>();
+        ^^^^^^^^^^ No matching impl found for `i32: Bar<N = 1>`
+        ~~~~~~~~~~ No impl for `i32: Bar<N = 1>`
     }
     "#;
     check_errors!(src);

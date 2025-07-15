@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use fm::{FileId, FileManager};
+use iter_extended::vecmap;
 use nargo::constants::PROVER_INPUT_FILE;
 use nargo::ops::report_errors;
 use nargo::package::Package;
@@ -15,7 +16,7 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
-use noirc_evaluator::ssa::interpreter::value::Value;
+use noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
@@ -120,7 +121,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let ssa_return = ssa_return.map(|ssa_return| {
             let main_function = &ssa.functions[&ssa.main_id];
             if main_function.has_data_bus_return_data() {
-                let values = flatten_values(ssa_return);
+                let values = flatten_databus_values(ssa_return);
                 vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
             } else {
                 ssa_return
@@ -249,12 +250,22 @@ fn interpret_ssa(
         // We need to give a fresh copy of arrays each time, because the shared structures are modified.
         let args = Value::snapshot_args(args);
         let result = ssa.interpret_with_options(args, options, std::io::stdout());
-        println!("--- Interpreter result after {msg}:\n{result:?}\n---");
+        match &result {
+            Ok(value) => {
+                let value_as_string = vecmap(value, ToString::to_string).join(", ");
+                println!("--- Interpreter result after {msg}:\nOk({value_as_string})\n---");
+            }
+            Err(err) => {
+                println!("--- Interpreter result after {msg}:\nErr({err})\n---");
+            }
+        }
         if let Some(return_value) = return_value {
             let result = result.expect("Expected a non-error result");
             if &result != return_value {
+                let result_as_string = vecmap(&result, ToString::to_string).join(", ");
+                let return_value_as_string = vecmap(return_value, ToString::to_string).join(", ");
                 let error = format!(
-                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value:?}\nActual result:   {result:?}"
+                    "Error: interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result:   {result_as_string}"
                 );
                 return Err(CliError::Generic(error));
             }
@@ -278,23 +289,25 @@ fn print_and_interpret_ssa(
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
 
-fn flatten_values(values: Vec<Value>) -> Vec<Value> {
+fn flatten_databus_values(values: Vec<Value>) -> Vec<Value> {
     let mut flattened_values = Vec::new();
     for value in values {
-        flatten_value(value, &mut flattened_values);
+        flatten_databus_value(value, &mut flattened_values);
     }
     flattened_values
 }
 
-fn flatten_value(value: Value, flattened_values: &mut Vec<Value>) {
+fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
     match value {
         Value::ArrayOrSlice(array_value) => {
             for value in array_value.elements.borrow().iter() {
-                flatten_value(value.clone(), flattened_values);
+                flatten_databus_value(value.clone(), flattened_values);
             }
         }
-        Value::Numeric(..)
-        | Value::Reference(..)
+        Value::Numeric(value) => {
+            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
+        }
+        Value::Reference(..)
         | Value::Function(..)
         | Value::Intrinsic(..)
         | Value::ForeignFunction(..) => flattened_values.push(value),

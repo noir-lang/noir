@@ -31,11 +31,7 @@ where
     BigNum: BigNumTrait,
     CurveParams: CurveParamsTrait<BigNum>,
 {
-    fn two()
-    where
-        BigNum: BigNumTrait,
-        CurveParams: CurveParamsTrait<BigNum>,
-    {
+    fn two() {
         let _: () = CurveParams::one();
     }
 }

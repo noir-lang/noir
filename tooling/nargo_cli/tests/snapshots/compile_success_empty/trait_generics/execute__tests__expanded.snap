@@ -26,10 +26,7 @@ impl<let N: u32, T, U> MyInto<[U; N]> for [T; N]
 where
     T: MyInto<U>,
 {
-    fn into(self) -> [U; N]
-    where
-        T: MyInto<U>,
-    {
+    fn into(self) -> [U; N] {
         self.map(|x: T| -> U x.into())
     }
 }
