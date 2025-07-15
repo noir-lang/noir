@@ -184,14 +184,14 @@ impl Formatter for PrettyFormatter {
 
         if !failed_tests.is_empty() {
             writeln!(writer)?;
-            writeln!(writer, "[{}] Failures:", package_name)?;
+            writeln!(writer, "[{package_name}] Failures:")?;
             for failed_test in failed_tests {
-                writeln!(writer, "     {}", failed_test)?;
+                writeln!(writer, "     {failed_test}")?;
             }
             writeln!(writer)?;
         }
 
-        write!(writer, "[{}] ", package_name)?;
+        write!(writer, "[{package_name}] ")?;
 
         let count_all = test_results.len();
         let count_failed =
@@ -284,7 +284,7 @@ impl Formatter for TerseFormatter {
         const MAX_TESTS_PER_LINE: usize = 88;
 
         if current_test_count % MAX_TESTS_PER_LINE == 0 && current_test_count < total_test_count {
-            writeln!(writer, " {}/{}", current_test_count, total_test_count)?;
+            writeln!(writer, " {current_test_count}/{total_test_count}")?;
         }
 
         Ok(())
@@ -350,14 +350,14 @@ impl Formatter for TerseFormatter {
 
         if !failed_tests.is_empty() {
             writeln!(writer)?;
-            writeln!(writer, "[{}] Failures:", package_name)?;
+            writeln!(writer, "[{package_name}] Failures:")?;
             for failed_test in failed_tests {
-                writeln!(writer, "     {}", failed_test)?;
+                writeln!(writer, "     {failed_test}")?;
             }
             writeln!(writer)?;
         }
 
-        write!(writer, "[{}] ", package_name)?;
+        write!(writer, "[{package_name}] ")?;
 
         let count_all = test_results.len();
         let count_failed =
