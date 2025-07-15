@@ -249,7 +249,7 @@ mod hover_tests {
             "workspace",
             "two/src/lib.nr",
             Position { line: 51, character: 8 },
-            &format!("    let x: BoundedVec<SubOneStruct, 3>\n\nGo to [SubOneStruct](file://{}#L4,12-4,24)", workspace_on_src_lib_path),
+            &format!("    let x: BoundedVec<SubOneStruct, 3>\n\nGo to [SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"),
         )
         .await;
     }

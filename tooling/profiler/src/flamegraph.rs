@@ -112,7 +112,7 @@ impl FlamegraphGenerator for InfernoFlamegraphGenerator {
         let mut options = Options::default();
         options.hash = true;
         options.deterministic = true;
-        options.title = format!("Artifact: {}, Function: {}", artifact_name, function_name);
+        options.title = format!("Artifact: {artifact_name}, Function: {function_name}");
         options.frame_height = 24;
         options.color_diffusion = true;
         options.min_width = 0.0;
@@ -245,7 +245,7 @@ fn location_to_callsite_label<'files>(
 
     let (line, column) = line_and_column_from_span(source.as_ref(), &location.span);
 
-    format!("{}:{}:{}::{}", filename, line, column, code_slice)
+    format!("{filename}:{line}:{column}::{code_slice}")
 }
 
 fn add_locations_to_folded_stack_items(

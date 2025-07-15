@@ -79,6 +79,7 @@ unused_must_use = "warn"
 [workspace.lints.clippy]
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
+uninlined_format_args = "warn"
 
 [workspace.dependencies]
 
