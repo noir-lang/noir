@@ -4607,9 +4607,8 @@ fn resolves_generic_type_argument_via_self() {
         fn two() {}
     }
 
-    fn main() -> pub Field {
-        let max_field: Field = 21888242871839275222246405745257275088548364400416034343698204186575808495619;
-        max_field
+    fn main() {
+        Foo::<i32>::one();
     }
     ";
     check_monomorphization_error!(src);
