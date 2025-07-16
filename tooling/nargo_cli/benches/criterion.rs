@@ -3,6 +3,7 @@ use acvm::{FieldElement, acir::native_types::WitnessMap};
 use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
 use criterion::{Criterion, criterion_group, criterion_main};
 
+use m31_blackbox_solver::M31BlackBoxSolver;
 use noir_artifact_cli::fs::{artifact::read_program_from_file, inputs::read_inputs_from_file};
 use noirc_driver::CompiledProgram;
 use pprof::criterion::{Output, PProfProfiler};
@@ -103,7 +104,7 @@ fn criterion_test_execution(c: &mut Criterion, test_program_dir: &Path, force_br
                 let artifacts = artifacts.as_ref().expect("setup compiled them");
 
                 for (program, initial_witness) in artifacts {
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver::default();
+                    let solver = m31_blackbox_solver::M31BlackBoxSolver::default();
                     let _witness_stack = black_box(nargo::ops::execute_program(
                         black_box(&program.program),
                         black_box(initial_witness.clone()),

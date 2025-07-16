@@ -1,7 +1,7 @@
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
 use nargo::{
@@ -166,13 +166,13 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
         .into_iter()
         .map(|package| {
-            run_fuzzers::<Bn254BlackBoxSolver>(
+            run_fuzzers::<M31BlackBoxSolver>(
                 &file_manager,
                 &parsed_files,
                 package,
                 &pattern,
                 args.show_output,
-                args.oracle_resolver.as_deref(),
+                        args.oracle_resolver.as_deref(),
                 Some(workspace.root_dir.clone()),
                 package.name.to_string(),
                 &args.compile_options,

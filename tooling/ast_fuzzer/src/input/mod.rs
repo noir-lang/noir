@@ -1,6 +1,7 @@
 use acvm::{AcirField, FieldElement};
-
+use num_bigint::BigInt;
 use arbitrary::Unstructured;
+
 use dictionary::build_dictionary_from_ssa;
 use noir_greybox_fuzzer::build_dictionary_from_program;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
@@ -59,7 +60,7 @@ fn arb_value_tree(
 /// Given the [Abi] description of a Noir program, generate random [InputValue]s for each circuit parameter.
 ///
 /// Use the `dictionary` to draw values from for numeric types.
-fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<FieldElement>) -> BoxedStrategy<InputMap> {
+fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<BigInt>) -> BoxedStrategy<InputMap> {
     let values: Vec<_> = abi
         .parameters
         .iter()
@@ -79,7 +80,7 @@ fn arb_input_map(abi: &Abi, dictionary: &BTreeSet<FieldElement>) -> BoxedStrateg
 /// Uses the `dictionary` for unsigned integer types.
 fn arb_value_from_abi_type(
     abi_type: &AbiType,
-    dictionary: &BTreeSet<FieldElement>,
+    dictionary: &BTreeSet<BigInt>,
 ) -> SBoxedStrategy<InputValue> {
     match abi_type {
         AbiType::Field => proptest::collection::vec(any::<u8>(), 32)

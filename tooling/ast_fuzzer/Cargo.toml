@@ -26,7 +26,7 @@ log.workspace = true
 
 acir.workspace = true
 acvm.workspace = true
-bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 iter-extended.workspace = true
 nargo.workspace = true
 noirc_abi.workspace = true
@@ -35,6 +35,7 @@ noirc_errors.workspace = true
 noirc_evaluator.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
 noir_greybox_fuzzer.workspace = true
+num-bigint = "0.4"
 
 [dev-dependencies]
 arbtest.workspace = true

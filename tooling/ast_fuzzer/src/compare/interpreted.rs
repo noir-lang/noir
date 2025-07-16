@@ -13,6 +13,7 @@ use noirc_evaluator::ssa::{
     ir::types::NumericType,
     ssa_gen::Ssa,
 };
+
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 use regex::Regex;
 
@@ -281,7 +282,7 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 }
                 other => panic!("unexpected ABY type for Field input: {other:?}"),
             };
-            let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
+            let num_val = NumericValue::from_constant(*f.to_biguint(), num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
         InputValue::String(s) => values.push(array_value(

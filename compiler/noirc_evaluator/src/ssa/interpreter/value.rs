@@ -291,7 +291,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_bigint_to_field(constant: BigInt) -> FieldElement {
+    pub fn from_bigint_to_field(constant: BigInt) -> FieldElement {
         if constant.sign() == Sign::Minus {
             -FieldElement::from_be_bytes_reduce(&constant.to_bytes_be().1)
         } else {

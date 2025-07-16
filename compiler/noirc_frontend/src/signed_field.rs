@@ -116,6 +116,11 @@ impl SignedInteger {
     pub fn from_field_element(field_element: FieldElement) -> Self {
         Self::new(BigUint::from_be_bytes(&field_element.to_be_bytes()), false)
     }
+
+    pub fn to_biguint(self) -> BigUint {
+        self.integer.clone()
+    }
+    
 }
 
 impl std::ops::Add for SignedInteger {

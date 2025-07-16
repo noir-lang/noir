@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use clap::Args;
 
 use crate::{
@@ -129,7 +129,7 @@ fn execute(circuit: &CompiledProgram, args: &ExecuteCommand) -> Result<Execution
     }
     .build_with_base(transcript_executor);
 
-    let blackbox_solver = Bn254BlackBoxSolver(args.pedantic_solving);
+    let blackbox_solver = M31BlackBoxSolver(args.pedantic_solving);
 
     execution::execute(circuit, &blackbox_solver, &mut foreign_call_executor, &args.prover_file)
 }

@@ -26,7 +26,7 @@ codespan-reporting.workspace = true
 dap.workspace = true
 easy-repl = "0.2.1"
 owo-colors = "^4.2.2"
-bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 
 
 [dev-dependencies]

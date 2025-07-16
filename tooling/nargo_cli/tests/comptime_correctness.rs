@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 use std::{cell::RefCell, collections::BTreeMap};
 
 use acvm::{FieldElement, acir::native_types::WitnessStack};
+use m31_blackbox_solver::M31BlackBoxSolver;
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
 use proptest::prelude::*;
@@ -26,7 +27,7 @@ pub(crate) fn run_snippet(
     };
 
     let pedantic_solving = true;
-    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+    let blackbox_solver = m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving);
     let foreign_call_executor = RefCell::new(DefaultForeignCallBuilder::default().build());
 
     let initial_witness = program.abi.encode(&inputs, None).expect("failed to encode");

@@ -7,7 +7,7 @@ use std::{cell::RefCell, collections::BTreeMap};
 use acir::FieldElement;
 use acir::native_types::WitnessMap;
 use arbitrary::Unstructured;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
 use nargo::NargoError;
 use nargo::errors::ExecutionError;
@@ -239,7 +239,7 @@ impl CompareComptime {
         program: &acir::circuit::Program<FieldElement>,
         initial_witness: WitnessMap<FieldElement>,
     ) -> ExecResult {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = M31BlackBoxSolver(false);
         let mut output = Vec::new();
 
         let mut foreign_call_executor =

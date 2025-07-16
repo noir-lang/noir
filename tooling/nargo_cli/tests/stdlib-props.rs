@@ -7,6 +7,7 @@ use acvm::{FieldElement, acir::native_types::WitnessStack};
 use nargo::{foreign_calls::DefaultForeignCallBuilder, ops::execute_program};
 use noirc_abi::input_parser::InputValue;
 use proptest::prelude::*;
+use m31_blackbox_solver::M31BlackBoxSolver;
 
 /// Inputs and expected output of a snippet encoded in ABI format.
 #[derive(Debug)]
@@ -39,7 +40,7 @@ fn run_snippet_proptest(
     };
 
     let pedantic_solving = true;
-    let blackbox_solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+    let blackbox_solver = m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving);
     let foreign_call_executor = RefCell::new(DefaultForeignCallBuilder::default().build());
 
     // Generate multiple input/output

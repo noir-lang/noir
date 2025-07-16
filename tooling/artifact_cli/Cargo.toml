@@ -32,7 +32,7 @@ tracing-subscriber.workspace = true
 # Noir repo dependencies
 acir.workspace = true
 acvm.workspace = true
-bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 fm.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
 noirc_abi.workspace = true

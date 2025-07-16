@@ -1,5 +1,5 @@
 use acvm::acir::circuit::ExpressionWidth;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use clap::Args;
 use iter_extended::vecmap;
 use nargo::{
@@ -152,7 +152,7 @@ fn profile_brillig_execution(
         let (_, profiling_samples) = nargo::ops::execute_program_with_profiling(
             &program_artifact.bytecode,
             initial_witness,
-            &Bn254BlackBoxSolver(pedantic_solving),
+            &M31BlackBoxSolver(pedantic_solving),
             &mut DefaultForeignCallBuilder::default().build(),
         )
         .map_err(|e| {

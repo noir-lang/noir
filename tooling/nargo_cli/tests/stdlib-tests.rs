@@ -8,6 +8,7 @@ use noirc_frontend::hir::FunctionNameMatch;
 use std::io::Write;
 use std::{collections::BTreeMap, path::PathBuf};
 
+use m31_blackbox_solver::M31BlackBoxSolver;
 use nargo::{
     ops::{TestStatus, report_errors, run_test},
     package::{Package, PackageType},
@@ -92,7 +93,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
             };
             let status = std::panic::catch_unwind(move || {
                 run_test(
-                    &bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving),
+                    &m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving),
                     &mut context,
                     &test_function,
                     std::io::stdout(),

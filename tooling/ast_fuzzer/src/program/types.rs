@@ -138,7 +138,7 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     // Meet the expectations of `Type::evaluate_to_u32`.
     let size_const = |size: u32| {
         Box::new(HirType::Constant(
-            FieldElement::from(size),
+            size.to_biguint().into(),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,

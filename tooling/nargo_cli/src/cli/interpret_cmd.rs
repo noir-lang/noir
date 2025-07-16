@@ -86,84 +86,84 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &args.compile_options,
         );
 
-        // Report warnings and get the AST, or exit if the compilation failed.
-        let (program, abi) = report_errors(
-            program_result,
-            &file_manager,
-            args.compile_options.deny_warnings,
-            args.compile_options.silence_warnings,
-        )?;
+        // // Report warnings and get the AST, or exit if the compilation failed.
+        // let (program, abi) = report_errors(
+        //     program_result,
+        //     &file_manager,
+        //     args.compile_options.deny_warnings,
+        //     args.compile_options.silence_warnings,
+        // )?;
 
-        // Parse the inputs and convert them to what the SSA interpreter expects.
-        let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
-        let (prover_input, return_value) =
-            noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
+        // // Parse the inputs and convert them to what the SSA interpreter expects.
+        // let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
+        // let (prover_input, return_value) =
+        //     noir_artifact_cli::fs::inputs::read_inputs_from_file(&prover_file, &abi)?;
 
-        // We need to give a fresh copy of arrays each time, because the shared structures are modified.
-        let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
+        // // We need to give a fresh copy of arrays each time, because the shared structures are modified.
+        // let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &prover_input);
 
-        let ssa_return =
-            if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
-                Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
-            } else {
-                None
-            };
+        // let ssa_return =
+        //     if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
+        //         Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
+        //     } else {
+        //         None
+        //     };
 
-        // Generate the initial SSA.
-        let mut ssa = generate_ssa(program)
-            .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
+        // // Generate the initial SSA.
+        // let mut ssa = generate_ssa(program)
+        //     .map_err(|e| CliError::Generic(format!("failed to generate SSA: {e}")))?;
 
-        // If the main function returns `return_data`, the values are returned in a flattened array.
-        // So, we change the expected return value by flattening it as well.
-        // Ideally we'd have the interpreter return the data in the correct shape. However, doing
-        // that would be replicating some logic which is unrelated to SSA. For the purpose of SSA
-        // correctness, it's enough if we make sure the flattened values match.
-        let ssa_return = ssa_return.map(|ssa_return| {
-            let main_function = &ssa.functions[&ssa.main_id];
-            if main_function.has_data_bus_return_data() {
-                let values = flatten_values(ssa_return);
-                vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
-            } else {
-                ssa_return
-            }
-        });
+        // // If the main function returns `return_data`, the values are returned in a flattened array.
+        // // So, we change the expected return value by flattening it as well.
+        // // Ideally we'd have the interpreter return the data in the correct shape. However, doing
+        // // that would be replicating some logic which is unrelated to SSA. For the purpose of SSA
+        // // correctness, it's enough if we make sure the flattened values match.
+        // let ssa_return = ssa_return.map(|ssa_return| {
+        //     let main_function = &ssa.functions[&ssa.main_id];
+        //     if main_function.has_data_bus_return_data() {
+        //         let values = flatten_values(ssa_return);
+        //         vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
+        //     } else {
+        //         ssa_return
+        //     }
+        // });
 
-        let interpreter_options = InterpreterOptions { trace: args.trace };
+        // let interpreter_options = InterpreterOptions { trace: args.trace };
 
-        print_and_interpret_ssa(
-            ssa_options,
-            &args.ssa_pass,
-            &mut ssa,
-            "Initial SSA",
-            &ssa_args,
-            &ssa_return,
-            interpreter_options,
-            &file_manager,
-        )?;
+        // print_and_interpret_ssa(
+        //     ssa_options,
+        //     &args.ssa_pass,
+        //     &mut ssa,
+        //     "Initial SSA",
+        //     &ssa_args,
+        //     &ssa_return,
+        //     interpreter_options,
+        //     &file_manager,
+        // )?;
 
-        // Run SSA passes in the pipeline and interpret the ones we are interested in.
-        for (i, ssa_pass) in ssa_passes.iter().enumerate() {
-            let msg = format!("{} (step {})", ssa_pass.msg(), i + 1);
+        // // Run SSA passes in the pipeline and interpret the ones we are interested in.
+        // for (i, ssa_pass) in ssa_passes.iter().enumerate() {
+        //     let msg = format!("{} (step {})", ssa_pass.msg(), i + 1);
 
-            if msg_matches(&args.compile_options.skip_ssa_pass, &msg) {
-                continue;
-            }
+        //     if msg_matches(&args.compile_options.skip_ssa_pass, &msg) {
+        //         continue;
+        //     }
 
-            ssa = ssa_pass
-                .run(ssa)
-                .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
+        //     ssa = ssa_pass
+        //         .run(ssa)
+        //         .map_err(|e| CliError::Generic(format!("failed to run SSA pass {msg}: {e}")))?;
 
-            print_and_interpret_ssa(
-                ssa_options,
-                &args.ssa_pass,
-                &mut ssa,
-                &msg,
-                &ssa_args,
-                &ssa_return,
-                interpreter_options,
-                &file_manager,
-            )?;
-        }
+        //     print_and_interpret_ssa(
+        //         ssa_options,
+        //         &args.ssa_pass,
+        //         &mut ssa,
+        //         &msg,
+        //         &ssa_args,
+        //         &ssa_return,
+        //         interpreter_options,
+        //         &file_manager,
+        //     )?;
+        // }
     }
     Ok(())
 }

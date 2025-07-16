@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 use acir::{FieldElement, native_types::WitnessStack};
 use acvm::pwg::{OpcodeResolutionError, ResolvedAssertionPayload};
 use arbitrary::Unstructured;
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use color_eyre::eyre::{self, WrapErr};
 use nargo::{NargoError, errors::ExecutionError, foreign_calls::DefaultForeignCallBuilder};
 use noirc_abi::{Abi, InputMap, input_parser::InputValue};
@@ -207,7 +207,7 @@ pub struct CompareCompiled<P> {
 impl<P> CompareCompiled<P> {
     /// Execute the two SSAs and compare the results.
     pub fn exec(&self) -> eyre::Result<CompareCompiledResult> {
-        let blackbox_solver = Bn254BlackBoxSolver(false);
+        let blackbox_solver = M31BlackBoxSolver(false);
         let initial_witness = self.abi.encode(&self.input_map, None).wrap_err("abi::encode")?;
 
         log::debug!(
