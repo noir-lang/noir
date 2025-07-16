@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752668848643,
+  "lastUpdate": 1752669378282,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25725,6 +25725,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e5c6d5d30869e1c32a69db5d871d56df2a1c1026"
         },
         "date": 1752668065021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 15080,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11347,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 261916,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 201205,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 70748,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1079444,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1080739,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3136,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "69827d155cecb32d17ba4ceb584989be9773cc1a",
+          "message": "chore(docs): add forgotten import to RPC example (#9169)",
+          "timestamp": "2025-07-16T11:59:44Z",
+          "tree_id": "71beed83970704dea49b53435e963dc9c6c50741",
+          "url": "https://github.com/noir-lang/noir/commit/69827d155cecb32d17ba4ceb584989be9773cc1a"
+        },
+        "date": 1752669362979,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
