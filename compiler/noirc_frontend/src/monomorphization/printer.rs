@@ -70,6 +70,10 @@ impl AstPrinter {
         self.fmt_ident(name, &Definition::Function(id))
     }
 
+    fn fmt_match(&self, name: &str, id: LocalId) -> String {
+        if self.show_id { format!("${}", id.0) } else { self.fmt_local(name, id) }
+    }
+
     pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
         for (id, global) in &program.globals {
             self.print_global(id, global, f)?;
@@ -259,7 +263,7 @@ impl AstPrinter {
                 write!(f, "]")
             }
             super::ast::Literal::Integer(x, typ, _) => {
-                if self.show_type_of_int_literal {
+                if self.show_type_of_int_literal && *typ != Type::Field {
                     write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
@@ -437,13 +441,14 @@ impl AstPrinter {
         match_expr: &super::ast::Match,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "match ${} {{", match_expr.variable_to_match.0)?;
+        let (var_id, var_name) = &match_expr.variable_to_match;
+        write!(f, "match {} {{", self.fmt_match(var_name, *var_id))?;
         self.indent_level += 1;
         self.next_line(f)?;
 
         for (i, case) in match_expr.cases.iter().enumerate() {
             write!(f, "{}", case.constructor)?;
-            let args = vecmap(&case.arguments, |arg| format!("${}", arg.0)).join(", ");
+            let args = vecmap(&case.arguments, |(id, name)| self.fmt_match(name, *id)).join(", ");
             if !args.is_empty() {
                 write!(f, "({args})")?;
             }
