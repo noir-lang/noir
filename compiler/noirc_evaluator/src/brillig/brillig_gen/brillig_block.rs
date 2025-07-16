@@ -8,6 +8,7 @@ use crate::brillig::brillig_ir::registers::RegisterAllocator;
 use crate::brillig::brillig_ir::{
     BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligBinaryOp, BrilligContext, ReservedRegisters,
 };
+use crate::ssa::interpreter::value::NumericValue;
 use crate::ssa::ir::instruction::{ArrayOffset, ConstrainError, Hint};
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -24,7 +25,9 @@ use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
+use num_traits::{One, Zero};
+
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -75,16 +78,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let live_in = function_context.liveness.get_live_in(&block_id);
 
         let mut live_in_no_globals = HashSet::default();
-        for value in live_in {
-            if let Value::NumericConstant { constant, typ } = dfg[*value] {
-                if hoisted_global_constants.contains_key(&(constant, typ)) {
-                    continue;
-                }
-            }
-            if !dfg.is_global(*value) {
-                live_in_no_globals.insert(*value);
-            }
-        }
+        // for value in live_in {
+        //     if let Value::NumericConstant { constant, typ } = &dfg[*value] {
+        //         if hoisted_global_constants.contains_key(&(constant.clone(), typ.clone())) {
+        //             continue;
+        //         }
+        //     }
+        //     if !dfg.is_global(*value) {
+        //         live_in_no_globals.insert(*value);
+        //     }
+        // }
 
         let variables = BlockVariables::new(live_in_no_globals);
 
@@ -135,7 +138,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         globals: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
         call_stacks: &mut CallStackHelper,
-        hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
+        hoisted_global_constants: &BTreeSet<(BigInt, NumericType)>,
     ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
         // Using the end of the global memory space adds more complexity as we
         // have to account for possible register de-allocations as part of regular global compilation.
@@ -168,13 +171,13 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         let mut new_hoisted_constants = HashMap::default();
-        for (constant, typ) in hoisted_global_constants.iter().copied() {
-            let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
-            self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
-            if new_hoisted_constants.insert((constant, typ), new_variable).is_some() {
-                unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
-            }
-        }
+        // for (constant, typ) in hoisted_global_constants.iter().copied() {
+        //     let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
+        //     self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
+        //     if new_hoisted_constants.insert((constant, typ), new_variable).is_some() {
+        //         unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
+        //     }
+        // }
 
         new_hoisted_constants
     }
@@ -353,12 +356,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 ) {
                     // If the constraint is of the form `x == u1 1` then we can simply constrain `x` directly
                     (Some((constant, NumericType::Unsigned { bit_size: 1 })), None)
-                        if constant == FieldElement::one() =>
+                        if constant == BigInt::one() =>
                     {
                         (self.convert_ssa_single_addr_value(*rhs, dfg), false)
                     }
                     (None, Some((constant, NumericType::Unsigned { bit_size: 1 })))
-                        if constant == FieldElement::one() =>
+                        if constant == BigInt::one() =>
                     {
                         (self.convert_ssa_single_addr_value(*lhs, dfg), false)
                     }
@@ -1894,8 +1897,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         dfg,
                     );
 
-                    self.brillig_context
-                        .const_instruction(new_variable.extract_single_addr(), *constant);
+                    self.brillig_context.const_instruction(
+                        new_variable.extract_single_addr(),
+                        NumericValue::from_bigint_to_field(constant.clone()),
+                    );
                     new_variable
                 }
             }
@@ -2273,7 +2278,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         value_id: ValueId,
     ) -> Option<BrilligVariable> {
         if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
-            if let Some(variable) = self.hoisted_global_constants.get(&(*constant, *typ)) {
+            if let Some(variable) = self
+                .hoisted_global_constants
+                .get(&(NumericValue::from_bigint_to_field(constant.clone()), typ.clone()))
+            {
                 return Some(*variable);
             }
         }

@@ -4,7 +4,7 @@ use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElem
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
-use num_bigint::BigUint;
+use num_bigint::{BigUint, ToBigInt};
 
 use crate::ssa::{
     interpreter::NumericValue,
@@ -354,8 +354,8 @@ impl<W: Write> Interpreter<'_, W> {
                     let result = solver
                         .poseidon2_permutation(&inputs, length)
                         .map_err(Self::convert_error)?;
-                    let result = Value::array_from_iter(result, NumericType::NativeField)?;
-                    Ok(vec![result])
+                    // let result = Value::array_from_iter(result, NumericType::NativeField)?;
+                    Ok(vec![])
                 }
                 acvm::acir::BlackBoxFunc::Sha256Compression => {
                     check_argument_count(args, 2, intrinsic)?;
@@ -426,11 +426,15 @@ impl<W: Write> Interpreter<'_, W> {
                 let mut result = Vec::with_capacity(inputs.len());
                 for generator in generators.iter() {
                     let x_big: BigUint = generator.x.into();
-                    let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
                     let y_big: BigUint = generator.y.into();
-                    let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
-                    result.push(Value::from_constant(x, NumericType::NativeField)?);
-                    result.push(Value::from_constant(y, NumericType::NativeField)?);
+                    result.push(Value::from_constant(
+                        x_big.to_bigint().expect("ICE: failed to convert BigUint to BigInt"),
+                        NumericType::NativeField,
+                    )?);
+                    result.push(Value::from_constant(
+                        y_big.to_bigint().expect("ICE: failed to convert BigUint to BigInt"),
+                        NumericType::NativeField,
+                    )?);
                     result.push(Value::from_constant(
                         generator.infinity.into(),
                         NumericType::bool(),
@@ -492,7 +496,12 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         };
 
-        let Some(limbs) = dfg::simplify::constant_to_radix(endian, field, radix, limb_count) else {
+        let Some(limbs) = dfg::simplify::constant_to_radix(
+            endian,
+            NumericValue::from_field_to_bigint(field),
+            radix,
+            limb_count,
+        ) else {
             return Err(InterpreterError::ToRadixFailed { field_id, field, radix });
         };
 
@@ -763,9 +772,10 @@ fn new_embedded_curve_point(
     y: FieldElement,
     is_infinite: FieldElement,
 ) -> IResult<Value> {
-    let x = Value::from_constant(x, NumericType::NativeField)?;
-    let y = Value::from_constant(y, NumericType::NativeField)?;
-    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
+    let x = Value::from_constant(NumericValue::from_field_to_bigint(x), NumericType::NativeField)?;
+    let y = Value::from_constant(NumericValue::from_field_to_bigint(y), NumericType::NativeField)?;
+    let is_infinite =
+        Value::from_constant(NumericValue::from_field_to_bigint(is_infinite), NumericType::bool())?;
     Ok(Value::array(
         vec![x, y, is_infinite],
         vec![

@@ -190,7 +190,7 @@ hex = "0.4.2"
 const_format = "0.2.30"
 lazy_static = "1.4"
 libfuzzer-sys = "0.4"
-num-bigint = "0.4"
+num-bigint = { version = "0.4", features = ["serde"] }
 num-traits = "0.2"
 num_enum = "0.7.3"
 num-integer = "0.1"

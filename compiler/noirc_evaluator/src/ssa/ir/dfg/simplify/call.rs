@@ -389,7 +389,7 @@ pub(crate) fn constant_to_radix(
     constant: BigInt,
     radix: u32,
     limb_count: u32,
-) -> Option<Vec<FieldElement>> {
+) -> Option<Vec<BigInt>> {
     let bit_size = u32::BITS - (radix - 1).leading_zeros();
     let radix_big = BigUint::from(radix);
     let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
@@ -408,8 +408,8 @@ pub(crate) fn constant_to_radix(
         None
     } else {
         let mut limbs = vecmap(0..limb_count, |i| match decomposed_integer.get(i as usize) {
-            Some(digit) => FieldElement::from_be_bytes_reduce(&[*digit]),
-            None => FieldElement::zero(),
+            Some(digit) => BigInt::from(*digit),
+            None => BigInt::zero(),
         });
         if endian == Endian::Big {
             limbs.reverse();
@@ -599,7 +599,7 @@ fn simplify_black_box_func(
     let pedantic_solving = true;
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving);  
+            let solver = m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving);
         } else {
             let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
         }

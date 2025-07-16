@@ -1,6 +1,8 @@
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 use crate::errors::{InternalError, RuntimeError};
 use crate::ssa::ir::{
@@ -181,11 +183,11 @@ impl Context<'_> {
         instruction: InstructionId,
         dfg: &DataFlowGraph,
         array: im::Vector<AcirValue>,
-        index: FieldElement,
+        index: BigInt,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
         let array_size: usize = array.len();
-        let index = match index.try_to_u64() {
+        let index = match index.to_u64() {
             Some(index_const) => index_const as usize,
             None => {
                 let call_stack = self.acir_context.get_call_stack();

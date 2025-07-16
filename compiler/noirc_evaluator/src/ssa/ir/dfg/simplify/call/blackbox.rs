@@ -4,6 +4,8 @@ use acvm::acir::BlackBoxFunc;
 use acvm::blackbox_solver::sha256_compression;
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
@@ -23,48 +25,49 @@ pub(super) fn simplify_ec_add(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    match (
-        dfg.get_numeric_constant(arguments[0]),
-        dfg.get_numeric_constant(arguments[1]),
-        dfg.get_numeric_constant(arguments[2]),
-        dfg.get_numeric_constant(arguments[3]),
-        dfg.get_numeric_constant(arguments[4]),
-        dfg.get_numeric_constant(arguments[5]),
-    ) {
-        (
-            Some(point1_x),
-            Some(point1_y),
-            Some(point1_is_infinity),
-            Some(point2_x),
-            Some(point2_y),
-            Some(point2_is_infinity),
-        ) => {
-            let Ok((result_x, result_y, result_is_infinity)) = solver.ec_add(
-                &point1_x,
-                &point1_y,
-                &point1_is_infinity,
-                &point2_x,
-                &point2_y,
-                &point2_is_infinity,
-            ) else {
-                return SimplifyResult::None;
-            };
+    // match (
+    //     dfg.get_numeric_constant(arguments[0]),
+    //     dfg.get_numeric_constant(arguments[1]),
+    //     dfg.get_numeric_constant(arguments[2]),
+    //     dfg.get_numeric_constant(arguments[3]),
+    //     dfg.get_numeric_constant(arguments[4]),
+    //     dfg.get_numeric_constant(arguments[5]),
+    // ) {
+    //     (
+    //         Some(point1_x),
+    //         Some(point1_y),
+    //         Some(point1_is_infinity),
+    //         Some(point2_x),
+    //         Some(point2_y),
+    //         Some(point2_is_infinity),
+    //     ) => {
+    //         let Ok((result_x, result_y, result_is_infinity)) = solver.ec_add(
+    //             &point1_x,
+    //             &point1_y,
+    //             &point1_is_infinity,
+    //             &point2_x,
+    //             &point2_y,
+    //             &point2_is_infinity,
+    //         ) else {
+    //             return SimplifyResult::None;
+    //         };
 
-            let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-            let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-            let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+    //         let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+    //         let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+    //         let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
-            let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
+    //         let typ = Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
 
-            let elements = im::vector![result_x, result_y, result_is_infinity];
-            let instruction = Instruction::MakeArray { elements, typ };
-            let result_array =
-                dfg.insert_instruction_and_results(instruction, block, None, call_stack);
+    //         let elements = im::vector![result_x, result_y, result_is_infinity];
+    //         let instruction = Instruction::MakeArray { elements, typ };
+    //         let result_array =
+    //             dfg.insert_instruction_and_results(instruction, block, None, call_stack);
 
-            SimplifyResult::SimplifiedTo(result_array.first())
-        }
-        _ => SimplifyResult::None,
-    }
+    //         SimplifyResult::SimplifiedTo(result_array.first())
+    //     }
+    //     _ => SimplifyResult::None,
+    // }
+    return SimplifyResult::None;
 }
 
 pub(super) fn simplify_msm(
@@ -74,128 +77,130 @@ pub(super) fn simplify_msm(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    let mut is_constant;
+    // let mut is_constant;
 
-    match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
-        (Some((points, _)), Some((scalars, _))) => {
-            // We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
-            let mut constant_points = vec![];
-            let mut constant_scalars_lo = vec![];
-            let mut constant_scalars_hi = vec![];
-            let mut var_points = vec![];
-            let mut var_scalars = vec![];
-            let len = scalars.len() / 2;
-            for i in 0..len {
-                match (
-                    dfg.get_numeric_constant(scalars[2 * i]),
-                    dfg.get_numeric_constant(scalars[2 * i + 1]),
-                    dfg.get_numeric_constant(points[3 * i]),
-                    dfg.get_numeric_constant(points[3 * i + 1]),
-                    dfg.get_numeric_constant(points[3 * i + 2]),
-                ) {
-                    (Some(lo), Some(hi), _, _, _) if lo.is_zero() && hi.is_zero() => {
-                        is_constant = true;
-                        constant_scalars_lo.push(lo);
-                        constant_scalars_hi.push(hi);
-                        constant_points.push(FieldElement::zero());
-                        constant_points.push(FieldElement::zero());
-                        constant_points.push(FieldElement::one());
-                    }
-                    (_, _, _, _, Some(infinity)) if infinity.is_one() => {
-                        is_constant = true;
-                        constant_scalars_lo.push(FieldElement::zero());
-                        constant_scalars_hi.push(FieldElement::zero());
-                        constant_points.push(FieldElement::zero());
-                        constant_points.push(FieldElement::zero());
-                        constant_points.push(FieldElement::one());
-                    }
-                    (Some(lo), Some(hi), Some(x), Some(y), Some(infinity)) => {
-                        is_constant = true;
-                        constant_scalars_lo.push(lo);
-                        constant_scalars_hi.push(hi);
-                        constant_points.push(x);
-                        constant_points.push(y);
-                        constant_points.push(infinity);
-                    }
-                    _ => {
-                        is_constant = false;
-                    }
-                }
+    // match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
+    //     (Some((points, _)), Some((scalars, _))) => {
+    //         // We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
+    //         let mut constant_points = vec![];
+    //         let mut constant_scalars_lo = vec![];
+    //         let mut constant_scalars_hi = vec![];
+    //         let mut var_points = vec![];
+    //         let mut var_scalars = vec![];
+    //         let len = scalars.len() / 2;
+    //         for i in 0..len {
+    //             match (
+    //                 dfg.get_numeric_constant(scalars[2 * i]),
+    //                 dfg.get_numeric_constant(scalars[2 * i + 1]),
+    //                 dfg.get_numeric_constant(points[3 * i]),
+    //                 dfg.get_numeric_constant(points[3 * i + 1]),
+    //                 dfg.get_numeric_constant(points[3 * i + 2]),
+    //             ) {
+    //                 (Some(lo), Some(hi), _, _, _) if lo.is_zero() && hi.is_zero() => {
+    //                     is_constant = true;
+    //                     constant_scalars_lo.push(lo);
+    //                     constant_scalars_hi.push(hi);
+    //                     constant_points.push(FieldElement::zero());
+    //                     constant_points.push(FieldElement::zero());
+    //                     constant_points.push(FieldElement::one());
+    //                 }
+    //                 (_, _, _, _, Some(infinity)) if infinity.is_one() => {
+    //                     is_constant = true;
+    //                     constant_scalars_lo.push(FieldElement::zero());
+    //                     constant_scalars_hi.push(FieldElement::zero());
+    //                     constant_points.push(FieldElement::zero());
+    //                     constant_points.push(FieldElement::zero());
+    //                     constant_points.push(FieldElement::one());
+    //                 }
+    //                 (Some(lo), Some(hi), Some(x), Some(y), Some(infinity)) => {
+    //                     is_constant = true;
+    //                     constant_scalars_lo.push(lo);
+    //                     constant_scalars_hi.push(hi);
+    //                     constant_points.push(x);
+    //                     constant_points.push(y);
+    //                     constant_points.push(infinity);
+    //                 }
+    //                 _ => {
+    //                     is_constant = false;
+    //                 }
+    //             }
 
-                if !is_constant {
-                    var_points.push(points[3 * i]);
-                    var_points.push(points[3 * i + 1]);
-                    var_points.push(points[3 * i + 2]);
-                    var_scalars.push(scalars[2 * i]);
-                    var_scalars.push(scalars[2 * i + 1]);
-                }
-            }
+    //             if !is_constant {
+    //                 var_points.push(points[3 * i]);
+    //                 var_points.push(points[3 * i + 1]);
+    //                 var_points.push(points[3 * i + 2]);
+    //                 var_scalars.push(scalars[2 * i]);
+    //                 var_scalars.push(scalars[2 * i + 1]);
+    //             }
+    //         }
 
-            // If there are no constant terms, we can't simplify
-            if constant_scalars_lo.is_empty() {
-                return SimplifyResult::None;
-            }
-            let Ok((result_x, result_y, result_is_infinity)) = solver.multi_scalar_mul(
-                &constant_points,
-                &constant_scalars_lo,
-                &constant_scalars_hi,
-            ) else {
-                return SimplifyResult::None;
-            };
+    //         // If there are no constant terms, we can't simplify
+    //         if constant_scalars_lo.is_empty() {
+    //             return SimplifyResult::None;
+    //         }
+    //         let Ok((result_x, result_y, result_is_infinity)) = solver.multi_scalar_mul(
+    //             &constant_points,
+    //             &constant_scalars_lo,
+    //             &constant_scalars_hi,
+    //         ) else {
+    //             return SimplifyResult::None;
+    //         };
 
-            // If there are no variable term, we can directly return the constant result
-            if var_scalars.is_empty() {
-                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
-                let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+    //         // If there are no variable term, we can directly return the constant result
+    //         if var_scalars.is_empty() {
+    //             let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+    //             let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+    //             let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
-                let elements = im::vector![result_x, result_y, result_is_infinity];
-                let typ =
-                    Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
-                let instruction = Instruction::MakeArray { elements, typ };
-                let result_array =
-                    dfg.insert_instruction_and_results(instruction, block, None, call_stack);
+    //             let elements = im::vector![result_x, result_y, result_is_infinity];
+    //             let typ =
+    //                 Type::Array(Arc::new(vec![Type::field(), Type::field(), Type::bool()]), 1);
+    //             let instruction = Instruction::MakeArray { elements, typ };
+    //             let result_array =
+    //                 dfg.insert_instruction_and_results(instruction, block, None, call_stack);
 
-                return SimplifyResult::SimplifiedTo(result_array.first());
-            }
-            // If there is only one non-null constant term, we cannot simplify
-            if constant_scalars_lo.len() == 1 && result_is_infinity != FieldElement::one() {
-                return SimplifyResult::None;
-            }
-            // Add the constant part back to the non-constant part, if it is not null
-            let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
-            let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
-            if result_is_infinity.is_zero() {
-                var_scalars.push(one);
-                var_scalars.push(zero);
-                let result_x = dfg.make_constant(result_x, NumericType::NativeField);
-                let result_y = dfg.make_constant(result_y, NumericType::NativeField);
+    //             return SimplifyResult::SimplifiedTo(result_array.first());
+    //         }
+    //         // If there is only one non-null constant term, we cannot simplify
+    //         if constant_scalars_lo.len() == 1 && result_is_infinity != FieldElement::one() {
+    //             return SimplifyResult::None;
+    //         }
+    //         // Add the constant part back to the non-constant part, if it is not null
+    //         let one = dfg.make_constant(FieldElement::one(), NumericType::NativeField);
+    //         let zero = dfg.make_constant(FieldElement::zero(), NumericType::NativeField);
+    //         if result_is_infinity.is_zero() {
+    //             var_scalars.push(one);
+    //             var_scalars.push(zero);
+    //             let result_x = dfg.make_constant(result_x, NumericType::NativeField);
+    //             let result_y = dfg.make_constant(result_y, NumericType::NativeField);
 
-                // Pushing a bool here is intentional, multi_scalar_mul takes two arguments:
-                // `points: [(Field, Field, bool); N]` and `scalars: [(Field, Field); N]`.
-                let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
+    //             // Pushing a bool here is intentional, multi_scalar_mul takes two arguments:
+    //             // `points: [(Field, Field, bool); N]` and `scalars: [(Field, Field); N]`.
+    //             let result_is_infinity = dfg.make_constant(result_is_infinity, NumericType::bool());
 
-                var_points.push(result_x);
-                var_points.push(result_y);
-                var_points.push(result_is_infinity);
-            }
-            // Construct the simplified MSM expression
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
-            let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
-            let scalars =
-                dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
-            let points = Instruction::MakeArray { elements: var_points.into(), typ };
-            let points =
-                dfg.insert_instruction_and_results(points, block, None, call_stack).first();
-            let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
-            SimplifyResult::SimplifiedToInstruction(Instruction::Call {
-                func: msm,
-                arguments: vec![points, scalars],
-            })
-        }
-        _ => SimplifyResult::None,
-    }
+    //             var_points.push(result_x);
+    //             var_points.push(result_y);
+    //             var_points.push(result_is_infinity);
+    //         }
+    //         // Construct the simplified MSM expression
+    //         let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
+    //         let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
+    //         let scalars =
+    //             dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
+    //         let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
+    //         let points = Instruction::MakeArray { elements: var_points.into(), typ };
+    //         let points =
+    //             dfg.insert_instruction_and_results(points, block, None, call_stack).first();
+    //         let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
+    //         SimplifyResult::SimplifiedToInstruction(Instruction::Call {
+    //             func: msm,
+    //             arguments: vec![points, scalars],
+    //         })
+    //     }
+    //     _ => SimplifyResult::None,
+    // }
+
+    return SimplifyResult::None;
 }
 
 pub(super) fn simplify_poseidon2_permutation(
@@ -205,32 +210,34 @@ pub(super) fn simplify_poseidon2_permutation(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
-            let state: Vec<FieldElement> = state
-                .iter()
-                .map(|id| {
-                    dfg.get_numeric_constant(*id)
-                        .expect("value id from array should point at constant")
-                })
-                .collect();
+    // match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
+    //     (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
+    //         let state: Vec<FieldElement> = state
+    //             .iter()
+    //             .map(|id| {
+    //                 dfg.get_numeric_constant(*id)
+    //                     .expect("value id from array should point at constant")
+    //             })
+    //             .collect();
 
-            let Some(state_length) = state_length.try_to_u32() else {
-                return SimplifyResult::None;
-            };
+    //         let Some(state_length) = state_length.try_to_u32() else {
+    //             return SimplifyResult::None;
+    //         };
 
-            let Ok(new_state) = solver.poseidon2_permutation(&state, state_length) else {
-                return SimplifyResult::None;
-            };
+    //         let Ok(new_state) = solver.poseidon2_permutation(&state, state_length) else {
+    //             return SimplifyResult::None;
+    //         };
 
-            let new_state = new_state.into_iter();
-            let typ = NumericType::NativeField;
-            let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
+    //         let new_state = new_state.into_iter();
+    //         let typ = NumericType::NativeField;
+    //         let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
 
-            SimplifyResult::SimplifiedTo(result_array)
-        }
-        _ => SimplifyResult::None,
-    }
+    //         SimplifyResult::SimplifiedTo(result_array)
+    //     }
+    //     _ => SimplifyResult::None,
+    // }
+
+    return SimplifyResult::None;
 }
 
 pub(super) fn simplify_sha256_compression(
@@ -248,7 +255,7 @@ pub(super) fn simplify_sha256_compression(
                 .map(|id| {
                     dfg.get_numeric_constant(*id)
                         .expect("value id from array should point at constant")
-                        .try_to_u32()
+                        .to_u32()
                 })
                 .collect();
 
@@ -261,7 +268,7 @@ pub(super) fn simplify_sha256_compression(
                 .map(|id| {
                     dfg.get_numeric_constant(*id)
                         .expect("value id from array should point at constant")
-                        .try_to_u32()
+                        .to_u32()
                 })
                 .collect();
 
@@ -272,7 +279,7 @@ pub(super) fn simplify_sha256_compression(
 
             sha256_compression(&mut state, &msg_blocks);
 
-            let new_state = state.into_iter().map(FieldElement::from);
+            let new_state = state.into_iter().map(BigInt::from);
             let typ = NumericType::Unsigned { bit_size: 32 };
             let result_array = make_constant_array(dfg, new_state, typ, block, call_stack);
 
@@ -296,7 +303,7 @@ pub(super) fn simplify_hash(
             let hash = hash_function(&input_bytes)
                 .expect("Rust solvable black box function should not fail");
 
-            let hash_values = hash.iter().map(|byte| FieldElement::from_be_bytes_reduce(&[*byte]));
+            let hash_values = hash.iter().map(|byte| BigInt::from(*byte));
 
             let u8_type = NumericType::Unsigned { bit_size: 8 };
             let result_array = make_constant_array(dfg, hash_values, u8_type, block, call_stack);
