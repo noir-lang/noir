@@ -4,8 +4,8 @@ pub mod array;
 pub mod slice;
 pub mod ecdsa_secp256k1;
 pub mod ecdsa_secp256r1;
-pub mod embedded_curve_ops;
-pub mod field;
+// pub mod embedded_curve_ops;
+// pub mod field;
 pub mod collections;
 pub mod compat;
 pub mod convert;
@@ -97,15 +97,15 @@ where
 {
     AsPrimitive::as_(x.as_() + y.as_())
 }
-#[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
-pub fn wrapping_sub<T>(x: T, y: T) -> T
-where
-    T: AsPrimitive<Field>,
-    Field: AsPrimitive<T>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
-}
+// #[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_sub(y)")]
+// pub fn wrapping_sub<T>(x: T, y: T) -> T
+// where
+//     T: AsPrimitive<Field>,
+//     Field: AsPrimitive<T>,
+// {
+//     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
+//     AsPrimitive::as_(x.as_() + 340282366920938463463374607431768211456 - y.as_())
+// }
 #[deprecated("wrapping operations should be done with the Wrapping traits. E.g: x.wrapping_mul(y)")]
 pub fn wrapping_mul<T>(x: T, y: T) -> T
 where

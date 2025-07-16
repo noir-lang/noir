@@ -1,6 +1,6 @@
-use crate::meta::derive_via;
+// use crate::meta::derive_via;
 
-#[derive_via(derive_default)]
+// #[derive_via(derive_default)]
 // docs:start:default-trait
 pub trait Default {
     fn default() -> Self;

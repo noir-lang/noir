@@ -32,46 +32,46 @@ pub comptime fn type_of<T>(x: T) -> Type {}
 
 // docs:start:derive_example
 // These are needed for the unconstrained hashmap we're using to store derive functions
-use crate::collections::umap::UHashMap;
+// use crate::collections::umap::UHashMap;
 use crate::hash::BuildHasherDefault;
-use crate::hash::poseidon2::Poseidon2Hasher;
+// use crate::hash::poseidon2::Poseidon2Hasher;
 
 // A derive function is one that given a type definition can
 // create us a quoted trait impl from it.
 pub type DeriveFunction = fn(TypeDefinition) -> Quoted;
 
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
-comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
-    UHashMap::default();
+// comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
+//     UHashMap::default();
 
 // Given a type definition and a slice of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the slice, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
 // docs:start:derive
-#[varargs]
-pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
-    // docs:end:derive
-    let mut result = quote {};
+// #[varargs]
+// pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
+//     // docs:end:derive
+//     let mut result = quote {};
 
-    for trait_to_derive in traits {
-        let handler = HANDLERS.get(trait_to_derive);
-        assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
+//     for trait_to_derive in traits {
+//         let handler = HANDLERS.get(trait_to_derive);
+//         assert(handler.is_some(), f"No derive function registered for `{trait_to_derive}`");
 
-        let trait_impl = handler.unwrap()(s);
-        result = quote { $result $trait_impl };
-    }
+//         let trait_impl = handler.unwrap()(s);
+//         result = quote { $result $trait_impl };
+//     }
 
-    result
-}
+//     result
+// }
 // docs:end:derive_example
 
 // docs:start:derive_via
 // To register a handler for a trait, just add it to our handlers map
 // docs:start:derive_via_signature
-pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
-    // docs:end:derive_via_signature
-    HANDLERS.insert(t, f);
-}
+// pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
+//     // docs:end:derive_via_signature
+//     HANDLERS.insert(t, f);
+// }
 // docs:end:derive_via
 
 /// `make_impl` is a helper function to make a simple impl, usually while deriving a trait.
@@ -126,7 +126,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
 
 mod tests {
     use crate::meta::ctstring::AsCtString;
-    use crate::meta::derive_via;
+    // use crate::meta::derive_via;
 
     // docs:start:quote-example
     comptime fn quote_one() -> Quoted {
@@ -199,13 +199,13 @@ mod tests {
     }
     // docs:end:annotation-varargs-example
 
-    // docs:start:big-derive-usage-example
-    // Finally, to register a handler we call the above function as an annotation
-    // with our handler function.
-    #[derive_via(derive_do_nothing)]
-    trait DoNothing {
-        fn do_nothing(self);
-    }
+    // // docs:start:big-derive-usage-example
+    // // Finally, to register a handler we call the above function as an annotation
+    // // with our handler function.
+    // #[derive_via(derive_do_nothing)]
+    // trait DoNothing {
+    //     fn do_nothing(self);
+    // }
 
     comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
         // This is simplified since we don't handle generics or where clauses!
@@ -259,9 +259,9 @@ mod tests {
     }
     // docs:end:big-derive-usage-example
 
-    impl DoNothing for Bar {
-        fn do_nothing(_: Self) {}
-    }
+    // impl DoNothing for Bar {
+    //     fn do_nothing(_: Self) {}
+    // }
 
     // docs:start:concatenate-example
     comptime fn concatenate(q1: Quoted, q2: Quoted) -> Quoted {

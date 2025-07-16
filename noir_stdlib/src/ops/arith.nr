@@ -436,60 +436,60 @@ impl WrappingSub for u1 {
     }
 }
 
-impl WrappingSub for u8 {
-    fn wrapping_sub(self: u8, y: u8) -> u8 {
-        wrapping_sub_hlp(self, y) as u8
-    }
-}
+// impl WrappingSub for u8 {
+//     fn wrapping_sub(self: u8, y: u8) -> u8 {
+//         wrapping_sub_hlp(self, y) as u8
+//     }
+// }
 
-impl WrappingSub for u16 {
-    fn wrapping_sub(self: u16, y: u16) -> u16 {
-        wrapping_sub_hlp(self, y) as u16
-    }
-}
+// impl WrappingSub for u16 {
+//     fn wrapping_sub(self: u16, y: u16) -> u16 {
+//         wrapping_sub_hlp(self, y) as u16
+//     }
+// }
 
-impl WrappingSub for u32 {
-    fn wrapping_sub(self: u32, y: u32) -> u32 {
-        wrapping_sub_hlp(self, y) as u32
-    }
-}
-impl WrappingSub for u64 {
-    fn wrapping_sub(self: u64, y: u64) -> u64 {
-        wrapping_sub_hlp(self, y) as u64
-    }
-}
-impl WrappingSub for u128 {
-    fn wrapping_sub(self: u128, y: u128) -> u128 {
-        wrapping_sub_hlp(self, y) as u128
-    }
-}
+// impl WrappingSub for u32 {
+//     fn wrapping_sub(self: u32, y: u32) -> u32 {
+//         wrapping_sub_hlp(self, y) as u32
+//     }
+// }
+// impl WrappingSub for u64 {
+//     fn wrapping_sub(self: u64, y: u64) -> u64 {
+//         wrapping_sub_hlp(self, y) as u64
+//     }
+// }
+// impl WrappingSub for u128 {
+//     fn wrapping_sub(self: u128, y: u128) -> u128 {
+//         wrapping_sub_hlp(self, y) as u128
+//     }
+// }
 
-impl WrappingSub for i8 {
-    fn wrapping_sub(self: i8, y: i8) -> i8 {
-        let x = self as u8;
-        x.wrapping_sub(y as u8) as i8
-    }
-}
+// impl WrappingSub for i8 {
+//     fn wrapping_sub(self: i8, y: i8) -> i8 {
+//         let x = self as u8;
+//         x.wrapping_sub(y as u8) as i8
+//     }
+// }
 
-impl WrappingSub for i16 {
-    fn wrapping_sub(self: i16, y: i16) -> i16 {
-        let x = self as u16;
-        x.wrapping_sub(y as u16) as i16
-    }
-}
+// impl WrappingSub for i16 {
+//     fn wrapping_sub(self: i16, y: i16) -> i16 {
+//         let x = self as u16;
+//         x.wrapping_sub(y as u16) as i16
+//     }
+// }
 
-impl WrappingSub for i32 {
-    fn wrapping_sub(self: i32, y: i32) -> i32 {
-        let x = self as u32;
-        x.wrapping_sub(y as u32) as i32
-    }
-}
-impl WrappingSub for i64 {
-    fn wrapping_sub(self: i64, y: i64) -> i64 {
-        let x = self as u64;
-        x.wrapping_sub(y as u64) as i64
-    }
-}
+// impl WrappingSub for i32 {
+//     fn wrapping_sub(self: i32, y: i32) -> i32 {
+//         let x = self as u32;
+//         x.wrapping_sub(y as u32) as i32
+//     }
+// }
+// impl WrappingSub for i64 {
+//     fn wrapping_sub(self: i64, y: i64) -> i64 {
+//         let x = self as u64;
+//         x.wrapping_sub(y as u64) as i64
+//     }
+// }
 impl WrappingSub for Field {
     fn wrapping_sub(self: Field, y: Field) -> Field {
         self - y
@@ -578,13 +578,13 @@ where
     AsPrimitive::as_(x.as_() + y.as_())
 }
 
-fn wrapping_sub_hlp<T>(x: T, y: T) -> Field
-where
-    T: AsPrimitive<Field>,
-{
-    //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
-    x.as_() + 340282366920938463463374607431768211456 - y.as_()
-}
+// fn wrapping_sub_hlp<T>(x: T, y: T) -> Field
+// where
+//     T: AsPrimitive<Field>,
+// {
+//     //340282366920938463463374607431768211456 is 2^128, it is used to avoid underflow
+//     x.as_() + 340282366920938463463374607431768211456 - y.as_()
+// }
 
 fn wrapping_mul_hlp<T>(x: T, y: T) -> T
 where

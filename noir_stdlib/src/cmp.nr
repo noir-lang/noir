@@ -1,6 +1,6 @@
-use crate::meta::derive_via;
+// use crate::meta::derive_via;
 
-#[derive_via(derive_eq)]
+// #[derive_via(derive_eq)]
 // docs:start:eq-trait
 pub trait Eq {
     fn eq(self, other: Self) -> bool;
@@ -211,7 +211,7 @@ impl Ordering {
     }
 }
 
-#[derive_via(derive_ord)]
+// #[derive_via(derive_ord)]
 // docs:start:ord-trait
 pub trait Ord {
     fn cmp(self, other: Self) -> Ordering;
