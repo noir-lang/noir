@@ -287,7 +287,7 @@ impl<W: Write> Interpreter<'_, W> {
                             )?);
                         }
                     }
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = m31_blackbox_solver::M31BlackBoxSolver(false);
                     let result = solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi);
                     let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
@@ -317,7 +317,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
                     check_argument_count(args, 6, intrinsic)?;
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = m31_blackbox_solver::M31BlackBoxSolver(false);
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[1], "call EmbeddedCurveAdd BlackBox")?,
@@ -350,7 +350,7 @@ impl<W: Write> Interpreter<'_, W> {
                         .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
                     let length =
                         self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
-                    let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
+                    let solver = m31_blackbox_solver::M31BlackBoxSolver(false);
                     let result = solver
                         .poseidon2_permutation(&inputs, length)
                         .map_err(Self::convert_error)?;

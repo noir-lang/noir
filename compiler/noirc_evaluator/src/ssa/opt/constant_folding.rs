@@ -21,7 +21,7 @@ use acvm::{
     acir::AcirField,
     brillig_vm::{MemoryValue, VM, VMStatus},
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use im::Vector;
 use iter_extended::vecmap;
 
@@ -655,7 +655,7 @@ impl<'brillig> Context<'brillig> {
 
         let bytecode = &generated_brillig.byte_code;
         let pedantic_solving = true;
-        let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
+        let black_box_solver = M31BlackBoxSolver(pedantic_solving);
         let profiling_active = false;
         let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active, None);
         let vm_status: VMStatus<_> = vm.process_opcodes();

@@ -39,6 +39,7 @@ ark-bls12-381 = { version = "^0.5.0", default-features = false, features = [
 ark-ff.workspace = true
 ark-bn254.workspace = true
 bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 proptest.workspace = true
 num-bigint.workspace = true
 zkhash = { version = "^0.2.0", default-features = false }

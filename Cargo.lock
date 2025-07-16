@@ -70,6 +70,7 @@ dependencies = [
  "criterion",
  "fxhash",
  "indexmap 2.10.0",
+ "m31_blackbox_solver",
  "num-bigint",
  "pprof",
  "proptest",
@@ -3075,6 +3076,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "m31_blackbox_solver"
+version = "1.0.0-beta.7"
+dependencies = [
+ "acir",
+ "acvm_blackbox_solver",
+]
+
+[[package]]
 name = "matchers"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3730,6 +3739,7 @@ dependencies = [
  "im",
  "insta",
  "iter-extended",
+ "m31_blackbox_solver",
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",

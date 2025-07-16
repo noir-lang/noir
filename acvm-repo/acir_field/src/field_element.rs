@@ -218,6 +218,12 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let bytes = if is_negative { self.neg() } else { self }.to_be_bytes();
         i128::from_be_bytes(bytes[16..32].try_into().unwrap()) * if is_negative { -1 } else { 1 }
     }
+
+    fn to_biguint(self) -> BigUint {
+        self.0.into_bigint().into()
+    }
+
+
     fn try_into_i128(self) -> Option<i128> {
         // Negative integers are represented by the range [p + i128::MIN, p) whilst
         // positive integers are represented by the range [0, i128::MAX).

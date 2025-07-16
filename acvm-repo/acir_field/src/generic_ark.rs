@@ -54,6 +54,8 @@ pub trait AcirField:
 
     fn to_u128(self) -> u128;
 
+    fn to_biguint(self) -> BigUint;
+
     fn try_into_u128(self) -> Option<u128>;
 
     fn to_i128(self) -> i128;
@@ -206,6 +208,10 @@ macro_rules! field_wrapper {
 
             fn fetch_nearest_bytes(&self, num_bits: usize) -> Vec<u8> {
                 self.0.fetch_nearest_bytes(num_bits)
+            }
+
+            fn to_biguint(self) -> num_bigint::BigUint {
+                self.0.to_biguint()
             }
         }
 

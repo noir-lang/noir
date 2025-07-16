@@ -7,6 +7,7 @@ mod generic_ark;
 use ark_ff::fields::{Fp64, MontBackend, MontConfig};
 pub use generic_ark::AcirField;
 
+// TODO : Shift it to external crate
 #[derive(MontConfig)]
 #[modulus = "2147483647"]
 #[generator = "3"]
@@ -14,6 +15,7 @@ pub use generic_ark::AcirField;
 #[small_subgroup_power = "1"]
 pub struct M31Config;
 pub type M31 = Fp64<MontBackend<M31Config, 1>>;
+pub type M31FieldElement = field_element::FieldElement<M31>;
 
 /// Temporarily exported generic field to aid migration to `AcirField`
 pub use field_element::FieldElement as GenericFieldElement;
@@ -23,7 +25,7 @@ cfg_if::cfg_if! {
         pub type FieldElement = field_element::FieldElement<ark_bls12_381::Fr>;
     } else {
         // pub type FieldElement = field_element::FieldElement<ark_bn254::Fr>;
-        pub type FieldElement = field_element::FieldElement<M31>;
+        pub type FieldElement = M31FieldElement;
     }
 }
 

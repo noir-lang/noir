@@ -593,7 +593,7 @@ fn simplify_black_box_func(
     let pedantic_solving = true;
     cfg_if::cfg_if! {
         if #[cfg(feature = "bn254")] {
-            let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(pedantic_solving);
+            let solver = m31_blackbox_solver::M31BlackBoxSolver(pedantic_solving);  
         } else {
             let solver = acvm::blackbox_solver::StubbedBlackBoxSolver(pedantic_solving);
         }

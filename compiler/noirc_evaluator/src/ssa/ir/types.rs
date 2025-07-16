@@ -357,6 +357,7 @@ impl std::fmt::Display for NumericType {
     }
 }
 
+// TODO : fix tests
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,9 +367,9 @@ mod tests {
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
         assert!(u8.value_is_outside_limits(SignedInteger::negative(1_i128)).is_some());
-        assert!(u8.value_is_outside_limits(SignedInteger::positive(0_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedInteger::positive(255_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedInteger::positive(256_i128)).is_some());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(0_u128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(255_u128)).is_none());
+        assert!(u8.value_is_outside_limits(SignedInteger::positive(256_u128)).is_some());
     }
 
     #[test]
@@ -376,9 +377,9 @@ mod tests {
         let i8 = NumericType::Signed { bit_size: 8 };
         assert!(i8.value_is_outside_limits(SignedInteger::negative(129_i128)).is_some());
         assert!(i8.value_is_outside_limits(SignedInteger::negative(128_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedInteger::positive(0_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedInteger::positive(127_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedInteger::positive(128_i128)).is_some());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(0_u128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(127_u128)).is_none());
+        assert!(i8.value_is_outside_limits(SignedInteger::positive(128_u128)).is_some());
     }
 
     proptest! {
@@ -386,7 +387,7 @@ mod tests {
         fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
-                prop_assert!(input.value_is_outside_limits(SignedInteger::from(max_value)).is_none());
+                prop_assert!(input.value_is_outside_limits(SignedInteger::from(max_value.to_biguint())).is_none());
             }
         }
     }

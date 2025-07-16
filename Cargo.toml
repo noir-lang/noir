@@ -39,6 +39,7 @@ members = [
     "acvm-repo/brillig_vm",
     "acvm-repo/blackbox_solver",
     "acvm-repo/bn254_blackbox_solver",
+    "acvm-repo/m31_blackbox_solver",
     # Utility crates
     "utils/iter-extended",
 
@@ -90,6 +91,7 @@ brillig = { version = "1.0.0-beta.7", path = "acvm-repo/brillig", default-featur
 brillig_vm = { version = "1.0.0-beta.7", path = "acvm-repo/brillig_vm", default-features = false }
 acvm_blackbox_solver = { version = "1.0.0-beta.7", path = "acvm-repo/blackbox_solver", default-features = false }
 bn254_blackbox_solver = { version = "1.0.0-beta.7", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+m31_blackbox_solver = { version = "1.0.0-beta.7", path = "acvm-repo/m31_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }

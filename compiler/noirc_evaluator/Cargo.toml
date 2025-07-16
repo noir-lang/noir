@@ -16,6 +16,7 @@ noirc_frontend.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 fxhash.workspace = true
 iter-extended.workspace = true
 thiserror.workspace = true
@@ -49,3 +50,4 @@ noirc_frontend = { workspace = true, features = ["test_utils"] }
 [features]
 bn254 = ["noirc_frontend/bn254"]
 bls12_381 = []
+m31 = []

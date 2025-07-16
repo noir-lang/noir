@@ -10,6 +10,7 @@ use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStack;
 use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
+use m31_blackbox_solver::M31BlackBoxSolver;
 
 use acvm::acir::{
     BlackBoxFunc,
@@ -178,7 +179,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext<FieldElement, Bn254BlackBoxSolver>,
+    acir_context: AcirContext<FieldElement, M31BlackBoxSolver>,
 
     /// Track initialized acir dynamic arrays
     ///
@@ -232,7 +233,7 @@ impl<'a> Context<'a> {
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
+        let mut acir_context = AcirContext::new(brillig_stdlib, M31BlackBoxSolver::default());
         acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
