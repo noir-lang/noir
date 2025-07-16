@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752676477709,
+  "lastUpdate": 1752676789937,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21148,85 +21148,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8988213085075ee6c5f8843f767ae9a9a204e2cf",
-          "message": "fix: apply instantiation bindings to associated constants (#9117)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-04T14:05:24Z",
-          "tree_id": "e514a46bb844f9a8e0f0dfcf17aac606c4d7fe45",
-          "url": "https://github.com/noir-lang/noir/commit/8988213085075ee6c5f8843f767ae9a9a204e2cf"
-        },
-        "date": 1751640138450,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1127.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2067.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 585,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4934.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3975.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3873.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32739.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32760.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 176.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 389.5,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25076,6 +24997,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/69827d155cecb32d17ba4ceb584989be9773cc1a"
         },
         "date": 1752669362886,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 716.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1972.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 543,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4943,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3958.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3881.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 32668.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 32702.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 398.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 630.8,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 622.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92f56e7128abe06cb92ed4d824ebf950f2e415e9",
+          "message": "chore(ssa_fuzzer): taking witnesses from program (#9221)",
+          "timestamp": "2025-07-16T14:10:41Z",
+          "tree_id": "b0609a27fb1372e7d257061376ef587f471b7b9e",
+          "url": "https://github.com/noir-lang/noir/commit/92f56e7128abe06cb92ed4d824ebf950f2e415e9"
+        },
+        "date": 1752676774986,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
