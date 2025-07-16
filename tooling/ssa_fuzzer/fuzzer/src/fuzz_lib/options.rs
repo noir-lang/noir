@@ -108,6 +108,7 @@ impl Default for FuzzerCommandOptions {
     }
 }
 
+#[derive(Clone)]
 pub struct FuzzerOptions {
     pub constrain_idempotent_morphing_enabled: bool,
     pub constant_execution_enabled: bool,
@@ -130,6 +131,20 @@ impl Default for FuzzerOptions {
             max_iterations_num: 1000,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
+        }
+    }
+}
+
+impl From<&FuzzerOptions> for ProgramContextOptions {
+    fn from(options: &FuzzerOptions) -> ProgramContextOptions {
+        ProgramContextOptions {
+            idempotent_morphing_enabled: false,
+            compile_options: options.compile_options.clone(),
+            max_ssa_blocks_num: options.max_ssa_blocks_num,
+            max_instructions_num: options.max_instructions_num,
+            instruction_options: options.instruction_options,
+            fuzzer_command_options: options.fuzzer_command_options,
+            max_iterations_num: options.max_iterations_num,
         }
     }
 }

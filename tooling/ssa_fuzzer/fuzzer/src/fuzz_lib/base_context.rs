@@ -3,7 +3,6 @@ use super::instruction::Instruction;
 use super::instruction::InstructionBlock;
 use super::options::{ProgramContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
-use acvm::acir::native_types::Witness;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
@@ -77,8 +76,6 @@ pub(crate) struct FuzzerContext {
     stored_variables_for_block: HashMap<BasicBlockId, HashMap<ValueType, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
-    /// Whether the program is executed in constants
-    is_constant: bool,
     /// Options of the program context
     context_options: ProgramContextOptions,
     /// Number of instructions inserted in the program
@@ -129,7 +126,6 @@ impl FuzzerContext {
             instruction_blocks,
             stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
-            is_constant: false,
             context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
@@ -184,7 +180,6 @@ impl FuzzerContext {
             instruction_blocks,
             stored_variables_for_block: HashMap::new(),
             stored_blocks: HashMap::new(),
-            is_constant: true,
             context_options,
             inserted_instructions_count: 0,
             inserted_ssa_blocks_count: 0,
@@ -862,22 +857,6 @@ impl FuzzerContext {
 
         return_block_context
             .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
-    }
-
-    /// Returns witnesses for ACIR and Brillig
-    /// If program does not have any instructions, it terminated with the last witness
-    /// Resulting WitnessStack of programs contains only variables and return value
-    /// If we inserted some instructions, WitnessStack contains return value, so we return the last one
-    /// If we are checking constant folding, the witness stack will only contain the return value, so we return Witness(0)
-    pub(crate) fn get_return_witnesses(&self) -> (Witness, Witness) {
-        if self.is_constant {
-            (Witness(0), Witness(0))
-        } else {
-            (
-                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
-                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
-            )
-        }
     }
 
     /// Returns programs for ACIR and Brillig

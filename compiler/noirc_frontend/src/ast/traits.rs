@@ -10,7 +10,10 @@ use crate::ast::{
 use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
-use super::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
+use super::{
+    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    UnresolvedTypeData,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -302,7 +305,8 @@ pub(crate) fn desugar_generic_trait_bounds(
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
     for generic in generics {
-        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+        let UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
+        else {
             continue;
         };
 
