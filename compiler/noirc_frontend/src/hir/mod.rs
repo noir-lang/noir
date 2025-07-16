@@ -59,7 +59,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
 
     /// Any unstable features required by the current package or its dependencies.
-    pub required_unstable_features: HashSet<UnstableFeature>,
+    pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 }
 
 #[derive(Debug)]
@@ -82,7 +82,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
-            required_unstable_features: HashSet::new(),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 
@@ -101,7 +101,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
-            required_unstable_features: HashSet::new(),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 
