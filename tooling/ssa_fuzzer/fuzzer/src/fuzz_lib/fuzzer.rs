@@ -163,7 +163,7 @@ impl Fuzzer {
                 non_constant_result, result_with_constrains,
                 "Non-constant and idempotent morphing contexts should return the same result"
             );
-            log::debug!("result_with_constrains: {:?}", result_with_constrains);
+            log::debug!("result_with_constrains: {result_with_constrains:?}");
         }
         non_constant_result
     }
@@ -178,8 +178,8 @@ impl Fuzzer {
         let (acir_program, brillig_program) = match (acir_program, brillig_program) {
             (Ok(acir), Ok(brillig)) => (acir, brillig),
             (Err(acir_error), Err(brillig_error)) => {
-                log::debug!("ACIR compilation error: {:?}", acir_error);
-                log::debug!("Brillig compilation error: {:?}", brillig_error);
+                log::debug!("ACIR compilation error: {acir_error:?}");
+                log::debug!("Brillig compilation error: {brillig_error:?}");
                 log::debug!("ACIR and Brillig compilation failed");
                 return None;
             }
@@ -195,8 +195,8 @@ impl Fuzzer {
                         );
                     }
                     Err(acir_error) => {
-                        log::debug!("ACIR execution error: {:?}", acir_error);
-                        log::debug!("Brillig compilation error: {:?}", brillig_error);
+                        log::debug!("ACIR execution error: {acir_error:?}");
+                        log::debug!("Brillig compilation error: {brillig_error:?}");
                         return None;
                     }
                 }
@@ -213,8 +213,8 @@ impl Fuzzer {
                         );
                     }
                     Err(brillig_error) => {
-                        log::debug!("Brillig execution error: {:?}", brillig_error);
-                        log::debug!("ACIR compilation error: {:?}", acir_error);
+                        log::debug!("Brillig execution error: {brillig_error:?}");
+                        log::debug!("ACIR compilation error: {acir_error:?}");
                         return None;
                     }
                 }
@@ -222,31 +222,28 @@ impl Fuzzer {
         };
         let comparison_result =
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
-        log::debug!("Comparison result: {:?}", comparison_result);
+        log::debug!("Comparison result: {comparison_result:?}");
         match comparison_result {
             CompareResults::Agree(result) => Some(result),
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
                 panic!(
                     "ACIR and Brillig programs returned different results: \
-                    ACIR returned {:?}, Brillig returned {:?}",
-                    acir_return_value, brillig_return_value
+                    ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_return_value) => {
                 panic!(
-                    "ACIR execution failed with error: {:?}, Brillig returned {:?}",
-                    acir_error, brillig_return_value
+                    "ACIR execution failed with error: {acir_error:?}, Brillig returned {brillig_return_value:?}"
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_return_value) => {
                 panic!(
-                    "Brillig execution failed with error: {:?}, ACIR returned {:?}",
-                    brillig_error, acir_return_value
+                    "Brillig execution failed with error: {brillig_error:?}, ACIR returned {acir_return_value:?}"
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
-                log::debug!("ACIR execution error: {:?}", acir_error);
-                log::debug!("Brillig execution error: {:?}", brillig_error);
+                log::debug!("ACIR execution error: {acir_error:?}");
+                log::debug!("Brillig execution error: {brillig_error:?}");
                 None
             }
         }

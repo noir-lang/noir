@@ -141,7 +141,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {:?}", result);
+            panic!("Program executed successfully with result: {result:?}");
         }
     }
 

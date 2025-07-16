@@ -496,22 +496,46 @@ impl FunctionContext<'_> {
         }))
     }
 
-    /// Prepare a slice access.
-    /// Check that the index being used to access a slice element
-    /// is less than the dynamic slice length.
+    /// Prepare an array or slice access.
+    /// Check that the index being used to access an array/slice element
+    /// is less than the (potentially dynamic) array/slice length.
     fn codegen_access_check(&mut self, index: ValueId, length: ValueId) {
         let index = self.make_array_index(index);
         // We convert the length as an array index type for comparison
         let array_len = self.make_array_index(length);
+        let assert_message = Some("Index out of bounds".to_owned());
 
-        let is_offset_out_of_bounds = self.builder.insert_binary(index, BinaryOp::Lt, array_len);
-        let true_const = self.builder.numeric_constant(true, NumericType::bool());
+        let array_len_constant = self
+            .builder
+            .current_function
+            .dfg
+            .get_numeric_constant(array_len)
+            .and_then(|value| value.try_to_u32());
 
-        self.builder.insert_constrain(
-            is_offset_out_of_bounds,
-            true_const,
-            Some("Index out of bounds".to_owned().into()),
-        );
+        // This optimization seems to cause regressions in brillig so we restrict it to ACIR.
+        let runtime = self.builder.current_function.runtime();
+        if runtime.is_acir() && array_len_constant.is_some_and(u32::is_power_of_two) {
+            // If the array length is a power of two then we can make use of the range check opcode
+            // to assert that the index fits in the relevant number of bits.
+            let array_len_constant = array_len_constant.expect("array checked to be constant");
+            let array_len_bits = array_len_constant.ilog2();
+            debug_assert_eq!(2u32.pow(array_len_bits), array_len_constant);
+            // TODO(https://github.com/noir-lang/noir/issues/9191): this cast results in better circuit generation.
+            // There's an optimization here that we should find automatically.
+            let index_as_field = self.builder.insert_cast(index, NumericType::NativeField);
+            self.builder.insert_range_check(index_as_field, array_len_bits, assert_message);
+        } else {
+            // If it's not a power of two then we need to do an explicit inequality and constraint.
+            let is_offset_out_of_bounds =
+                self.builder.insert_binary(index, BinaryOp::Lt, array_len);
+            let true_const = self.builder.numeric_constant(true, NumericType::bool());
+
+            self.builder.insert_constrain(
+                is_offset_out_of_bounds,
+                true_const,
+                assert_message.map(ConstrainError::from),
+            );
+        }
     }
 
     fn codegen_cast(&mut self, cast: &ast::Cast) -> Result<Values, RuntimeError> {

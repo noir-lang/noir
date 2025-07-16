@@ -76,7 +76,7 @@ impl<F: AcirField> FunctionInput<F> {
             Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } else {
             let value_num_bits = value.num_bits();
-            let value = format!("{}", value);
+            let value = format!("{value}");
             Err(InvalidInputBitSize { value, value_num_bits, max_bits })
         }
     }

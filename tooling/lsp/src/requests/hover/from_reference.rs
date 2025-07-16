@@ -310,7 +310,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("global ");
     string.push_str(global_info.ident.as_str());
     string.push_str(": ");
-    string.push_str(&format!("{}", typ));
+    string.push_str(&format!("{typ}"));
 
     if let GlobalValue::Resolved(value) = &global_info.value {
         if let Some(value) = value_to_string(value) {
@@ -473,7 +473,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
 
         if enum_variant.is_some() {
-            string.push_str(&format!("{}", typ));
+            string.push_str(&format!("{typ}"));
         } else {
             format_pattern(pattern, args.interner, &mut string);
 
@@ -483,7 +483,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 if matches!(visibility, Visibility::Public) {
                     string.push_str("pub ");
                 }
-                string.push_str(&format!("{}", typ));
+                string.push_str(&format!("{typ}"));
             }
         }
 
@@ -500,7 +500,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             Type::Unit => (),
             _ => {
                 string.push_str(" -> ");
-                string.push_str(&format!("{}", return_type));
+                string.push_str(&format!("{return_type}"));
             }
         }
 
@@ -600,7 +600,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&definition_info.name);
     if !matches!(typ, Type::Error) {
         string.push_str(": ");
-        string.push_str(&format!("{}", typ));
+        string.push_str(&format!("{typ}"));
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
