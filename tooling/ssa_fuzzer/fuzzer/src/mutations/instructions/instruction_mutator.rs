@@ -6,7 +6,7 @@
 use crate::fuzz_lib::instruction::{Argument, Instruction};
 use crate::mutations::configuration::{
     BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION, BASIC_INSTRUCTION_MUTATION_CONFIGURATION,
-    InstructionArgumentMutationOptions, InstructionMutationOptions,
+    InstructionArgumentMutationOptions, InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
 };
 use crate::mutations::instructions::argument_mutator::argument_mutator;
 use crate::mutations::instructions::type_mutations::type_mutator;
@@ -22,7 +22,7 @@ trait InstructionMutator {
 struct RandomMutation;
 impl InstructionMutator for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut Instruction) {
-        let mut bytes = [0u8; 17];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }

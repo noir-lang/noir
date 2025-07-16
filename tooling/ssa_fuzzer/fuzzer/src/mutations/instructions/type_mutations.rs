@@ -1,7 +1,8 @@
 //! This file contains mechanisms for deterministically mutating a given [ValueType](noir_ssa_fuzzer::typed_value::ValueType) value
 
 use crate::mutations::configuration::{
-    BASIC_VALUE_TYPE_MUTATION_CONFIGURATION, ValueTypeMutationOptions,
+    BASIC_VALUE_TYPE_MUTATION_CONFIGURATION, SIZE_OF_SMALL_ARBITRARY_BUFFER,
+    ValueTypeMutationOptions,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use noir_ssa_fuzzer::typed_value::ValueType;
@@ -14,7 +15,7 @@ trait TypeMutator {
 struct RandomMutation;
 impl TypeMutator for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut ValueType) {
-        let mut bytes = [0u8; 17];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
