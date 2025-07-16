@@ -150,13 +150,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(InterpreterError::Internal(
-                    InternalError::ValueTypeDoesNotMatchReturnType {
-                        value_id: id,
-                        expected_type: expected_type.to_string(),
-                        actual_type: actual_type.to_string(),
-                    },
-                ));
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
             }
         }
 
@@ -236,7 +234,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = self.lookup_all(jump_args)?;
                 }
@@ -252,7 +250,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         *else_destination
                     };
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = Vec::new();
                 }
@@ -1012,10 +1010,43 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
         let is_slice = matches!(&result_type, Type::Slice(..));
 
+        // The number of elements in the array must be a multiple of the number of element types
+        let element_types = result_type.clone().element_types();
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
+            return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                result,
+                elements_count: elements.len(),
+                types_count: element_types.len(),
+            }));
+        }
+
+        // Make sure each element's type matches the one in element_types
+        for (index, (element, expected_type)) in
+            elements.iter().zip(element_types.iter().cycle()).enumerate()
+        {
+            let actual_type = element.get_type();
+            if &actual_type != expected_type {
+                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                    result,
+                    index,
+                    actual_type: actual_type.to_string(),
+                    expected_type: expected_type.to_string(),
+                }));
+            }
+        }
+
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.clone().element_types(),
+            element_types,
             is_slice,
         });
         self.define(result, array)
@@ -1096,7 +1127,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1105,7 +1136,7 @@ macro_rules! apply_int_binop_opt {
             } else {
                 let instruction =
                     format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1186,7 +1217,7 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         }
 
-        // Disable this instruction if it is side-effectful and side effects are disabled.
+        // Disable this instruction if it is side-effectual and side effects are disabled.
         if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
@@ -1203,32 +1234,20 @@ impl<W: Write> Interpreter<'_, W> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
                 // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1364,7 +1383,8 @@ impl<W: Write> Interpreter<'_, W> {
     fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
         let overflow = || {
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
+            let operator = binary.operator;
+            InterpreterError::Overflow { operator, instruction }
         };
 
         let lhs_id = binary.lhs;

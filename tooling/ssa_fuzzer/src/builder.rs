@@ -61,9 +61,7 @@ impl FuzzerBuilder {
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
-                Err(e) => {
-                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
-                }
+                Err(e) => Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {e:?}"))),
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -223,7 +221,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values    
+    /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         if !lhs.supports_bitwise() {
             return lhs;

@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_A: [Field] = &[];
+
+fn main(a: u32) -> pub Field {
+    if a == 10_u32 {
+        G_A[1_u32 % G_A.len()]
+    } else if a == 20_u32 {
+        a as Field
+    } else {
+        -1_Field
+    }
+}

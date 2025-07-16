@@ -16,7 +16,7 @@ use noirc_driver::{CompilationResult, CompileOptions, gen_abi};
 use clap::Args;
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
-use noirc_evaluator::ssa::interpreter::value::Value;
+use noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
@@ -124,7 +124,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         let ssa_return = ssa_return.map(|ssa_return| {
             let main_function = &ssa.functions[&ssa.main_id];
             if main_function.has_data_bus_return_data() {
-                let values = flatten_values(ssa_return);
+                let values = flatten_databus_values(ssa_return);
                 vec![Value::array(values, vec![Type::Numeric(NumericType::NativeField)])]
             } else {
                 ssa_return
@@ -292,23 +292,25 @@ fn print_and_interpret_ssa(
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
 
-fn flatten_values(values: Vec<Value>) -> Vec<Value> {
+fn flatten_databus_values(values: Vec<Value>) -> Vec<Value> {
     let mut flattened_values = Vec::new();
     for value in values {
-        flatten_value(value, &mut flattened_values);
+        flatten_databus_value(value, &mut flattened_values);
     }
     flattened_values
 }
 
-fn flatten_value(value: Value, flattened_values: &mut Vec<Value>) {
+fn flatten_databus_value(value: Value, flattened_values: &mut Vec<Value>) {
     match value {
         Value::ArrayOrSlice(array_value) => {
             for value in array_value.elements.borrow().iter() {
-                flatten_value(value.clone(), flattened_values);
+                flatten_databus_value(value.clone(), flattened_values);
             }
         }
-        Value::Numeric(..)
-        | Value::Reference(..)
+        Value::Numeric(value) => {
+            flattened_values.push(Value::Numeric(NumericValue::Field(value.convert_to_field())));
+        }
+        Value::Reference(..)
         | Value::Function(..)
         | Value::Intrinsic(..)
         | Value::ForeignFunction(..) => flattened_values.push(value),

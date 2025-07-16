@@ -60,7 +60,7 @@ resolver = "2"
 
 [workspace.package]
 # x-release-please-start-version
-version = "1.0.0-beta.7"
+version = "1.0.0-beta.8"
 # x-release-please-end
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2024"
@@ -80,17 +80,18 @@ unused_must_use = "warn"
 [workspace.lints.clippy]
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
+uninlined_format_args = "warn"
 
 [workspace.dependencies]
 
 # ACVM workspace dependencies
-acir_field = { version = "1.0.0-beta.7", path = "acvm-repo/acir_field", default-features = false }
-acir = { version = "1.0.0-beta.7", path = "acvm-repo/acir", default-features = false }
-acvm = { version = "1.0.0-beta.7", path = "acvm-repo/acvm" }
-brillig = { version = "1.0.0-beta.7", path = "acvm-repo/brillig", default-features = false }
-brillig_vm = { version = "1.0.0-beta.7", path = "acvm-repo/brillig_vm", default-features = false }
-acvm_blackbox_solver = { version = "1.0.0-beta.7", path = "acvm-repo/blackbox_solver", default-features = false }
-bn254_blackbox_solver = { version = "1.0.0-beta.7", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
+acir_field = { version = "1.0.0-beta.8", path = "acvm-repo/acir_field", default-features = false }
+acir = { version = "1.0.0-beta.8", path = "acvm-repo/acir", default-features = false }
+acvm = { version = "1.0.0-beta.8", path = "acvm-repo/acvm" }
+brillig = { version = "1.0.0-beta.8", path = "acvm-repo/brillig", default-features = false }
+brillig_vm = { version = "1.0.0-beta.8", path = "acvm-repo/brillig_vm", default-features = false }
+acvm_blackbox_solver = { version = "1.0.0-beta.8", path = "acvm-repo/blackbox_solver", default-features = false }
+bn254_blackbox_solver = { version = "1.0.0-beta.8", path = "acvm-repo/bn254_blackbox_solver", default-features = false }
 
 # Noir compiler workspace dependencies
 fm = { path = "compiler/fm" }
@@ -164,7 +165,8 @@ pprof = { version = "^0.15.0", features = ["flamegraph", "criterion"] }
 # Protobuf
 prost = "0.13"
 prost-build = "0.13"
-protoc-prebuilt = "0.3"
+protoc-bin-vendored = "3.1.0"
+
 
 # MessagePack
 rmp = "0.8.14"
@@ -186,7 +188,7 @@ url = "2.5.4"
 base64 = "^0.22.1"
 fxhash = "0.2.1"
 build-data = "^0.3.3"
-bincode =  { version = "^2.0.1", features = ["serde"] }
+bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
 lazy_static = "1.4"

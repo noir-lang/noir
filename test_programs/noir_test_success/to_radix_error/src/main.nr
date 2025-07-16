@@ -20,9 +20,9 @@ fn test_acir_field_too_big() {
     let _ = constrained_le_decompose(0x100000000000000000000000000000000);
 }
 
-// We do not constrain a decomposition in Brillig. We instead just write up to the number of specified limbs,
-// thus this does not fail in Brillig where the number of limbs determines the correctness of the byte decomposition.
-#[test]
+// We also check in Brillig that the input field fits in the limbs decomposition
+// so that acir and brillig behavior is consistent.
+#[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
 fn test_brillig() {
     // Safety: testing context
     let _ = unsafe { brillig_le_decompose(0x100000000000000000000000000000000) };

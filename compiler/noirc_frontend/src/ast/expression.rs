@@ -183,7 +183,9 @@ impl ExpressionKind {
                 Expression {
                     kind: ExpressionKind::Literal(Literal::Integer(field, suffix)), ..
                 },
-            ) => ExpressionKind::Literal(Literal::Integer(-*field, *suffix)),
+            ) if !field.is_negative() => {
+                ExpressionKind::Literal(Literal::Integer(-*field, *suffix))
+            }
             _ => ExpressionKind::Prefix(Box::new(PrefixExpression { operator, rhs })),
         }
     }
@@ -794,7 +796,7 @@ impl Display for TypePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}::{}", self.typ, self.item)?;
         if let Some(turbofish) = &self.turbofish {
-            write!(f, "::{}", turbofish)?;
+            write!(f, "::{turbofish}")?;
         }
         Ok(())
     }

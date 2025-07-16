@@ -201,7 +201,7 @@ impl NodeInterner {
     ///
     /// ### Example:
     /// ```nr
-    /// trait Fieldable {
+    /// trait HasToField {
     ///     fn to_field(self) -> Field;
     ///        ^------------------------------\
     /// }                                     |    

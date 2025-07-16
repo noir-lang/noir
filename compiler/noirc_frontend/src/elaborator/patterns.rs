@@ -806,6 +806,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
         }

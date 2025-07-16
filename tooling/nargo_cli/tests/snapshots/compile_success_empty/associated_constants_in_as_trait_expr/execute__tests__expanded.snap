@@ -29,5 +29,5 @@ fn get_n_2<T>() -> u32
 where
     T: Serialize,
 {
-    <T as Serialize>::N
+    T::N
 }

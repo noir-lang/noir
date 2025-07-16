@@ -10,7 +10,7 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
 use serde::{Deserialize, Serialize};
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
+/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned to represent a field element
 /// field = low + high * 2^128
 #[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
 pub(crate) struct FieldRepresentation {
@@ -111,7 +111,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
     let (witness_map, values, types) = initialize_witness_map(&data);
 
     // to triage
-    log::debug!("initial_witness: {:?}", witness_map);
+    log::debug!("initial_witness: {witness_map:?}");
     log::debug!("commands: {:?}", data.commands);
 
     let mut fuzzer = Fuzzer::new(types, values, data.blocks, options);
@@ -195,7 +195,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {:?}", result);
+            panic!("Program executed successfully with result: {result:?}");
         }
     }
 

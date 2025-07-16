@@ -118,6 +118,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     let mut ssa_pass_builder = SsaPassBuilder::new(options.optimization_level.clone());
     use OptimizationLevel::*;
 
+    ssa_pass_builder.add_pass(Ssa::expand_signed_checks, "expand signed checks", vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::remove_unreachable_functions,
         "Removing Unreachable Functions",
@@ -203,7 +204,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     );
     ssa_pass_builder.add_pass(
         Ssa::fold_constants_using_constraints,
-        "Constraint Folding using constraints",
+        "Constant Folding using constraints",
         vec![All],
     );
     ssa_pass_builder.add_try_pass(
@@ -226,6 +227,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
     // if they are unreachable and would cause the DIE post-checks to fail.
+    // This has to be done after flattening, as it destroys the CFG by removing terminators.
     ssa_pass_builder.add_pass(
         Ssa::remove_unreachable_instructions,
         "Remove Unreachable Instructions",
@@ -278,6 +280,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Verifying no dynamic array indices to reference value elements",
         vec![All, Debug],
     );
+    ssa_pass_builder.attach_pass_to_last(|ssa| {
+        // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+        // that we don't know how to attribute to a concrete error with the Noir code.
+        ssa.dead_instruction_elimination_post_check(true);
+        ssa
+    }, vec![All, Debug]);
 
     ssa_pass_builder.finish()
 }
@@ -306,6 +314,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
+        SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function

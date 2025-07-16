@@ -355,7 +355,7 @@ fn read_format_config(file_path: Option<&Path>) -> Config {
         Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("{err}");
                 Config::default()
             }
         },
@@ -393,12 +393,12 @@ fn position_to_location(
 ) -> Result<noirc_errors::Location, ResponseError> {
     let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
-        format!("Could not find file in file manager. File path: {:?}", file_path),
+        format!("Could not find file in file manager. File path: {file_path:?}"),
     ))?;
     let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {:?}", err),
+            format!("Could not convert position to byte index. Error: {err:?}"),
         )
     })?;
 
@@ -688,6 +688,9 @@ fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option
             Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
         }
         ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::TraitAssociatedType(id) => {
+            Some(interner.get_trait_associated_type(id).name.to_string())
+        }
         ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
         ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
         ReferenceId::Alias(type_alias_id) => {

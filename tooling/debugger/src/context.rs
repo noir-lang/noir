@@ -1186,7 +1186,7 @@ mod tests {
             outputs: vec![],
             predicate: None,
         }];
-        let brillig_funcs = &[brillig_bytecode];
+        let brillig_functions = &[brillig_bytecode];
         let current_witness_index = 2;
         let circuit = Circuit { current_witness_index, opcodes, ..Circuit::default() };
         let circuits = &[circuit];
@@ -1210,7 +1210,7 @@ mod tests {
             debug_artifact,
             initial_witness,
             foreign_call_executor,
-            brillig_funcs,
+            brillig_functions,
         );
 
         assert_eq!(
@@ -1246,6 +1246,7 @@ mod tests {
             })
         );
 
+        // cSpell:disable-next-line
         // Calldatacopy
         let result = context.step_into_opcode();
         assert!(matches!(result, DebugCommandResult::Ok));
@@ -1375,14 +1376,14 @@ mod tests {
             None,
             String::new(),
         ));
-        let brillig_funcs = &[brillig_bytecode];
+        let brillig_functions = &[brillig_bytecode];
         let mut context = DebugContext::<StubbedBlackBoxSolver>::new(
             &solver,
             circuits,
             debug_artifact,
             initial_witness,
             foreign_call_executor,
-            brillig_funcs,
+            brillig_functions,
         );
 
         // set breakpoint
@@ -1462,7 +1463,7 @@ mod tests {
         };
         let circuits = vec![circuit_one, circuit_two];
         let debug_artifact = DebugArtifact { debug_symbols: vec![], file_map: BTreeMap::new() };
-        let brillig_funcs = &[brillig_one, brillig_two];
+        let brillig_functions = &[brillig_one, brillig_two];
 
         let context = DebugContext::<StubbedBlackBoxSolver>::new(
             &solver,
@@ -1475,7 +1476,7 @@ mod tests {
                 None,
                 String::new(),
             )),
-            brillig_funcs,
+            brillig_functions,
         );
 
         let locations =

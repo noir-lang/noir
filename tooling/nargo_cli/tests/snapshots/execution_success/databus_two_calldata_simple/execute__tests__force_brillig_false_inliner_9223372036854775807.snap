@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -64,7 +65,7 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _14",
+    "current witness index : _10",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6]",
     "public parameters indices : []",
     "return value indices : []",
@@ -74,26 +75,17 @@ expression: artifact
     "BLACKBOX::RANGE [(_4, 32)] []",
     "BLACKBOX::RANGE [(_5, 32)] []",
     "BLACKBOX::RANGE [(_6, 32)] []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(8)), Simple(Witness(9))]",
-    "BLACKBOX::RANGE [(_9, 32)] []",
-    "EXPR [ (1, _0) (-4294967296, _8) (-1, _9) 4294967294 ]",
-    "EXPR [ (-1, _8) 0 ]",
+    "BLACKBOX::RANGE [(_0, 1)] []",
     "INIT CALLDATA 0 (id: 2, len: 2, witnesses: [_1, _2])",
-    "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _10) 0 ]) ",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967292 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(11)), Simple(Witness(12))]",
-    "BLACKBOX::RANGE [(_12, 32)] []",
-    "EXPR [ (1, _0) (-4294967296, _11) (-1, _12) 4294967292 ]",
-    "EXPR [ (-1, _11) 0 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _8) 0 ]) ",
     "INIT CALLDATA 1 (id: 4, len: 4, witnesses: [_3, _4, _5, _6])",
-    "MEM (id: 4, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _13) 0 ]) ",
-    "EXPR [ (1, _10) (1, _13) (-1, _14) 0 ]",
-    "BLACKBOX::RANGE [(_14, 32)] []",
-    "EXPR [ (1, _7) (-1, _14) 0 ]",
-    "INIT RETURNDATA (id: 3, len: 1, witnesses: [_7])",
-    "unconstrained func 0",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+    "MEM (id: 4, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _9) 0 ]) ",
+    "EXPR [ (1, _8) (1, _9) (-1, _10) 0 ]",
+    "BLACKBOX::RANGE [(_10, 32)] []",
+    "EXPR [ (1, _7) (-1, _10) 0 ]",
+    "INIT RETURNDATA (id: 3, len: 1, witnesses: [_7])"
   ],
-  "debug_symbols": "nZLBjoMgEIbfZc4cBHTd+iqbjUEdGxKChkKTxvjuHaHS9tBDvcwHzPzzT8IsMGAXzq2243SB5m+Bzmlj9Lk1U6+8niy9LiuD/dp6h0hP8JIn1awcWg+NDcYwuCoTYtFlVjbSK0fZggHagUgNR21wO63sqS4+S3lxeog5F1lefaGvs14e0YvsLw/5i+wvD/nL7F+Wb/p/uqleu7cfgx8qZFDH+BvjKUZeQCMIPEFAIwkyoUyoEqhFSagTqElFoC7Vuo3ptOoMPrZjDLZ/WRZ/m/fMvk6zm3ocgsNtzJijwe8=",
+  "debug_symbols": "nZJBDoMgEEXvMmsWgrZWr9I0BnU0JAQNQpPGePeOVqkuuqgbPsyfxycZRqix9G2hTNMNkN9HKK3SWrWF7irpVGeoOk4MtmPhLCKVYOcT1UuLxkFuvNYMnlL7pWnopVnUSUtuxABNTUoXNkrjvJvYl45+ozzKVphzEfDLH3wa+PgML0J+fCpfhPz4VH4c8pPkwD/oJCtlDxODKzUySCEXDG7LmkGeMODRRzjBJIJkmlOtkqXGddiNN9Vu9u7Vb872O3rbVVh7i3Pq4tE73g==",
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
@@ -103,7 +95,5 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  "brillig_names": []
 }

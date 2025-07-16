@@ -98,7 +98,10 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
         }
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
             // Retain the lower 'width' bits
-            debug_assert!(*width <= 128, "We don't currently support uints larger than u128");
+            debug_assert!(
+                *width <= 128,
+                "We don't currently support unsigned integers larger than u128"
+            );
             let mut uint_cast = f.to_u128();
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;
@@ -125,7 +128,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
         }
         (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
-            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
+            output.push_str(&format!("<<fn({arguments:?}) -> {return_type:?}>>",));
         }
         (_, PrintableType::Reference { mutable: false, .. }) => {
             output.push_str("<<ref>>");
@@ -176,12 +179,12 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
         (PrintableValue::Vec { array_elements, .. }, PrintableType::Tuple { types }) => {
             output.push('(');
-            let mut elems = array_elements.iter().zip(types).peekable();
-            while let Some((value, typ)) = elems.next() {
+            let mut elements = array_elements.iter().zip(types).peekable();
+            while let Some((value, typ)) = elements.next() {
                 output.push_str(
                     &PrintableValueDisplay::Plain(value.clone(), typ.clone()).to_string(),
                 );
-                if elems.peek().is_some() {
+                if elements.peek().is_some() {
                     output.push_str(", ");
                 }
             }
@@ -243,7 +246,7 @@ fn write_template_replacing_interpolations(
 
         // Write the interpolation
         if let Some(string) = replacement() {
-            write!(fmt, "{}", string)?;
+            write!(fmt, "{string}")?;
         } else {
             return Err(std::fmt::Error);
         }

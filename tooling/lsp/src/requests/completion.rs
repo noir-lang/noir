@@ -386,7 +386,7 @@ impl<'a> NodeFinder<'a> {
                     );
                     return;
                 }
-                ModuleDefId::GlobalId(_) => return,
+                ModuleDefId::GlobalId(_) | ModuleDefId::TraitAssociatedTypeId(_) => return,
             }
         }
 
@@ -1042,9 +1042,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1204,7 +1204,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,
@@ -1993,8 +1993,8 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
-/// // "merk" and "ro" match "merkle" and "root" and are in order
-/// name_matches("compute_merkle_root", "merk_ro") == true
+/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
+/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
 /// name_matches("compute_merkle_root", "ro_mer") == false
@@ -2033,6 +2033,7 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) => Some(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)

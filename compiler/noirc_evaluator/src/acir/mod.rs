@@ -423,7 +423,7 @@ impl<'a> Context<'a> {
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {:?}", typ),
+                            found: format!("Instead got {typ:?}"),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
@@ -1044,6 +1044,18 @@ impl<'a> Context<'a> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
         let binary_type = self.type_of_binary_operation(binary, dfg);
+
+        if binary_type.is_signed()
+            && matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
+            )
+        {
+            panic!("Checked signed operations should all be removed before ACIRgen")
+        }
+
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();

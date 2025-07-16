@@ -103,7 +103,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_tvar, kind, binding) in instantiation_bindings.values_mut() {
+        for (_type_var, kind, binding) in instantiation_bindings.values_mut() {
             *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
@@ -264,7 +264,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else {
             let name = self.elaborator.interner.function_name(&function);
-            unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
+            unreachable!("Non-builtin, low-level or oracle builtin fn '{name}'")
         }
     }
 
@@ -1453,14 +1453,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
             // appears in the "Noir Language Server" output window in case you want to see it.
             if print_newline {
-                eprintln!("{}", contents);
+                eprintln!("{contents}");
             } else {
-                eprint!("{}", contents);
+                eprint!("{contents}");
             }
         } else if print_newline {
-            writeln!(output, "{}", contents).expect("write should succeed");
+            writeln!(output, "{contents}").expect("write should succeed");
         } else {
-            write!(output, "{}", contents).expect("write should succeed");
+            write!(output, "{contents}").expect("write should succeed");
         }
 
         Ok(Value::Unit)

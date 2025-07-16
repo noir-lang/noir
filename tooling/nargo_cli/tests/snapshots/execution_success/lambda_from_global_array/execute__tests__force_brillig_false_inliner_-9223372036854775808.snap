@@ -1,6 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 497
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -35,29 +35,24 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _8",
+    "current witness index : _6",
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(2)), Simple(Witness(3))]",
-    "BLACKBOX::RANGE [(_3, 32)] []",
-    "EXPR [ (1, _0) (-4294967296, _2) (-1, _3) 4294967294 ]",
-    "EXPR [ (-1, _2) 0 ]",
-    "EXPR [ (-1, _4) 1 ]",
-    "EXPR [ (-1, _5) 2 ]",
-    "INIT (id: 0, len: 2, witnesses: [_4, _5])",
-    "MEM (id: 0, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _6) 0 ]) ",
-    "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(6))], q_c: -1 })], outputs: [Simple(Witness(7))]",
-    "EXPR [ (1, _6, _7) (-1, _7) (1, _8) -1 ]",
-    "EXPR [ (1, _6, _8) (-1, _8) 0 ]",
-    "EXPR [ (-1, _6, _8) (1, _6) (2, _8) -2 ]",
-    "EXPR [ (-1, _1) (-1, _8) 2 ]",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "EXPR [ (-1, _2) 1 ]",
+    "EXPR [ (-1, _3) 2 ]",
+    "INIT (id: 0, len: 2, witnesses: [_2, _3])",
+    "MEM (id: 0, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _4) 0 ]) ",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(4))], q_c: -1 })], outputs: [Simple(Witness(5))]",
+    "EXPR [ (1, _4, _5) (-1, _5) (1, _6) -1 ]",
+    "EXPR [ (1, _4, _6) (-1, _6) 0 ]",
+    "EXPR [ (-1, _4, _6) (1, _4) (2, _6) -2 ]",
+    "EXPR [ (-1, _1) (-1, _6) 2 ]",
     "unconstrained func 0",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
-    "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZJNDsIgEIXvMmsWoFZbrmJMQ9upISG0QTAxjXd3Ooo/CxNjN+/BPD4ygZmgwyYda+v74QR6P0ETrHP2WLuhNdEOnqrTVUDe1jEgUgnecqJGE9BH0D45J+BsXOJDp9F49mgCpVIA+o6cLuytw3l1FS9afkd3D1QVT7b4Ga4yXZV/0GWZ6WoJraRahm8/8APtTGvDx0eBBL0SoFhXrGvWDei1gIJ1y7pjLUFvBFSsSt5N3Y3w+a3PJljTOHzMQZ98+zYW8TLmJA/OGIYWuxRw7owz6vUG",
+  "debug_symbols": "pZLBCoMwDIbfJecedJub9lXGkKpxFEqV2g6G+O6LwW56GIx5+dPk7xcCyQgNVuFeatt2A8jrCJXTxuh7abpaed1Zqo6TgJiW3iFSCVY+Ub1yaD1IG4wR8FAm8KehV5ajV47cRADahiI1bLXB+TWJD518Ry8LmmZvNvsZLiJd5H/QeR7pYg+dJuk+/LzBb5SpWrvNoiABeRCQgjwKOLAeWU+sGciTgDPrhTVnLajlNM/gtKoMLitvg61XF+CffXTijfSuq7EJDuch2KOxXg==",
   "file_map": {
     "50": {
       "source": "global FN_ARRAY: [fn() -> Field; 2] = [f1, f2];\n\nfn main(x: u32, y: Field) {\n    assert(FN_ARRAY[x]() == y);\n}\n\nfn f1() -> Field {\n    1\n}\n\nfn f2() -> Field {\n    2\n}\n",
@@ -68,7 +63,6 @@ expression: artifact
     "main"
   ],
   "brillig_names": [
-    "directive_integer_quotient",
     "directive_invert"
   ]
 }

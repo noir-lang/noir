@@ -32,6 +32,7 @@ use crate::token::MetaAttributeName;
 
 use crate::GenericTypeVars;
 use crate::Generics;
+use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirIdent;
@@ -124,6 +125,11 @@ pub struct NodeInterner {
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
+
+    /// Each trait associated type. These are tracked so that we can distinguish them
+    /// from other types and know that, when directly referenced, they should also
+    /// lead to an "ambiguous associated type" error.
+    pub(crate) trait_associated_types: Vec<TraitAssociatedType>,
 
     // Trait map.
     //
@@ -220,12 +226,12 @@ pub struct NodeInterner {
     interned_statement_kinds: noirc_arena::Arena<StatementKind>,
 
     // Interned `UnresolvedTypeData`s during comptime code.
-    interned_unresolved_type_datas: noirc_arena::Arena<UnresolvedTypeData>,
+    interned_unresolved_type_data: noirc_arena::Arena<UnresolvedTypeData>,
 
     // Interned `Pattern`s during comptime code.
     interned_patterns: noirc_arena::Arena<Pattern>,
 
-    /// Determins whether to run in LSP mode. In LSP mode references are tracked.
+    /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
 
     /// Store the location of the references in the graph.
@@ -308,6 +314,7 @@ pub enum ReferenceId {
     StructMember(TypeId, usize),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -505,12 +512,6 @@ impl TypeId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeAliasId(pub usize);
 
-impl TypeAliasId {
-    pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(usize::MAX)
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
 
@@ -522,6 +523,9 @@ impl TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+pub struct TraitAssociatedTypeId(pub usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
@@ -691,6 +695,7 @@ impl Default for NodeInterner {
             data_types: HashMap::default(),
             type_attributes: HashMap::default(),
             type_aliases: Vec::new(),
+            trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
             next_trait_implementation_id: 0,
@@ -710,7 +715,7 @@ impl Default for NodeInterner {
             quoted_types: Default::default(),
             interned_expression_kinds: Default::default(),
             interned_statement_kinds: Default::default(),
-            interned_unresolved_type_datas: Default::default(),
+            interned_unresolved_type_data: Default::default(),
             interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
@@ -842,6 +847,16 @@ impl NodeInterner {
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
+    }
+
+    pub fn push_trait_associated_type(
+        &mut self,
+        trait_id: TraitId,
+        name: Ident,
+    ) -> TraitAssociatedTypeId {
+        let id = TraitAssociatedTypeId(self.trait_associated_types.len());
+        self.trait_associated_types.push(TraitAssociatedType { id, trait_id, name });
+        id
     }
 
     pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
@@ -1283,6 +1298,10 @@ impl NodeInterner {
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
         &self.traits[&id]
+    }
+
+    pub fn get_trait_associated_type(&self, id: TraitAssociatedTypeId) -> &TraitAssociatedType {
+        &self.trait_associated_types[id.0]
     }
 
     pub fn get_trait_mut(&mut self, id: TraitId) -> &mut Trait {
@@ -2307,11 +2326,11 @@ impl NodeInterner {
         &mut self,
         typ: UnresolvedTypeData,
     ) -> InternedUnresolvedTypeData {
-        InternedUnresolvedTypeData(self.interned_unresolved_type_datas.insert(typ))
+        InternedUnresolvedTypeData(self.interned_unresolved_type_data.insert(typ))
     }
 
     pub fn get_unresolved_type_data(&self, id: InternedUnresolvedTypeData) -> &UnresolvedTypeData {
-        &self.interned_unresolved_type_datas[id.0]
+        &self.interned_unresolved_type_data[id.0]
     }
 
     /// Returns the type of an operator (which is always a function), along with its return type.
