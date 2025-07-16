@@ -170,6 +170,8 @@ pub(crate) type InstructionArgumentMutationConfig =
     WeightedSelectionConfig<InstructionArgumentMutationOptions, 2>;
 pub(crate) const BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION:
     InstructionArgumentMutationConfig = InstructionArgumentMutationConfig::new([
+    // Fuzzer uses type of the left variable for binary ops,
+    // so mutating the right variables makes less sense
     (InstructionArgumentMutationOptions::Left, 5),
     (InstructionArgumentMutationOptions::Right, 1),
 ]);

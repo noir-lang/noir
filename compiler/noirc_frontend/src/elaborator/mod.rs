@@ -6,11 +6,11 @@ use std::{
 
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -646,18 +646,15 @@ impl<'context> Elaborator<'context> {
         generic: &UnresolvedGeneric,
     ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
-        match generic {
-            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } => {
+        match generic.ident() {
+            IdentOrQuotedType::Ident(ident) => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
-                let ident = generic.ident();
                 let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
-            // An already-resolved generic is only possible if it is the result of a
-            // previous macro call being inserted into a generics list.
-            UnresolvedGeneric::Resolved(id, location) => {
+            IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
                         Ok((type_var.clone(), name))
@@ -688,9 +685,11 @@ impl<'context> Elaborator<'context> {
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: unresolved_typ.typ.clone(),
+                        name: ident.ident().map(|name| name.to_string()),
+                        typ: typ.to_string(),
+                        location: unresolved_typ.location,
                     });
+
                 self.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)
@@ -1017,7 +1016,9 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
+            .filter_map(|generic| {
+                generic.ident().ident().and_then(|name| self.find_generic(name.as_str())).cloned()
+            })
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -2353,25 +2354,23 @@ impl<'context> Elaborator<'context> {
         // Turn each generic into an Ident
         let mut idents = HashSet::new();
         for generic in generics {
-            match generic {
-                UnresolvedGeneric::Variable(ident, _) => {
+            match generic.ident() {
+                IdentOrQuotedType::Ident(ident) => {
                     idents.insert(ident.clone());
                 }
-                UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                    idents.insert(ident.clone());
-                }
-                UnresolvedGeneric::Resolved(quoted_type_id, span) => {
+                IdentOrQuotedType::Quoted(quoted_type_id, location) => {
                     if let Type::NamedGeneric(NamedGeneric { name, .. }) =
                         self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
                     {
-                        idents.insert(Ident::new(name.to_string(), *span));
+                        idents.insert(Ident::new(name.to_string(), *location));
                     }
                 }
             }
         }
 
         // Remove the ones that show up in `self_type`
-        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        let mut visitor =
+            RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
         self_type.accept(&mut visitor);
 
         // The ones that remain are not mentioned in the impl: it's an error.
@@ -2400,6 +2399,7 @@ impl<'context> Elaborator<'context> {
 }
 
 struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    interner: &'a NodeInterner,
     idents: &'a mut HashSet<Ident>,
 }
 
@@ -2407,6 +2407,14 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
+        }
+    }
+
+    fn visit_resolved_type(&mut self, id: QuotedTypeId, location: Location) {
+        if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+            self.interner.get_quoted_type(id).follow_bindings()
+        {
+            self.idents.remove(&Ident::new(name.as_ref().clone(), location));
         }
     }
 }
