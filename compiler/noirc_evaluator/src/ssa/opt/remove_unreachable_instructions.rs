@@ -176,29 +176,27 @@ impl Function {
 
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. } => {
-                    // Check if the current predicate is known to be enabled.
-                    let is_predicate_constant_one =
-                        match context.dfg.get_numeric_constant(side_effects_condition) {
-                            Some(predicate) => predicate.is_one(),
-                            None => false, // The predicate is a variable
-                        };
-
                     let array_or_slice_type = context.dfg.type_of_value(*array);
-                    match array_or_slice_type {
-                        Type::Slice(_) => (),
+                    let array_op_always_fails = match array_or_slice_type {
+                        Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
-                            if len == 0 {
-                              current_block_reachability = Reachability::Unreachable; 
-                            } else if context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                            len == 0 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                               (index.try_to_u32().unwrap() - offset.to_u32())
-                                  >= array_type.flattened_size()}) {
-                              current_block_reachability = if is_predicate_constant_one { Reachability::Unreachable} else {Reachability::UnreachableUnderPredicate};
-                          }
+                                  >= array_type.flattened_size()})
                         }
                         
                         _ => unreachable!(
                             "Encountered non-array type during array read/write operation"
                         ),
+                    };
+
+                    if array_op_always_fails {
+                      let is_predicate_constant_one =
+                      match context.dfg.get_numeric_constant(side_effects_condition) {
+                          Some(predicate) => predicate.is_one(),
+                          None => false, // The predicate is a variable
+                      };
+                      current_block_reachability = if is_predicate_constant_one { Reachability::Unreachable } else { Reachability::UnreachableUnderPredicate };
                     }
                 }
                 _ => (),
