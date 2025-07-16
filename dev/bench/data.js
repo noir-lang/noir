@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752681642553,
+  "lastUpdate": 1752690724495,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19111,48 +19111,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c1f13c8bdc88362a94f10460d8dcb1c43d6bd6a1",
-          "message": "chore: nicer way to show nargo interpret results (#9123)",
-          "timestamp": "2025-07-04T22:17:52Z",
-          "tree_id": "f5f6e06aa690aefddf2f0f0835065f3037c6bc3f",
-          "url": "https://github.com/noir-lang/noir/commit/c1f13c8bdc88362a94f10460d8dcb1c43d6bd6a1"
-        },
-        "date": 1751668927262,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251477,
-            "range": "± 1593",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220797,
-            "range": "± 10066",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783615,
-            "range": "± 7136",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -21204,6 +21162,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777675,
             "range": "± 2113",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7cf7a89ca9593893dffe5175a5a4bf55110fb00a",
+          "message": "chore: replace array operation on 0-len arrays with side effect assertion (#9050)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-07-16T18:04:45Z",
+          "tree_id": "134e97d81a1eb416db6d67648ef0aeb8689684e2",
+          "url": "https://github.com/noir-lang/noir/commit/7cf7a89ca9593893dffe5175a5a4bf55110fb00a"
+        },
+        "date": 1752690708162,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248151,
+            "range": "± 832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217065,
+            "range": "± 7288",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776780,
+            "range": "± 1154",
             "unit": "ns/iter"
           }
         ]
