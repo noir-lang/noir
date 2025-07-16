@@ -146,7 +146,7 @@ impl Fuzzer {
                             "ACIR compiled and successfully executed, \
                             but brillig compilation failed. Execution result of \
                             acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result[&acir_return_witness], brillig_error
+                            acir_result[acir_return_witness], brillig_error
                         );
                     }
                     Err(acir_error) => {
@@ -166,7 +166,7 @@ impl Fuzzer {
                             "Brillig compiled and successfully executed, \
                             but ACIR compilation failed. Execution result of \
                             brillig only {:?}. ACIR compilation failed with: {:?}",
-                            brillig_result[&brillig_return_witness], acir_error
+                            brillig_result[brillig_return_witness], acir_error
                         );
                     }
                     Err(brillig_error) => {
