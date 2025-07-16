@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752665490265,
+  "lastUpdate": 1752666027946,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3993,85 +3993,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "5b505240a81905387d7e2fd601674d216617389f",
-          "message": "chore: test that associated function and constant with the same name collide (#9112)",
-          "timestamp": "2025-07-03T19:20:25Z",
-          "tree_id": "b989d36920554b4ca9755a36bb31fb928b5410b9",
-          "url": "https://github.com/noir-lang/noir/commit/5b505240a81905387d7e2fd601674d216617389f"
-        },
-        "date": 1751572391570,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.408,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.038,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.156,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 228,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.444,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.797,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4f69354be3db5367729628f56cf4c21634f6358e",
           "message": "chore: remove redundant associated constant lookup (#9114)",
           "timestamp": "2025-07-03T20:51:03Z",
@@ -7951,6 +7872,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.106,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e6ccc3ed37408fdab6a6d5e2af11da981409acc1",
+          "message": "fix(ssa_fuzzer): fix panic if compiler removed return value (#9216)",
+          "timestamp": "2025-07-16T11:04:39Z",
+          "tree_id": "6e6d6529696904f9a81fe0fd856ac2d819b38897",
+          "url": "https://github.com/noir-lang/noir/commit/e6ccc3ed37408fdab6a6d5e2af11da981409acc1"
+        },
+        "date": 1752666012489,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.978,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.35,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 229,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.67,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.802,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.835,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.933,
             "unit": "s"
           }
         ]
