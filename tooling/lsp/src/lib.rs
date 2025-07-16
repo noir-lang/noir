@@ -270,7 +270,7 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 }
 
 /// Create a workspace based on the source file location:
-/// * if there is a `Nargo.toml`` file, use it to read the workspace
+/// * if there is a `Nargo.toml` file, use it to read the workspace
 /// * otherwise treat the parent directory as a dummy workspace
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
