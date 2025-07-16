@@ -2605,7 +2605,7 @@ impl BinaryTypeOperator {
                     BinaryTypeOperator::Subtraction => Ok(a - b),
                     BinaryTypeOperator::Multiplication => Ok(a * b),
                     BinaryTypeOperator::Division => (b != FieldElement::zero())
-                        .then(|| a.clone() / b.clone())
+                        .then(|| a / b)
                         .ok_or(TypeCheckError::DivisionByZeroField { lhs: a, rhs: b, location }),
                     BinaryTypeOperator::Modulo => {
                         Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })

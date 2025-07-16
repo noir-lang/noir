@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
 use num_bigint::BigUint;
+use num_traits::{One, Zero};
 
 use crate::{BinaryTypeOperator, Type};
 
@@ -68,7 +68,6 @@ impl Type {
         match self {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(rhs);
-
                 let dummy_location = Location::dummy();
                 // evaluate_to_integer also calls canonicalize so if we just called
                 // `self.evaluate_to_integer(..)` we'd get infinite recursion.
@@ -135,11 +134,11 @@ impl Type {
         let mut sorted = BTreeMap::new();
 
         let zero_value = if op == BinaryTypeOperator::Addition {
-            FieldElement::zero()
+            BigUint::zero()
         } else {
-            FieldElement::one()
+            BigUint::one()
         };
-        let mut constant = zero_value;
+        let mut constant = zero_value.clone();
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
@@ -151,12 +150,12 @@ impl Type {
                 Type::Constant(new_constant, new_constant_kind) => {
                     let dummy_location = Location::dummy();
                     if let Ok(result) = op.function(
-                        BigUint::from_bytes_be(&constant.to_be_bytes()),
+                        constant.clone(),
                         new_constant.clone(),
                         &new_constant_kind,
                         dummy_location,
                     ) {
-                        constant = FieldElement::from_be_bytes_reduce(&result.to_bytes_be());
+                        constant = result;
                     } else {
                         let constant = Type::Constant(new_constant, new_constant_kind);
                         *sorted.entry(constant).or_default() += 1;
@@ -183,17 +182,14 @@ impl Type {
             }
 
             if constant != zero_value {
-                let constant = Type::Constant(
-                    BigUint::from_bytes_be(&constant.to_be_bytes()),
-                    lhs.infix_kind(rhs),
-                );
+                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
                 typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
         } else {
             // Every type must have been a constant
-            Type::Constant(BigUint::from_bytes_be(&constant.to_be_bytes()), lhs.infix_kind(rhs))
+            Type::Constant(constant, lhs.infix_kind(rhs))
         }
     }
 
@@ -292,12 +288,7 @@ impl Type {
         };
 
         let l_rhs = l_rhs.evaluate_to_integer(&kind, dummy_location).ok()?;
-        Some((
-            l_type,
-            l_op,
-            l_rhs,
-            rhs,
-        ))
+        Some((l_type, l_op, l_rhs, rhs))
     }
 
     /// Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
@@ -322,34 +313,23 @@ impl Type {
                     op = op.inverse()?;
                 }
                 let dummy_location = Location::dummy();
-                let result = op
-                    .function(
-                        l_const,
-                        r_const,
-                        &lhs.infix_kind(rhs),
-                        dummy_location,
-                    )
-                    .ok()?;
+                let result =
+                    op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                 let constant = Type::Constant(result, lhs.infix_kind(rhs));
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
                 // Just divide l_const and r_const and return bool
-                let divides_evenly = (l_const.clone() / r_const.clone()) * r_const.clone() == l_const;
+                let divides_evenly =
+                    (l_const.clone() / r_const.clone()) * r_const.clone() == l_const;
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const == BigUint::from(0u128) || !divides_evenly) {
                     None
                 } else {
                     let dummy_location = Location::dummy();
-                    let result = op
-                        .function(
-                            l_const,
-                            r_const,
-                            &lhs.infix_kind(rhs),
-                            dummy_location,
-                        )
-                        .ok()?;
+                    let result =
+                        op.function(l_const, r_const, &lhs.infix_kind(rhs), dummy_location).ok()?;
                     let constant = Box::new(Type::Constant(result, lhs.infix_kind(rhs)));
                     Some(Type::infix_expr(l_type, l_op, constant))
                 }

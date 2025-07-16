@@ -2,7 +2,6 @@ use std::fmt::Display;
 
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
-use serde::Serialize;
 
 use super::{
     BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -178,7 +177,7 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone, Serialize)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
 
 impl Ident {

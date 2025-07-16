@@ -34,6 +34,7 @@ use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use num_bigint::BigUint;
+use num_traits::Zero;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -202,7 +203,6 @@ pub fn monomorphize_debug(
         debug_functions,
         debug_types,
     );
-    println!("program: {:#?}", program);
     Ok(program.handle_ownership())
 }
 
@@ -2374,9 +2374,9 @@ impl<'interner> Monomorphizer<'interner> {
                 // of the fact the Ordering struct contains a single Field type, and our SSA
                 // pass will automatically unpack tuple values.
                 let ordering_value = if matches!(operator.kind, Less | GreaterEqual) {
-                    BigUint::from(0u128) // Ordering::Less
+                    BigUint::zero() // Ordering::Less
                 } else {
-                    (2u128).into() // Ordering::Greater
+                    2u128.into() // Ordering::Greater
                 };
 
                 let operator =

@@ -656,7 +656,7 @@ impl Value {
 
     /// Converts any non-negative `Value` into a `FieldElement`.
     /// Returns `None` for negative integers and non-integral `Value`s.
-    pub(crate) fn to_field_element(&self) -> Option<BigUint> {
+    pub(crate) fn to_integer(&self) -> Option<BigUint> {
         match self {
             Self::Field(value) => {
                 if value.is_negative() {

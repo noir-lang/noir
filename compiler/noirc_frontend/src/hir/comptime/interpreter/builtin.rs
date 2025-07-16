@@ -15,7 +15,7 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use num_bigint::BigUint;
-use num_traits::ToPrimitive;
+use num_traits::{ToPrimitive, Zero};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
@@ -3090,7 +3090,7 @@ fn derive_generators(
         starting_index,
     );
 
-    let is_infinite = BigUint::from(0u128);
+    let is_infinite = BigUint::zero();
     let x_field_name: Rc<String> = Rc::new("x".to_owned());
     let y_field_name: Rc<String> = Rc::new("y".to_owned());
     let is_infinite_field_name: Rc<String> = Rc::new("is_infinite".to_owned());

@@ -414,7 +414,7 @@ mod rules {
     pub fn int_break_up() -> Rule {
         Rule::new(
             |ctx, expr| {
-                if (ctx.is_in_range && !ctx.unconstrained) || ctx.is_in_ref_mut {
+                if ctx.is_in_range && !ctx.unconstrained || ctx.is_in_ref_mut {
                     return false;
                 }
                 matches!(expr, Expression::Literal(Literal::Integer(_, Type::Integer(_, _), _)))

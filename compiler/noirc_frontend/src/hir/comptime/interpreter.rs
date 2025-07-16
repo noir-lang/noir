@@ -5,6 +5,8 @@ use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
+use num_bigint::BigUint;
+use num_traits::{One, Zero};
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::TypeVariable;
@@ -1470,10 +1472,10 @@ fn evaluate_integer(typ: Type, value: SignedInteger, location: Location) -> IRes
     } else if let Type::Integer(sign, bit_size) = &typ {
         match (sign, bit_size) {
             (Signedness::Unsigned, IntegerBitSize::One) => {
-                let field_value = value.clone().to_integer();
-                if field_value == 0_u128.into() {
+                let integer_value = value.clone().absolute_value();
+                if integer_value == BigUint::zero() {
                     Ok(Value::U1(false))
-                } else if field_value == 1_u128.into() {
+                } else if integer_value == BigUint::one() {
                     Ok(Value::U1(true))
                 } else {
                     Err(InterpreterError::IntegerOutOfRangeForType { value, typ, location })
