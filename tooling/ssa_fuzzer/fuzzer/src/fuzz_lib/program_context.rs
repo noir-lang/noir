@@ -140,7 +140,7 @@ impl FuzzerProgramContext {
                 function_context.process_fuzzer_command(command);
             }
             function_context.finalize(stored_function.function.return_instruction_block_idx);
-            // do not create new function if it's last one
+            // do not create a new function if it's last one
             if i != self.stored_functions.len() - 1 {
                 let current_id = stored_function.id;
                 let new_id = Id::<Function>::new(current_id.to_u32() + 1);
