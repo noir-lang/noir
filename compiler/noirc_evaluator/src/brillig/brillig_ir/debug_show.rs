@@ -32,8 +32,8 @@ impl DebugToString for MemoryAddress {
             "StackPointer".into()
         } else {
             match self {
-                MemoryAddress::Direct(address) => format!("M{}", address),
-                MemoryAddress::Relative(offset) => format!("S{}", offset),
+                MemoryAddress::Direct(address) => format!("M{address}"),
+                MemoryAddress::Relative(offset) => format!("S{offset}"),
             }
         }
     }

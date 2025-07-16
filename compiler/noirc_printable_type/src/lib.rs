@@ -128,7 +128,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
             }
         }
         (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
-            output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
+            output.push_str(&format!("<<fn({arguments:?}) -> {return_type:?}>>",));
         }
         (_, PrintableType::Reference { mutable: false, .. }) => {
             output.push_str("<<ref>>");
@@ -246,7 +246,7 @@ fn write_template_replacing_interpolations(
 
         // Write the interpolation
         if let Some(string) = replacement() {
-            write!(fmt, "{}", string)?;
+            write!(fmt, "{string}")?;
         } else {
             return Err(std::fmt::Error);
         }

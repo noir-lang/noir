@@ -101,7 +101,7 @@ impl ConstantAllocation {
 
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
-            let block_ids: Vec<_> = usage_in_blocks.iter().map(|(block_id, _)| *block_id).collect();
+            let block_ids: Vec<_> = usage_in_blocks.keys().copied().collect();
 
             let allocation_point = self.decide_allocation_point(*constant_id, &block_ids, func);
 

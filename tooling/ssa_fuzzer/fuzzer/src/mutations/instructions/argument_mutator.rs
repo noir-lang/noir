@@ -7,7 +7,10 @@
 
 use crate::fuzz_lib::instruction::Argument;
 use crate::mutations::{
-    configuration::{ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION},
+    configuration::{
+        ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
+        SIZE_OF_SMALL_ARBITRARY_BUFFER,
+    },
     instructions::type_mutations::type_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
@@ -21,7 +24,7 @@ trait ArgumentsMutator {
 struct RandomMutation;
 impl ArgumentsMutator for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut Argument) {
-        let mut bytes = [0u8; 17];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }

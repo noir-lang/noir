@@ -117,7 +117,7 @@ impl CodeActionFinder<'_> {
             return;
         };
 
-        let title = format!("Import {}", full_path);
+        let title = format!("Import {full_path}");
 
         let text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {
