@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752668067679,
+  "lastUpdate": 1752668070391,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3993,85 +3993,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "cc54d86285da4477125dc5412426ba14229c7334",
-          "message": "chore: clean up interface to SSA passes + artifact creation (#9110)",
-          "timestamp": "2025-07-04T07:05:25Z",
-          "tree_id": "683cb782a8c340e5c0380419b16da3a9a60096b4",
-          "url": "https://github.com/noir-lang/noir/commit/cc54d86285da4477125dc5412426ba14229c7334"
-        },
-        "date": 1751614591522,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.498,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.996,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.21,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.312,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.436,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.774,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -7971,6 +7892,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.856,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5c6d5d30869e1c32a69db5d871d56df2a1c1026",
+          "message": "fix(fuzz): `Value::snapshot` needs to be recursive (#9215)",
+          "timestamp": "2025-07-16T11:40:08Z",
+          "tree_id": "82d2a8d86941b4ef6c6f5c58cae87553db2b811d",
+          "url": "https://github.com/noir-lang/noir/commit/e5c6d5d30869e1c32a69db5d871d56df2a1c1026"
+        },
+        "date": 1752668055003,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.03,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.054,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.718,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.72,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.842,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.775,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.88,
             "unit": "s"
           }
         ]
