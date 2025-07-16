@@ -2,7 +2,10 @@ use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
+use acvm::{
+    AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
+};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -438,13 +441,17 @@ impl Instruction {
             // This should never be side-effectual
             MakeArray { .. } | Noop => false,
 
-            // Some binary math can overflow or underflow
+            // Some binary math can overflow or underflow.
             Binary(binary) => match binary.operator {
                 BinaryOp::Add { unchecked: false }
                 | BinaryOp::Sub { unchecked: false }
-                | BinaryOp::Mul { unchecked: false }
-                | BinaryOp::Div
-                | BinaryOp::Mod => true,
+                | BinaryOp::Mul { unchecked: false } => {
+                    let typ = dfg.type_of_value(binary.lhs);
+                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                }
+                BinaryOp::Div | BinaryOp::Mod => {
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
