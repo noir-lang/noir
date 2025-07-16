@@ -891,15 +891,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         } else {
             // An array_get with false side_effects_enabled is replaced
             // by a load at a valid index during acir-gen.
-            // Find a valid index
-            let typ = self.dfg().type_of_value(result);
-            for (i, element) in array.elements.borrow().iter().enumerate() {
-                if element.get_type() == typ {
-                    index = i as u32;
-                    break;
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
                 }
             }
-
             let elements = array.elements.borrow();
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
