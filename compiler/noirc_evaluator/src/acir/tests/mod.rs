@@ -31,6 +31,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use proptest::prelude::*;
 
 mod intrinsics;
 
@@ -1062,8 +1063,11 @@ fn test_operators(
     }
 }
 
+proptest! {
 #[test]
-fn test_binary_on_field() {
+fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
+            let lhs = FieldElement::from(lhs);
+            let rhs = FieldElement::from(rhs);
     // Test the following Binary operation on Fields
     let operators = [
         "add",
@@ -1081,12 +1085,15 @@ fn test_binary_on_field() {
         "range_check 32",
         "truncate 32 254",
     ];
-    let inputs = [FieldElement::from(1_usize), FieldElement::from(2_usize)];
+    let inputs = [lhs, rhs];
     test_operators(&operators, "Field", &inputs);
 }
 
 #[test]
-fn test_u32() {
+fn test_u32(lhs in 0u32.., rhs in 0u32..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+
     // Test the following operations on u32
     let operators = [
         "add",
@@ -1096,9 +1103,6 @@ fn test_u32() {
         "eq",
         "and",
         "xor",
-        "unchecked_add",
-        "unchecked_sub",
-        "unchecked_mul",
         "mod",
         "lt",
         "or",
@@ -1106,27 +1110,67 @@ fn test_u32() {
         "range_check 8",
         "truncate 8 32",
     ];
-    let inputs = [FieldElement::from(2_usize), FieldElement::from(1_usize)];
+    let inputs = [lhs, rhs];
     test_operators(&operators, "u32", &inputs);
 
-    // "unchecked_sub" 300 - 500 is not a valid ssa instruction because it assumes no over/under flow.
-    // it is translated into 300 - 500 in ACVM, which gives -200
-    // it is translated into 300 - 500 2**64 in SSA interpreter
-    let operators = ["unchecked_add", "unchecked_mul", "range_check 8", "truncate 8 32"];
-    let inputs = [FieldElement::from(300_usize), FieldElement::from(500_usize)];
-    test_operators(&operators, "u32", &inputs);
+    //unchecked operations assume no under/over-flow
+    let mut unchecked_operators = vec![];
+    if (lhs + rhs).to_u128() <= u32::MAX as u128 {
+        unchecked_operators.push("unchecked_add");
+    }
+    if (lhs * rhs).to_u128() <= u32::MAX as u128 {
+    unchecked_operators.push("unchecked_mul");
+    }
+    if lhs >= rhs {
+        unchecked_operators.push("unchecked_sub");
+    }
+    test_operators(&unchecked_operators, "u32", &inputs);
+}
+
+
+ #[test]
+fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "Field", &[lhs,rhs]);
+    test_operators(&operators, "u128", &[lhs,rhs]);
 }
 
 #[test]
-fn test_constraint() {
+fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
     let operators = ["constrain ==", "constrain !="];
-    // Test constraints on Fields with distinct inputs
-    test_operators(
-        &operators,
-        "Field",
-        &[FieldElement::from(1_usize), FieldElement::from(2_usize)],
-    );
+    test_operators(&operators, "u32", &[lhs,rhs]);
+    test_operators(&operators, "i32", &[lhs,rhs]);
+}
 
-    // u32, equal inputs
-    test_operators(&operators, "u32", &[FieldElement::from(2_usize), FieldElement::from(2_usize)]);
+#[test]
+fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u64", &[lhs,rhs]);
+    test_operators(&operators, "i64", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
+    let lhs = FieldElement::from(lhs as u128);
+    let rhs = FieldElement::from(rhs as u128);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u16", &[lhs,rhs]);
+    test_operators(&operators, "i16", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
+    let lhs = FieldElement::from(lhs as u128);
+    let rhs = FieldElement::from(rhs as u128);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u8", &[lhs,rhs]);
+    test_operators(&operators, "i8", &[lhs,rhs]);
+}
+
 }
