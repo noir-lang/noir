@@ -21,11 +21,12 @@ use noirc_frontend::{
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -583,15 +584,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
-        match generic {
-            UnresolvedGeneric::Variable(ident, _) => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) => (),
-        };
+        if let IdentOrQuotedType::Ident(ident) = generic.ident() {
+            self.type_parameters.insert(ident.to_string());
+        }
     }
 
     fn complete_type_fields_and_methods(
@@ -1042,9 +1037,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1204,7 +1199,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,

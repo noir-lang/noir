@@ -291,7 +291,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                     ("Assertion failed".to_string(), Some(raw_payload))
                                 }
                                 ResolvedAssertionPayload::String(message) => {
-                                    (format!("Assertion failed: {}", message), None)
+                                    (format!("Assertion failed: {message}"), None)
                                 }
                             },
                             _ => (error.to_string(), None),
@@ -331,7 +331,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> ProgramExecutor<'a, B> {
                                 call_resolved_outputs.push(*return_value);
                             } else {
                                 // TODO: look at changing this call stack from None
-                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {}", return_witness_index), None, None, None, None).into());
+                                return Err(JsExecutionError::new(format!("Failed to read from solved witness of ACIR call at witness {return_witness_index}"), None, None, None, None).into());
                             }
                         }
                         acvm.resolve_pending_acir_call(call_resolved_outputs);

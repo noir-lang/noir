@@ -21,7 +21,12 @@ expression: artifact
       },
       "visibility": "public"
     },
-    "error_types": {}
+    "error_types": {
+      "6713351040534265346": {
+        "error_kind": "string",
+        "string": "attempt to divide by zero"
+      }
+    }
   },
   "bytecode": [
     "func 0",
