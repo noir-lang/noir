@@ -875,7 +875,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array get")?;
         let index = self.lookup_u32(index, "array get index")?;
-        let index = index - offset.to_u32();
+        let mut index = index - offset.to_u32();
 
         let element = if array.elements.borrow().len() == 0 {
             // Accessing an array of 0-len is replaced by asserting
@@ -891,7 +891,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         } else {
             // An array_get with false side_effects_enabled is replaced
             // by a load at a valid index during acir-gen.
-            let index = if side_effects_enabled { index } else { 0 };
+            // Find a valid index
+            let typ = self.dfg().type_of_value(result);
+            for (i, element) in array.elements.borrow().iter().enumerate() {
+                if element.get_type() == typ {
+                    index = i as u32;
+                    break;
+                }
+            }
+
             let elements = array.elements.borrow();
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
