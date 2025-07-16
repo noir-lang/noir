@@ -352,14 +352,14 @@ impl InterpreterError {
     }
 
     pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
-        let mut formatted_result = format!("{}", expr);
+        let mut formatted_result = format!("{expr}");
         // if multi-line, display on a separate line from the message
         if formatted_result.contains('\n') {
             formatted_result.insert(0, '\n');
         }
         let diagnostic = CustomDiagnostic::simple_info(
             "`comptime` expression ran:".to_string(),
-            format!("After evaluation: {}", formatted_result),
+            format!("After evaluation: {formatted_result}"),
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }

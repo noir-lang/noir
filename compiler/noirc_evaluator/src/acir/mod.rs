@@ -423,7 +423,7 @@ impl<'a> Context<'a> {
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {:?}", typ),
+                            found: format!("Instead got {typ:?}"),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());

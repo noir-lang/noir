@@ -38,7 +38,7 @@ proptest-derive = { workspace = true, optional = true }
 
 [build-dependencies]
 prost-build.workspace = true
-protoc-prebuilt.workspace = true
+protoc-bin-vendored.workspace = true
 
 [dev-dependencies]
 serde_json = "1.0"

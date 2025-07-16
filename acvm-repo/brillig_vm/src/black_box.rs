@@ -353,26 +353,22 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
 
             assert!(
                 radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
-                "Radix out of the valid range [2,256]. Value: {}",
-                radix
+                "Radix out of the valid range [2,256]. Value: {radix}"
             );
 
             assert!(
                 num_limbs >= 1 || input == BigUint::from(0u32),
-                "Input value {} is not zero but number of limbs is zero.",
-                input
+                "Input value {input} is not zero but number of limbs is zero."
             );
 
             assert!(
                 !output_bits || radix == BigUint::from(2u32),
-                "Radix {} is not equal to 2 and bit mode is activated.",
-                radix
+                "Radix {radix} is not equal to 2 and bit mode is activated."
             );
 
             if (input.bits() as u32) > max_bit_size {
                 return Err(BlackBoxResolutionError::AssertFailed(format!(
-                    "Field failed to decompose into specified {} limbs",
-                    num_limbs
+                    "Field failed to decompose into specified {num_limbs} limbs"
                 )));
             }
             for i in (0..num_limbs).rev() {

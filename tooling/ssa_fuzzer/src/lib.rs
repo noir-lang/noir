@@ -101,26 +101,22 @@ mod tests {
             CompareResults::Agree(result) => result,
             CompareResults::Disagree(acir_result, brillig_result) => {
                 panic!(
-                    "ACIR and Brillig results disagree: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
-                    acir_result, brillig_result, lhs, rhs
+                    "ACIR and Brillig results disagree: ACIR: {acir_result}, Brillig: {brillig_result}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
             CompareResults::BothFailed(acir_error, brillig_error) => {
                 panic!(
-                    "Both ACIR and Brillig failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
-                    acir_error, brillig_error, lhs, rhs
+                    "Both ACIR and Brillig failed: ACIR: {acir_error}, Brillig: {brillig_error}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
                 panic!(
-                    "ACIR failed: ACIR: {}, Brillig: {}, lhs: {}, rhs: {}",
-                    acir_error, brillig_result, lhs, rhs
+                    "ACIR failed: ACIR: {acir_error}, Brillig: {brillig_result}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
                 panic!(
-                    "Brillig failed: Brillig: {}, ACIR: {}, lhs: {}, rhs: {}",
-                    brillig_error, acir_result, lhs, rhs
+                    "Brillig failed: Brillig: {brillig_error}, ACIR: {acir_result}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
         }

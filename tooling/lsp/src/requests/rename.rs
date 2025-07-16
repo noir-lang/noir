@@ -112,8 +112,7 @@ mod rename_tests {
                 let extra_in_ranges: Vec<_> =
                     ranges.iter().filter(|range| !changes.contains(range)).collect();
                 panic!(
-                    "Rename locations did not match.\nThese renames were not found: {:?}\nThese renames should not have been found: {:?}",
-                    extra_in_ranges, extra_in_changes
+                    "Rename locations did not match.\nThese renames were not found: {extra_in_ranges:?}\nThese renames should not have been found: {extra_in_changes:?}"
                 );
             }
             assert_eq!(changes, ranges);
