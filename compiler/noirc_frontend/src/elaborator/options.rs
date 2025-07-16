@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnstableFeature {
     Enums,
     Ownership,
