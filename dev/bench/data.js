@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752664590835,
+  "lastUpdate": 1752665490265,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18981,48 +18981,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "5b505240a81905387d7e2fd601674d216617389f",
-          "message": "chore: test that associated function and constant with the same name collide (#9112)",
-          "timestamp": "2025-07-03T19:20:25Z",
-          "tree_id": "b989d36920554b4ca9755a36bb31fb928b5410b9",
-          "url": "https://github.com/noir-lang/noir/commit/5b505240a81905387d7e2fd601674d216617389f"
-        },
-        "date": 1751572051870,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253215,
-            "range": "± 917",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224208,
-            "range": "± 6016",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785911,
-            "range": "± 1489",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4f69354be3db5367729628f56cf4c21634f6358e",
           "message": "chore: remove redundant associated constant lookup (#9114)",
           "timestamp": "2025-07-03T20:51:03Z",
@@ -21064,6 +21022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776574,
             "range": "± 2185",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e6ccc3ed37408fdab6a6d5e2af11da981409acc1",
+          "message": "fix(ssa_fuzzer): fix panic if compiler removed return value (#9216)",
+          "timestamp": "2025-07-16T11:04:39Z",
+          "tree_id": "6e6d6529696904f9a81fe0fd856ac2d819b38897",
+          "url": "https://github.com/noir-lang/noir/commit/e6ccc3ed37408fdab6a6d5e2af11da981409acc1"
+        },
+        "date": 1752665474977,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248336,
+            "range": "± 1104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218099,
+            "range": "± 2836",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2777496,
+            "range": "± 1201",
             "unit": "ns/iter"
           }
         ]
