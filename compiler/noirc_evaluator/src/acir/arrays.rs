@@ -108,7 +108,7 @@ impl Context<'_> {
         // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
         // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
-        if self.flattened_size(array, dfg) == 0 {
+        if self.has_zero_length(array, dfg) {
             // Zero result.
             let result_ids = dfg.instruction_results(instruction);
             for result_id in result_ids {
@@ -816,24 +816,47 @@ impl Context<'_> {
         if !array_typ.contains_slice_element() {
             array_typ.flattened_size() as usize
         } else {
-            let mut size = 0;
             match &dfg[array] {
-                Value::NumericConstant { .. } => {
-                    size += 1;
-                }
-                Value::Instruction { .. } => {
+                Value::NumericConstant { .. } => 1,
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
-                }
-                Value::Param { .. } => {
-                    let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
+                    flattened_value_size(&array_acir_value)
                 }
                 _ => {
                     unreachable!("ICE: Unexpected SSA value when computing the slice size");
                 }
             }
-            size
+        }
+    }
+
+    /// Check if the array or slice has 0 length.
+    ///
+    /// This is different from `flattened_size` in that a non-zero length
+    /// array containing zero length arrays has zero size, but we can still
+    /// access its elements.
+    fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
+        if let Type::Array(_, size) = dfg.type_of_value(array) {
+            size == 0
+        } else {
+            match &dfg[array] {
+                Value::Instruction { .. } | Value::Param { .. } => {
+                    let array_acir_value = self.convert_value(array, dfg);
+                    match array_acir_value {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => len == 0,
+                        AcirValue::Array(values) => values.is_empty(),
+                        AcirValue::Var(_, _) => {
+                            unreachable!(
+                                "ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                            )
+                        }
+                    }
+                }
+                other => {
+                    unreachable!(
+                        "ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                    );
+                }
+            }
         }
     }
 
