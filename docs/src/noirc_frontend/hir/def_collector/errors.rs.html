@@ -298,7 +298,11 @@
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
 <a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, UnsupportedNumericGenericType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::TypedPath;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::PathResolutionError;
 <span class="kw">use </span><span class="kw">crate</span>::hir::type_check::generics::TraitGenerics;
@@ -420,15 +424,19 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; From&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>UnsupportedNumericGenericType&gt; <span class="kw">for </span>Diagnostic {
     <span class="kw">fn </span>from(error: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>UnsupportedNumericGenericType) -&gt; Diagnostic {
-        <span class="kw">let </span>name = error.ident.as_str();
-        <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>error.typ;
+        <span class="kw">let </span>message = <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = <span class="kw-2">&amp;</span>error.name {
+            <span class="macro">format!</span>(
+                <span class="string">"{name} has a type of {}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."</span>,
+                error.typ
+            )
+        } <span class="kw">else </span>{
+            error.to_string()
+        };
 
         Diagnostic::simple_error(
-            <span class="macro">format!</span>(
-                <span class="string">"{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
-            </span>),
+            message,
             <span class="string">"Unsupported numeric generic type"</span>.to_string(),
-            error.ident.location(),
+            error.location,
         )
     }
 }

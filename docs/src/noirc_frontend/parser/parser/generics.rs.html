@@ -312,14 +312,10 @@
 <a href="#311" id="311">311</a>
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     shared::Signedness,
@@ -370,20 +366,13 @@
             <span class="kw">return </span><span class="prelude-val">Some</span>(generic);
         }
 
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_numeric_generic() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(generic);
-        }
-
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.parse_resolved_generic() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(generic);
-        }
-
-        <span class="prelude-val">None
-    </span>}
+        <span class="self">self</span>.parse_numeric_generic()
+    }
 
     <span class="doccomment">/// VariableGeneric = identifier ( ':' TraitBounds ) ?
     </span><span class="kw">fn </span>parse_variable_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow_trait_bounds: bool) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
-        <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident()<span class="question-mark">?</span>;
+        <span class="kw">let </span>ident = <span class="self">self</span>.parse_ident_or_quoted()<span class="question-mark">?</span>;
+
         <span class="kw">let </span>trait_bounds = <span class="kw">if </span><span class="self">self</span>.eat_colon() {
             <span class="kw">if </span>!allow_trait_bounds {
                 <span class="self">self</span>.push_error(
@@ -399,13 +388,27 @@
         <span class="prelude-val">Some</span>(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
+    <span class="kw">fn </span>parse_ident_or_quoted(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;IdentOrQuotedType&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = <span class="self">self</span>.eat_ident() {
+            <span class="kw">return </span><span class="prelude-val">Some</span>(IdentOrQuotedType::Ident(ident));
+        }
+
+        <span class="kw">let </span>token = <span class="self">self</span>.eat_kind(TokenKind::QuotedType)<span class="question-mark">?</span>;
+        <span class="kw">match </span>token.into_token() {
+            Token::QuotedType(id) =&gt; {
+                <span class="prelude-val">Some</span>(IdentOrQuotedType::Quoted(id, <span class="self">self</span>.previous_token_location))
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
+    }
+
     <span class="doccomment">/// NumericGeneric = 'let' identifier ':' Type
     </span><span class="kw">fn </span>parse_numeric_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.eat_keyword(Keyword::Let) {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">let </span>ident = <span class="self">self</span>.eat_ident()<span class="question-mark">?</span>;
+        <span class="kw">let </span>ident = <span class="self">self</span>.parse_ident_or_quoted()<span class="question-mark">?</span>;
 
         <span class="kw">if </span>!<span class="self">self</span>.eat_colon() {
             <span class="comment">// If we didn't get a type after the colon, error and assume it's u32
@@ -428,17 +431,6 @@
         <span class="kw">let </span>typ = <span class="self">self</span>.parse_type_or_error();
 
         <span class="prelude-val">Some</span>(UnresolvedGeneric::Numeric { ident, typ })
-    }
-
-    <span class="doccomment">/// ResolvedGeneric = quoted_type
-    </span><span class="kw">fn </span>parse_resolved_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedGeneric&gt; {
-        <span class="kw">let </span>token = <span class="self">self</span>.eat_kind(TokenKind::QuotedType)<span class="question-mark">?</span>;
-        <span class="kw">match </span>token.into_token() {
-            Token::QuotedType(id) =&gt; {
-                <span class="prelude-val">Some</span>(UnresolvedGeneric::Resolved(id, <span class="self">self</span>.previous_token_location))
-            }
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-        }
     }
 
     <span class="doccomment">/// GenericTypeArgs = ( '&lt;' GenericTypeArgsList? '&gt;' )

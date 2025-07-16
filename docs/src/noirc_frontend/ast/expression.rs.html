@@ -898,7 +898,33 @@
 <a href="#897" id="897">897</a>
 <a href="#898" id="898">898</a>
 <a href="#899" id="899">899</a>
-<a href="#900" id="900">900</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>thiserror::Error;
@@ -967,24 +993,45 @@
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedGeneric {
-    Variable(Ident, Vec&lt;TraitBound&gt;),
-    Numeric {
-        ident: Ident,
-        typ: UnresolvedType,
-    },
+    Variable(IdentOrQuotedType, Vec&lt;TraitBound&gt;),
+    Numeric { ident: IdentOrQuotedType, typ: UnresolvedType },
+}
+
+<span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+</span><span class="kw">pub enum </span>IdentOrQuotedType {
+    Ident(Ident),
 
     <span class="doccomment">/// Already-resolved generics can be parsed as generics when a macro
     /// splices existing types into a generic list. In this case we have
     /// to validate the type refers to a named generic and treat that
     /// as a ResolvedGeneric when this is resolved.
-    </span>Resolved(QuotedTypeId, Location),
+    </span>Quoted(QuotedTypeId, Location),
+}
+
+<span class="kw">impl </span>IdentOrQuotedType {
+    <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
+        <span class="kw">match </span><span class="self">self </span>{
+            IdentOrQuotedType::Ident(ident) =&gt; ident.location(),
+            IdentOrQuotedType::Quoted(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
+        }
+    }
+
+    <span class="kw">pub fn </span>ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Ident&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            IdentOrQuotedType::Ident(ident) =&gt; <span class="prelude-val">Some</span>(ident),
+            IdentOrQuotedType::Quoted(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        }
+    }
 }
 
 <span class="attr">#[derive(Error, PartialEq, Eq, Debug, Clone)]
-#[error(<span class="string">"The only supported types of numeric generics are integers, fields, and booleans"</span>)]
+#[error(
+    <span class="string">"`{typ}` is not a supported type for a numeric generic. The only supported types are integers, fields, and booleans"
+</span>)]
 </span><span class="kw">pub struct </span>UnsupportedNumericGenericType {
-    <span class="kw">pub </span>ident: Ident,
-    <span class="kw">pub </span>typ: UnresolvedTypeData,
+    <span class="kw">pub </span>name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="kw">pub </span>typ: String,
+    <span class="kw">pub </span>location: Location,
 }
 
 <span class="kw">impl </span>UnresolvedGeneric {
@@ -992,7 +1039,6 @@
         <span class="kw">match </span><span class="self">self </span>{
             UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) =&gt; ident.location(),
             UnresolvedGeneric::Numeric { ident, typ } =&gt; ident.location().merge(typ.location),
-            UnresolvedGeneric::Resolved(<span class="kw">_</span>, location) =&gt; <span class="kw-2">*</span>location,
         }
     }
 
@@ -1006,9 +1052,6 @@
             UnresolvedGeneric::Numeric { typ, .. } =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.resolve_numeric_kind_type(typ)<span class="question-mark">?</span>;
                 <span class="prelude-val">Ok</span>(Kind::numeric(typ))
-            }
-            UnresolvedGeneric::Resolved(..) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"Don't know the kind of a resolved generic here"</span>)
             }
         }
     }
@@ -1034,15 +1077,16 @@
         }
 
         <span class="comment">// Only fields and integers are supported for numeric kinds
-        </span><span class="prelude-val">Err</span>(UnsupportedNumericGenericType { ident: <span class="self">self</span>.ident().clone(), typ: typ.typ.clone() })
+        </span><span class="kw">let </span>name = <span class="self">self</span>.ident().ident().map(|name| name.to_string());
+        <span class="kw">let </span>type_string = typ.typ.to_string();
+        <span class="prelude-val">Err</span>(UnsupportedNumericGenericType { name, typ: type_string, location: typ.location })
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Ident {
+    <span class="kw">pub fn </span>ident(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>IdentOrQuotedType {
         <span class="kw">match </span><span class="self">self </span>{
             UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) | UnresolvedGeneric::Numeric { ident, .. } =&gt; {
                 ident
             }
-            UnresolvedGeneric::Resolved(..) =&gt; <span class="macro">panic!</span>(<span class="string">"UnresolvedGeneric::Resolved no ident"</span>),
         }
     }
 }
@@ -1064,14 +1108,22 @@
                 <span class="prelude-val">Ok</span>(())
             }
             UnresolvedGeneric::Numeric { ident, typ } =&gt; <span class="macro">write!</span>(f, <span class="string">"let {ident}: {typ}"</span>),
-            UnresolvedGeneric::Resolved(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(resolved)"</span>),
+        }
+    }
+}
+
+<span class="kw">impl </span>Display <span class="kw">for </span>IdentOrQuotedType {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            IdentOrQuotedType::Ident(ident) =&gt; <span class="macro">write!</span>(f, <span class="string">"{ident}"</span>),
+            IdentOrQuotedType::Quoted(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(quoted)"</span>),
         }
     }
 }
 
 <span class="kw">impl </span>From&lt;Ident&gt; <span class="kw">for </span>UnresolvedGeneric {
     <span class="kw">fn </span>from(value: Ident) -&gt; <span class="self">Self </span>{
-        UnresolvedGeneric::Variable(value, Vec::new())
+        UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(value), Vec::new())
     }
 }
 

@@ -2055,12 +2055,7 @@
 <a href="#2054" id="2054">2054</a>
 <a href="#2055" id="2055">2055</a>
 <a href="#2056" id="2056">2056</a>
-<a href="#2057" id="2057">2057</a>
-<a href="#2058" id="2058">2058</a>
-<a href="#2059" id="2059">2059</a>
-<a href="#2060" id="2060">2060</a>
-<a href="#2061" id="2061">2061</a>
-<a href="#2062" id="2062">2062</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2057" id="2057">2057</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2083,11 +2078,12 @@
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -2645,15 +2641,9 @@
     }
 
     <span class="kw">fn </span>collect_type_parameters_in_generic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>UnresolvedGeneric) {
-        <span class="kw">match </span>generic {
-            UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) =&gt; (),
-        };
+        <span class="kw">if let </span>IdentOrQuotedType::Ident(ident) = generic.ident() {
+            <span class="self">self</span>.type_parameters.insert(ident.to_string());
+        }
     }
 
     <span class="kw">fn </span>complete_type_fields_and_methods(

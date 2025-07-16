@@ -1030,7 +1030,7 @@
             ResolverError::NoSuchNumericTypeVariable { path } =&gt; path.location,
             ResolverError::ParserError(parser_error) =&gt; parser_error.location(),
             ResolverError::UnsupportedNumericGenericType(unsupported_numeric_generic_type) =&gt; {
-                unsupported_numeric_generic_type.ident.location()
+                unsupported_numeric_generic_type.location
             }
         }
     }

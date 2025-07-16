@@ -2526,7 +2526,15 @@
 <a href="#2525" id="2525">2525</a>
 <a href="#2526" id="2526">2526</a>
 <a href="#2527" id="2527">2527</a>
-<a href="#2528" id="2528">2528</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a>
+<a href="#2530" id="2530">2530</a>
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a>
+<a href="#2536" id="2536">2536</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2534,11 +2542,11 @@
 
 <span class="kw">use crate</span>::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -3174,18 +3182,15 @@
         generic: <span class="kw-2">&amp;</span>UnresolvedGeneric,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypeVariable, Rc&lt;String&gt;), ResolverError&gt; {
         <span class="comment">// Map the generic to a fresh type variable
-        </span><span class="kw">match </span>generic {
-            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } =&gt; {
+        </span><span class="kw">match </span>generic.ident() {
+            IdentOrQuotedType::Ident(ident) =&gt; {
                 <span class="kw">let </span>id = <span class="self">self</span>.interner.next_type_variable_id();
                 <span class="kw">let </span>kind = <span class="self">self</span>.resolve_generic_kind(generic);
                 <span class="kw">let </span>typevar = TypeVariable::unbound(id, kind);
-                <span class="kw">let </span>ident = generic.ident();
                 <span class="kw">let </span>name = Rc::new(ident.to_string());
                 <span class="prelude-val">Ok</span>((typevar, name))
             }
-            <span class="comment">// An already-resolved generic is only possible if it is the result of a
-            // previous macro call being inserted into a generics list.
-            </span>UnresolvedGeneric::Resolved(id, location) =&gt; {
+            IdentOrQuotedType::Quoted(id, location) =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>id).follow_bindings() {
                     Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; {
                         <span class="prelude-val">Ok</span>((type_var.clone(), name))
@@ -3216,9 +3221,11 @@
             <span class="kw">if </span>!<span class="macro">matches!</span>(typ, Type::FieldElement | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)) {
                 <span class="kw">let </span>unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: unresolved_typ.typ.clone(),
+                        name: ident.ident().map(|name| name.to_string()),
+                        typ: typ.to_string(),
+                        location: unresolved_typ.location,
                     });
+
                 <span class="self">self</span>.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)
@@ -3545,7 +3552,9 @@
 
         <span class="kw">let </span>direct_generics = func.def.generics.iter();
         <span class="kw">let </span>direct_generics = direct_generics
-            .filter_map(|generic| <span class="self">self</span>.find_generic(generic.ident().as_str()).cloned())
+            .filter_map(|generic| {
+                generic.ident().ident().and_then(|name| <span class="self">self</span>.find_generic(name.as_str())).cloned()
+            })
             .collect();
 
         <span class="kw">let </span>statements = std::mem::take(<span class="kw-2">&amp;mut </span>func.def.body.statements);
@@ -4881,25 +4890,23 @@
         <span class="comment">// Turn each generic into an Ident
         </span><span class="kw">let </span><span class="kw-2">mut </span>idents = HashSet::new();
         <span class="kw">for </span>generic <span class="kw">in </span>generics {
-            <span class="kw">match </span>generic {
-                UnresolvedGeneric::Variable(ident, <span class="kw">_</span>) =&gt; {
+            <span class="kw">match </span>generic.ident() {
+                IdentOrQuotedType::Ident(ident) =&gt; {
                     idents.insert(ident.clone());
                 }
-                UnresolvedGeneric::Numeric { ident, typ: <span class="kw">_ </span>} =&gt; {
-                    idents.insert(ident.clone());
-                }
-                UnresolvedGeneric::Resolved(quoted_type_id, span) =&gt; {
+                IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
                     <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) =
                         <span class="self">self</span>.interner.get_quoted_type(<span class="kw-2">*</span>quoted_type_id).follow_bindings()
                     {
-                        idents.insert(Ident::new(name.to_string(), <span class="kw-2">*</span>span));
+                        idents.insert(Ident::new(name.to_string(), <span class="kw-2">*</span>location));
                     }
                 }
             }
         }
 
         <span class="comment">// Remove the ones that show up in `self_type`
-        </span><span class="kw">let </span><span class="kw-2">mut </span>visitor = RemoveGenericsAppearingInTypeVisitor { idents: <span class="kw-2">&amp;mut </span>idents };
+        </span><span class="kw">let </span><span class="kw-2">mut </span>visitor =
+            RemoveGenericsAppearingInTypeVisitor { interner: <span class="self">self</span>.interner, idents: <span class="kw-2">&amp;mut </span>idents };
         self_type.accept(<span class="kw-2">&amp;mut </span>visitor);
 
         <span class="comment">// The ones that remain are not mentioned in the impl: it's an error.
@@ -4928,6 +4935,7 @@
 }
 
 <span class="kw">struct </span>RemoveGenericsAppearingInTypeVisitor&lt;<span class="lifetime">'a</span>&gt; {
+    interner: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>NodeInterner,
     idents: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>HashSet&lt;Ident&gt;,
 }
 
@@ -4935,6 +4943,14 @@
     <span class="kw">fn </span>visit_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(ident) = path.as_ident() {
             <span class="self">self</span>.idents.remove(ident);
+        }
+    }
+
+    <span class="kw">fn </span>visit_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: QuotedTypeId, location: Location) {
+        <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric { name, .. }) =
+            <span class="self">self</span>.interner.get_quoted_type(id).follow_bindings()
+        {
+            <span class="self">self</span>.idents.remove(<span class="kw-2">&amp;</span>Ident::new(name.as_ref().clone(), location));
         }
     }
 }

@@ -1022,7 +1022,12 @@
 <a href="#1021" id="1021">1021</a>
 <a href="#1022" id="1022">1022</a>
 <a href="#1023" id="1023">1023</a>
-<a href="#1024" id="1024">1024</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1031,12 +1036,12 @@
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
         Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
-        FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
-        NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
-        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path,
+        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
+        TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -1999,17 +2004,22 @@
 }
 
 <span class="kw">fn </span>unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -&gt; UnresolvedGeneric {
-    <span class="kw">match </span>generic {
-        UnresolvedGeneric::Variable(ident, trait_bounds) =&gt; {
-            <span class="kw">let </span>trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
-            UnresolvedGeneric::Variable(ident_with_file(ident, file), trait_bounds)
+    <span class="kw">let </span>ident = <span class="kw">match </span>generic.ident() {
+        IdentOrQuotedType::Ident(ident) =&gt; {
+            IdentOrQuotedType::Ident(ident_with_file(ident.clone(), file))
         }
-        UnresolvedGeneric::Numeric { ident, typ } =&gt; UnresolvedGeneric::Numeric {
-            ident: ident_with_file(ident, file),
-            typ: unresolved_type_with_file(typ, file),
-        },
-        UnresolvedGeneric::Resolved(quoted_type_id, location) =&gt; {
-            UnresolvedGeneric::Resolved(quoted_type_id, location_with_file(location, file))
+        IdentOrQuotedType::Quoted(quoted_type_id, location) =&gt; {
+            IdentOrQuotedType::Quoted(<span class="kw-2">*</span>quoted_type_id, location_with_file(<span class="kw-2">*</span>location, file))
+        }
+    };
+
+    <span class="kw">match </span>generic {
+        UnresolvedGeneric::Variable(<span class="kw">_</span>, trait_bounds) =&gt; {
+            <span class="kw">let </span>trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
+            UnresolvedGeneric::Variable(ident, trait_bounds)
+        }
+        UnresolvedGeneric::Numeric { ident: <span class="kw">_</span>, typ } =&gt; {
+            UnresolvedGeneric::Numeric { ident, typ: unresolved_type_with_file(typ, file) }
         }
     }
 }

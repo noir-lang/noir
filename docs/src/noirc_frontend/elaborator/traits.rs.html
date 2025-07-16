@@ -619,7 +619,7 @@
                     <span class="kw">let </span>name_location = the_trait.name.location();
 
                     this.add_existing_generic(
-                        <span class="kw-2">&amp;</span>UnresolvedGeneric::Variable(Ident::from(<span class="string">"Self"</span>), Vec::new()),
+                        <span class="kw-2">&amp;</span>UnresolvedGeneric::from(Ident::from(<span class="string">"Self"</span>)),
                         name_location,
                         <span class="kw-2">&amp;</span>ResolvedGeneric {
                             name: Rc::new(<span class="string">"Self"</span>.to_owned()),

@@ -319,7 +319,11 @@
 <a href="#318" id="318">318</a>
 <a href="#319" id="319">319</a>
 <a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -331,7 +335,10 @@
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::TraitId;
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
 
-<span class="kw">use super</span>::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
+<span class="kw">use super</span>::{
+    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    UnresolvedTypeData,
+};
 
 <span class="doccomment">/// AST node for trait definitions:
 /// `trait name&lt;generics&gt; { ... items ... }`
@@ -623,7 +630,8 @@
     where_clause: <span class="kw-2">&amp;mut </span>Vec&lt;UnresolvedTraitConstraint&gt;,
 ) {
     <span class="kw">for </span>generic <span class="kw">in </span>generics {
-        <span class="kw">let </span>UnresolvedGeneric::Variable(ident, trait_bounds) = generic <span class="kw">else </span>{
+        <span class="kw">let </span>UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
+        <span class="kw">else </span>{
             <span class="kw">continue</span>;
         };
 

@@ -1690,9 +1690,8 @@
 <a href="#1689" id="1689">1689</a>
 <a href="#1690" id="1690">1690</a>
 <a href="#1691" id="1691">1691</a>
-<a href="#1692" id="1692">1692</a>
-<a href="#1693" id="1693">1693</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
-<span class="kw">use </span>noirc_errors::Span;
+<a href="#1692" id="1692">1692</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<span class="kw">use </span>noirc_errors::{Location, Span};
 
 <span class="kw">use crate</span>::{
     BinaryTypeOperator, ParsedModule,
@@ -2124,7 +2123,7 @@
 
     <span class="kw">fn </span>visit_unit_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: Span) {}
 
-    <span class="kw">fn </span>visit_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: QuotedTypeId, <span class="kw">_</span>: Span) {}
+    <span class="kw">fn </span>visit_resolved_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: QuotedTypeId, <span class="kw">_</span>: Location) {}
 
     <span class="kw">fn </span>visit_interned_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: InternedUnresolvedTypeData, <span class="kw">_</span>: Span) {}
 
@@ -3156,7 +3155,7 @@
             UnresolvedTypeData::Unspecified =&gt; visitor.visit_unspecified_type(<span class="self">self</span>.location.span),
             UnresolvedTypeData::Unit =&gt; visitor.visit_unit_type(<span class="self">self</span>.location.span),
             UnresolvedTypeData::Resolved(id) =&gt; {
-                visitor.visit_resolved_type(<span class="kw-2">*</span>id, <span class="self">self</span>.location.span);
+                visitor.visit_resolved_type(<span class="kw-2">*</span>id, <span class="self">self</span>.location);
             }
             UnresolvedTypeData::Interned(id) =&gt; {
                 visitor.visit_interned_type(<span class="kw-2">*</span>id, <span class="self">self</span>.location.span);
@@ -3321,7 +3320,6 @@
             UnresolvedGeneric::Numeric { ident: <span class="kw">_</span>, typ } =&gt; {
                 typ.accept(visitor);
             }
-            UnresolvedGeneric::Resolved(_quoted_type_id, _location) =&gt; (),
         }
     }
 }

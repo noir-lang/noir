@@ -653,7 +653,10 @@
 <a href="#652" id="652">652</a>
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
-<a href="#655" id="655">655</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>noirc_errors::{Located, Location};
 
@@ -719,7 +722,7 @@
         <span class="kw">let </span>noir_impl = is_alias.then(|| {
             <span class="kw">let </span>object_type_ident = Ident::from(Located::from(location, <span class="string">"#T"</span>.to_string()));
             <span class="kw">let </span>object_type_path = Path::from_ident(object_type_ident.clone());
-            <span class="kw">let </span>object_type_generic = UnresolvedGeneric::Variable(object_type_ident, Vec::new());
+            <span class="kw">let </span>object_type_generic = UnresolvedGeneric::from(object_type_ident.clone());
 
             <span class="kw">let </span>is_synthesized = <span class="bool-val">true</span>;
             <span class="kw">let </span>object_type = UnresolvedType {
@@ -733,14 +736,17 @@
             <span class="kw">let </span>trait_name = Path::from_ident(name.clone());
             <span class="kw">let </span>trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
                 <span class="kw">let </span>is_synthesized = <span class="bool-val">true</span>;
-                <span class="kw">let </span>generic_type = UnresolvedType {
-                    typ: UnresolvedTypeData::Named(
-                        Path::from_ident(generic.ident().clone()),
+
+                <span class="kw">let </span>typ = <span class="kw">match </span>generic.ident().ident() {
+                    <span class="prelude-val">Some</span>(ident) =&gt; UnresolvedTypeData::Named(
+                        Path::from_ident(ident.clone()),
                         <span class="macro">vec!</span>[].into(),
                         is_synthesized,
                     ),
-                    location,
+                    <span class="prelude-val">None </span>=&gt; UnresolvedTypeData::Error,
                 };
+
+                <span class="kw">let </span>generic_type = UnresolvedType { typ, location };
 
                 GenericTypeArg::Ordered(generic_type)
             })
