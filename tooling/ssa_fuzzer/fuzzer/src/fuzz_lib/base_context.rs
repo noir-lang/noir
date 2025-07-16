@@ -864,22 +864,6 @@ impl FuzzerContext {
             .finalize_block_with_return(&mut self.acir_builder, &mut self.brillig_builder);
     }
 
-    /// Returns witnesses for ACIR and Brillig
-    /// If program does not have any instructions, it terminated with the last witness
-    /// Resulting WitnessStack of programs contains only variables and return value
-    /// If we inserted some instructions, WitnessStack contains return value, so we return the last one
-    /// If we are checking constant folding, the witness stack will only contain the return value, so we return Witness(0)
-    pub(crate) fn get_return_witnesses(&self) -> (Witness, Witness) {
-        if self.is_constant {
-            (Witness(0), Witness(0))
-        } else {
-            (
-                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
-                Witness(super::NUMBER_OF_VARIABLES_INITIAL),
-            )
-        }
-    }
-
     /// Returns programs for ACIR and Brillig
     pub(crate) fn get_programs(
         self,
