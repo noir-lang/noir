@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752666469874,
+  "lastUpdate": 1752666630408,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18991,48 +18991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4f69354be3db5367729628f56cf4c21634f6358e",
-          "message": "chore: remove redundant associated constant lookup (#9114)",
-          "timestamp": "2025-07-03T20:51:03Z",
-          "tree_id": "77386e210add94467a6721150b71f348e3ba3ce0",
-          "url": "https://github.com/noir-lang/noir/commit/4f69354be3db5367729628f56cf4c21634f6358e"
-        },
-        "date": 1751577380869,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252980,
-            "range": "± 572",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224406,
-            "range": "± 5287",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2807583,
-            "range": "± 1613",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -21084,6 +21042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777496,
             "range": "± 1201",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ffb63c30795fc64feebbac2b516f2fed9a6d3495",
+          "message": "fix(acir-gen): Do not use array storage size for 0-length check (#9208)",
+          "timestamp": "2025-07-16T11:25:33Z",
+          "tree_id": "06492ed94a036675c2bf31991c542073359e1f41",
+          "url": "https://github.com/noir-lang/noir/commit/ffb63c30795fc64feebbac2b516f2fed9a6d3495"
+        },
+        "date": 1752666614660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248526,
+            "range": "± 2868",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218206,
+            "range": "± 3868",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782465,
+            "range": "± 31483",
             "unit": "ns/iter"
           }
         ]
