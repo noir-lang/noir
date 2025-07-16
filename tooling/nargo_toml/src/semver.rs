@@ -147,10 +147,16 @@ mod tests {
             expression_width: None,
         };
 
-        let valid_dependency =
-            Package { compiler_required_version: Some("0.1.0".to_string()), ..package.clone() };
-        let invalid_dependency =
-            Package { compiler_required_version: Some("0.2.0".to_string()), ..package.clone() };
+        let valid_dependency = Package {
+            compiler_required_version: Some("0.1.0".to_string()),
+            name: CrateName::from_str("good_dependency").unwrap(),
+            ..package.clone()
+        };
+        let invalid_dependency = Package {
+            compiler_required_version: Some("0.2.0".to_string()),
+            name: CrateName::from_str("bad_dependency").unwrap(),
+            ..package.clone()
+        };
 
         package.dependencies.insert(
             CrateName::from_str("test_dep_valid").unwrap(),
