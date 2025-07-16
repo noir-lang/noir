@@ -180,23 +180,29 @@ impl Function {
                     let array_op_always_fails = match array_or_slice_type {
                         Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
-                            len == 0 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                              (index.try_to_u32().unwrap() - offset.to_u32())
-                                  >= array_type.flattened_size()})
+                            len == 0
+                                || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                                    (index.try_to_u32().unwrap() - offset.to_u32())
+                                        >= array_type.flattened_size()
+                                })
                         }
-                        
+
                         _ => unreachable!(
                             "Encountered non-array type during array read/write operation"
                         ),
                     };
 
                     if array_op_always_fails {
-                      let is_predicate_constant_one =
-                      match context.dfg.get_numeric_constant(side_effects_condition) {
-                          Some(predicate) => predicate.is_one(),
-                          None => false, // The predicate is a variable
-                      };
-                      current_block_reachability = if is_predicate_constant_one { Reachability::Unreachable } else { Reachability::UnreachableUnderPredicate };
+                        let is_predicate_constant_one =
+                            match context.dfg.get_numeric_constant(side_effects_condition) {
+                                Some(predicate) => predicate.is_one(),
+                                None => false, // The predicate is a variable
+                            };
+                        current_block_reachability = if is_predicate_constant_one {
+                            Reachability::Unreachable
+                        } else {
+                            Reachability::UnreachableUnderPredicate
+                        };
                     }
                 }
                 _ => (),
@@ -457,8 +463,7 @@ mod test {
     }
 
     #[test]
-    fn replaces_sub_that_overflows_with_constraint_under_unknown_side_effects_condition()
-     {
+    fn replaces_sub_that_overflows_with_constraint_under_unknown_side_effects_condition() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
