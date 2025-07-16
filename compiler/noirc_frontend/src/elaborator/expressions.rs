@@ -629,12 +629,13 @@ impl Elaborator<'_> {
 
                 let location = object_location.merge(method_name_location);
 
-                let (function_id, mut function_name) = method_ref.clone().into_function_id_and_name(
-                    object_type.clone(),
-                    generics.clone(),
-                    location,
-                    self.interner,
-                );
+                let (function_id, mut function_name) =
+                    method_ref.clone().into_function_id_and_name(
+                        object_type.clone(),
+                        generics.clone(),
+                        location,
+                        self.interner,
+                    );
 
                 // Hack: match object_type against the first argument of the trait type here
                 // to try to find the value of `Self`. It can be either `object_type` or
@@ -644,7 +645,7 @@ impl Elaborator<'_> {
                     let function_type = function_type.as_monotype();
 
                     if let Type::Function(args, ..) = function_type {
-                        if let Some(Type::Reference(..)) = args.get(0) {
+                        if let Some(Type::Reference(..)) = args.first() {
                             // First type is a reference, so we should have `&mut Self`,
                             // Ensure the constraint is not also `&mut T` since we'd end up with
                             // `&mut &mut T`.
