@@ -5,6 +5,7 @@ use crate::ssa::ir::{
     value::ValueId,
 };
 use acvm::FieldElement;
+use num_bigint::BigInt;
 use thiserror::Error;
 
 pub(super) const MAX_UNSIGNED_BIT_SIZE: u32 = 128;
@@ -157,7 +158,7 @@ pub enum InternalError {
     #[error("Expected array of {expected_size} elements, got {size}")]
     InvalidInputSize { expected_size: usize, size: usize },
     #[error("Constant `{constant}` does not fit in type `{typ}`")]
-    ConstantDoesNotFitInType { constant: FieldElement, typ: NumericType },
+    ConstantDoesNotFitInType { constant: BigInt, typ: NumericType },
     #[error(
         "The value assigned to `{value_id}` expects a type `{expected_type}` but it got assigned a value with type `{actual_type}` "
     )]

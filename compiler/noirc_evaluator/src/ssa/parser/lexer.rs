@@ -165,8 +165,7 @@ impl<'a> Lexer<'a> {
                         limit: self.max_integer.to_string(),
                     });
                 }
-                let big_uint = bigint.magnitude();
-                FieldElement::from_be_bytes_reduce(&big_uint.to_bytes_be())
+                bigint
             }
             Err(_) => {
                 return Err(LexerError::InvalidIntegerLiteral {

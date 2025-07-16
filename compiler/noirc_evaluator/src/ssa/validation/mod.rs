@@ -197,7 +197,7 @@ impl<'f> Validator<'f> {
                 {
                     let numerator_bits = dfg.type_of_value(*lhs).bit_size();
                     let divisor = dfg.get_numeric_constant(*rhs).unwrap();
-                    let divisor_bits = divisor.num_bits();
+                    let divisor_bits = divisor.bits() as u32;
                     let max_quotient_bits = numerator_bits - divisor_bits;
 
                     assert!(
@@ -210,7 +210,7 @@ impl<'f> Validator<'f> {
                 }
             },
             Value::NumericConstant { constant, .. } => {
-                let max_val_bits = constant.num_bits();
+                let max_val_bits = constant.bits() as u32;
                 assert!(
                     max_val_bits <= target_type_size,
                     "Constant too large for cast target: {max_val_bits} bits > {target_type_size}"

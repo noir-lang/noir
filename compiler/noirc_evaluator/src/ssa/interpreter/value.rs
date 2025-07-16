@@ -3,6 +3,10 @@ use std::sync::Arc;
 use acvm::{AcirField, FieldElement};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use num_bigint::{BigInt, Sign};
+use num_traits::Signed;
+use num_traits::ToPrimitive;
+use num_traits::{One, Zero};
 
 use crate::ssa::ir::{
     function::FunctionId,
@@ -141,12 +145,12 @@ impl Value {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<Self> {
+    pub(crate) fn from_constant(constant: BigInt, typ: NumericType) -> IResult<Self> {
         NumericValue::from_constant(constant, typ).map(Self::Numeric)
     }
 
     pub(crate) fn array_from_iter(
-        iter: impl IntoIterator<Item = FieldElement>,
+        iter: impl IntoIterator<Item = BigInt>,
         typ: NumericType,
     ) -> IResult<Self> {
         let values = try_vecmap(iter, |v| Value::from_constant(v, typ))?;
@@ -256,7 +260,7 @@ impl NumericValue {
     }
 
     pub(crate) fn zero(typ: NumericType) -> Self {
-        Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
+        Self::from_constant(BigInt::zero(), typ).expect("zero should fit in every type")
     }
 
     pub(crate) fn neg_one(typ: NumericType) -> Self {
@@ -287,14 +291,26 @@ impl NumericValue {
         }
     }
 
-    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+    pub(crate) fn from_bigint_to_field(constant: BigInt) -> FieldElement {
+        if constant.sign() == Sign::Minus {
+            -FieldElement::from_be_bytes_reduce(&constant.to_bytes_be().1)
+        } else {
+            FieldElement::from_be_bytes_reduce(&constant.to_bytes_be().1)
+        }
+    }
+
+    pub(crate) fn from_field_to_bigint(field: FieldElement) -> BigInt {
+        BigInt::from_bytes_be(Sign::Plus, &field.to_be_bytes())
+    }
+
+    pub fn from_constant(constant: BigInt, typ: NumericType) -> IResult<NumericValue> {
         use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
         use super::InterpreterError::Internal;
 
-        let does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
+        let does_not_fit = Internal(ConstantDoesNotFitInType { constant: constant.clone(), typ });
 
         match typ {
-            NumericType::NativeField => Ok(Self::Field(constant)),
+            NumericType::NativeField => Ok(Self::Field(Self::from_bigint_to_field(constant))),
             NumericType::Unsigned { bit_size: 1 } => {
                 if constant.is_zero() || constant.is_one() {
                     Ok(Self::U1(constant.is_one()))
@@ -302,49 +318,47 @@ impl NumericValue {
                     Err(does_not_fit)
                 }
             }
-            NumericType::Unsigned { bit_size: 8 } => constant
-                .try_into_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U8)
-                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: 8 } => {
+                constant.to_u128().and_then(|x| x.try_into().ok()).map(Self::U8).ok_or(does_not_fit)
+            }
             NumericType::Unsigned { bit_size: 16 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| x.try_into().ok())
                 .map(Self::U16)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: 32 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| x.try_into().ok())
                 .map(Self::U32)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: 64 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| x.try_into().ok())
                 .map(Self::U64)
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: 128 } => {
-                constant.try_into_u128().map(Self::U128).ok_or(does_not_fit)
+                constant.to_u128().map(Self::U128).ok_or(does_not_fit)
             }
             // Signed cases are a bit weird. We want to allow all values in the corresponding
             // unsigned range so we have to cast to the unsigned type first to see if it fits.
             // If it does, any values `>= 2^N / 2` for `iN` are interpreted as negative.
             NumericType::Signed { bit_size: 8 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| u8::try_from(x).ok())
                 .map(|x| Self::I8(x as i8))
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 16 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| u16::try_from(x).ok())
                 .map(|x| Self::I16(x as i16))
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 32 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| u32::try_from(x).ok())
                 .map(|x| Self::I32(x as i32))
                 .ok_or(does_not_fit),
             NumericType::Signed { bit_size: 64 } => constant
-                .try_into_u128()
+                .to_u128()
                 .and_then(|x| u64::try_from(x).ok())
                 .map(|x| Self::I64(x as i64))
                 .ok_or(does_not_fit),
@@ -368,6 +382,22 @@ impl NumericValue {
             NumericValue::I16(value) => FieldElement::from(*value as u16 as i128),
             NumericValue::I32(value) => FieldElement::from(*value as u32 as i128),
             NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
+        }
+    }
+
+    pub(crate) fn convert_to_bigint(&self) -> BigInt {
+        match self {
+            NumericValue::Field(field) => Self::from_field_to_bigint(*field),
+            NumericValue::U1(value) => BigInt::from(*value),
+            NumericValue::U8(value) => BigInt::from(*value),
+            NumericValue::U16(value) => BigInt::from(*value),
+            NumericValue::U32(value) => BigInt::from(*value),
+            NumericValue::U64(value) => BigInt::from(*value),
+            NumericValue::U128(value) => BigInt::from(*value),
+            NumericValue::I8(value) => BigInt::from(*value),
+            NumericValue::I16(value) => BigInt::from(*value),
+            NumericValue::I32(value) => BigInt::from(*value),
+            NumericValue::I64(value) => BigInt::from(*value),
         }
     }
 

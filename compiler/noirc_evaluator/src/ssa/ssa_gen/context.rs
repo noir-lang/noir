@@ -10,6 +10,9 @@ use noirc_frontend::monomorphization::ast::{
 };
 use noirc_frontend::shared::Signedness;
 use noirc_frontend::signed_field::SignedInteger;
+use num_bigint::{BigInt, Sign};
+use num_traits::One;
+use num_traits::ToPrimitive;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
@@ -287,7 +290,11 @@ impl<'a> FunctionContext<'a> {
         value: SignedInteger,
         numeric_type: NumericType,
     ) -> Result<ValueId, RuntimeError> {
-        if let Some(range) = numeric_type.value_is_outside_limits(value) {
+        let constant = BigInt::new(
+            if value.is_negative() { Sign::Minus } else { Sign::Plus },
+            value.absolute_value().to_u32_digits(),
+        );
+        if let Some(range) = numeric_type.value_is_outside_limits(value.clone()) {
             let call_stack = self.builder.get_call_stack();
             return Err(RuntimeError::IntegerOutOfBounds {
                 value,
@@ -297,20 +304,7 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative() {
-            match numeric_type {
-                NumericType::NativeField => -value.absolute_value(),
-                NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
-                    assert!(bit_size < 128);
-                    let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.absolute_value()
-                }
-            }
-        } else {
-            value.absolute_value()
-        };
-
-        Ok(self.builder.numeric_constant(value, numeric_type))
+        Ok(self.builder.numeric_constant(constant, numeric_type))
     }
 
     /// helper function which add instructions to the block computing the absolute value of the
@@ -319,7 +313,7 @@ impl<'a> FunctionContext<'a> {
         assert_eq!(self.builder.type_of_value(sign), Type::bool());
 
         // We compute the absolute value of lhs
-        let bit_width = FieldElement::from(2_i128.pow(bit_size));
+        let bit_width = BigInt::from(2_i128.pow(bit_size));
         let bit_width = self.builder.numeric_constant(bit_width, NumericType::NativeField);
         let sign_not = self.builder.insert_not(sign);
 
@@ -408,7 +402,8 @@ impl<'a> FunctionContext<'a> {
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
+                            let bit_shift_size =
+                                rhs_const.to_u128().expect("rhs_const is not a u128") as u32;
 
                             if max_lhs_bits + bit_shift_size <= bit_size {
                                 // `lhs` has been casted up from a smaller type such that shifting it by a constant
@@ -440,10 +435,10 @@ impl<'a> FunctionContext<'a> {
         bit_size: u32,
         location: Location,
     ) -> ValueId {
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
+        let one = self.builder.numeric_constant(BigInt::one(), NumericType::bool());
         assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
 
-        let bit_size_field = FieldElement::from(bit_size as i128);
+        let bit_size_field = BigInt::from(bit_size);
         let max = self.builder.numeric_constant(bit_size_field, NumericType::unsigned(8));
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
@@ -477,7 +472,7 @@ impl<'a> FunctionContext<'a> {
     ) {
         let is_sub = operator == BinaryOpKind::Subtract;
         let half_width = self.builder.numeric_constant(
-            FieldElement::from(2_i128.pow(bit_size - 1)),
+            BigInt::from(2_i128.pow(bit_size - 1)),
             NumericType::unsigned(bit_size),
         );
         // We compute the sign of the operands. The overflow checks for signed integers depends on these signs
@@ -542,7 +537,7 @@ impl<'a> FunctionContext<'a> {
                 let product_overflow_check =
                     self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
 
-                let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
+                let one = self.builder.numeric_constant(BigInt::one(), NumericType::bool());
                 self.builder.set_location(location).insert_constrain(
                     product_overflow_check,
                     one,
@@ -659,7 +654,7 @@ impl<'a> FunctionContext<'a> {
                             location,
                         );
                         let half_width = self.builder.numeric_constant(
-                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+                            BigInt::from(2_u128.pow(incoming_type_size - 1)),
                             NumericType::unsigned(*incoming_type_size),
                         );
                         // value_sign is 1 if the value is positive, 0 otherwise
@@ -676,9 +671,7 @@ impl<'a> FunctionContext<'a> {
                             2_u128.pow(target_type_size) - 1
                         };
                         let patch = self.builder.numeric_constant(
-                            FieldElement::from(
-                                max_for_target_type_size - max_for_incoming_type_size,
-                            ),
+                            BigInt::from(max_for_target_type_size - max_for_incoming_type_size),
                             NumericType::unsigned(target_type_size),
                         );
                         let mut is_negative_predicate = self.builder.insert_not(value_sign);
@@ -1068,7 +1061,7 @@ impl<'a> FunctionContext<'a> {
             BinaryOp::Mul { unchecked: true },
             element_size,
         );
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::length_type());
+        let one = self.builder.numeric_constant(BigInt::one(), NumericType::length_type());
 
         new_value.for_each(|value| {
             let value = value.eval(self);
@@ -1081,9 +1074,9 @@ impl<'a> FunctionContext<'a> {
         array
     }
 
-    fn element_size(&self, array: ValueId) -> FieldElement {
+    fn element_size(&self, array: ValueId) -> BigInt {
         let size = self.builder.type_of_value(array).element_size();
-        FieldElement::from(size as u128)
+        BigInt::from(size)
     }
 
     /// Given an lhs containing only references, create a store instruction to store each value of

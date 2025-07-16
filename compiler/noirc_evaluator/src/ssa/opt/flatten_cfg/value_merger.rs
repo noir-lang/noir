@@ -1,6 +1,8 @@
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::Zero;
 
 use crate::{
     errors::{RtResult, RuntimeError},
@@ -269,7 +271,7 @@ impl<'a> ValueMerger<'a> {
     fn make_slice_dummy_data(&mut self, typ: &Type) -> ValueId {
         match typ {
             Type::Numeric(numeric_type) => {
-                let zero = FieldElement::zero();
+                let zero = BigInt::zero();
                 self.dfg.make_constant(zero, *numeric_type)
             }
             Type::Array(element_types, len) => {

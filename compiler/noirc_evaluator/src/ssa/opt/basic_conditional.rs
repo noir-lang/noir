@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use acvm::AcirField;
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use num_traits::ToPrimitive;
 
 use crate::ssa::{
     Ssa,
@@ -206,7 +207,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
                 // check if index is in bound
                 if let (Some(index), Some(len)) = (dfg.get_numeric_constant(*index), dfg.try_get_array_length(*array)) {
                     // The index is in-bounds
-                    if index.to_u128() < len as u128 {
+                    if index.to_u128().expect("index is not a u128") < len as u128 {
                         in_bound = true;
                     }
                 }

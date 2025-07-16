@@ -9,6 +9,7 @@ use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
+use num_traits::Zero;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -350,7 +351,7 @@ impl<'function> PerFunctionContext<'function> {
                 {
                     id
                 } else {
-                    self.context.builder.numeric_constant(*constant, *typ)
+                    self.context.builder.numeric_constant(constant.clone(), *typ)
                 }
             }
             Value::Function(function) => self.context.builder.import_function(*function),

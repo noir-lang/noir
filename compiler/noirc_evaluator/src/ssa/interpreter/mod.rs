@@ -175,7 +175,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     continue;
                 }
                 super::ir::value::Value::NumericConstant { constant, typ } => {
-                    Value::from_constant(*constant, *typ)?
+                    Value::from_constant(constant.clone(), *typ)?
                 }
                 super::ir::value::Value::Function(id) => Value::Function(*id),
                 super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
@@ -302,7 +302,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         Ok(match &self.dfg()[id] {
             super::ir::value::Value::NumericConstant { constant, typ } => {
-                Value::from_constant(*constant, *typ)?
+                Value::from_constant(constant.clone(), *typ)?
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
@@ -493,8 +493,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             // Cast in SSA changes the type without altering the value
             Instruction::Cast(value, numeric_type) => {
                 let value = self.lookup_numeric(*value, "cast")?;
-                let field = value.convert_to_field();
-                let result = Value::from_constant(field, *numeric_type)?;
+                let bigint = value.convert_to_bigint();
+                let result = Value::from_constant(bigint, *numeric_type)?;
                 self.define(results[0], result)?;
                 Ok(())
             }

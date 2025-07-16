@@ -67,6 +67,8 @@ use crate::ssa::{
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::{One, Zero};
 
 use super::unrolling::{Loop, Loops};
 
@@ -197,9 +199,9 @@ impl<'f> LoopInvariantContext<'f> {
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
         let true_value =
-            function.dfg.make_constant(FieldElement::one(), NumericType::Unsigned { bit_size: 1 });
+            function.dfg.make_constant(BigInt::one(), NumericType::Unsigned { bit_size: 1 });
         let false_value =
-            function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
+            function.dfg.make_constant(BigInt::zero(), NumericType::Unsigned { bit_size: 1 });
         Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
@@ -610,8 +612,7 @@ impl<'f> LoopInvariantContext<'f> {
         call_stack: CallStackId,
     ) -> SimplifyResult {
         let mut extract_variables = |rhs, lhs| {
-            let rhs_true =
-                self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
+            let rhs_true = self.inserter.function.dfg.get_numeric_constant(rhs)? == BigInt::one();
             let (is_left, min, max, binary) = self.extract_induction_and_invariant(lhs)?;
             match (is_left, rhs_true) {
                 (true, true) => Some((max, binary.rhs)),

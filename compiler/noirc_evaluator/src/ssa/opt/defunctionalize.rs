@@ -41,6 +41,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
+    interpreter::value::NumericValue,
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
@@ -284,7 +285,10 @@ fn map_function_to_field(func: &mut Function, value: ValueId) -> Option<ValueId>
             // If the value is a static function, transform it to the function id
             Value::Function(id) => {
                 let new_value = function_id_to_field(*id);
-                return Some(func.dfg.make_constant(new_value, NumericType::NativeField));
+                return Some(func.dfg.make_constant(
+                    NumericValue::from_field_to_bigint(new_value),
+                    NumericType::NativeField,
+                ));
             }
             // If the value is a function used as value, just change the type of it
             Value::Instruction { .. } | Value::Param { .. } => {
@@ -539,8 +543,10 @@ fn create_apply_function(
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
-            let function_id_constant = function_builder
-                .numeric_constant(function_id_to_field(*function_id), NumericType::NativeField);
+            let function_id_constant = function_builder.numeric_constant(
+                NumericValue::from_field_to_bigint(function_id_to_field(*function_id)),
+                NumericType::NativeField,
+            );
 
             // If it's not the last function to dispatch, create an if statement
             if !is_last {

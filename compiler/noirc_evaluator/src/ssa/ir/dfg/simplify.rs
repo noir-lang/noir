@@ -3,7 +3,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         instruction::{
             ArrayOffset, Binary, BinaryOp, Instruction,
-            binary::{truncate, truncate_field},
+            binary::{truncate, truncate_bigint, truncate_field},
         },
         types::Type,
         value::{Value, ValueId},
@@ -16,6 +16,9 @@ use call::simplify_call;
 use cast::simplify_cast;
 use constrain::decompose_constrain;
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+use num_traits::{One, Zero};
 
 use super::DataFlowGraph;
 
@@ -87,7 +90,8 @@ pub(crate) fn simplify(
                     // As we're casting to a `u128`, we need to clear out any upper bits that the NOT fills.
                     let bit_size = typ.bit_size();
                     assert!(bit_size <= 128);
-                    let not_value: u128 = truncate(!constant.to_u128(), bit_size);
+                    let not_value: u128 =
+                        truncate(!constant.to_u128().expect("constant is too large"), bit_size);
                     SimplifiedTo(dfg.make_constant(not_value.into(), *typ))
                 }
                 Value::Instruction { instruction, .. } => {
@@ -121,8 +125,7 @@ pub(crate) fn simplify(
             let array = dfg.get_array_constant(*array_id);
             let index = dfg.get_numeric_constant(*index_id);
             if let (Some((array, _element_type)), Some(index)) = (array, index) {
-                let index =
-                    index.try_to_u32().expect("Expected array index to fit in u32") as usize;
+                let index = index.to_u32().expect("Expected array index to fit in u32") as usize;
 
                 if index < array.len() {
                     let elements = array.update(index, *value);
@@ -145,7 +148,7 @@ pub(crate) fn simplify(
                 return SimplifiedTo(*value);
             }
             if let Some((numeric_constant, typ)) = dfg.get_numeric_constant_with_type(*value) {
-                let truncated_field = truncate_field(numeric_constant, *bit_size);
+                let truncated_field = truncate_bigint(&numeric_constant, *bit_size);
                 SimplifiedTo(dfg.make_constant(truncated_field, typ))
             } else if let Value::Instruction { instruction, .. } = &dfg[*value] {
                 match &dfg[*instruction] {
@@ -169,7 +172,7 @@ pub(crate) fn simplify(
 
                         let divisor =
                             dfg.get_numeric_constant(*rhs).expect("rhs is checked to be constant.");
-                        let divisor_bits = divisor.num_bits();
+                        let divisor_bits = divisor.bits() as u32;
 
                         // 2^{max_quotient_bits} = 2^{max_numerator_bits} / 2^{divisor_bits}
                         // => max_quotient_bits = max_numerator_bits - divisor_bits
@@ -301,7 +304,7 @@ pub(crate) fn simplify(
 fn try_optimize_array_get_from_previous_set(
     dfg: &DataFlowGraph,
     mut array_id: ValueId,
-    target_index: FieldElement,
+    target_index: BigInt,
 ) -> SimplifyResult {
     let mut elements = None;
 
@@ -332,7 +335,7 @@ fn try_optimize_array_get_from_previous_set(
         }
     }
 
-    if let (Some(array), Some(index)) = (elements, target_index.try_to_u64()) {
+    if let (Some(array), Some(index)) = (elements, target_index.to_u64()) {
         let index = index as usize;
         if index < array.len() {
             return SimplifyResult::SimplifiedTo(array[index]);

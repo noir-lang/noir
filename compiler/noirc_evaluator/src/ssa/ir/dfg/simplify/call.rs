@@ -1,11 +1,15 @@
 use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::Sign;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint};
+use num_traits::ToBytes;
+use num_traits::ToPrimitive;
+use num_traits::{One, Zero};
 
 use crate::ssa::{
     ir::{
@@ -51,13 +55,13 @@ pub(super) fn simplify_call(
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
-                let field = constant_args[0];
+                let constant = &constant_args[0];
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, 2, limb_count, |values| {
+                simplify_constant_to_radix(endian, constant.clone(), 2, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -73,14 +77,14 @@ pub(super) fn simplify_call(
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
             if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
-                let field = constant_args[0];
-                let radix = constant_args[1].to_u128() as u32;
+                let constant = &constant_args[0];
+                let radix = constant_args[1].to_u128().expect("radix is too large") as u32;
                 let limb_count = if let Type::Array(_, array_len) = return_type {
                     array_len
                 } else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
-                simplify_constant_to_radix(endian, field, radix, limb_count, |values| {
+                simplify_constant_to_radix(endian, constant.clone(), radix, limb_count, |values| {
                     make_constant_array(
                         dfg,
                         values.into_iter(),
@@ -95,7 +99,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(length as u128);
+                let length = BigInt::from(length);
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
@@ -214,7 +218,8 @@ pub(super) fn simplify_call(
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
                 let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let mut index =
+                    index.to_u128().expect("index is too large") as usize * elements.len();
 
                 // Do not simplify the index is greater than the slice capacity
                 // or else we will panic inside of the im::Vector insert method
@@ -250,7 +255,7 @@ pub(super) fn simplify_call(
             if let (Some((mut slice, typ)), Some(index)) = (slice, index) {
                 let element_count = typ.element_size();
                 let mut results = Vec::with_capacity(element_count + 1);
-                let index = index.to_u128() as usize * element_count;
+                let index = index.to_u128().expect("index is too large") as usize * element_count;
 
                 // Do not simplify if the index is not less than the slice capacity
                 // or else we will panic inside of the im::Vector remove method.
@@ -306,7 +311,8 @@ pub(super) fn simplify_call(
             let value = arguments[0];
             let max_bit_size = dfg.get_numeric_constant(arguments[1]);
             if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.to_u128() as u32;
+                let max_bit_size =
+                    max_bit_size.to_u128().expect("max_bit_size is too large") as u32;
                 let max_potential_bits = dfg.get_value_max_num_bits(value);
                 if max_potential_bits < max_bit_size {
                     SimplifyResult::Remove
@@ -339,8 +345,8 @@ pub(super) fn simplify_call(
         }
         Intrinsic::FieldLessThan => {
             if let Some(constants) = constant_args {
-                let lhs = constants[0];
-                let rhs = constants[1];
+                let lhs = &constants[0];
+                let rhs = &constants[1];
                 let result = dfg.make_constant((lhs < rhs).into(), NumericType::bool());
                 SimplifyResult::SimplifiedTo(result)
             } else {
@@ -367,12 +373,12 @@ pub(super) fn simplify_call(
 /// Returns a slice (represented by a tuple (len, slice)) of constants corresponding to the limbs of the radix decomposition.
 fn simplify_constant_to_radix(
     endian: Endian,
-    field: FieldElement,
+    constant: BigInt,
     radix: u32,
     limb_count: u32,
-    mut make_array: impl FnMut(Vec<FieldElement>) -> ValueId,
+    mut make_array: impl FnMut(Vec<BigInt>) -> ValueId,
 ) -> SimplifyResult {
-    match constant_to_radix(endian, field, radix, limb_count) {
+    match constant_to_radix(endian, constant, radix, limb_count) {
         Some(result) => SimplifyResult::SimplifiedTo(make_array(result)),
         None => SimplifyResult::None,
     }
@@ -380,7 +386,7 @@ fn simplify_constant_to_radix(
 
 pub(crate) fn constant_to_radix(
     endian: Endian,
-    field: FieldElement,
+    constant: BigInt,
     radix: u32,
     limb_count: u32,
 ) -> Option<Vec<FieldElement>> {
@@ -392,7 +398,7 @@ pub(crate) fn constant_to_radix(
         // acir::generated_acir::radix_le_decompose
         return None;
     }
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+    let big_integer = constant.to_biguint().expect("constant is too large");
 
     // Decompose the integer into its radix digits in little endian form.
     let decomposed_integer = big_integer.to_radix_le(radix);
@@ -414,7 +420,7 @@ pub(crate) fn constant_to_radix(
 
 fn make_constant_array(
     dfg: &mut DataFlowGraph,
-    results: impl Iterator<Item = FieldElement>,
+    results: impl Iterator<Item = BigInt>,
     typ: NumericType,
     block: BasicBlockId,
     call_stack: CallStackId,
@@ -450,7 +456,7 @@ fn update_slice_length(
     operator: BinaryOp,
     block: BasicBlockId,
 ) -> ValueId {
-    let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
+    let one = dfg.make_constant(BigInt::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
     let call_stack = dfg.get_value_call_stack_id(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
@@ -622,7 +628,7 @@ fn simplify_black_box_func(
                             let field = dfg
                                 .get_numeric_constant(*id)
                                 .expect("value id from array should point at constant");
-                            field.to_u128() as u64
+                            field.to_u128().expect("field is too large") as u64
                         })
                         .collect();
 
@@ -630,7 +636,7 @@ fn simplify_black_box_func(
                         const_input.try_into().expect("Keccakf1600 input should have length of 25"),
                     )
                     .expect("Rust solvable black box function should not fail");
-                    let state_values = state.iter().map(|x| FieldElement::from(*x as u128));
+                    let state_values = state.iter().map(|x| BigInt::from(*x));
                     let result_array = make_constant_array(
                         dfg,
                         state_values,
@@ -697,10 +703,10 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
-            let field = dfg
+            let constant = dfg
                 .get_numeric_constant(*id)
                 .expect("value id from array should point at constant");
-            *field.to_be_bytes().last().unwrap()
+            *constant.to_be_bytes().last().unwrap()
         })
         .collect()
 }
@@ -725,20 +731,23 @@ fn simplify_derive_generators(
             let domain_separator_bytes = domain_separator_string
                 .0
                 .iter()
-                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
+                .map(|&x| {
+                    dfg.get_numeric_constant(x).unwrap().to_u128().expect("value is too large")
+                        as u8
+                })
                 .collect::<Vec<u8>>();
             let generators = derive_generators(
                 &domain_separator_bytes,
                 num_generators,
-                starting_index.try_to_u32().expect("argument is declared as u32"),
+                starting_index.to_u32().expect("argument is declared as u32"),
             );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+            let is_infinite = dfg.make_constant(BigInt::zero(), NumericType::bool());
             let mut results = Vec::new();
             for generator in generators {
                 let x_big: BigUint = generator.x.into();
-                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
+                let x = BigInt::from_bytes_be(Sign::Plus, &x_big.to_bytes_be());
                 let y_big: BigUint = generator.y.into();
-                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                let y = BigInt::from_bytes_be(Sign::Plus, &y_big.to_bytes_be());
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
                 results.push(is_infinite);

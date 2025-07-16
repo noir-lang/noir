@@ -1,5 +1,5 @@
 use acvm::{FieldElement, acir::AcirField};
-use num_bigint::BigUint;
+use num_bigint::{BigInt, BigUint, Sign};
 
 use crate::ssa::ir::{
     dfg::{DataFlowGraph, simplify::SimplifyResult},
@@ -46,9 +46,9 @@ pub(super) fn simplify_cast(
             ) => {
                 // Field/Unsigned -> unsigned: truncate
                 let integer_modulus = BigUint::from(2u128).pow(bit_size);
-                let constant: BigUint = BigUint::from_bytes_be(&constant.to_be_bytes());
+                let constant: BigUint = constant.to_biguint().expect("constant is too large");
                 let truncated = constant % integer_modulus;
-                let truncated = FieldElement::from_be_bytes_reduce(&truncated.to_bytes_be());
+                let truncated = BigInt::from_bytes_be(Sign::Plus, &truncated.to_bytes_be());
                 SimplifiedTo(dfg.make_constant(truncated, dst_typ))
             }
             (
@@ -64,7 +64,8 @@ pub(super) fn simplify_cast(
                 // Field/Unsigned -> signed
                 // We could only simplify to signed when we are below the maximum integer of the destination type.
                 // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
-                let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
+                let integer_constant =
+                    IntegerConstant::from_numeric_constant(constant.clone(), dst_typ);
                 if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
                 } else {

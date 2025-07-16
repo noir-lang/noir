@@ -5,6 +5,7 @@ use acvm::acir::AcirField;
 use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
+use num_traits::ToPrimitive;
 
 use crate::ssa::{
     Ssa,
@@ -429,7 +430,7 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
     let mut string = String::new();
     for element in elements {
         let element = dfg.get_numeric_constant(*element)?;
-        let element = element.try_to_u32()?;
+        let element = element.to_u32()?;
         if element > 0xFF {
             return None;
         }

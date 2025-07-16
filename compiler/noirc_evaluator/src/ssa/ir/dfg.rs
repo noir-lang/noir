@@ -21,6 +21,9 @@ use acvm::{FieldElement, acir::AcirField};
 use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+use num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
@@ -62,7 +65,7 @@ pub(crate) struct DataFlowGraph {
     /// Each constant is unique, attempting to insert the same constant
     /// twice will return the same ValueId.
     #[serde(skip)]
-    constants: HashMap<(FieldElement, NumericType), ValueId>,
+    constants: HashMap<(BigInt, NumericType), ValueId>,
 
     /// Contains each function that has been imported into the current function.
     /// A unique `ValueId` for each function's [`Value::Function`] is stored so any given FunctionId
@@ -123,7 +126,7 @@ pub struct GlobalsGraph {
     #[serde_as(as = "HashMap<DisplayFromStr, _>")]
     results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
     #[serde(skip)]
-    constants: HashMap<(FieldElement, NumericType), ValueId>,
+    constants: HashMap<(BigInt, NumericType), ValueId>,
 }
 
 impl GlobalsGraph {
@@ -426,14 +429,14 @@ impl DataFlowGraph {
 
     /// Creates a new constant value, or returns the Id to an existing one if
     /// one already exists.
-    pub(crate) fn make_constant(&mut self, constant: FieldElement, typ: NumericType) -> ValueId {
-        if let Some(id) = self.constants.get(&(constant, typ)) {
+    pub(crate) fn make_constant(&mut self, constant: BigInt, typ: NumericType) -> ValueId {
+        if let Some(id) = self.constants.get(&(constant.clone(), typ)) {
             return *id;
         }
-        if let Some(id) = self.globals.constants.get(&(constant, typ)) {
+        if let Some(id) = self.globals.constants.get(&(constant.clone(), typ)) {
             return *id;
         }
-        let id = self.values.insert(Value::NumericConstant { constant, typ });
+        let id = self.values.insert(Value::NumericConstant { constant: constant.clone(), typ });
         self.constants.insert((constant, typ), id);
         id
     }
@@ -535,11 +538,11 @@ impl DataFlowGraph {
     /// Should `value` be a numeric constant then this function will return the exact number of bits required,
     /// otherwise it will return the minimum number of bits based on type information.
     pub(crate) fn get_value_max_num_bits(&self, value: ValueId) -> u32 {
-        match self[value] {
+        match &self[value] {
             Value::Instruction { instruction, .. } => {
                 let value_bit_size = self.type_of_value(value).bit_size();
-                if let Instruction::Cast(original_value, _) = self[instruction] {
-                    let original_bit_size = self.type_of_value(original_value).bit_size();
+                if let Instruction::Cast(original_value, _) = &self.instructions[*instruction] {
+                    let original_bit_size = self.type_of_value(*original_value).bit_size();
                     // We might have cast e.g. `u1` to `u8` to be able to do arithmetic,
                     // in which case we want to recover the original smaller bit size;
                     // OTOH if we cast down, then we don't need the higher original size.
@@ -549,7 +552,7 @@ impl DataFlowGraph {
                 }
             }
 
-            Value::NumericConstant { constant, .. } => constant.num_bits(),
+            Value::NumericConstant { constant, .. } => constant.bits() as u32,
             _ => self.type_of_value(value).bit_size(),
         }
     }
@@ -586,7 +589,7 @@ impl DataFlowGraph {
     /// Returns `None` if the given value is not a numeric constant.
     ///
     /// Use `get_integer_constant` if the underlying values need to be compared as signed integers.
-    pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<FieldElement> {
+    pub(crate) fn get_numeric_constant(&self, value: ValueId) -> Option<BigInt> {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
@@ -597,14 +600,14 @@ impl DataFlowGraph {
             .and_then(|(f, t)| IntegerConstant::from_numeric_constant(f, t))
     }
 
-    /// Returns the field element and type represented by this value if it is a numeric constant.
+    /// Returns the BigInt and type represented by this value if it is a numeric constant.
     /// Returns `None` if the given value is not a numeric constant.
     pub(crate) fn get_numeric_constant_with_type(
         &self,
         value: ValueId,
-    ) -> Option<(FieldElement, NumericType)> {
+    ) -> Option<(BigInt, NumericType)> {
         match &self[value] {
-            Value::NumericConstant { constant, typ } => Some((*constant, *typ)),
+            Value::NumericConstant { constant, typ } => Some((constant.clone(), *typ)),
             _ => None,
         }
     }
@@ -640,7 +643,7 @@ impl DataFlowGraph {
         let mut bytes = Vec::new();
         for value_id in value_ids {
             let field_value = self.get_numeric_constant(value_id)?;
-            let u64_value = field_value.try_to_u64()?;
+            let u64_value = field_value.to_u64()?;
             if u64_value > 255 {
                 return None;
             };
@@ -655,7 +658,8 @@ impl DataFlowGraph {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (len as u128 * elements.len() as u128) =>
+                if index.to_u128().expect("index is not a u128")
+                    < (len as u128 * elements.len() as u128) =>
             {
                 true
             }

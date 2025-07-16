@@ -10,6 +10,8 @@
 //! is unnecessary as we already know the index. This pass looks for such array operations
 //! with constant indices and replaces their index with the appropriate offset.
 
+use num_bigint::BigInt;
+
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
@@ -93,7 +95,7 @@ fn compute_index_and_offset(
         ArrayOffset::Slice
     };
     let index = context.dfg.make_constant(
-        index_constant + offset.to_u32().into(),
+        index_constant + BigInt::from(offset.to_u32()),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
     );
     (index, offset)

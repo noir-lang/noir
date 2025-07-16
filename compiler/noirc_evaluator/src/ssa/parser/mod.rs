@@ -22,6 +22,8 @@ use ast::{
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
 use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -452,7 +454,8 @@ impl<'a> Parser<'a> {
 
         let value = self.parse_value_or_error()?;
         self.eat_or_error(Token::Keyword(Keyword::To))?;
-        let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+        let max_bit_size =
+            self.eat_int_or_error()?.to_u128().expect("max_bit_size is too large") as u32;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
         let assert_message =
@@ -573,12 +576,14 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Truncate)? {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::To))?;
-            let bit_size = self.eat_int_or_error()?.to_u128() as u32;
+            let bit_size =
+                self.eat_int_or_error()?.to_u128().expect("bit_size is too large") as u32;
             self.eat_or_error(Token::Keyword(Keyword::Bits))?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
             self.eat_or_error(Token::Colon)?;
-            let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+            let max_bit_size =
+                self.eat_int_or_error()?.to_u128().expect("max_bit_size is too large") as u32;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
@@ -616,7 +621,7 @@ impl<'a> Parser<'a> {
             let token = self.token.token().clone();
             let span = self.token.span();
             let field = self.eat_int_or_error()?;
-            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
+            if let Some(offset) = field.to_u32().and_then(ArrayOffset::from_u32) {
                 if offset == ArrayOffset::None {
                     self.unexpected_offset(token, span)
                 } else {
@@ -645,7 +650,7 @@ impl<'a> Parser<'a> {
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte as u128),
+                        value: BigInt::from(byte),
                         typ: u8.clone(),
                     })
                 })
@@ -658,7 +663,7 @@ impl<'a> Parser<'a> {
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte as u128),
+                        value: BigInt::from(byte),
                         typ: u8.clone(),
                     })
                 })
@@ -865,7 +870,10 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as u32));
+                return Ok(Type::Array(
+                    Arc::new(element_types),
+                    length.to_u128().expect("length is too large") as u32,
+                ));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Slice(Arc::new(element_types)));
@@ -961,7 +969,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
+    fn eat_int(&mut self) -> ParseResult<Option<BigInt>> {
         let negative = self.eat(Token::Dash)?;
 
         if matches!(self.token.token(), Token::Int(..)) {
@@ -980,7 +988,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
+    fn eat_int_or_error(&mut self) -> ParseResult<BigInt> {
         if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 

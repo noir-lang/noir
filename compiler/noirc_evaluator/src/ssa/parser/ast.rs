@@ -2,6 +2,7 @@ use std::fmt::{self, Display, Formatter};
 
 use acvm::FieldElement;
 use noirc_errors::Span;
+use num_bigint::BigInt;
 
 use crate::ssa::{
     ir::{
@@ -191,6 +192,6 @@ pub(crate) enum ParsedValue {
 
 #[derive(Debug, Clone)]
 pub(crate) struct ParsedNumericConstant {
-    pub(crate) value: FieldElement,
+    pub(crate) value: BigInt,
     pub(crate) typ: Type,
 }

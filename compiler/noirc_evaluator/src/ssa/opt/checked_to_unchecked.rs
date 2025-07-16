@@ -114,9 +114,9 @@ fn get_max_num_bits(
 
     let value_bit_size = dfg.type_of_value(value).bit_size();
 
-    let bits = match dfg[value] {
+    let bits = match &dfg[value] {
         Value::Instruction { instruction, .. } => {
-            match dfg[instruction] {
+            match dfg[*instruction] {
                 Instruction::Cast(original_value, _) => {
                     let original_bit_size =
                         get_max_num_bits(dfg, original_value, value_max_num_bits);
@@ -135,7 +135,7 @@ fn get_max_num_bits(
                 _ => value_bit_size,
             }
         }
-        Value::NumericConstant { constant, .. } => constant.num_bits(),
+        Value::NumericConstant { constant, .. } => constant.bits() as u32,
         _ => value_bit_size,
     };
 

@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
 use insta::assert_snapshot;
+use num_bigint::BigInt;
+use num_traits::{One, Zero};
 
 use crate::ssa::{
     interpreter::value::NumericValue,
@@ -63,7 +65,7 @@ fn expect_printed_output(src: &str) -> String {
     String::from_utf8(output).expect("not a UTF-8 string")
 }
 
-pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
+pub(crate) fn from_constant(constant: BigInt, typ: NumericType) -> Value {
     Value::from_constant(constant, typ).unwrap()
 }
 
@@ -288,8 +290,8 @@ fn keep_repeat_loads_with_alias_store() {
     let values = expect_values_with_args(src, vec![Value::bool(true)]);
     assert_eq!(values.len(), 2);
 
-    assert_eq!(values[0], from_constant(FieldElement::zero(), NumericType::NativeField));
-    assert_eq!(values[1], from_constant(FieldElement::one(), NumericType::NativeField));
+    assert_eq!(values[0], from_constant(BigInt::zero(), NumericType::NativeField));
+    assert_eq!(values[1], from_constant(BigInt::one(), NumericType::NativeField));
 }
 
 #[test]

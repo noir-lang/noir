@@ -24,6 +24,8 @@ use acvm::{
 use m31_blackbox_solver::M31BlackBoxSolver;
 use im::Vector;
 use iter_extended::vecmap;
+use num_bigint::BigInt;
+use num_traits::One;
 
 use crate::{
     brillig::{
@@ -32,6 +34,7 @@ use crate::{
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
     },
     ssa::{
+        interpreter::value::NumericValue,
         ir::{
             basic_block::BasicBlockId,
             dfg::{DataFlowGraph, InsertInstructionResult},
@@ -239,7 +242,7 @@ impl<'brillig> Context<'brillig> {
 
         // Default side effect condition variable with an enabled state.
         let mut side_effects_enabled_var =
-            function.dfg.make_constant(FieldElement::one(), NumericType::bool());
+            function.dfg.make_constant(BigInt::one(), NumericType::bool());
 
         for instruction_id in instructions {
             let instruction = &mut function.dfg[instruction_id];
@@ -685,7 +688,7 @@ impl<'brillig> Context<'brillig> {
                 *memory_index += 1;
 
                 let field_value = memory.to_field();
-                dfg.make_constant(field_value, typ)
+                dfg.make_constant(NumericValue::from_field_to_bigint(field_value), typ)
             }
             Type::Array(types, length) => {
                 let mut new_array_values = Vector::new();
@@ -863,7 +866,7 @@ pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> 
 
 fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
     if let Some(value) = dfg.get_numeric_constant(value_id) {
-        calldata.push(value);
+        calldata.push(NumericValue::from_bigint_to_field(value));
         return;
     }
 

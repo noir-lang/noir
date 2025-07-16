@@ -3,6 +3,7 @@ use std::fmt::Display;
 use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use noirc_frontend::token::IntType;
+use num_bigint::BigInt;
 
 #[derive(Debug)]
 pub(crate) struct SpannedToken(Spanned<Token>);
@@ -28,7 +29,7 @@ impl SpannedToken {
 #[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Token {
     Ident(String),
-    Int(FieldElement),
+    Int(BigInt),
     Str(String),
     ByteStr(String),
     Keyword(Keyword),

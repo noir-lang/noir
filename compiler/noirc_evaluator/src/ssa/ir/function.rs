@@ -4,6 +4,7 @@ use std::sync::Arc;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::monomorphization::ast::InlineType;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
@@ -223,7 +224,7 @@ impl Function {
     }
 
     /// Iterate over the numeric constants in the function.
-    pub fn constants(&self) -> impl Iterator<Item = (&FieldElement, &NumericType)> {
+    pub fn constants(&self) -> impl Iterator<Item = (&BigInt, &NumericType)> {
         let local = self.dfg.values_iter();
         let global = self.dfg.globals.values_iter();
         local.chain(global).filter_map(|(_, value)| {

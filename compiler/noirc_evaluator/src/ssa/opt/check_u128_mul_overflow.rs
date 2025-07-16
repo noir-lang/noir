@@ -1,5 +1,8 @@
 use acvm::{AcirField, FieldElement};
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
+use num_traits::{One, Zero};
 
 use crate::ssa::{
     ir::{
@@ -75,15 +78,15 @@ fn check_u128_mul_overflow(
     let two_pow_64 = 1_u128 << 64;
 
     // If lhs is less than 2^64 then the condition trivially holds.
-    if let Some(value) = lhs_value {
-        if value.to_u128() < two_pow_64 {
+    if let Some(value) = lhs_value.clone() {
+        if value.to_u128().expect("lhs is not a u128") < two_pow_64 {
             return;
         }
     }
 
     // Same goes for rhs
-    if let Some(value) = rhs_value {
-        if value.to_u128() < two_pow_64 {
+    if let Some(value) = rhs_value.clone() {
+        if value.to_u128().expect("rhs is not a u128") < two_pow_64 {
             return;
         }
     }
@@ -94,7 +97,7 @@ fn check_u128_mul_overflow(
 
     let res = if lhs_value.is_some() && rhs_value.is_some() {
         // If both values are known at compile time, at this point we know it overflows
-        dfg.make_constant(FieldElement::one(), u128)
+        dfg.make_constant(BigInt::one(), u128)
     } else if lhs_value.is_some() {
         // If only the left-hand side is known we just need to check that the right-hand side
         // isn't greater than 2^64
@@ -124,7 +127,7 @@ fn check_u128_mul_overflow(
         dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
     };
 
-    let zero = dfg.make_constant(FieldElement::zero(), u128);
+    let zero = dfg.make_constant(BigInt::zero(), u128);
     let instruction = Instruction::Cast(context.enable_side_effects, u128);
     let predicate =
         dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();

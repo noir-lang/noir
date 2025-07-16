@@ -10,6 +10,7 @@ use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 
 use super::FunctionBuilder;
@@ -154,7 +155,7 @@ impl FunctionBuilder {
                     for subitem_typ in typ.iter() {
                         // load each element of the array, and add it to the databus
                         let length_type = NumericType::length_type();
-                        let index_var = FieldElement::from(index as i128);
+                        let index_var = BigInt::from(index);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
                         // If we do not check for an empty array we will have an unused array get

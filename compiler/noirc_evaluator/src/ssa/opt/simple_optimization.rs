@@ -1,4 +1,5 @@
 use acvm::FieldElement;
+use num_bigint::BigInt;
 
 use crate::{
     errors::RtResult,
@@ -60,7 +61,7 @@ impl Function {
     {
         let mut values_to_replace = ValueMapping::default();
         let mut enable_side_effects =
-            self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
+            self.dfg.make_constant(BigInt::from(1_u128), NumericType::bool());
         for block_id in self.reachable_blocks() {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());

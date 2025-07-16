@@ -2,10 +2,12 @@ use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+use num_bigint::BigInt;
 
 use crate::{
     errors::RuntimeError,
     ssa::{
+        interpreter::value::NumericValue,
         ir::{
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
@@ -174,6 +176,22 @@ fn evaluate_static_assert(
         return Ok(false);
     }
 
+    // Convert ForeignCallParam<BigInt> to ForeignCallParam<FieldElement>
+    let foreign_call_params: Vec<ForeignCallParam<FieldElement>> = foreign_call_params
+        .iter()
+        .map(|param| match param {
+            ForeignCallParam::Single(value) => {
+                ForeignCallParam::Single(NumericValue::from_bigint_to_field(value.clone()))
+            }
+            ForeignCallParam::Array(values) => ForeignCallParam::Array(
+                values
+                    .iter()
+                    .map(|value| NumericValue::from_bigint_to_field(value.clone()))
+                    .collect(),
+            ),
+        })
+        .collect();
+
     let message = match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params)
     {
         Ok(display_values) => display_values.to_string(),
@@ -198,10 +216,10 @@ fn evaluate_static_assert(
 fn append_foreign_call_param(
     value: ValueId,
     dfg: &DataFlowGraph,
-    foreign_call_params: &mut Vec<ForeignCallParam<FieldElement>>,
+    foreign_call_params: &mut Vec<ForeignCallParam<BigInt>>,
 ) {
-    if let Some(field) = dfg.get_numeric_constant(value) {
-        foreign_call_params.push(ForeignCallParam::Single(field));
+    if let Some(value) = dfg.get_numeric_constant(value) {
+        foreign_call_params.push(ForeignCallParam::Single(value));
     } else if let Some((values, _typ)) = dfg.get_array_constant(value) {
         let values = vecmap(values, |value| {
             dfg.get_numeric_constant(value).expect("ICE: expected constant value")

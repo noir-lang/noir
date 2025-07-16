@@ -1,6 +1,10 @@
 use acvm::{FieldElement, acir::AcirField};
+use num_bigint::{BigInt, Sign};
 use num_traits::ToPrimitive as _;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
+
+use crate::ssa::interpreter::value::NumericValue;
 
 use super::{InstructionResultType, NumericType, Type, ValueId};
 
@@ -92,7 +96,7 @@ pub(crate) enum BinaryEvaluationResult {
     /// The binary operation could not be evaluated
     CouldNotEvaluate,
     /// The binary operation could be evaluated and it was successful
-    Success(FieldElement, NumericType),
+    Success(BigInt, NumericType),
     /// The binary operation could be evaluated but it is guaranteed to fail
     /// (for example: overflow or division by zero).
     Failure(String),
@@ -100,8 +104,8 @@ pub(crate) enum BinaryEvaluationResult {
 
 /// Evaluate a binary operation with constant arguments.
 pub(crate) fn eval_constant_binary_op(
-    lhs: FieldElement,
-    rhs: FieldElement,
+    lhs: BigInt,
+    rhs: BigInt,
     operator: BinaryOp,
     mut operand_type: NumericType,
 ) -> BinaryEvaluationResult {
@@ -112,21 +116,23 @@ pub(crate) fn eval_constant_binary_op(
             // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
             // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
             // and the operation should be handled by ACIR generation.
-            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == FieldElement::zero() {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == BigInt::zero() {
                 return Failure("attempt to divide by zero".to_string());
             }
             let Some(function) = operator.get_field_function() else {
                 return CouldNotEvaluate;
             };
+            let lhs = NumericValue::from_bigint_to_field(lhs);
+            let rhs = NumericValue::from_bigint_to_field(rhs);
             function(lhs, rhs)
         }
         NumericType::Unsigned { bit_size } => {
             let function = operator.get_u128_function();
 
-            let Some(lhs) = lhs.try_into_u128() else {
+            let Some(lhs) = lhs.to_u128() else {
                 return CouldNotEvaluate;
             };
-            let Some(rhs) = rhs.try_into_u128() else {
+            let Some(rhs) = rhs.to_u128() else {
                 return CouldNotEvaluate;
             };
 
@@ -148,7 +154,7 @@ pub(crate) fn eval_constant_binary_op(
                 }
 
                 if let BinaryOp::Shr = operator {
-                    return Success(FieldElement::zero(), operand_type);
+                    return Success(BigInt::zero(), operand_type);
                 }
 
                 let op = binary_op_function_name(operator);
@@ -165,7 +171,7 @@ pub(crate) fn eval_constant_binary_op(
                 }
 
                 if let BinaryOp::Shr = operator {
-                    return Success(FieldElement::zero(), operand_type);
+                    return Success(BigInt::zero(), operand_type);
                 }
 
                 let op = binary_op_function_name(operator);
@@ -177,10 +183,10 @@ pub(crate) fn eval_constant_binary_op(
         NumericType::Signed { bit_size } => {
             let function = operator.get_i128_function();
 
-            let Some(lhs) = try_convert_field_element_to_signed_integer(lhs, bit_size) else {
+            let Some(lhs) = try_convert_bigint_to_signed_integer(lhs, bit_size) else {
                 return CouldNotEvaluate;
             };
-            let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
+            let Some(rhs) = try_convert_bigint_to_signed_integer(rhs, bit_size) else {
                 return CouldNotEvaluate;
             };
 
@@ -238,7 +244,7 @@ pub(crate) fn eval_constant_binary_op(
         operand_type = NumericType::bool();
     }
 
-    Success(value, operand_type)
+    Success(NumericValue::from_field_to_bigint(value), operand_type)
 }
 
 fn binary_op_function_name(op: BinaryOp) -> &'static str {
@@ -275,6 +281,15 @@ pub(crate) fn try_convert_field_element_to_signed_integer(
         let x = (1u128 << bit_size) - unsigned_int;
         -(x as i128)
     };
+
+    Some(signed_int)
+}
+
+pub(crate) fn try_convert_bigint_to_signed_integer(bigint: BigInt, bit_size: u32) -> Option<i128> {
+    let unsigned_int = truncate(bigint.to_u128()?, bit_size);
+
+    let signed_int =
+        if bigint.sign() == Sign::Minus { -(unsigned_int as i128) } else { unsigned_int as i128 };
 
     Some(signed_int)
 }
@@ -326,6 +341,14 @@ pub(crate) fn truncate_field<F: AcirField>(int: F, bit_size: u32) -> F {
     be_bytes[0] &= mask;
 
     F::from_be_bytes_reduce(&be_bytes)
+}
+
+pub(crate) fn truncate_bigint(value: &BigInt, bit_size: u32) -> BigInt {
+    if bit_size == 0 {
+        return BigInt::zero();
+    }
+    let mask = (BigInt::one() << bit_size) - BigInt::one();
+    value & mask
 }
 
 impl BinaryOp {

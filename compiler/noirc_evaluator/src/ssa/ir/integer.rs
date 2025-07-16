@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
 use acvm::{AcirField, FieldElement};
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 use num_traits::Zero;
 
 use super::{instruction::binary, types::NumericType};
@@ -16,28 +18,27 @@ pub(crate) enum IntegerConstant {
 }
 
 impl IntegerConstant {
-    pub(crate) fn from_numeric_constant(field: FieldElement, typ: NumericType) -> Option<Self> {
+    pub(crate) fn from_numeric_constant(constant: BigInt, typ: NumericType) -> Option<Self> {
         match typ {
             NumericType::Signed { bit_size } => {
-                binary::try_convert_field_element_to_signed_integer(field, bit_size)
+                binary::try_convert_bigint_to_signed_integer(constant, bit_size)
                     .map(|value| Self::Signed { value, bit_size })
             }
             NumericType::Unsigned { bit_size } => {
-                field.try_into_u128().map(|value| Self::Unsigned { value, bit_size })
+                constant.to_u128().map(|value| Self::Unsigned { value, bit_size })
             }
             NumericType::NativeField => None,
         }
     }
 
     /// Convert back into a field.
-    pub(crate) fn into_numeric_constant(self) -> (FieldElement, NumericType) {
+    pub(crate) fn into_numeric_constant(self) -> (BigInt, NumericType) {
         match self {
-            Self::Signed { value, bit_size } => (
-                binary::convert_signed_integer_to_field_element(value, bit_size),
-                NumericType::signed(bit_size),
-            ),
+            Self::Signed { value, bit_size } => {
+                (BigInt::from(value), NumericType::signed(bit_size))
+            }
             Self::Unsigned { value, bit_size } => {
-                (FieldElement::from(value), NumericType::unsigned(bit_size))
+                (BigInt::from(value), NumericType::unsigned(bit_size))
             }
         }
     }

@@ -1,4 +1,5 @@
 use fxhash::FxHashMap as HashMap;
+use num_bigint::BigInt;
 use std::borrow::Cow;
 
 use acvm::FieldElement;
@@ -37,7 +38,7 @@ pub enum Value {
     Param { block: BasicBlockId, position: usize, typ: Type },
 
     /// This Value originates from a numeric constant
-    NumericConstant { constant: FieldElement, typ: NumericType },
+    NumericConstant { constant: BigInt, typ: NumericType },
 
     /// This Value refers to a function in the IR.
     /// Functions always have the type Type::Function.

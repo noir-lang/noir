@@ -9,8 +9,8 @@
 //!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
 //!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 //!
-
-use acvm::{FieldElement, acir::AcirField};
+use num_bigint::BigInt;
+use num_traits::One;
 
 use crate::ssa::{
     ir::{
@@ -43,7 +43,7 @@ impl Function {
         let block = self.entry_block();
         assert_eq!(self.dfg[block].successors().count(), 0);
 
-        let one = self.dfg.make_constant(FieldElement::one(), NumericType::bool());
+        let one = self.dfg.make_constant(BigInt::one(), NumericType::bool());
         let mut active_condition = one;
         let mut last_side_effects_enabled_instruction = None;
 

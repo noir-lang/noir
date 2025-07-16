@@ -2,6 +2,8 @@ use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
+use num_bigint::BigInt;
+use num_traits::{One, ToPrimitive, Zero};
 
 use crate::ssa::{
     ir::{
@@ -99,23 +101,23 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
-        let base = self.field_constant(FieldElement::from(2_u128));
+        let base = self.field_constant(BigInt::from(2_u128));
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let (max_bit, pow) = if let Some(rhs_constant) = self.context.dfg.get_numeric_constant(rhs)
         {
             // Happy case is that we know precisely by how many bits the integer will
             // increase: lhs_bit_size + rhs
-            let bit_shift_size = rhs_constant.to_u128() as u32;
+            let bit_shift_size = rhs_constant.to_u128().expect("rhs_constant is not u128") as u32;
 
             let (rhs_bit_size_pow_2, overflows) = 2_u128.overflowing_pow(bit_shift_size);
             if overflows {
                 assert!(bit_size < 128, "ICE - shift left with big integers are not supported");
                 if bit_size < 128 {
-                    let zero = self.numeric_constant(FieldElement::zero(), typ);
+                    let zero = self.numeric_constant(BigInt::zero(), typ);
                     return InsertInstructionResult::SimplifiedTo(zero).first();
                 }
             }
-            let pow = self.field_constant(FieldElement::from(rhs_bit_size_pow_2));
+            let pow = self.field_constant(BigInt::from(rhs_bit_size_pow_2));
 
             let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
             let max_bit_size = max_lhs_bits + bit_shift_size;
@@ -126,7 +128,7 @@ impl Context<'_, '_, '_> {
         } else {
             // we use a predicate to nullify the result in case of overflow
             let u8_type = NumericType::unsigned(8);
-            let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), u8_type);
+            let bit_size_var = self.numeric_constant(BigInt::from(bit_size as u128), u8_type);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, NumericType::NativeField);
             let pow = self.pow(base, rhs);
@@ -161,7 +163,7 @@ impl Context<'_, '_, '_> {
         bit_size: u32,
     ) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
-        let base = self.field_constant(FieldElement::from(2_u128));
+        let base = self.field_constant(BigInt::from(2_u128));
         let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
         //Check whether rhs is less than the bit_size: if it's not then it will overflow and we will return 0 instead.
         let bit_size_value = self.numeric_constant(bit_size as u128, rhs_typ);
@@ -190,7 +192,7 @@ impl Context<'_, '_, '_> {
             );
         }
         // Get the sign of the operand; positive signed operand will just do a division as well
-        let zero = self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+        let zero = self.numeric_constant(BigInt::zero(), NumericType::signed(bit_size));
         let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
         let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
         let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
@@ -229,7 +231,7 @@ impl Context<'_, '_, '_> {
         let minus_one_or_zero =
             self.insert_binary(minus_one, BinaryOp::Mul { unchecked: true }, lhs_sign_as_int);
         // -1, or 0 if lhs is positive or if there is no overflow
-        let one = self.numeric_constant(FieldElement::one(), lhs_typ);
+        let one = self.numeric_constant(BigInt::one(), lhs_typ);
         let no_overflow = self.insert_binary(
             one,
             BinaryOp::Sub { unchecked: true },
@@ -272,14 +274,12 @@ impl Context<'_, '_, '_> {
         let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
 
         let rhs_bits = rhs_bits[0];
-        let one = self.field_constant(FieldElement::one());
+        let one = self.field_constant(BigInt::one());
         let mut r = one;
         // All operations are unchecked as we're acting on Field types (which are always unchecked)
         for i in 1..bit_size + 1 {
-            let idx = self.numeric_constant(
-                FieldElement::from((bit_size - i) as i128),
-                NumericType::length_type(),
-            );
+            let idx = self
+                .numeric_constant(BigInt::from((bit_size - i) as i128), NumericType::length_type());
             let b = self.insert_array_get(rhs_bits, idx, Type::bool());
             let not_b = self.insert_not(b);
             let b = self.insert_cast(b, NumericType::NativeField);
@@ -300,14 +300,14 @@ impl Context<'_, '_, '_> {
         r
     }
 
-    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
+    pub(crate) fn field_constant(&mut self, constant: BigInt) -> ValueId {
         self.context.dfg.make_constant(constant, NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function
     pub(crate) fn numeric_constant(
         &mut self,
-        value: impl Into<FieldElement>,
+        value: impl Into<BigInt>,
         typ: NumericType,
     ) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
