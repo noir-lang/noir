@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752677323835,
+  "lastUpdate": 1752680177727,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19066,48 +19066,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b6f0dee1a9264865283e478b4ff06cac65590966",
-          "message": "fix: enum match on integer type variable (#9122)",
-          "timestamp": "2025-07-04T19:49:27Z",
-          "tree_id": "43a25a0194bc2402903984e0a93c95187cc30301",
-          "url": "https://github.com/noir-lang/noir/commit/b6f0dee1a9264865283e478b4ff06cac65590966"
-        },
-        "date": 1751660119945,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249512,
-            "range": "± 1116",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219933,
-            "range": "± 3858",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2806408,
-            "range": "± 12398",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -21159,6 +21117,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777331,
             "range": "± 2006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2cf083e33acd4e47e50a8a6609b503ecf14eb496",
+          "message": "fix(fuzz): Ignore `-0` vs `0` in parsing roundtrip (#9222)",
+          "timestamp": "2025-07-16T15:11:51Z",
+          "tree_id": "309049611ca1670da6f34b77dd4d80e9674f119f",
+          "url": "https://github.com/noir-lang/noir/commit/2cf083e33acd4e47e50a8a6609b503ecf14eb496"
+        },
+        "date": 1752680161884,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251540,
+            "range": "± 554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221932,
+            "range": "± 1707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784047,
+            "range": "± 2430",
             "unit": "ns/iter"
           }
         ]
