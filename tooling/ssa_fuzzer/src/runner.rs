@@ -29,6 +29,12 @@ pub fn run_and_compare(
 
     let return_witnesses_acir = &acir_program.functions[0].return_values;
     let return_witnesses_brillig = &brillig_program.functions[0].return_values;
+    if return_witnesses_acir.0.is_empty() && return_witnesses_brillig.0.is_empty() {
+        return CompareResults::BothFailed(
+            "The function does not return anything".into(),
+            "The function does not return anything".into(),
+        );
+    }
     assert_eq!(return_witnesses_acir.0.len(), 1, "Multiple return value witnesses encountered");
     assert_eq!(return_witnesses_brillig.0.len(), 1, "Multiple return value witnesses encountered");
     let return_witness_acir: &Witness = return_witnesses_acir.0.first().unwrap();
