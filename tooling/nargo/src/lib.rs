@@ -294,7 +294,7 @@ pub fn prepare_package<'file_manager, 'parsed_files>(
     (context, crate_id)
 }
 
-/// Add any unstable features requires by the `Package` to the `Context`.
+/// Add any unstable features required by the `Package` to the `Context`.
 fn add_unstable_features(context: &mut Context, crate_id: CrateId, package: &Package) {
     context
         .required_unstable_features

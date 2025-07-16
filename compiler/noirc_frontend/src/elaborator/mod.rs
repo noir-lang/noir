@@ -2393,11 +2393,16 @@ impl<'context> Elaborator<'context> {
             return;
         }
 
+        // Can crates require unstable features in their manifest?
+        let enable_required_unstable_features = self.options.enabled_unstable_features.is_empty()
+            && !self.options.disable_required_unstable_features;
+
         // Is it required by the current crate?
-        if self
-            .required_unstable_features
-            .get(&self.crate_id)
-            .is_some_and(|fs| fs.contains(&feature))
+        if enable_required_unstable_features
+            && self
+                .required_unstable_features
+                .get(&self.crate_id)
+                .is_some_and(|fs| fs.contains(&feature))
         {
             return;
         }
