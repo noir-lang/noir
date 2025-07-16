@@ -972,7 +972,9 @@
 <a href="#971" id="971">971</a>
 <a href="#972" id="972">972</a>
 <a href="#973" id="973">973</a>
-<a href="#974" id="974">974</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+<a href="#974" id="974">974</a>
+<a href="#975" id="975">975</a>
+<a href="#976" id="976">976</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 
@@ -1084,10 +1086,12 @@
         // leaving an assertion that the side effect variable must be false.
         </span><span class="kw">if </span><span class="self">self</span>.has_zero_length(array, dfg) {
             <span class="comment">// Zero result.
-            </span><span class="kw">let </span>results = dfg.instruction_results(instruction);
-            <span class="kw">let </span>res_typ = dfg.type_of_value(results[<span class="number">0</span>]);
-            <span class="kw">let </span>zero = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
-            <span class="self">self</span>.define_result(dfg, instruction, zero);
+            </span><span class="kw">let </span>result_ids = dfg.instruction_results(instruction);
+            <span class="kw">for </span>result_id <span class="kw">in </span>result_ids {
+                <span class="kw">let </span>res_typ = dfg.type_of_value(<span class="kw-2">*</span>result_id);
+                <span class="kw">let </span>zero_value = <span class="self">self</span>.array_zero_value(<span class="kw-2">&amp;</span>res_typ)<span class="question-mark">?</span>;
+                <span class="self">self</span>.ssa_values.insert(<span class="kw-2">*</span>result_id, zero_value);
+            }
             <span class="comment">// Make sure this code is disabled, or fail with "Index out of bounds".
             </span><span class="kw">let </span>msg = <span class="string">"Index out of bounds, array has size 0"</span>.to_string();
             <span class="kw">let </span>msg = <span class="self">self</span>.acir_context.generate_assertion_message_payload(msg);

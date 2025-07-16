@@ -1519,7 +1519,28 @@
 <a href="#1518" id="1518">1518</a>
 <a href="#1519" id="1519">1519</a>
 <a href="#1520" id="1520">1520</a>
-<a href="#1521" id="1521">1521</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2394,18 +2415,39 @@
         result: ValueId,
         side_effects_enabled: bool,
     ) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>element = <span class="kw">if </span>side_effects_enabled {
-            <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
-            <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
-            <span class="kw">let </span>index = index - offset.to_u32();
+        <span class="kw">let </span>array = <span class="self">self</span>.lookup_array_or_slice(array, <span class="string">"array get"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>index = index - offset.to_u32();
+
+        <span class="kw">let </span>element = <span class="kw">if </span>array.elements.borrow().len() == <span class="number">0 </span>{
+            <span class="comment">// Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            </span><span class="kw">if </span>side_effects_enabled {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::IndexOutOfBounds { index, length: <span class="number">0 </span>});
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
+                Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
+            }
+        } <span class="kw">else </span>{
+            <span class="comment">// An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            </span><span class="kw">if </span>!side_effects_enabled {
+                <span class="comment">// Find a valid index
+                </span><span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
+                <span class="kw">for </span>(i, element) <span class="kw">in </span>array.elements.borrow().iter().enumerate() {
+                    <span class="kw">if </span>element.get_type() == typ {
+                        index = i <span class="kw">as </span>u32;
+                        <span class="kw">break</span>;
+                    }
+                }
+            }
             <span class="kw">let </span>elements = array.elements.borrow();
             <span class="kw">let </span>element = elements.get(index <span class="kw">as </span>usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() <span class="kw">as </span>u32 }
             })<span class="question-mark">?</span>;
             element.clone()
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>typ = <span class="self">self</span>.dfg().type_of_value(result);
-            Value::uninitialized(<span class="kw-2">&amp;</span>typ, result)
         };
         <span class="self">self</span>.define(result, element)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
