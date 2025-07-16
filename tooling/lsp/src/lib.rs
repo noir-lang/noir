@@ -269,6 +269,9 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
+/// Create a workspace based on the source file location:
+/// * if there is a `Nargo.toml`` file, use it to read the workspace
+/// * otherwise treat the parent directory as a dummy workspace
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
         match resolve_workspace_from_toml(
@@ -304,6 +307,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
     let assumed_package = Package {
         version: None,
         compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),
