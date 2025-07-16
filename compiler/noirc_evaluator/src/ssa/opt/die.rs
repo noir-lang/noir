@@ -416,7 +416,7 @@ fn can_be_eliminated_if_unused(
         | MakeArray { .. } => true,
 
         ArrayGet { .. } | ArraySet { .. } => {
-            // Array operations have side effects if they require 
+            // Array operations have side effects if they require an ACIR predicate
             !instruction.requires_acir_gen_predicate(&function.dfg)
         }
 
