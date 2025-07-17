@@ -88,7 +88,6 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> (Ssa, DIEResult) {
-      
         let result = self
             .functions
             .par_iter_mut()
@@ -96,27 +95,24 @@ impl Ssa {
                 let (unused_params, common_values) =
                     func.dead_instruction_elimination(flattened, skip_brillig);
                 let mut result = DIEResult::default();
-        let main_common = if func.id() == self.main_id {
-            Some(common_values)
-        } else {
-            None
-        };
+                let main_common =
+                    if func.id() == self.main_id { Some(common_values) } else { None };
                 result.unused_parameters.insert(*id, unused_params);
 
-               (result, main_common)
+                (result, main_common)
             })
             // .reduce(DIEResult::default, |mut a, b| {
             //     a.unused_parameters.extend(b.unused_parameters);
             //     a
             // });
-                .reduce(
-        || (DIEResult::default(), None),
-        |(mut a_result, a_main), (b_result, b_main)| {
-            a_result.unused_parameters.extend(b_result.unused_parameters);
-            let main_common = a_main.or(b_main);
-            (a_result, main_common)
-        },
-    );
+            .reduce(
+                || (DIEResult::default(), None),
+                |(mut a_result, a_main), (b_result, b_main)| {
+                    a_result.unused_parameters.extend(b_result.unused_parameters);
+                    let main_common = a_main.or(b_main);
+                    (a_result, main_common)
+                },
+            );
         if let Some(common_values) = result.1 {
             self.common_values = common_values;
         }

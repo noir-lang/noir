@@ -121,7 +121,13 @@ pub fn compile_bin_package_for_debugging(
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map(|compiled_program| transform_program(compiled_program, expression_width, compile_options.experimental_optimization))
+    .map(|compiled_program| {
+        transform_program(
+            compiled_program,
+            expression_width,
+            compile_options.experimental_optimization,
+        )
+    })
 }
 
 pub fn compile_options_for_debugging(
