@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752774355393,
+  "lastUpdate": 1752774901934,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19256,48 +19256,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4742c0286e17d9810860b9e7aba96b96b93dc5fd",
-          "message": "fix(expand): handle HirIdent with TraitItem (and other related fixes) (#9143)",
-          "timestamp": "2025-07-08T18:34:33Z",
-          "tree_id": "4fc72d6991ca80699eca4bd29f606c3cc678b35a",
-          "url": "https://github.com/noir-lang/noir/commit/4742c0286e17d9810860b9e7aba96b96b93dc5fd"
-        },
-        "date": 1752001334759,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250545,
-            "range": "± 1075",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220567,
-            "range": "± 1808",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784058,
-            "range": "± 1231",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f62788935e2fb649714e0e0e140a48ec75bfc090",
           "message": "fix: combine turbofish types with potential type bindings (#9062)",
           "timestamp": "2025-07-08T19:44:34Z",
@@ -21339,6 +21297,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795197,
             "range": "± 8155",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c30f8ef3c39ec98adee177e43b17fd99d7a10852",
+          "message": "fix: bind self when type-checking AsTraitPath (#9236)",
+          "timestamp": "2025-07-17T17:29:18Z",
+          "tree_id": "13df6d7ce0806d6916f7e6ae71c706ca83905b27",
+          "url": "https://github.com/noir-lang/noir/commit/c30f8ef3c39ec98adee177e43b17fd99d7a10852"
+        },
+        "date": 1752774886502,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247785,
+            "range": "± 487",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218351,
+            "range": "± 2756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2777961,
+            "range": "± 2537",
             "unit": "ns/iter"
           }
         ]
