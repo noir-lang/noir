@@ -45,6 +45,7 @@ fn arb_ssa_roundtrip() {
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
+            experimental_optimization: false,
         };
         let pipeline = primary_passes(&options);
         let last_pass = u.choose_index(pipeline.len())?;
