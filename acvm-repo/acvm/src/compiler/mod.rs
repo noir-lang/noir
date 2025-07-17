@@ -92,7 +92,7 @@ fn transform_assert_messages<F: Clone>(
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
-    experimental_optimization: bool,
+    //TEMP experimental_optimization: bool,
 ) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
