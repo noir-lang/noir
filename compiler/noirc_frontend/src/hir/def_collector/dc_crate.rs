@@ -440,9 +440,7 @@ impl DefCollector {
                                 visibility,
                             );
 
-                            if context.def_interner.is_in_lsp_mode()
-                                && visibility != ItemVisibility::Private
-                            {
+                            if visibility != ItemVisibility::Private {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,

@@ -275,8 +275,8 @@ pub struct NodeInterner {
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 
-    /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
-    /// In LSP this is used to offer importing the item via one of these exports if
+    /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
