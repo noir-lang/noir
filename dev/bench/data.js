@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752775281078,
+  "lastUpdate": 1752775736260,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11667,75 +11667,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4742c0286e17d9810860b9e7aba96b96b93dc5fd",
-          "message": "fix(expand): handle HirIdent with TraitItem (and other related fixes) (#9143)",
-          "timestamp": "2025-07-08T18:34:33Z",
-          "tree_id": "4fc72d6991ca80699eca4bd29f606c3cc678b35a",
-          "url": "https://github.com/noir-lang/noir/commit/4742c0286e17d9810860b9e7aba96b96b93dc5fd"
-        },
-        "date": 1752002335461,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 189.54,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.33,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 178.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.16,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f62788935e2fb649714e0e0e140a48ec75bfc090",
           "message": "fix: combine turbofish types with potential type bindings (#9062)",
           "timestamp": "2025-07-08T19:44:34Z",
@@ -15185,6 +15116,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 327.25,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.27,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.51,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c30f8ef3c39ec98adee177e43b17fd99d7a10852",
+          "message": "fix: bind self when type-checking AsTraitPath (#9236)",
+          "timestamp": "2025-07-17T17:29:18Z",
+          "tree_id": "13df6d7ce0806d6916f7e6ae71c706ca83905b27",
+          "url": "https://github.com/noir-lang/noir/commit/c30f8ef3c39ec98adee177e43b17fd99d7a10852"
+        },
+        "date": 1752775720604,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.95,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 237.98,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 435.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.65,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 327.29,
             "unit": "MB"
           },
           {
