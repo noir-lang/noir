@@ -77,7 +77,7 @@ pub fn compile_test_fn_for_debugging(
         compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
     let expression_width =
         get_target_width(package.expression_width, compile_options.expression_width);
-    let compiled_program = transform_program(compiled_program, expression_width);
+    let compiled_program = transform_program(compiled_program, expression_width, false);
     Ok(compiled_program)
 }
 
@@ -121,7 +121,7 @@ pub fn compile_bin_package_for_debugging(
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )
-    .map(|compiled_program| transform_program(compiled_program, expression_width))
+    .map(|compiled_program| transform_program(compiled_program, expression_width, compile_options.experimental_optimization))
 }
 
 pub fn compile_options_for_debugging(

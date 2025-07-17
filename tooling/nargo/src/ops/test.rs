@@ -135,7 +135,7 @@ where
 {
     // Do the same optimizations as `compile_cmd`.
     let target_width = config.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH);
-    let compiled_program = crate::ops::transform_program(compiled_program, target_width);
+    let compiled_program = crate::ops::transform_program(compiled_program, target_width, false);
 
     let ignore_foreign_call_failures =
         std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")

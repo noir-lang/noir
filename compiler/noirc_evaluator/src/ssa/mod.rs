@@ -97,6 +97,9 @@ pub struct SsaEvaluatorOptions {
 
     /// A list of SSA pass messages to skip, for testing purposes.
     pub skip_passes: Vec<String>,
+
+    /// Enable experimental ACIR optimizations
+    pub experimental_optimization: bool,
 }
 
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
