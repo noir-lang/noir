@@ -27,13 +27,11 @@ use noirc_frontend::{
     signed_field::SignedField,
 };
 
-use crate::Config;
-
 use super::{
-    CallableId, Context, VariableId, expr,
+    CallableId, Config, Context, VariableId, expr,
     freq::Freq,
     make_name,
-    scope::{Scope, ScopeStack, Variable},
+    scope::{Scope, ScopeStack, Stack, Variable},
     types,
 };
 
@@ -226,7 +224,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: Vec<im::HashSet<LocalId>>,
+    dynamics: Stack<im::HashSet<LocalId>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
@@ -248,21 +246,21 @@ impl<'a> FunctionContext<'a> {
         let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
         let budget = ctx.config.max_function_size;
 
-        let globals = Scope::new(
+        let globals = Scope::from_variables(
             ctx.globals
                 .iter()
                 .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
         // The function parameters are the base layer for local variables.
-        let locals = ScopeStack::new(
+        let locals = ScopeStack::from_variables(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
         // Function parameters are by definition considered to be dynamic input.
-        let dynamics = vec![locals.current().variable_ids().cloned().collect()];
+        let dynamics = Stack::new(locals.current().variable_ids().cloned().collect());
 
         // Collect all the functions we can call from this one.
         let mut call_targets = BTreeMap::new();
@@ -367,30 +365,20 @@ impl<'a> FunctionContext<'a> {
     /// Enter a new local scope.
     fn enter_scope(&mut self) {
         self.locals.enter();
-        self.dynamics.push(self.current_dynamics().clone());
+        self.dynamics.enter();
     }
 
     /// Exit the current local scope.
     fn exit_scope(&mut self) {
         self.locals.exit();
-        self.dynamics.pop();
-    }
-
-    /// The top layer of dynamic variables.
-    fn current_dynamics(&self) -> &im::HashSet<LocalId> {
-        self.dynamics.last().expect("dynamics have base layer")
-    }
-
-    /// The top layer of dynamic variables.
-    fn current_dynamics_mut(&mut self) -> &mut im::HashSet<LocalId> {
-        self.dynamics.last_mut().expect("dynamics have base layer")
+        self.dynamics.exit();
     }
 
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.current_dynamics().contains(id)
+        self.dynamics.current().contains(id)
     }
 
     /// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -1169,7 +1157,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         if is_dynamic {
-            self.current_dynamics_mut().insert(id);
+            self.dynamics.current_mut().insert(id);
         }
 
         expr::let_var(id, mutable, name, expr)
@@ -1227,11 +1215,11 @@ impl<'a> FunctionContext<'a> {
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
         if lvalue.is_dyn || expr_dyn {
-            self.current_dynamics_mut().insert(id);
+            self.dynamics.current_mut().insert(id);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            self.current_dynamics_mut().remove(&id);
+            self.dynamics.current_mut().remove(&id);
         }
 
         let assign =
