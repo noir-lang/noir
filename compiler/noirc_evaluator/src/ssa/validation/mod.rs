@@ -293,9 +293,10 @@ impl<'f> Validator<'f> {
                     }
                 };
 
+                let composite_type_len = composite_type.len();
                 for (index, element) in elements.iter().enumerate() {
                     let element_type = dfg.type_of_value(*element);
-                    let expected_type = &composite_type[index % composite_type.len()];
+                    let expected_type = &composite_type[index % composite_type_len];
                     if &element_type != expected_type {
                         panic!(
                             "MakeArray has incorrect element type at index {index}: expected {}, got {}",
