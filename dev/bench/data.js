@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752757837134,
+  "lastUpdate": 1752762853134,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19186,48 +19186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d31ebb91a644ab938bc2a9910dabb99fee120864",
-          "message": "chore: refactor ssa-fuzzer tests (#9113)",
-          "timestamp": "2025-07-07T15:10:28Z",
-          "tree_id": "7b0e82d41bc16303cb22f46cd5c626f02b1caa3e",
-          "url": "https://github.com/noir-lang/noir/commit/d31ebb91a644ab938bc2a9910dabb99fee120864"
-        },
-        "date": 1751902537310,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250574,
-            "range": "± 1411",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220919,
-            "range": "± 2898",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2804829,
-            "range": "± 1486",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -21279,6 +21237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779604,
             "range": "± 1616",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8797651e4dcfe77cd46353188b0f60c2a1dce8b2",
+          "message": "fix(ssa): Change constraint message to \"multiply\" (#9230)",
+          "timestamp": "2025-07-17T14:05:56Z",
+          "tree_id": "b1161946aac795b821aa6c8ba9f4abaa663fd833",
+          "url": "https://github.com/noir-lang/noir/commit/8797651e4dcfe77cd46353188b0f60c2a1dce8b2"
+        },
+        "date": 1752762836476,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249107,
+            "range": "± 661",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219466,
+            "range": "± 2756",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778635,
+            "range": "± 1776",
             "unit": "ns/iter"
           }
         ]
