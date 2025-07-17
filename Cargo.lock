@@ -4946,9 +4946,9 @@ checksum = "afab94fb28594581f62d981211a9a4d53cc8130bbcbbb89a0440d9b8e81a7746"
 
 [[package]]
 name = "runtime_tracing"
-version = "0.12.1"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3e209b012ae288d447ee17341d57c798c21b7eeaee2613a361bc0d71515eb38"
+checksum = "3bf19d1e5d91ff74c88040bf7ea3fce4748e24c389ed9c5a7db4bad6c05d5bdd"
 dependencies = [
  "base64",
  "capnp",
