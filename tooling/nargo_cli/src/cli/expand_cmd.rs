@@ -66,9 +66,6 @@ fn get_expanded_package_or_error(
 ) -> Result<String, CompileError> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
-    // Even though this isn't LSP, we need to active this to be able to go from a ModuleDefId to its parent module
-    context.activate_lsp_mode();
-
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
     Ok(get_expanded_crate(crate_id, &context.crate_graph, &context.def_maps, &context.def_interner))

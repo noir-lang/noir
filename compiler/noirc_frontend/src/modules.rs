@@ -7,12 +7,33 @@ use crate::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         resolution::visibility::item_in_module_is_visible,
     },
-    node_interner::{NodeInterner, ReferenceId},
+    node_interner::{NodeInterner, Reexport, ReferenceId},
 };
 
-pub fn get_parent_module(interner: &NodeInterner, module_def_id: ModuleDefId) -> Option<ModuleId> {
-    let reference_id = module_def_id_to_reference_id(module_def_id);
-    interner.reference_module(reference_id).copied()
+/// Returns the ModuleId a ModuleDefId is in.
+pub fn get_parent_module(
+    module_def_id: ModuleDefId,
+    interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+) -> Option<ModuleId> {
+    match module_def_id {
+        ModuleDefId::ModuleId(id) => id.parent(def_maps),
+        ModuleDefId::FunctionId(id) => {
+            let func_meta = interner.function_meta(&id);
+            Some(ModuleId { krate: func_meta.source_crate, local_id: func_meta.source_module })
+        }
+        ModuleDefId::TypeId(id) => interner.get_type(id).borrow().id.module_id().parent(def_maps),
+        ModuleDefId::TypeAliasId(id) => Some(interner.get_type_alias(id).borrow().module_id),
+        ModuleDefId::TraitId(id) => interner.get_trait(id).id.0.parent(def_maps),
+        ModuleDefId::TraitAssociatedTypeId(id) => {
+            let trait_id = interner.get_trait_associated_type(id).trait_id;
+            interner.get_trait(trait_id).id.0.parent(def_maps)
+        }
+        ModuleDefId::GlobalId(id) => {
+            let global = interner.get_global(id);
+            Some(ModuleId { krate: global.crate_id, local_id: global.local_id })
+        }
+    }
 }
 
 pub fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId {
@@ -35,6 +56,7 @@ pub fn relative_module_full_path(
     current_module_id: ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Option<String> {
     let full_path;
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
@@ -45,7 +67,7 @@ pub fn relative_module_full_path(
             interner,
         );
     } else {
-        let parent_module = get_parent_module(interner, module_def_id)?;
+        let parent_module = get_parent_module(module_def_id, interner, def_maps)?;
 
         // If module_def_id is contained in the current module, the relative path is empty
         if current_module_id == parent_module {
@@ -77,7 +99,7 @@ pub fn relative_module_id_path(
     let mut segments: Vec<&str> = Vec::new();
     let mut is_relative = false;
 
-    if let Some(module_attributes) = interner.try_module_attributes(&target_module_id) {
+    if let Some(module_attributes) = interner.try_module_attributes(target_module_id) {
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
@@ -100,7 +122,7 @@ pub fn relative_module_id_path(
                 break;
             }
 
-            let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
+            let Some(parent_attributes) = interner.try_module_attributes(*parent_module_id) else {
                 break;
             };
 
@@ -122,7 +144,7 @@ pub fn relative_module_id_path(
 }
 
 pub fn module_full_path(
-    module: &ModuleId,
+    module: ModuleId,
     interner: &NodeInterner,
     crate_id: CrateId,
     crate_name: &str,
@@ -139,10 +161,9 @@ pub fn module_full_path(
                 break;
             };
 
-            let Some(parent_attributes) = interner.try_module_attributes(&ModuleId {
-                krate: module.krate,
-                local_id: parent_local_id,
-            }) else {
+            let Some(parent_attributes) = interner
+                .try_module_attributes(ModuleId { krate: module.krate, local_id: parent_local_id })
+            else {
                 break;
             };
 
@@ -178,6 +199,7 @@ pub fn module_full_path(
 ///
 /// Returns `None` if `module_def_id` isn't visible from the current module, neither directly, neither via
 /// any of its reexports (or parent module reexports).
+#[allow(clippy::too_many_arguments)]
 pub fn module_def_id_relative_path(
     module_def_id: ModuleDefId,
     name: &str,
@@ -186,6 +208,7 @@ pub fn module_def_id_relative_path(
     defining_module: Option<ModuleId>,
     intermediate_name: &Option<Ident>,
     interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
 ) -> Option<String> {
     let module_path = if let Some(defining_module) = defining_module {
         relative_module_id_path(
@@ -200,6 +223,7 @@ pub fn module_def_id_relative_path(
             current_module_id,
             current_module_parent_id,
             interner,
+            def_maps,
         )?
     };
 
@@ -235,7 +259,8 @@ pub fn module_def_id_is_visible(
     let mut target_module_id = if let ModuleDefId::ModuleId(module_id) = module_def_id {
         Some(module_id)
     } else {
-        std::mem::take(&mut defining_module).or_else(|| get_parent_module(interner, module_def_id))
+        std::mem::take(&mut defining_module)
+            .or_else(|| get_parent_module(module_def_id, interner, def_maps))
     };
 
     // Then check if it's visible, and upwards
@@ -261,9 +286,68 @@ pub fn module_def_id_is_visible(
         // This is a bit strange, but the visibility is always that of the item inside another module,
         // so the visibility we update here is for the next loop check.
         visibility = interner
-            .try_module_attributes(&module_id)
+            .try_module_attributes(module_id)
             .map_or(ItemVisibility::Public, |attributes| attributes.visibility);
     }
 
     true
+}
+
+/// Finds a visible reexport for any ancestor module of the given ModuleDefId,
+pub fn get_ancestor_module_reexport(
+    module_def_id: ModuleDefId,
+    visibility: ItemVisibility,
+    current_module_id: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &[Dependency],
+) -> Option<Reexport> {
+    let parent_module = get_parent_module(module_def_id, interner, def_maps)?;
+    let reexport =
+        interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
+            module_def_id_is_visible(
+                ModuleDefId::ModuleId(reexport.module_id),
+                current_module_id,
+                reexport.visibility,
+                None,
+                interner,
+                def_maps,
+                dependencies,
+            )
+        });
+    if let Some(reexport) = reexport {
+        return Some(reexport.clone());
+    }
+
+    // Try searching in the parent's parent module.
+    let mut grandparent_module_reexport = get_ancestor_module_reexport(
+        ModuleDefId::ModuleId(parent_module),
+        visibility,
+        current_module_id,
+        interner,
+        def_maps,
+        dependencies,
+    )?;
+
+    // If we can find one, we need to check if ModuleDefId is actually visible from the grandparent module
+    if !module_def_id_is_visible(
+        module_def_id,
+        current_module_id,
+        visibility,
+        Some(grandparent_module_reexport.module_id),
+        interner,
+        def_maps,
+        dependencies,
+    ) {
+        return None;
+    }
+
+    // If we can find one we need to adjust the exported name a bit.
+    let parent_module_name = &interner.try_module_attributes(parent_module)?.name;
+    grandparent_module_reexport.name = Ident::new(
+        format!("{}::{}", grandparent_module_reexport.name, parent_module_name),
+        grandparent_module_reexport.name.location(),
+    );
+
+    Some(grandparent_module_reexport)
 }

@@ -1,13 +1,12 @@
 use noirc_frontend::{
-    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    ast::ItemVisibility,
+    hir::def_map::ModuleDefId,
+    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
     node_interner::Reexport,
 };
 
-use crate::{
-    modules::get_ancestor_module_reexport,
-    use_segment_positions::{
-        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
-    },
+use crate::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
 };
 
 use super::{
@@ -79,6 +78,7 @@ impl NodeFinder<'_> {
                         defining_module,
                         &intermediate_name,
                         self.interner,
+                        self.def_maps,
                     ) else {
                         continue;
                     };
