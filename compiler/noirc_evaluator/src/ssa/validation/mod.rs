@@ -278,7 +278,16 @@ impl<'f> Validator<'f> {
                         }
                         composite_type
                     }
-                    Type::Slice(composite_type) => composite_type,
+                    Type::Slice(composite_type) => {
+                        if elements.len() % composite_type.len() != 0 {
+                            panic!(
+                                "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
+                                composite_type.len(),
+                                elements.len()
+                            );
+                        }
+                        composite_type
+                    }
                     _ => {
                         panic!("MakeArray must return an array or slice type, not {result_type}");
                     }
