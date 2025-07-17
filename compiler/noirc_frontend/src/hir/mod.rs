@@ -7,6 +7,7 @@ pub mod type_check;
 
 use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
+use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
@@ -56,6 +57,9 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
+
+    /// Any unstable features required by the current package or its dependencies.
+    pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 }
 
 #[derive(Debug)]
@@ -78,6 +82,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 
@@ -96,6 +101,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 
