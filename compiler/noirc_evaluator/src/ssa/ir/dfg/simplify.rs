@@ -5,7 +5,7 @@ use crate::ssa::{
             ArrayOffset, Binary, BinaryOp, ConstrainError, Instruction,
             binary::{truncate, truncate_field},
         },
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
@@ -110,9 +110,18 @@ pub(crate) fn simplify(
             }
         }
         Instruction::ConstrainNotEqual(..) => None,
-        Instruction::ArrayGet { array, index, offset: _ } => {
+        Instruction::ArrayGet { array, index, offset } => {
             if let Some(index) = dfg.get_numeric_constant(*index) {
-                try_optimize_array_get_from_previous_set(dfg, *array, index)
+                return try_optimize_array_get_from_previous_set(dfg, *array, index);
+            }
+
+            let array_or_slice_type = dfg.type_of_value(*array);
+            if matches!(array_or_slice_type, Type::Array(_, 1))
+                && array_or_slice_type.flattened_size() == 1
+            {
+                // If the array is of length 1 then we know the only value which can be potentially read out of it.
+                // We can then simply assert that the index is equal to zero and return the array's contained value.
+                optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
             } else {
                 None
             }
@@ -292,6 +301,52 @@ pub(crate) fn simplify(
         }
         Instruction::MakeArray { .. } => None,
         Instruction::Noop => Remove,
+    }
+}
+
+/// Given an array access on a length 1 array such as:
+/// ```
+/// v2 = make_array [v0] : [Field; 1]
+/// v3 = array_get v2, index v1 -> Field
+/// ```
+///
+/// We want to replace the array read with the only valid value which can be read from the array
+/// while ensuring that if there is an attempt to read past the end of the array then the program fails.
+///
+/// We then inject an explicit assertion that the index variable has the value zero while replacing the value
+/// being used in the `array_get` instruction with a constant value of zero. This then results in the SSA:
+///
+/// ```
+/// v2 = make_array [v0] : [Field; 1]
+/// constrain v1 == u32 0, "Index out of bounds"
+/// v4 = array_get v2, index u32 0 -> Field
+/// ```
+/// We then attempt to resolve the array read immediately.
+fn optimize_length_one_array_read(
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+    array: ValueId,
+    index: ValueId,
+    offset: ArrayOffset,
+) -> SimplifyResult {
+    let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
+    let index_constraint = Instruction::Constrain(
+        index,
+        zero,
+        Some(ConstrainError::from("Index out of bounds".to_string())),
+    );
+    dfg.insert_instruction_and_results(index_constraint, block, None, call_stack);
+
+    let result = try_optimize_array_get_from_previous_set(dfg, array, FieldElement::zero());
+    if let SimplifyResult::None = result {
+        SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
+            array,
+            index: zero,
+            offset,
+        })
+    } else {
+        result
     }
 }
 
@@ -553,5 +608,27 @@ mod tests {
             return v1
         }
         ");
+    }
+
+    #[test]
+    fn replaces_length_one_array_get_with_bounds_check() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0] : [Field; 1]
+            v3 = array_get v2, index v1 -> Field
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v2 = make_array [v0] : [Field; 1]
+            constrain v1 == u32 0, "Index out of bounds"
+            return v0
+        }
+        "#);
     }
 }
