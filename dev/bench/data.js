@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752754386699,
+  "lastUpdate": 1752754389343,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11587,75 +11587,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2f11e87c99ad954f105484771aa647ff459dde3e",
-          "message": "fix(ssa): Recursively invalidate cached array instruction in constant folding (#9128)",
-          "timestamp": "2025-07-07T14:04:02Z",
-          "tree_id": "061eeb67c2d65fb8d9ca9dcb8d838b349b0bf849",
-          "url": "https://github.com/noir-lang/noir/commit/2f11e87c99ad954f105484771aa647ff459dde3e"
-        },
-        "date": 1751899567279,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 193.96,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 229.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 182.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 323.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.66,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.14,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -15055,6 +14986,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "private-kernel-inner",
             "value": 201.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 237.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 435.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 327.24,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.27,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.5,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39a504c14ba855ab4eed7adf9b016ef07c48bc66",
+          "message": "chore(fuzz): Increase loop frequency in Brillig (#9228)",
+          "timestamp": "2025-07-17T11:16:28Z",
+          "tree_id": "959b6fdf2f946c4de4f33aaf9f17334bffdd7fb0",
+          "url": "https://github.com/noir-lang/noir/commit/39a504c14ba855ab4eed7adf9b016ef07c48bc66"
+        },
+        "date": 1752754372837,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 201.9,
             "unit": "MB"
           },
           {
