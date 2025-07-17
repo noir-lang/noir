@@ -362,6 +362,16 @@ impl<'a> FunctionContext<'a> {
         id
     }
 
+    /// Enter a new local scope.
+    fn enter_scope(&mut self) {
+        self.locals.enter();
+    }
+
+    /// Exit the current local scope.
+    fn exit_scope(&mut self) {
+        self.locals.exit();
+    }
+
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
@@ -1014,7 +1024,7 @@ impl<'a> FunctionContext<'a> {
         // Only the last statement counts into whether the block is dynamic.
         let mut is_dyn = false;
 
-        self.locals.enter();
+        self.enter_scope();
         self.decrease_budget(1);
         for _ in 0..size - 1 {
             if self.budget == 0 {
@@ -1032,7 +1042,7 @@ impl<'a> FunctionContext<'a> {
             is_dyn = expr_dyn;
             stmts.push(expr);
         }
-        self.locals.exit();
+        self.exit_scope();
 
         Ok((Expression::Block(stmts), is_dyn))
     }
@@ -1458,7 +1468,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = index_name(idx_id);
 
         // Add a scope which will hold the index variable.
-        self.locals.enter();
+        self.enter_scope();
         self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
 
         // Decrease budget so we don't nest for loops endlessly.
@@ -1480,7 +1490,7 @@ impl<'a> FunctionContext<'a> {
         });
 
         // Remove the loop scope.
-        self.locals.exit();
+        self.exit_scope();
 
         Ok(expr)
     }
@@ -1775,7 +1785,7 @@ impl<'a> FunctionContext<'a> {
                 // matches on individual fields. We don't do that here, just make the fields available.
                 let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
                 let mut arguments = Vec::new();
-                self.locals.enter();
+                self.enter_scope();
                 for item_type in item_types {
                     let item_id = self.next_local_id();
                     let item_name = format!("item_{}", local_name(item_id));
@@ -1787,7 +1797,7 @@ impl<'a> FunctionContext<'a> {
                 is_dyn |= branch_dyn;
                 let case = MatchCase { constructor, arguments, branch };
                 match_expr.cases.push(case);
-                self.locals.exit();
+                self.exit_scope();
                 // We must not generate a default, or the compiler will panic.
                 false
             }
