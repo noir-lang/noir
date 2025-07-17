@@ -1783,3 +1783,24 @@ fn ambiguous_associated_type() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn as_trait_path_self_type() {
+    let src = r#"
+    pub trait BigCurve<B> {
+        fn one() -> Self;
+    }
+
+    struct Bn254 {}
+
+    impl<B> BigCurve<B> for Bn254 {
+        fn one() -> Self { Bn254 {} }
+    }
+
+    fn main() {
+        let _ = <Bn254 as BigCurve<()>>::one();
+    }
+    "#;
+    assert_no_errors!(src);
+}

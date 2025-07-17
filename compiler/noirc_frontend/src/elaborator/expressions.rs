@@ -4,7 +4,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type, TypeVariable,
+    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -1474,6 +1474,9 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let self_type = the_trait.self_type_typevar.clone();
+        let kind = the_trait.self_type_typevar.kind();
+
         let Some(definition) =
             the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
         else {
@@ -1496,7 +1499,19 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
         self.interner.push_expr_location(id, location);
 
-        let typ = self.type_check_variable(ident, id, None);
+        let mut bindings = TypeBindings::default();
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+
+        let typ = self.type_check_variable_with_bindings(
+            ident,
+            id,
+            None,
+            bindings,
+            push_required_type_variables,
+        );
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }
