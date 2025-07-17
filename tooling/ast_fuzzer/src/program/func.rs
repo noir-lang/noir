@@ -1231,7 +1231,7 @@ impl<'a> FunctionContext<'a> {
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
-        if lvalue.is_dyn || expr_dyn {
+        if lvalue.is_dyn || expr_dyn || self.in_dynamic {
             self.set_dynamic(id, true);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
