@@ -978,7 +978,7 @@ fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
             output = false;
             format!("constrain lhs {} rhs", ops[1])
         }
-        "not" => format!("result = {} lhs", op),
+        "not" => format!("result = {op} lhs"),
         "truncate" => {
             format!("result = truncate lhs to {} bits, max_bit_size: {}", ops[1], ops[2])
         }
@@ -986,7 +986,7 @@ fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
             output = false;
             format!("range_check lhs to {} bits", ops[1])
         }
-        _ => format!("result = {} lhs, rhs", op),
+        _ => format!("result = {op} lhs, rhs"),
     };
 
     if output {
