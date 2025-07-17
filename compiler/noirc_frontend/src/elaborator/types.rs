@@ -2266,16 +2266,18 @@ impl Elaborator<'_> {
         location: Location,
         resolved_generic: &ResolvedGeneric,
     ) {
-        let name = unresolved_generic.ident().as_str();
+        if let Some(name) = unresolved_generic.ident().ident() {
+            let name = name.as_str();
 
-        if let Some(generic) = self.find_generic(name) {
-            self.push_err(ResolverError::DuplicateDefinition {
-                name: name.to_string(),
-                first_location: generic.location,
-                second_location: location,
-            });
-        } else {
-            self.generics.push(resolved_generic.clone());
+            if let Some(generic) = self.find_generic(name) {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.to_string(),
+                    first_location: generic.location,
+                    second_location: location,
+                });
+            } else {
+                self.generics.push(resolved_generic.clone());
+            }
         }
     }
 

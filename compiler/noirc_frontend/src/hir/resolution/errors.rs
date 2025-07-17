@@ -263,7 +263,7 @@ impl ResolverError {
             ResolverError::NoSuchNumericTypeVariable { path } => path.location,
             ResolverError::ParserError(parser_error) => parser_error.location(),
             ResolverError::UnsupportedNumericGenericType(unsupported_numeric_generic_type) => {
-                unsupported_numeric_generic_type.ident.location()
+                unsupported_numeric_generic_type.location
             }
         }
     }

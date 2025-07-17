@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -431,7 +431,7 @@ pub trait Visitor {
 
     fn visit_unit_type(&mut self, _: Span) {}
 
-    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {}
+    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Location) {}
 
     fn visit_interned_type(&mut self, _: InternedUnresolvedTypeData, _: Span) {}
 
@@ -1463,7 +1463,7 @@ impl UnresolvedType {
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
-                visitor.visit_resolved_type(*id, self.location.span);
+                visitor.visit_resolved_type(*id, self.location);
             }
             UnresolvedTypeData::Interned(id) => {
                 visitor.visit_interned_type(*id, self.location.span);
@@ -1628,7 +1628,6 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { ident: _, typ } => {
                 typ.accept(visitor);
             }
-            UnresolvedGeneric::Resolved(_quoted_type_id, _location) => (),
         }
     }
 }

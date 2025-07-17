@@ -151,7 +151,7 @@ impl Elaborator<'_> {
                     let name_location = the_trait.name.location();
 
                     this.add_existing_generic(
-                        &UnresolvedGeneric::Variable(Ident::from("Self"), Vec::new()),
+                        &UnresolvedGeneric::from(Ident::from("Self")),
                         name_location,
                         &ResolvedGeneric {
                             name: Rc::new("Self".to_owned()),
