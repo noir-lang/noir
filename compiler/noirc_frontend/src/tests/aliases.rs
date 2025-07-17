@@ -100,6 +100,8 @@ fn double_generic_alias_in_path() {
 fn identity_numeric_type_alias_works() {
     let src = r#"
     pub type Identity<let N: u32>: u32 = N;
+
+    fn main() {}
     "#;
     assert_no_errors!(src);
 }
