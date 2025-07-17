@@ -173,6 +173,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
         // if they are unreachable and would cause the DIE post-checks to fail.
+        // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),

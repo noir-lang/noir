@@ -94,9 +94,18 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
     Ok(program)
 }
 
+/// Get rid of superficial differences.
 fn sanitize(src: &str) -> String {
-    // Sometimes `;` is removed, or duplicated.
-    src.replace(";", "").replace("{}", "()").replace("--", "")
+    src
+        // Sometimes `;` is removed, or duplicated.
+        .replace(";", "")
+        // Sometimes a unit value is printed as () other times as {}
+        .replace("{}", "()")
+        // Double negation is removed during parsing
+        .replace("--", "")
+        // Negative zero is parsed as zero
+        // (NB we don't want to avoid generating -0, because there were bugs related to it).
+        .replace("-0", "0")
 }
 
 fn split_functions(src: &str) -> Vec<String> {
