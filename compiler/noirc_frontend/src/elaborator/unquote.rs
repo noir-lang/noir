@@ -1,11 +1,11 @@
 use crate::{
     ast::Path,
-    token::{SpannedToken, Token, Tokens},
+    token::{Keyword, LocatedToken, Token, Tokens},
 };
 
 use super::Elaborator;
 
-impl<'a> Elaborator<'a> {
+impl Elaborator<'_> {
     /// Go through the given tokens looking for a '$' token followed by a variable to unquote.
     /// Each time these two tokens are found, they are replaced by a new UnquoteMarker token
     /// containing the ExprId of the resolved variable to unquote.
@@ -20,17 +20,25 @@ impl<'a> Elaborator<'a> {
 
             if is_unquote {
                 if let Some(next) = tokens.next() {
-                    let span = next.to_span();
+                    let location = next.location();
 
                     match next.into_token() {
                         Token::Ident(name) => {
                             // Don't want the leading `$` anymore
                             new_tokens.pop();
-                            let path = Path::from_single(name, span);
+                            let path = Path::from_single(name, location);
                             let (expr_id, _) = self.elaborate_variable(path);
-                            new_tokens.push(SpannedToken::new(Token::UnquoteMarker(expr_id), span));
+                            new_tokens
+                                .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
                         }
-                        other_next => new_tokens.push(SpannedToken::new(other_next, span)),
+                        // If we see `$crate` resolve the crate to the current crate now so it
+                        // stays even if the rest of the quote is unquoted elsewhere.
+                        Token::Keyword(Keyword::Crate) => {
+                            new_tokens.pop();
+                            let token = Token::InternedCrate(self.crate_id);
+                            new_tokens.push(LocatedToken::new(token, location));
+                        }
+                        other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                     }
                 }
             }

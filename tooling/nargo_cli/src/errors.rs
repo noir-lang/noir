@@ -1,50 +1,39 @@
-use acvm::{acir::native_types::WitnessStackError, FieldElement};
-use nargo::{errors::CompileError, NargoError};
+use acvm::FieldElement;
+use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
 use noir_debugger::errors::DapError;
-use noirc_abi::errors::{AbiError, InputParserError};
+use noirc_abi::errors::AbiError;
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub(crate) enum FilesystemError {
-    #[error("Error: {} is not a valid path\nRun either `nargo compile` to generate missing build artifacts or `nargo prove` to construct a proof", .0.display())]
-    PathNotValid(PathBuf),
-
-    #[error(
-        " Error: cannot find {0}.toml file.\n Expected location: {1:?} \n Please generate this file at the expected location."
-    )]
-    MissingTomlFile(String, PathBuf),
-
-    /// Input parsing error
-    #[error(transparent)]
-    InputParserError(#[from] InputParserError),
-
-    /// WitnessStack serialization error
-    #[error(transparent)]
-    WitnessStackSerialization(#[from] WitnessStackError),
-
-    #[error("Error: could not deserialize build program: {0}")]
-    ProgramSerializationError(String),
-}
-
-#[derive(Debug, Error)]
-pub(crate) enum CliError {
+pub enum CliError {
     #[error("{0}")]
     Generic(String),
-    #[error("Error: destination {} already exists", .0.display())]
+
+    #[error("Error: destination {} already exists\n\nUse `new init` to initialize the directory", .0.display())]
     DestinationAlreadyExists(PathBuf),
 
-    #[error("Invalid package name {0}. Did you mean to use `--name`?")]
+    #[error(
+        "Error: `nargo init` cannot be run on existing packages.\nNote: `Nargo.toml` already exists."
+    )]
+    NargoInitCannotBeRunOnExistingPackages,
+
+    #[error(
+        "Error: {0}\nIf you need a package name to not match the directory name, consider using the `--name` flag."
+    )]
     InvalidPackageName(String),
+
+    #[error("`--debug-compile-stdin` is incompatible with `--watch`")]
+    CantWatchStdin,
+
+    /// Artifact CLI error
+    #[error(transparent)]
+    ArtifactError(#[from] noir_artifact_cli::errors::CliError),
 
     /// ABI encoding/decoding error
     #[error(transparent)]
     AbiError(#[from] AbiError),
-
-    /// Filesystem errors
-    #[error(transparent)]
-    FilesystemError(#[from] FilesystemError),
 
     #[error(transparent)]
     LspError(#[from] async_lsp::Error),

@@ -4,7 +4,7 @@ use crate::ast::{Ident, UnresolvedGenerics, UnresolvedType};
 use crate::token::SecondaryAttribute;
 
 use iter_extended::vecmap;
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use super::{Documented, ItemVisibility};
 
@@ -16,12 +16,12 @@ pub struct NoirStruct {
     pub visibility: ItemVisibility,
     pub generics: UnresolvedGenerics,
     pub fields: Vec<Documented<StructField>>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl NoirStruct {
     pub fn is_abi(&self) -> bool {
-        self.attributes.iter().any(|attr| attr.is_abi())
+        self.attributes.iter().any(|attr| attr.kind.is_abi())
     }
 }
 
@@ -35,7 +35,8 @@ pub struct StructField {
 impl Display for NoirStruct {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let generics = vecmap(&self.generics, |generic| generic.to_string());
-        let generics = if generics.is_empty() { "".into() } else { generics.join(", ") };
+        let generics =
+            if generics.is_empty() { "".into() } else { format!("<{}>", generics.join(", ")) };
 
         writeln!(f, "struct {}{} {{", self.name, generics)?;
 

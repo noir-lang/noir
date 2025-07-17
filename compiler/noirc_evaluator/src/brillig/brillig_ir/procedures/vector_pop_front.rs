@@ -1,13 +1,13 @@
 use std::vec;
 
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::ProcedureId;
 use crate::brillig::brillig_ir::{
+    BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::{RegisterAllocator, ScratchSpace},
-    BrilligBinaryOp, BrilligContext,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -122,6 +122,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     });
 
     brillig_context.deallocate_register(is_rc_one);
+
     brillig_context.deallocate_single_addr(target_size);
     brillig_context.deallocate_single_addr(source_rc);
     brillig_context.deallocate_single_addr(source_size);

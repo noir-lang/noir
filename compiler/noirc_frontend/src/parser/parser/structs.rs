@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Documented, Ident, ItemVisibility, NoirStruct, StructField, UnresolvedGenerics},
@@ -6,40 +6,40 @@ use crate::{
     token::{Attribute, SecondaryAttribute, Token},
 };
 
-use super::{parse_many::separated_by_comma_until_right_brace, Parser};
+use super::{Parser, parse_many::separated_by_comma_until_right_brace};
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// Struct = 'struct' identifier Generics '{' StructField* '}'
     ///
     /// StructField = OuterDocComments identifier ':' Type
     pub(crate) fn parse_struct(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        attributes: Vec<(Attribute, Location)>,
         visibility: ItemVisibility,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirStruct {
         let attributes = self.validate_secondary_attributes(attributes);
 
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             return self.empty_struct(
-                Ident::default(),
+                self.unknown_ident_at_previous_token_end(),
                 attributes,
                 visibility,
                 Vec::new(),
-                start_span,
+                start_location,
             );
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_disallowing_trait_bounds();
 
         if self.eat_semicolons() {
-            return self.empty_struct(name, attributes, visibility, generics, start_span);
+            return self.empty_struct(name, attributes, visibility, generics, start_location);
         }
 
         if !self.eat_left_brace() {
             self.expected_token(Token::LeftBrace);
-            return self.empty_struct(name, attributes, visibility, generics, start_span);
+            return self.empty_struct(name, attributes, visibility, generics, start_location);
         }
 
         let fields = self.parse_many(
@@ -54,7 +54,7 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields,
-            span: self.span_since(start_span),
+            location: self.location_since(start_location),
         }
     }
 
@@ -65,7 +65,7 @@ impl<'a> Parser<'a> {
 
         // Loop until we find an identifier, skipping anything that's not one
         loop {
-            let doc_comments_start_span = self.current_token_span;
+            let doc_comments_start_location = self.current_token_location;
             doc_comments = self.parse_outer_doc_comments();
 
             visibility = self.parse_item_visibility();
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
             if !doc_comments.is_empty() {
                 self.push_error(
                     ParserErrorReason::DocCommentDoesNotDocumentAnything,
-                    self.span_since(doc_comments_start_span),
+                    self.location_since(doc_comments_start_location),
                 );
             }
 
@@ -113,7 +113,7 @@ impl<'a> Parser<'a> {
         attributes: Vec<SecondaryAttribute>,
         visibility: ItemVisibility,
         generics: UnresolvedGenerics,
-        start_span: Span,
+        start_location: Location,
     ) -> NoirStruct {
         NoirStruct {
             name,
@@ -121,29 +121,29 @@ impl<'a> Parser<'a> {
             visibility,
             generics,
             fields: Vec::new(),
-            span: self.span_since(start_span),
+            location: self.location_since(start_location),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
-        ast::{IntegerBitSize, NoirStruct, Signedness, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{NoirStruct, UnresolvedGeneric},
+        parse_program_with_dummy_file,
         parser::{
-            parser::{
-                parse_program,
-                tests::{
-                    expect_no_errors, get_single_error, get_single_error_reason,
-                    get_source_with_error_span,
-                },
-            },
             ItemKind, ParserErrorReason,
+            parser::tests::{
+                expect_no_errors, get_single_error, get_single_error_reason,
+                get_source_with_error_span,
+            },
         },
     };
 
     fn parse_struct_no_errors(src: &str) -> NoirStruct {
-        let (mut module, errors) = parse_program(src);
+        let (mut module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = module.items.remove(0);
@@ -180,20 +180,18 @@ mod tests {
         assert_eq!(noir_struct.generics.len(), 2);
 
         let generic = noir_struct.generics.remove(0);
-        let UnresolvedGeneric::Variable(ident) = generic else {
+        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
             panic!("Expected generic variable");
         };
         assert_eq!("A", ident.to_string());
+        assert!(trait_bounds.is_empty());
 
         let generic = noir_struct.generics.remove(0);
         let UnresolvedGeneric::Numeric { ident, typ } = generic else {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32");
     }
 
     #[test]
@@ -205,20 +203,17 @@ mod tests {
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("x", field.name.to_string());
-        assert!(matches!(
-            field.typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Signed, IntegerBitSize::ThirtyTwo)
-        ));
+        assert_eq!(field.typ.typ.to_string(), "i32");
 
         let field = noir_struct.fields.remove(0).item;
         assert_eq!("y", field.name.to_string());
-        assert!(matches!(field.typ.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(field.typ.typ.to_string(), "Field");
     }
 
     #[test]
     fn parse_empty_struct_with_doc_comments() {
         let src = "/// Hello\nstruct Foo {}";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -232,7 +227,7 @@ mod tests {
     #[test]
     fn parse_unclosed_struct() {
         let src = "struct Foo {";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         assert_eq!(errors.len(), 1);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -249,9 +244,9 @@ mod tests {
         ^^^^^^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (_, errors) = parse_program(&src);
+        let (_, errors) = parse_program_with_dummy_file(&src);
         let reason = get_single_error_reason(&errors, span);
-        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnStruct));
+        assert!(matches!(reason, ParserErrorReason::NoFunctionAttributesAllowedOnType));
     }
 
     #[test]
@@ -261,7 +256,7 @@ mod tests {
                      ^^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let (module, errors) = parse_program(&src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
 
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -272,6 +267,6 @@ mod tests {
         assert_eq!(noir_struct.fields.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found '42'");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found '42'");
     }
 }

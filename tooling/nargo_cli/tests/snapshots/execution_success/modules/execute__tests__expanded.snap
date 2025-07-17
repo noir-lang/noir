@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod foo {
+    pub fn hello(x: Field) -> Field {
+        x
+    }
+}
+
+fn main(x: Field, y: pub Field) {
+    assert(x != foo::hello(y));
+}

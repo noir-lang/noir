@@ -7,10 +7,10 @@ pub trait Default {
 }
 // docs:end:default-trait
 
-comptime fn derive_default(s: StructDefinition) -> Quoted {
-    let name = quote { Default };
+comptime fn derive_default(s: TypeDefinition) -> Quoted {
+    let name = quote { $crate::default::Default };
     let signature = quote { fn default() -> Self };
-    let for_each_field = |name| quote { $name: Default::default() };
+    let for_each_field = |name| quote { $name: $crate::default::Default::default() };
     let body = |fields| quote { Self { $fields } };
     crate::meta::make_trait_impl(s, name, signature, for_each_field, quote { , }, body)
 }
@@ -43,6 +43,12 @@ impl Default for u32 {
 }
 impl Default for u64 {
     fn default() -> u64 {
+        0
+    }
+}
+
+impl Default for u128 {
+    fn default() -> u128 {
         0
     }
 }

@@ -53,6 +53,65 @@ impl<T, let N: u32> [T; N] {
         ret
     }
 
+    /// Applies a function to each element of this array along with its index,
+    /// returning a new array containing the mapped elements.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let b = a.mapi(|i, a| i + a * 2);
+    /// assert_eq(b, [2, 5, 8]);
+    /// ```
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U; N] {
+        let uninitialized = crate::mem::zeroed();
+        let mut ret = [uninitialized; N];
+
+        for i in 0..self.len() {
+            ret[i] = f(i, self[i]);
+        }
+
+        ret
+    }
+
+    /// Applies a function to each element of this array.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let mut b = [0; 3];
+    /// let mut i = 0;
+    /// a.for_each(|x| {
+    ///     b[i] = x;
+    ///     i += 1;
+    /// });
+    /// assert_eq(a, b);
+    /// ```
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+        for i in 0..self.len() {
+            f(self[i]);
+        }
+    }
+
+    /// Applies a function to each element of this array along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```rust
+    /// let a = [1, 2, 3];
+    /// let mut b = [0; 3];
+    /// a.for_eachi(|i, x| {
+    ///     b[i] = x;
+    /// });
+    /// assert_eq(a, b);
+    /// ```
+    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+        for i in 0..self.len() {
+            f(i, self[i]);
+        }
+    }
+
     /// Applies a function to each element of the array, returning the final accumulated value. The first
     /// parameter is the initial value.
     ///
@@ -136,6 +195,29 @@ impl<T, let N: u32> [T; N] {
         }
         ret
     }
+
+    /// Concatenates this array with another array.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// fn main() {
+    ///     let arr1 = [1, 2, 3, 4];
+    ///     let arr2 = [6, 7, 8, 9, 10, 11];
+    ///     let concatenated_arr = arr1.concat(arr2);
+    ///     assert(concatenated_arr == [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    /// }
+    /// ```
+    pub fn concat<let M: u32>(self, array2: [T; M]) -> [T; N + M] {
+        let mut result = [crate::mem::zeroed(); N + M];
+        for i in 0..N {
+            result[i] = self[i];
+        }
+        for i in 0..M {
+            result[i + N] = array2[i];
+        }
+        result
+    }
 }
 
 impl<T, let N: u32> [T; N]
@@ -157,7 +239,7 @@ where
     /// }
     /// ```
     pub fn sort(self) -> Self {
-        self.sort_via(|a: T, b: T| a <= b)
+        self.sort_via(|a, b| a <= b)
     }
 }
 
@@ -184,23 +266,21 @@ where
     /// }
     /// ```
     pub fn sort_via<Env>(self, ordering: fn[Env](T, T) -> bool) -> Self {
-        unsafe {
-            // Safety: `sorted` array is checked to be:
-            //   a. a permutation of `input`'s elements
-            //   b. satisfying the predicate `ordering`
-            let sorted = quicksort::quicksort(self, ordering);
+        // Safety: `sorted` array is checked to be:
+        // a. a permutation of `input`'s elements
+        // b. satisfying the predicate `ordering`
+        let sorted = unsafe { quicksort::quicksort(self, ordering) };
 
-            if !is_unconstrained() {
-                for i in 0..N - 1 {
-                    assert(
-                        ordering(sorted[i], sorted[i + 1]),
-                        "Array has not been sorted correctly according to `ordering`.",
-                    );
-                }
-                check_shuffle::check_shuffle(self, sorted);
+        if !is_unconstrained() {
+            for i in 0..N - 1 {
+                assert(
+                    ordering(sorted[i], sorted[i + 1]),
+                    "Array has not been sorted correctly according to `ordering`.",
+                );
             }
-            sorted
+            check_shuffle::check_shuffle(self, sorted);
         }
+        sorted
     }
 }
 
@@ -231,5 +311,180 @@ mod test {
     #[test]
     fn map_empty() {
         assert_eq([].map(|x| x + 1), []);
+    }
+
+    global arr_with_100_values: [u32; 100] = [
+        42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2, 54,
+        89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41, 19, 98,
+        53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21, 43, 86, 35,
+        21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15, 127, 81, 30, 8,
+        125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+    ];
+    global expected_with_100_values: [u32; 100] = [
+        0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30, 32,
+        32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58, 61, 62,
+        62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82, 84, 84, 86,
+        86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114, 114, 116, 118,
+        119, 120, 121, 123, 123, 123, 125, 126, 127,
+    ];
+    fn sort_u32(a: u32, b: u32) -> bool {
+        a <= b
+    }
+
+    #[test]
+    fn test_sort() {
+        let mut arr: [u32; 7] = [3, 6, 8, 10, 1, 2, 1];
+
+        let sorted = arr.sort();
+
+        let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_100_values() {
+        let mut arr: [u32; 100] = [
+            42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2,
+            54, 89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41,
+            19, 98, 53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21,
+            43, 86, 35, 21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15,
+            127, 81, 30, 8, 125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+        ];
+
+        let sorted = arr.sort();
+
+        let expected: [u32; 100] = [
+            0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30,
+            32, 32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58,
+            61, 62, 62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82,
+            84, 84, 86, 86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114,
+            114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
+        ];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_100_values_comptime() {
+        let sorted = arr_with_100_values.sort();
+        assert(sorted == expected_with_100_values);
+    }
+
+    #[test]
+    fn test_sort_via() {
+        let mut arr: [u32; 7] = [3, 6, 8, 10, 1, 2, 1];
+
+        let sorted = arr.sort_via(sort_u32);
+
+        let expected: [u32; 7] = [1, 1, 2, 3, 6, 8, 10];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn test_sort_via_100_values() {
+        let mut arr: [u32; 100] = [
+            42, 123, 87, 93, 48, 80, 50, 5, 104, 84, 70, 47, 119, 66, 71, 121, 3, 29, 42, 118, 2,
+            54, 89, 44, 81, 0, 26, 106, 68, 96, 84, 48, 95, 54, 45, 32, 89, 100, 109, 19, 37, 41,
+            19, 98, 53, 114, 107, 66, 6, 74, 13, 19, 105, 64, 123, 28, 44, 50, 89, 58, 123, 126, 21,
+            43, 86, 35, 21, 62, 82, 0, 108, 120, 72, 72, 62, 80, 12, 71, 70, 86, 116, 73, 38, 15,
+            127, 81, 30, 8, 125, 28, 26, 69, 114, 63, 27, 28, 61, 42, 13, 32,
+        ];
+
+        let sorted = arr.sort_via(sort_u32);
+
+        let expected: [u32; 100] = [
+            0, 0, 2, 3, 5, 6, 8, 12, 13, 13, 15, 19, 19, 19, 21, 21, 26, 26, 27, 28, 28, 28, 29, 30,
+            32, 32, 35, 37, 38, 41, 42, 42, 42, 43, 44, 44, 45, 47, 48, 48, 50, 50, 53, 54, 54, 58,
+            61, 62, 62, 63, 64, 66, 66, 68, 69, 70, 70, 71, 71, 72, 72, 73, 74, 80, 80, 81, 81, 82,
+            84, 84, 86, 86, 87, 89, 89, 89, 93, 95, 96, 98, 100, 104, 105, 106, 107, 108, 109, 114,
+            114, 116, 118, 119, 120, 121, 123, 123, 123, 125, 126, 127,
+        ];
+        assert(sorted == expected);
+    }
+
+    #[test]
+    fn mapi_empty() {
+        assert_eq([].mapi(|i, x| i * x + 1), []);
+    }
+
+    #[test]
+    fn for_each_empty() {
+        let empty_array: [Field; 0] = [];
+        empty_array.for_each(|_x| assert(false));
+    }
+
+    #[test]
+    fn for_eachi_empty() {
+        let empty_array: [Field; 0] = [];
+        empty_array.for_eachi(|_i, _x| assert(false));
+    }
+
+    #[test]
+    fn map_example() {
+        let a = [1, 2, 3];
+        let b = a.map(|a| a * 2);
+        assert_eq(b, [2, 4, 6]);
+    }
+
+    #[test]
+    fn mapi_example() {
+        let a = [1, 2, 3];
+        let b = a.mapi(|i, a| i + a * 2);
+        assert_eq(b, [2, 5, 8]);
+    }
+
+    #[test]
+    fn for_each_example() {
+        let a = [1, 2, 3];
+        let mut b = [0, 0, 0];
+        let b_ref = &mut b;
+        let mut i = 0;
+        let i_ref = &mut i;
+        a.for_each(|x| {
+            b_ref[*i_ref] = x * 2;
+            *i_ref += 1;
+        });
+        assert_eq(b, [2, 4, 6]);
+        assert_eq(i, 3);
+    }
+
+    #[test]
+    fn for_eachi_example() {
+        let a = [1, 2, 3];
+        let mut b = [0, 0, 0];
+        let b_ref = &mut b;
+        a.for_eachi(|i, a| { b_ref[i] = i + a * 2; });
+        assert_eq(b, [2, 5, 8]);
+    }
+
+    #[test]
+    fn concat() {
+        let arr1 = [1, 2, 3, 4];
+        let arr2 = [6, 7, 8, 9, 10, 11];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1, 2, 3, 4, 6, 7, 8, 9, 10, 11]);
+    }
+
+    #[test]
+    fn concat_zero_length_with_something() {
+        let arr1 = [];
+        let arr2 = [1];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_something_with_zero_length() {
+        let arr1 = [1];
+        let arr2 = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, [1]);
+    }
+
+    #[test]
+    fn concat_zero_lengths() {
+        let arr1: [Field; 0] = [];
+        let arr2: [Field; 0] = [];
+        let concatenated_arr = arr1.concat(arr2);
+        assert_eq(concatenated_arr, []);
     }
 }

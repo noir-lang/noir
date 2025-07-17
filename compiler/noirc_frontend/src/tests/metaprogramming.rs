@@ -1,47 +1,60 @@
-use noirc_errors::Spanned;
-
 use crate::{
-    ast::Ident,
+    check_errors,
     hir::{
+        comptime::ComptimeError,
         def_collector::{
             dc_crate::CompilationError,
             errors::{DefCollectorErrorKind, DuplicateType},
         },
-        resolution::errors::ResolverError,
-        type_check::TypeCheckError,
     },
 };
 
-use super::{assert_no_errors, get_program_errors};
+use crate::{assert_no_errors, get_program_errors};
 
 // Regression for #5388
+#[named]
 #[test]
 fn comptime_let() {
     let src = r#"fn main() {
         comptime let my_var = 2;
         assert_eq(my_var, 2);
     }"#;
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 0);
+    assert_no_errors!(src);
 }
 
+#[named]
+#[test]
+fn comptime_code_rejects_dynamic_variable() {
+    let src = r#"
+    fn main(x: Field) {
+        comptime let my_var = (x - x) + 2;
+                               ^ Non-comptime variable `x` referenced in comptime code
+                               ~ Non-comptime variables can't be used in comptime code
+        assert_eq(my_var, 2);
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
 #[test]
 fn comptime_type_in_runtime_code() {
-    let source = "pub fn foo(_f: FunctionDefinition) {}";
-    let errors = get_program_errors(source);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::ResolverError(ResolverError::ComptimeTypeInRuntimeCode { .. })
-    ));
+    let source = "
+    pub fn foo(_f: FunctionDefinition) {}
+                   ^^^^^^^^^^^^^^^^^^ Comptime-only type `FunctionDefinition` cannot be used in runtime code
+                   ~~~~~~~~~~~~~~~~~~ Comptime-only type used here
+    ";
+    check_errors!(source);
 }
 
+#[named]
 #[test]
 fn macro_result_type_mismatch() {
     let src = r#"
         fn main() {
             comptime {
                 let x = unquote!(quote { "test" });
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type Field, found type str<4>
                 let _: Field = x;
             }
         }
@@ -50,15 +63,10 @@ fn macro_result_type_mismatch() {
             q
         }
     "#;
-
-    let errors = get_program_errors(src);
-    assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        errors[0].0,
-        CompilationError::TypeError(TypeCheckError::TypeMismatch { .. })
-    ));
+    check_errors!(src);
 }
 
+#[named]
 #[test]
 fn unquoted_integer_as_integer_token() {
     let src = r#"
@@ -84,13 +92,14 @@ fn unquoted_integer_as_integer_token() {
     fn main() {}
     "#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_references_to_structs_generated_by_macros() {
     let src = r#"
-    comptime fn make_new_struct(_s: StructDefinition) -> Quoted {
+    comptime fn make_new_struct(_s: TypeDefinition) -> Quoted {
         quote { struct Bar {} }
     }
 
@@ -103,13 +112,16 @@ fn allows_references_to_structs_generated_by_macros() {
     }
     "#;
 
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn errors_if_macros_inject_functions_with_name_collisions() {
+    // This can't be tested using `check_errors` right now because the two secondary
+    // errors land on the same span.
     let src = r#"
-    comptime fn make_colliding_functions(_s: StructDefinition) -> Quoted {
+    comptime fn make_colliding_functions(_s: TypeDefinition) -> Quoted {
         quote { 
             fn foo() {}
         }
@@ -128,16 +140,70 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     }
     "#;
 
-    let errors = get_program_errors(src);
+    let mut errors = get_program_errors!(src);
     assert_eq!(errors.len(), 1);
-    assert!(matches!(
-        &errors[0].0,
-        CompilationError::DefinitionError(
-            DefCollectorErrorKind::Duplicate {
-                typ: DuplicateType::Function,
-                first_def: Ident(Spanned { contents, .. }),
-                ..
-            },
-        ) if contents == "foo"
-    ));
+
+    let CompilationError::ComptimeError(ComptimeError::ErrorRunningAttribute { error, .. }) =
+        errors.remove(0)
+    else {
+        panic!("Expected a ComptimeError, got {:?}", errors[0]);
+    };
+
+    let CompilationError::DefinitionError(DefCollectorErrorKind::Duplicate {
+        typ: DuplicateType::Function,
+        first_def,
+        ..
+    }) = *error
+    else {
+        panic!("Expected a duplicate error");
+    };
+
+    assert_eq!(first_def.as_str(), "foo");
+}
+
+#[named]
+#[test]
+fn uses_correct_type_for_attribute_arguments() {
+    let src = r#"
+    #[foo(32)]
+    comptime fn foo(_f: FunctionDefinition, i: u32) {
+        let y: u32 = 1;
+        let _ = y == i;
+    }
+
+    #[bar([0; 2])]
+    comptime fn bar(_f: FunctionDefinition, i: [u32; 2]) {
+        let y: u32 = 1;
+        let _ = y == i[0];
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn does_not_fail_to_parse_macro_on_parser_warning() {
+    let src = r#"
+    #[make_bar]
+    pub unconstrained fn foo() {}
+
+    comptime fn make_bar(_: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn bar() {
+                unsafe { 
+                ^^^^^^ Unsafe block must have a safety comment above it
+                ~~~~~~ The comment must start with the "Safety: " word
+                    foo();
+                }
+            }
+        }
+    }
+
+    fn main() {
+        bar()
+    }
+    "#;
+    check_errors!(src);
 }

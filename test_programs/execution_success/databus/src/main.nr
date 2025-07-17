@@ -9,4 +9,3 @@ fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_dat
 unconstrained fn foo(x: u32) -> u32 {
     x + 1
 }
-

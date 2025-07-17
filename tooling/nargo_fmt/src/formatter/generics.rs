@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_generics(&mut self, generics: Vec<UnresolvedGeneric>) {
         self.skip_comments_and_whitespace();
 
@@ -34,19 +34,25 @@ impl<'a> Formatter<'a> {
     fn format_generic(&mut self, generic: UnresolvedGeneric) {
         self.skip_comments_and_whitespace();
         match generic {
-            UnresolvedGeneric::Variable(ident) => {
-                self.write_identifier(ident);
+            UnresolvedGeneric::Variable(ident, trait_bounds) => {
+                let ident =
+                    ident.ident().expect("Resolved generics should not be present in the AST");
+                self.write_identifier(ident.clone());
+                if !trait_bounds.is_empty() {
+                    self.write_token(Token::Colon);
+                    self.write_space();
+                    self.format_trait_bounds(trait_bounds);
+                }
             }
             UnresolvedGeneric::Numeric { ident, typ } => {
                 self.write_keyword(Keyword::Let);
                 self.write_space();
-                self.write_identifier(ident);
+                let ident =
+                    ident.ident().expect("Resolved generics should not be present in the AST");
+                self.write_identifier(ident.clone());
                 self.write_token(Token::Colon);
                 self.write_space();
                 self.format_type(typ);
-            }
-            UnresolvedGeneric::Resolved(..) => {
-                unreachable!("Resolved generics should not be present in the AST")
             }
         }
     }

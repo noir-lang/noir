@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: Unused expression result of type bool
+  ┌─ src/main.nr:6:14
+  │
+6 │     constrai x != y;
+  │              ------
+  │
+
+error: cannot find `constrai` in this scope
+  ┌─ src/main.nr:6:5
+  │
+6 │     constrai x != y;
+  │     -------- not found in this scope
+  │
+
+error: Expected a ; separating these two statements
+  ┌─ src/main.nr:6:5
+  │
+6 │     constrai x != y;
+  │     --------
+  │
+
+Aborting due to 2 previous errors

@@ -1,12 +1,13 @@
-use noirc_errors::{Location, Span, Spanned};
+use noirc_errors::Location;
 
 use crate::{
+    DataType, Type,
     ast::{
-        AssignStatement, BinaryOpKind, ConstrainKind, ConstrainStatement, Expression,
-        ExpressionKind, ForLoopStatement, ForRange, Ident, InfixExpression, ItemVisibility, LValue,
-        LetStatement, Path, Statement, StatementKind,
+        AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
+        ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError,
             visibility::struct_member_is_visible,
@@ -14,30 +15,39 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::HirIdent,
+        expr::{HirBlockExpression, HirExpression, HirIdent},
         stmt::{
-            HirAssignStatement, HirConstrainStatement, HirForStatement, HirLValue, HirLetStatement,
+            HirAssignStatement, HirForStatement, HirLValue, HirLetStatement, HirPattern,
             HirStatement,
         },
     },
-    node_interner::{DefinitionId, DefinitionKind, GlobalId, StmtId},
-    StructType, Type,
+    node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
+    shared::Signedness,
 };
 
-use super::{lints, Elaborator};
+use super::{Elaborator, Loop, TypedPath};
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
+        self.elaborate_statement_value_with_target_type(statement, None)
+    }
+
+    fn elaborate_statement_value_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (HirStatement, Type) {
         match statement.kind {
             StatementKind::Let(let_stmt) => self.elaborate_local_let(let_stmt),
-            StatementKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             StatementKind::Assign(assign) => self.elaborate_assign(assign),
             StatementKind::For(for_stmt) => self.elaborate_for(for_stmt),
-            StatementKind::Break => self.elaborate_jump(true, statement.span),
-            StatementKind::Continue => self.elaborate_jump(false, statement.span),
+            StatementKind::Loop(block, location) => self.elaborate_loop(block, location),
+            StatementKind::While(while_) => self.elaborate_while(while_),
+            StatementKind::Break => self.elaborate_jump(true, statement.location),
+            StatementKind::Continue => self.elaborate_jump(false, statement.location),
             StatementKind::Comptime(statement) => self.elaborate_comptime_statement(*statement),
             StatementKind::Expression(expr) => {
-                let (expr, typ) = self.elaborate_expression(expr);
+                let (expr, typ) = self.elaborate_expression_with_target_type(expr, target_type);
                 (HirStatement::Expression(expr), typ)
             }
             StatementKind::Semi(expr) => {
@@ -46,18 +56,27 @@ impl<'context> Elaborator<'context> {
             }
             StatementKind::Interned(id) => {
                 let kind = self.interner.get_statement_kind(id);
-                let statement = Statement { kind: kind.clone(), span: statement.span };
-                self.elaborate_statement_value(statement)
+                let statement = Statement { kind: kind.clone(), location: statement.location };
+                self.elaborate_statement_value_with_target_type(statement, target_type)
             }
             StatementKind::Error => (HirStatement::Error, Type::Error),
         }
     }
 
     pub(crate) fn elaborate_statement(&mut self, statement: Statement) -> (StmtId, Type) {
-        let span = statement.span;
-        let (hir_statement, typ) = self.elaborate_statement_value(statement);
+        self.elaborate_statement_with_target_type(statement, None)
+    }
+
+    pub(crate) fn elaborate_statement_with_target_type(
+        &mut self,
+        statement: Statement,
+        target_type: Option<&Type>,
+    ) -> (StmtId, Type) {
+        let location = statement.location;
+        let (hir_statement, typ) =
+            self.elaborate_statement_value_with_target_type(statement, target_type);
         let id = self.interner.push_stmt(hir_statement);
-        self.interner.push_stmt_location(id, span, self.file);
+        self.interner.push_stmt_location(id, location);
         (id, typ)
     }
 
@@ -74,9 +93,24 @@ impl<'context> Elaborator<'context> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirStatement, Type) {
-        let expr_span = let_stmt.expression.span;
-        let (expression, expr_type) = self.elaborate_expression(let_stmt.expression);
+        let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
+
+        let pattern_location = let_stmt.pattern.location();
+        let expr_location = let_stmt.expression.location;
+        let (expression, expr_type) =
+            self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
+
+        // Require the top-level of a global's type to be fully-specified
+        if type_contains_unspecified && global_id.is_some() {
+            let expected_type = annotated_type.clone();
+            let error = ResolverError::UnspecifiedGlobalType {
+                pattern_location,
+                expr_location,
+                expected_type,
+            };
+            self.push_err(error);
+        }
 
         let definition = match global_id {
             None => DefinitionKind::Local(Some(expression)),
@@ -85,23 +119,16 @@ impl<'context> Elaborator<'context> {
 
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
-        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_span, || {
-            TypeCheckError::TypeMismatch {
+        self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
+            CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
-                expr_span,
-            }
+                expr_location,
+            })
         });
 
-        if annotated_type.is_integer() {
-            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
-            for error in errors {
-                self.push_err(error);
-            }
-        }
-
         let warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.is_allow_unused_variables());
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
 
         let r#type = annotated_type;
         let pattern = self.elaborate_pattern_and_store_ids(
@@ -114,86 +141,49 @@ impl<'context> Elaborator<'context> {
 
         let attributes = let_stmt.attributes;
         let comptime = let_stmt.comptime;
-        let let_ = HirLetStatement { pattern, r#type, expression, attributes, comptime };
+        let is_global_let = let_stmt.is_global_let;
+        let let_ =
+            HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
         (HirStatement::Let(let_), Type::Unit)
     }
 
-    pub(super) fn elaborate_constrain(
-        &mut self,
-        mut stmt: ConstrainStatement,
-    ) -> (HirStatement, Type) {
-        let span = stmt.span;
-        let min_args_count = stmt.kind.required_arguments_count();
-        let max_args_count = min_args_count + 1;
-        let actual_args_count = stmt.arguments.len();
-
-        let (message, expr) = if !(min_args_count..=max_args_count).contains(&actual_args_count) {
-            self.push_err(TypeCheckError::AssertionParameterCountMismatch {
-                kind: stmt.kind,
-                found: actual_args_count,
-                span,
-            });
-
-            // Given that we already produced an error, let's make this an `assert(true)` so
-            // we don't get further errors.
-            let message = None;
-            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
-            let expr = Expression { kind, span };
-            (message, expr)
-        } else {
-            let message =
-                (actual_args_count != min_args_count).then(|| stmt.arguments.pop().unwrap());
-            let expr = match stmt.kind {
-                ConstrainKind::Assert | ConstrainKind::Constrain => stmt.arguments.pop().unwrap(),
-                ConstrainKind::AssertEq => {
-                    let rhs = stmt.arguments.pop().unwrap();
-                    let lhs = stmt.arguments.pop().unwrap();
-                    let span = Span::from(lhs.span.start()..rhs.span.end());
-                    let operator = Spanned::from(span, BinaryOpKind::Equal);
-                    let kind =
-                        ExpressionKind::Infix(Box::new(InfixExpression { lhs, operator, rhs }));
-                    Expression { kind, span }
-                }
-            };
-            (message, expr)
-        };
-
-        let expr_span = expr.span;
-        let (expr_id, expr_type) = self.elaborate_expression(expr);
-
-        // Must type check the assertion message expression so that we instantiate bindings
-        let msg = message.map(|assert_msg_expr| self.elaborate_expression(assert_msg_expr).0);
-
-        self.unify(&expr_type, &Type::Bool, || TypeCheckError::TypeMismatch {
-            expr_typ: expr_type.to_string(),
-            expected_typ: Type::Bool.to_string(),
-            expr_span,
-        });
-
-        (HirStatement::Constrain(HirConstrainStatement(expr_id, self.file, msg)), Type::Unit)
-    }
-
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
-        let span = assign.expression.span;
+        let expr_location = assign.expression.location;
         let (expression, expr_type) = self.elaborate_expression(assign.expression);
-        let (lvalue, lvalue_type, mutable) = self.elaborate_lvalue(assign.lvalue, span);
+
+        let (lvalue, lvalue_type, mutable, mut new_statements) =
+            self.elaborate_lvalue(assign.lvalue);
 
         if !mutable {
-            let (name, span) = self.get_lvalue_name_and_span(&lvalue);
-            self.push_err(TypeCheckError::VariableMustBeMutable { name, span });
+            let (_, name, location) = self.get_lvalue_error_info(&lvalue);
+            self.push_err(TypeCheckError::VariableMustBeMutable { name, location });
+        } else {
+            let (id, name, location) = self.get_lvalue_error_info(&lvalue);
+            self.check_can_mutate_lambda_capture(id, name, location);
         }
 
-        self.unify_with_coercions(&expr_type, &lvalue_type, expression, span, || {
-            TypeCheckError::TypeMismatchWithSource {
+        self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
+            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
-                span,
+                location: expr_location,
                 source: Source::Assignment,
-            }
+            })
         });
 
-        let stmt = HirAssignStatement { lvalue, expression };
-        (HirStatement::Assign(stmt), Type::Unit)
+        let assign = HirAssignStatement { lvalue, expression };
+        let assign = HirStatement::Assign(assign);
+
+        if new_statements.is_empty() {
+            (assign, Type::Unit)
+        } else {
+            let assign = self.interner.push_stmt(assign);
+            self.interner.push_stmt_location(assign, expr_location);
+            new_statements.push(assign);
+            let block = HirExpression::Block(HirBlockExpression { statements: new_statements });
+            let block = self.interner.push_expr_full(block, expr_location, Type::Unit);
+            (HirStatement::Expression(block), Type::Unit)
+        }
     }
 
     pub(super) fn elaborate_for(&mut self, for_loop: ForLoopStatement) -> (HirStatement, Type) {
@@ -201,20 +191,22 @@ impl<'context> Elaborator<'context> {
             ForRange::Range(bounds) => bounds.into_half_open(),
             ForRange::Array(_) => {
                 let for_stmt =
-                    for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.span);
+                    for_loop.range.into_for(for_loop.identifier, for_loop.block, for_loop.location);
 
                 return self.elaborate_statement_value(for_stmt);
             }
         };
 
-        let start_span = start.span;
-        let end_span = end.span;
+        let start_location = start.location;
+        let end_location = end.location;
 
         let (start_range, start_range_type) = self.elaborate_expression(start);
         let (end_range, end_range_type) = self.elaborate_expression(end);
         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-        self.nested_loops += 1;
+        let old_loop = std::mem::take(&mut self.current_loop);
+
+        self.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
         // TODO: For loop variables are currently mutable by default since we haven't
@@ -228,11 +220,10 @@ impl<'context> Elaborator<'context> {
         );
 
         // Check that start range and end range have the same types
-        let range_span = start_span.merge(end_span);
         self.unify(&start_range_type, &end_range_type, || TypeCheckError::TypeMismatch {
             expected_typ: start_range_type.to_string(),
             expr_typ: end_range_type.to_string(),
-            expr_span: range_span,
+            expr_location: end_location,
         });
 
         let expected_type = self.polymorphic_integer();
@@ -240,15 +231,22 @@ impl<'context> Elaborator<'context> {
         self.unify(&start_range_type, &expected_type, || TypeCheckError::TypeCannotBeUsed {
             typ: start_range_type.clone(),
             place: "for loop",
-            span: range_span,
+            location: start_location,
         });
 
         self.interner.push_definition_type(identifier.id, start_range_type);
 
-        let (block, _block_type) = self.elaborate_expression(block);
+        let block_location = block.type_location();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
+        });
 
         self.pop_scope();
-        self.nested_loops -= 1;
+        self.current_loop = old_loop;
 
         let statement =
             HirStatement::For(HirForStatement { start_range, end_range, block, identifier });
@@ -256,43 +254,129 @@ impl<'context> Elaborator<'context> {
         (statement, Type::Unit)
     }
 
-    fn elaborate_jump(&mut self, is_break: bool, span: noirc_errors::Span) -> (HirStatement, Type) {
+    pub(super) fn elaborate_loop(
+        &mut self,
+        block: Expression,
+        location: Location,
+    ) -> (HirStatement, Type) {
+        let in_constrained_function = self.in_constrained_function();
+        if in_constrained_function {
+            self.push_err(ResolverError::LoopInConstrainedFn { location });
+        }
+
+        let old_loop = std::mem::take(&mut self.current_loop);
+        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        self.push_scope();
+
+        let block_location = block.type_location();
+        let (block, block_type) = self.elaborate_expression(block);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
+        });
+
+        self.pop_scope();
+
+        let last_loop =
+            std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+        if !last_loop.has_break {
+            self.push_err(ResolverError::LoopWithoutBreak { location });
+        }
+
+        let statement = HirStatement::Loop(block);
+
+        (statement, Type::Unit)
+    }
+
+    pub(super) fn elaborate_while(&mut self, while_: WhileStatement) -> (HirStatement, Type) {
+        let in_constrained_function = self.in_constrained_function();
+        if in_constrained_function {
+            self.push_err(ResolverError::WhileInConstrainedFn {
+                location: while_.while_keyword_location,
+            });
+        }
+
+        let old_loop = std::mem::take(&mut self.current_loop);
+        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        self.push_scope();
+
+        let location = while_.condition.type_location();
+        let (condition, cond_type) = self.elaborate_expression(while_.condition);
+
+        self.unify(&cond_type, &Type::Bool, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Bool.to_string(),
+            expr_typ: cond_type.to_string(),
+            expr_location: location,
+        });
+
+        let block_location = while_.body.type_location();
+        let (block, block_type) = self.elaborate_expression(while_.body);
+
+        self.unify(&block_type, &Type::Unit, || TypeCheckError::TypeMismatch {
+            expected_typ: Type::Unit.to_string(),
+            expr_typ: block_type.to_string(),
+            expr_location: block_location,
+        });
+
+        self.pop_scope();
+
+        std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+
+        let statement = HirStatement::While(condition, block);
+
+        (statement, Type::Unit)
+    }
+
+    fn elaborate_jump(&mut self, is_break: bool, location: Location) -> (HirStatement, Type) {
         let in_constrained_function = self.in_constrained_function();
 
         if in_constrained_function {
-            self.push_err(ResolverError::JumpInConstrainedFn { is_break, span });
+            self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
         }
-        if self.nested_loops == 0 {
-            self.push_err(ResolverError::JumpOutsideLoop { is_break, span });
+
+        if let Some(current_loop) = &mut self.current_loop {
+            if is_break {
+                current_loop.has_break = true;
+            }
+        } else {
+            self.push_err(ResolverError::JumpOutsideLoop { is_break, location });
         }
 
         let expr = if is_break { HirStatement::Break } else { HirStatement::Continue };
         (expr, self.interner.next_type_variable())
     }
 
-    fn get_lvalue_name_and_span(&self, lvalue: &HirLValue) -> (String, Span) {
+    fn get_lvalue_error_info(&self, lvalue: &HirLValue) -> (DefinitionId, String, Location) {
         match lvalue {
             HirLValue::Ident(name, _) => {
-                let span = name.location.span;
+                let location = name.location;
 
                 if let Some(definition) = self.interner.try_definition(name.id) {
-                    (definition.name.clone(), span)
+                    (name.id, definition.name.clone(), location)
                 } else {
-                    ("(undeclared variable)".into(), span)
+                    (DefinitionId::dummy_id(), "(undeclared variable)".into(), location)
                 }
             }
-            HirLValue::MemberAccess { object, .. } => self.get_lvalue_name_and_span(object),
-            HirLValue::Index { array, .. } => self.get_lvalue_name_and_span(array),
-            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_name_and_span(lvalue),
+            HirLValue::MemberAccess { object, .. } => self.get_lvalue_error_info(object),
+            HirLValue::Index { array, .. } => self.get_lvalue_error_info(array),
+            HirLValue::Dereference { lvalue, .. } => self.get_lvalue_error_info(lvalue),
         }
     }
 
-    fn elaborate_lvalue(&mut self, lvalue: LValue, assign_span: Span) -> (HirLValue, Type, bool) {
+    /// Elaborates an lvalue returning:
+    /// - The HirLValue equivalent of the given `lvalue`
+    /// - The type being assigned to
+    /// - Whether the underlying variable is mutable
+    /// - A vector of new statements which need to prefix the resulting assign statement.
+    ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
+    fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
             LValue::Ident(ident) => {
                 let mut mutable = true;
-                let span = ident.span();
-                let path = Path::from_single(ident.0.contents, span);
+                let location = ident.location();
+                let path = TypedPath::from_single(ident.to_string(), location);
                 let ((ident, scope_index), _) = self.get_ident_from_path(path);
 
                 self.resolve_local_variable(ident.clone(), scope_index);
@@ -306,7 +390,7 @@ impl<'context> Elaborator<'context> {
                         if definition.comptime && !self.in_comptime_context() {
                             self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
                                 name: definition.name.clone(),
-                                span: ident.location.span,
+                                location: ident.location,
                             });
                         }
                     }
@@ -315,19 +399,17 @@ impl<'context> Elaborator<'context> {
                     typ.follow_bindings()
                 };
 
-                let reference_location = Location::new(span, self.file);
-                self.interner.add_local_reference(ident.id, reference_location);
+                self.interner.add_local_reference(ident.id, location);
 
-                (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable)
+                (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
             }
-            LValue::MemberAccess { object, field_name, span } => {
-                let (object, lhs_type, mut mutable) = self.elaborate_lvalue(*object, assign_span);
+            LValue::MemberAccess { object, field_name, location } => {
+                let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
                 let mut object = Box::new(object);
                 let field_name = field_name.clone();
 
                 let object_ref = &mut object;
                 let mutable_ref = &mut mutable;
-                let location = Location::new(span, self.file);
 
                 let dereference_lhs = move |_: &mut Self, _, element_type| {
                     // We must create a temporary value first to move out of object_ref before
@@ -337,43 +419,67 @@ impl<'context> Elaborator<'context> {
                     let tmp_value = HirLValue::Ident(ident, Type::Error);
 
                     let lvalue = std::mem::replace(object_ref, Box::new(tmp_value));
-                    *object_ref =
-                        Box::new(HirLValue::Dereference { lvalue, element_type, location });
+                    *object_ref = Box::new(HirLValue::Dereference {
+                        lvalue,
+                        element_type,
+                        location,
+                        implicitly_added: true,
+                    });
                     *mutable_ref = true;
                 };
 
-                let name = &field_name.0.contents;
+                let name = field_name.as_str();
                 let (object_type, field_index) = self
-                    .check_field_access(&lhs_type, name, field_name.span(), Some(dereference_lhs))
+                    .check_field_access(
+                        &lhs_type,
+                        name,
+                        field_name.location(),
+                        Some(dereference_lhs),
+                    )
                     .unwrap_or((Type::Error, 0));
 
                 let field_index = Some(field_index);
                 let typ = object_type.clone();
                 let lvalue =
                     HirLValue::MemberAccess { object, field_name, field_index, typ, location };
-                (lvalue, object_type, mutable)
+                (lvalue, object_type, mutable, statements)
             }
-            LValue::Index { array, index, span } => {
-                let expr_span = index.span;
-                let (index, index_type) = self.elaborate_expression(index);
-                let location = Location::new(span, self.file);
+            LValue::Index { array, index, location } => {
+                let expr_location = index.location;
+                let (mut index, index_type) = self.elaborate_expression(index);
 
-                let expected = self.polymorphic_integer_or_field();
-                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-                    expected_typ: "an integer".to_owned(),
-                    expr_typ: index_type.to_string(),
-                    expr_span,
+                let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+                self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+                    expected: expected.clone(),
+                    actual: index_type.clone(),
+                    location: expr_location,
+                    source: Source::ArrayIndex,
                 });
 
-                let (mut lvalue, mut lvalue_type, mut mutable) =
-                    self.elaborate_lvalue(*array, assign_span);
+                let (mut lvalue, mut lvalue_type, mut mutable, mut statements) =
+                    self.elaborate_lvalue(*array);
+
+                // Push the index expression to the end of the new statements list, referring to it
+                // afterward with a let binding. Note that since we recur first then push to the
+                // end of the list we're evaluating side-effects such that in `a[i][j]`, `i` will
+                // be evaluated first, followed by `j`.
+                if let Some((index_definition, new_index)) =
+                    self.fresh_definition_for_lvalue_index(index, index_type, expr_location)
+                {
+                    index = new_index;
+                    statements.push(index_definition);
+                }
 
                 // Before we check that the lvalue is an array, try to dereference it as many times
-                // as needed to unwrap any &mut wrappers.
-                while let Type::MutableReference(element) = lvalue_type.follow_bindings() {
+                // as needed to unwrap any `&` or `&mut` wrappers.
+                while let Type::Reference(element, _) = lvalue_type.follow_bindings() {
                     let element_type = element.as_ref().clone();
-                    lvalue =
-                        HirLValue::Dereference { lvalue: Box::new(lvalue), element_type, location };
+                    lvalue = HirLValue::Dereference {
+                        lvalue: Box::new(lvalue),
+                        element_type,
+                        location,
+                        implicitly_added: true,
+                    };
                     lvalue_type = *element;
                     // We know this value to be mutable now since we found an `&mut`
                     mutable = true;
@@ -384,16 +490,22 @@ impl<'context> Elaborator<'context> {
                     Type::Slice(elem_type) => *elem_type,
                     Type::Error => Type::Error,
                     Type::String(_) => {
-                        let (_lvalue_name, lvalue_span) = self.get_lvalue_name_and_span(&lvalue);
-                        self.push_err(TypeCheckError::StringIndexAssign { span: lvalue_span });
+                        let (_id, _lvalue_name, lvalue_location) =
+                            self.get_lvalue_error_info(&lvalue);
+                        self.push_err(TypeCheckError::StringIndexAssign {
+                            location: lvalue_location,
+                        });
+                        Type::Error
+                    }
+                    Type::TypeVariable(_) => {
+                        self.push_err(TypeCheckError::TypeAnnotationsNeededForIndex { location });
                         Type::Error
                     }
                     other => {
-                        // TODO: Need a better span here
                         self.push_err(TypeCheckError::TypeMismatch {
                             expected_typ: "array".to_string(),
                             expr_typ: other.to_string(),
-                            expr_span: assign_span,
+                            expr_location: location,
                         });
                         Type::Error
                     }
@@ -401,32 +513,73 @@ impl<'context> Elaborator<'context> {
 
                 let array = Box::new(lvalue);
                 let array_type = typ.clone();
-                (HirLValue::Index { array, index, typ, location }, array_type, mutable)
+                (HirLValue::Index { array, index, typ, location }, array_type, mutable, statements)
             }
-            LValue::Dereference(lvalue, span) => {
-                let (lvalue, reference_type, _) = self.elaborate_lvalue(*lvalue, assign_span);
+            LValue::Dereference(lvalue, location) => {
+                let (lvalue, reference_type, _, statements) = self.elaborate_lvalue(*lvalue);
                 let lvalue = Box::new(lvalue);
-                let location = Location::new(span, self.file);
 
                 let element_type = Type::type_variable(self.interner.next_type_variable_id());
-                let expected_type = Type::MutableReference(Box::new(element_type.clone()));
+
+                // Always expect a mutable reference here since we're storing to it
+                let expected_type = Type::Reference(Box::new(element_type.clone()), true);
 
                 self.unify(&reference_type, &expected_type, || TypeCheckError::TypeMismatch {
                     expected_typ: expected_type.to_string(),
                     expr_typ: reference_type.to_string(),
-                    expr_span: assign_span,
+                    expr_location: location,
                 });
 
                 // Dereferences are always mutable since we already type checked against a &mut T
                 let typ = element_type.clone();
-                let lvalue = HirLValue::Dereference { lvalue, element_type, location };
-                (lvalue, typ, true)
+                let lvalue = HirLValue::Dereference {
+                    lvalue,
+                    element_type,
+                    location,
+                    implicitly_added: false,
+                };
+                (lvalue, typ, true, statements)
             }
-            LValue::Interned(id, span) => {
-                let lvalue = self.interner.get_lvalue(id, span).clone();
-                self.elaborate_lvalue(lvalue, assign_span)
+            LValue::Interned(id, location) => {
+                let lvalue = self.interner.get_lvalue(id, location).clone();
+                self.elaborate_lvalue(lvalue)
             }
         }
+    }
+
+    fn fresh_definition_for_lvalue_index(
+        &mut self,
+        expr: ExprId,
+        typ: Type,
+        location: Location,
+    ) -> Option<(StmtId, ExprId)> {
+        // If the original expression trivially cannot have side-effects, don't bother cluttering
+        // the output with a let binding. Note that array literals can have side-effects but these
+        // would produce type errors anyway.
+        if matches!(
+            self.interner.expression(&expr),
+            HirExpression::Ident(..) | HirExpression::Literal(..)
+        ) {
+            return None;
+        }
+
+        let id = self.interner.push_definition(
+            format!("i_{}", self.interner.definition_count()),
+            false,
+            false,
+            DefinitionKind::Local(None),
+            location,
+        );
+        let ident = HirIdent::non_trait_method(id, location);
+        let ident_expr = HirExpression::Ident(ident.clone(), None);
+
+        let ident_id = self.interner.push_expr_full(ident_expr, location, typ.clone());
+
+        let pattern = HirPattern::Identifier(ident);
+        let let_ = HirStatement::Let(HirLetStatement::basic(pattern, typ, expr));
+        let let_ = self.interner.push_stmt(let_);
+        self.interner.push_stmt_location(let_, location);
+        Some((let_, ident_id))
     }
 
     /// Type checks a field access, adding dereference operators as necessary
@@ -434,19 +587,18 @@ impl<'context> Elaborator<'context> {
         &mut self,
         lhs_type: &Type,
         field_name: &str,
-        span: Span,
+        location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type)>,
     ) -> Option<(Type, usize)> {
         let lhs_type = lhs_type.follow_bindings();
 
         match &lhs_type {
-            Type::Struct(s, args) => {
+            Type::DataType(s, args) => {
                 let s = s.borrow();
                 if let Some((field, visibility, index)) = s.get_field(field_name, args) {
-                    let reference_location = Location::new(span, self.file);
-                    self.interner.add_struct_member_reference(s.id, index, reference_location);
+                    self.interner.add_struct_member_reference(s.id, index, location);
 
-                    self.check_struct_field_visibility(&s, field_name, visibility, span);
+                    self.check_struct_field_visibility(&s, field_name, visibility, location);
 
                     return Some((field, index));
                 }
@@ -461,27 +613,26 @@ impl<'context> Elaborator<'context> {
                             index,
                             lhs_type,
                             length,
-                            span,
+                            location,
                         });
                         return None;
                     }
                 }
             }
-            // If the lhs is a mutable reference we automatically transform
-            // lhs.field into (*lhs).field
-            Type::MutableReference(element) => {
+            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            Type::Reference(element, mutable) => {
                 if let Some(mut dereference_lhs) = dereference_lhs {
                     dereference_lhs(self, lhs_type.clone(), element.as_ref().clone());
                     return self.check_field_access(
                         element,
                         field_name,
-                        span,
+                        location,
                         Some(dereference_lhs),
                     );
                 } else {
                     let (element, index) =
-                        self.check_field_access(element, field_name, span, dereference_lhs)?;
-                    return Some((Type::MutableReference(Box::new(element)), index));
+                        self.check_field_access(element, field_name, location, dereference_lhs)?;
+                    return Some((Type::Reference(Box::new(element), *mutable), index));
                 }
             }
             _ => (),
@@ -490,12 +641,12 @@ impl<'context> Elaborator<'context> {
         // If we get here the type has no field named 'access.rhs'.
         // Now we specialize the error message based on whether we know the object type in question yet.
         if let Type::TypeVariable(..) = &lhs_type {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { span });
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForFieldAccess { location });
         } else if lhs_type != Type::Error {
             self.push_err(TypeCheckError::AccessUnknownMember {
                 lhs_type,
                 field_name: field_name.to_string(),
-                span,
+                location,
             });
         }
 
@@ -504,25 +655,29 @@ impl<'context> Elaborator<'context> {
 
     pub(super) fn check_struct_field_visibility(
         &mut self,
-        struct_type: &StructType,
+        struct_type: &DataType,
         field_name: &str,
         visibility: ItemVisibility,
-        span: Span,
+        location: Location,
     ) {
+        if self.silence_field_visibility_errors > 0 {
+            return;
+        }
+
         if !struct_member_is_visible(struct_type.id, visibility, self.module_id(), self.def_maps) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
-                Ident::new(field_name.to_string(), span),
+                Ident::new(field_name.to_string(), location),
             )));
         }
     }
 
     fn elaborate_comptime_statement(&mut self, statement: Statement) -> (HirStatement, Type) {
-        let span = statement.span;
+        let location = statement.location;
         let (hir_statement, _typ) =
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, span);
+        let (expr, typ) = self.inline_comptime_value(value, location);
 
         let location = self.interner.id_location(hir_statement);
         self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);

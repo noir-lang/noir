@@ -7,8 +7,11 @@
 //! 4. Removes any blocks which have no instructions other than a single terminating jmp.
 //! 5. Replaces any jmpifs with constant conditions with jmps. If this causes the block to have
 //!    only 1 successor then (2) also will be applied.
+//! 6. Replacing any jmpifs with a negated condition with a jmpif with a un-negated condition and reversed branches.
+//! 7. Replaces any jmpif whose branches converge. Convergence is defined as two paths that ultimately jump to the same block through empty jump chains.
+//!    If the branches converge, the jmpif is unnecessary and can be replaced with a simple jmp.
 //!
-//! Currently, 1 and 4 are unimplemented.
+//! Currently only 1 is unimplemented.
 use std::collections::HashSet;
 
 use acvm::acir::AcirField;
@@ -18,21 +21,14 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         function::{Function, RuntimeType},
-        instruction::TerminatorInstruction,
+        instruction::{Instruction, TerminatorInstruction},
+        value::{Value, ValueMapping},
     },
     ssa_gen::Ssa,
 };
 
 impl Ssa {
-    /// Simplify each function's control flow graph by:
-    /// 1. Removing blocks with no predecessors
-    /// 2. Inlining a block into its sole predecessor if that predecessor only has one successor.
-    /// 3. Removing any block arguments for blocks with only a single predecessor.
-    /// 4. Removing any blocks which have no instructions other than a single terminating jmp.
-    /// 5. Replacing any jmpifs with constant conditions with jmps. If this causes the block to have
-    ///    only 1 successor then (2) also will be applied.
-    ///
-    /// Currently, 1 is unimplemented.
+    /// See [`simplify_cfg`][self] module for more information
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
@@ -47,6 +43,7 @@ impl Function {
     /// be inlined into their predecessor.
     pub(crate) fn simplify_function(&mut self) {
         let mut cfg = ControlFlowGraph::with_function(self);
+        let mut values_to_replace = ValueMapping::default();
         let mut stack = vec![self.entry_block()];
         let mut visited = HashSet::new();
 
@@ -55,9 +52,17 @@ impl Function {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
+            if !values_to_replace.is_empty() {
+                self.dfg.replace_values_in_block_instructions(block, &values_to_replace);
+            }
+
+            check_for_negated_jmpif_condition(self, block, &mut cfg);
+
             // This call is before try_inline_into_predecessor so that if it succeeds in changing a
             // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
             check_for_constant_jmpif(self, block, &mut cfg);
+
+            check_for_converging_jmpif(self, block, &mut cfg);
 
             let mut predecessors = cfg.predecessors(block);
             if predecessors.len() == 1 {
@@ -66,7 +71,7 @@ impl Function {
                 drop(predecessors);
 
                 // If the block has only 1 predecessor, we can safely remove its block parameters
-                remove_block_parameters(self, block, predecessor);
+                remove_block_parameters(self, block, predecessor, &mut values_to_replace);
 
                 // Note: this function relies on `remove_block_parameters` being called first.
                 // Otherwise the inlined block will refer to parameters that no longer exist.
@@ -80,6 +85,18 @@ impl Function {
 
                 check_for_double_jmp(self, block, &mut cfg);
             }
+
+            if !values_to_replace.is_empty() {
+                self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
+            }
+        }
+
+        if !values_to_replace.is_empty() {
+            // Values from previous blocks might need to be replaced
+            for block in self.reachable_blocks() {
+                self.dfg.replace_values_in_block(block, &values_to_replace);
+            }
+            self.dfg.data_bus.replace_values(&values_to_replace);
         }
     }
 }
@@ -105,7 +122,7 @@ fn check_for_constant_jmpif(
             };
 
             let arguments = Vec::new();
-            let call_stack = call_stack.clone();
+            let call_stack = *call_stack;
             let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
             function.dfg[block].set_terminator(jmp);
             cfg.recompute_block(function, block);
@@ -176,12 +193,135 @@ fn check_for_double_jmp(function: &mut Function, block: BasicBlockId, cfg: &mut 
             TerminatorInstruction::Return { .. } => {
                 unreachable!("ICE: predecessor block should not have return terminator instruction")
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                unreachable!(
+                    "ICE: predecessor block should not have unreachable terminator instruction"
+                )
+            }
         };
 
         function.dfg[predecessor_block].set_terminator(redirected_terminator_instruction);
         cfg.recompute_block(function, predecessor_block);
     }
     cfg.recompute_block(function, block);
+}
+
+/// Optimize a jmpif on a negated condition by swapping the branches.
+fn check_for_negated_jmpif_condition(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
+        // can result in the situation where the branches merge together again in the `then` block, e.g.
+        //
+        // acir(inline) fn main f0 {
+        //   b0(v0: u1):
+        //     jmpif v0 then: b2, else: b1
+        //   b2():
+        //     return
+        //   b1():
+        //     jmp b2()
+        // }
+        //
+        // This breaks the `flatten_cfg` pass as it assumes that merges only happen in
+        // the `else` block or a 3rd block.
+        //
+        // See: https://github.com/noir-lang/noir/pull/5891#issuecomment-2500219428
+        return;
+    }
+
+    if let Some(TerminatorInstruction::JmpIf {
+        condition,
+        then_destination,
+        else_destination,
+        call_stack,
+    }) = function.dfg[block].terminator()
+    {
+        if let Value::Instruction { instruction, .. } = function.dfg[*condition] {
+            if let Instruction::Not(negated_condition) = function.dfg[instruction] {
+                let call_stack = *call_stack;
+                let jmpif = TerminatorInstruction::JmpIf {
+                    condition: negated_condition,
+                    then_destination: *else_destination,
+                    else_destination: *then_destination,
+                    call_stack,
+                };
+                function.dfg[block].set_terminator(jmpif);
+                cfg.recompute_block(function, block);
+            }
+        }
+    }
+}
+
+/// Attempts to simplify a `jmpif` terminator if both branches converge.
+///
+/// We define convergence as when two branches of a `jmpif` ultimately lead to the same
+/// destination block, after following chains of empty blocks. If they do, the conditional
+/// jump is unnecessary and can be replaced with a simple `jmp`.
+fn check_for_converging_jmpif(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
+    if matches!(function.runtime(), RuntimeType::Acir(_)) {
+        // The `flatten_cfg` pass expects two blocks to join to the same block.
+        // If we have a nested if the inner if statement could potentially be a converging jmpif.
+        // This may change the final block we converge into.
+        return;
+    }
+
+    let Some(TerminatorInstruction::JmpIf {
+        then_destination, else_destination, call_stack, ..
+    }) = function.dfg[block].terminator()
+    else {
+        return;
+    };
+
+    let then_final = resolve_jmp_chain(function, *then_destination);
+    let else_final = resolve_jmp_chain(function, *else_destination);
+
+    // If both branches end at the same target, we can replace the jmpif with a jmp
+    if then_final == else_final {
+        let jmp = TerminatorInstruction::Jmp {
+            destination: then_final,
+            // The blocks in a jmp chain are checked to have empty arguments by resolve_jmp_chain
+            arguments: Vec::new(),
+            call_stack: *call_stack,
+        };
+        function.dfg[block].set_terminator(jmp);
+        cfg.recompute_block(function, block);
+    }
+}
+
+/// Follow a chain of empty blocks to find the real destination.
+///
+/// This function assumes only [unconditional jumps][TerminatorInstruction::Jmp] are allowed
+/// in a block for chaining. It returns the final destination reached through empty blocks.
+fn resolve_jmp_chain(function: &Function, mut current: BasicBlockId) -> BasicBlockId {
+    // Need to maintain a visited set to prevent infinite cycles
+    let mut visited = HashSet::new();
+
+    while visited.insert(current) {
+        let block = &function.dfg[current];
+        // Exit early if block has instructions or parameters
+        if !block.instructions().is_empty() || !block.parameters().is_empty() {
+            return current;
+        }
+
+        match block.terminator() {
+            Some(TerminatorInstruction::Jmp { destination, arguments, .. })
+                if arguments.is_empty() =>
+            {
+                // Continue following the current chain
+                current = *destination;
+            }
+            _ => return current,
+        }
+    }
+
+    current
 }
 
 /// If the given block has block parameters, replace them with the jump arguments from the predecessor.
@@ -193,6 +333,7 @@ fn remove_block_parameters(
     function: &mut Function,
     block: BasicBlockId,
     predecessor: BasicBlockId,
+    values_to_replace: &mut ValueMapping,
 ) {
     let block = &mut function.dfg[block];
 
@@ -201,7 +342,9 @@ fn remove_block_parameters(
 
         let jump_args = match function.dfg[predecessor].unwrap_terminator_mut() {
             TerminatorInstruction::Jmp { arguments, .. } => std::mem::take(arguments),
-            TerminatorInstruction::JmpIf { .. } => unreachable!("If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"),
+            TerminatorInstruction::JmpIf { .. } => unreachable!(
+                "If jmpif instructions are modified to support block arguments in the future, this match will need to be updated"
+            ),
             _ => unreachable!(
                 "Predecessor was already validated to have only a single jmp destination"
             ),
@@ -209,7 +352,7 @@ fn remove_block_parameters(
 
         assert_eq!(block_params.len(), jump_args.len());
         for (param, arg) in block_params.iter().zip(jump_args) {
-            function.dfg.set_value_from_id(*param, arg);
+            values_to_replace.insert(*param, arg);
         }
     }
 }
@@ -239,124 +382,393 @@ fn try_inline_into_predecessor(
 
 #[cfg(test)]
 mod test {
-    use crate::ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            instruction::{BinaryOp, TerminatorInstruction},
-            map::Id,
-            types::Type,
-        },
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
-    use acvm::acir::AcirField;
 
     #[test]
     fn inline_blocks() {
-        // fn main {
-        //   b0():
-        //     jmp b1(Field 7)
-        //   b1(v0: Field):
-        //     jmp b2(v0)
-        //   b2(v1: Field):
-        //     return v1
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let v0 = builder.add_block_parameter(b1, Type::field());
-        let v1 = builder.add_block_parameter(b2, Type::field());
-
-        let expected_return = 7u128;
-        let seven = builder.field_constant(expected_return);
-        builder.terminate_with_jmp(b1, vec![seven]);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_jmp(b2, vec![v0]);
-
-        builder.switch_to_block(b2);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 3);
-
-        // Expected output:
-        // fn main {
-        //   b0():
-        //     return Field 7
-        // }
-        let ssa = ssa.simplify_cfg();
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 1);
-
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                assert_eq!(return_values.len(), 1);
-                let return_value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected return value to be constant")
-                    .to_u128();
-                assert_eq!(return_value, expected_return);
-            }
-            other => panic!("Unexpected terminator {other:?}"),
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(Field 7)
+          b1(v0: Field):
+            jmp b2(v0)
+          b2(v1: Field):
+            return v1
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 7
+        }
+        ");
     }
 
     #[test]
     fn remove_known_jmpif() {
-        // fn main {
-        //   b0(v0: u1):
-        //     v1 = eq v0, v0
-        //     jmpif v1, then: b1, else: b2
-        //   b1():
-        //     return Field 1
-        //   b2():
-        //     return Field 2
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let v0 = builder.add_parameter(Type::bool());
-
-        let b1 = builder.insert_block();
-        let b2 = builder.insert_block();
-
-        let one = builder.field_constant(1u128);
-        let two = builder.field_constant(2u128);
-
-        let v1 = builder.insert_binary(v0, BinaryOp::Eq, v0);
-        builder.terminate_with_jmpif(v1, b1, b2);
-
-        builder.switch_to_block(b1);
-        builder.terminate_with_return(vec![one]);
-
-        builder.switch_to_block(b2);
-        builder.terminate_with_return(vec![two]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 3);
-
-        // Expected output:
-        // fn main {
-        //   b0():
-        //     return Field 1
-        // }
-        let ssa = ssa.simplify_cfg();
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 1);
-
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => {
-                assert_eq!(return_values.len(), 1);
-                let return_value = main
-                    .dfg
-                    .get_numeric_constant(return_values[0])
-                    .expect("Expected return value to be constant")
-                    .to_u128();
-                assert_eq!(return_value, 1u128);
-            }
-            other => panic!("Unexpected terminator {other:?}"),
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            return Field 1
+          b2():
+            jmp b1()
         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn swap_negated_jmpif_branches_in_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v3 then: b1, else: b2
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        assert_ssa_snapshot!(ssa.simplify_cfg(), @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = not v0
+            jmpif v0 then: b2, else: b1
+          b1():
+            store Field 2 at v1
+            jmp b2()
+          b2():
+            v5 = load v1 -> Field
+            v6 = eq v5, Field 2
+            constrain v5 == Field 2
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_swap_negated_jmpif_branches_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
+    }
+
+    #[test]
+    fn remove_converging_jmpif() {
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v4 = lt i16 5, v0
+            jmpif v4 then: b4, else: b5
+          b4():
+            jmp b6()
+          b5():
+            jmp b6()
+          b6():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmp b1()
+          b1():
+            v4 = lt i16 5, v0
+            jmp b2()
+          b2():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn remove_deep_converging_jmpif() {
+        // This test is the same as `remove_converging_jmpif` except there is an extra layer of indirection
+        // as b1 and b2 jump to b3 and b4 respectively before ultimately jumping to b5.
+        // b5 then also continues the jump chain. We expect the b1 and b2 jump chain to settle on b7.
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = lt i16 1, v0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b4()
+          b3():
+            jmp b5()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            jmp b7()
+          b7():
+            v2 = lt i16 2, v0
+            jmpif v2 then: b8, else: b9
+          b8():
+            jmp b10()
+          b9():
+            jmp b10()
+          b10():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 1, v0
+            jmp b1()
+          b1():
+            v4 = lt i16 2, v0
+            jmp b2()
+          b2():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_remove_non_converging_jmpif() {
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = lt i16 1, v0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b4()
+          b3():
+            jmp b5()
+          b4():
+            jmp b6()
+          b5():
+            jmp b7()
+          b6():
+            jmp b8()
+          b7():
+            jmp b1()
+          b8():
+            return u32 2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        // We expect the jmpif in b0 to remain in place as the jump chains for b1 and b2
+        // resolved to b7 and b8 respectively which are not the same block.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 1, v0
+            jmpif v2 then: b2, else: b1
+          b1():
+            return u32 2
+          b2():
+            jmp b2()
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_remove_non_converging_jmpif_acir() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v13: [(u1, u1, [u8; 1], [u8; 1]); 3]):
+            v23 = array_get v13, index u32 8 -> u1
+            jmpif v23 then: b1, else: b2
+          b1():
+            v45 = array_get v13, index u32 4 -> u1
+            jmpif v45 then: b3, else: b4
+          b2():
+            v25 = array_get v13, index u32 4 -> u1
+            jmp b5(v25)
+          b3():
+            v46 = array_get v13, index u32 5 -> u1
+            jmpif v46 then: b6, else: b7
+          b4():
+            jmp b8()
+          b5(v14: u1):
+            return v14
+          b6():
+            v47 = array_get v13, index u32 8 -> u1
+            jmpif v47 then: b11, else: b12
+          b7():
+            jmp b9()
+          b8():
+            jmp b5(u1 0)
+          b9():
+            jmp b8()
+          b10():
+            jmp b9()
+          b11():
+            jmp b13()
+          b12():
+            jmp b13()
+          b13():
+            jmpif v47 then: b14, else: b15
+          b14():
+            jmp b16()
+          b15():
+            jmp b16()
+          b16():
+            jmp b10()
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        // We expect all jmpifs to remain.
+        // The remaining jmpifs cannot be simplified as the flattening pass expects
+        // to be able to merge into a single block.
+        // We could potentially merge converging jmpifs in an ACIR runtime as well if
+        // this restriction was removed or the SSA input to this pass was validated to pass
+        // branch analysis.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(u1, u1, [u8; 1], [u8; 1]); 3]):
+            v3 = array_get v0, index u32 8 -> u1
+            jmpif v3 then: b1, else: b2
+          b1():
+            v6 = array_get v0, index u32 4 -> u1
+            jmpif v6 then: b3, else: b4
+          b2():
+            v5 = array_get v0, index u32 4 -> u1
+            jmp b5(v5)
+          b3():
+            v8 = array_get v0, index u32 5 -> u1
+            jmpif v8 then: b6, else: b7
+          b4():
+            jmp b8()
+          b5(v1: u1):
+            return v1
+          b6():
+            v9 = array_get v0, index u32 8 -> u1
+            jmpif v9 then: b10, else: b11
+          b7():
+            jmp b9()
+          b8():
+            jmp b5(u1 0)
+          b9():
+            jmp b8()
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            jmpif v9 then: b13, else: b14
+          b13():
+            jmp b15()
+          b14():
+            jmp b15()
+          b15():
+            jmp b9()
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_remove_converging_jmpif_with_instructions() {
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
+          b1():
+            v4 = unchecked_add i16 1, v0
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn cyclic_jump_chain_in_converging_jmpif() {
+        // Check that we handle a cyclic jump chain when checking for a converging jmpif.
+        // If we were missing the appropriate checks this code could trigger an infinite loop.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v1 = lt i16 1, v0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            jmp b1()
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 1, v0
+            jmpif v2 then: b1, else: b1
+          b1():
+            jmp b1()
+        }
+        ");
     }
 }

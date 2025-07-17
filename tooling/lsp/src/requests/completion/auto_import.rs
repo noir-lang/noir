@@ -1,21 +1,23 @@
-use noirc_frontend::hir::def_map::ModuleDefId;
+use noirc_frontend::{
+    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    node_interner::Reexport,
+};
 
 use crate::{
-    modules::{relative_module_full_path, relative_module_id_path},
+    modules::get_ancestor_module_reexport,
     use_segment_positions::{
-        use_completion_item_additional_text_edits, UseCompletionItemAdditionTextEditsRequest,
+        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
-    visibility::module_def_id_is_visible,
 };
 
 use super::{
+    NodeFinder,
     kinds::{FunctionCompletionKind, FunctionKind, RequestedItems},
     name_matches,
     sort_text::auto_import_sort_text,
-    NodeFinder,
 };
 
-impl<'a> NodeFinder<'a> {
+impl NodeFinder<'_> {
     pub(super) fn complete_auto_imports(
         &mut self,
         prefix: &str,
@@ -29,24 +31,33 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            for (module_def_id, visibility, defining_module) in entries {
-                if self.suggested_module_def_ids.contains(module_def_id) {
+            for entry in entries {
+                let module_def_id = entry.module_def_id;
+                if self.suggested_module_def_ids.contains(&module_def_id) {
                     continue;
                 }
 
-                if !module_def_id_is_visible(
-                    *module_def_id,
-                    self.module_id,
-                    *visibility,
-                    *defining_module,
-                    self.interner,
-                    self.def_maps,
-                ) {
-                    continue;
+                let visibility = entry.visibility;
+                let mut defining_module = entry.defining_module.as_ref().cloned();
+
+                // If the item is offered via a re-export of it's parent module, this holds the name of the reexport.
+                let mut intermediate_name = None;
+
+                let is_visible =
+                    self.module_def_id_is_visible(module_def_id, visibility, defining_module);
+                if !is_visible {
+                    if let Some(reexport) =
+                        self.get_ancestor_module_reexport(module_def_id, visibility)
+                    {
+                        defining_module = Some(reexport.module_id);
+                        intermediate_name = Some(reexport.name);
+                    } else {
+                        continue;
+                    }
                 }
 
                 let completion_items = self.module_def_id_completion_items(
-                    *module_def_id,
+                    module_def_id,
                     name.clone(),
                     function_completion_kind,
                     FunctionKind::Any,
@@ -57,38 +68,23 @@ impl<'a> NodeFinder<'a> {
                     continue;
                 };
 
-                self.suggested_module_def_ids.insert(*module_def_id);
+                self.suggested_module_def_ids.insert(module_def_id);
 
                 for mut completion_item in completion_items {
-                    let module_full_path = if let Some(defining_module) = defining_module {
-                        relative_module_id_path(
-                            *defining_module,
-                            &self.module_id,
-                            current_module_parent_id,
-                            self.interner,
-                        )
-                    } else {
-                        let Some(module_full_path) = relative_module_full_path(
-                            *module_def_id,
-                            self.module_id,
-                            current_module_parent_id,
-                            self.interner,
-                        ) else {
-                            continue;
-                        };
-                        module_full_path
-                    };
-
-                    let full_path = if defining_module.is_some()
-                        || !matches!(module_def_id, ModuleDefId::ModuleId(..))
-                    {
-                        format!("{}::{}", module_full_path, name)
-                    } else {
-                        module_full_path
+                    let Some(full_path) = module_def_id_relative_path(
+                        module_def_id,
+                        name,
+                        self.module_id,
+                        current_module_parent_id,
+                        defining_module,
+                        &intermediate_name,
+                        self.interner,
+                    ) else {
+                        continue;
                     };
 
                     let mut label_details = completion_item.label_details.unwrap();
-                    label_details.detail = Some(format!("(use {})", full_path));
+                    label_details.detail = Some(format!("(use {full_path})"));
                     completion_item.label_details = Some(label_details);
                     completion_item.additional_text_edits =
                         Some(use_completion_item_additional_text_edits(
@@ -108,5 +104,20 @@ impl<'a> NodeFinder<'a> {
                 }
             }
         }
+    }
+
+    fn get_ancestor_module_reexport(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+    ) -> Option<Reexport> {
+        get_ancestor_module_reexport(
+            module_def_id,
+            visibility,
+            self.module_id,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
     }
 }

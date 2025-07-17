@@ -18,6 +18,9 @@ pkg/
 # Noir.js
 tooling/noir_js/lib
 
+# fuzzing inputs (generated from 'test_programs')
+tooling/nargo_fuzz_target/draft_inputs
+
 # Nargo output
 *.proof
 *.acir
@@ -30,11 +33,14 @@ tooling/noir_js/lib
 **/target
 !test_programs/acir_artifacts/*/target
 !test_programs/acir_artifacts/*/target/witness.gz
+test_programs/**/target_force_brillig_*
 !compiler/wasm/noir-script/target
 
 gates_report.json
 gates_report_brillig.json
 gates_report_brillig_execution.json
+compilation_report.json
+execution_report.json
 
 # Github Actions scratch space
 # This gives a location to download artifacts into the repository in CI without making git dirty.
@@ -49,3 +55,14 @@ tooling/noir_js/lib
 
 # docs autogen build
 /docs/docs/noir_js/reference/
+
+codegen
+
+**/cspell.json
+!./cspell.json
+
+mutants.out
+mutants.out.old
+
+# Artifacts created by `noir/bootstrap.sh build_packages` in aztec-packages
+**/package.tgz

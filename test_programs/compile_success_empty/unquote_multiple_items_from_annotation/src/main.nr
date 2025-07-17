@@ -6,9 +6,9 @@ fn main() {
     assert_eq(TWO, 2);
 }
 
-comptime fn foo(_: StructDefinition) -> Quoted {
+comptime fn foo(_: TypeDefinition) -> Quoted {
     quote {
-        global ONE = 1;
-        global TWO = 2;
+        global ONE: Field = 1;
+        global TWO: u32 = 2;
     }
 }

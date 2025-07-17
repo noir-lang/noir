@@ -27,7 +27,7 @@ pub(super) fn get_single_error(errors: &[ParserError], expected_span: Span) -> &
 
     if errors.len() > 1 {
         for error in errors {
-            println!("{}", error);
+            println!("{error}");
         }
         panic!("Expected one error, found {} errors (printed above)", errors.len());
     }
@@ -44,12 +44,12 @@ pub(super) fn get_single_error_reason(
 }
 
 pub(super) fn expect_no_errors(errors: &[ParserError]) {
-    if errors.is_empty() {
+    if errors.is_empty() || errors.iter().all(|error| error.is_warning()) {
         return;
     }
 
     for error in errors {
-        println!("{}", error);
+        println!("{error}");
     }
     panic!("Expected no errors, found {} errors (printed above)", errors.len());
 }

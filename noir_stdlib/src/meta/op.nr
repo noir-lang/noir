@@ -1,3 +1,5 @@
+use crate::hash::Hash;
+
 pub struct UnaryOp {
     op: Field,
 }
@@ -220,4 +222,3 @@ impl BinaryOp {
         }
     }
 }
-

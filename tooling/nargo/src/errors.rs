@@ -1,23 +1,24 @@
 use std::collections::BTreeMap;
 
 use acvm::{
-    acir::circuit::{
-        brillig::BrilligFunctionId, ErrorSelector, OpcodeLocation, RawAssertionPayload,
-        ResolvedAssertionPayload, ResolvedOpcodeLocation,
-    },
-    pwg::{ErrorLocation, OpcodeResolutionError},
     AcirField, FieldElement,
+    acir::circuit::{
+        AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
+    pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
-use noirc_abi::{display_abi_error, Abi, AbiErrorType};
+use noirc_abi::{Abi, AbiErrorType, display_abi_error};
 use noirc_errors::{
-    debug_info::DebugInfo, reporter::ReportedErrors, CustomDiagnostic, FileDiagnostic,
+    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
 };
 
 pub use noirc_errors::Location;
 
 use noirc_driver::CrateName;
-use noirc_printable_type::ForeignCallError;
 use thiserror::Error;
+
+use crate::foreign_calls::ForeignCallError;
 
 /// Errors covering situations where a package cannot be compiled.
 #[derive(Debug, Error)]
@@ -85,6 +86,16 @@ impl<F: AcirField> NargoError<F> {
             _ => None,
         }
     }
+}
+
+/// The opcode location for a call to a separate ACIR circuit
+/// This includes the function index of the caller within a [program][acvm::acir::circuit::Program]
+/// and the index in the callers ACIR to the specific call opcode.
+/// This is only resolved and set during circuit execution.
+#[derive(Debug, Copy, Clone)]
+pub struct ResolvedOpcodeLocation {
+    pub acir_function_index: usize,
+    pub opcode_location: OpcodeLocation,
 }
 
 #[derive(Debug, Error)]
@@ -164,25 +175,20 @@ fn extract_locations_from_error<F: AcirField>(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
+                let call_stack_id = match resolved_location.opcode_location {
+                    OpcodeLocation::Acir(idx) => *debug[resolved_location.acir_function_index]
+                        .acir_locations
+                        .get(&AcirOpcodeLocation::new(idx))
+                        .unwrap_or(&CallStackId::root()),
+                    OpcodeLocation::Brillig { brillig_index, .. } => *debug
+                        [resolved_location.acir_function_index]
+                        .brillig_locations[&brillig_function_id.unwrap()]
+                        .get(&BrilligOpcodeLocation(brillig_index))
+                        .unwrap_or(&CallStackId::root()),
+                };
                 debug[resolved_location.acir_function_index]
-                    .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_else(|| {
-                        if let (Some(brillig_function_id), Some(brillig_location)) = (
-                            brillig_function_id,
-                            &resolved_location.opcode_location.to_brillig_location(),
-                        ) {
-                            let brillig_locations = debug[resolved_location.acir_function_index]
-                                .brillig_locations
-                                .get(&brillig_function_id);
-                            brillig_locations
-                                .unwrap()
-                                .get(brillig_location)
-                                .cloned()
-                                .unwrap_or_default()
-                        } else {
-                            vec![]
-                        }
-                    })
+                    .location_tree
+                    .get_call_stack(call_stack_id)
             })
             .collect(),
     )
@@ -229,7 +235,7 @@ pub fn try_to_diagnose_runtime_error(
     nargo_err: &NargoError<FieldElement>,
     abi: &Abi,
     debug: &[DebugInfo],
-) -> Option<FileDiagnostic> {
+) -> Option<CustomDiagnostic> {
     let source_locations = match nargo_err {
         NargoError::ExecutionError(execution_error) => {
             extract_locations_from_error(execution_error, debug)?
@@ -240,6 +246,39 @@ pub fn try_to_diagnose_runtime_error(
     // of the call stack (the last item in the Vec).
     let location = *source_locations.last()?;
     let message = extract_message_from_error(&abi.error_types, nargo_err);
-    let error = CustomDiagnostic::simple_error(message, String::new(), location.span);
-    Some(error.with_call_stack(source_locations).in_file(location.file))
+    let error = CustomDiagnostic::simple_error(message, String::new(), location);
+    Some(error.with_call_stack(source_locations))
+}
+
+/// Map the given OpcodeResolutionError to the corresponding ExecutionError
+/// In case of resulting in an ExecutionError::AssertionFailedThis it propagates the payload
+pub fn execution_error_from<F: AcirField>(
+    error: OpcodeResolutionError<F>,
+    call_stack: &[ResolvedOpcodeLocation],
+) -> ExecutionError<F> {
+    let (assertion_payload, brillig_function_id) = match &error {
+        OpcodeResolutionError::BrilligFunctionFailed { payload, function_id, .. } => {
+            (payload.clone(), Some(*function_id))
+        }
+        OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => (payload.clone(), None),
+        _ => (None, None),
+    };
+
+    match assertion_payload {
+        Some(payload) => {
+            ExecutionError::AssertionFailed(payload, call_stack.to_owned(), brillig_function_id)
+        }
+        None => {
+            let call_stack = match &error {
+                OpcodeResolutionError::UnsatisfiedConstrain { .. }
+                | OpcodeResolutionError::IndexOutOfBounds { .. }
+                | OpcodeResolutionError::InvalidInputBitSize { .. }
+                | OpcodeResolutionError::BrilligFunctionFailed { .. } => {
+                    Some(call_stack.to_owned())
+                }
+                _ => None,
+            };
+            ExecutionError::SolvingError(error, call_stack)
+        }
+    }
 }

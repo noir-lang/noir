@@ -7,7 +7,11 @@ comptime global FOO: Field = foo();
 // is evaluated before loop unrolling.
 comptime fn foo() -> Field {
     let mut three = 3;
-    if three == 3 { 5 } else { 6 }
+    if three == 3 {
+        5
+    } else {
+        6
+    }
 }
 
 #[test]

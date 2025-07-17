@@ -1,10 +1,11 @@
 use crate::errors::CliError;
 
-use super::{init_cmd::initialize_project, NargoConfig};
+use super::{NargoConfig, init_cmd::initialize_project};
 use clap::Args;
 use nargo::package::{CrateName, PackageType};
 use std::path::PathBuf;
 
+#[allow(rustdoc::broken_intra_doc_links)]
 /// Create a Noir project in a new directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct NewCommand {
@@ -39,7 +40,7 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
         Some(name) => name,
         None => {
             let name = args.path.file_name().unwrap().to_str().unwrap();
-            name.parse().map_err(|_| CliError::InvalidPackageName(name.into()))?
+            name.parse().map_err(CliError::InvalidPackageName)?
         }
     };
     let package_type = if args.lib {
@@ -49,6 +50,5 @@ pub(crate) fn run(args: NewCommand, config: NargoConfig) -> Result<(), CliError>
     } else {
         PackageType::Binary
     };
-    initialize_project(package_dir, package_name, package_type);
-    Ok(())
+    initialize_project(package_dir, package_name, package_type)
 }

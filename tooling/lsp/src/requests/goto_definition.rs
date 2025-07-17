@@ -2,9 +2,10 @@ use std::future::{self, Future};
 
 use crate::attribute_reference_finder::AttributeReferenceFinder;
 use crate::utils;
-use crate::{types::GotoDefinitionResult, LspState};
+use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
+use async_lsp::lsp_types;
 use fm::PathString;
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
@@ -14,7 +15,7 @@ use super::{process_request, to_lsp_location};
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
     let result = on_goto_definition_inner(state, params, false);
     future::ready(result)
 }
@@ -22,7 +23,7 @@ pub(crate) fn on_goto_definition_request(
 pub(crate) fn on_goto_type_definition_request(
     state: &mut LspState,
     params: GotoTypeDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> {
+) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
     let result = on_goto_definition_inner(state, params, true);
     future::ready(result)
 }
@@ -40,7 +41,7 @@ fn on_goto_definition_inner(
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = AttributeReferenceFinder::new(
                     file_id,
@@ -76,7 +77,7 @@ mod goto_definition_tests {
     use std::panic;
 
     use crate::test_utils::{self, search_in_file};
-    use lsp_types::{Position, Range};
+    use async_lsp::lsp_types::{Position, Range};
     use tokio::test;
 
     use super::*;

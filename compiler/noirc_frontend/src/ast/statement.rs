@@ -1,10 +1,9 @@
 use std::fmt::Display;
-use std::sync::atomic::{AtomicU32, Ordering};
 
-use acvm::acir::AcirField;
 use acvm::FieldElement;
+use acvm::acir::AcirField;
 use iter_extended::vecmap;
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Located, Location, Span};
 
 use super::{
     BinaryOpKind, BlockExpression, ConstructorExpression, Expression, ExpressionKind,
@@ -13,12 +12,12 @@ use super::{
 };
 use crate::ast::UnresolvedTypeData;
 use crate::elaborator::types::SELF_TYPE_NAME;
-use crate::lexer::token::SpannedToken;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
 use crate::parser::{ParserError, ParserErrorReason};
-use crate::token::{SecondaryAttribute, Token};
+use crate::token::{LocatedToken, SecondaryAttribute, Token};
 
 /// This is used when an identifier fails to parse in the parser.
 /// Instead of failing the parse, we can often recover using this
@@ -27,10 +26,13 @@ use crate::token::{SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
+/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+pub const WILDCARD_TYPE: &str = "_";
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Statement {
     pub kind: StatementKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 /// Ast node for statements in noir. Statements are always within a block { }
@@ -39,10 +41,11 @@ pub struct Statement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
-    Constrain(ConstrainStatement),
     Expression(Expression),
     Assign(AssignStatement),
     For(ForLoopStatement),
+    Loop(Expression, Location /* loop keyword location */),
+    While(WhileStatement),
     Break,
     Continue,
     /// This statement should be executed at compile-time
@@ -62,12 +65,30 @@ impl Statement {
     pub fn add_semicolon(
         mut self,
         semi: Option<Token>,
-        span: Span,
+        location: Location,
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Self {
-        self.kind = self.kind.add_semicolon(semi, span, last_statement_in_block, emit_error);
+        self.kind = self.kind.add_semicolon(semi, location, last_statement_in_block, emit_error);
         self
+    }
+
+    /// Returns the innermost location that gives this statement its type.
+    pub fn type_location(&self) -> Location {
+        match &self.kind {
+            StatementKind::Expression(expression) => expression.type_location(),
+            StatementKind::Comptime(statement) => statement.type_location(),
+            StatementKind::Let(..)
+            | StatementKind::Assign(..)
+            | StatementKind::For(..)
+            | StatementKind::Loop(..)
+            | StatementKind::While(..)
+            | StatementKind::Break
+            | StatementKind::Continue
+            | StatementKind::Semi(..)
+            | StatementKind::Interned(..)
+            | StatementKind::Error => self.location,
+        }
     }
 }
 
@@ -75,34 +96,40 @@ impl StatementKind {
     pub fn add_semicolon(
         self,
         semi: Option<Token>,
-        span: Span,
+        location: Location,
         last_statement_in_block: bool,
         emit_error: &mut dyn FnMut(ParserError),
     ) -> Self {
         let missing_semicolon =
-            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, span);
+            ParserError::with_reason(ParserErrorReason::MissingSeparatingSemi, location);
 
         match self {
-            StatementKind::Let(_)
-            | StatementKind::Constrain(_)
-            | StatementKind::Assign(_)
+            StatementKind::Let(_) => {
+                // To match rust, a let statement always requires a semicolon, even at the end of a block
+                if semi.is_none() {
+                    let reason = ParserErrorReason::MissingSemicolonAfterLet;
+                    emit_error(ParserError::with_reason(reason, location));
+                }
+                self
+            }
+            StatementKind::Assign(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
             | StatementKind::Error => {
-                // To match rust, statements always require a semicolon, even at the end of a block
-                if semi.is_none() {
+                // These statements can omit the semicolon if they are the last statement in a block
+                if !last_statement_in_block && semi.is_none() {
                     emit_error(missing_semicolon);
                 }
                 self
             }
             StatementKind::Comptime(mut statement) => {
                 *statement =
-                    statement.add_semicolon(semi, span, last_statement_in_block, emit_error);
+                    statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
             }
-            // A semicolon on a for loop is optional and does nothing
-            StatementKind::For(_) => self,
+            // A semicolon on a for loop, loop or while is optional and does nothing
+            StatementKind::For(_) | StatementKind::Loop(..) | StatementKind::While(..) => self,
 
             // No semicolon needed for a resolved statement
             StatementKind::Interned(_) => self,
@@ -114,6 +141,7 @@ impl StatementKind {
                     | (ExpressionKind::Unsafe(..), semi, _)
                     | (ExpressionKind::Interned(..), semi, _)
                     | (ExpressionKind::InternedStatement(..), semi, _)
+                    | (ExpressionKind::Match(..), semi, _)
                     | (ExpressionKind::If(_), semi, _) => {
                         if semi.is_some() {
                             StatementKind::Semi(expr)
@@ -133,12 +161,6 @@ impl StatementKind {
     }
 }
 
-impl Recoverable for StatementKind {
-    fn error(_: Span) -> Self {
-        StatementKind::Error
-    }
-}
-
 impl StatementKind {
     pub fn new_let(
         pattern: Pattern,
@@ -151,47 +173,25 @@ impl StatementKind {
             r#type,
             expression,
             comptime: false,
+            is_global_let: false,
             attributes,
         })
     }
-
-    /// Create a Statement::Assign value, desugaring any combined operators like += if needed.
-    pub fn assign(
-        lvalue: LValue,
-        operator: Token,
-        mut expression: Expression,
-        span: Span,
-    ) -> StatementKind {
-        // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-        // which is currently enforced by the restricted syntax of LValues.
-        if operator != Token::Assign {
-            let lvalue_expr = lvalue.as_expression();
-            let error_msg = "Token passed to Statement::assign is not a binary operator";
-
-            let infix = crate::ast::InfixExpression {
-                lhs: lvalue_expr,
-                operator: operator.try_into_binary_op(span).expect(error_msg),
-                rhs: expression,
-            };
-            expression = Expression::new(ExpressionKind::Infix(Box::new(infix)), span);
-        }
-
-        StatementKind::Assign(AssignStatement { lvalue, expression })
-    }
 }
 
-#[derive(Eq, Debug, Clone, Default)]
-pub struct Ident(pub Spanned<String>);
+#[derive(Eq, Debug, Clone)]
+pub struct Ident(Located<String>);
 
 impl Ident {
-    pub fn is_self_type_name(&self) -> bool {
-        self.0.contents == SELF_TYPE_NAME
+    /// Gets the underlying identifier without its location.
+    pub fn identifier(&self) -> &str {
+        &self.0.contents
     }
 }
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
-        self.0.contents == other.0.contents
+        self.as_str() == other.as_str()
     }
 }
 
@@ -203,37 +203,37 @@ impl PartialOrd for Ident {
 
 impl Ord for Ident {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.contents.cmp(&other.0.contents)
+        self.as_str().cmp(other.as_str())
     }
 }
 
 impl PartialEq<str> for Ident {
     fn eq(&self, other: &str) -> bool {
-        self.0.contents == other
+        self.as_str() == other
     }
 }
 
 impl std::hash::Hash for Ident {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.contents.hash(state);
+        self.as_str().hash(state);
     }
 }
 
 impl Display for Ident {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.contents.fmt(f)
+        self.as_str().fmt(f)
     }
 }
 
-impl From<Spanned<String>> for Ident {
-    fn from(a: Spanned<String>) -> Ident {
+impl From<Located<String>> for Ident {
+    fn from(a: Located<String>) -> Ident {
         Ident(a)
     }
 }
 
 impl From<String> for Ident {
     fn from(a: String) -> Ident {
-        Spanned::from_position(Default::default(), Default::default(), a).into()
+        Located::from(Location::dummy(), a).into()
     }
 }
 impl From<&str> for Ident {
@@ -242,57 +242,53 @@ impl From<&str> for Ident {
     }
 }
 
-impl From<SpannedToken> for Ident {
-    fn from(st: SpannedToken) -> Ident {
-        let spanned_str = Spanned::from(st.to_span(), st.token().to_string());
-        Ident(spanned_str)
+impl From<LocatedToken> for Ident {
+    fn from(lt: LocatedToken) -> Ident {
+        let located_str = Located::from(lt.location(), lt.token().to_string());
+        Ident(located_str)
     }
 }
 
 impl From<Ident> for Expression {
     fn from(i: Ident) -> Expression {
-        Expression {
-            span: i.0.span(),
-            kind: ExpressionKind::Variable(Path {
-                span: i.span(),
-                segments: vec![PathSegment::from(i)],
-                kind: PathKind::Plain,
-            }),
-        }
+        let location = i.location();
+        let kind = ExpressionKind::Variable(Path::plain(vec![PathSegment::from(i)], location));
+        Expression { location, kind }
     }
 }
 
 impl Ident {
+    pub fn new(text: String, location: Location) -> Ident {
+        Ident(Located::from(location, text))
+    }
+
+    pub fn is_self_type_name(&self) -> bool {
+        self.as_str() == SELF_TYPE_NAME
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.as_str().is_empty()
+    }
+
+    pub fn location(&self) -> Location {
+        self.0.location()
+    }
+
     pub fn span(&self) -> Span {
         self.0.span()
     }
 
-    pub fn from_token(token: Token, span: Span) -> Ident {
-        Ident::from(SpannedToken::new(token, span))
+    pub fn as_str(&self) -> &str {
+        &self.0.contents
     }
 
-    pub fn new(text: String, span: Span) -> Ident {
-        Ident(Spanned::from(span, text))
+    pub fn as_string(&self) -> &String {
+        &self.0.contents
     }
-}
 
-impl Recoverable for Ident {
-    fn error(span: Span) -> Self {
-        Ident(Spanned::from(span, ERROR_IDENT.to_owned()))
+    pub fn into_string(self) -> String {
+        self.0.contents
     }
-}
-
-impl<T> Recoverable for Vec<T> {
-    fn error(_: Span) -> Self {
-        vec![]
-    }
-}
-
-/// Trait for recoverable nodes during parsing.
-/// This is similar to Default but is expected
-/// to return an Error node of the appropriate type.
-pub trait Recoverable {
-    fn error(span: Span) -> Self;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -300,6 +296,7 @@ pub struct ModuleDeclaration {
     pub visibility: ItemVisibility,
     pub ident: Ident,
     pub outer_attributes: Vec<SecondaryAttribute>,
+    pub has_semicolon: bool,
 }
 
 impl std::fmt::Display for ModuleDeclaration {
@@ -321,13 +318,15 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct UseTree {
     pub prefix: Path,
     pub kind: UseTreeKind,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl Display for UseTree {
@@ -375,7 +374,7 @@ impl UseTree {
         match self.kind {
             UseTreeKind::Path(name, alias) => {
                 // Desugar `use foo::{self}` to `use foo`
-                let path = if name.0.contents == "self" { prefix } else { prefix.join(name) };
+                let path = if name.as_str() == "self" { prefix } else { prefix.join(name) };
                 vec![ImportStatement { visibility, path, alias }]
             }
             UseTreeKind::List(trees) => {
@@ -384,6 +383,12 @@ impl UseTree {
             }
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct UnsafeExpression {
+    pub block: BlockExpression,
+    pub unsafe_keyword_location: Location,
 }
 
 /// A special kind of path in the form `<MyType as Trait>::ident`.
@@ -411,17 +416,20 @@ pub struct TypePath {
     pub turbofish: Option<GenericTypeArgs>,
 }
 
-// Note: Path deliberately doesn't implement Recoverable.
-// No matter which default value we could give in Recoverable::error,
-// it would most likely cause further errors during name resolution
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct Path {
     pub segments: Vec<PathSegment>,
     pub kind: PathKind,
-    pub span: Span,
+    pub location: Location,
+    // The location of `kind` (this is the same as `location` for plain kinds)
+    pub kind_location: Location,
 }
 
 impl Path {
+    pub fn plain(segments: Vec<PathSegment>, location: Location) -> Self {
+        Self { segments, location, kind: PathKind::Plain, kind_location: location }
+    }
+
     pub fn pop(&mut self) -> PathSegment {
         self.segments.pop().unwrap()
     }
@@ -432,17 +440,18 @@ impl Path {
     }
 
     /// Construct a PathKind::Plain from this single
-    pub fn from_single(name: String, span: Span) -> Path {
-        let segment = Ident::from(Spanned::from(span, name));
+    pub fn from_single(name: String, location: Location) -> Path {
+        let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
     pub fn from_ident(name: Ident) -> Path {
-        Path { span: name.span(), segments: vec![PathSegment::from(name)], kind: PathKind::Plain }
+        let location = name.location();
+        Path::plain(vec![PathSegment::from(name)], location)
     }
 
     pub fn span(&self) -> Span {
-        self.span
+        self.location.span
     }
 
     pub fn last_segment(&self) -> PathSegment {
@@ -455,12 +464,12 @@ impl Path {
     }
 
     pub fn first_name(&self) -> Option<&str> {
-        self.segments.first().map(|segment| segment.ident.0.contents.as_str())
+        self.segments.first().map(|segment| segment.ident.as_str())
     }
 
     pub fn last_name(&self) -> &str {
         assert!(!self.segments.is_empty());
-        &self.segments.last().unwrap().ident.0.contents
+        self.segments.last().unwrap().ident.as_str()
     }
 
     pub fn is_ident(&self) -> bool {
@@ -476,34 +485,12 @@ impl Path {
         self.segments.first().map(|segment| &segment.ident)
     }
 
-    pub fn to_ident(&self) -> Option<Ident> {
-        if !self.is_ident() {
-            return None;
-        }
-        self.segments.first().cloned().map(|segment| segment.ident)
+    pub(crate) fn is_wildcard(&self) -> bool {
+        if let Some(ident) = self.as_ident() { ident.as_str() == WILDCARD_TYPE } else { false }
     }
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
-    }
-
-    pub fn as_string(&self) -> String {
-        let mut string = String::new();
-
-        let mut segments = self.segments.iter();
-        match segments.next() {
-            None => panic!("empty segment"),
-            Some(seg) => {
-                string.push_str(&seg.ident.0.contents);
-            }
-        }
-
-        for segment in segments {
-            string.push_str("::");
-            string.push_str(&segment.ident.0.contents);
-        }
-
-        string
     }
 }
 
@@ -511,25 +498,35 @@ impl Path {
 pub struct PathSegment {
     pub ident: Ident,
     pub generics: Option<Vec<UnresolvedType>>,
-    pub span: Span,
+    pub location: Location,
 }
 
 impl PathSegment {
     /// Returns the span where turbofish happen. For example:
     ///
+    /// ```noir
     ///    foo::<T>
     ///       ~^^^^
+    /// ```
     ///
     /// Returns an empty span at the end of `foo` if there's no turbofish.
     pub fn turbofish_span(&self) -> Span {
-        Span::from(self.ident.span().end()..self.span.end())
+        if self.ident.location().file == self.location.file {
+            Span::from(self.ident.span().end()..self.location.span.end())
+        } else {
+            self.location.span
+        }
+    }
+
+    pub fn turbofish_location(&self) -> Location {
+        Location::new(self.turbofish_span(), self.location.file)
     }
 }
 
 impl From<Ident> for PathSegment {
     fn from(ident: Ident) -> PathSegment {
-        let span = ident.span();
-        PathSegment { ident, generics: None, span }
+        let location = ident.location();
+        PathSegment { ident, generics: None, location }
     }
 }
 
@@ -555,6 +552,7 @@ pub struct LetStatement {
 
     // True if this should only be run during compile-time
     pub comptime: bool,
+    pub is_global_let: bool,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -567,84 +565,38 @@ pub struct AssignStatement {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
     Ident(Ident),
-    MemberAccess { object: Box<LValue>, field_name: Ident, span: Span },
-    Index { array: Box<LValue>, index: Expression, span: Span },
-    Dereference(Box<LValue>, Span),
-    Interned(InternedExpressionKind, Span),
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct ConstrainStatement {
-    pub kind: ConstrainKind,
-    pub arguments: Vec<Expression>,
-    pub span: Span,
-}
-
-impl Display for ConstrainStatement {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            ConstrainKind::Assert | ConstrainKind::AssertEq => write!(
-                f,
-                "{}({})",
-                self.kind,
-                vecmap(&self.arguments, |arg| arg.to_string()).join(", ")
-            ),
-            ConstrainKind::Constrain => {
-                write!(f, "constrain {}", &self.arguments[0])
-            }
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum ConstrainKind {
-    Assert,
-    AssertEq,
-    Constrain,
-}
-
-impl ConstrainKind {
-    pub fn required_arguments_count(&self) -> usize {
-        match self {
-            ConstrainKind::Assert | ConstrainKind::Constrain => 1,
-            ConstrainKind::AssertEq => 2,
-        }
-    }
-}
-
-impl Display for ConstrainKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ConstrainKind::Assert => write!(f, "assert"),
-            ConstrainKind::AssertEq => write!(f, "assert_eq"),
-            ConstrainKind::Constrain => write!(f, "constrain"),
-        }
-    }
+    MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    Index { array: Box<LValue>, index: Expression, location: Location },
+    Dereference(Box<LValue>, Location),
+    Interned(InternedExpressionKind, Location),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Pattern {
     Identifier(Ident),
-    Mutable(Box<Pattern>, Span, /*is_synthesized*/ bool),
-    Tuple(Vec<Pattern>, Span),
-    Struct(Path, Vec<(Ident, Pattern)>, Span),
-    Interned(InternedPattern, Span),
+    Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
+    Tuple(Vec<Pattern>, Location),
+    Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Parenthesized(Box<Pattern>, Location),
+    Interned(InternedPattern, Location),
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
+    pub fn location(&self) -> Location {
+        match self {
+            Pattern::Identifier(ident) => ident.location(),
+            Pattern::Mutable(_, location, _)
+            | Pattern::Tuple(_, location)
+            | Pattern::Struct(_, _, location)
+            | Pattern::Parenthesized(_, location)
+            | Pattern::Interned(_, location) => *location,
+        }
     }
 
     pub fn span(&self) -> Span {
-        match self {
-            Pattern::Identifier(ident) => ident.span(),
-            Pattern::Mutable(_, span, _)
-            | Pattern::Tuple(_, span)
-            | Pattern::Struct(_, _, span)
-            | Pattern::Interned(_, span) => *span,
-        }
+        self.location().span
     }
+
     pub fn name_ident(&self) -> &Ident {
         match self {
             Pattern::Identifier(name_ident) => name_ident,
@@ -657,17 +609,17 @@ impl Pattern {
         match self {
             Pattern::Identifier(ident) => Some(Expression {
                 kind: ExpressionKind::Variable(Path::from_ident(ident.clone())),
-                span: ident.span(),
+                location: ident.location(),
             }),
             Pattern::Mutable(_, _, _) => None,
-            Pattern::Tuple(patterns, span) => {
+            Pattern::Tuple(patterns, location) => {
                 let mut expressions = Vec::new();
                 for pattern in patterns {
                     expressions.push(pattern.try_as_expression(interner)?);
                 }
-                Some(Expression { kind: ExpressionKind::Tuple(expressions), span: *span })
+                Some(Expression { kind: ExpressionKind::Tuple(expressions), location: *location })
             }
-            Pattern::Struct(path, patterns, span) => {
+            Pattern::Struct(path, patterns, location) => {
                 let mut fields = Vec::new();
                 for (field, pattern) in patterns {
                     let expression = pattern.try_as_expression(interner)?;
@@ -677,19 +629,13 @@ impl Pattern {
                     kind: ExpressionKind::Constructor(Box::new(ConstructorExpression {
                         typ: UnresolvedType::from_path(path.clone()),
                         fields,
-                        struct_type: None,
                     })),
-                    span: *span,
+                    location: *location,
                 })
             }
+            Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
-    }
-}
-
-impl Recoverable for Pattern {
-    fn error(span: Span) -> Self {
-        Pattern::Identifier(Ident::error(span))
     }
 }
 
@@ -697,13 +643,13 @@ impl LValue {
     pub fn as_expression(&self) -> Expression {
         let kind = match self {
             LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
-            LValue::MemberAccess { object, field_name, span: _ } => {
+            LValue::MemberAccess { object, field_name, location: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
                     rhs: field_name.clone(),
                 }))
             }
-            LValue::Index { array, index, span: _ } => {
+            LValue::Index { array, index, location: _ } => {
                 ExpressionKind::Index(Box::new(IndexExpression {
                     collection: array.as_expression(),
                     index: index.clone(),
@@ -717,51 +663,57 @@ impl LValue {
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
         };
-        let span = self.span();
-        Expression::new(kind, span)
+        Expression::new(kind, self.location())
     }
 
     pub fn from_expression(expr: Expression) -> Option<LValue> {
-        LValue::from_expression_kind(expr.kind, expr.span)
+        LValue::from_expression_kind(expr.kind, expr.location)
     }
 
-    pub fn from_expression_kind(expr: ExpressionKind, span: Span) -> Option<LValue> {
+    pub fn from_expression_kind(expr: ExpressionKind, location: Location) -> Option<LValue> {
         match expr {
             ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
             ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
                 object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
-                span,
+                location,
             }),
             ExpressionKind::Index(index) => Some(LValue::Index {
                 array: Box::new(LValue::from_expression(index.collection)?),
                 index: index.index,
-                span,
+                location,
             }),
             ExpressionKind::Prefix(prefix) => {
                 if matches!(
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(Box::new(LValue::from_expression(prefix.rhs)?), span))
+                    Some(LValue::Dereference(
+                        Box::new(LValue::from_expression(prefix.rhs)?),
+                        location,
+                    ))
                 } else {
                     None
                 }
             }
             ExpressionKind::Parenthesized(expr) => LValue::from_expression(*expr),
-            ExpressionKind::Interned(id) => Some(LValue::Interned(id, span)),
+            ExpressionKind::Interned(id) => Some(LValue::Interned(id, location)),
             _ => None,
         }
     }
 
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            LValue::Ident(ident) => ident.span(),
-            LValue::MemberAccess { span, .. }
-            | LValue::Index { span, .. }
-            | LValue::Dereference(_, span) => *span,
-            LValue::Interned(_, span) => *span,
+            LValue::Ident(ident) => ident.location(),
+            LValue::MemberAccess { location, .. }
+            | LValue::Index { location, .. }
+            | LValue::Dereference(_, location)
+            | LValue::Interned(_, location) => *location,
         }
+    }
+
+    pub fn span(&self) -> Span {
+        self.location().span
     }
 }
 
@@ -773,19 +725,22 @@ pub struct ForBounds {
 }
 
 impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
     /// desugaring `start..=end` into `start..end+1` if necessary.
     ///
     /// Returns the `start` and `end` expressions.
     pub(crate) fn into_half_open(self) -> (Expression, Expression) {
         let end = if self.inclusive {
-            let end_span = self.end.span;
+            let end_location = self.end.location;
             let end = ExpressionKind::Infix(Box::new(InfixExpression {
                 lhs: self.end,
-                operator: Spanned::from(end_span, BinaryOpKind::Add),
-                rhs: Expression::new(ExpressionKind::integer(FieldElement::from(1u32)), end_span),
+                operator: Located::from(end_location, BinaryOpKind::Add),
+                rhs: Expression::new(
+                    ExpressionKind::integer(FieldElement::from(1u32), None),
+                    end_location,
+                ),
             }));
-            Expression::new(end, end_span)
+            Expression::new(end, end_location)
         } else {
             self.end
         };
@@ -806,19 +761,10 @@ impl ForRange {
         Self::Range(ForBounds { start, end, inclusive: false })
     }
 
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
-    }
-
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
     /// into the following if needed:
     ///
+    /// ```text
     /// {
     ///     let fresh1 = array;
     ///     for fresh2 in 0 .. std::array::len(fresh1) {
@@ -826,111 +772,107 @@ impl ForRange {
     ///         ...
     ///     }
     /// }
+    /// ````
     pub(crate) fn into_for(
         self,
         identifier: Ident,
         block: Expression,
-        for_loop_span: Span,
+        for_loop_location: Location,
     ) -> Statement {
-        /// Counter used to generate unique names when desugaring
-        /// code in the parser requires the creation of fresh variables.
-        /// The parser is stateless so this is a static global instead.
-        static UNIQUE_NAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+        // Counter used to generate unique names when desugaring
+        // code in the parser requires the creation of fresh variables.
+        let mut unique_name_counter: u32 = 0;
 
         match self {
             ForRange::Range(..) => {
                 unreachable!()
             }
             ForRange::Array(array) => {
-                let array_span = array.span;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
-                let start_range = Expression::new(start_range, array_span);
+                let array_location = array.location;
+                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = Expression::new(start_range, array_location);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
+                unique_name_counter += 1;
                 let array_name = format!("$i{next_unique_id}");
-                let array_span = array.span;
-                let array_ident = Ident::new(array_name, array_span);
+                let array_location = array.location;
+                let array_ident = Ident::new(array_name, array_location);
 
                 // let fresh1 = array;
                 let let_array = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(array_ident.clone()),
-                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        UnresolvedTypeData::Unspecified.with_dummy_location(),
                         array,
                         vec![],
                     ),
-                    span: array_span,
+                    location: array_location,
                 };
 
                 // array.len()
                 let segments = vec![PathSegment::from(array_ident)];
-                let array_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    span: array_span,
-                });
+                let array_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let end_range = ExpressionKind::MethodCall(Box::new(MethodCallExpression {
-                    object: Expression::new(array_ident.clone(), array_span),
-                    method_name: Ident::new("len".to_string(), array_span),
+                    object: Expression::new(array_ident.clone(), array_location),
+                    method_name: Ident::new("len".to_string(), array_location),
                     generics: None,
                     is_macro_call: false,
                     arguments: vec![],
                 }));
-                let end_range = Expression::new(end_range, array_span);
+                let end_range = Expression::new(end_range, array_location);
 
-                let next_unique_id = UNIQUE_NAME_COUNTER.fetch_add(1, Ordering::Relaxed);
+                let next_unique_id = unique_name_counter;
                 let index_name = format!("$i{next_unique_id}");
-                let fresh_identifier = Ident::new(index_name.clone(), array_span);
+                let fresh_identifier = Ident::new(index_name.clone(), array_location);
 
                 // array[i]
-                let segments = vec![PathSegment::from(Ident::new(index_name, array_span))];
-                let index_ident = ExpressionKind::Variable(Path {
-                    segments,
-                    kind: PathKind::Plain,
-                    span: array_span,
-                });
+                let segments = vec![PathSegment::from(Ident::new(index_name, array_location))];
+                let index_ident = ExpressionKind::Variable(Path::plain(segments, array_location));
 
                 let loop_element = ExpressionKind::Index(Box::new(IndexExpression {
-                    collection: Expression::new(array_ident, array_span),
-                    index: Expression::new(index_ident, array_span),
+                    collection: Expression::new(array_ident, array_location),
+                    index: Expression::new(index_ident, array_location),
                 }));
 
                 // let elem = array[i];
                 let let_elem = Statement {
                     kind: StatementKind::new_let(
                         Pattern::Identifier(identifier),
-                        UnresolvedTypeData::Unspecified.with_span(Default::default()),
-                        Expression::new(loop_element, array_span),
+                        UnresolvedTypeData::Unspecified.with_dummy_location(),
+                        Expression::new(loop_element, array_location),
                         vec![],
                     ),
-                    span: array_span,
+                    location: array_location,
                 };
 
-                let block_span = block.span;
+                let block_location = block.location;
                 let new_block = BlockExpression {
                     statements: vec![
                         let_elem,
-                        Statement { kind: StatementKind::Expression(block), span: block_span },
+                        Statement {
+                            kind: StatementKind::Expression(block),
+                            location: block_location,
+                        },
                     ],
                 };
-                let new_block = Expression::new(ExpressionKind::Block(new_block), block_span);
+                let new_block = Expression::new(ExpressionKind::Block(new_block), block_location);
                 let for_loop = Statement {
                     kind: StatementKind::For(ForLoopStatement {
                         identifier: fresh_identifier,
                         range: ForRange::range(start_range, end_range),
                         block: new_block,
-                        span: for_loop_span,
+                        location: for_loop_location,
                     }),
-                    span: for_loop_span,
+                    location: for_loop_location,
                 };
 
                 let block = ExpressionKind::Block(BlockExpression {
                     statements: vec![let_array, for_loop],
                 });
                 Statement {
-                    kind: StatementKind::Expression(Expression::new(block, for_loop_span)),
-                    span: for_loop_span,
+                    kind: StatementKind::Expression(Expression::new(block, for_loop_location)),
+                    location: for_loop_location,
                 }
             }
         }
@@ -942,17 +884,27 @@ pub struct ForLoopStatement {
     pub identifier: Ident,
     pub range: ForRange,
     pub block: Expression,
-    pub span: Span,
+    pub location: Location,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct WhileStatement {
+    pub condition: Expression,
+    pub body: Expression,
+    pub while_keyword_location: Location,
 }
 
 impl Display for StatementKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
-            StatementKind::Constrain(constrain) => constrain.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
+            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
+            StatementKind::While(while_) => {
+                write!(f, "while {} {}", while_.condition, while_.body)
+            }
             StatementKind::Break => write!(f, "break"),
             StatementKind::Continue => write!(f, "continue"),
             StatementKind::Comptime(statement) => write!(f, "comptime {}", statement.kind),
@@ -983,10 +935,10 @@ impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             LValue::Ident(ident) => ident.fmt(f),
-            LValue::MemberAccess { object, field_name, span: _ } => {
+            LValue::MemberAccess { object, field_name, location: _ } => {
                 write!(f, "{object}.{field_name}")
             }
-            LValue::Index { array, index, span: _ } => write!(f, "{array}[{index}]"),
+            LValue::Index { array, index, location: _ } => write!(f, "{array}[{index}]"),
             LValue::Dereference(lvalue, _span) => write!(f, "*{lvalue}"),
             LValue::Interned(_, _) => write!(f, "?Interned"),
         }
@@ -1011,6 +963,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
@@ -1032,11 +985,18 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                write!(f, "({pattern})")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

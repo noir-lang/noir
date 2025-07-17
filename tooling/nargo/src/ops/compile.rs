@@ -1,9 +1,10 @@
 use fm::FileManager;
 use noirc_driver::{
-    link_to_debug_crate, CompilationResult, CompileOptions, CompiledContract, CompiledProgram,
+    CompilationResult, CompileOptions, CompiledContract, CompiledProgram, CrateId, check_crate,
+    link_to_debug_crate,
 };
 use noirc_frontend::debug::DebugInstrumenter;
-use noirc_frontend::hir::ParsedFiles;
+use noirc_frontend::hir::{Context, ParsedFiles};
 
 use crate::errors::CompileError;
 use crate::prepare_package;
@@ -75,6 +76,7 @@ pub fn compile_program(
     )
 }
 
+#[tracing::instrument(level = "trace", name = "compile_program" skip_all, fields(package = package.name.to_string()))]
 pub fn compile_program_with_debug_instrumenter(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -85,6 +87,10 @@ pub fn compile_program_with_debug_instrumenter(
     debug_instrumenter: DebugInstrumenter,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    if compile_options.disable_comptime_printing {
+        context.disable_comptime_printing();
+    }
+
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
     context.package_build_path = workspace.package_build_path(package);
@@ -92,6 +98,7 @@ pub fn compile_program_with_debug_instrumenter(
     noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
 }
 
+#[tracing::instrument(level = "trace", skip_all, fields(package_name = package.name.to_string()))]
 pub fn compile_contract(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
@@ -118,11 +125,7 @@ pub fn collect_errors<T>(results: Vec<CompilationResult<T>>) -> CompilationResul
         }
     }
 
-    if errors.is_empty() {
-        Ok((artifacts, warnings))
-    } else {
-        Err(errors)
-    }
+    if errors.is_empty() { Ok((artifacts, warnings)) } else { Err(errors) }
 }
 
 pub fn report_errors<T>(
@@ -148,4 +151,15 @@ pub fn report_errors<T>(
     );
 
     Ok(t)
+}
+
+/// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
+/// and errors found.
+pub fn check_crate_and_report_errors(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+) -> Result<(), CompileError> {
+    let result = check_crate(context, crate_id, options);
+    report_errors(result, &context.file_manager, options.deny_warnings, options.silence_warnings)
 }

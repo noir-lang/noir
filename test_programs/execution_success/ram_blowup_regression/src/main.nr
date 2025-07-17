@@ -1,4 +1,4 @@
-global TX_EFFECTS_HASH_INPUT_FIELDS = 256;
+global TX_EFFECTS_HASH_INPUT_FIELDS: u32 = 256;
 
 // Convert a 32 byte array to a field element by truncating the final byte
 pub fn field_from_bytes_32_trunc(bytes32: [u8; 32]) -> Field {
@@ -20,9 +20,9 @@ pub fn field_from_bytes_32_trunc(bytes32: [u8; 32]) -> Field {
     low + high * v
 }
 
-pub fn sha256_to_field<let N: u32>(bytes_to_hash: [u8; N]) -> Field {
-    let sha256_hashed = std::hash::sha256(bytes_to_hash);
-    let hash_in_a_field = field_from_bytes_32_trunc(sha256_hashed);
+pub fn blake2s_to_field<let N: u32>(bytes_to_hash: [u8; N]) -> Field {
+    let blake2s_hashed = std::hash::blake2s(bytes_to_hash);
+    let hash_in_a_field = field_from_bytes_32_trunc(blake2s_hashed);
 
     hash_in_a_field
 }
@@ -36,6 +36,6 @@ fn main(tx_effects_hash_input: [Field; TX_EFFECTS_HASH_INPUT_FIELDS]) -> pub Fie
         }
     }
 
-    let sha_digest = sha256_to_field(hash_input_flattened);
-    sha_digest
+    let blake2s_digest = blake2s_to_field(hash_input_flattened);
+    blake2s_digest
 }

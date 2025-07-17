@@ -1,13 +1,14 @@
-use crate::ast::{Expression, IntegerBitSize, ItemVisibility};
+use crate::ast::{Expression, ItemVisibility, UnresolvedType};
 use crate::lexer::errors::LexerErrorKind;
 use crate::lexer::token::Token;
 use crate::token::TokenKind;
 use small_ord_set::SmallOrdSet;
 use thiserror::Error;
 
+use crate::elaborator::UnstableFeature;
 use iter_extended::vecmap;
-use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Span;
+use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 
 use super::labels::ParsingRuleLabel;
 
@@ -15,14 +16,12 @@ use super::labels::ParsingRuleLabel;
 pub enum ParserErrorReason {
     #[error("Unexpected `;`")]
     UnexpectedSemicolon,
-    #[error("Unexpected `,`")]
-    UnexpectedComma,
     #[error("Expected a `{token}` separating these two {items}")]
     ExpectedTokenSeparatingTwoItems { token: Token, items: &'static str },
+    #[error("Expected `mut` after `&`, found `{found}`")]
+    ExpectedMutAfterAmpersand { found: Token },
     #[error("Invalid left-hand side of assignment")]
     InvalidLeftHandSideOfAssignment,
-    #[error("Expected trait, found {found}")]
-    ExpectedTrait { found: String },
     #[error("Visibility `{visibility}` is not followed by an item")]
     VisibilityNotFollowedByAnItem { visibility: ItemVisibility },
     #[error("`unconstrained` is not followed by an item")]
@@ -43,6 +42,8 @@ pub enum ParserErrorReason {
     InvalidPattern,
     #[error("Documentation comment does not document anything")]
     DocCommentDoesNotDocumentAnything,
+    #[error("Documentation comments cannot be applied to function parameters")]
+    DocCommentCannotBeAppliedToFunctionParameters,
 
     #[error("Missing type for function parameter")]
     MissingTypeForFunctionParameter,
@@ -55,55 +56,63 @@ pub enum ParserErrorReason {
 
     #[error("Unexpected '{0}', expected a field name or number")]
     ExpectedFieldName(Token),
-    #[error("Expected a pattern but found a type - {0}")]
-    ExpectedPatternButFoundType(Token),
     #[error("Expected a ; separating these two statements")]
     MissingSeparatingSemi,
+    #[error("Expected a ; after `let` statement")]
+    MissingSemicolonAfterLet,
     #[error("constrain keyword is deprecated")]
     ConstrainDeprecated,
-    #[error("Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context.")]
+    #[error(
+        "Invalid type expression: '{0}'. Only unsigned integer constants up to `u32`, globals, generics, +, -, *, /, and % may be used in this context."
+    )]
     InvalidTypeExpression(Expression),
     #[error("Early 'return' is unsupported")]
     EarlyReturn,
-    #[error("Patterns aren't allowed in a trait's function declarations")]
-    PatternInTraitFunctionParameter,
-    #[error("Patterns aren't allowed in a trait impl's associated constants")]
-    PatternInAssociatedConstant,
+    #[error("Visibility is ignored on a trait method")]
+    TraitVisibilityIgnored,
     #[error("Visibility is ignored on a trait impl method")]
     TraitImplVisibilityIgnored,
-    #[error("comptime keyword is deprecated")]
-    ComptimeDeprecated,
-    #[error("{0} are experimental and aren't fully supported yet")]
-    ExperimentalFeature(&'static str),
+    #[error("This requires the unstable feature '{0}' which is not enabled")]
+    ExperimentalFeature(UnstableFeature),
     #[error(
         "Multiple primary attributes found. Only one function attribute is allowed per function"
     )]
     MultipleFunctionAttributesFound,
-    #[error("A function attribute cannot be placed on a struct")]
-    NoFunctionAttributesAllowedOnStruct,
-    #[error("Assert statements can only accept string literals")]
-    AssertMessageNotString,
-    #[error("Integer bit size {0} isn't supported")]
-    InvalidBitSize(u32),
+    #[error("A function attribute cannot be placed on a struct or enum")]
+    NoFunctionAttributesAllowedOnType,
     #[error("{0}")]
     Lexer(LexerErrorKind),
-    #[error("The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`")]
-    ForbiddenNumericGenericType,
-    #[error("Invalid call data identifier, must be a number. E.g `call_data(0)`")]
-    InvalidCallDataIdentifier,
     #[error("Associated types are not allowed in paths")]
     AssociatedTypesNotAllowedInPaths,
     #[error("Associated types are not allowed on a method call")]
     AssociatedTypesNotAllowedInMethodCalls,
+    #[error("Empty trait alias")]
+    EmptyTraitAlias,
     #[error(
         "Wrong number of arguments for attribute `{}`. Expected {}, found {}",
         name,
-        if min == max { min.to_string() } else { format!("between {} and {}", min, max) },
+        if min == max { min.to_string() } else { format!("between {min} and {max}") },
         found
     )]
     WrongNumberOfAttributeArguments { name: String, min: usize, max: usize, found: usize },
     #[error("The `deprecated` attribute expects a string argument")]
     DeprecatedAttributeExpectsAStringArgument,
+    #[error("Unsafe block must have a safety comment above it")]
+    MissingSafetyComment,
+    #[error("Missing parameters for function definition")]
+    MissingParametersForFunctionDefinition,
+    #[error("Missing angle brackets surrounding type in associated item path")]
+    MissingAngleBrackets,
+    #[error("Expected value, found built-in type `{typ}`")]
+    ExpectedValueFoundBuiltInType { typ: UnresolvedType },
+    #[error("Logical and used instead of bitwise and")]
+    LogicalAnd,
+    #[error("Trait bounds are not allowed here")]
+    TraitBoundsNotAllowedHere,
+    #[error("Missing type for associated constant")]
+    MissingTypeForAssociatedConstant,
+    #[error("Associated trait constant default values are not supported")]
+    AssociatedTraitConstantDefaultValuesAreNotSupported,
 }
 
 /// Represents a parsing error, or a parsing error in the making.
@@ -124,42 +133,50 @@ pub struct ParserError {
     expected_labels: SmallOrdSet<[ParsingRuleLabel; 1]>,
     found: Token,
     reason: Option<ParserErrorReason>,
-    span: Span,
+    location: Location,
 }
 
 impl ParserError {
-    pub fn empty(found: Token, span: Span) -> ParserError {
+    pub fn empty(found: Token, location: Location) -> ParserError {
         ParserError {
             expected_tokens: SmallOrdSet::new(),
             expected_labels: SmallOrdSet::new(),
             found,
             reason: None,
-            span,
+            location,
         }
     }
 
-    pub fn expected_token(token: Token, found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_token(token: Token, found: Token, location: Location) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         error.expected_tokens.insert(token);
         error
     }
 
-    pub fn expected_one_of_tokens(tokens: &[Token], found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_one_of_tokens(
+        tokens: &[Token],
+        found: Token,
+        location: Location,
+    ) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         for token in tokens {
             error.expected_tokens.insert(token.clone());
         }
         error
     }
 
-    pub fn expected_label(label: ParsingRuleLabel, found: Token, span: Span) -> ParserError {
-        let mut error = ParserError::empty(found, span);
+    pub fn expected_label(
+        label: ParsingRuleLabel,
+        found: Token,
+        location: Location,
+    ) -> ParserError {
+        let mut error = ParserError::empty(found, location);
         error.expected_labels.insert(label);
         error
     }
 
-    pub fn with_reason(reason: ParserErrorReason, span: Span) -> ParserError {
-        let mut error = ParserError::empty(Token::EOF, span);
+    pub fn with_reason(reason: ParserErrorReason, location: Location) -> ParserError {
+        let mut error = ParserError::empty(Token::EOF, location);
         error.reason = Some(reason);
         error
     }
@@ -169,7 +186,11 @@ impl ParserError {
     }
 
     pub fn span(&self) -> Span {
-        self.span
+        self.location.span
+    }
+
+    pub fn location(&self) -> Location {
+        self.location
     }
 
     pub fn reason(&self) -> Option<&ParserErrorReason> {
@@ -177,7 +198,8 @@ impl ParserError {
     }
 
     pub fn is_warning(&self) -> bool {
-        matches!(self.reason(), Some(ParserErrorReason::ExperimentalFeature(_)))
+        let diagnostic: Diagnostic = self.into();
+        diagnostic.is_warning()
     }
 }
 
@@ -185,7 +207,7 @@ impl std::fmt::Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let token_to_string = |token: &Token| match token {
             Token::EOF => token.to_string(),
-            _ => format!("'{}'", token),
+            _ => format!("'{token}'"),
         };
 
         let reason_str: String = if self.reason.is_none() {
@@ -212,7 +234,7 @@ impl std::fmt::Display for ParserError {
         } else {
             let expected = expected.iter().map(ToString::to_string).collect::<Vec<_>>().join(", ");
 
-            write!(f, "Unexpected {:?}, expected one of {}{}", self.found, expected, reason_str)
+            write!(f, "Unexpected '{}', expected one of {}{}", self.found, expected, reason_str)
         }
     }
 }
@@ -225,45 +247,65 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                     let mut diagnostic = Diagnostic::simple_error(
                         "Use of deprecated keyword 'constrain'".into(),
                         "The 'constrain' keyword is deprecated. Please use the 'assert' function instead.".into(),
-                        error.span,
+                        error.location(),
                     );
                     diagnostic.deprecated = true;
                     diagnostic
                 }
-                ParserErrorReason::ComptimeDeprecated => {
-                    let mut diagnostic = Diagnostic::simple_warning(
-                        "Use of deprecated keyword 'comptime'".into(),
-                        "The 'comptime' keyword has been deprecated. It can be removed without affecting your program".into(),
-                        error.span,
-                    ) ;
-                    diagnostic.deprecated = true;
-                    diagnostic
+                ParserErrorReason::ExperimentalFeature(feature) => {
+                    let secondary = format!(
+                        "Pass -Z{feature} to nargo to enable this feature at your own risk."
+                    );
+                    Diagnostic::simple_error(reason.to_string(), secondary, error.location())
                 }
-                ParserErrorReason::InvalidBitSize(bit_size) => Diagnostic::simple_error(
-                    format!("Use of invalid bit size {}", bit_size),
-                    format!(
-                        "Allowed bit sizes for integers are {}",
-                        IntegerBitSize::allowed_sizes()
-                            .iter()
-                            .map(|n| n.to_string())
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ),
-                    error.span,
-                ),
-                ParserErrorReason::ExperimentalFeature(_) => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                ParserErrorReason::TraitVisibilityIgnored => {
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
                 ParserErrorReason::TraitImplVisibilityIgnored => {
-                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.span)
+                    Diagnostic::simple_warning(reason.to_string(), "".into(), error.location())
                 }
-                ParserErrorReason::ExpectedPatternButFoundType(ty) => Diagnostic::simple_error(
-                    format!("Expected a pattern but found a type - {ty}"),
-                    format!("{ty} is a type and cannot be used as a variable name"),
-                    error.span,
-                ),
                 ParserErrorReason::Lexer(error) => error.into(),
-                other => Diagnostic::simple_error(format!("{other}"), String::new(), error.span),
+                ParserErrorReason::ExpectedMutAfterAmpersand { found } => Diagnostic::simple_error(
+                    format!("Expected `mut` after `&`, found `{found}`"),
+                    "Noir doesn't have immutable references, only mutable references".to_string(),
+                    error.location(),
+                ),
+                ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
+                    "Unsafe block must have a safety comment above it".into(),
+                    "The comment must start with the \"Safety: \" word".into(),
+                    error.location(),
+                ),
+                ParserErrorReason::MissingParametersForFunctionDefinition => {
+                    Diagnostic::simple_error(
+                        "Missing parameters for function definition".into(),
+                        "Add a parameter list: `()`".into(),
+                        error.location(),
+                    )
+                }
+                ParserErrorReason::DocCommentDoesNotDocumentAnything => {
+                    let primary = "This doc comment doesn't document anything".to_string();
+                    let secondary = "Consider changing it to a regular `//` comment".to_string();
+                    Diagnostic::simple_warning(primary, secondary, error.location())
+                }
+                ParserErrorReason::MissingAngleBrackets => {
+                    let secondary = "Types that don't start with an identifier need to be surrounded with angle brackets: `<`, `>`".to_string();
+                    Diagnostic::simple_error(format!("{reason}"), secondary, error.location())
+                }
+                ParserErrorReason::LogicalAnd => {
+                    let primary = "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string();
+                    let secondary =
+                        "Try `&` instead, or use `if` only if you require short-circuiting"
+                            .to_string();
+                    Diagnostic::simple_error(primary, secondary, error.location)
+                }
+                ParserErrorReason::MissingTypeForAssociatedConstant => Diagnostic::simple_error(
+                    "Missing type for associated constant".to_string(),
+                    "Provide a type for the associated constant: `: u32`".to_string(),
+                    error.location,
+                ),
+                other => {
+                    Diagnostic::simple_error(format!("{other}"), String::new(), error.location())
+                }
             },
             None => {
                 if matches!(
@@ -272,10 +314,10 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ) {
                     let primary = "This doc comment doesn't document anything".to_string();
                     let secondary = "Consider changing it to a regular `//` comment".to_string();
-                    Diagnostic::simple_error(primary, secondary, error.span)
+                    Diagnostic::simple_warning(primary, secondary, error.location())
                 } else {
                     let primary = error.to_string();
-                    Diagnostic::simple_error(primary, String::new(), error.span)
+                    Diagnostic::simple_error(primary, String::new(), error.location())
                 }
             }
         }

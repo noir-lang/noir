@@ -1,12 +1,13 @@
 use std::{collections::BTreeMap, rc::Rc};
 
 use iter_extended::vecmap;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 
 use crate::{
+    NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
         BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
-        ItemVisibility, NoirFunction, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
+        ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
         UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
@@ -15,16 +16,22 @@ use crate::{
         traits::{ResolvedTraitBound, TraitFunction},
     },
     node_interner::{DependencyId, FuncId, NodeInterner, ReferenceId, TraitId},
-    ResolvedGeneric, Type, TypeBindings,
 };
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
-    pub fn collect_traits(&mut self, traits: &BTreeMap<TraitId, UnresolvedTrait>) {
+impl Elaborator<'_> {
+    pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
+            self.local_module = unresolved_trait.module_id;
+
             self.recover_generics(|this| {
                 this.current_trait = Some(*trait_id);
+
+                let the_trait = this.interner.get_trait(*trait_id);
+                let self_typevar = the_trait.self_type_typevar.clone();
+                let self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = Some(self_type.clone());
 
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
                 this.add_existing_generics(
@@ -32,26 +39,71 @@ impl<'context> Elaborator<'context> {
                     &resolved_generics,
                 );
 
+                let new_generics =
+                    this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+                let new_generics = vecmap(new_generics, |(generic, _bounds)| {
+                    // TODO: use `_bounds` variable above
+                    // See https://github.com/noir-lang/noir/issues/8601
+                    generic
+                });
+                this.generics.extend(new_generics);
+
                 let where_clause =
                     this.resolve_trait_constraints(&unresolved_trait.trait_def.where_clause);
+                this.remove_trait_constraints_from_scope(where_clause.iter());
+
+                let mut associated_type_bounds = rustc_hash::FxHashMap::default();
+                for item in &unresolved_trait.trait_def.items {
+                    if let TraitItem::Type { name, bounds } = &item.item {
+                        let resolved_bounds = this.resolve_trait_bounds(bounds);
+                        associated_type_bounds.insert(name.to_string(), resolved_bounds);
+                    }
+                }
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
                     this.generics.push(associated_type.clone());
                 }
 
-                let resolved_trait_bounds = this.resolve_trait_bounds(unresolved_trait);
+                let resolved_trait_bounds =
+                    this.resolve_trait_bounds(&unresolved_trait.trait_def.bounds);
                 for bound in &resolved_trait_bounds {
                     this.interner
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
                 }
 
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_trait_bounds(resolved_trait_bounds);
+                    trait_def.set_where_clause(where_clause);
+                    trait_def.set_visibility(unresolved_trait.trait_def.visibility);
+                    trait_def.set_associated_type_bounds(associated_type_bounds);
+                    trait_def.set_all_generics(this.generics.clone());
+                });
+            });
+        }
+
+        self.self_type = None;
+        self.current_trait = None;
+    }
+
+    pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
+        for (trait_id, unresolved_trait) in traits {
+            self.local_module = unresolved_trait.module_id;
+
+            self.recover_generics(|this| {
+                this.current_trait = Some(*trait_id);
+
+                let the_trait = this.interner.get_trait(*trait_id);
+                let self_typevar = the_trait.self_type_typevar.clone();
+                let self_type = Type::TypeVariable(self_typevar.clone());
+                this.self_type = Some(self_type.clone());
+
+                this.generics = the_trait.all_generics.clone();
+
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_methods(methods);
-                    trait_def.set_trait_bounds(resolved_trait_bounds);
-                    trait_def.set_where_clause(where_clause);
                 });
             });
 
@@ -67,11 +119,7 @@ impl<'context> Elaborator<'context> {
         self.current_trait = None;
     }
 
-    fn resolve_trait_bounds(
-        &mut self,
-        unresolved_trait: &UnresolvedTrait,
-    ) -> Vec<ResolvedTraitBound> {
-        let bounds = &unresolved_trait.trait_def.bounds;
+    fn resolve_trait_bounds(&mut self, bounds: &[TraitBound]) -> Vec<ResolvedTraitBound> {
         bounds.iter().filter_map(|bound| self.resolve_trait_bound(bound)).collect()
     }
 
@@ -81,7 +129,6 @@ impl<'context> Elaborator<'context> {
         unresolved_trait: &UnresolvedTrait,
     ) -> Vec<TraitFunction> {
         self.local_module = unresolved_trait.module_id;
-        self.file = self.def_maps[&self.crate_id].file_id(unresolved_trait.module_id);
 
         let mut functions = vec![];
 
@@ -92,7 +139,7 @@ impl<'context> Elaborator<'context> {
                 parameters,
                 return_type,
                 where_clause,
-                body: _,
+                body,
                 is_unconstrained,
                 visibility: _,
                 is_comptime: _,
@@ -101,21 +148,23 @@ impl<'context> Elaborator<'context> {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
                     let self_typevar = the_trait.self_type_typevar.clone();
-                    let self_type = Type::TypeVariable(self_typevar.clone());
-                    let name_span = the_trait.name.span();
+                    let name_location = the_trait.name.location();
 
                     this.add_existing_generic(
-                        &UnresolvedGeneric::Variable(Ident::from("Self")),
-                        name_span,
+                        &UnresolvedGeneric::from(Ident::from("Self")),
+                        name_location,
                         &ResolvedGeneric {
                             name: Rc::new("Self".to_owned()),
                             type_var: self_typevar,
-                            span: name_span,
+                            location: name_location,
                         },
                     );
-                    this.self_type = Some(self_type.clone());
 
-                    let func_id = unresolved_trait.method_ids[&name.0.contents];
+                    let func_id = unresolved_trait.method_ids[name.as_str()];
+                    let mut where_clause = where_clause.to_vec();
+
+                    // Attach any trait constraints on the trait to the function,
+                    where_clause.extend(unresolved_trait.trait_def.where_clause.clone());
 
                     this.resolve_trait_function(
                         trait_id,
@@ -125,6 +174,8 @@ impl<'context> Elaborator<'context> {
                         parameters,
                         return_type,
                         where_clause,
+                        body,
+                        unresolved_trait.trait_def.visibility,
                         func_id,
                     );
 
@@ -145,7 +196,7 @@ impl<'context> Elaborator<'context> {
                         .fns_with_default_impl
                         .functions
                         .iter()
-                        .filter(|(_, _, q)| q.name() == name.0.contents)
+                        .filter(|(_, _, q)| q.name() == name.as_str())
                         .collect();
 
                     let default_impl = if default_impl_list.len() == 1 {
@@ -186,29 +237,45 @@ impl<'context> Elaborator<'context> {
         generics: &UnresolvedGenerics,
         parameters: &[(Ident, UnresolvedType)],
         return_type: &FunctionReturnType,
-        where_clause: &[UnresolvedTraitConstraint],
+        where_clause: Vec<UnresolvedTraitConstraint>,
+        body: &Option<BlockExpression>,
+        trait_visibility: ItemVisibility,
         func_id: FuncId,
     ) {
         let old_generic_count = self.generics.len();
 
         self.scopes.start_function();
 
-        let kind = FunctionKind::Normal;
+        let has_body = body.is_some();
+
+        let body = match body {
+            Some(body) => body.clone(),
+            None => BlockExpression { statements: Vec::new() },
+        };
+        let kind =
+            if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let mut def = FunctionDefinition::normal(
             name,
             is_unconstrained,
             generics,
             parameters,
-            &BlockExpression { statements: Vec::new() },
+            body,
             where_clause,
             return_type,
         );
-        // Trait functions are always public
-        def.visibility = ItemVisibility::Public;
+
+        // Trait functions always have the same visibility as the trait they are in
+        def.visibility = trait_visibility;
 
         let mut function = NoirFunction { kind, def };
-        self.define_function_meta(&mut function, func_id, Some(trait_id));
-        self.elaborate_function(func_id);
+        self.define_function_meta(&mut function, func_id, Some(trait_id), &[]);
+
+        // Here we elaborate functions without a body, mainly to check the arguments and return types.
+        // Later on we'll elaborate functions with a body by fully type-checking them.
+        if !has_body {
+            self.elaborate_function(func_id);
+        }
+
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
         self.generics.truncate(old_generic_count);
@@ -225,9 +292,9 @@ impl<'context> Elaborator<'context> {
 /// `impl<C> Foo<D> for Bar<E> { fn foo<F>(...); } `
 ///
 /// We have to substitute:
-/// - Self for Bar<E>
-/// - A for D
-/// - B for F
+/// - `Self` for `Bar<E>`
+/// - `A` for `D`
+/// - `B` for `F`
 ///
 /// Before we can type check. Finally, we must also check that the unification
 /// result does not introduce any new bindings. This can happen if the impl
@@ -238,9 +305,9 @@ impl<'context> Elaborator<'context> {
 pub(crate) fn check_trait_impl_method_matches_declaration(
     interner: &mut NodeInterner,
     function: FuncId,
+    noir_function: &NoirFunction,
 ) -> Vec<TypeCheckError> {
     let meta = interner.function_meta(&function);
-    let modifiers = interner.function_modifiers(&function);
     let method_name = interner.function_name(&function);
     let mut errors = Vec::new();
 
@@ -261,9 +328,9 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     if trait_info.generics.len() != impl_.trait_generics.len() {
         let expected = trait_info.generics.len();
         let found = impl_.trait_generics.len();
-        let span = impl_.ident.span();
+        let location = impl_.ident.location();
         let item = trait_info.name.to_string();
-        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+        errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
     }
 
     // Substitute each generic on the trait with the corresponding generic on the impl
@@ -279,21 +346,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
-        let trait_fn_modifiers = interner.function_modifiers(trait_fn_id);
-
-        if modifiers.is_unconstrained != trait_fn_modifiers.is_unconstrained {
-            let expected = trait_fn_modifiers.is_unconstrained;
-            let span = meta.name.location.span;
-            let item = method_name.to_string();
-            errors.push(TypeCheckError::UnconstrainedMismatch { item, expected, span });
-        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
             let found = meta.direct_generics.len();
-            let span = meta.name.location.span;
+            let location = meta.name.location;
             let item = method_name.to_string();
-            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, span });
+            errors.push(TypeCheckError::GenericCountMismatch { item, expected, found, location });
         }
 
         // Substitute each generic on the trait function with the corresponding generic on the impl function
@@ -303,7 +362,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: false,
+            });
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
@@ -314,8 +377,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             definition_type,
             method_name,
             &meta.parameters,
-            meta.name.location.span,
-            &trait_info.name.0.contents,
+            &meta.return_type,
+            noir_function,
+            meta.name.location,
+            trait_info.name.as_str(),
             &mut errors,
         );
     }
@@ -323,34 +388,48 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     errors
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_function_type_matches_expected_type(
     expected: &Type,
     actual: &Type,
     method_name: &str,
     actual_parameters: &Parameters,
-    span: Span,
+    actual_return_type: &FunctionReturnType,
+    noir_function: &NoirFunction,
+    location: Location,
     trait_name: &str,
     errors: &mut Vec<TypeCheckError>,
 ) {
-    let mut bindings = TypeBindings::new();
-    // Shouldn't need to unify envs, they should always be equal since they're both free functions
+    let mut bindings = TypeBindings::default();
     if let (
-        Type::Function(params_a, ret_a, _env_a, _unconstrained_a),
-        Type::Function(params_b, ret_b, _env_b, _unconstrained_b),
+        Type::Function(params_a, ret_a, env_a, unconstrained_a),
+        Type::Function(params_b, ret_b, env_b, unconstrained_b),
     ) = (expected, actual)
     {
-        // TODO: we don't yet allow marking a trait function or a trait impl function as unconstrained,
-        // so both values will always be false here. Once we support that, we should check that both
-        // match (adding a test for it).
+        // Shouldn't need to unify envs, they should always be equal since they're both free functions
+        debug_assert_eq!(env_a, env_b, "envs should match as they're both free functions");
+
+        if unconstrained_a != unconstrained_b {
+            errors.push(TypeCheckError::UnconstrainedMismatch {
+                item: method_name.to_string(),
+                expected: *unconstrained_a,
+                location,
+            });
+        }
 
         if params_a.len() == params_b.len() {
             for (i, (a, b)) in params_a.iter().zip(params_b.iter()).enumerate() {
                 if a.try_unify(b, &mut bindings).is_err() {
+                    let parameter_location = noir_function.def.parameters.get(i);
+                    let parameter_location = parameter_location.map(|param| param.typ.location);
+                    let parameter_location =
+                        parameter_location.unwrap_or_else(|| actual_parameters.0[i].0.location());
+
                     errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
                         method_name: method_name.to_string(),
                         expected_typ: a.to_string(),
                         actual_typ: b.to_string(),
-                        parameter_span: actual_parameters.0[i].0.span(),
+                        parameter_location,
                         parameter_index: i + 1,
                     });
                 }
@@ -360,7 +439,7 @@ fn check_function_type_matches_expected_type(
                 errors.push(TypeCheckError::TypeMismatch {
                     expected_typ: ret_a.to_string(),
                     expr_typ: ret_b.to_string(),
-                    expr_span: span,
+                    expr_location: actual_return_type.location(),
                 });
             }
         } else {
@@ -369,7 +448,7 @@ fn check_function_type_matches_expected_type(
                 expected_num_parameters: params_a.len(),
                 trait_name: trait_name.to_string(),
                 method_name: method_name.to_string(),
-                span,
+                location,
             });
         }
     }
@@ -380,6 +459,10 @@ fn check_function_type_matches_expected_type(
     if !bindings.is_empty() {
         let expected_typ = expected.to_string();
         let expr_typ = actual.to_string();
-        errors.push(TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_span: span });
+        errors.push(TypeCheckError::TypeMismatch {
+            expected_typ,
+            expr_typ,
+            expr_location: location,
+        });
     }
 }

@@ -6,18 +6,13 @@ global PLO: Field = 53438638232309528389504892708671455233;
 global PHI: Field = 64323764613183177041862057485226039389;
 
 pub(crate) global TWO_POW_128: Field = 0x100000000000000000000000000000000;
-global TWO_POW_64: Field = 0x10000000000000000;
 
 // Decomposes a single field into two 16 byte fields.
-fn compute_decomposition(mut x: Field) -> (Field, Field) {
-    // Here's we're taking advantage of truncating 64 bit limbs from the input field
+fn compute_decomposition(x: Field) -> (Field, Field) {
+    // Here's we're taking advantage of truncating 128 bit limbs from the input field
     // and then subtracting them from the input such the field division is equivalent to integer division.
-    let low_lower_64 = (x as u64) as Field;
-    x = (x - low_lower_64) / TWO_POW_64;
-    let low_upper_64 = (x as u64) as Field;
-
-    let high = (x - low_upper_64) / TWO_POW_64;
-    let low = low_upper_64 * TWO_POW_64 + low_lower_64;
+    let low = (x as u128) as Field;
+    let high = (x - low) / TWO_POW_128;
 
     (low, high)
 }
@@ -38,6 +33,9 @@ unconstrained fn lte_hint(x: Field, y: Field) -> bool {
 fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
+    // Safety: borrow is enforced to be boolean due to its type.
+    // if borrow is 0, it asserts that (alo > blo && ahi >= bhi)
+    // if borrow is 1, it asserts that (alo <= blo && ahi > bhi)
     unsafe {
         let borrow = lte_hint(alo, blo);
 
@@ -54,6 +52,7 @@ pub fn decompose(x: Field) -> (Field, Field) {
     if is_unconstrained() {
         compute_decomposition(x)
     } else {
+        // Safety: decomposition is properly checked below
         unsafe {
             // Take hints of the decomposition
             let (xlo, xhi) = decompose_hint(x);
@@ -74,7 +73,10 @@ pub fn decompose(x: Field) -> (Field, Field) {
 
 pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
-        assert(unsafe { field_less_than(b, a) });
+        assert(
+            // Safety: already unconstrained
+            unsafe { field_less_than(b, a) },
+        );
     } else {
         // Decompose a and b
         let a_limbs = decompose(a);
@@ -91,13 +93,14 @@ pub fn assert_lt(a: Field, b: Field) {
 
 pub fn gt(a: Field, b: Field) -> bool {
     if is_unconstrained() {
+        // Safety: unsafe in unconstrained
         unsafe {
             field_less_than(b, a)
         }
     } else if a == b {
         false
     } else {
-        // Take a hint of the comparison and verify it
+        // Safety: Take a hint of the comparison and verify it
         unsafe {
             if field_less_than(a, b) {
                 assert_gt(b, a);

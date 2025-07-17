@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: bool, y: [bool; 2]) {
+    if x { assert(1_Field != 2_Field); };
+    assert(x);
+    assert(y[0_u32] != y[1_u32]);
+}

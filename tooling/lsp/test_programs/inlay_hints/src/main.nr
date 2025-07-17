@@ -119,4 +119,12 @@ mod some_module {
 
 contract some_contract {
 
+}}
+
+use std::ops::Not;
+pub fn chain() {
+    let _ = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+        .map(|x| x + 123456789012345)
+        .any(|x| x > 5)
+        .not();
 }

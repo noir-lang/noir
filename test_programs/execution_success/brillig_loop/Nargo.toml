@@ -1,6 +1,0 @@
-[package]
-name = "brillig_loop"
-type = "bin"
-authors = [""]
-
-[dependencies]

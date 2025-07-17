@@ -1,24 +1,45 @@
+//! Implementation of the VM's memory
 use acir::{
-    brillig::{BitSize, IntegerBitSize, MemoryAddress},
     AcirField,
+    brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
-use num_traits::{One, Zero};
 
+/// The bit size used for addressing memory within the Brillig VM.
+///
+/// All memory pointers are interpreted as `u32` values, meaning the VM can directly address up to 2^32 memory slots.
 pub const MEMORY_ADDRESSING_BIT_SIZE: IntegerBitSize = IntegerBitSize::U32;
 
+/// A single typed value in the Brillig VM's memory.
+///
+/// Memory in the VM is strongly typed and can represent either a native field element
+/// or an integer of a specific bit width. This enum encapsulates all supported
+/// in-memory types and allows conversion between representations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum MemoryValue<F> {
     Field(F),
-    Integer(u128, IntegerBitSize),
+    U1(bool),
+    U8(u8),
+    U16(u16),
+    U32(u32),
+    U64(u64),
+    U128(u128),
 }
 
+/// Represents errors that can occur when interpreting or converting typed memory values.
 #[derive(Debug, thiserror::Error)]
 pub enum MemoryTypeError {
-    #[error("Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}")]
+    /// The value's bit size does not match the expected bit size for the operation.
+    #[error(
+        "Bit size for value {value_bit_size} does not match the expected bit size {expected_bit_size}"
+    )]
     MismatchedBitSize { value_bit_size: u32, expected_bit_size: u32 },
+    /// The memory value is not an integer and cannot be interpreted as one.
+    /// For example, this can be triggered when attempting to convert a field element to an integer such as in [MemoryValue::to_u128].
+    #[error("Value is not an integer")]
+    NotAnInteger,
 }
 
-impl<F> MemoryValue<F> {
+impl<F: std::fmt::Display> MemoryValue<F> {
     /// Builds a field-typed memory value.
     pub fn new_field(value: F) -> Self {
         MemoryValue::Field(value)
@@ -26,38 +47,32 @@ impl<F> MemoryValue<F> {
 
     /// Builds an integer-typed memory value.
     pub fn new_integer(value: u128, bit_size: IntegerBitSize) -> Self {
-        MemoryValue::Integer(value, bit_size)
-    }
-
-    /// Extracts the field element from the memory value, if it is typed as field element.
-    pub fn extract_field(&self) -> Option<&F> {
-        match self {
-            MemoryValue::Field(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// Extracts the integer from the memory value, if it is typed as integer.
-    pub fn extract_integer(&self) -> Option<(u128, IntegerBitSize)> {
-        match self {
-            MemoryValue::Integer(value, bit_size) => Some((*value, *bit_size)),
-            _ => None,
+        match bit_size {
+            IntegerBitSize::U1 => MemoryValue::U1(value != 0),
+            IntegerBitSize::U8 => MemoryValue::U8(value as u8),
+            IntegerBitSize::U16 => MemoryValue::U16(value as u16),
+            IntegerBitSize::U32 => MemoryValue::U32(value as u32),
+            IntegerBitSize::U64 => MemoryValue::U64(value as u64),
+            IntegerBitSize::U128 => MemoryValue::U128(value),
         }
     }
 
     pub fn bit_size(&self) -> BitSize {
         match self {
             MemoryValue::Field(_) => BitSize::Field,
-            MemoryValue::Integer(_, bit_size) => BitSize::Integer(*bit_size),
+            MemoryValue::U1(_) => BitSize::Integer(IntegerBitSize::U1),
+            MemoryValue::U8(_) => BitSize::Integer(IntegerBitSize::U8),
+            MemoryValue::U16(_) => BitSize::Integer(IntegerBitSize::U16),
+            MemoryValue::U32(_) => BitSize::Integer(IntegerBitSize::U32),
+            MemoryValue::U64(_) => BitSize::Integer(IntegerBitSize::U64),
+            MemoryValue::U128(_) => BitSize::Integer(IntegerBitSize::U128),
         }
     }
 
     pub fn to_usize(&self) -> usize {
         match self {
-            MemoryValue::Integer(_, bit_size) if *bit_size == MEMORY_ADDRESSING_BIT_SIZE => {
-                self.extract_integer().unwrap().0.try_into().unwrap()
-            }
-            _ => panic!("value is not typed as brillig usize"),
+            MemoryValue::U32(value) => (*value).try_into().unwrap(),
+            other => panic!("value is not typed as brillig usize: {other}"),
         }
     }
 }
@@ -87,38 +102,102 @@ impl<F: AcirField> MemoryValue<F> {
     pub fn to_field(&self) -> F {
         match self {
             MemoryValue::Field(value) => *value,
-            MemoryValue::Integer(value, _) => F::from(*value),
+            MemoryValue::U1(value) => F::from(*value),
+            MemoryValue::U8(value) => F::from(*value as u128),
+            MemoryValue::U16(value) => F::from(*value as u128),
+            MemoryValue::U32(value) => F::from(*value as u128),
+            MemoryValue::U64(value) => F::from(*value as u128),
+            MemoryValue::U128(value) => F::from(*value),
         }
     }
 
-    pub fn expect_field(&self) -> Result<&F, MemoryTypeError> {
+    /// Converts the memory value to U128, if the value is an integer.
+    pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
         match self {
-            MemoryValue::Integer(_, bit_size) => Err(MemoryTypeError::MismatchedBitSize {
-                value_bit_size: (*bit_size).into(),
+            MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
+            MemoryValue::U1(value) => Ok(*value as u8 as u128),
+            MemoryValue::U8(value) => Ok(*value as u128),
+            MemoryValue::U16(value) => Ok(*value as u128),
+            MemoryValue::U32(value) => Ok(*value as u128),
+            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U128(value) => Ok(*value),
+        }
+    }
+
+    /// Extracts the field element from the memory value, if it is typed as field element.
+    pub fn expect_field(self) -> Result<F, MemoryTypeError> {
+        if let MemoryValue::Field(field) = self {
+            Ok(field)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
                 expected_bit_size: F::max_num_bits(),
-            }),
-            MemoryValue::Field(field) => Ok(field),
+            })
+        }
+    }
+    pub(crate) fn expect_u1(self) -> Result<bool, MemoryTypeError> {
+        if let MemoryValue::U1(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 1,
+            })
         }
     }
 
-    pub fn expect_integer_with_bit_size(
-        &self,
-        expected_bit_size: IntegerBitSize,
-    ) -> Result<u128, MemoryTypeError> {
-        match self {
-            MemoryValue::Integer(value, bit_size) => {
-                if *bit_size != expected_bit_size {
-                    return Err(MemoryTypeError::MismatchedBitSize {
-                        value_bit_size: (*bit_size).into(),
-                        expected_bit_size: expected_bit_size.into(),
-                    });
-                }
-                Ok(*value)
-            }
-            MemoryValue::Field(_) => Err(MemoryTypeError::MismatchedBitSize {
-                value_bit_size: F::max_num_bits(),
-                expected_bit_size: expected_bit_size.into(),
-            }),
+    pub(crate) fn expect_u8(self) -> Result<u8, MemoryTypeError> {
+        if let MemoryValue::U8(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 8,
+            })
+        }
+    }
+
+    pub(crate) fn expect_u16(self) -> Result<u16, MemoryTypeError> {
+        if let MemoryValue::U16(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 16,
+            })
+        }
+    }
+
+    pub(crate) fn expect_u32(self) -> Result<u32, MemoryTypeError> {
+        if let MemoryValue::U32(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 32,
+            })
+        }
+    }
+
+    pub(crate) fn expect_u64(self) -> Result<u64, MemoryTypeError> {
+        if let MemoryValue::U64(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 64,
+            })
+        }
+    }
+
+    pub(crate) fn expect_u128(self) -> Result<u128, MemoryTypeError> {
+        if let MemoryValue::U128(value) = self {
+            Ok(value)
+        } else {
+            Err(MemoryTypeError::MismatchedBitSize {
+                value_bit_size: self.bit_size().to_u32::<F>(),
+                expected_bit_size: 128,
+            })
         }
     }
 }
@@ -126,10 +205,13 @@ impl<F: AcirField> MemoryValue<F> {
 impl<F: std::fmt::Display> std::fmt::Display for MemoryValue<F> {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
         match self {
-            MemoryValue::Field(value) => write!(f, "{}: field", value),
-            MemoryValue::Integer(value, bit_size) => {
-                write!(f, "{}: {}", value, bit_size)
-            }
+            MemoryValue::Field(value) => write!(f, "{value}: field"),
+            MemoryValue::U1(value) => write!(f, "{value}: u1"),
+            MemoryValue::U8(value) => write!(f, "{value}: u8"),
+            MemoryValue::U16(value) => write!(f, "{value}: u16"),
+            MemoryValue::U32(value) => write!(f, "{value}: u32"),
+            MemoryValue::U64(value) => write!(f, "{value}: u64"),
+            MemoryValue::U128(value) => write!(f, "{value}: u128"),
         }
     }
 }
@@ -142,38 +224,37 @@ impl<F: AcirField> Default for MemoryValue<F> {
 
 impl<F: AcirField> From<bool> for MemoryValue<F> {
     fn from(value: bool) -> Self {
-        let value = if value { 1 } else { 0 };
-        MemoryValue::new_integer(value, IntegerBitSize::U1)
+        MemoryValue::U1(value)
     }
 }
 
 impl<F: AcirField> From<u8> for MemoryValue<F> {
     fn from(value: u8) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U8)
+        MemoryValue::U8(value)
     }
 }
 
 impl<F: AcirField> From<usize> for MemoryValue<F> {
     fn from(value: usize) -> Self {
-        MemoryValue::new_integer(value as u128, MEMORY_ADDRESSING_BIT_SIZE)
+        MemoryValue::U32(value as u32)
     }
 }
 
 impl<F: AcirField> From<u32> for MemoryValue<F> {
     fn from(value: u32) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U32)
+        MemoryValue::U32(value)
     }
 }
 
 impl<F: AcirField> From<u64> for MemoryValue<F> {
     fn from(value: u64) -> Self {
-        MemoryValue::new_integer(value.into(), IntegerBitSize::U64)
+        MemoryValue::U64(value)
     }
 }
 
 impl<F: AcirField> From<u128> for MemoryValue<F> {
     fn from(value: u128) -> Self {
-        MemoryValue::new_integer(value, IntegerBitSize::U128)
+        MemoryValue::U128(value)
     }
 }
 
@@ -181,15 +262,7 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for bool {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        let as_integer = memory_value.expect_integer_with_bit_size(IntegerBitSize::U1)?;
-
-        if as_integer.is_zero() {
-            Ok(false)
-        } else if as_integer.is_one() {
-            Ok(true)
-        } else {
-            unreachable!("value typed as bool is greater than one")
-        }
+        memory_value.expect_u1()
     }
 }
 
@@ -197,7 +270,7 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u8 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_integer_with_bit_size(IntegerBitSize::U8).map(|value| value as u8)
+        memory_value.expect_u8()
     }
 }
 
@@ -205,7 +278,7 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u32 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_integer_with_bit_size(IntegerBitSize::U32).map(|value| value as u32)
+        memory_value.expect_u32()
     }
 }
 
@@ -213,7 +286,7 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u64 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_integer_with_bit_size(IntegerBitSize::U64).map(|value| value as u64)
+        memory_value.expect_u64()
     }
 }
 
@@ -221,14 +294,15 @@ impl<F: AcirField> TryFrom<MemoryValue<F>> for u128 {
     type Error = MemoryTypeError;
 
     fn try_from(memory_value: MemoryValue<F>) -> Result<Self, Self::Error> {
-        memory_value.expect_integer_with_bit_size(IntegerBitSize::U128)
+        memory_value.expect_u128()
     }
 }
-
+/// The VM's memory.
+/// Memory is internally represented as a vector of values.
+/// We grow the memory when values past the end are set, extending with 0s.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Memory<F> {
-    // Memory is a vector of values.
-    // We grow the memory when values past the end are set, extending with 0s.
+    // Internal memory representation
     inner: Vec<MemoryValue<F>>,
 }
 

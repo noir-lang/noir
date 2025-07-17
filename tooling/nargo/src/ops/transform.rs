@@ -1,11 +1,12 @@
 use acvm::{
-    acir::circuit::{ExpressionWidth, Program},
     FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
 };
 use iter_extended::vecmap;
 use noirc_driver::{CompiledContract, CompiledProgram};
 use noirc_errors::debug_info::DebugInfo;
 
+/// Apply ACVM optimizations on the circuit.
 pub fn transform_program(
     mut compiled_program: CompiledProgram,
     expression_width: ExpressionWidth,
@@ -20,6 +21,7 @@ pub fn transform_program(
     compiled_program
 }
 
+/// Apply the optimizing transformation on each function in the contract.
 pub fn transform_contract(
     contract: CompiledContract,
     expression_width: ExpressionWidth,

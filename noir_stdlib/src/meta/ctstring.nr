@@ -7,7 +7,8 @@ impl CtString {
         "".as_ctstring()
     }
 
-    // Bug: using &mut self as the object results in this method not being found
+    // TODO(https://github.com/noir-lang/noir/issues/6980): Bug: using &mut self
+    // as the object results in this method not being found
     // docs:start:append_str
     pub comptime fn append_str<let N: u32>(self, s: str<N>) -> Self {
         // docs:end:append_str
@@ -86,12 +87,14 @@ comptime fn ctstring_eq(_first: CtString, _second: CtString) -> bool {}
 comptime fn ctstring_hash(_string: CtString) -> Field {}
 
 mod test {
+    use super::AsCtString;
+
     #[test]
     fn as_quoted_str_example() {
         comptime {
             // docs:start:as_quoted_str_example
             let my_ctstring = "foo bar".as_ctstring();
-            let my_str = my_ctstring.as_quoted_str!();
+            let my_str: str<7> = my_ctstring.as_quoted_str!();
 
             assert_eq(crate::meta::type_of(my_str), quote { str<7> }.as_type());
             // docs:end:as_quoted_str_example

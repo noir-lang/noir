@@ -1,5 +1,6 @@
-use super::assert_no_errors;
+use crate::assert_no_errors;
 
+#[named]
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
@@ -13,9 +14,10 @@ fn allows_usage_of_type_alias_as_argument_type() {
         accepts_a_foo(42);
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn allows_usage_of_type_alias_as_return_type() {
     let src = r#"
@@ -29,9 +31,10 @@ fn allows_usage_of_type_alias_as_return_type() {
         let _ = returns_a_foo();
     }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
 }
 
+#[named]
 #[test]
 fn alias_in_let_pattern() {
     let src = r#"
@@ -45,5 +48,49 @@ fn alias_in_let_pattern() {
             let _: [Field; 1] = x;
         }
     "#;
-    assert_no_errors(src);
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn double_alias_in_path() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        fn new() -> Self {
+            Self {}
+        }
+    }
+
+    type FooAlias1 = Foo;
+    type FooAlias2 = FooAlias1;
+
+    fn main() { 
+        let _ = FooAlias2::new();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn double_generic_alias_in_path() {
+    let src = r#"
+    struct Foo<T> {}
+    
+    impl<T> Foo<T> {
+        fn new() -> Self {
+            Self {}
+        }
+    }
+    
+    type FooAlias1 = Foo<i32>;
+    type FooAlias2 = FooAlias1;
+    
+    fn main() {
+        let _ = FooAlias2::new();
+    }
+    "#;
+    assert_no_errors!(src);
 }

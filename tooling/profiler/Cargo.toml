@@ -1,6 +1,6 @@
 [package]
 name = "noir_profiler"
-description = "Profiler for noir circuits"
+description = "Profiler for Noir circuits"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -32,8 +32,9 @@ im.workspace = true
 acir.workspace = true
 nargo.workspace = true
 noirc_errors.workspace = true
-noirc_abi.workspace = true
 noirc_evaluator.workspace = true
+noir_artifact_cli.workspace = true
+thiserror.workspace = true
 
 # Logs
 tracing-subscriber.workspace = true
@@ -43,7 +44,3 @@ tracing-appender = "0.2.3"
 noirc_abi.workspace = true
 noirc_driver.workspace = true
 tempfile.workspace = true
-
-[features]
-default = ["bn254"]
-bn254 = ["acir/bn254"]

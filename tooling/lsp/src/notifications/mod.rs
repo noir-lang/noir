@@ -3,25 +3,26 @@ use std::ops::ControlFlow;
 use std::path::PathBuf;
 
 use crate::{
-    insert_all_files_for_workspace_into_file_manager, PackageCacheData, WorkspaceCacheData,
+    PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
+use async_lsp::lsp_types;
+use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use fm::{FileId, FileManager, FileMap};
+use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
-use lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
-use noirc_errors::{DiagnosticKind, FileDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 
 use crate::types::{
-    notification, Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams,
-    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
-    DidSaveTextDocumentParams, InitializedParams, NargoPackageTests, PublishDiagnosticsParams,
+    Diagnostic, DiagnosticSeverity, DidChangeConfigurationParams, DidChangeTextDocumentParams,
+    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
+    InitializedParams, NargoPackageTests, PublishDiagnosticsParams, notification,
 };
 
 use crate::{
-    byte_span_to_range, get_package_tests_in_crate, parse_diff, resolve_workspace_for_source_path,
-    LspState,
+    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    resolve_workspace_for_source_path,
 };
 
 pub(super) fn on_initialized(
@@ -62,6 +63,7 @@ pub(super) fn on_did_change_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     let text = params.content_changes.into_iter().next().unwrap().text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
     let output_diagnostics = false;
@@ -78,6 +80,7 @@ pub(super) fn on_did_close_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.cached_lenses.remove(&params.text_document.uri.to_string());
+    state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     state.open_documents_count -= 1;
 
@@ -191,16 +194,16 @@ fn publish_diagnostics(
     package_root_dir: &PathBuf,
     files: &FileMap,
     fm: &FileManager,
-    file_diagnostics: Vec<FileDiagnostic>,
+    custom_diagnostics: Vec<CustomDiagnostic>,
 ) {
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-    for file_diagnostic in file_diagnostics.into_iter() {
-        let file_id = file_diagnostic.file_id;
-        let path = fm.path(file_id).expect("file must exist to have emitted diagnostic");
+    for custom_diagnostic in custom_diagnostics.into_iter() {
+        let file = custom_diagnostic.file;
+        let path = fm.path(file).expect("file must exist to have emitted diagnostic");
         if let Ok(uri) = Url::from_file_path(path) {
             if let Some(diagnostic) =
-                file_diagnostic_to_diagnostic(file_diagnostic, files, fm, uri.clone())
+                custom_diagnostic_to_diagnostic(custom_diagnostic, files, fm, uri.clone())
             {
                 diagnostics_per_url.entry(uri).or_default().push(diagnostic);
             }
@@ -232,21 +235,18 @@ fn publish_diagnostics(
     state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
 }
 
-fn file_diagnostic_to_diagnostic(
-    file_diagnostic: FileDiagnostic,
+fn custom_diagnostic_to_diagnostic(
+    diagnostic: CustomDiagnostic,
     files: &FileMap,
     fm: &FileManager,
     uri: Url,
 ) -> Option<Diagnostic> {
-    let file_id = file_diagnostic.file_id;
-    let diagnostic = file_diagnostic.diagnostic;
-
     if diagnostic.secondaries.is_empty() {
         return None;
     }
 
-    let span = diagnostic.secondaries.first().unwrap().span;
-    let range = byte_span_to_range(files, file_id, span.into())?;
+    let span = diagnostic.secondaries.first().unwrap().location.span;
+    let range = byte_span_to_range(files, diagnostic.file, span.into())?;
 
     let severity = match diagnostic.kind {
         DiagnosticKind::Error => DiagnosticSeverity::ERROR,
@@ -266,7 +266,7 @@ fn file_diagnostic_to_diagnostic(
     let secondaries = diagnostic
         .secondaries
         .into_iter()
-        .filter_map(|secondary| secondary_to_related_information(secondary, file_id, files, fm));
+        .filter_map(|secondary| secondary_to_related_information(secondary, files, fm));
     let notes = diagnostic.notes.into_iter().map(|message| DiagnosticRelatedInformation {
         location: lsp_types::Location { uri: uri.clone(), range },
         message,
@@ -293,14 +293,13 @@ fn file_diagnostic_to_diagnostic(
 
 fn secondary_to_related_information(
     secondary: CustomLabel,
-    file_id: FileId,
     files: &FileMap,
     fm: &FileManager,
 ) -> Option<DiagnosticRelatedInformation> {
-    let secondary_file = secondary.file.unwrap_or(file_id);
+    let secondary_file = secondary.location.file;
     let path = fm.path(secondary_file)?;
     let uri = Url::from_file_path(path).ok()?;
-    let range = byte_span_to_range(files, file_id, secondary.span.into())?;
+    let range = byte_span_to_range(files, secondary_file, secondary.location.span.into())?;
     let message = secondary.message;
     Some(DiagnosticRelatedInformation { location: lsp_types::Location { uri, range }, message })
 }
@@ -331,7 +330,7 @@ mod notification_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
         WorkDoneProgressParams,
@@ -343,7 +342,7 @@ mod notification_tests {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
 
         // Open the document, fake the text to be empty
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {
@@ -356,7 +355,7 @@ mod notification_tests {
         );
 
         // Fake the text to change to "global a = 1;"
-        on_did_change_text_document(
+        let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {
                 text_document: VersionedTextDocumentIdentifier {

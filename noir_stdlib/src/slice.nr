@@ -67,6 +67,34 @@ impl<T> [T] {
         ret
     }
 
+    // Apply a function to each element of the slice with its index, returning a
+    // new slice containing the mapped elements.
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
+        let mut ret = &[];
+        let mut index = 0;
+        for elem in self {
+            ret = ret.push_back(f(index, elem));
+            index += 1;
+        }
+        ret
+    }
+
+    // Apply a function to each element of the slice
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+        for elem in self {
+            f(elem);
+        }
+    }
+
+    // Apply a function to each element of the slice with its index
+    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+        let mut index = 0;
+        for elem in self {
+            f(index, elem);
+            index += 1;
+        }
+    }
+
     // Apply a function to each element of the slice and an accumulator value,
     // returning the final accumulated value. This function is also sometimes
     // called `foldl`, `fold_left`, `reduce`, or `inject`.
@@ -135,4 +163,61 @@ impl<T> [T] {
         }
         ret
     }
+}
+
+mod test {
+    #[test]
+    fn map_empty() {
+        assert_eq(&[].map(|x| x + 1), &[]);
+    }
+
+    #[test]
+    fn mapi_empty() {
+        assert_eq(&[].mapi(|i, x| i * x + 1), &[]);
+    }
+
+    #[test]
+    fn for_each_empty() {
+        let empty_slice: [Field] = &[];
+        empty_slice.for_each(|_x| assert(false));
+    }
+
+    #[test]
+    fn for_eachi_empty() {
+        let empty_slice: [Field] = &[];
+        empty_slice.for_eachi(|_i, _x| assert(false));
+    }
+
+    #[test]
+    fn map_example() {
+        let a = &[1, 2, 3];
+        let b = a.map(|a| a * 2);
+        assert_eq(b, &[2, 4, 6]);
+    }
+
+    #[test]
+    fn mapi_example() {
+        let a = &[1, 2, 3];
+        let b = a.mapi(|i, a| i + a * 2);
+        assert_eq(b, &[2, 5, 8]);
+    }
+
+    #[test]
+    fn for_each_example() {
+        let a = &[1, 2, 3];
+        let mut b = &[];
+        let b_ref = &mut b;
+        a.for_each(|a| { *b_ref = b_ref.push_back(a * 2); });
+        assert_eq(b, &[2, 4, 6]);
+    }
+
+    #[test]
+    fn for_eachi_example() {
+        let a = &[1, 2, 3];
+        let mut b = &[];
+        let b_ref = &mut b;
+        a.for_eachi(|i, a| { *b_ref = b_ref.push_back(i + a * 2); });
+        assert_eq(b, &[2, 5, 8]);
+    }
+
 }

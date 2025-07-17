@@ -10,7 +10,7 @@ on:
 jobs:
   publish-docs:
     name: Publish docs
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout release branch
@@ -22,12 +22,12 @@ jobs:
       - name: Install wasm-bindgen-cli
         uses: taiki-e/install-action@v2
         with:
-          tool: wasm-bindgen-cli@0.2.86
+          tool: wasm-bindgen-cli@0.2.100
 
       - name: Install wasm-opt
         run: |
           npm i wasm-opt -g
-      
+
       - name: Query active docs versions
         run: yarn workspace docs version::stables
 

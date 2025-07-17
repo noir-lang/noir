@@ -1,4 +1,4 @@
-use crate::{cmp::Eq, convert::From};
+use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 
 /// A `BoundedVec<T, MaxLen>` is a growable storage similar to a `Vec<T>` except that it
 /// is bounded with a maximum possible length. Unlike `Vec`, `BoundedVec` is not implemented
@@ -320,11 +320,17 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         let new_len = self.len + append_len;
         assert(new_len <= MaxLen, "extend_from_bounded_vec out of bounds");
 
-        let mut exceeded_len = false;
-        for i in 0..Len {
-            exceeded_len |= i == append_len;
-            if !exceeded_len {
+        if is_unconstrained() {
+            for i in 0..append_len {
                 self.storage[self.len + i] = vec.get_unchecked(i);
+            }
+        } else {
+            let mut exceeded_len = false;
+            for i in 0..Len {
+                exceeded_len |= i == append_len;
+                if !exceeded_len {
+                    self.storage[self.len + i] = vec.get_unchecked(i);
+                }
             }
         }
         self.len = new_len;
@@ -339,7 +345,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
     /// ```
     pub fn from_array<let Len: u32>(array: [T; Len]) -> Self {
-        assert(Len <= MaxLen, "from array out of bounds");
+        static_assert(Len <= MaxLen, "from array out of bounds");
         let mut vec: BoundedVec<T, MaxLen> = BoundedVec::new();
         vec.extend_from_array(array);
         vec
@@ -389,11 +395,18 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```
     pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
-        let mut exceeded_len = false;
-        for i in 0..MaxLen {
-            exceeded_len |= i == self.len;
-            if !exceeded_len {
+        if is_unconstrained() {
+            for i in 0..self.len {
                 ret |= predicate(self.storage[i]);
+            }
+        } else {
+            let mut ret = false;
+            let mut exceeded_len = false;
+            for i in 0..MaxLen {
+                exceeded_len |= i == self.len;
+                if !exceeded_len {
+                    ret |= predicate(self.storage[i]);
+                }
             }
         }
         ret
@@ -413,12 +426,163 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen> {
         let mut ret = BoundedVec::new();
         ret.len = self.len();
-        for i in 0..MaxLen {
-            if i < self.len() {
+
+        if is_unconstrained() {
+            for i in 0..self.len() {
                 ret.storage[i] = f(self.get_unchecked(i));
             }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    ret.storage[i] = f(self.get_unchecked(i));
+                }
+            }
         }
+
         ret
+    }
+
+    /// Creates a new vector of equal size by calling a closure on each element
+    /// in this vector, along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let result = vec.mapi(|i, value| i + value * 2);
+    ///
+    /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> BoundedVec<U, MaxLen> {
+        let mut ret = BoundedVec::new();
+        ret.len = self.len();
+
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                ret.storage[i] = f(i, self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    ret.storage[i] = f(i, self.get_unchecked(i));
+                }
+            }
+        }
+
+        ret
+    }
+
+    /// Calls a closure on each element in this vector.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let mut result = BoundedVec::<u32, 4>::new();
+    /// vec.for_each(|value| result.push(value * 2));
+    ///
+    /// let expected = BoundedVec::from_array([2, 4, 6, 8]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                f(self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    f(self.get_unchecked(i));
+                }
+            }
+        }
+    }
+
+    /// Calls a closure on each element in this vector, along with its index.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+    /// let mut result = BoundedVec::<u32, 4>::new();
+    /// vec.for_eachi(|i, value| result.push(i + value * 2));
+    ///
+    /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
+    /// assert_eq(result, expected);
+    /// ```
+    pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
+        if is_unconstrained() {
+            for i in 0..self.len() {
+                f(i, self.get_unchecked(i));
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i < self.len() {
+                    f(i, self.get_unchecked(i));
+                }
+            }
+        }
+    }
+
+    /// Creates a new BoundedVec from the given array and length.
+    /// The given length must be less than or equal to the length of the array.
+    ///
+    /// This function will zero out any elements at or past index `len` of `array`.
+    /// This incurs an extra runtime cost of O(MaxLen). If you are sure your array is
+    /// zeroed after that index, you can use `from_parts_unchecked` to remove the extra loop.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
+    /// assert_eq(vec.len(), 3);
+    /// ```
+    pub fn from_parts(mut array: [T; MaxLen], len: u32) -> Self {
+        assert(len <= MaxLen);
+        let zeroed = crate::mem::zeroed();
+
+        if is_unconstrained() {
+            for i in len..MaxLen {
+                array[i] = zeroed;
+            }
+        } else {
+            for i in 0..MaxLen {
+                if i >= len {
+                    array[i] = zeroed;
+                }
+            }
+        }
+
+        BoundedVec { storage: array, len }
+    }
+
+    /// Creates a new BoundedVec from the given array and length.
+    /// The given length must be less than or equal to the length of the array.
+    ///
+    /// This function is unsafe because it expects all elements past the `len` index
+    /// of `array` to be zeroed, but does not check for this internally. Use `from_parts`
+    /// for a safe version of this function which does zero out any indices past the
+    /// given length. Invalidating this assumption can notably cause `BoundedVec::eq`
+    /// to give incorrect results since it will check even elements past `len`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
+    /// assert_eq(vec.len(), 3);
+    ///
+    /// // invalid use!
+    /// let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
+    /// let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
+    ///
+    /// // both vecs have length 3 so we'd expect them to be equal, but this
+    /// // fails because elements past the length are still checked in eq
+    /// assert_eq(vec1, vec2); // fails
+    /// ```
+    pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self {
+        assert(len <= MaxLen);
+        BoundedVec { storage: array, len }
     }
 }
 
@@ -431,7 +595,11 @@ where
         //
         // We make the assumption that the user has used the proper interface for working with `BoundedVec`s
         // rather than directly manipulating the internal fields as this can result in an inconsistent internal state.
-        (self.len == other.len) & (self.storage == other.storage)
+        if self.len == other.len {
+            self.storage == other.storage
+        } else {
+            false
+        }
     }
 }
 
@@ -517,7 +685,151 @@ mod bounded_vec_tests {
             let expected = BoundedVec::from_array([5, 1]);
 
             assert_eq(result, expected);
-            assert_eq(result.storage()[2], 0);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod mapi {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn applies_function_correctly() {
+            // docs:start:bounded-vec-mapi-example
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.mapi(|i, value| i + value * 2);
+            // docs:end:bounded-vec-mapi-example
+            let expected = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.mapi(|i, value| (i + value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = vec.mapi(|_, value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod for_each {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        // map in terms of for_each
+        fn for_each_map<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
+            let mut output = BoundedVec::<U, MaxLen>::new();
+            let output_ref = &mut output;
+            input.for_each(|x| output_ref.push(f(x)));
+            output
+        }
+
+        #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-each-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_each(|value| { *acc_ref += value; });
+            // docs:end:bounded-vec-for-each-example
+            assert_eq(acc, 6);
+        }
+
+        #[test]
+        fn applies_function_correctly() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_each_map(vec, |value| value * 2);
+            let expected = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_each_map(vec, |value| (value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 4, 6, 8]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = for_each_map(vec, |value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
+        }
+    }
+
+    mod for_eachi {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        // mapi in terms of for_eachi
+        fn for_eachi_mapi<T, U, Env, let MaxLen: u32>(
+            input: BoundedVec<T, MaxLen>,
+            f: fn[Env](u32, T) -> U,
+        ) -> BoundedVec<U, MaxLen> {
+            let mut output = BoundedVec::<U, MaxLen>::new();
+            let output_ref = &mut output;
+            input.for_eachi(|i, x| output_ref.push(f(i, x)));
+            output
+        }
+
+        #[test]
+        fn smoke_test() {
+            let mut acc = 0;
+            let acc_ref = &mut acc;
+            // docs:start:bounded-vec-for-eachi-example
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            vec.for_eachi(|i, value| { *acc_ref += i * value; });
+            // docs:end:bounded-vec-for-eachi-example
+
+            // 0 * 1 + 1 * 2 + 2 * 3
+            assert_eq(acc, 8);
+        }
+
+        #[test]
+        fn applies_function_correctly() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_eachi_mapi(vec, |i, value| i + value * 2);
+            let expected = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn applies_function_that_changes_return_type() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = for_eachi_mapi(vec, |i, value| (i + value * 2) as Field);
+            let expected: BoundedVec<Field, 4> = BoundedVec::from_array([2, 5, 8, 11]);
+
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn does_not_apply_function_past_len() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([0, 1]);
+            let result = for_eachi_mapi(vec, |_, value| if value == 0 { 5 } else { value });
+            let expected = BoundedVec::from_array([5, 1]);
+
+            assert_eq(result, expected);
+            assert_eq(result.get_unchecked(2), 0);
         }
     }
 
@@ -551,9 +863,9 @@ mod bounded_vec_tests {
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 3);
-            assert_eq(bounded_vec.storage()[0], 1);
-            assert_eq(bounded_vec.storage()[1], 2);
-            assert_eq(bounded_vec.storage()[2], 3);
+            assert_eq(bounded_vec.get(0), 1);
+            assert_eq(bounded_vec.get(1), 2);
+            assert_eq(bounded_vec.get(2), 3);
         }
 
         #[test(should_fail_with = "from array out of bounds")]
@@ -564,6 +876,7 @@ mod bounded_vec_tests {
 
     mod trait_from {
         use crate::collections::bounded_vec::BoundedVec;
+        use crate::convert::From;
 
         #[test]
         fn simple() {
@@ -572,8 +885,8 @@ mod bounded_vec_tests {
 
             assert_eq(bounded_vec.max_len(), 10);
             assert_eq(bounded_vec.len(), 2);
-            assert_eq(bounded_vec.storage()[0], 1);
-            assert_eq(bounded_vec.storage()[1], 2);
+            assert_eq(bounded_vec.get(0), 1);
+            assert_eq(bounded_vec.get(1), 2);
         }
     }
 
@@ -596,6 +909,40 @@ mod bounded_vec_tests {
             bounded_vec2.push(2);
 
             assert(bounded_vec1 != bounded_vec2);
+        }
+    }
+
+    mod from_parts {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn from_parts() {
+            // docs:start:from-parts
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 0], 3);
+            assert_eq(vec.len(), 3);
+
+            // Any elements past the given length are zeroed out, so these
+            // two BoundedVecs will be completely equal
+            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
+            assert_eq(vec1, vec2);
+            // docs:end:from-parts
+        }
+
+        #[test]
+        fn from_parts_unchecked() {
+            // docs:start:from-parts-unchecked
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
+            assert_eq(vec.len(), 3);
+
+            // invalid use!
+            let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
+            let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
+
+            // both vecs have length 3 so we'd expect them to be equal, but this
+            // fails because elements past the length are still checked in eq
+            assert(vec1 != vec2);
+            // docs:end:from-parts-unchecked
         }
     }
 }

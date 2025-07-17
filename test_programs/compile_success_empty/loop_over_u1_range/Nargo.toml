@@ -1,0 +1,6 @@
+[package]
+name = "loop_over_u1_range"
+type = "bin"
+authors = [""]
+
+[dependencies]

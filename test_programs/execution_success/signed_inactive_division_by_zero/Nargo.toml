@@ -1,0 +1,6 @@
+[package]
+name = "signed_inactive_division_by_zero"
+type = "bin"
+authors = [""]
+
+[dependencies]

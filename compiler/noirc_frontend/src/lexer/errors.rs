@@ -1,51 +1,57 @@
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::parser::ParserError;
 use crate::parser::ParserErrorReason;
-use crate::token::SpannedToken;
 
+use super::token::LocatedToken;
 use super::token::Token;
 use noirc_errors::CustomDiagnostic as Diagnostic;
-use noirc_errors::Span;
+use noirc_errors::Location;
 use thiserror::Error;
 
 #[derive(Error, Clone, Debug, PartialEq, Eq)]
 pub enum LexerErrorKind {
     #[error("An unexpected character {:?} was found.", found)]
-    UnexpectedCharacter { span: Span, expected: String, found: Option<char> },
+    UnexpectedCharacter { location: Location, expected: String, found: Option<char> },
     #[error("Internal error: Tried to lex {:?} as a double char token", found)]
-    NotADoubleChar { span: Span, found: Token },
+    NotADoubleChar { location: Location, found: Token },
     #[error("Invalid integer literal, {:?} is not a integer", found)]
-    InvalidIntegerLiteral { span: Span, found: String },
+    InvalidIntegerLiteral { location: Location, found: String },
     #[error("Integer literal is too large")]
-    IntegerLiteralTooLarge { span: Span, limit: String },
+    IntegerLiteralTooLarge { location: Location, limit: String },
     #[error("{:?} is not a valid attribute", found)]
-    MalformedFuncAttribute { span: Span, found: String },
+    MalformedFuncAttribute { location: Location, found: String },
     #[error("Malformed test attribute")]
-    MalformedTestAttribute { span: Span },
+    MalformedTestAttribute { location: Location },
+    #[error("Malformed fuzz attribute")]
+    MalformedFuzzAttribute { location: Location },
     #[error("{:?} is not a valid inner attribute", found)]
-    InvalidInnerAttribute { span: Span, found: String },
-    #[error("Logical and used instead of bitwise and")]
-    LogicalAnd { span: Span },
+    InvalidInnerAttribute { location: Location, found: String },
     #[error("Unterminated block comment")]
-    UnterminatedBlockComment { span: Span },
+    UnterminatedBlockComment { location: Location },
     #[error("Unterminated string literal")]
-    UnterminatedStringLiteral { span: Span },
+    UnterminatedStringLiteral { location: Location },
+    #[error("Invalid format string: expected '}}', found {found:?}")]
+    InvalidFormatString { found: char, location: Location },
+    #[error("Invalid format string: expected letter or underscore, found '}}'")]
+    EmptyFormatStringInterpolation { location: Location },
     #[error(
         "'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."
     )]
-    InvalidEscape { escaped: char, span: Span },
+    InvalidEscape { escaped: char, location: Location },
     #[error("Invalid quote delimiter `{delimiter}`, valid delimiters are `{{`, `[`, and `(`")]
-    InvalidQuoteDelimiter { delimiter: SpannedToken },
+    InvalidQuoteDelimiter { delimiter: LocatedToken },
     #[error("Non-ASCII characters are invalid in comments")]
-    NonAsciiComment { span: Span },
+    NonAsciiComment { location: Location },
     #[error("Expected `{end_delim}` to close this {start_delim}")]
-    UnclosedQuote { start_delim: SpannedToken, end_delim: Token },
+    UnclosedQuote { start_delim: LocatedToken, end_delim: Token },
+    #[error("Unicode character '{}' looks like space, but is it not", char)]
+    UnicodeCharacterLooksLikeSpaceButIsItNot { char: char, location: Location },
 }
 
 impl From<LexerErrorKind> for ParserError {
     fn from(value: LexerErrorKind) -> Self {
-        let span = value.span();
-        ParserError::with_reason(ParserErrorReason::Lexer(value), span)
+        let location = value.location();
+        ParserError::with_reason(ParserErrorReason::Lexer(value), location)
     }
 }
 
@@ -56,29 +62,34 @@ impl From<LexerErrorKind> for CompilationError {
 }
 
 impl LexerErrorKind {
-    pub fn span(&self) -> Span {
+    pub fn location(&self) -> Location {
         match self {
-            LexerErrorKind::UnexpectedCharacter { span, .. } => *span,
-            LexerErrorKind::NotADoubleChar { span, .. } => *span,
-            LexerErrorKind::InvalidIntegerLiteral { span, .. } => *span,
-            LexerErrorKind::IntegerLiteralTooLarge { span, .. } => *span,
-            LexerErrorKind::MalformedFuncAttribute { span, .. } => *span,
-            LexerErrorKind::MalformedTestAttribute { span, .. } => *span,
-            LexerErrorKind::InvalidInnerAttribute { span, .. } => *span,
-            LexerErrorKind::LogicalAnd { span } => *span,
-            LexerErrorKind::UnterminatedBlockComment { span } => *span,
-            LexerErrorKind::UnterminatedStringLiteral { span } => *span,
-            LexerErrorKind::InvalidEscape { span, .. } => *span,
-            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.to_span(),
-            LexerErrorKind::NonAsciiComment { span, .. } => *span,
-            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.to_span(),
+            LexerErrorKind::UnexpectedCharacter { location, .. } => *location,
+            LexerErrorKind::NotADoubleChar { location, .. } => *location,
+            LexerErrorKind::InvalidIntegerLiteral { location, .. } => *location,
+            LexerErrorKind::IntegerLiteralTooLarge { location, .. } => *location,
+            LexerErrorKind::MalformedFuncAttribute { location, .. } => *location,
+            LexerErrorKind::MalformedTestAttribute { location, .. } => *location,
+            LexerErrorKind::MalformedFuzzAttribute { location, .. } => *location,
+            LexerErrorKind::InvalidInnerAttribute { location, .. } => *location,
+            LexerErrorKind::UnterminatedBlockComment { location } => *location,
+            LexerErrorKind::UnterminatedStringLiteral { location } => *location,
+            LexerErrorKind::InvalidFormatString { location, .. } => *location,
+            LexerErrorKind::EmptyFormatStringInterpolation { location, .. } => *location,
+            LexerErrorKind::InvalidEscape { location, .. } => *location,
+            LexerErrorKind::InvalidQuoteDelimiter { delimiter } => delimiter.location(),
+            LexerErrorKind::NonAsciiComment { location, .. }
+            | LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { location, .. } => {
+                *location
+            }
+            LexerErrorKind::UnclosedQuote { start_delim, .. } => start_delim.location(),
         }
     }
 
-    fn parts(&self) -> (String, String, Span) {
+    fn parts(&self) -> (String, String, Location) {
         match self {
             LexerErrorKind::UnexpectedCharacter {
-                span,
+                location,
                 expected,
                 found,
             } => {
@@ -87,59 +98,125 @@ impl LexerErrorKind {
                 (
                     "An unexpected character was found".to_string(),
                     format!("Expected {expected}, but found {found}"),
-                    *span,
+                    *location,
                 )
             },
-            LexerErrorKind::NotADoubleChar { span, found } => (
+            LexerErrorKind::NotADoubleChar { location, found } => (
                 format!("Tried to parse {found} as double char"),
                 format!(
                     " {found:?} is not a double char, this is an internal error"
                 ),
-                *span,
+                *location,
             ),
-            LexerErrorKind::InvalidIntegerLiteral { span, found } => (
+            LexerErrorKind::InvalidIntegerLiteral { location, found } => (
                 "Invalid integer literal".to_string(),
                 format!(" {found} is not an integer"),
-                *span,
+                *location,
             ),
-            LexerErrorKind::IntegerLiteralTooLarge { span, limit } => (
+            LexerErrorKind::IntegerLiteralTooLarge { location, limit } => (
                 "Integer literal is too large".to_string(),
                 format!("value exceeds limit of {limit}"),
-                *span,
+                *location,
             ),
-            LexerErrorKind::MalformedFuncAttribute { span, found } => (
+            LexerErrorKind::MalformedFuncAttribute { location, found } => (
                 "Malformed function attribute".to_string(),
                 format!(" {found} is not a valid attribute"),
-                *span,
+                *location,
             ),
-            LexerErrorKind::MalformedTestAttribute { span } => (
+            LexerErrorKind::MalformedTestAttribute { location } => (
                 "Malformed test attribute".to_string(),
                 "The test attribute can be written in one of these forms: `#[test]`, `#[test(should_fail)]` or `#[test(should_fail_with = \"message\")]`".to_string(),
-                *span,
+                *location,
             ),
-            LexerErrorKind::InvalidInnerAttribute { span, found } => (
+            LexerErrorKind::MalformedFuzzAttribute { location } => (
+                "Malformed fuzz attribute".to_string(),
+                "The fuzz attribute can be written in one of these forms: `#[fuzz]`, `#[fuzz(should_fail)]`, `#[fuzz(should_fail_with = \"message\")]` or `#[fuzz(only_fail_with = \"message\")]`".to_string(),
+                *location,
+            ),
+            LexerErrorKind::InvalidInnerAttribute { location, found } => (
                 "Invalid inner attribute".to_string(),
                 format!(" {found} is not a valid inner attribute"),
-                *span,
+                *location,
             ),
-            LexerErrorKind::LogicalAnd { span } => (
-                "Noir has no logical-and (&&) operator since short-circuiting is much less efficient when compiling to circuits".to_string(),
-                "Try `&` instead, or use `if` only if you require short-circuiting".to_string(),
-                *span,
-            ),
-            LexerErrorKind::UnterminatedBlockComment { span } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *span),
-            LexerErrorKind::UnterminatedStringLiteral { span } =>
-                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *span),
-            LexerErrorKind::InvalidEscape { escaped, span } =>
-                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *span),
+            LexerErrorKind::UnterminatedBlockComment { location } => ("Unterminated block comment".to_string(), "Unterminated block comment".to_string(), *location),
+            LexerErrorKind::UnterminatedStringLiteral { location } =>
+                ("Unterminated string literal".to_string(), "Unterminated string literal".to_string(), *location),
+            LexerErrorKind::InvalidFormatString { found, location } => {
+                if found == &'}' {
+                    (
+                        "Invalid format string: unmatched '}}' found".to_string(),
+                        "If you intended to print '}', you can escape it using '}}'".to_string(),
+                        *location,
+                    )
+                } else {
+                    (
+                        format!("Invalid format string: expected '}}', found {found:?}"),
+                        if found == &'.' {
+                            "Field access isn't supported in format strings".to_string()
+                        } else {
+                            "If you intended to print '{', you can escape it using '{{'".to_string()
+                        },
+                        *location,
+                    )
+                }
+            }
+            LexerErrorKind::EmptyFormatStringInterpolation { location } => {
+                (
+                    "Invalid format string: expected letter or underscore, found '}}'".to_string(),
+                    "If you intended to print '{' or '}', you can escape them using '{{' and '}}' respectively".to_string(),
+                    *location,
+                )
+            }
+            LexerErrorKind::InvalidEscape { escaped, location } =>
+                (format!("'\\{escaped}' is not a valid escape sequence. Use '\\' for a literal backslash character."), "Invalid escape sequence".to_string(), *location),
             LexerErrorKind::InvalidQuoteDelimiter { delimiter } => {
-                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.to_span())
+                (format!("Invalid quote delimiter `{delimiter}`"), "Valid delimiters are `{`, `[`, and `(`".to_string(), delimiter.location())
             },
-            LexerErrorKind::NonAsciiComment { span } => {
-                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *span)
+            LexerErrorKind::NonAsciiComment { location } => {
+                ("Non-ASCII character in comment".to_string(), "Invalid comment character: only ASCII is currently supported.".to_string(), *location)
             }
             LexerErrorKind::UnclosedQuote { start_delim, end_delim } => {
-                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.to_span())
+                ("Unclosed `quote` expression".to_string(), format!("Expected a `{end_delim}` to close this `{start_delim}`"), start_delim.location())
+            }
+            LexerErrorKind::UnicodeCharacterLooksLikeSpaceButIsItNot { char, location } => {
+                // List taken from https://en.wikipedia.org/wiki/Whitespace_character
+                let char_name = match char {
+                    '\u{0085}' => Some("Next Line"),
+                    '\u{00A0}' => Some("No-Break Space"),
+                    '\u{1680}' => Some("Ogham Space Mark"),
+                    '\u{2000}' => Some("En Quad"),
+                    '\u{2001}' => Some("Em Quad"),
+                    '\u{2002}' => Some("En Space"),
+                    '\u{2003}' => Some("Em Space"),
+                    '\u{2004}' => Some("Three-Per-Em Space"),
+                    '\u{2005}' => Some("Four-Per-Em Space"),
+                    '\u{2006}' => Some("Six-Per-Em Space"),
+                    '\u{2007}' => Some("Figure Space"),
+                    '\u{2008}' => Some("Punctuation Space"),
+                    '\u{2009}' => Some("Thin Space"),
+                    '\u{200A}' => Some("Hair Space"),
+                    '\u{2028}' => Some("Line Separator"),
+                    '\u{2029}' => Some("Paragraph Separator"),
+                    '\u{202F}' => Some("Narrow No-Break Space"),
+                    '\u{205F}' => Some("Medium Mathematical Space"),
+                    '\u{3000}' => Some("Ideographic Space"),
+                    '\u{180E}' => Some("Mongolian Vowel Separator"),
+                    '\u{200B}' => Some("Zero Width Space"),
+                    '\u{200C}' => Some("Zero Width Non-Joiner"),
+                    '\u{200D}' => Some("Zero Width Joiner"),
+                    '\u{2060}' => Some("Word Joiner"),
+                    '\u{FEFF}' => Some("Zero Width No-Break Space"), // cSpell:disable-line
+                    _ => None,
+                };
+
+                let primary = format!("Unknown start of token: \\u{{{:x}}}", (*char as u32));
+                let secondary = match char_name {
+                    Some(name) => format!("Unicode character '{char}' ({name}) looks like ' ' (Space), but is it not"),
+                    None => {
+                        format!("Unicode character '{char}' looks like ' ' (Space), but is it not")
+                    }
+                };
+                (primary, secondary, *location)
             }
         }
     }

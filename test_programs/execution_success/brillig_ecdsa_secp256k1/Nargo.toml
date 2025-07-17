@@ -1,6 +1,0 @@
-[package]
-name = "brillig_ecdsa_secp256k1"
-type = "bin"
-authors = [""]
-
-[dependencies]

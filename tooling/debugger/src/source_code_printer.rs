@@ -30,7 +30,11 @@ struct LocationPrintContext {
 // Given a DebugArtifact and an OpcodeLocation, prints all the source code
 // locations the OpcodeLocation maps to, with some surrounding context and
 // visual aids to highlight the location itself.
-pub(super) fn print_source_code_location(debug_artifact: &DebugArtifact, locations: &[Location]) {
+pub(super) fn print_source_code_location(
+    debug_artifact: &DebugArtifact,
+    locations: &[Location],
+    raw_source_printing: bool,
+) {
     let locations = locations.iter();
 
     for loc in locations {
@@ -41,9 +45,11 @@ pub(super) fn print_source_code_location(debug_artifact: &DebugArtifact, locatio
         for line in lines {
             match line {
                 PrintedLine::Skip => {}
-                PrintedLine::Ellipsis { line_number } => print_ellipsis(line_number),
+                PrintedLine::Ellipsis { line_number } => {
+                    print_ellipsis(line_number, raw_source_printing);
+                }
                 PrintedLine::Content { line_number, cursor, content, highlight } => {
-                    print_content(line_number, cursor, content, highlight)
+                    print_content(line_number, cursor, content, highlight, raw_source_printing);
                 }
             }
         }
@@ -57,11 +63,29 @@ fn print_location_path(debug_artifact: &DebugArtifact, loc: Location) {
     println!("At {}:{line_number}:{column_number}", debug_artifact.name(loc.file).unwrap());
 }
 
-fn print_ellipsis(line_number: usize) {
+fn print_ellipsis(line_number: usize, raw_source_printing: bool) {
+    if raw_source_printing {
+        println!("...");
+        return;
+    }
+
     println!("{:>3} {:2} {}", line_number.dimmed(), "", "...".dimmed());
 }
 
-fn print_content(line_number: usize, cursor: &str, content: &str, highlight: Option<Range<usize>>) {
+fn print_content(
+    line_number: usize,
+    cursor: &str,
+    content: &str,
+    highlight: Option<Range<usize>>,
+    raw_source_printing: bool,
+) {
+    if raw_source_printing {
+        if cursor == "->" && highlight.is_some() {
+            println!("{content}");
+        }
+        return;
+    }
+
     match highlight {
         Some(highlight) => {
             println!(
@@ -194,8 +218,7 @@ fn render_location<'a>(
     let context_lines = 5;
 
     // Sub-range of lines that we'll print, which includes location + context lines
-    let first_line_to_print =
-        if location_lines.start < context_lines { 0 } else { location_lines.start - context_lines };
+    let first_line_to_print = location_lines.start.saturating_sub(context_lines);
     let last_line_to_print = std::cmp::min(location_lines.end + context_lines, file_lines.end);
     let printed_lines = Range { start: first_line_to_print, end: last_line_to_print };
 
@@ -220,17 +243,18 @@ fn render_location<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::source_code_printer::render_location;
     use crate::source_code_printer::PrintedLine::Content;
-    use acvm::acir::circuit::OpcodeLocation;
+    use crate::source_code_printer::render_location;
+    use acvm::acir::circuit::AcirOpcodeLocation;
     use fm::FileManager;
     use noirc_artifacts::debug::DebugArtifact;
-    use noirc_errors::{debug_info::DebugInfo, Location, Span};
+    use noirc_errors::call_stack::{CallStackId, LocationNodeDebugInfo, LocationTree};
+    use noirc_errors::{Location, Span, debug_info::DebugInfo};
     use std::collections::BTreeMap;
     use std::ops::Range;
     use std::path::Path;
     use std::path::PathBuf;
-    use tempfile::{tempdir, TempDir};
+    use tempfile::{TempDir, tempdir};
 
     // Returns the absolute path to the file
     fn create_dummy_file(dir: &TempDir, file_name: &Path) -> PathBuf {
@@ -266,12 +290,20 @@ mod tests {
 
         // We don't care about opcodes in this context,
         // we just use a dummy to construct debug_symbols
-        let mut opcode_locations = BTreeMap::<OpcodeLocation, Vec<Location>>::new();
-        opcode_locations.insert(OpcodeLocation::Acir(42), vec![loc]);
+        let mut opcode_locations = BTreeMap::<AcirOpcodeLocation, CallStackId>::new();
+        opcode_locations.insert(AcirOpcodeLocation::new(42), CallStackId::new(1));
+        let mut location_tree = LocationTree::default();
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: None, value: Location::dummy() });
+        location_tree
+            .locations
+            .push(LocationNodeDebugInfo { parent: Some(CallStackId::root()), value: loc });
 
         let debug_symbols = vec![DebugInfo::new(
-            opcode_locations,
             BTreeMap::default(),
+            opcode_locations,
+            location_tree,
             BTreeMap::default(),
             BTreeMap::default(),
             BTreeMap::default(),

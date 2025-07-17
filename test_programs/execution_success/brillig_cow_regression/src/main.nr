@@ -7,7 +7,7 @@ global MAX_NEW_CONTRACTS_PER_TX: u32 = 1;
 global NUM_ENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
 global NUM_UNENCRYPTED_LOGS_HASHES_PER_TX: u32 = 1;
 global NUM_FIELDS_PER_SHA256: u32 = 2;
-global TX_EFFECT_HASH_INPUT_SIZE = 169;
+global TX_EFFECT_HASH_INPUT_SIZE: u32 = 169;
 global TX_EFFECT_HASH_LOG_FIELDS: u32 = 4;
 global TX_EFFECT_HASH_FULL_FIELDS: u32 = 165;
 
@@ -172,6 +172,6 @@ unconstrained fn main(kernel_data: DataToHash) -> pub [Field; NUM_FIELDS_PER_SHA
         }
     }
 
-    let sha_digest = std::hash::sha256(hash_input_flattened);
-    U256::from_bytes32(sha_digest).to_u128_limbs()
+    let blake2_digest = std::hash::blake2s(hash_input_flattened);
+    U256::from_bytes32(blake2_digest).to_u128_limbs()
 }

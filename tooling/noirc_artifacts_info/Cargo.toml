@@ -1,0 +1,22 @@
+[package]
+name = "noirc_artifacts_info"
+description = "The logic for `nargo info` and `nargo-inspector`"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+acir.workspace = true
+noirc_artifacts.workspace = true
+rayon.workspace = true
+acvm = { workspace = true, features = ["bn254"] }
+iter-extended.workspace = true
+prettytable-rs = "0.10"

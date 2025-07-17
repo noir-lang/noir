@@ -1,21 +1,31 @@
 use std::{
-    collections::{btree_map, BTreeMap},
+    collections::{BTreeMap, btree_map},
     io::Read,
     ops::Index,
 };
 
+use acir_field::AcirField;
+use flate2::Compression;
 use flate2::bufread::GzDecoder;
 use flate2::bufread::GzEncoder;
-use flate2::Compression;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::native_types::Witness;
+use crate::{native_types::Witness, serialization};
 
 #[derive(Debug, Error)]
 enum SerializationError {
-    #[error(transparent)]
-    Deflate(#[from] std::io::Error),
+    #[error("error compressing witness map: {0}")]
+    Compress(std::io::Error),
+
+    #[error("error decompressing witness map: {0}")]
+    Decompress(std::io::Error),
+
+    #[error("error serializing witness map: {0}")]
+    Serialize(std::io::Error),
+
+    #[error("error deserializing witness map: {0}")]
+    Deserialize(std::io::Error),
 }
 
 #[derive(Debug, Error)]
@@ -24,6 +34,7 @@ pub struct WitnessMapError(#[from] SerializationError);
 
 /// A map from the witnesses in a constraint system to the field element values
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct WitnessMap<F>(BTreeMap<Witness, F>);
 
 impl<F> WitnessMap<F> {
@@ -77,26 +88,32 @@ impl<F> From<BTreeMap<Witness, F>> for WitnessMap<F> {
     }
 }
 
-impl<F: Serialize> TryFrom<WitnessMap<F>> for Vec<u8> {
-    type Error = WitnessMapError;
+impl<F: AcirField + Serialize> WitnessMap<F> {
+    /// Serialize and compress.
+    pub fn serialize(&self) -> Result<Vec<u8>, WitnessMapError> {
+        let buf = serialization::serialize_with_format_from_env(self)
+            .map_err(|e| WitnessMapError(SerializationError::Serialize(e)))?;
 
-    fn try_from(val: WitnessMap<F>) -> Result<Self, Self::Error> {
-        let buf = bincode::serialize(&val).unwrap();
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
-        let mut buf_c = Vec::new();
-        deflater.read_to_end(&mut buf_c).map_err(|err| WitnessMapError(err.into()))?;
-        Ok(buf_c)
+        let mut buf = Vec::new();
+        deflater
+            .read_to_end(&mut buf)
+            .map_err(|e| WitnessMapError(SerializationError::Compress(e)))?;
+
+        Ok(buf)
     }
 }
 
-impl<F: for<'a> Deserialize<'a>> TryFrom<&[u8]> for WitnessMap<F> {
-    type Error = WitnessMapError;
+impl<F: AcirField + for<'a> Deserialize<'a>> WitnessMap<F> {
+    /// Decompress and deserialize.
+    pub fn deserialize(buf: &[u8]) -> Result<Self, WitnessMapError> {
+        let mut deflater = GzDecoder::new(buf);
+        let mut buf = Vec::new();
+        deflater
+            .read_to_end(&mut buf)
+            .map_err(|e| WitnessMapError(SerializationError::Decompress(e)))?;
 
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        let mut deflater = GzDecoder::new(bytes);
-        let mut buf_d = Vec::new();
-        deflater.read_to_end(&mut buf_d).map_err(|err| WitnessMapError(err.into()))?;
-        let witness_map = bincode::deserialize(&buf_d).unwrap();
-        Ok(Self(witness_map))
+        serialization::deserialize_any_format(&buf)
+            .map_err(|e| WitnessMapError(SerializationError::Deserialize(e)))
     }
 }

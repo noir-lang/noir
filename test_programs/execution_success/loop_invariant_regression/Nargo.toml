@@ -1,0 +1,7 @@
+[package]
+name = "loop_invariant_regression"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.38.0"
+
+[dependencies]

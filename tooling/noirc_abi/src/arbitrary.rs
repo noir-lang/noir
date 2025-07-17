@@ -5,8 +5,8 @@ use proptest::prelude::*;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    input_parser::InputValue, Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap,
-    Sign,
+    Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap, Sign,
+    input_parser::InputValue,
 };
 use std::collections::{BTreeMap, HashSet};
 
@@ -25,8 +25,8 @@ fn ensure_unique_strings<'a>(iter: impl Iterator<Item = &'a mut String>) {
 
 proptest::prop_compose! {
     pub(super) fn arb_field_from_integer(bit_size: u32)(value: u128)-> FieldElement {
-        let width = (bit_size % 128).clamp(1, 127);
-        let max_value = 2u128.pow(width) - 1;
+        let width = (bit_size % 129).clamp(1, 128);
+        let max_value = if bit_size == 128 { u128::MAX } else { (1u128 << width) - 1 };
         FieldElement::from(value.clamp(0, max_value))
     }
 }
@@ -86,7 +86,7 @@ fn arb_primitive_abi_type() -> SBoxedStrategy<AbiType> {
         Just(AbiType::Field),
         Just(AbiType::Boolean),
         any::<(Sign, u32)>().prop_map(|(sign, width)| {
-            let width = (width % 128).clamp(1, 127);
+            let width = (width % 129).clamp(1, 128);
             AbiType::Integer { sign, width }
         }),
         // restrict length of strings to avoid running out of memory

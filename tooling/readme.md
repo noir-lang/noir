@@ -4,7 +4,7 @@ Below we briefly describe the purpose of each tool-related crate in this reposit
 
 ## nargo
 
-This is the default package manager used by Noir. One may draw similarities to Rusts' Cargo.
+This is the default package manager used by Noir. One may draw similarities to Rust's Cargo.
 
 ## nargo_fmt
 

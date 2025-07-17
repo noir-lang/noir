@@ -1,5 +1,5 @@
-use lsp_types::TextEdit;
-use noirc_errors::{Location, Span};
+use async_lsp::lsp_types::TextEdit;
+use noirc_errors::Span;
 use noirc_frontend::{
     ast::{ConstructorExpression, UnresolvedTypeData},
     node_interner::ReferenceId,
@@ -9,7 +9,7 @@ use crate::byte_span_to_range;
 
 use super::CodeActionFinder;
 
-impl<'a> CodeActionFinder<'a> {
+impl CodeActionFinder<'_> {
     pub(super) fn fill_struct_fields(&mut self, constructor: &ConstructorExpression, span: Span) {
         if !self.includes_span(span) {
             return;
@@ -19,24 +19,22 @@ impl<'a> CodeActionFinder<'a> {
             return;
         };
 
-        let location = Location::new(path.span, self.file);
-        let Some(ReferenceId::Struct(struct_id)) = self.interner.find_referenced(location) else {
+        let location = path.location;
+        let Some(ReferenceId::Type(type_id)) = self.interner.find_referenced(location) else {
             return;
         };
 
-        let struct_type = self.interner.get_struct(struct_id);
-        let struct_type = struct_type.borrow();
+        let typ = self.interner.get_type(type_id);
+        let typ = typ.borrow();
 
         // First get all of the struct's fields
-        let mut fields = struct_type.get_fields_as_written();
+        let Some(mut fields) = typ.get_fields_as_written() else {
+            return;
+        };
 
         // Remove the ones that already exists in the constructor
         for (constructor_field, _) in &constructor.fields {
-            fields.retain(|field| field.name.0.contents != constructor_field.0.contents);
-        }
-
-        if fields.is_empty() {
-            return;
+            fields.retain(|field| field.name.as_str() != constructor_field.as_str());
         }
 
         // Some fields are missing. Let's suggest a quick fix that adds them.
@@ -103,7 +101,7 @@ impl<'a> CodeActionFinder<'a> {
                     new_text.push(' ');
                 }
             }
-            new_text.push_str(&field.name.0.contents);
+            new_text.push_str(field.name.as_str());
             new_text.push_str(": ()");
         }
 

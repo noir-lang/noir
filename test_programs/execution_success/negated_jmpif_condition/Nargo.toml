@@ -1,0 +1,6 @@
+[package]
+name = "negated_jmpif_condition"
+type = "bin"
+authors = [""]
+
+[dependencies]

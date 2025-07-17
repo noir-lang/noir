@@ -21,7 +21,7 @@ impl Ssa {
     /// During normal compilation this is often not the case since prior passes
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
-    pub(crate) fn normalize_ids(&mut self) {
+    pub fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
@@ -72,13 +72,18 @@ impl Context {
         let new_function_id = self.new_ids.function_ids[&old_function.id()];
         let new_function = &mut self.functions[new_function_id];
 
-        let mut reachable_blocks = PostOrder::with_function(old_function).into_vec();
-        reachable_blocks.reverse();
+        for (_, value) in old_function.dfg.globals.values_iter() {
+            new_function.dfg.make_global(value.get_type().into_owned());
+        }
 
-        self.new_ids.populate_blocks(&reachable_blocks, old_function, new_function);
+        let reachable_blocks = old_function.reachable_blocks();
+        self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
+
+        let mut reverse_post_order = PostOrder::with_function(old_function).into_vec();
+        reverse_post_order.reverse();
 
         // Map each parameter, instruction, and terminator
-        for old_block_id in reachable_blocks {
+        for old_block_id in reverse_post_order {
             let new_block_id = self.new_ids.blocks[&old_block_id];
 
             let old_block = &mut old_function.dfg[old_block_id];
@@ -86,33 +91,42 @@ impl Context {
                 let instruction = old_function.dfg[old_instruction_id]
                     .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
 
-                let call_stack = old_function.dfg.get_call_stack(old_instruction_id);
+                let call_stack = old_function.dfg.get_instruction_call_stack_id(old_instruction_id);
+                let locations = old_function.dfg.get_call_stack(call_stack);
+                let new_call_stack =
+                    new_function.dfg.call_stack_data.get_or_insert_locations(&locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
                 let ctrl_typevars = instruction
                     .requires_ctrl_typevars()
                     .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
 
-                let new_results = new_function.dfg.insert_instruction_and_results(
-                    instruction,
-                    new_block_id,
-                    ctrl_typevars,
-                    call_stack,
-                );
+                let new_results =
+                    new_function.dfg.insert_instruction_and_results_without_simplification(
+                        instruction,
+                        new_block_id,
+                        ctrl_typevars,
+                        new_call_stack,
+                    );
 
                 assert_eq!(old_results.len(), new_results.len());
                 for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
                 {
-                    let old_result = old_function.dfg.resolve(*old_result);
+                    let old_result = *old_result;
                     self.new_ids.values.insert(old_result, *new_result);
                 }
             }
 
             let old_block = &mut old_function.dfg[old_block_id];
-            let mut terminator = old_block
-                .take_terminator()
-                .map_values(|value| self.new_ids.map_value(new_function, old_function, value));
+            let mut terminator = old_block.take_terminator();
+            terminator
+                .map_values_mut(|value| self.new_ids.map_value(new_function, old_function, value));
+
             terminator.mutate_blocks(|old_block| self.new_ids.blocks[&old_block]);
+            let locations = old_function.dfg.get_call_stack(terminator.call_stack());
+            let new_call_stack =
+                new_function.dfg.call_stack_data.get_or_insert_locations(&locations);
+            terminator.set_call_stack(new_call_stack);
             new_function.dfg.set_block_terminator(new_block_id, terminator);
         }
 
@@ -126,7 +140,7 @@ impl Context {
 impl IdMaps {
     fn populate_blocks(
         &mut self,
-        reachable_blocks: &[BasicBlockId],
+        reachable_blocks: impl IntoIterator<Item = BasicBlockId>,
         old_function: &mut Function,
         new_function: &mut Function,
     ) {
@@ -134,15 +148,14 @@ impl IdMaps {
         self.blocks.insert(old_entry, new_function.entry_block());
 
         for old_id in reachable_blocks {
-            if *old_id != old_entry {
+            if old_id != old_entry {
                 let new_id = new_function.dfg.make_block();
-                self.blocks.insert(*old_id, new_id);
+                self.blocks.insert(old_id, new_id);
             }
 
-            let new_id = self.blocks[old_id];
-            let old_block = &mut old_function.dfg[*old_id];
+            let new_id = self.blocks[&old_id];
+            let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
-                let old_parameter = old_function.dfg.resolve(old_parameter);
                 let typ = old_function.dfg.type_of_value(old_parameter);
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
                 self.values.insert(old_parameter, new_parameter);
@@ -156,12 +169,16 @@ impl IdMaps {
         old_function: &Function,
         old_value: ValueId,
     ) -> ValueId {
-        let old_value = old_function.dfg.resolve(old_value);
+        if old_function.dfg.is_global(old_value) {
+            // Globals are computed at compile-time and thus are expected to be remain normalized
+            // between SSA passes
+            return old_value;
+        }
         match &old_function.dfg[old_value] {
             value @ Value::Instruction { instruction, .. } => {
                 *self.values.get(&old_value).unwrap_or_else(|| {
                     let instruction = &old_function.dfg[*instruction];
-                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}")
+                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}", old_function.id())
                 })
             }
 
@@ -172,28 +189,20 @@ impl IdMaps {
             }
 
             Value::Function(id) => {
-                let new_id = self.function_ids[id];
+                let new_id = *self.function_ids.get(id).unwrap_or_else(|| {
+                    unreachable!("Unmapped function with id {id}")
+                });
                 new_function.dfg.import_function(new_id)
             }
 
             Value::NumericConstant { constant, typ } => {
-                new_function.dfg.make_constant(*constant, typ.clone())
-            }
-            Value::Array { array, typ } => {
-                if let Some(value) = self.values.get(&old_value) {
-                    return *value;
-                }
-
-                let array = array
-                    .iter()
-                    .map(|value| self.map_value(new_function, old_function, *value))
-                    .collect();
-                let new_value = new_function.dfg.make_array(array, typ.clone());
-                self.values.insert(old_value, new_value);
-                new_value
+                new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
             Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::Global(_) => {
+                unreachable!("Should have handled the global case already");
+            },
         }
     }
 }

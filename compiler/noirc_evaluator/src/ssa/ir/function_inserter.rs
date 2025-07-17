@@ -1,10 +1,9 @@
 use iter_extended::vecmap;
-
-use crate::ssa::ir::types::Type;
+use noirc_errors::call_stack::CallStackId;
 
 use super::{
     basic_block::BasicBlockId,
-    dfg::{CallStack, InsertInstructionResult},
+    dfg::InsertInstructionResult,
     function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
@@ -18,45 +17,20 @@ pub(crate) struct FunctionInserter<'f> {
     pub(crate) function: &'f mut Function,
 
     values: HashMap<ValueId, ValueId>,
-    /// Map containing repeat array constants so that we do not initialize a new
-    /// array unnecessarily. An extra tuple field is included as part of the key to
-    /// distinguish between array/slice types.
-    const_arrays: HashMap<(im::Vector<ValueId>, Type), ValueId>,
 }
 
 impl<'f> FunctionInserter<'f> {
     pub(crate) fn new(function: &'f mut Function) -> FunctionInserter<'f> {
-        Self { function, values: HashMap::default(), const_arrays: HashMap::default() }
+        Self { function, values: HashMap::default() }
     }
 
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, mut value: ValueId) -> ValueId {
-        value = self.function.dfg.resolve(value);
+    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
-            None => match &self.function.dfg[value] {
-                super::value::Value::Array { array, typ } => {
-                    let array = array.clone();
-                    let typ = typ.clone();
-                    let new_array: im::Vector<ValueId> =
-                        array.iter().map(|id| self.resolve(*id)).collect();
-
-                    if let Some(fetched_value) =
-                        self.const_arrays.get(&(new_array.clone(), typ.clone()))
-                    {
-                        return *fetched_value;
-                    };
-
-                    let new_array_clone = new_array.clone();
-                    let new_id = self.function.dfg.make_array(new_array, typ.clone());
-                    self.values.insert(value, new_id);
-                    self.const_arrays.insert((new_array_clone, typ), new_id);
-                    new_id
-                }
-                _ => value,
-            },
+            None => value,
         }
     }
 
@@ -80,26 +54,33 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
-    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStack) {
-        (
-            self.function.dfg[id].clone().map_values(|id| self.resolve(id)),
-            self.function.dfg.get_call_stack(id),
-        )
+    /// Get an instruction and make sure all the values in it are freshly resolved.
+    pub(crate) fn map_instruction(&mut self, id: InstructionId) -> (Instruction, CallStackId) {
+        let mut instruction = self.function.dfg[id].clone();
+        instruction.map_values_mut(|id| self.resolve(id));
+        (instruction, self.function.dfg.get_instruction_call_stack_id(id))
+    }
+
+    /// Get an instruction, map all its values, and replace it with the resolved instruction.
+    pub(crate) fn map_instruction_in_place(&mut self, id: InstructionId) {
+        let mut instruction = self.function.dfg[id].clone();
+        instruction.map_values_mut(|id| self.resolve(id));
+        self.function.dfg.set_instruction(id, instruction);
     }
 
     /// Maps a terminator in place, replacing any ValueId in the terminator with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_terminator_in_place(&mut self, block: BasicBlockId) {
         let mut terminator = self.function.dfg[block].take_terminator();
-        terminator.mutate_values(|value| self.resolve(value));
+        terminator.map_values_mut(|value| self.resolve(value));
         self.function.dfg[block].set_terminator(terminator);
     }
 
     /// Maps the data bus in place, replacing any ValueId in the data bus with the
     /// resolved version of that value id from this FunctionInserter's internal value mapping.
     pub(crate) fn map_data_bus_in_place(&mut self) {
-        let data_bus = self.function.dfg.data_bus.clone();
-        let data_bus = data_bus.map_values(|value| self.resolve(value));
+        let mut data_bus = self.function.dfg.data_bus.clone();
+        data_bus.map_values_mut(|value| self.resolve(value));
         self.function.dfg.data_bus = data_bus;
     }
 
@@ -123,10 +104,9 @@ impl<'f> FunctionInserter<'f> {
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
-        call_stack: CallStack,
+        call_stack: CallStackId,
     ) -> InsertInstructionResult {
-        let results = self.function.dfg.instruction_results(id);
-        let results = vecmap(results, |id| self.function.dfg.resolve(*id));
+        let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
             .requires_ctrl_typevars()
@@ -190,5 +170,23 @@ impl<'f> FunctionInserter<'f> {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);
         }
+    }
+
+    /// Merge the internal mapping into the given mapping
+    /// The merge is guaranteed to be coherent because ambiguous cases are prevented
+    pub(crate) fn extract_mapping(&self, mapping: &mut HashMap<ValueId, ValueId>) {
+        for (k, v) in &self.values {
+            if mapping.contains_key(k) {
+                unreachable!("cannot merge key");
+            }
+            if mapping.contains_key(v) {
+                unreachable!("cannot merge value");
+            }
+            mapping.insert(*k, *v);
+        }
+    }
+
+    pub(crate) fn set_mapping(&mut self, mapping: HashMap<ValueId, ValueId>) {
+        self.values = mapping;
     }
 }

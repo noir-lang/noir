@@ -1,7 +1,7 @@
 use acir::{
+    AcirField,
     circuit::opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput},
     native_types::{Witness, WitnessMap},
-    AcirField,
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
 
@@ -10,8 +10,8 @@ use self::{
     hash::solve_poseidon2_permutation_opcode,
 };
 
-use super::{insert_value, OpcodeNotSolvable, OpcodeResolutionError};
-use crate::{pwg::input_to_value, BlackBoxFunctionSolver};
+use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
+use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 
 mod aes128;
 pub(crate) mod bigint;
@@ -27,10 +27,7 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 pub(crate) use range::solve_range_opcode;
-use signature::{
-    ecdsa::{secp256k1_prehashed, secp256r1_prehashed},
-    schnorr::schnorr_verify,
-};
+use signature::ecdsa::{secp256k1_prehashed, secp256r1_prehashed};
 
 /// Check if all of the inputs to the function have assignments
 ///
@@ -40,12 +37,8 @@ fn first_missing_assignment<F>(
     inputs: &[FunctionInput<F>],
 ) -> Option<Witness> {
     inputs.iter().find_map(|input| {
-        if let ConstantOrWitnessEnum::Witness(ref witness) = input.input_ref() {
-            if witness_assignments.contains_key(witness) {
-                None
-            } else {
-                Some(*witness)
-            }
+        if let ConstantOrWitnessEnum::Witness(witness) = input.input_ref() {
+            if witness_assignments.contains_key(witness) { None } else { Some(*witness) }
         } else {
             None
         }
@@ -60,6 +53,19 @@ fn contains_all_inputs<F>(
     first_missing_assignment(witness_assignments, inputs).is_none()
 }
 
+/// Solve a black box function call
+/// 1. Returns an error if not all the inputs are already resolved to a value
+/// 2. Compute the output from the inputs, using the dedicated solvers
+///
+/// A blackbox is a fully specified function (e.g sha256, ecdsa signature,...)
+/// which the backend can prove execution in a more efficient way than using a generic
+/// arithmetic circuit.
+/// Solving a black box function simply means to compute the output from the inputs for
+/// the specific function.
+/// Our black box solver uses the standard rust implementation for the function if it is available.
+/// However, some functions depend on the backend, such as embedded curve operations, which depend on the
+/// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
+/// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
 pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
@@ -79,9 +85,15 @@ pub(crate) fn solve<F: AcirField>(
         BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, outputs } => {
             solve_aes128_encryption_opcode(initial_witness, inputs, iv, key, outputs)
         }
-        BlackBoxFuncCall::AND { lhs, rhs, output } => and(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::XOR { lhs, rhs, output } => xor(initial_witness, lhs, rhs, output),
-        BlackBoxFuncCall::RANGE { input } => solve_range_opcode(initial_witness, input),
+        BlackBoxFuncCall::AND { lhs, rhs, output } => {
+            and(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::XOR { lhs, rhs, output } => {
+            xor(initial_witness, lhs, rhs, output, backend.pedantic_solving())
+        }
+        BlackBoxFuncCall::RANGE { input } => {
+            solve_range_opcode(initial_witness, input, backend.pedantic_solving())
+        }
         BlackBoxFuncCall::Blake2s { inputs, outputs } => {
             solve_generic_256_hash_opcode(initial_witness, inputs, None, outputs, blake2s)
         }
@@ -103,21 +115,6 @@ pub(crate) fn solve<F: AcirField>(
             }
             Ok(())
         }
-        BlackBoxFuncCall::SchnorrVerify {
-            public_key_x,
-            public_key_y,
-            signature,
-            message,
-            output,
-        } => schnorr_verify(
-            backend,
-            initial_witness,
-            *public_key_x,
-            *public_key_y,
-            signature.as_ref(),
-            message,
-            *output,
-        ),
         BlackBoxFuncCall::EcdsaSecp256k1 {
             public_key_x,
             public_key_y,

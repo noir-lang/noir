@@ -1,15 +1,16 @@
-use super::{namespace::PerNs, ModuleDefId, ModuleId};
+use super::{ModuleDefId, ModuleId, namespace::PerNs};
 use crate::ast::{Ident, ItemVisibility};
 use crate::node_interner::{FuncId, TraitId};
 
-use std::collections::{hash_map::Entry, HashMap};
+use std::collections::{BTreeMap, btree_map};
+use std::collections::{HashMap, hash_map};
 
 type Scope = HashMap<Option<TraitId>, (ModuleDefId, ItemVisibility, bool /*is_prelude*/)>;
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct ItemScope {
-    types: HashMap<Ident, Scope>,
-    values: HashMap<Ident, Scope>,
+    types: BTreeMap<Ident, Scope>,
+    values: BTreeMap<Ident, Scope>,
 
     defs: Vec<ModuleDefId>,
 }
@@ -38,10 +39,10 @@ impl ItemScope {
         trait_id: Option<TraitId>,
         is_prelude: bool,
     ) -> Result<(), (Ident, Ident)> {
-        let add_item = |map: &mut HashMap<Ident, Scope>| {
-            if let Entry::Occupied(mut o) = map.entry(name.clone()) {
+        let add_item = |map: &mut BTreeMap<Ident, Scope>| {
+            if let btree_map::Entry::Occupied(mut o) = map.entry(name.clone()) {
                 let trait_hashmap = o.get_mut();
-                if let Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
+                if let hash_map::Entry::Occupied(mut n) = trait_hashmap.entry(trait_id) {
                     // Generally we want to reject having two of the same ident in the same namespace.
                     // The exception to this is when we're explicitly importing something
                     // which exists in the Noir stdlib prelude.
@@ -50,11 +51,7 @@ impl ItemScope {
                     let is_prelude = std::mem::replace(&mut n.get_mut().2, is_prelude);
                     let old_ident = o.key();
 
-                    if is_prelude {
-                        Ok(())
-                    } else {
-                        Err((old_ident.clone(), name))
-                    }
+                    if is_prelude { Ok(()) } else { Err((old_ident.clone(), name)) }
                 } else {
                     trait_hashmap.insert(trait_id, (mod_def, visibility, is_prelude));
                     Ok(())
@@ -73,6 +70,7 @@ impl ItemScope {
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
             ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
             ModuleDefId::TraitId(_) => add_item(&mut self.types),
+            ModuleDefId::TraitAssociatedTypeId(_) => add_item(&mut self.types),
             ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }
@@ -124,7 +122,7 @@ impl ItemScope {
     pub fn find_name(&self, name: &Ident) -> PerNs {
         // Names, not associated with traits are searched first. If not found, we search for name, coming from a trait.
         // If we find only one name from trait, we return it. If there are multiple traits, providing the same name, we return None.
-        let find_name_in = |a: &HashMap<Ident, Scope>| {
+        let find_name_in = |a: &BTreeMap<Ident, Scope>| {
             if let Some(t) = a.get(name) {
                 if let Some(tt) = t.get(&None) {
                     Some(*tt)
@@ -160,11 +158,11 @@ impl ItemScope {
         self.defs.clone()
     }
 
-    pub fn types(&self) -> &HashMap<Ident, Scope> {
+    pub fn types(&self) -> &BTreeMap<Ident, Scope> {
         &self.types
     }
 
-    pub fn values(&self) -> &HashMap<Ident, Scope> {
+    pub fn values(&self) -> &BTreeMap<Ident, Scope> {
         &self.values
     }
 

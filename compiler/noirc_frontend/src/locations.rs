@@ -1,5 +1,5 @@
 use fm::FileId;
-use noirc_errors::{Location, Span};
+use noirc_errors::Location;
 use rangemap::RangeMap;
 use rustc_hash::FxHashMap as HashMap;
 
@@ -7,7 +7,8 @@ use crate::{
     ast::{FunctionDefinition, ItemVisibility},
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
-        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, StructId, TraitId, TypeAliasId,
+        DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitAssociatedTypeId, TraitId,
+        TypeAliasId, TypeId,
     },
 };
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -36,23 +37,45 @@ impl LocationIndices {
 
 pub struct ReferencesTracker<'a> {
     interner: &'a mut NodeInterner,
-    file_id: FileId,
 }
 
 impl<'a> ReferencesTracker<'a> {
-    pub fn new(interner: &'a mut NodeInterner, file_id: FileId) -> Self {
-        Self { interner, file_id }
+    pub fn new(interner: &'a mut NodeInterner) -> Self {
+        Self { interner }
     }
 
     pub(crate) fn add_reference(
         &mut self,
         module_def_id: ModuleDefId,
-        span: Span,
+        location: Location,
         is_self_type: bool,
     ) {
-        let location = Location::new(span, self.file_id);
         self.interner.add_module_def_id_reference(module_def_id, location, is_self_type);
     }
+}
+
+/// A `ModuleDefId` captured to be offered in LSP's auto-import feature.
+///
+/// The name of the item is stored in the key of the `auto_import_names` map in the `NodeInterner`.
+#[derive(Debug, Copy, Clone)]
+pub struct AutoImportEntry {
+    /// The item to import.
+    pub module_def_id: ModuleDefId,
+    /// The item's visibility.
+    pub visibility: ItemVisibility,
+    /// If the item is available via a re-export, this contains the module where it's defined.
+    /// For example:
+    ///
+    /// ```noir
+    /// mod foo { // <- this is the defining module
+    ///     mod bar {
+    ///         pub struct Baz {} // This is the item
+    ///     }
+    ///     
+    ///     pub use bar::Baz; // Here's the visibility
+    /// }
+    /// ```
+    pub defining_module: Option<ModuleId>,
 }
 
 impl NodeInterner {
@@ -60,22 +83,30 @@ impl NodeInterner {
         match reference {
             ReferenceId::Module(id) => self.module_attributes(&id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
-            ReferenceId::Struct(id) => {
-                let struct_type = self.get_struct(id);
-                let struct_type = struct_type.borrow();
-                Location::new(struct_type.name.span(), struct_type.location.file)
+            ReferenceId::Type(id) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                Location::new(typ.name.span(), typ.location.file)
             }
             ReferenceId::StructMember(id, field_index) => {
-                let struct_type = self.get_struct(id);
+                let struct_type = self.get_type(id);
                 let struct_type = struct_type.borrow();
-                Location::new(
-                    struct_type.field_at(field_index).name.span(),
-                    struct_type.location.file,
-                )
+                let file = struct_type.location.file;
+                Location::new(struct_type.field_at(field_index).name.span(), file)
+            }
+            ReferenceId::EnumVariant(id, variant_index) => {
+                let typ = self.get_type(id);
+                let typ = typ.borrow();
+                let file = typ.location.file;
+                Location::new(typ.variant_at(variant_index).name.span(), file)
             }
             ReferenceId::Trait(id) => {
                 let trait_type = self.get_trait(id);
                 Location::new(trait_type.name.span(), trait_type.location.file)
+            }
+            ReferenceId::TraitAssociatedType(id) => {
+                let associated_type = self.get_trait_associated_type(id);
+                associated_type.name.location()
             }
             ReferenceId::Global(id) => self.get_global(id).location,
             ReferenceId::Alias(id) => {
@@ -105,11 +136,14 @@ impl NodeInterner {
             ModuleDefId::FunctionId(func_id) => {
                 self.add_function_reference(func_id, location);
             }
-            ModuleDefId::TypeId(struct_id) => {
-                self.add_struct_reference(struct_id, location, is_self_type);
+            ModuleDefId::TypeId(type_id) => {
+                self.add_type_reference(type_id, location, is_self_type);
             }
             ModuleDefId::TraitId(trait_id) => {
                 self.add_trait_reference(trait_id, location, is_self_type);
+            }
+            ModuleDefId::TraitAssociatedTypeId(trait_associated_type_id) => {
+                self.add_trait_associated_type_reference(trait_associated_type_id, location);
             }
             ModuleDefId::TypeAliasId(type_alias_id) => {
                 self.add_alias_reference(type_alias_id, location);
@@ -124,18 +158,18 @@ impl NodeInterner {
         self.add_reference(ReferenceId::Module(id), location, false);
     }
 
-    pub(crate) fn add_struct_reference(
+    pub(crate) fn add_type_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         location: Location,
         is_self_type: bool,
     ) {
-        self.add_reference(ReferenceId::Struct(id), location, is_self_type);
+        self.add_reference(ReferenceId::Type(id), location, is_self_type);
     }
 
     pub(crate) fn add_struct_member_reference(
         &mut self,
-        id: StructId,
+        id: TypeId,
         member_index: usize,
         location: Location,
     ) {
@@ -149,6 +183,14 @@ impl NodeInterner {
         is_self_type: bool,
     ) {
         self.add_reference(ReferenceId::Trait(id), location, is_self_type);
+    }
+
+    pub(crate) fn add_trait_associated_type_reference(
+        &mut self,
+        id: TraitAssociatedTypeId,
+        location: Location,
+    ) {
+        self.add_reference(ReferenceId::TraitAssociatedType(id), location, false);
     }
 
     pub(crate) fn add_alias_reference(&mut self, id: TypeAliasId, location: Location) {
@@ -190,6 +232,7 @@ impl NodeInterner {
     pub(crate) fn add_definition_location(
         &mut self,
         referenced: ReferenceId,
+        referenced_location: Location,
         module_id: Option<ModuleId>,
     ) {
         if !self.lsp_mode {
@@ -197,7 +240,6 @@ impl NodeInterner {
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
-        let referenced_location = self.reference_location(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
         if let Some(module_id) = module_id {
             self.reference_modules.insert(referenced, module_id);
@@ -305,9 +347,12 @@ impl NodeInterner {
     pub(crate) fn register_module(
         &mut self,
         id: ModuleId,
+        location: Location,
         visibility: ItemVisibility,
         name: String,
+        parent_module_id: ModuleId,
     ) {
+        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
@@ -315,21 +360,23 @@ impl NodeInterner {
         &mut self,
         id: GlobalId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Global(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Global(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
-    pub(crate) fn register_struct(
+    pub(crate) fn register_type(
         &mut self,
-        id: StructId,
+        id: TypeId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Struct(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Type(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
@@ -337,10 +384,11 @@ impl NodeInterner {
         &mut self,
         id: TraitId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Trait(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Trait(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
@@ -348,15 +396,16 @@ impl NodeInterner {
         &mut self,
         id: TypeAliasId,
         name: String,
+        location: Location,
         visibility: ItemVisibility,
         parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Alias(id), Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Alias(id), location, Some(parent_module_id));
         self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 
     pub(crate) fn register_function(&mut self, id: FuncId, func_def: &FunctionDefinition) {
-        let name = func_def.name.0.contents.clone();
+        let name = func_def.name.to_string();
         let id = ModuleDefId::FunctionId(id);
         self.register_name_for_auto_import(name, id, func_def.visibility, None);
     }
@@ -373,13 +422,11 @@ impl NodeInterner {
         }
 
         let entry = self.auto_import_names.entry(name).or_default();
-        entry.push((module_def_id, visibility, defining_module));
+        entry.push(AutoImportEntry { module_def_id, visibility, defining_module });
     }
 
     #[allow(clippy::type_complexity)]
-    pub fn get_auto_import_names(
-        &self,
-    ) -> &HashMap<String, Vec<(ModuleDefId, ItemVisibility, Option<ModuleId>)>> {
+    pub fn get_auto_import_names(&self) -> &HashMap<String, Vec<AutoImportEntry>> {
         &self.auto_import_names
     }
 }

@@ -23,7 +23,7 @@ pub(crate) fn run(command: GenerateCompletionScriptCommand) -> Result<(), CliErr
             return Err(CliError::Generic(
                 "Invalid shell. Supported shells are: bash, elvish, fish, powershell, zsh"
                     .to_string(),
-            ))
+            ));
         }
     };
 

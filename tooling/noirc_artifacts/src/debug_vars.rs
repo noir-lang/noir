@@ -2,7 +2,7 @@ use acvm::AcirField;
 use noirc_errors::debug_info::{
     DebugFnId, DebugFunction, DebugInfo, DebugTypeId, DebugVarId, DebugVariable,
 };
-use noirc_printable_type::{decode_value, PrintableType, PrintableValue};
+use noirc_printable_type::{PrintableType, PrintableValue, decode_printable_value};
 use std::collections::HashMap;
 
 #[derive(Debug, Default, Clone)]
@@ -36,8 +36,8 @@ impl<F: AcirField> DebugVars<F> {
 
     fn lookup_var(&self, var_id: DebugVarId) -> Option<(&str, &PrintableType)> {
         self.variables.get(&var_id).and_then(|debug_var| {
-            let ptype = self.types.get(&debug_var.debug_type_id)?;
-            Some((debug_var.name.as_str(), ptype))
+            let printable_type = self.types.get(&debug_var.debug_type_id)?;
+            Some((debug_var.name.as_str(), printable_type))
         })
     }
 
@@ -45,7 +45,7 @@ impl<F: AcirField> DebugVars<F> {
         &'a self,
         fn_id: &DebugFnId,
         frame: &'a HashMap<DebugVarId, PrintableValue<F>>,
-    ) -> StackFrame<F> {
+    ) -> StackFrame<'a, F> {
         let debug_fn = &self.functions.get(fn_id).expect("failed to find function metadata");
 
         let params: Vec<&str> =
@@ -66,13 +66,13 @@ impl<F: AcirField> DebugVars<F> {
 
     pub fn assign_var(&mut self, var_id: DebugVarId, values: &[F]) {
         let type_id = &self.variables.get(&var_id).unwrap().debug_type_id;
-        let ptype = self.types.get(type_id).unwrap();
+        let printable_type = self.types.get(type_id).unwrap();
 
         self.frames
             .last_mut()
             .expect("unexpected empty stack frames")
             .1
-            .insert(var_id, decode_value(&mut values.iter().copied(), ptype));
+            .insert(var_id, decode_printable_value(&mut values.iter().copied(), printable_type));
     }
 
     pub fn assign_field(&mut self, var_id: DebugVarId, indexes: Vec<u32>, values: &[F]) {
@@ -143,7 +143,7 @@ impl<F: AcirField> DebugVars<F> {
                 }
             };
         }
-        *cursor = decode_value(&mut values.iter().copied(), cursor_type);
+        *cursor = decode_printable_value(&mut values.iter().copied(), cursor_type);
     }
 
     pub fn assign_deref(&mut self, _var_id: DebugVarId, _values: &[F]) {

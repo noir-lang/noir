@@ -79,30 +79,6 @@ example:
 
 #include_code to_be_bytes_example noir_stdlib/src/field/mod.nr rust
 
-
-### to_le_radix
-
-Decomposes into an array over the specified base, Little Endian
-
-#include_code to_le_radix noir_stdlib/src/field/mod.nr rust
-
-
-example:
-
-#include_code to_le_radix_example noir_stdlib/src/field/mod.nr rust
-
-
-### to_be_radix
-
-Decomposes into an array over the specified base, Big Endian
-
-#include_code to_be_radix noir_stdlib/src/field/mod.nr rust
-
-example:
-
-#include_code to_be_radix_example noir_stdlib/src/field/mod.nr rust
-
-
 ### pow_32
 
 Returns the value to the power of the specified exponent
@@ -132,7 +108,7 @@ example:
 ```rust
 fn main() {
     let field = 2
-    field.assert_max_bit_size(32);
+    field.assert_max_bit_size::<32>();
 }
 ```
 

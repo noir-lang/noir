@@ -1,0 +1,45 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    func_4([982714762_u32, 1608230664_u32, 671108204_u32])
+}
+
+unconstrained fn func_4(a: [u32; 3]) {
+    {
+        let mut idx_b: Field = 0_Field;
+        loop {
+            if idx_b == 6_Field {
+                break;
+            } else {
+                idx_b = idx_b + 1_Field;
+                {
+                    let mut idx_c: Field = 0_Field;
+                    loop {
+                        if idx_c == 7_Field {
+                            break;
+                        } else {
+                            idx_c = idx_c + 1_Field;
+                            for idx_d in (a[2_u32] / 1193346642_u32) % 4_u32..a[1_u32] % 4_u32 {
+                                {
+                                    let mut idx_g: Field = 0_Field;
+                                    loop {
+                                        if idx_g == 3_Field {
+                                            break;
+                                        } else {
+                                            idx_g = idx_g + 1_Field;
+                                            let h: u32 = a[0_u32] % idx_d;
+                                            println(h);
+                                        }
+                                    }
+                                };
+                                break;
+                            }
+                        }
+                    }
+                };
+            }
+        }
+    }
+}

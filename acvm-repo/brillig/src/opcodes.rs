@@ -4,13 +4,19 @@ use serde::{Deserialize, Serialize};
 
 pub type Label = usize;
 
+/// Represents an address in the VM's memory.
+/// Supports both direct and relative addressing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum MemoryAddress {
+    /// Specifies an exact index in the VM's memory
     Direct(usize),
+    /// Specifies an index relative to the stack pointer.
+    ///
+    /// It is resolved as the current stack pointer plus the offset stored here.
     Relative(usize),
 }
 
-/// `MemoryAddress` refers to the index in VM memory.
 impl MemoryAddress {
     pub fn direct(address: usize) -> Self {
         MemoryAddress::Direct(address)
@@ -56,7 +62,7 @@ impl MemoryAddress {
 }
 
 /// Describes the memory layout for an array/vector element
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum HeapValueType {
     // A single field element is enough to represent the value with a given bit size
     Simple(BitSize),
@@ -81,7 +87,8 @@ impl HeapValueType {
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapArray {
     pub pointer: MemoryAddress,
     pub size: usize,
@@ -94,13 +101,15 @@ impl Default for HeapArray {
 }
 
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
     pub pointer: MemoryAddress,
     pub size: MemoryAddress,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum IntegerBitSize {
     U1,
     U8,
@@ -152,7 +161,8 @@ impl std::fmt::Display for IntegerBitSize {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BitSize {
     Field,
     Integer(IntegerBitSize),
@@ -181,7 +191,8 @@ impl BitSize {
 /// While we are usually agnostic to how memory is passed within Brillig,
 /// this needs to be encoded somehow when dealing with an external system.
 /// For simplicity, the extra type information is given right in the ForeignCall instructions.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum ValueOrArray {
     /// A single value passed to or from an external call
     /// It is an 'immediate' value - used without dereferencing.
@@ -198,11 +209,12 @@ pub enum ValueOrArray {
     HeapVector(HeapVector),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.
+    /// and stores the value in the `destination` address.
     BinaryFieldOp {
         destination: MemoryAddress,
         op: BinaryFieldOp,
@@ -211,7 +223,7 @@ pub enum BrilligOpcode<F> {
     },
     /// Takes the `bit_size` size integers in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
-    /// and stores the value in the `result` address.
+    /// and stores the value in the `destination` address.
     BinaryIntOp {
         destination: MemoryAddress,
         op: BinaryIntOp,
@@ -229,17 +241,19 @@ pub enum BrilligOpcode<F> {
         source: MemoryAddress,
         bit_size: BitSize,
     },
+    /// Sets the program counter to the value of `location` if
+    /// the value at the `condition` address is zero.
     JumpIfNot {
         condition: MemoryAddress,
         location: Label,
     },
-    /// Sets the program counter to the value located at `destination`
+    /// Sets the program counter to the value of `location`
     /// If the value at `condition` is non-zero
     JumpIf {
         condition: MemoryAddress,
         location: Label,
     },
-    /// Sets the program counter to the label.
+    /// Sets the program counter to the value of `location`.
     Jump {
         location: Label,
     },
@@ -250,20 +264,28 @@ pub enum BrilligOpcode<F> {
         offset_address: MemoryAddress,
     },
     /// We don't support dynamic jumps or calls
-    /// See https://github.com/ethereum/aleth/issues/3404 for reasoning
+    /// See <https://github.com/ethereum/aleth/issues/3404> for reasoning
+    ///
+    /// Pushes the current program counter to the call stack as to set a return location.
+    /// Sets the program counter to the value of `location`.
     Call {
         location: Label,
     },
+    /// Stores a constant `value` with a `bit_size` in the `destination` address.
     Const {
         destination: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },
+    /// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
     IndirectConst {
         destination_pointer: MemoryAddress,
         bit_size: BitSize,
         value: F,
     },
+    /// Pops the top element from the call stack, which represents the return location,
+    /// and sets the program counter to that value. This operation is used to return
+    /// from a function call.
     Return,
     /// Used to get data from an outside source.
     /// Also referred to as an Oracle. However, we don't use that name as
@@ -283,6 +305,7 @@ pub enum BrilligOpcode<F> {
         /// retrieve the elements)
         input_value_types: Vec<HeapValueType>,
     },
+    /// Moves the content in the `source` address to the `destination` address.
     Mov {
         destination: MemoryAddress,
         source: MemoryAddress,
@@ -294,28 +317,34 @@ pub enum BrilligOpcode<F> {
         source_b: MemoryAddress,
         condition: MemoryAddress,
     },
+    /// Reads the `source_pointer` to obtain a memory address, then retrieves the data
+    /// stored at that address and writes it to the `destination` address.
     Load {
         destination: MemoryAddress,
         source_pointer: MemoryAddress,
     },
+    /// Reads the `destination_pointer` to obtain a memory address, then stores the value
+    /// from the `source` address at that location.
     Store {
         destination_pointer: MemoryAddress,
         source: MemoryAddress,
     },
+    /// Native functions in the VM.
+    /// These are equivalent to the black box functions in ACIR.
     BlackBox(BlackBoxOp),
-    /// Used to denote execution failure, returning data after the offset
+    /// Used to denote execution failure, halting the VM and returning data specified by a dynamically-sized vector.
     Trap {
         revert_data: HeapVector,
     },
-    /// Stop execution, returning data after the offset
+    /// Halts execution and returns data specified by a dynamically-sized vector.
     Stop {
-        return_data_offset: usize,
-        return_data_size: usize,
+        return_data: HeapVector,
     },
 }
 
 /// Binary fixed-length field expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryFieldOp {
     Add,
     Sub,
@@ -333,7 +362,8 @@ pub enum BinaryFieldOp {
 }
 
 /// Binary fixed-length integer expressions
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BinaryIntOp {
     Add,
     Sub,
@@ -355,4 +385,32 @@ pub enum BinaryIntOp {
     Shl,
     /// (>>) Shift right
     Shr,
+}
+
+#[cfg(feature = "arb")]
+mod tests {
+    use proptest::arbitrary::Arbitrary;
+    use proptest::prelude::*;
+
+    use super::{BitSize, HeapValueType};
+
+    // Need to define recursive strategy for `HeapValueType`
+    impl Arbitrary for HeapValueType {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            let leaf = any::<BitSize>().prop_map(HeapValueType::Simple);
+            leaf.prop_recursive(2, 3, 2, |inner| {
+                prop_oneof![
+                    (prop::collection::vec(inner.clone(), 1..3), any::<usize>()).prop_map(
+                        |(value_types, size)| { HeapValueType::Array { value_types, size } }
+                    ),
+                    (prop::collection::vec(inner.clone(), 1..3))
+                        .prop_map(|value_types| { HeapValueType::Vector { value_types } }),
+                ]
+            })
+            .boxed()
+        }
+    }
 }

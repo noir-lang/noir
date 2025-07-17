@@ -1,7 +1,8 @@
 //! This module analyzes the usage of constants in a given function and decides an allocation point for them.
 //! The allocation point will be the common dominator of all the places where the constant is used.
 //! By allocating in the common dominator, we can cache the constants for all subsequent uses.
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
@@ -16,17 +17,18 @@ use crate::ssa::ir::{
 
 use super::variable_liveness::{collect_variables_of_value, variables_used_in_instruction};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum InstructionLocation {
     Instruction(InstructionId),
     Terminator,
 }
 
+#[derive(Default)]
 pub(crate) struct ConstantAllocation {
-    constant_usage: HashMap<ValueId, HashMap<BasicBlockId, Vec<InstructionLocation>>>,
-    allocation_points: HashMap<BasicBlockId, HashMap<InstructionLocation, Vec<ValueId>>>,
+    constant_usage: BTreeMap<ValueId, BTreeMap<BasicBlockId, Vec<InstructionLocation>>>,
+    allocation_points: BTreeMap<BasicBlockId, BTreeMap<InstructionLocation, Vec<ValueId>>>,
     dominator_tree: DominatorTree,
-    blocks_within_loops: HashSet<BasicBlockId>,
+    blocks_within_loops: BTreeSet<BasicBlockId>,
 }
 
 impl ConstantAllocation {
@@ -36,8 +38,8 @@ impl ConstantAllocation {
         let mut dominator_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
         let blocks_within_loops = find_all_blocks_within_loops(func, &cfg, &mut dominator_tree);
         let mut instance = ConstantAllocation {
-            constant_usage: HashMap::default(),
-            allocation_points: HashMap::default(),
+            constant_usage: BTreeMap::default(),
+            allocation_points: BTreeMap::default(),
             dominator_tree,
             blocks_within_loops,
         };
@@ -89,8 +91,7 @@ impl ConstantAllocation {
             }
             if let Some(terminator_instruction) = block.terminator() {
                 terminator_instruction.for_each_value(|value_id| {
-                    let variables = collect_variables_of_value(value_id, &func.dfg);
-                    for variable in variables {
+                    if let Some(variable) = collect_variables_of_value(value_id, &func.dfg) {
                         record_if_constant(block_id, variable, InstructionLocation::Terminator);
                     }
                 });
@@ -100,7 +101,7 @@ impl ConstantAllocation {
 
     fn decide_allocation_points(&mut self, func: &Function) {
         for (constant_id, usage_in_blocks) in self.constant_usage.iter() {
-            let block_ids: Vec<_> = usage_in_blocks.iter().map(|(block_id, _)| *block_id).collect();
+            let block_ids: Vec<_> = usage_in_blocks.keys().copied().collect();
 
             let allocation_point = self.decide_allocation_point(*constant_id, &block_ids, func);
 
@@ -163,10 +164,14 @@ impl ConstantAllocation {
         }
         current_block
     }
+
+    pub(crate) fn get_constants(&self) -> BTreeSet<ValueId> {
+        self.constant_usage.keys().copied().collect()
+    }
 }
 
 pub(crate) fn is_constant_value(id: ValueId, dfg: &DataFlowGraph) -> bool {
-    matches!(&dfg[dfg.resolve(id)], Value::NumericConstant { .. } | Value::Array { .. })
+    matches!(&dfg[id], Value::NumericConstant { .. })
 }
 
 /// For a given function, finds all the blocks that are within loops
@@ -174,8 +179,8 @@ fn find_all_blocks_within_loops(
     func: &Function,
     cfg: &ControlFlowGraph,
     dominator_tree: &mut DominatorTree,
-) -> HashSet<BasicBlockId> {
-    let mut blocks_in_loops = HashSet::default();
+) -> BTreeSet<BasicBlockId> {
+    let mut blocks_in_loops = BTreeSet::default();
     for block_id in func.reachable_blocks() {
         let block = &func.dfg[block_id];
         let successors = block.successors();
@@ -195,8 +200,8 @@ fn find_blocks_in_loop(
     header: BasicBlockId,
     back_edge_start: BasicBlockId,
     cfg: &ControlFlowGraph,
-) -> HashSet<BasicBlockId> {
-    let mut blocks = HashSet::default();
+) -> BTreeSet<BasicBlockId> {
+    let mut blocks = BTreeSet::default();
     blocks.insert(header);
 
     let mut insert = |block, stack: &mut Vec<BasicBlockId>| {

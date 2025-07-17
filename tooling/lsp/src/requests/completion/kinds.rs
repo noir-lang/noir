@@ -1,4 +1,4 @@
-use noirc_frontend::{ast::AttributeTarget, Type};
+use noirc_frontend::{Type, ast::AttributeTarget};
 
 /// When suggest a function as a result of completion, whether to autocomplete its name or its name and parameters.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

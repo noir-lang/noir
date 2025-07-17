@@ -1,0 +1,156 @@
+define: &AZ_COMMIT 801a120d940fe3b0068eb770d57124d426e0f2b1
+libraries:
+  noir_check_shuffle:
+    repo: noir-lang/noir_check_shuffle
+    timeout: 2
+    critical: true
+  ec:
+    repo: noir-lang/ec
+    timeout: 2
+    critical: true
+  eddsa:
+    repo: noir-lang/eddsa
+    timeout: 3
+    critical: true
+  mimc:
+    repo: noir-lang/mimc
+    timeout: 2
+    critical: true
+  schnorr:
+    repo: noir-lang/schnorr
+    timeout: 2
+    critical: true
+  noir_sort:
+    repo: noir-lang/noir_sort
+    timeout: 2
+    critical: true
+  noir-edwards:
+    repo: noir-lang/noir-edwards
+    timeout: 2
+    critical: true
+  noir-bignum:
+    repo: noir-lang/noir-bignum
+    timeout: 600
+    critical: true
+  noir_bigcurve:
+    repo: noir-lang/noir_bigcurve
+    timeout: 350
+    critical: true
+  noir_base64:
+    repo: noir-lang/noir_base64
+    timeout: 5
+    critical: true
+  noir_string_search:
+    repo: noir-lang/noir_string_search
+    timeout: 2
+    critical: true
+  sparse_array:
+    repo: noir-lang/sparse_array
+    timeout: 3
+    critical: true
+  noir_json_parser:
+    repo: noir-lang/noir_json_parser
+    timeout: 12
+    critical: true
+  sha256:
+    repo: noir-lang/sha256
+    timeout: 3
+    critical: true
+  sha512:
+    repo: noir-lang/sha512
+    timeout: 40
+  keccak256:
+    repo: noir-lang/keccak256
+    timeout: 3
+    critical: true
+  poseidon:
+    repo: noir-lang/poseidon
+    timeout: 3
+    critical: true
+  aztec_nr:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/aztec-nr
+    timeout: 150
+    critical: false
+  noir_contracts:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-contracts
+    timeout: 200
+    critical: false
+  blob:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/blob
+    timeout: 200
+    critical: false
+  protocol_circuits_parity_lib:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/parity-lib
+    timeout: 4
+    critical: false
+  protocol_circuits_private_kernel_lib:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
+    timeout: 300
+    critical: false
+  protocol_circuits_reset_kernel_lib:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/reset-kernel-lib
+    timeout: 40
+    critical: false
+  protocol_circuits_types:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/types
+    timeout: 150
+    critical: false
+  protocol_circuits_rollup_lib:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-lib
+    timeout: 700
+    critical: false
+    # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
+    nargo_args: "--test-threads 1"
+  zk_regex:
+    repo: Mach-34/noir-zk-regex
+    ref: 20de93bd8b30bb51271690c7d13fad86399527e1
+    path: packages/noir
+    timeout: 20
+    critical: false
+  web_authn:
+    repo: olehmisar/noir_webauthn
+    ref: 1da8699d3b85b62bc87e2ea3207801affdb5c639
+    timeout: 20
+    critical: false
+  noir_jwt:
+    repo: zkemail/noir-jwt
+    ref: 899ff2ca9ec196bc80be6dbe87fcb8ed721695b7
+    timeout: 20
+    critical: false
+  zkemail:
+    repo: zkemail/zkemail.nr
+    ref: 0a2cc39293fea71cdd0beaff8928abf54e555a36
+    path: lib
+    timeout: 20
+    critical: false
+  tdd:
+    repo: teddav/tdd.nr
+    ref: c5c2d8ed9d9c7dc73346bb0bd7884f871bd16236
+    timeout: 20
+    critical: false
+  zkpassport_rsa:
+    repo: zkpassport/noir_rsa
+    ref: acb50389b79dbf38b1828f4fa82c28d742b140fc
+    timeout: 30
+    critical: false
+  zkpassport_ecdsa:
+    repo: zkpassport/noir-ecdsa
+    ref: e59343bd34510595fb2f8a012f9b9de92482a375
+    timeout: 175
+    critical: false

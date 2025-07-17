@@ -1,8 +1,8 @@
-use acvm::{acir::brillig::MemoryAddress, AcirField};
+use acvm::{AcirField, acir::brillig::MemoryAddress};
 
 use super::{
-    debug_show::DebugToString, instructions::BrilligBinaryOp, registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters,
+    BrilligContext, ReservedRegisters, debug_show::DebugToString, instructions::BrilligBinaryOp,
+    registers::RegisterAllocator,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -32,5 +32,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             // Mark as no longer used for this purpose, frees for reuse
             self.deallocate_single_addr(const_register);
         }
+    }
+
+    pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
+        let array_copy_counter = self.array_copy_counter_address();
+        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
     }
 }

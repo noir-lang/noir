@@ -3,8 +3,8 @@
 use super::BrilligBinaryOp;
 use crate::brillig::brillig_ir::ReservedRegisters;
 use acvm::{
-    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     FieldElement,
+    acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 /// Trait for converting values into debug-friendly strings.
@@ -32,8 +32,8 @@ impl DebugToString for MemoryAddress {
             "StackPointer".into()
         } else {
             match self {
-                MemoryAddress::Direct(address) => format!("M{}", address),
-                MemoryAddress::Relative(offset) => format!("S{}", offset),
+                MemoryAddress::Direct(address) => format!("M{address}"),
+                MemoryAddress::Relative(offset) => format!("S{offset}"),
             }
         }
     }
@@ -126,6 +126,24 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  MOV {}, {}", destination, source);
     }
 
+    /// Emits a `conditional mov` instruction.
+    pub(crate) fn conditional_mov_instruction(
+        &self,
+        destination: MemoryAddress,
+        source_then: MemoryAddress,
+        source_else: MemoryAddress,
+        condition: MemoryAddress,
+    ) {
+        debug_println!(
+            self.enable_debug_trace,
+            "  {} = MOV if {} then {}, else {}",
+            destination,
+            condition,
+            source_then,
+            source_else
+        );
+    }
+
     /// Emits a `cast` instruction.
     pub(crate) fn cast_instruction(
         &self,
@@ -211,23 +229,14 @@ impl DebugShow {
         debug_println!(self.enable_debug_trace, "  STORE *{} = {}", destination_pointer, source);
     }
 
-    /// Emits a stop instruction
-    pub(crate) fn stop_instruction(&self) {
-        debug_println!(self.enable_debug_trace, "  STOP");
+    /// Emits a return instruction
+    pub(crate) fn return_instruction(&self) {
+        debug_println!(self.enable_debug_trace, "  RETURN");
     }
 
-    /// Emits a external stop instruction (returns data)
-    pub(crate) fn external_stop_instruction(
-        &self,
-        return_data_offset: usize,
-        return_data_size: usize,
-    ) {
-        debug_println!(
-            self.enable_debug_trace,
-            "  EXT_STOP {}..{}",
-            return_data_offset,
-            return_data_offset + return_data_size
-        );
+    /// Emits a stop instruction
+    pub(crate) fn stop_instruction(&self, return_data: HeapVector) {
+        debug_println!(self.enable_debug_trace, "  STOP {}", return_data);
     }
 
     /// Debug function for enter_context
@@ -335,23 +344,6 @@ impl DebugShow {
                     result
                 );
             }
-            BlackBoxOp::SchnorrVerify {
-                public_key_x,
-                public_key_y,
-                message,
-                signature,
-                result,
-            } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  SCHNORR_VERIFY {} {} {} {} -> {}",
-                    public_key_x,
-                    public_key_y,
-                    message,
-                    signature,
-                    result
-                );
-            }
             BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
                 debug_println!(
                     self.enable_debug_trace,
@@ -423,13 +415,14 @@ impl DebugShow {
                     output
                 );
             }
-            BlackBoxOp::ToRadix { input, radix, output, output_bits: _ } => {
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
                 debug_println!(
                     self.enable_debug_trace,
-                    "  TO_RADIX {} {} -> {}",
+                    "  TO_RADIX {} {} {} -> {}",
                     input,
                     radix,
-                    output
+                    num_limbs,
+                    output_pointer
                 );
             }
         }

@@ -7,7 +7,7 @@ use fm::{FileId, FileMap};
 pub(crate) fn range_to_byte_span(
     files: &FileMap,
     file_id: FileId,
-    range: &lsp_types::Range,
+    range: &async_lsp::lsp_types::Range,
 ) -> Option<std::ops::Range<usize>> {
     Some(
         position_to_byte_index(files, file_id, &range.start)?
@@ -18,7 +18,7 @@ pub(crate) fn range_to_byte_span(
 pub(crate) fn position_to_byte_index(
     files: &FileMap,
     file_id: FileId,
-    position: &lsp_types::Position,
+    position: &async_lsp::lsp_types::Position,
 ) -> Option<usize> {
     let Ok(source) = files.source(file_id) else {
         return None;
@@ -51,9 +51,21 @@ pub(crate) fn character_to_line_offset(line: &str, character: u32) -> Option<usi
     }
 
     // Handle positions after the last character on the line
-    if character_offset == character {
-        Some(line_len)
-    } else {
-        None
-    }
+    if character_offset == character { Some(line_len) } else { None }
+}
+
+/// Given a string with a single ">|<" (cursor) in it, returns:
+/// 1. The line where the cursor is (zero-based)
+/// 2. The column where the cursor is (zero-based)
+/// 3. that string with ">|<" removed
+#[cfg(test)]
+pub(crate) fn get_cursor_line_and_column(src: &str) -> (usize, usize, String) {
+    let (line, column) = src
+        .lines()
+        .enumerate()
+        .find_map(|(line_index, line)| line.find(">|<").map(|char_index| (line_index, char_index)))
+        .expect("Expected to find one >|< in the source code");
+
+    let src = src.replace(">|<", "");
+    (line, column, src)
 }

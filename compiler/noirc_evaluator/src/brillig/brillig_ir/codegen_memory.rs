@@ -1,15 +1,15 @@
 use acvm::{
-    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
     AcirField,
+    acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     brillig_variable::{BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable},
     debug_show::DebugToString,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
@@ -260,7 +260,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(index_at_end_of_array);
     }
 
-    /// Converts a BrilligArray (pointer to [RC, ...items]) to a HeapArray (pointer to [items])
+    /// Converts a BrilligArray (pointer to `[RC, ...items]`) to a HeapArray (pointer to `[items]`)
     pub(crate) fn codegen_brillig_array_to_heap_array(&mut self, array: BrilligArray) -> HeapArray {
         let heap_array = HeapArray { pointer: self.allocate_register(), size: array.size };
         self.codegen_usize_op(array.pointer, heap_array.pointer, BrilligBinaryOp::Add, 1);
@@ -377,13 +377,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(read_pointer);
     }
 
-    /// Returns a variable holding the length of a given array
-    pub(crate) fn codegen_make_array_length(&mut self, array: BrilligArray) -> SingleAddrVariable {
-        let result = SingleAddrVariable::new_usize(self.allocate_register());
-        self.usize_const_instruction(result.address, array.size.into());
-        result
-    }
-
     /// Returns a pointer to the items of a given array
     pub(crate) fn codegen_make_array_items_pointer(
         &mut self,
@@ -392,17 +385,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let result = self.allocate_register();
         self.codegen_usize_op(array.pointer, result, BrilligBinaryOp::Add, 1);
         result
-    }
-
-    pub(crate) fn codegen_make_array_or_vector_length(
-        &mut self,
-        variable: BrilligVariable,
-    ) -> SingleAddrVariable {
-        match variable {
-            BrilligVariable::BrilligArray(array) => self.codegen_make_array_length(array),
-            BrilligVariable::BrilligVector(vector) => self.codegen_make_vector_length(vector),
-            _ => unreachable!("ICE: Expected array or vector, got {variable:?}"),
-        }
     }
 
     pub(crate) fn codegen_make_array_or_vector_items_pointer(
@@ -421,36 +403,17 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Initializes an array, allocating memory to store its representation and initializing the reference counter.
     pub(crate) fn codegen_initialize_array(&mut self, array: BrilligArray) {
         self.codegen_allocate_immediate_mem(array.pointer, array.size + 1);
-        self.indirect_const_instruction(
-            array.pointer,
-            BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
-        );
+        self.initialize_rc(array.pointer, 1);
     }
 
-    pub(crate) fn codegen_initialize_vector_metadata(
-        &mut self,
-        vector: BrilligVector,
-        size: SingleAddrVariable,
-        capacity: Option<SingleAddrVariable>,
-    ) {
-        // Write RC
+    /// Initialize the reference counter for an array or vector.
+    /// This should only be used internally in the array and vector initialization methods
+    fn initialize_rc(&mut self, pointer: MemoryAddress, rc_value: usize) {
         self.indirect_const_instruction(
-            vector.pointer,
+            pointer,
             BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
-            1_usize.into(),
+            rc_value.into(),
         );
-
-        // Write size
-        let write_pointer = self.allocate_register();
-        self.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, 1);
-        self.store_instruction(write_pointer, size.address);
-
-        // Write capacity
-        self.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, 1);
-        self.store_instruction(write_pointer, capacity.unwrap_or(size).address);
-
-        self.deallocate_register(write_pointer);
     }
 
     /// Initializes a vector, allocating memory to store its representation and initializing the reference counter, size and capacity
@@ -472,6 +435,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_register(allocation_size);
 
         self.codegen_initialize_vector_metadata(vector, size, capacity);
+    }
+
+    /// Writes vector metadata (reference count, size, and capacity) into the allocated memory
+    pub(super) fn codegen_initialize_vector_metadata(
+        &mut self,
+        vector: BrilligVector,
+        size: SingleAddrVariable,
+        capacity: Option<SingleAddrVariable>,
+    ) {
+        // Write RC
+        self.initialize_rc(vector.pointer, 1);
+
+        // Write size
+        let write_pointer = self.allocate_register();
+        self.codegen_usize_op(vector.pointer, write_pointer, BrilligBinaryOp::Add, 1);
+        self.store_instruction(write_pointer, size.address);
+
+        // Write capacity
+        self.codegen_usize_op_in_place(write_pointer, BrilligBinaryOp::Add, 1);
+        self.store_instruction(write_pointer, capacity.unwrap_or(size).address);
+
+        self.deallocate_register(write_pointer);
     }
 
     /// We don't know the length of a vector returned externally before the call

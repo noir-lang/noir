@@ -5,34 +5,39 @@ use std::{
 };
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
+use noirc_frontend::{
+    ParsedModule,
+    modules::module_def_id_is_visible,
+    parser::{Item, ItemKind, ParsedSubModule},
+};
 use noirc_frontend::{
     ast::{
         CallExpression, ConstructorExpression, ItemVisibility, MethodCallExpression, NoirTraitImpl,
         Path, UseTree, Visitor,
     },
-    graph::CrateId,
-    hir::def_map::{CrateDefMap, LocalModuleId, ModuleId},
-    node_interner::NodeInterner,
+    graph::{CrateId, Dependency},
+    hir::def_map::{CrateDefMap, LocalModuleId, ModuleDefId, ModuleId},
+    node_interner::{NodeInterner, Reexport},
     usage_tracker::UsageTracker,
 };
-use noirc_frontend::{
-    parser::{Item, ItemKind, ParsedSubModule},
-    ParsedModule,
-};
 
-use crate::{use_segment_positions::UseSegmentPositions, utils, LspState};
+use crate::{
+    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
+    utils,
+};
 
 use super::{process_request, to_lsp_location};
 
 mod fill_struct_fields;
 mod implement_missing_members;
 mod import_or_qualify;
+mod import_trait;
 mod remove_bang_from_call;
 mod remove_unused_import;
 mod tests;
@@ -40,7 +45,7 @@ mod tests;
 pub(crate) fn on_code_action_request(
     state: &mut LspState,
     params: CodeActionParams,
-) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<CodeActionResponse>, ResponseError>> + use<> {
     let uri = params.text_document.clone().uri;
     let position = params.range.start;
     let text_document_position_params =
@@ -52,7 +57,7 @@ pub(crate) fn on_code_action_request(
             utils::range_to_byte_span(args.files, file_id, &params.range).and_then(|byte_range| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = CodeActionFinder::new(
                     uri,
@@ -62,6 +67,7 @@ pub(crate) fn on_code_action_request(
                     byte_range,
                     args.crate_id,
                     args.def_maps,
+                    args.dependencies(),
                     args.interner,
                     args.usage_tracker,
                 );
@@ -83,6 +89,7 @@ struct CodeActionFinder<'a> {
     /// if we are analyzing something inside an inline module declaration.
     module_id: ModuleId,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    dependencies: &'a Vec<Dependency>,
     interner: &'a NodeInterner,
     usage_tracker: &'a UsageTracker,
     /// How many nested `mod` we are in deep
@@ -105,6 +112,7 @@ impl<'a> CodeActionFinder<'a> {
         byte_range: Range<usize>,
         krate: CrateId,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+        dependencies: &'a Vec<Dependency>,
         interner: &'a NodeInterner,
         usage_tracker: &'a UsageTracker,
     ) -> Self {
@@ -113,7 +121,7 @@ impl<'a> CodeActionFinder<'a> {
         let local_id = if let Some((module_index, _)) =
             def_map.modules().iter().find(|(_, module_data)| module_data.location.file == file)
         {
-            LocalModuleId(module_index)
+            LocalModuleId::new(module_index)
         } else {
             def_map.root()
         };
@@ -127,6 +135,7 @@ impl<'a> CodeActionFinder<'a> {
             byte_range,
             module_id,
             def_maps,
+            dependencies,
             interner,
             usage_tracker,
             nesting: 0,
@@ -187,22 +196,54 @@ impl<'a> CodeActionFinder<'a> {
         }
     }
 
+    fn module_def_id_is_visible(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+        defining_module: Option<ModuleId>,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
+    }
+
+    fn get_ancestor_module_reexport(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+    ) -> Option<Reexport> {
+        get_ancestor_module_reexport(
+            module_def_id,
+            visibility,
+            self.module_id,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        )
+    }
+
     fn includes_span(&self, span: Span) -> bool {
         let byte_range_span = Span::from(self.byte_range.start as u32..self.byte_range.end as u32);
         span.intersects(&byte_range_span)
     }
 }
 
-impl<'a> Visitor for CodeActionFinder<'a> {
+impl Visitor for CodeActionFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
         if let ItemKind::Import(use_tree, _) = &item.kind {
-            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.span) {
+            if let Some(lsp_location) = to_lsp_location(self.files, self.file, item.location.span) {
                 self.auto_import_line = (lsp_location.range.end.line + 1) as usize;
             }
             self.use_segment_positions.add(use_tree);
         }
 
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
@@ -210,7 +251,7 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         let previous_module_id = self.module_id;
 
         let def_map = &self.def_maps[&self.module_id.krate];
-        let Some(module_data) = def_map.modules().get(self.module_id.local_id.0) else {
+        let Some(module_data) = def_map.get(self.module_id.local_id) else {
             return false;
         };
         if let Some(child_module) = module_data.children.get(&parsed_sub_module.name) {
@@ -266,7 +307,7 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         }
 
         if call.is_macro_call {
-            self.remove_bang_from_call(call.func.span);
+            self.remove_bang_from_call(call.func.location.span);
         }
 
         true
@@ -284,6 +325,8 @@ impl<'a> Visitor for CodeActionFinder<'a> {
         if method_call.is_macro_call {
             self.remove_bang_from_call(method_call.method_name.span());
         }
+
+        self.import_trait_in_method_call(method_call);
 
         true
     }

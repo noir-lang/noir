@@ -2,7 +2,7 @@ use noirc_frontend::{ast::UnresolvedTypeExpression, token::Token};
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_type_expression(&mut self, type_expr: UnresolvedTypeExpression) {
         self.skip_comments_and_whitespace();
 

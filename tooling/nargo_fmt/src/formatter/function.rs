@@ -1,7 +1,8 @@
+use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     ast::{
         BlockExpression, FunctionReturnType, Ident, ItemVisibility, NoirFunction, Param,
-        UnresolvedGenerics, UnresolvedTraitConstraint, Visibility,
+        UnresolvedGenerics, UnresolvedTraitConstraint,
     },
     token::{Attributes, Keyword, Token},
 };
@@ -19,10 +20,11 @@ pub(super) struct FunctionToFormat {
     pub(super) return_visibility: Visibility,
     pub(super) where_clause: Vec<UnresolvedTraitConstraint>,
     pub(super) body: Option<BlockExpression>,
+    pub(super) skip_visibility: bool,
 }
 
-impl<'a> Formatter<'a> {
-    pub(super) fn format_function(&mut self, func: NoirFunction) {
+impl Formatter<'_> {
+    pub(super) fn format_function(&mut self, func: NoirFunction, skip_visibility: bool) {
         self.format_function_impl(FunctionToFormat {
             attributes: func.def.attributes,
             visibility: func.def.visibility,
@@ -33,6 +35,7 @@ impl<'a> Formatter<'a> {
             return_visibility: func.def.return_visibility,
             where_clause: func.def.where_clause,
             body: Some(func.def.body),
+            skip_visibility,
         });
     }
 
@@ -41,7 +44,7 @@ impl<'a> Formatter<'a> {
 
         self.format_attributes(func.attributes);
         self.write_indentation();
-        self.format_function_modifiers(func.visibility);
+        self.format_function_modifiers(func.visibility, func.skip_visibility);
         self.write_keyword(Keyword::Fn);
         self.write_space();
         self.write_identifier(func.name);
@@ -94,7 +97,11 @@ impl<'a> Formatter<'a> {
         }
     }
 
-    pub(super) fn format_function_modifiers(&mut self, visibility: ItemVisibility) {
+    pub(super) fn format_function_modifiers(
+        &mut self,
+        visibility: ItemVisibility,
+        skip_visibility: bool,
+    ) {
         // For backwards compatibility, unconstrained might come before visibility.
         // We'll remember this but put it after the visibility.
         let unconstrained = if self.is_at_keyword(Keyword::Unconstrained) {
@@ -105,7 +112,14 @@ impl<'a> Formatter<'a> {
             false
         };
 
-        self.format_item_visibility(visibility);
+        if skip_visibility {
+            // The intention here is to format the visibility into a temporary buffer that is discarded
+            self.chunk_formatter().chunk(|formatter| {
+                formatter.format_item_visibility(visibility);
+            });
+        } else {
+            self.format_item_visibility(visibility);
+        }
 
         if unconstrained {
             self.write("unconstrained ");
@@ -139,7 +153,8 @@ impl<'a> Formatter<'a> {
     }
 
     fn format_function_param(&mut self, param: Param) {
-        self.format_pattern(param.pattern);
+        let group = self.format_pattern(param.pattern);
+        self.format_chunk_group(group);
         self.skip_comments_and_whitespace();
 
         // There might not be a colon if the parameter is self
@@ -340,8 +355,8 @@ mod tests {
 
     #[test]
     fn format_function_generics() {
-        let src = "fn  foo < A, B, >( ) {  }";
-        let expected = "fn foo<A, B>() {}\n";
+        let src = "fn  foo < A, B:  X  +  Y , >( ) {  }";
+        let expected = "fn foo<A, B: X + Y>() {}\n";
         assert_format(src, expected);
     }
 
@@ -529,7 +544,6 @@ fn bar() {
 // noir-fmt:ignore
 fn baz() { let  z  = 3  ; 
             }
-
 ";
         assert_format(src, expected);
     }
@@ -570,6 +584,36 @@ fn baz() { let  z  = 3  ;
     let x = 1;
 
     let y = 2;
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_newlines_between_comments_no_statements() {
+        let src = "fn foo() {
+    // foo
+
+    // bar
+
+    // baz
+}
+";
+        let expected = src;
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn keeps_newlines_between_comments_one_statement() {
+        let src = "fn foo() {
+    let x = 1;
+
+    // foo
+
+    // bar
+
+    // baz
 }
 ";
         let expected = src;

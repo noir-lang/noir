@@ -1,0 +1,18 @@
+name: Download Nargo
+description: Downloads the nargo binary from an artifact and adds it to the path
+
+runs:
+  using: composite
+  steps:
+    - name: Download nargo binary
+      uses: actions/download-artifact@v4
+      with:
+        name: nargo
+        path: ./nargo
+
+    - name: Set nargo on PATH
+      shell: bash
+      run: |
+        nargo_binary="${{ github.workspace }}/nargo/nargo"
+        chmod +x $nargo_binary
+        echo "$(dirname $nargo_binary)" >> $GITHUB_PATH

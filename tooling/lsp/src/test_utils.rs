@@ -1,11 +1,11 @@
 use crate::LspState;
 use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use async_lsp::ClientSocket;
-use lsp_types::{Position, Range, Url};
+use async_lsp::lsp_types::{InitializeParams, Position, Range, Url, WorkDoneProgressParams};
 
 pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, StubbedBlackBoxSolver);
+    let mut state = LspState::new(&client, StubbedBlackBoxSolver::default());
 
     let root_path = std::env::current_dir()
         .unwrap()
@@ -19,16 +19,17 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
         Some(Url::from_file_path(root_path.as_path()).expect("Could not convert root path to URI"));
 
     #[allow(deprecated)]
-    let initialize_params = lsp_types::InitializeParams {
+    let initialize_params = InitializeParams {
         process_id: Default::default(),
         root_path: None,
         root_uri,
         initialization_options: None,
         capabilities: Default::default(),
-        trace: Some(lsp_types::TraceValue::Verbose),
+        trace: Some(async_lsp::lsp_types::TraceValue::Verbose),
         workspace_folders: None,
         client_info: None,
         locale: None,
+        work_done_progress_params: WorkDoneProgressParams::default(),
     };
 
     let _initialize_response = crate::requests::on_initialize(&mut state, initialize_params)
@@ -41,7 +42,7 @@ pub(crate) async fn init_lsp_server(directory: &str) -> (LspState, Url) {
 /// Searches for all instances of `search_string` in file `file_name` and returns a list of their locations.
 pub(crate) fn search_in_file(filename: &str, search_string: &str) -> Vec<Range> {
     let file_contents = std::fs::read_to_string(filename)
-        .unwrap_or_else(|_| panic!("Couldn't read file {}", filename));
+        .unwrap_or_else(|_| panic!("Couldn't read file {filename}"));
     let file_lines: Vec<&str> = file_contents.lines().collect();
     file_lines
         .iter()

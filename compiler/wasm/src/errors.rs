@@ -4,7 +4,7 @@ use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 use fm::FileManager;
-use noirc_errors::FileDiagnostic;
+use noirc_errors::CustomDiagnostic;
 
 #[wasm_bindgen(typescript_custom_section)]
 const DIAGNOSTICS: &'static str = r#"
@@ -87,8 +87,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    fn new(file_diagnostic: &FileDiagnostic, file: String) -> Diagnostic {
-        let diagnostic = &file_diagnostic.diagnostic;
+    fn new(diagnostic: &CustomDiagnostic, file: String) -> Diagnostic {
         let message = diagnostic.message.clone();
 
         let secondaries = diagnostic
@@ -96,8 +95,8 @@ impl Diagnostic {
             .iter()
             .map(|label| DiagnosticLabel {
                 message: label.message.clone(),
-                start: label.span.start(),
-                end: label.span.end(),
+                start: label.location.span.start(),
+                end: label.location.span.end(),
             })
             .collect();
 
@@ -116,16 +115,16 @@ impl CompileError {
         CompileError { message: message.to_string(), diagnostics: vec![] }
     }
 
-    pub fn with_file_diagnostics(
+    pub fn with_custom_diagnostics(
         message: &str,
-        file_diagnostics: Vec<FileDiagnostic>,
+        custom_diagnostics: Vec<CustomDiagnostic>,
         file_manager: &FileManager,
     ) -> CompileError {
-        let diagnostics: Vec<_> = file_diagnostics
+        let diagnostics: Vec<_> = custom_diagnostics
             .iter()
             .map(|err| {
                 let file_path = file_manager
-                    .path(err.file_id)
+                    .path(err.file)
                     .expect("File must exist to have caused diagnostics");
                 Diagnostic::new(err, file_path.to_str().unwrap().to_string())
             })

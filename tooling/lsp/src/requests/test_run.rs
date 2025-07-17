@@ -2,21 +2,23 @@ use std::future::{self, Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
-use nargo::ops::{run_test, TestStatus};
-use nargo_toml::{find_package_manifest, resolve_workspace_from_toml, PackageSelection};
-use noirc_driver::{check_crate, CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use nargo::{
+    foreign_calls::DefaultForeignCallBuilder,
+    ops::{TestStatus, run_test},
+};
+use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate};
 use noirc_frontend::hir::FunctionNameMatch;
 
 use crate::{
-    parse_diff,
+    LspState, parse_diff,
     types::{NargoTestRunParams, NargoTestRunResult},
-    LspState,
 };
 
 pub(crate) fn on_test_run_request(
     state: &mut LspState,
     params: NargoTestRunParams,
-) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> {
+) -> impl Future<Output = Result<NargoTestRunResult, ResponseError>> + use<> {
     future::ready(on_test_run_request_inner(state, params))
 }
 
@@ -70,7 +72,7 @@ fn on_test_run_request_inner(
 
             let test_functions = context.get_all_test_functions_in_crate_matching(
                 &crate_id,
-                FunctionNameMatch::Exact(function_name),
+                &FunctionNameMatch::Exact(vec![function_name.clone()]),
             );
 
             let (_, test_function) = test_functions.into_iter().next().ok_or_else(|| {
@@ -84,11 +86,18 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &mut context,
                 &test_function,
-                true,
-                None,
-                Some(workspace.root_dir.clone()),
-                Some(package.name.to_string()),
+                std::io::stdout(),
                 &CompileOptions::default(),
+                |output, base| {
+                    DefaultForeignCallBuilder {
+                        output,
+                        enable_mocks: true,
+                        resolver_url: None, // NB without this the root and package don't do anything.
+                        root_path: Some(workspace.root_dir.clone()),
+                        package_name: Some(package.name.to_string()),
+                    }
+                    .build_with_base(base)
+                },
             );
             let result = match test_result {
                 TestStatus::Pass => NargoTestRunResult {
@@ -101,10 +110,15 @@ fn on_test_run_request_inner(
                     result: "fail".to_string(),
                     message: Some(message),
                 },
+                TestStatus::Skipped => NargoTestRunResult {
+                    id: params.id.clone(),
+                    result: "skipped".to_string(),
+                    message: None,
+                },
                 TestStatus::CompileError(diag) => NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),
-                    message: Some(diag.diagnostic.message),
+                    message: Some(diag.message),
                 },
             };
             Ok(result)

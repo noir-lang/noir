@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Noir formatter.
@@ -42,7 +40,7 @@ mod formatter;
 use formatter::Formatter;
 use noirc_frontend::ParsedModule;
 
-pub use config::Config;
+pub use config::{Config, ImportsGranularity};
 
 pub fn format(source: &str, parsed_module: ParsedModule, config: &Config) -> String {
     let mut formatter = Formatter::new(source, config);
@@ -65,25 +63,27 @@ pub(crate) fn assert_format_with_max_width(src: &str, expected: &str, max_width:
 pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Config) {
     use noirc_frontend::parser;
 
-    let (parsed_module, errors) = parser::parse_program(src);
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}", errors);
+        panic!("Expected no errors, got: {errors:?}");
     }
     let result = format(src, parsed_module, &config);
     if result != expected {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+        println!("Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~");
     }
 
     similar_asserts::assert_eq!(result, expected);
 
     let src = &result;
-    let (parsed_module, errors) = parser::parse_program(src);
+    let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
+    let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
-        panic!("Expected no errors in idempotent check, got: {:?}", errors);
+        panic!("Expected no errors in idempotent check, got: {errors:?}");
     }
     let result = format(src, parsed_module, &config);
     if result != expected {
-        println!("Expected (idempotent):\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+        println!("Expected (idempotent):\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~");
     }
     similar_asserts::assert_eq!(result, expected, "idempotent check failed");
 }

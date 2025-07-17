@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "0.37.0",
+  "version": "1.0.0-beta.8",
   "license": "(MIT OR Apache-2.0)",
   "homepage": "https://noir-lang.org/",
   "repository": {
@@ -33,7 +33,7 @@
     "clean": "chmod u+w web nodejs || true && rm -rf ./nodejs ./web ./target ./result",
     "nightly:version": "jq --arg new_version \"-$(git rev-parse --short HEAD)$1\" '.version = .version + $new_version' package.json > package-tmp.json && mv package-tmp.json package.json",
     "publish": "echo 📡 publishing `$npm_package_name` && yarn npm publish",
-    "lint": "NODE_NO_WARNINGS=1 eslint . --ext .ts --ignore-path ./.eslintignore  --max-warnings 0"
+    "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0"
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*"
@@ -41,9 +41,9 @@
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@web/dev-server-esbuild": "^0.3.6",
-    "@web/test-runner": "^0.18.1",
+    "@web/test-runner": "^0.20.2",
     "@web/test-runner-playwright": "^0.11.0",
-    "eslint": "^8.57.0",
-    "mocha": "^10.2.0"
+    "eslint": "^9.28.0",
+    "mocha": "^11.5.0"
   }
 }

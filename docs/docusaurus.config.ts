@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import type { Config } from '@docusaurus/types';
 
 const { themes } = require('prism-react-renderer');
@@ -11,11 +10,12 @@ import katex from 'rehype-katex';
 export default {
   title: 'Noir Documentation',
   tagline: 'The Universal ZK Circuit Language',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
   url: 'https://noir-lang.org',
   baseUrl: '/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
+  trailingSlash: false,
   i18n: {
     defaultLocale: 'en',
     locales: ['en'],
@@ -57,8 +57,8 @@ export default {
     navbar: {
       logo: {
         alt: 'Noir Logo',
-        src: 'img/logo.svg',
-        srcDark: 'img/logoDark.svg',
+        src: 'img/logoDark.png',
+        srcDark: 'img/logo.png',
         href: '/',
       },
       items: [
@@ -88,7 +88,7 @@ export default {
           items: [
             {
               label: 'Noir Forum',
-              href: 'https://discourse.aztec.network/c/noir/7',
+              href: 'https://forum.aztec.network/c/noir/7',
             },
             {
               label: 'Twitter',
@@ -169,7 +169,6 @@ export default {
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,
-        hideInPageTOC: true,
         useCodeBlocks: true,
         typeDeclarationFormat: 'table',
         propertiesFormat: 'table',
@@ -177,7 +176,6 @@ export default {
         enumMembersFormat: 'table',
         indexFormat: 'table',
         outputFileStrategy: 'members',
-        memberPageTitle: '{name}',
         membersWithOwnFile: ['Interface', 'Class', 'TypeAlias', 'Function'],
       },
     ],
@@ -200,7 +198,6 @@ export default {
         readme: 'none',
         hidePageHeader: true,
         hideBreadcrumbs: true,
-        hideInPageTOC: true,
         useCodeBlocks: true,
         typeDeclarationFormat: 'table',
         propertiesFormat: 'table',
@@ -208,7 +205,6 @@ export default {
         enumMembersFormat: 'table',
         indexFormat: 'table',
         outputFileStrategy: 'members',
-        memberPageTitle: '{name}',
         membersWithOwnFile: ['Function', 'TypeAlias'],
       },
     ],

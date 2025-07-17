@@ -1,13 +1,11 @@
 use crate::ast::PathSegment;
 use crate::parse_program;
-use crate::parser::ParsedModule;
-use crate::{
-    ast,
-    ast::{Path, PathKind},
-    parser::{Item, ItemKind},
-};
+use crate::parser::{ParsedModule, ParsedSubModule};
+use crate::signed_field::SignedField;
+use crate::{ast, ast::Path, parser::ItemKind};
+use fm::FileId;
 use noirc_errors::debug_info::{DebugFnId, DebugFunction};
-use noirc_errors::{Span, Spanned};
+use noirc_errors::{Location, Span};
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::mem::take;
@@ -56,23 +54,38 @@ impl Default for DebugInstrumenter {
 }
 
 impl DebugInstrumenter {
-    pub fn instrument_module(&mut self, module: &mut ParsedModule) {
+    pub fn instrument_module(&mut self, module: &mut ParsedModule, file: FileId) {
         module.items.iter_mut().for_each(|item| {
-            if let Item { kind: ItemKind::Function(f), .. } = item {
-                self.walk_fn(&mut f.def);
+            match &mut item.kind {
+                // Instrument top-level functions of a module
+                ItemKind::Function(f) => self.walk_fn(&mut f.def),
+                // Instrument contract module
+                ItemKind::Submodules(ParsedSubModule {
+                    is_contract: true,
+                    contents: contract_module,
+                    ..
+                }) => {
+                    self.instrument_module(contract_module, file);
+                }
+                _ => (),
             }
         });
+
         // this part absolutely must happen after ast traversal above
         // so that oracle functions don't get wrapped, resulting in infinite recursion:
-        self.insert_state_set_oracle(module, 8);
+        self.insert_state_set_oracle(module, file);
     }
 
-    fn insert_var(&mut self, var_name: &str) -> SourceVarId {
+    fn insert_var(&mut self, var_name: &str) -> Option<SourceVarId> {
+        if var_name == "_" {
+            return None;
+        }
+
         let var_id = SourceVarId(self.next_var_id);
         self.next_var_id += 1;
         self.variables.insert(var_id, var_name.to_string());
         self.scope.last_mut().unwrap().insert(var_name.to_string(), var_id);
-        var_id
+        Some(var_id)
     }
 
     fn lookup_var(&self, var_name: &str) -> Option<SourceVarId> {
@@ -94,11 +107,11 @@ impl DebugInstrumenter {
     }
 
     fn walk_fn(&mut self, func: &mut ast::FunctionDefinition) {
-        let func_name = func.name.0.contents.clone();
+        let func_name = func.name.to_string();
         let func_args =
             func.parameters.iter().map(|param| pattern_to_string(&param.pattern)).collect();
         let fn_id = self.insert_function(func_name, func_args);
-        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.span);
+        let enter_stmt = build_debug_call_stmt("enter", fn_id, func.location);
         self.scope.push(HashMap::default());
 
         let set_fn_params: Vec<_> = func
@@ -107,9 +120,9 @@ impl DebugInstrumenter {
             .flat_map(|param| {
                 pattern_vars(&param.pattern)
                     .iter()
-                    .map(|(id, _is_mut)| {
-                        let var_id = self.insert_var(&id.0.contents);
-                        build_assign_var_stmt(var_id, id_expr(id))
+                    .filter_map(|(id, _is_mut)| {
+                        let var_id = self.insert_var(id.as_str())?;
+                        Some(build_assign_var_stmt(var_id, id_expr(id)))
                     })
                     .collect::<Vec<_>>()
             })
@@ -118,11 +131,11 @@ impl DebugInstrumenter {
         let func_body = &mut func.body.statements;
         let mut statements = take(func_body);
 
-        self.walk_scope(&mut statements, func.span);
+        self.walk_scope(&mut statements, func.location);
 
         // walk_scope ensures that the last statement is the return value of the function
         let last_stmt = statements.pop().expect("at least one statement after walk_scope");
-        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.span);
+        let exit_stmt = build_debug_call_stmt("exit", fn_id, last_stmt.location);
 
         // rebuild function body
         func_body.push(enter_stmt);
@@ -134,7 +147,7 @@ impl DebugInstrumenter {
 
     // Modify a vector of statements in-place, adding instrumentation for sets and drops.
     // This function will consume a scope level.
-    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, span: Span) {
+    fn walk_scope(&mut self, statements: &mut Vec<ast::Statement>, location: Location) {
         statements.iter_mut().for_each(|stmt| self.walk_statement(stmt));
 
         // extract and save the return value from the scope if there is one
@@ -144,12 +157,12 @@ impl DebugInstrumenter {
             Some(ast::Statement { kind: ast::StatementKind::Expression(ret_expr), .. }) => {
                 let save_ret_expr = ast::Statement {
                     kind: ast::StatementKind::new_let(
-                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.span)),
-                        ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                        ast::Pattern::Identifier(ident("__debug_expr", ret_expr.location)),
+                        ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
                         ret_expr.clone(),
                         vec![],
                     ),
-                    span: ret_expr.span,
+                    location: ret_expr.location,
                 };
                 statements.push(save_ret_expr);
                 true
@@ -161,39 +174,44 @@ impl DebugInstrumenter {
             }
         };
 
-        let span = Span::empty(span.end());
+        let span = Span::empty(location.span.end());
+        let location = Location::new(span, location.file);
 
         // drop scope variables
         let scope_vars = self.scope.pop().unwrap_or_default();
-        let drop_vars_stmts = scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, span));
+        let drop_vars_stmts =
+            scope_vars.values().map(|var_id| build_drop_var_stmt(*var_id, location));
         statements.extend(drop_vars_stmts);
 
         // return the saved value in __debug_expr, or unit otherwise
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path {
-                        segments: vec![PathSegment::from(ident("__debug_expr", span))],
-                        kind: PathKind::Plain,
-                        span,
-                    }),
-                    span,
+                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                        vec![PathSegment::from(ident("__debug_expr", location))],
+                        location,
+                    )),
+                    location,
                 }),
-                span,
+                location,
             }
         } else {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
                     kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
-                    span,
+                    location,
                 }),
-                span,
+                location,
             }
         };
         statements.push(last_stmt);
     }
 
-    fn walk_let_statement(&mut self, let_stmt: &ast::LetStatement, span: &Span) -> ast::Statement {
+    fn walk_let_statement(
+        &mut self,
+        let_stmt: &ast::LetStatement,
+        location: Location,
+    ) -> ast::Statement {
         // rewrites let statements written like this:
         //   let (((a,b,c),D { d }),e,f) = x;
         //
@@ -217,7 +235,7 @@ impl DebugInstrumenter {
                 if *is_mut {
                     ast::Pattern::Mutable(
                         Box::new(ast::Pattern::Identifier(id.clone())),
-                        id.span(),
+                        id.location(),
                         true,
                     )
                 } else {
@@ -225,42 +243,57 @@ impl DebugInstrumenter {
                 }
             })
             .collect();
-        let vars_exprs: Vec<ast::Expression> = vars.iter().map(|(id, _)| id_expr(id)).collect();
+        let vars_exprs: Vec<ast::Expression> = vars
+            .iter()
+            .map(|(id, _)| {
+                // We don't want to generate an expression to read from "_".
+                // And since this expression is going to be assigned to "_" so it doesn't matter
+                // what it is, we can use `()` for it.
+                if id.as_str() == "_" {
+                    ast::Expression {
+                        kind: ast::ExpressionKind::Literal(ast::Literal::Unit),
+                        location: id.location(),
+                    }
+                } else {
+                    id_expr(id)
+                }
+            })
+            .collect();
 
         let mut block_stmts =
-            vec![ast::Statement { kind: ast::StatementKind::Let(let_stmt.clone()), span: *span }];
-        block_stmts.extend(vars.iter().map(|(id, _)| {
-            let var_id = self.insert_var(&id.0.contents);
-            build_assign_var_stmt(var_id, id_expr(id))
+            vec![ast::Statement { kind: ast::StatementKind::Let(let_stmt.clone()), location }];
+        block_stmts.extend(vars.iter().filter_map(|(id, _)| {
+            let var_id = self.insert_var(id.as_str())?;
+            Some(build_assign_var_stmt(var_id, id_expr(id)))
         }));
         block_stmts.push(ast::Statement {
             kind: ast::StatementKind::Expression(ast::Expression {
                 kind: ast::ExpressionKind::Tuple(vars_exprs),
-                span: let_stmt.pattern.span(),
+                location: let_stmt.pattern.location(),
             }),
-            span: let_stmt.pattern.span(),
+            location: let_stmt.pattern.location(),
         });
 
         ast::Statement {
             kind: ast::StatementKind::new_let(
-                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.span()),
-                ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+                ast::Pattern::Tuple(vars_pattern, let_stmt.pattern.location()),
+                ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
                 ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: block_stmts,
                     }),
-                    span: let_stmt.expression.span,
+                    location: let_stmt.expression.location,
                 },
                 vec![],
             ),
-            span: *span,
+            location,
         }
     }
 
     fn walk_assign_statement(
         &mut self,
         assign_stmt: &ast::AssignStatement,
-        span: &Span,
+        location: Location,
     ) -> ast::Statement {
         // X = Y becomes:
         // X = {
@@ -274,26 +307,26 @@ impl DebugInstrumenter {
         // };
 
         let let_kind = ast::StatementKind::new_let(
-            ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.span)),
-            ast::UnresolvedTypeData::Unspecified.with_span(Default::default()),
+            ast::Pattern::Identifier(ident("__debug_expr", assign_stmt.expression.location)),
+            ast::UnresolvedTypeData::Unspecified.with_dummy_location(),
             assign_stmt.expression.clone(),
             vec![],
         );
-        let expression_span = assign_stmt.expression.span;
+        let expression_location = assign_stmt.expression.location;
         let new_assign_stmt = match &assign_stmt.lvalue {
             ast::LValue::Ident(id) => {
                 let var_id = self
-                    .lookup_var(&id.0.contents)
-                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", &id.0.contents));
-                build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.span())))
+                    .lookup_var(id.as_str())
+                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", id.as_str()));
+                build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.location())))
             }
-            ast::LValue::Dereference(_lv, span) => {
+            ast::LValue::Dereference(_lv, location) => {
                 // TODO: this is a dummy statement for now, but we should
-                // somehow track the derefence and update the pointed to
+                // somehow track the dereference and update the pointed to
                 // variable
                 ast::Statement {
-                    kind: ast::StatementKind::Expression(uint_expr(0, *span)),
-                    span: *span,
+                    kind: ast::StatementKind::Expression(uint_expr(0, *location)),
+                    location: *location,
                 }
             }
             _ => {
@@ -303,17 +336,17 @@ impl DebugInstrumenter {
                 loop {
                     match cursor {
                         ast::LValue::Ident(id) => {
-                            var_id = self.lookup_var(&id.0.contents).unwrap_or_else(|| {
-                                panic!("var lookup failed for var_name={}", &id.0.contents)
+                            var_id = self.lookup_var(id.as_str()).unwrap_or_else(|| {
+                                panic!("var lookup failed for var_name={}", id.as_str())
                             });
                             break;
                         }
-                        ast::LValue::MemberAccess { object, field_name, span } => {
+                        ast::LValue::MemberAccess { object, field_name, location } => {
                             cursor = object;
-                            let field_name_id = self.insert_field_name(&field_name.0.contents);
-                            indexes.push(sint_expr(-(field_name_id.0 as i128), *span));
+                            let field_name_id = self.insert_field_name(field_name.as_str());
+                            indexes.push(sint_expr(-(field_name_id.0 as i128), *location));
                         }
-                        ast::LValue::Index { index, array, span: _ } => {
+                        ast::LValue::Index { index, array, location: _ } => {
                             cursor = array;
                             indexes.push(index.clone());
                         }
@@ -328,13 +361,13 @@ impl DebugInstrumenter {
                 build_assign_member_stmt(
                     var_id,
                     &indexes,
-                    &id_expr(&ident("__debug_expr", expression_span)),
+                    &id_expr(&ident("__debug_expr", expression_location)),
                 )
             }
         };
 
         let ret_kind =
-            ast::StatementKind::Expression(id_expr(&ident("__debug_expr", expression_span)));
+            ast::StatementKind::Expression(id_expr(&ident("__debug_expr", expression_location)));
 
         ast::Statement {
             kind: ast::StatementKind::Assign(ast::AssignStatement {
@@ -342,23 +375,23 @@ impl DebugInstrumenter {
                 expression: ast::Expression {
                     kind: ast::ExpressionKind::Block(ast::BlockExpression {
                         statements: vec![
-                            ast::Statement { kind: let_kind, span: expression_span },
+                            ast::Statement { kind: let_kind, location: expression_location },
                             new_assign_stmt,
-                            ast::Statement { kind: ret_kind, span: expression_span },
+                            ast::Statement { kind: ret_kind, location: expression_location },
                         ],
                     }),
-                    span: expression_span,
+                    location: expression_location,
                 },
             }),
-            span: *span,
+            location,
         }
     }
 
     fn walk_expr(&mut self, expr: &mut ast::Expression) {
         match &mut expr.kind {
-            ast::ExpressionKind::Block(ast::BlockExpression { ref mut statements, .. }) => {
+            ast::ExpressionKind::Block(ast::BlockExpression { statements, .. }) => {
                 self.scope.push(HashMap::default());
-                self.walk_scope(statements, expr.span);
+                self.walk_scope(statements, expr.location);
             }
             ast::ExpressionKind::Prefix(prefix_expr) => {
                 self.walk_expr(&mut prefix_expr.rhs);
@@ -370,19 +403,19 @@ impl DebugInstrumenter {
             ast::ExpressionKind::Call(call_expr) => {
                 // TODO: push a stack frame or something here?
                 self.walk_expr(&mut call_expr.func);
-                call_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                call_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::MethodCall(mc_expr) => {
                 // TODO: also push a stack frame here
                 self.walk_expr(&mut mc_expr.object);
-                mc_expr.arguments.iter_mut().for_each(|ref mut expr| {
+                mc_expr.arguments.iter_mut().for_each(|expr| {
                     self.walk_expr(expr);
                 });
             }
             ast::ExpressionKind::Constructor(c_expr) => {
-                c_expr.fields.iter_mut().for_each(|(_id, ref mut expr)| {
+                c_expr.fields.iter_mut().for_each(|(_id, expr)| {
                     self.walk_expr(expr);
                 });
             }
@@ -419,35 +452,46 @@ impl DebugInstrumenter {
     }
 
     fn walk_for(&mut self, for_stmt: &mut ast::ForLoopStatement) {
-        let var_name = &for_stmt.identifier.0.contents;
+        let var_name = for_stmt.identifier.as_str();
         let var_id = self.insert_var(var_name);
 
-        let set_stmt = build_assign_var_stmt(var_id, id_expr(&for_stmt.identifier));
-        let drop_stmt = build_drop_var_stmt(var_id, Span::empty(for_stmt.span.end()));
+        let set_and_drop_stmt = var_id.map(|var_id| {
+            let span = Span::empty(for_stmt.location.span.end());
+            (
+                build_assign_var_stmt(var_id, id_expr(&for_stmt.identifier)),
+                build_drop_var_stmt(var_id, Location::new(span, for_stmt.location.file)),
+            )
+        });
 
         self.walk_expr(&mut for_stmt.block);
+
+        let mut statements = Vec::new();
+        let block_statement = ast::Statement {
+            kind: ast::StatementKind::Semi(for_stmt.block.clone()),
+            location: for_stmt.block.location,
+        };
+
+        if let Some((set_stmt, drop_stmt)) = set_and_drop_stmt {
+            statements.push(set_stmt);
+            statements.push(block_statement);
+            statements.push(drop_stmt);
+        } else {
+            statements.push(block_statement);
+        }
+
         for_stmt.block = ast::Expression {
-            kind: ast::ExpressionKind::Block(ast::BlockExpression {
-                statements: vec![
-                    set_stmt,
-                    ast::Statement {
-                        kind: ast::StatementKind::Semi(for_stmt.block.clone()),
-                        span: for_stmt.block.span,
-                    },
-                    drop_stmt,
-                ],
-            }),
-            span: for_stmt.span,
+            kind: ast::ExpressionKind::Block(ast::BlockExpression { statements }),
+            location: for_stmt.location,
         };
     }
 
     fn walk_statement(&mut self, stmt: &mut ast::Statement) {
         match &mut stmt.kind {
             ast::StatementKind::Let(let_stmt) => {
-                *stmt = self.walk_let_statement(let_stmt, &stmt.span);
+                *stmt = self.walk_let_statement(let_stmt, stmt.location);
             }
             ast::StatementKind::Assign(assign_stmt) => {
-                *stmt = self.walk_assign_statement(assign_stmt, &stmt.span);
+                *stmt = self.walk_assign_statement(assign_stmt, stmt.location);
             }
             ast::StatementKind::Expression(expr) => {
                 self.walk_expr(expr);
@@ -455,20 +499,21 @@ impl DebugInstrumenter {
             ast::StatementKind::Semi(expr) => {
                 self.walk_expr(expr);
             }
-            ast::StatementKind::For(ref mut for_stmt) => {
+            ast::StatementKind::For(for_stmt) => {
                 self.walk_for(for_stmt);
             }
             _ => {} // Constrain, Error
         }
     }
 
-    fn insert_state_set_oracle(&self, module: &mut ParsedModule, n: u32) {
-        let member_assigns = (1..=n)
+    fn insert_state_set_oracle(&self, module: &mut ParsedModule, file: FileId) {
+        let member_assigns = (1..=MAX_MEMBER_ASSIGN_DEPTH)
             .map(|i| format!["__debug_member_assign_{i}"])
             .collect::<Vec<String>>()
             .join(",\n");
-        let (program, errors) = parse_program(&format!(
-            r#"
+        let (program, errors) = parse_program(
+            &format!(
+                r#"
             use __debug::{{
                 __debug_var_assign,
                 __debug_var_drop,
@@ -477,7 +522,9 @@ impl DebugInstrumenter {
                 __debug_dereference_assign,
                 {member_assigns},
             }};"#
-        ));
+            ),
+            file,
+        );
         if !errors.is_empty() {
             panic!("errors parsing internal oracle definitions: {errors:?}")
         }
@@ -494,7 +541,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_assign_oracle(var_id, value);
             }
             pub fn __debug_var_assign<T>(var_id: u32, value: T) {
-                unsafe {{
+                // Safety: debug context
+                unsafe {
+                {
                     __debug_var_assign_inner(var_id, value);
                 }}
             }
@@ -505,7 +554,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_var_drop_oracle(var_id);
             }
             pub fn __debug_var_drop(var_id: u32) {
-                unsafe {{
+                // Safety: debug context
+                unsafe {
+                {
                     __debug_var_drop_inner(var_id);
                 }}
             }
@@ -516,7 +567,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_enter_oracle(fn_id);
             }
             pub fn __debug_fn_enter(fn_id: u32) {
-                unsafe {{
+                // Safety: debug context
+                unsafe {
+                {
                     __debug_fn_enter_inner(fn_id);
                 }}
             }
@@ -527,7 +580,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_fn_exit_oracle(fn_id);
             }
             pub fn __debug_fn_exit(fn_id: u32) {
-                unsafe {{
+                // Safety: debug context
+                unsafe {
+                {
                     __debug_fn_exit_inner(fn_id);
                 }}
             }
@@ -538,7 +593,9 @@ pub fn build_debug_crate_file() -> String {
                 __debug_dereference_assign_oracle(var_id, value);
             }
             pub fn __debug_dereference_assign<T>(var_id: u32, value: T) {
-                unsafe {{
+                // Safety: debug context
+                unsafe {
+                {
                     __debug_dereference_assign_inner(var_id, value);
                 }}
             }
@@ -549,21 +606,24 @@ pub fn build_debug_crate_file() -> String {
                 // The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
+                let indices =
+                    (0..n).map(|i| format!["Index{i}"]).collect::<Vec<String>>().join(", ");
                 let var_sig =
-                    (0..n).map(|i| format!["_v{i}: Index"]).collect::<Vec<String>>().join(", ");
+                    (0..n).map(|i| format!["_v{i}: Index{i}"]).collect::<Vec<String>>().join(", ");
                 let vars = (0..n).map(|i| format!["_v{i}"]).collect::<Vec<String>>().join(", ");
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_oracle_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_oracle_member_assign_{n}<T, {indices}>(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_inner_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_inner_member_assign_{n}<T, {indices}>(
                     var_id: u32, value: T, {var_sig}
                 ) {{
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
-                pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
+                pub fn __debug_member_assign_{n}<T, {indices}>(var_id: u32, value: T, {var_sig}) {{
+                    /// Safety: debug context
                     unsafe {{
                         __debug_inner_member_assign_{n}(var_id, value, {vars});
                     }}
@@ -579,36 +639,34 @@ pub fn build_debug_crate_file() -> String {
 }
 
 fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Statement {
-    let span = expr.span;
+    let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident("__debug_var_assign", span))],
-                kind: PathKind::Plain,
-                span,
-            }),
-            span,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident("__debug_var_assign", location))],
+                location,
+            )),
+            location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, span), expr],
+        arguments: vec![uint_expr(var_id.0 as u128, location), expr],
     }));
-    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
 
-fn build_drop_var_stmt(var_id: SourceVarId, span: Span) -> ast::Statement {
+fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident("__debug_var_drop", span))],
-                kind: PathKind::Plain,
-                span,
-            }),
-            span,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident("__debug_var_drop", location))],
+                location,
+            )),
+            location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(var_id.0 as u128, span)],
+        arguments: vec![uint_expr(var_id.0 as u128, location)],
     }));
-    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
 
 fn build_assign_member_stmt(
@@ -620,44 +678,39 @@ fn build_assign_member_stmt(
     if arity > MAX_MEMBER_ASSIGN_DEPTH {
         unreachable!("Assignment to member exceeds maximum depth for debugging");
     }
-    let span = expr.span;
+    let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident(
-                    &format!["__debug_member_assign_{arity}"],
-                    span,
-                ))],
-                kind: PathKind::Plain,
-                span,
-            }),
-            span,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
+                location,
+            )),
+            location,
         }),
         is_macro_call: false,
         arguments: [
-            vec![uint_expr(var_id.0 as u128, span)],
+            vec![uint_expr(var_id.0 as u128, location)],
             vec![expr.clone()],
             indexes.iter().rev().cloned().collect(),
         ]
         .concat(),
     }));
-    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
 
-fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, span: Span) -> ast::Statement {
+fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path {
-                segments: vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], span))],
-                kind: PathKind::Plain,
-                span,
-            }),
-            span,
+            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
+                location,
+            )),
+            location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(fn_id.0 as u128, span)],
+        arguments: vec![uint_expr(fn_id.0 as u128, location)],
     }));
-    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, span }), span }
+    ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
 
 fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
@@ -675,9 +728,12 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Tuple(patterns, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             }
-            ast::Pattern::Struct(_, pids, _) => {
-                stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
+            ast::Pattern::Struct(_, fields, _) => {
+                stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
+                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
+            }
+            ast::Pattern::Parenthesized(pattern, _) => {
+                stack.push_back((pattern, false));
             }
             ast::Pattern::Interned(_, _) => (),
         }
@@ -687,8 +743,10 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
-        ast::Pattern::Identifier(id) => id.0.contents.clone(),
-        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Identifier(id) => id.to_string(),
+        ast::Pattern::Mutable(pattern, _, _) => {
+            format!("mut {}", pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
             elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
@@ -700,41 +758,41 @@ fn pattern_to_string(pattern: &ast::Pattern) -> String {
                 fields
                     .iter()
                     .map(|(field_ident, field_pattern)| {
-                        format!("{}: {}", &field_ident.0.contents, pattern_to_string(field_pattern))
+                        format!("{}: {}", field_ident, pattern_to_string(field_pattern))
                     })
                     .collect::<Vec<_>>()
                     .join(", "),
             )
         }
+        ast::Pattern::Parenthesized(pattern, _) => {
+            format!("({})", pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Interned(_, _) => "?Interned".to_string(),
     }
 }
 
-fn ident(s: &str, span: Span) -> ast::Ident {
-    ast::Ident(Spanned::from(span, s.to_string()))
+fn ident(s: &str, location: Location) -> ast::Ident {
+    ast::Ident::new(s.to_string(), location)
 }
 
 fn id_expr(id: &ast::Ident) -> ast::Expression {
     ast::Expression {
-        kind: ast::ExpressionKind::Variable(Path {
-            segments: vec![PathSegment::from(id.clone())],
-            kind: PathKind::Plain,
-            span: id.span(),
-        }),
-        span: id.span(),
+        kind: ast::ExpressionKind::Variable(Path::plain(
+            vec![PathSegment::from(id.clone())],
+            id.location(),
+        )),
+        location: id.location(),
     }
 }
 
-fn uint_expr(x: u128, span: Span) -> ast::Expression {
-    ast::Expression {
-        kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.into(), false)),
-        span,
-    }
+fn uint_expr(x: u128, location: Location) -> ast::Expression {
+    let value = SignedField::positive(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
+    ast::Expression { kind, location }
 }
 
-fn sint_expr(x: i128, span: Span) -> ast::Expression {
-    ast::Expression {
-        kind: ast::ExpressionKind::Literal(ast::Literal::Integer(x.abs().into(), x < 0)),
-        span,
-    }
+fn sint_expr(x: i128, location: Location) -> ast::Expression {
+    let value = SignedField::from_signed(x);
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
+    ast::Expression { kind, location }
 }

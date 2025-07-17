@@ -15,6 +15,17 @@ Adds an attribute to the function. This is only valid
 on functions in the current crate which have not yet been resolved.
 This means any functions called at compile-time are invalid targets for this method.
 
+### as_typed_expr
+
+#include_code as_typed_expr noir_stdlib/src/meta/function_def.nr rust
+
+Returns this function as a `TypedExpr`, which can be unquoted. For example:
+
+```rust
+let typed_expr = some_function.as_typed_expr();
+let _ = quote { $typed_expr(1, 2, 3); };
+```
+
 ### body
 
 #include_code body noir_stdlib/src/meta/function_def.nr rust

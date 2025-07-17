@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use foo::Foo;
+
+mod foo {
+    pub trait Foo {}
+}
+
+pub trait Bar<T>
+where
+    T: Foo,
+{}
+
+fn main() {}

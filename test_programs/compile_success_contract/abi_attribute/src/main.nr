@@ -4,6 +4,6 @@ contract Foo {
 
     #[abi(bar)]
     pub struct Bar {
-        inner: Field
+        inner: Field,
     }
 }

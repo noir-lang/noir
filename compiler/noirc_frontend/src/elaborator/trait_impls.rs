@@ -1,23 +1,25 @@
 use crate::{
+    Kind, NamedGeneric, ResolvedGeneric,
     ast::{Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     graph::CrateId,
-    hir::def_collector::{dc_crate::UnresolvedTraitImpl, errors::DefCollectorErrorKind},
+    hir::def_collector::{
+        dc_crate::{CompilationError, UnresolvedTraitImpl},
+        errors::DefCollectorErrorKind,
+    },
     node_interner::TraitImplId,
-    ResolvedGeneric,
 };
 use crate::{
+    Type,
     hir::def_collector::errors::DuplicateType,
     hir_def::traits::{TraitConstraint, TraitFunction},
     node_interner::{FuncId, TraitId},
-    Type,
 };
 
-use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 
-impl<'context> Elaborator<'context> {
+impl Elaborator<'_> {
     pub(super) fn collect_trait_impl_methods(
         &mut self,
         trait_id: TraitId,
@@ -25,7 +27,6 @@ impl<'context> Elaborator<'context> {
         trait_impl_where_clause: &[TraitConstraint],
     ) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -48,7 +49,7 @@ impl<'context> Elaborator<'context> {
                 .methods
                 .functions
                 .iter()
-                .filter(|(_, _, f)| f.name() == method.name.0.contents)
+                .filter(|(_, _, f)| f.name() == method.name.as_str())
                 .collect();
 
             if overrides.is_empty() {
@@ -59,9 +60,11 @@ impl<'context> Elaborator<'context> {
 
                     let func_id = self.interner.push_empty_fn();
                     let module = self.module_id();
-                    let location = Location::new(default_impl.def.span, trait_impl.file_id);
+                    let location = default_impl.def.location;
                     self.interner.push_function(func_id, &default_impl.def, module, location);
-                    self.define_function_meta(&mut default_impl_clone, func_id, None);
+                    self.recover_generics(|this| {
+                        this.define_function_meta(&mut default_impl_clone, func_id, None, &[]);
+                    });
                     func_ids_in_trait.insert(func_id);
                     ordered_methods.push((
                         method.default_impl_module_id,
@@ -72,7 +75,7 @@ impl<'context> Elaborator<'context> {
                     self.push_err(DefCollectorErrorKind::TraitMissingMethod {
                         trait_name: self.interner.get_trait(trait_id).name.clone(),
                         method_name: method.name.clone(),
-                        trait_impl_span: trait_impl.object_type.span,
+                        trait_impl_location: trait_impl.object_type.location,
                     });
                 }
             } else {
@@ -91,7 +94,7 @@ impl<'context> Elaborator<'context> {
 
                 if overrides.len() > 1 {
                     self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
+                        typ: DuplicateType::TraitAssociatedItem,
                         first_def: overrides[0].2.name_ident().clone(),
                         second_def: overrides[1].2.name_ident().clone(),
                     });
@@ -105,14 +108,17 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.interner.get_trait_mut(trait_id);
         the_trait.set_methods(methods);
 
+        let trait_name = the_trait.name.clone();
+
         // Emit MethodNotInTrait error for methods in the impl block that
         // don't have a corresponding method signature defined in the trait
         for (_, func_id, func) in &trait_impl.methods.functions {
             if !func_ids_in_trait.contains(func_id) {
-                let trait_name = the_trait.name.clone();
+                let trait_name = trait_name.clone();
                 let impl_method = func.name_ident().clone();
                 let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                self.errors.push((error.into(), self.file));
+                let error: CompilationError = error.into();
+                self.push_err(error);
             }
         }
 
@@ -146,6 +152,7 @@ impl<'context> Elaborator<'context> {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
         let self_type = self.self_type.as_ref().unwrap().clone();
+
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
@@ -157,7 +164,11 @@ impl<'context> Elaborator<'context> {
         ) in method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = Type::NamedGeneric(impl_fn_generic.clone(), name.clone());
+            let arg = Type::NamedGeneric(NamedGeneric {
+                type_var: impl_fn_generic.clone(),
+                name: name.clone(),
+                implicit: false,
+            });
             bindings.insert(
                 trait_fn_generic.id(),
                 (trait_fn_generic.clone(), trait_fn_kind.clone(), arg),
@@ -189,20 +200,23 @@ impl<'context> Elaborator<'context> {
                 continue;
             }
 
+            let override_trait_generics =
+                override_trait_constraint.trait_bound.trait_generics.clone();
+
             if !substituted_method_ids.contains(&(
                 override_trait_constraint.typ.clone(),
                 override_trait_constraint.trait_bound.trait_id,
-                override_trait_constraint.trait_bound.trait_generics.clone(),
+                override_trait_generics,
             )) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
                     constraint_typ: override_trait_constraint.typ,
-                    constraint_name: the_trait.name.0.contents.clone(),
+                    constraint_name: the_trait.name.to_string(),
                     constraint_generics: override_trait_constraint.trait_bound.trait_generics,
-                    constraint_span: override_trait_constraint.trait_bound.span,
-                    trait_method_name: method.name.0.contents.clone(),
-                    trait_method_span: method.location.span,
+                    constraint_location: override_trait_constraint.trait_bound.location,
+                    trait_method_name: method.name.to_string(),
+                    trait_method_location: method.location,
                 });
             }
         }
@@ -214,17 +228,16 @@ impl<'context> Elaborator<'context> {
         trait_impl: &UnresolvedTraitImpl,
     ) {
         self.local_module = trait_impl.module_id;
-        self.file = trait_impl.file_id;
 
         let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::Struct(struct_type, _)) => struct_type.borrow().id.krate(),
+            Some(Type::DataType(struct_type, _)) => struct_type.borrow().id.krate(),
             _ => CrateId::Dummy,
         };
 
         let the_trait = self.interner.get_trait(trait_id);
         if self.crate_id != the_trait.crate_id && self.crate_id != object_crate {
             self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                span: trait_impl.object_type.span,
+                location: trait_impl.object_type.location,
             });
         }
     }
@@ -232,21 +245,23 @@ impl<'context> Elaborator<'context> {
     pub(super) fn take_unresolved_associated_types(
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
-    ) -> Vec<(Ident, UnresolvedType)> {
+    ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
-        for (name, _, expr) in trait_impl.associated_constants.drain(..) {
-            let span = expr.span;
-            let typ = match UnresolvedTypeExpression::from_expr(expr, span) {
-                Ok(expr) => UnresolvedTypeData::Expression(expr).with_span(span),
+        for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
+            let resolved_type = self.resolve_type(typ);
+            let kind = Kind::Numeric(Box::new(resolved_type));
+            let location = expr.location;
+            let typ = match UnresolvedTypeExpression::from_expr(expr, location) {
+                Ok(expr) => UnresolvedTypeData::Expression(expr).with_location(location),
                 Err(error) => {
                     self.push_err(error);
-                    UnresolvedTypeData::Error.with_span(span)
+                    UnresolvedTypeData::Error.with_location(location)
                 }
             };
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, kind));
         }
         for (name, typ) in trait_impl.associated_types.drain(..) {
-            associated_types.push((name, typ));
+            associated_types.push((name, typ, Kind::Any));
         }
         associated_types
     }

@@ -1,4 +1,4 @@
-use crate::node_interner::{FuncId, GlobalId, StructId, TraitId, TypeAliasId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 
 use super::ModuleId;
 
@@ -7,9 +7,10 @@ use super::ModuleId;
 pub enum ModuleDefId {
     ModuleId(ModuleId),
     FunctionId(FuncId),
-    TypeId(StructId),
+    TypeId(TypeId),
     TypeAliasId(TypeAliasId),
     TraitId(TraitId),
+    TraitAssociatedTypeId(TraitAssociatedTypeId),
     GlobalId(GlobalId),
 }
 
@@ -21,7 +22,7 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type(&self) -> Option<StructId> {
+    pub fn as_type(&self) -> Option<TypeId> {
         match self {
             ModuleDefId::TypeId(type_id) => Some(*type_id),
             _ => None,
@@ -57,6 +58,7 @@ impl ModuleDefId {
             ModuleDefId::TypeId(_) => "type",
             ModuleDefId::TypeAliasId(_) => "type alias",
             ModuleDefId::TraitId(_) => "trait",
+            ModuleDefId::TraitAssociatedTypeId(_) => "associated type",
             ModuleDefId::ModuleId(_) => "module",
             ModuleDefId::GlobalId(_) => "global",
         }
@@ -97,5 +99,11 @@ impl From<GlobalId> for ModuleDefId {
 impl From<TraitId> for ModuleDefId {
     fn from(trait_id: TraitId) -> Self {
         ModuleDefId::TraitId(trait_id)
+    }
+}
+
+impl From<TraitAssociatedTypeId> for ModuleDefId {
+    fn from(id: TraitAssociatedTypeId) -> Self {
+        ModuleDefId::TraitAssociatedTypeId(id)
     }
 }

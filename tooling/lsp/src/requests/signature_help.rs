@@ -1,23 +1,23 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
+use fm::{FileId, PathString};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
+    ParsedModule, Type,
     ast::{
-        CallExpression, ConstrainKind, ConstrainStatement, Expression, FunctionReturnType,
+        CallExpression, ConstrainExpression, ConstrainKind, Expression, FunctionReturnType,
         MethodCallExpression, Statement, Visitor,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern},
     node_interner::{NodeInterner, ReferenceId},
     parser::Item,
-    ParsedModule, Type,
 };
 
-use crate::{utils, LspState};
+use crate::{LspState, utils};
 
 use super::process_request;
 
@@ -26,7 +26,7 @@ mod tests;
 pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
-) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> {
+) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
     let uri = params.text_document_position_params.clone().text_document.uri;
 
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
@@ -40,7 +40,7 @@ pub(crate) fn on_signature_help_request(
             .and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
                 let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
                 finder.find(&parsed_module)
@@ -98,8 +98,8 @@ impl<'a> SignatureFinder<'a> {
         }
 
         // Otherwise, the call must be a reference to an fn type
-        if let Some(mut typ) = self.interner.type_at_location(location) {
-            typ = typ.follow_bindings();
+        if let Some(typ) = self.interner.type_at_location(location) {
+            let mut typ = typ.follow_bindings();
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
@@ -122,10 +122,22 @@ impl<'a> SignatureFinder<'a> {
         active_parameter: Option<u32>,
         has_self: bool,
     ) -> SignatureInformation {
+        let enum_type_id = match (func_meta.type_id, func_meta.enum_variant_index) {
+            (Some(type_id), Some(_)) => Some(type_id),
+            _ => None,
+        };
+
         let mut label = String::new();
         let mut parameters = Vec::new();
 
-        label.push_str("fn ");
+        if let Some(enum_type_id) = enum_type_id {
+            label.push_str("enum ");
+            label.push_str(self.interner.get_type(enum_type_id).borrow().name.as_str());
+            label.push_str("::");
+        } else {
+            label.push_str("fn ");
+        }
+
         label.push_str(name);
         label.push('(');
         for (index, (pattern, typ, _)) in func_meta.parameters.0.iter().enumerate() {
@@ -134,16 +146,20 @@ impl<'a> SignatureFinder<'a> {
             }
 
             if has_self && index == 0 {
-                if let Type::MutableReference(..) = typ {
-                    label.push_str("&mut self");
-                } else {
-                    label.push_str("self");
+                if let Type::Reference(_, mutable) = typ {
+                    label.push('&');
+                    if *mutable {
+                        label.push_str("mut ");
+                    }
                 }
+                label.push_str("self");
             } else {
                 let parameter_start = label.chars().count();
 
-                self.hir_pattern_to_argument(pattern, &mut label);
-                label.push_str(": ");
+                if enum_type_id.is_none() {
+                    self.hir_pattern_to_argument(pattern, &mut label);
+                    label.push_str(": ");
+                }
                 label.push_str(&typ.to_string());
 
                 let parameter_end = label.chars().count();
@@ -159,11 +175,13 @@ impl<'a> SignatureFinder<'a> {
         }
         label.push(')');
 
-        match &func_meta.return_type {
-            FunctionReturnType::Default(_) => (),
-            FunctionReturnType::Ty(typ) => {
-                label.push_str(" -> ");
-                label.push_str(&typ.to_string());
+        if enum_type_id.is_none() {
+            match &func_meta.return_type {
+                FunctionReturnType::Default(_) => (),
+                FunctionReturnType::Ty(typ) => {
+                    label.push_str(" -> ");
+                    label.push_str(&typ.to_string());
+                }
             }
         }
 
@@ -224,7 +242,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert",
-            &["predicate: bool", "[failure_message: str<N>]"],
+            &["predicate: bool", "[failure_message: T]"],
         )
     }
 
@@ -235,7 +253,7 @@ impl<'a> SignatureFinder<'a> {
         self.hardcoded_signature_information(
             active_parameter,
             "assert_eq",
-            &["lhs: T", "rhs: T", "[failure_message: str<N>]"],
+            &["lhs: T", "rhs: T", "[failure_message: U]"],
         )
     }
 
@@ -296,7 +314,9 @@ impl<'a> SignatureFinder<'a> {
     fn compute_active_parameter(&self, arguments: &[Expression]) -> Option<u32> {
         let mut active_parameter = None;
         for (index, arg) in arguments.iter().enumerate() {
-            if self.includes_span(arg.span) || arg.span.start() as usize >= self.byte_index {
+            if self.includes_span(arg.location.span)
+                || arg.location.span.start() as usize >= self.byte_index
+            {
                 active_parameter = Some(index as u32);
                 break;
             }
@@ -314,24 +334,25 @@ impl<'a> SignatureFinder<'a> {
     }
 }
 
-impl<'a> Visitor for SignatureFinder<'a> {
+impl Visitor for SignatureFinder<'_> {
     fn visit_item(&mut self, item: &Item) -> bool {
-        self.includes_span(item.span)
+        self.includes_span(item.location.span)
     }
 
     fn visit_statement(&mut self, statement: &Statement) -> bool {
-        self.includes_span(statement.span)
+        self.includes_span(statement.location.span)
     }
 
     fn visit_expression(&mut self, expression: &Expression) -> bool {
-        self.includes_span(expression.span)
+        self.includes_span(expression.location.span)
     }
 
     fn visit_call_expression(&mut self, call_expression: &CallExpression, span: Span) -> bool {
         call_expression.accept_children(self);
 
-        let arguments_span = Span::from(call_expression.func.span.end() + 1..span.end() - 1);
-        let span = call_expression.func.span;
+        let arguments_span =
+            Span::from(call_expression.func.location.span.end() + 1..span.end() - 1);
+        let span = call_expression.func.location.span;
         let name_span = Span::from(span.end() - 1..span.end());
         let has_self = false;
 
@@ -367,7 +388,7 @@ impl<'a> Visitor for SignatureFinder<'a> {
         false
     }
 
-    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainStatement) -> bool {
+    fn visit_constrain_statement(&mut self, constrain_statement: &ConstrainExpression) -> bool {
         constrain_statement.accept_children(self);
 
         if self.signature_help.is_some() {
@@ -375,7 +396,7 @@ impl<'a> Visitor for SignatureFinder<'a> {
         }
 
         let kind_len = constrain_statement.kind.to_string().len() as u32;
-        let span = constrain_statement.span;
+        let span = constrain_statement.location.span;
         let arguments_span = Span::from(span.start() + kind_len + 1..span.end() - 1);
 
         if !self.includes_span(arguments_span) {

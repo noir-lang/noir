@@ -1,13 +1,14 @@
-use lsp_types::{
+use async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TypeDefinitionProviderCapability,
+    SignatureHelpOptions, TextDocumentIdentifier, TypeDefinitionProviderCapability,
+    WorkspaceSymbolOptions,
 };
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
 
 // Re-providing lsp_types that we don't need to override
-pub(crate) use lsp_types::{
+pub(crate) use async_lsp::lsp_types::{
     CodeLens, CodeLensOptions, CodeLensParams, Command, Diagnostic, DiagnosticSeverity,
     DidChangeConfigurationParams, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
     DidOpenTextDocumentParams, DidSaveTextDocumentParams, InitializeParams, InitializedParams,
@@ -15,7 +16,9 @@ pub(crate) use lsp_types::{
 };
 
 pub(crate) mod request {
-    use lsp_types::{request::Request, InitializeParams};
+    use async_lsp::lsp_types::{InitializeParams, request::Request};
+
+    use crate::types::{NargoExpandParams, NargoExpandResult};
 
     use super::{
         InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
@@ -23,7 +26,7 @@ pub(crate) mod request {
     };
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::request::{
+    pub(crate) use async_lsp::lsp_types::request::{
         CodeLensRequest as CodeLens, Formatting, GotoDeclaration, GotoDefinition,
         GotoTypeDefinition, Shutdown,
     };
@@ -51,15 +54,23 @@ pub(crate) mod request {
         type Result = NargoTestsResult;
         const METHOD: &'static str = "nargo/tests";
     }
+
+    #[derive(Debug)]
+    pub(crate) struct NargoExpand;
+    impl Request for NargoExpand {
+        type Params = NargoExpandParams;
+        type Result = NargoExpandResult;
+        const METHOD: &'static str = "nargo/expand";
+    }
 }
 
 pub(crate) mod notification {
-    use lsp_types::notification::Notification;
+    use async_lsp::lsp_types::notification::Notification;
 
     use super::NargoPackageTests;
 
     // Re-providing lsp_types that we don't need to override
-    pub(crate) use lsp_types::notification::{
+    pub(crate) use async_lsp::lsp_types::notification::{
         DidChangeConfiguration, DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument,
         DidSaveTextDocument, Exit, Initialized,
     };
@@ -156,6 +167,10 @@ pub(crate) struct ServerCapabilities {
     /// The server provides code action support.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) code_action_provider: Option<OneOf<bool, CodeActionOptions>>,
+
+    /// The server provides workspace symbol support.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) workspace_symbol_provider: Option<OneOf<bool, WorkspaceSymbolOptions>>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default, Deserialize, Serialize)]
@@ -241,6 +256,16 @@ pub(crate) struct NargoTestRunResult {
     pub(crate) message: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NargoExpandParams {
+    pub(crate) text_document: TextDocumentIdentifier,
+    pub(crate) position: Position,
+}
+
+pub(crate) type NargoExpandResult = String;
+
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
-pub(crate) type GotoDefinitionResult = Option<lsp_types::GotoDefinitionResponse>;
-pub(crate) type GotoDeclarationResult = Option<lsp_types::request::GotoDeclarationResponse>;
+pub(crate) type GotoDefinitionResult = Option<async_lsp::lsp_types::GotoDefinitionResponse>;
+pub(crate) type GotoDeclarationResult =
+    Option<async_lsp::lsp_types::request::GotoDeclarationResponse>;

@@ -3,16 +3,36 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
+  "prerelease-type": "beta",
   "pull-request-title-pattern": "chore: Release Noir(${version})",
   "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
     ".": {
       "release-type": "simple",
+      "versioning": "prerelease",
       "component": "noir",
       "package-name": "noir",
       "include-component-in-tag": false,
       "extra-files": [
         "Cargo.toml",
+        "acvm-repo/acir/Cargo.toml",
+        "acvm-repo/acir_field/Cargo.toml",
+        "acvm-repo/acvm/Cargo.toml",
+        "acvm-repo/acvm_js/Cargo.toml",
+        "acvm-repo/blackbox_solver/Cargo.toml",
+        "acvm-repo/bn254_blackbox_solver/Cargo.toml",
+        "acvm-repo/brillig/Cargo.toml",
+        "acvm-repo/brillig_vm/Cargo.toml",
+        {
+          "type": "json",
+          "path": "acvm-repo/acvm_js/package.json",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "json",
+          "path": "acvm-repo/acvm_js/package.json",
+          "jsonpath": "$.version"
+        },
         {
           "type": "json",
           "path": "compiler/wasm/package.json",
@@ -46,32 +66,6 @@
         {
           "type": "json",
           "path": "docs/docs/package.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    },
-    "acvm-repo": {
-      "release-type": "simple",
-      "package-name": "acvm",
-      "component": "acvm",
-      "include-component-in-tag": false,
-      "extra-files": [
-        "acir/Cargo.toml",
-        "acir_field/Cargo.toml",
-        "acvm/Cargo.toml",
-        "acvm_js/Cargo.toml",
-        "blackbox_solver/Cargo.toml",
-        "bn254_blackbox_solver/Cargo.toml",
-        "brillig/Cargo.toml",
-        "brillig_vm/Cargo.toml",
-        {
-          "type": "json",
-          "path": "acvm_js/package.json",
-          "jsonpath": "$.version"
-        },
-        {
-          "type": "json",
-          "path": "acvm_js/package.json",
           "jsonpath": "$.version"
         }
       ]

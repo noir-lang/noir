@@ -8,7 +8,7 @@ use std::{
 
 /// For a given file, we store the source code and the path to the file
 /// so consumers of the debug artifact can reconstruct the original source code structure.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct DebugFile {
     pub source: String,
     pub path: PathBuf,
@@ -21,23 +21,28 @@ pub(crate) fn filter_relevant_files(
     let mut files_with_debug_symbols: BTreeSet<FileId> = debug_symbols
         .iter()
         .flat_map(|function_symbols| {
-            function_symbols
-                .locations
-                .values()
-                .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
+            function_symbols.acir_locations.values().flat_map(|call_stack_id| {
+                function_symbols
+                    .location_tree
+                    .get_call_stack(*call_stack_id)
+                    .into_iter()
+                    .map(|location| location.file)
+            })
         })
         .collect();
 
     let files_with_brillig_debug_symbols: BTreeSet<FileId> = debug_symbols
         .iter()
         .flat_map(|function_symbols| {
-            let brillig_location_maps =
-                function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
-                    brillig_location_map
-                        .values()
-                        .flat_map(|call_stack| call_stack.iter().map(|location| location.file))
-                });
-            brillig_location_maps
+            function_symbols.brillig_locations.values().flat_map(|brillig_location_map| {
+                brillig_location_map.values().flat_map(|call_stack_id| {
+                    function_symbols
+                        .location_tree
+                        .get_call_stack(*call_stack_id)
+                        .into_iter()
+                        .map(|location| location.file)
+                })
+            })
         })
         .collect();
 

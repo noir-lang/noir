@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Impl for type `u32` overlaps with existing impl
+  ┌─ src/main.nr:3:9
+  │
+3 │ impl<T> Trait for T { fn t(self){} }
+  │         ----- Previous impl defined here
+4 │ impl Trait for u32 { fn t(self){} }
+  │                --- Overlapping impl
+  │
+
+Aborting due to 1 previous error

@@ -18,14 +18,14 @@ struct Test {
     v: Field,
 }
 global VALS: [Test; 1] = [Test { v: 100 }];
-global NESTED = [VALS, VALS];
+global NESTED: [[Test; 1]; 2] = [VALS, VALS];
 
 unconstrained fn calculate_global_value() -> Field {
     42
 }
 
 // Regression test for https://github.com/noir-lang/noir/issues/4318
-global CALCULATED_GLOBAL: Field = unsafe { calculate_global_value() };
+global CALCULATED_GLOBAL: Field = calculate_global_value();
 
 fn main(
     a: [Field; M + N - N],
@@ -94,12 +94,7 @@ fn arrays_neq(a: [Field; M], b: [Field; M]) {
 }
 
 mod my_submodule {
-    global N: u32 = 10;
-    global L: Field = 50;
-
-    fn my_bool_or(x: u1, y: u1) {
-        assert(x | y == 1);
-    }
+    pub(crate) global N: u32 = 10;
 
     pub fn my_helper() -> Field {
         let N: u32 = 15; // Like in Rust, local variables override globals
@@ -121,4 +116,4 @@ impl Bar {
 }
 
 // Regression for #1440
-global foo = Foo { a: Bar::get_a() };
+global foo: Foo = Foo { a: Bar::get_a() };

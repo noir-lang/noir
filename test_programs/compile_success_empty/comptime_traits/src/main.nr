@@ -31,4 +31,3 @@ pub fn neg_at_comptime() {
         let _result = -value;
     }
 }
-

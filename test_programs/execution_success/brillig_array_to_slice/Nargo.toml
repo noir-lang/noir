@@ -1,7 +1,0 @@
-[package]
-name = "brillig_array_to_slice"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.25.0"
-
-[dependencies]

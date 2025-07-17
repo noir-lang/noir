@@ -1,19 +1,20 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
+use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
+    ParsedModule,
     ast::{
         Expression, FunctionReturnType, Ident, LetStatement, NoirFunction, NoirStruct, NoirTrait,
-        NoirTraitImpl, TypeImpl, UnresolvedType, Visitor,
+        NoirTraitImpl, TypeImpl, UnresolvedType, UnresolvedTypeData, Visitor,
     },
     parser::ParsedSubModule,
-    ParsedModule,
 };
 
 use crate::LspState;
@@ -23,7 +24,7 @@ use super::process_request;
 pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
-) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> {
+) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
     let Ok(file_path) = params.text_document.uri.to_file_path() else {
         return future::ready(Ok(None));
     };
@@ -37,7 +38,7 @@ pub(crate) fn on_document_symbol_request(
         args.files.get_file_id(&PathString::from_path(file_path)).map(|file_id| {
             let file = args.files.get_file(file_id).unwrap();
             let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source);
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
             let mut collector = DocumentSymbolCollector::new(file_id, args.files);
             let symbols = collector.collect(&parsed_module);
@@ -66,7 +67,7 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 
     fn collect_in_type(&mut self, name: &Ident, typ: Option<&UnresolvedType>) {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return;
         }
 
@@ -75,7 +76,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         };
 
         let span = if let Some(typ) = typ {
-            Span::from(name.span().start()..typ.span.end())
+            Span::from(name.span().start()..typ.location.span.end())
         } else {
             name.span()
         };
@@ -103,7 +104,7 @@ impl<'a> DocumentSymbolCollector<'a> {
         typ: &UnresolvedType,
         default_value: Option<&Expression>,
     ) {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return;
         }
 
@@ -114,11 +115,11 @@ impl<'a> DocumentSymbolCollector<'a> {
         let mut span = name.span();
 
         // If there's a type span, extend the span to include it
-        span = Span::from(span.start()..typ.span.end());
+        span = Span::from(span.start()..typ.location.span.end());
 
         // If there's a default value, extend the span to include it
         if let Some(default_value) = default_value {
-            span = Span::from(span.start()..default_value.span.end());
+            span = Span::from(span.start()..default_value.location.span.end());
         }
 
         let Some(location) = self.to_lsp_location(span) else {
@@ -143,9 +144,9 @@ impl<'a> DocumentSymbolCollector<'a> {
     }
 }
 
-impl<'a> Visitor for DocumentSymbolCollector<'a> {
+impl Visitor for DocumentSymbolCollector<'_> {
     fn visit_noir_function(&mut self, noir_function: &NoirFunction, span: Span) -> bool {
-        if noir_function.def.name.0.contents.is_empty() {
+        if noir_function.def.name.is_empty() {
             return false;
         }
 
@@ -174,7 +175,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_noir_struct(&mut self, noir_struct: &NoirStruct, span: Span) -> bool {
-        if noir_struct.name.0.contents.is_empty() {
+        if noir_struct.name.is_empty() {
             return false;
         }
 
@@ -190,7 +191,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         for field in &noir_struct.fields {
             let field_name = &field.item.name;
             let typ = &field.item.typ;
-            let span = Span::from(field_name.span().start()..typ.span.end());
+            let span = Span::from(field_name.span().start()..typ.location.span.end());
 
             let Some(field_location) = self.to_lsp_location(span) else {
                 continue;
@@ -229,7 +230,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_noir_trait(&mut self, noir_trait: &NoirTrait, span: Span) -> bool {
-        if noir_trait.name.0.contents.is_empty() {
+        if noir_trait.name.is_empty() {
             return false;
         }
 
@@ -275,7 +276,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         _where_clause: &[noirc_frontend::ast::UnresolvedTraitConstraint],
         body: &Option<noirc_frontend::ast::BlockExpression>,
     ) -> bool {
-        if name.0.contents.is_empty() {
+        if name.is_empty() {
             return false;
         }
 
@@ -292,18 +293,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
 
         // If there's a return type, extend the span to include it
         match return_type {
-            FunctionReturnType::Default(return_type_span) => {
-                span = Span::from(span.start()..return_type_span.end());
+            FunctionReturnType::Default(return_type_location) => {
+                span = Span::from(span.start()..return_type_location.span.end());
             }
             FunctionReturnType::Ty(typ) => {
-                span = Span::from(span.start()..typ.span.end());
+                span = Span::from(span.start()..typ.location.span.end());
             }
         }
 
         // If there's a body, extend the span to include it
         if let Some(body) = body {
             if let Some(statement) = body.statements.last() {
-                span = Span::from(span.start()..statement.span.end());
+                span = Span::from(span.start()..statement.location.span.end());
             }
         }
 
@@ -326,22 +327,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
         false
     }
 
-    fn visit_trait_item_constant(
-        &mut self,
-        name: &Ident,
-        typ: &UnresolvedType,
-        default_value: &Option<Expression>,
-    ) -> bool {
-        if name.0.contents.is_empty() {
+    fn visit_trait_item_constant(&mut self, name: &Ident, typ: &UnresolvedType) -> bool {
+        if name.is_empty() {
             return false;
         }
 
-        self.collect_in_constant(name, typ, default_value.as_ref());
+        self.collect_in_constant(name, typ, None);
         false
     }
 
-    fn visit_trait_item_type(&mut self, name: &Ident) {
+    fn visit_trait_item_type(&mut self, name: &Ident, _bounds: &[TraitBound]) -> bool {
         self.collect_in_type(name, None);
+        false
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
@@ -349,32 +346,18 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         };
 
-        let Some(name_location) = self.to_lsp_location(noir_trait_impl.trait_name.span) else {
+        let name_location =
+            if let UnresolvedTypeData::Named(trait_name, _, _) = &noir_trait_impl.r#trait.typ {
+                trait_name.location
+            } else {
+                noir_trait_impl.r#trait.location
+            };
+
+        let Some(name_location) = self.to_lsp_location(name_location.span) else {
             return false;
         };
 
-        let mut trait_name = String::new();
-        trait_name.push_str(&noir_trait_impl.trait_name.to_string());
-        if !noir_trait_impl.trait_generics.is_empty() {
-            trait_name.push('<');
-            for (index, generic) in noir_trait_impl.trait_generics.ordered_args.iter().enumerate() {
-                if index > 0 {
-                    trait_name.push_str(", ");
-                }
-                trait_name.push_str(&generic.to_string());
-            }
-            for (index, (name, generic)) in
-                noir_trait_impl.trait_generics.named_args.iter().enumerate()
-            {
-                if index > 0 {
-                    trait_name.push_str(", ");
-                }
-                trait_name.push_str(&name.0.contents);
-                trait_name.push_str(" = ");
-                trait_name.push_str(&generic.to_string());
-            }
-            trait_name.push('>');
-        }
+        let trait_name = noir_trait_impl.r#trait.to_string();
 
         let old_symbols = std::mem::take(&mut self.symbols);
         self.symbols = Vec::new();
@@ -432,15 +415,15 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
             return false;
         }
 
-        let Some(name_location) = self.to_lsp_location(type_impl.object_type.span) else {
+        let Some(name_location) = self.to_lsp_location(type_impl.object_type.location.span) else {
             return false;
         };
 
         let old_symbols = std::mem::take(&mut self.symbols);
         self.symbols = Vec::new();
 
-        for (noir_function, noir_function_span) in &type_impl.methods {
-            noir_function.item.accept(*noir_function_span, self);
+        for (noir_function, noir_function_location) in &type_impl.methods {
+            noir_function.item.accept(noir_function_location.span, self);
         }
 
         let children = std::mem::take(&mut self.symbols);
@@ -462,7 +445,7 @@ impl<'a> Visitor for DocumentSymbolCollector<'a> {
     }
 
     fn visit_parsed_submodule(&mut self, parsed_sub_module: &ParsedSubModule, span: Span) -> bool {
-        if parsed_sub_module.name.0.contents.is_empty() {
+        if parsed_sub_module.name.is_empty() {
             return false;
         }
 
@@ -534,7 +517,7 @@ mod document_symbol_tests {
     use crate::test_utils;
 
     use super::*;
-    use lsp_types::{
+    use async_lsp::lsp_types::{
         PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use tokio::test;
@@ -674,7 +657,7 @@ mod document_symbol_tests {
                             deprecated: None,
                             range: Range {
                                 start: Position { line: 15, character: 7 },
-                                end: Position { line: 15, character: 24 },
+                                end: Position { line: 15, character: 25 },
                             },
                             selection_range: Range {
                                 start: Position { line: 15, character: 7 },

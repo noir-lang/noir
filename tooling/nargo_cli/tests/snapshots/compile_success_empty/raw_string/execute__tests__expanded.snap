@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global D: str<13> = "Hello \"world\"";
+
+fn main() {
+    let a: str<13> = "Hello \"world\"";
+    let b: str<13> = "Hello \"world\"";
+    let c: str<13> = "Hello \"world\"";
+    assert(a == b);
+    assert(b == c);
+    assert(c == D);
+    let x: str<11> = "Hello World";
+    let y: str<11> = "Hello World";
+    assert(x == y);
+}

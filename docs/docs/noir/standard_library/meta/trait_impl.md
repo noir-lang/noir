@@ -25,8 +25,10 @@ comptime {
     let generics = my_impl.trait_generic_args();
     assert_eq(generics.len(), 2);
 
-    assert_eq(generics[0], quote { i32 }.as_type());
-    assert_eq(generics[1], quote { Field }.as_type());
+    assert_eq(generics[0].0, quote { i32 }.as_type());
+    assert(generics[0].1.is_none());
+    assert_eq(generics[1].0, quote { Field }.as_type());
+    assert(generics[1].1.is_none());
 }
 ```
 

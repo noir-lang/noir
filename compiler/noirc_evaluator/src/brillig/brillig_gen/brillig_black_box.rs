@@ -1,14 +1,15 @@
+//! Codegen for native (black box) function calls.
 use acvm::{
-    acir::{
-        brillig::{BlackBoxOp, HeapVector, ValueOrArray},
-        BlackBoxFunc,
-    },
     AcirField,
+    acir::{
+        BlackBoxFunc,
+        brillig::{BlackBoxOp, HeapVector, ValueOrArray},
+    },
 };
 
 use crate::brillig::brillig_ir::{
-    brillig_variable::BrilligVariable, debug_show::DebugToString, registers::RegisterAllocator,
-    BrilligContext,
+    BrilligContext, brillig_variable::BrilligVariable, debug_show::DebugToString,
+    registers::RegisterAllocator,
 };
 
 /// Transforms SSA's black box function calls into the corresponding brillig instructions
@@ -83,7 +84,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EcdsaSecp256k1 => {
             if let (
-                [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [
+                    BrilligVariable::BrilligArray(public_key_x),
+                    BrilligVariable::BrilligArray(public_key_y),
+                    BrilligVariable::BrilligArray(signature),
+                    message,
+                ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
@@ -114,7 +120,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EcdsaSecp256r1 => {
             if let (
-                [BrilligVariable::BrilligArray(public_key_x), BrilligVariable::BrilligArray(public_key_y), BrilligVariable::BrilligArray(signature), message],
+                [
+                    BrilligVariable::BrilligArray(public_key_x),
+                    BrilligVariable::BrilligArray(public_key_y),
+                    BrilligVariable::BrilligArray(signature),
+                    message,
+                ],
                 [BrilligVariable::SingleAddr(result_register)],
             ) = (function_arguments, function_results)
             {
@@ -144,27 +155,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             }
         }
 
-        BlackBoxFunc::SchnorrVerify => {
-            if let (
-                [BrilligVariable::SingleAddr(public_key_x), BrilligVariable::SingleAddr(public_key_y), signature, message],
-                [BrilligVariable::SingleAddr(result_register)],
-            ) = (function_arguments, function_results)
-            {
-                let message = convert_array_or_vector(brillig_context, *message, bb_func);
-                let signature = convert_array_or_vector(brillig_context, *signature, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::SchnorrVerify {
-                    public_key_x: public_key_x.address,
-                    public_key_y: public_key_y.address,
-                    message,
-                    signature,
-                    result: result_register.address,
-                });
-                brillig_context.deallocate_heap_vector(message);
-                brillig_context.deallocate_heap_vector(signature);
-            } else {
-                unreachable!("ICE: Schnorr verify expects two registers for the public key, an array for signature, an array for the message hash and one result register")
-            }
-        }
         BlackBoxFunc::MultiScalarMul => {
             if let ([points, scalars], [BrilligVariable::BrilligArray(outputs)]) =
                 (function_arguments, function_results)
@@ -189,7 +179,14 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::EmbeddedCurveAdd => {
             if let (
-                [BrilligVariable::SingleAddr(input1_x), BrilligVariable::SingleAddr(input1_y), BrilligVariable::SingleAddr(input1_infinite), BrilligVariable::SingleAddr(input2_x), BrilligVariable::SingleAddr(input2_y), BrilligVariable::SingleAddr(input2_infinite)],
+                [
+                    BrilligVariable::SingleAddr(input1_x),
+                    BrilligVariable::SingleAddr(input1_y),
+                    BrilligVariable::SingleAddr(input1_infinite),
+                    BrilligVariable::SingleAddr(input2_x),
+                    BrilligVariable::SingleAddr(input2_y),
+                    BrilligVariable::SingleAddr(input2_infinite),
+                ],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -223,7 +220,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         BlackBoxFunc::RecursiveAggregation => {}
         BlackBoxFunc::BigIntAdd => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -240,7 +242,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntSub => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -257,7 +264,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntMul => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -274,7 +286,12 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         }
         BlackBoxFunc::BigIntDiv => {
             if let (
-                [BrilligVariable::SingleAddr(lhs), BrilligVariable::SingleAddr(_lhs_modulus), BrilligVariable::SingleAddr(rhs), BrilligVariable::SingleAddr(_rhs_modulus)],
+                [
+                    BrilligVariable::SingleAddr(lhs),
+                    BrilligVariable::SingleAddr(_lhs_modulus),
+                    BrilligVariable::SingleAddr(rhs),
+                    BrilligVariable::SingleAddr(_rhs_modulus),
+                ],
                 [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
             ) = (function_arguments, function_results)
             {
@@ -347,12 +364,17 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 brillig_context.deallocate_heap_vector(message_vector);
                 brillig_context.deallocate_heap_array(output_heap_array);
             } else {
-                unreachable!("ICE: Poseidon2Permutation expects one array argument, a length and one array result")
+                unreachable!(
+                    "ICE: Poseidon2Permutation expects one array argument, a length and one array result"
+                )
             }
         }
         BlackBoxFunc::Sha256Compression => {
             if let (
-                [BrilligVariable::BrilligArray(input_array), BrilligVariable::BrilligArray(hash_values)],
+                [
+                    BrilligVariable::BrilligArray(input_array),
+                    BrilligVariable::BrilligArray(hash_values),
+                ],
                 [BrilligVariable::BrilligArray(result_array)],
             ) = (function_arguments, function_results)
             {
@@ -376,15 +398,14 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
         BlackBoxFunc::AES128Encrypt => {
             if let (
                 [inputs, BrilligVariable::BrilligArray(iv), BrilligVariable::BrilligArray(key)],
-                [BrilligVariable::SingleAddr(out_len), BrilligVariable::BrilligVector(outputs)],
+                [outputs],
             ) = (function_arguments, function_results)
             {
                 let inputs = convert_array_or_vector(brillig_context, *inputs, bb_func);
                 let iv = brillig_context.codegen_brillig_array_to_heap_array(*iv);
                 let key = brillig_context.codegen_brillig_array_to_heap_array(*key);
 
-                let outputs_vector =
-                    brillig_context.codegen_brillig_vector_to_heap_vector(*outputs);
+                let outputs_vector = convert_array_or_vector(brillig_context, *outputs, bb_func);
 
                 brillig_context.black_box_op_instruction(BlackBoxOp::AES128Encrypt {
                     inputs,
@@ -392,11 +413,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                     key,
                     outputs: outputs_vector,
                 });
-
-                brillig_context.mov_instruction(out_len.address, outputs_vector.size);
-                // Returns slice, so we need to allocate memory for it after the fact
-
-                brillig_context.initialize_externally_returned_vector(*outputs, outputs_vector);
 
                 brillig_context.deallocate_heap_vector(inputs);
                 brillig_context.deallocate_heap_vector(outputs_vector);
@@ -409,6 +425,8 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
     }
 }
 
+/// Converts a Brillig array or vector into a heap-allocated [HeapVector]
+/// suitable for use as an input to a Brillig [BlackBoxOp].
 fn convert_array_or_vector<F: AcirField + DebugToString, Registers: RegisterAllocator>(
     brillig_context: &mut BrilligContext<F, Registers>,
     array_or_vector: BrilligVariable,

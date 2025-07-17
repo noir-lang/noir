@@ -1,4 +1,4 @@
-comptime fn derive_default(typ: StructDefinition) -> Quoted {
+comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
         generics.len(),
@@ -7,7 +7,7 @@ comptime fn derive_default(typ: StructDefinition) -> Quoted {
     );
 
     let type_name = typ.as_type();
-    let fields = typ.fields();
+    let fields = typ.fields_as_written();
 
     let fields = join(make_field_exprs(fields));
 
@@ -20,16 +20,18 @@ comptime fn derive_default(typ: StructDefinition) -> Quoted {
     }
 }
 
+// Bar needs to be defined before Foo so that its impls are defined before
+// Foo's are.
+#[derive_default]
+struct Bar {}
+
 #[derive_default]
 struct Foo {
     x: Field,
     y: Bar,
 }
 
-#[derive_default]
-struct Bar {}
-
-comptime fn make_field_exprs(fields: [(Quoted, Type)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
     let mut result = &[];
     for my_field in fields {
         let name = my_field.0;

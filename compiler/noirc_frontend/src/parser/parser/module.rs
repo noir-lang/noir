@@ -1,4 +1,4 @@
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{
     ast::{Ident, ItemVisibility, ModuleDeclaration},
@@ -8,25 +8,17 @@ use crate::{
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     /// ModOrContract
     ///     = ( 'mod' | 'contract' ) identifier ( '{' Module '}' | ';' )
     pub(super) fn parse_mod_or_contract(
         &mut self,
-        attributes: Vec<(Attribute, Span)>,
+        ident: Ident,
+        attributes: Vec<(Attribute, Location)>,
         is_contract: bool,
         visibility: ItemVisibility,
     ) -> ItemKind {
         let outer_attributes = self.validate_secondary_attributes(attributes);
-
-        let Some(ident) = self.eat_ident() else {
-            self.expected_identifier();
-            return ItemKind::ModuleDecl(ModuleDeclaration {
-                visibility,
-                ident: Ident::default(),
-                outer_attributes,
-            });
-        };
 
         if self.eat_left_brace() {
             let contents = self.parse_module(
@@ -41,26 +33,32 @@ impl<'a> Parser<'a> {
                 is_contract,
             })
         } else {
-            if !self.eat_semicolons() {
+            let has_semicolon = self.eat_semicolons();
+            if !has_semicolon {
                 self.expected_token(Token::Semicolon);
             }
-            ItemKind::ModuleDecl(ModuleDeclaration { visibility, ident, outer_attributes })
+            ItemKind::ModuleDecl(ModuleDeclaration {
+                visibility,
+                ident,
+                outer_attributes,
+                has_semicolon,
+            })
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::parser::{
-        parser::{parse_program, tests::expect_no_errors},
-        ItemKind,
+    use crate::{
+        parse_program_with_dummy_file,
+        parser::{ItemKind, parser::tests::expect_no_errors},
     };
 
     #[test]
     fn parse_module_declaration() {
         // TODO: `contract foo;` is parsed correctly but we don't it's considered a module
         let src = "mod foo;";
-        let (module, errors) = parse_program(src);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -73,8 +71,7 @@ mod tests {
     #[test]
     fn parse_submodule() {
         let src = "mod foo { mod bar; }";
-        let (module, errors) = parse_program(src);
-        dbg!(&errors);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];
@@ -89,8 +86,7 @@ mod tests {
     #[test]
     fn parse_contract() {
         let src = "contract foo {}";
-        let (module, errors) = parse_program(src);
-        dbg!(&errors);
+        let (module, errors) = parse_program_with_dummy_file(src);
         expect_no_errors(&errors);
         assert_eq!(module.items.len(), 1);
         let item = &module.items[0];

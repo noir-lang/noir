@@ -3,7 +3,7 @@ name = "noir_lsp"
 description = "Language server for Noir"
 version.workspace = true
 authors.workspace = true
-edition.workspace = true#
+edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
@@ -15,8 +15,8 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
-lsp-types.workspace = true
-nargo.workspace = true
+nargo = { workspace = true, features = ["rpc"] }
+nargo_expand.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noirc_driver.workspace = true
@@ -31,7 +31,10 @@ thiserror.workspace = true
 fm.workspace = true
 rayon.workspace = true
 fxhash.workspace = true
+iter-extended.workspace = true
 convert_case = "0.6.0"
+num-bigint.workspace = true
+fuzzy-matcher = "0.3.7"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

@@ -4,11 +4,11 @@ struct ExampleEvent0 {
 }
 
 trait EventInterface {
-    fn emit<Env>(self, _emit: fn[Env](Self) -> ());
+    fn emit<Env>(self, _emit: fn[Env](Self));
 }
 
 impl EventInterface for ExampleEvent0 {
-    fn emit<Env>(self: ExampleEvent0, _emit: fn[Env](Self) -> ()) {
+    fn emit<Env>(self: ExampleEvent0, _emit: fn[Env](Self)) {
         _emit(self);
     }
 }
@@ -37,7 +37,7 @@ fn compute<Event>(_event: Event) -> ([u8; 5], Field)
 where
     Event: EventInterface,
 {
-    ([0 as u8; 5], 0)
+    ([0_u8; 5], 0)
 }
 
 fn emit_with_keys<Event, let OB: u32>(
@@ -56,11 +56,12 @@ where
 fn encode_event_with_randomness<Event>(
     context: &mut Context,
     randomness: Field,
-) -> fn[(&mut Context, Field)](Event) -> ()
+) -> fn[(&mut Context, Field)](Event)
 where
     Event: EventInterface,
 {
     |e: Event| {
+        // Safety: testing context
         unsafe {
             func(context.a);
         }
@@ -89,4 +90,3 @@ fn main(input: [Field; 4], randomness: Field, context_input: u32) {
     let event0 = ExampleEvent0 { value0: input[0], value1: input[1] };
     event0.emit(encode_event_with_randomness(&mut context, randomness));
 }
-

@@ -3,13 +3,13 @@ use crate::parser::ParserErrorReason;
 
 use crate::token::{Keyword, Token};
 
-use noirc_errors::Span;
+use noirc_errors::Location;
 
 use crate::{parser::labels::ParsingRuleLabel, token::TokenKind};
 
 use super::Parser;
 
-impl<'a> Parser<'a> {
+impl Parser<'_> {
     #[cfg(test)]
     pub(crate) fn parse_path_or_error(&mut self) -> Path {
         if let Some(path) = self.parse_path() {
@@ -17,11 +17,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                span: self.span_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -44,11 +40,7 @@ impl<'a> Parser<'a> {
         } else {
             self.expected_label(ParsingRuleLabel::Path);
 
-            Path {
-                segments: Vec::new(),
-                kind: PathKind::Plain,
-                span: self.span_at_previous_token_end(),
-            }
+            Path::plain(Vec::new(), self.location_at_previous_token_end())
         }
     }
 
@@ -65,7 +57,7 @@ impl<'a> Parser<'a> {
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
     ) -> Option<Path> {
-        let start_span = self.current_token_span;
+        let start_location = self.current_token_location;
 
         let kind = self.parse_path_kind();
 
@@ -73,7 +65,7 @@ impl<'a> Parser<'a> {
             kind,
             allow_turbofish,
             allow_trailing_double_colon,
-            start_span,
+            start_location,
         )?;
         if path.segments.is_empty() {
             if path.kind != PathKind::Plain {
@@ -90,20 +82,16 @@ impl<'a> Parser<'a> {
         kind: PathKind,
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> Option<Path> {
         let path = self.parse_path_after_kind(
             kind,
             allow_turbofish,
             allow_trailing_double_colon,
-            start_span,
+            start_location,
         );
 
-        if path.segments.is_empty() && path.kind == PathKind::Plain {
-            None
-        } else {
-            Some(path)
-        }
+        if path.segments.is_empty() && path.kind == PathKind::Plain { None } else { Some(path) }
     }
 
     /// Parses a path assuming the path's kind (plain, `crate::`, `super::`, etc.)
@@ -114,14 +102,14 @@ impl<'a> Parser<'a> {
         kind: PathKind,
         allow_turbofish: bool,
         allow_trailing_double_colon: bool,
-        start_span: Span,
+        start_location: Location,
     ) -> Path {
         let mut segments = Vec::new();
 
         if self.token.kind() == TokenKind::Ident {
             loop {
                 let ident = self.eat_ident().unwrap();
-                let span = ident.span();
+                let location = ident.location();
 
                 let generics = if allow_turbofish
                     && self.at(Token::DoubleColon)
@@ -133,7 +121,11 @@ impl<'a> Parser<'a> {
                     None
                 };
 
-                segments.push(PathSegment { ident, generics, span });
+                segments.push(PathSegment {
+                    ident,
+                    generics,
+                    location: self.location_since(location),
+                });
 
                 if self.at(Token::DoubleColon)
                     && matches!(self.next_token.token(), Token::Ident(..))
@@ -151,7 +143,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        Path { segments, kind, span: self.span_since(start_span) }
+        let location = self.location_since(start_location);
+        Path { segments, kind, kind_location: start_location, location }
     }
 
     /// PathGenerics = GenericTypeArgs
@@ -165,7 +158,7 @@ impl<'a> Parser<'a> {
 
         let generics = self.parse_generic_type_args();
         for (name, _typ) in &generics.named_args {
-            self.push_error(on_named_arg_error.clone(), name.span());
+            self.push_error(on_named_arg_error.clone(), name.location());
         }
 
         Some(generics.ordered_args)
@@ -183,6 +176,10 @@ impl<'a> Parser<'a> {
             PathKind::Dep
         } else if self.eat_keyword(Keyword::Super) {
             PathKind::Super
+        } else if let Token::InternedCrate(crate_id) = self.token.token() {
+            let crate_id = *crate_id;
+            self.bump();
+            PathKind::Resolved(crate_id)
         } else {
             PathKind::Plain
         };
@@ -200,6 +197,14 @@ impl<'a> Parser<'a> {
 
         let typ = self.parse_type_or_error();
         self.eat_keyword_or_error(Keyword::As);
+
+        Some(self.parse_as_trait_path_for_type_after_as_keyword(typ))
+    }
+
+    pub(super) fn parse_as_trait_path_for_type_after_as_keyword(
+        &mut self,
+        typ: UnresolvedType,
+    ) -> AsTraitPath {
         let trait_path = self.parse_path_no_turbofish_or_error();
         let trait_generics = self.parse_generic_type_args();
         self.eat_or_error(Token::Greater);
@@ -208,26 +213,28 @@ impl<'a> Parser<'a> {
             ident
         } else {
             self.expected_identifier();
-            Ident::new(String::new(), self.span_at_previous_token_end())
+            Ident::new(String::new(), self.location_at_previous_token_end())
         };
 
-        Some(AsTraitPath { typ, trait_path, trait_generics, impl_item })
+        AsTraitPath { typ, trait_path, trait_generics, impl_item }
     }
 }
 
 #[cfg(test)]
 mod tests {
 
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{Path, PathKind},
         parser::{
-            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
             Parser,
+            parser::tests::{expect_no_errors, get_single_error, get_source_with_error_span},
         },
     };
 
     fn parse_path_no_errors(src: &str) -> Path {
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
         expect_no_errors(&parser.errors);
         path
@@ -294,9 +301,9 @@ mod tests {
     #[test]
     fn parses_plain_one_segment_with_trailing_colons() {
         let src = "foo::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.kind, PathKind::Plain);
         assert_eq!(path.segments.len(), 1);
@@ -322,9 +329,9 @@ mod tests {
     #[test]
     fn parses_path_stops_before_trailing_double_colon() {
         let src = "foo::bar::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar");
     }
@@ -332,9 +339,9 @@ mod tests {
     #[test]
     fn parses_path_with_turbofish_stops_before_trailing_double_colon() {
         let src = "foo::bar::<1>::";
-        let mut parser = Parser::for_str(src);
+        let mut parser = Parser::for_str_with_dummy_file(src);
         let path = parser.parse_path_or_error();
-        assert_eq!(path.span.end() as usize, src.len());
+        assert_eq!(path.location.span.end() as usize, src.len());
         assert_eq!(parser.errors.len(), 1);
         assert_eq!(path.to_string(), "foo::bar::<1>");
     }
@@ -346,11 +353,11 @@ mod tests {
                ^
         ";
         let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str(&src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
         let path = parser.parse_path();
         assert!(path.is_none());
 
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected an identifier but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found end of input");
     }
 }

@@ -13,20 +13,24 @@ mod parser;
 
 use crate::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl, UseTree,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
+    UseTree,
 };
 use crate::token::SecondaryAttribute;
 
 pub use errors::ParserError;
 pub use errors::ParserErrorReason;
-use noirc_errors::Span;
-pub use parser::{parse_program, Parser, StatementOrExpressionOrLValue};
+use noirc_errors::Location;
+pub use parser::{
+    Parser, StatementOrExpressionOrLValue, parse_program, parse_program_with_dummy_file,
+};
 
 #[derive(Clone, Default)]
 pub struct SortedModule {
     pub imports: Vec<ImportStatement>,
     pub functions: Vec<Documented<NoirFunction>>,
-    pub types: Vec<Documented<NoirStruct>>,
+    pub structs: Vec<Documented<NoirStruct>>,
+    pub enums: Vec<Documented<NoirEnumeration>>,
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
@@ -45,36 +49,51 @@ pub struct SortedModule {
 
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for inner_attribute in &self.inner_attributes {
+            writeln!(f, "#![{}]", inner_attribute.kind.contents())?;
+        }
+
         for decl in &self.module_decls {
             writeln!(f, "{decl};")?;
         }
 
         for import in &self.imports {
-            write!(f, "{import}")?;
+            writeln!(f, "{import};")?;
         }
 
         for (global_const, _visibility) in &self.globals {
-            write!(f, "{global_const}")?;
+            writeln!(f, "{global_const}")?;
         }
 
-        for type_ in &self.types {
-            write!(f, "{type_}")?;
+        for type_ in &self.structs {
+            writeln!(f, "{type_}")?;
+        }
+        for type_ in &self.enums {
+            writeln!(f, "{type_}")?;
         }
 
         for function in &self.functions {
-            write!(f, "{function}")?;
+            writeln!(f, "{function}")?;
+        }
+
+        for trait_ in &self.traits {
+            writeln!(f, "{trait_}")?;
         }
 
         for impl_ in &self.impls {
-            write!(f, "{impl_}")?;
+            writeln!(f, "{impl_}")?;
+        }
+
+        for trait_impl in &self.trait_impls {
+            writeln!(f, "{trait_impl}")?;
         }
 
         for type_alias in &self.type_aliases {
-            write!(f, "{type_alias}")?;
+            writeln!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {
-            write!(f, "{submodule}")?;
+            writeln!(f, "{submodule}")?;
         }
 
         Ok(())
@@ -96,7 +115,8 @@ impl ParsedModule {
             match item.kind {
                 ItemKind::Import(import, visibility) => module.push_import(import, visibility),
                 ItemKind::Function(func) => module.push_function(func, item.doc_comments),
-                ItemKind::Struct(typ) => module.push_type(typ, item.doc_comments),
+                ItemKind::Struct(typ) => module.push_struct(typ, item.doc_comments),
+                ItemKind::Enum(typ) => module.push_enum(typ, item.doc_comments),
                 ItemKind::Trait(noir_trait) => module.push_trait(noir_trait, item.doc_comments),
                 ItemKind::TraitImpl(trait_impl) => module.push_trait_impl(trait_impl),
                 ItemKind::Impl(r#impl) => module.push_impl(r#impl),
@@ -125,7 +145,7 @@ impl ParsedModule {
 #[derive(Clone, Debug)]
 pub struct Item {
     pub kind: ItemKind,
-    pub span: Span,
+    pub location: Location,
     pub doc_comments: Vec<String>,
 }
 
@@ -134,6 +154,7 @@ pub enum ItemKind {
     Import(UseTree, ItemVisibility),
     Function(NoirFunction),
     Struct(NoirStruct),
+    Enum(NoirEnumeration),
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
@@ -147,6 +168,7 @@ pub enum ItemKind {
 impl std::fmt::Display for ItemKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            ItemKind::Enum(e) => e.fmt(f),
             ItemKind::Function(fun) => fun.fmt(f),
             ItemKind::ModuleDecl(m) => m.fmt(f),
             ItemKind::Import(tree, visibility) => {
@@ -168,7 +190,7 @@ impl std::fmt::Display for ItemKind {
                 }
                 c.fmt(f)
             }
-            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            ItemKind::InnerAttribute(a) => write!(f, "#![{a}]"),
         }
     }
 }
@@ -222,8 +244,12 @@ impl SortedModule {
         self.functions.push(Documented::new(func, doc_comments));
     }
 
-    fn push_type(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
-        self.types.push(Documented::new(typ, doc_comments));
+    fn push_struct(&mut self, typ: NoirStruct, doc_comments: Vec<String>) {
+        self.structs.push(Documented::new(typ, doc_comments));
+    }
+
+    fn push_enum(&mut self, typ: NoirEnumeration, doc_comments: Vec<String>) {
+        self.enums.push(Documented::new(typ, doc_comments));
     }
 
     fn push_trait(&mut self, noir_trait: NoirTrait, doc_comments: Vec<String>) {

@@ -3,7 +3,7 @@ name: Test (MSRV check)
 # TL;DR https://github.com/noir-lang/noir/issues/4384
 #
 # This workflow acts to ensure that we can publish to crates.io, we need this extra check as libraries don't respect the Cargo.lock file committed in this repository.
-# We must then always be able to build the workspace using the latest versions of all of our dependencies, so we explicitly update them and build in this workflow. 
+# We must then always be able to build the workspace using the latest versions of all of our dependencies, so we explicitly update them and build in this workflow.
 
 on:
   schedule:
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build-test-artifacts:
     name: Build test artifacts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
 
     steps:
@@ -29,12 +29,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: x86_64-unknown-linux-gnu
 
       # We force the ACVM crate and all of its dependencies to update their dependencies
-      # This ensures that we'll be able to build the crates when they're being published. 
+      # This ensures that we'll be able to build the crates when they're being published.
       - name: Update Cargo.lock
         run: |
           cargo update --package acvm --aggressive
@@ -49,11 +49,13 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Build and archive tests
-        run: cargo nextest archive --workspace --release --archive-file nextest-archive.tar.zst
-      
+        run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload archive to workflow
         uses: actions/upload-artifact@v4
         with:
@@ -62,45 +64,47 @@ jobs:
 
   run-tests:
     name: "Run tests (partition ${{matrix.partition}})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.74.1
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: x86_64-unknown-linux-gnu
 
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
-      
+          tool: nextest@0.9.88
+
       - name: Download archive
         uses: actions/download-artifact@v4
         with:
           name: nextest-archive
       - name: Run tests
         run: |
+          RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
-            --no-fail-fast
+            --profile ci
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
     name: Rust End
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
-    needs: 
+    needs:
       - run-tests
-    
+
     steps:
       - name: Report overall success
         run: |
@@ -112,7 +116,7 @@ jobs:
         env:
           # We treat any cancelled, skipped or failing jobs as a failure for the workflow as a whole.
           FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'skipped') }}
-    
+
       - name: Checkout
         if: ${{ failure() }}
         uses: actions/checkout@v4

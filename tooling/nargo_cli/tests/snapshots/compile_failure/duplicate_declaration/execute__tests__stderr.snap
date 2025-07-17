@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused function hello
+  ┌─ src/main.nr:2:4
+  │
+2 │ fn hello(x: Field) -> Field {
+  │    ----- unused function
+  │
+
+error: Duplicate definitions of function with name hello found
+  ┌─ src/main.nr:2:4
+  │
+2 │ fn hello(x: Field) -> Field {
+  │    ----- First function found here
+  ·
+6 │ fn hello(x: Field) -> Field {
+  │    ----- Second function found here
+  │
+
+Aborting due to 1 previous error

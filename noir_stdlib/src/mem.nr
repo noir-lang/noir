@@ -15,3 +15,17 @@ pub fn zeroed<T>() -> T {}
 /// that it is equal to the previous.
 #[builtin(checked_transmute)]
 pub fn checked_transmute<T, U>(value: T) -> U {}
+
+/// Returns the internal reference count of an array value in unconstrained code.
+///
+/// Arrays only have reference count in unconstrained code - using this anywhere
+/// else will return zero.
+#[builtin(array_refcount)]
+pub fn array_refcount<T, let N: u32>(array: [T; N]) -> u32 {}
+
+/// Returns the internal reference count of a slice value in unconstrained code.
+///
+/// Slices only have reference count in unconstrained code - using this anywhere
+/// else will return zero.
+#[builtin(slice_refcount)]
+pub fn slice_refcount<T>(slice: [T]) -> u32 {}

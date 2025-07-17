@@ -1,0 +1,6 @@
+[package]
+name = "dont_deduplicate_call"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: `main` entry-point function is not allowed to have generic parameters
+  ┌─ src/main.nr:1:13
+  │
+1 │ fn main<let F: u32>(x: [Field; F]) {
+  │             ------
+  │
+
+error: Only sized types may be used in the entry point to a program
+  ┌─ src/main.nr:1:24
+  │
+1 │ fn main<let F: u32>(x: [Field; F]) {
+  │                        ---------- Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions
+  │
+
+Aborting due to 2 previous errors

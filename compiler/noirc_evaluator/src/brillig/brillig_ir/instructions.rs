@@ -1,23 +1,23 @@
 use acvm::{
+    FieldElement,
     acir::{
+        AcirField,
         brillig::{
             BinaryFieldOp, BinaryIntOp, BitSize, BlackBoxOp, HeapValueType, HeapVector,
             MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
-        AcirField,
     },
-    FieldElement,
 };
 
 use crate::ssa::ir::function::FunctionId;
 
 use super::{
+    BRILLIG_MEMORY_ADDRESSING_BIT_SIZE, BrilligContext, ReservedRegisters,
     artifact::{Label, UnresolvedJumpLocation},
     brillig_variable::SingleAddrVariable,
     debug_show::DebugToString,
     procedures::ProcedureId,
     registers::RegisterAllocator,
-    BrilligContext, ReservedRegisters, BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
 };
 
 /// Low level instructions of the brillig IR, used by the brillig ir codegens and brillig_gen
@@ -25,7 +25,7 @@ use super::{
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Processes a binary instruction according `operation`.
     ///
-    /// This method will compute lhs <operation> rhs
+    /// This method will compute lhs `<operation>` rhs
     /// and store the result in the `result` register.
     pub(crate) fn binary_instruction(
         &mut self,
@@ -73,6 +73,28 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             ),
             op,
         );
+    }
+
+    /// Insert a conditional move instruction
+    pub(crate) fn conditional_move_instruction(
+        &mut self,
+        condition: SingleAddrVariable,
+        then_address: SingleAddrVariable,
+        else_address: SingleAddrVariable,
+        destination: SingleAddrVariable,
+    ) {
+        self.debug_show.conditional_mov_instruction(
+            destination.address,
+            then_address.address,
+            else_address.address,
+            condition.address,
+        );
+        self.push_opcode(BrilligOpcode::ConditionalMov {
+            destination: destination.address,
+            source_a: then_address.address,
+            source_b: else_address.address,
+            condition: condition.address,
+        });
     }
 
     fn binary(
@@ -134,6 +156,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             right.bit_size
         );
         let bit_size = left.bit_size;
+        assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
         let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
         let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
@@ -200,6 +223,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj.add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, proc_label);
     }
 
+    pub(super) fn add_globals_init_instruction(&mut self, func_id: FunctionId) {
+        let globals_init_label = Label::globals_init(func_id);
+        self.debug_show.add_external_call_instruction(globals_init_label.to_string());
+        self.obj
+            .add_unresolved_external_call(BrilligOpcode::Call { location: 0 }, globals_init_label);
+    }
+
     /// Adds a unresolved `Jump` instruction to the bytecode.
     pub(crate) fn jump_instruction(&mut self, target_label: Label) {
         self.debug_show.jump_instruction(target_label.to_string());
@@ -224,7 +254,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Adds a label to the next opcode
     pub(crate) fn enter_context(&mut self, label: Label) {
         self.debug_show.enter_context(label.to_string());
-        self.context_label = label;
+        self.context_label = label.clone();
         self.current_section = 0;
         // Add a context label to the next opcode
         self.obj.add_label_at_position(label, self.obj.index_of_next_opcode());
@@ -257,20 +287,16 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.compute_section_label(self.current_section)
     }
 
-    /// Emits a stop instruction
-    pub(crate) fn stop_instruction(&mut self) {
-        self.debug_show.stop_instruction();
-        self.push_opcode(BrilligOpcode::Stop { return_data_offset: 0, return_data_size: 0 });
+    /// Emits a return instruction
+    pub(crate) fn return_instruction(&mut self) {
+        self.debug_show.return_instruction();
+        self.push_opcode(BrilligOpcode::Return);
     }
 
-    /// Emits a external stop instruction (returns data)
-    pub(crate) fn external_stop_instruction(
-        &mut self,
-        return_data_offset: usize,
-        return_data_size: usize,
-    ) {
-        self.debug_show.external_stop_instruction(return_data_offset, return_data_size);
-        self.push_opcode(BrilligOpcode::Stop { return_data_offset, return_data_size });
+    /// Emits a stop instruction with return data
+    pub(crate) fn stop_instruction(&mut self, return_data: HeapVector) {
+        self.debug_show.stop_instruction(return_data);
+        self.push_opcode(BrilligOpcode::Stop { return_data });
     }
 
     /// Issues a blackbox operation.
@@ -365,9 +391,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
-            "Constant {} does not fit in bit size {}",
-            constant,
-            bit_size
+            "Constant {constant} does not fit in bit size {bit_size}"
         );
         if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
@@ -434,7 +458,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum BrilligBinaryOp {
+pub enum BrilligBinaryOp {
     Add,
     Sub,
     Mul,
@@ -463,7 +487,7 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {:?} on a field", operation),
+            _ => panic!("Unsupported operation: {operation:?} on a field"),
         }
     }
 }
@@ -483,7 +507,7 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {:?} on an integer", operation),
+            _ => panic!("Unsupported operation: {operation:?} on an integer"),
         }
     }
 }

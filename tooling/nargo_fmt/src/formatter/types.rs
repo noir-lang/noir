@@ -5,7 +5,7 @@ use noirc_frontend::{
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_type(&mut self, typ: UnresolvedType) {
         self.skip_comments_and_whitespace();
 
@@ -13,12 +13,6 @@ impl<'a> Formatter<'a> {
             UnresolvedTypeData::Unit => {
                 self.write_left_paren();
                 self.write_right_paren();
-            }
-            UnresolvedTypeData::Bool => {
-                self.write_keyword(Keyword::Bool);
-            }
-            UnresolvedTypeData::Integer(..) | UnresolvedTypeData::FieldElement => {
-                self.write_current_token_and_bump();
             }
             UnresolvedTypeData::Array(type_expr, typ) => {
                 self.write_left_bracket();
@@ -35,21 +29,6 @@ impl<'a> Formatter<'a> {
             }
             UnresolvedTypeData::Expression(type_expr) => {
                 self.format_type_expression(type_expr);
-            }
-            UnresolvedTypeData::String(type_expr) => {
-                self.write_keyword(Keyword::String);
-                self.write_token(Token::Less);
-                self.format_type_expression(type_expr);
-                self.write_token(Token::Greater);
-            }
-            UnresolvedTypeData::FormatString(type_expr, typ) => {
-                self.write_keyword(Keyword::FormatString);
-                self.write_token(Token::Less);
-                self.format_type_expression(type_expr);
-                self.write_comma();
-                self.write_space();
-                self.format_type(*typ);
-                self.write_token(Token::Greater);
             }
             UnresolvedTypeData::Parenthesized(typ) => {
                 self.write_left_paren();
@@ -75,10 +54,24 @@ impl<'a> Formatter<'a> {
                 self.format_path(path);
                 self.format_generic_type_args(generic_type_args);
             }
-            UnresolvedTypeData::MutableReference(typ) => {
-                self.write_token(Token::Ampersand);
-                self.write_keyword(Keyword::Mut);
-                self.write_space();
+            UnresolvedTypeData::Reference(typ, mutable) => {
+                // `&` can be represented with Ampersand or SliceStart in the lexer depending
+                // on whether it's right next to a `[` or not.
+                match &self.token {
+                    Token::Ampersand => {
+                        self.write_token(Token::Ampersand);
+                    }
+                    Token::SliceStart => {
+                        self.write_token(Token::SliceStart);
+                    }
+                    _ => {
+                        panic!("Expected Ampersand or SliceStart, found {:?}", self.token);
+                    }
+                }
+                if mutable {
+                    self.write_keyword(Keyword::Mut);
+                    self.write_space();
+                }
                 self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(types) => {
@@ -143,9 +136,6 @@ impl<'a> Formatter<'a> {
                     self.format_type(*return_type);
                 }
             }
-            UnresolvedTypeData::Quoted(..) => {
-                self.write_current_token_and_bump();
-            }
             UnresolvedTypeData::AsTraitPath(as_trait_path) => {
                 self.format_as_trait_path(*as_trait_path);
             }
@@ -177,19 +167,19 @@ mod tests {
     use crate::Config;
 
     fn assert_format_type(src: &str, expected: &str) {
-        let module_src = format!("type X = {};", src);
-        let (parsed_module, errors) = parser::parse_program(&module_src);
+        let module_src = format!("type X = {src};");
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&module_src);
         if !errors.is_empty() {
-            panic!("Expected no errors, got: {:?}", errors);
+            panic!("Expected no errors, got: {errors:?}");
         }
         let result = crate::format(&module_src, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
         let type_result = &type_result[..type_result.len() - 2];
         similar_asserts::assert_eq!(type_result, expected);
 
-        let (parsed_module, errors) = parser::parse_program(&result);
+        let (parsed_module, errors) = parser::parse_program_with_dummy_file(&result);
         if !errors.is_empty() {
-            panic!("Expected no errors in idempotent check, got: {:?}", errors);
+            panic!("Expected no errors in idempotent check, got: {errors:?}");
         }
         let result = crate::format(&result, parsed_module, &Config::default());
         let type_result = &result["type X = ".len()..];
@@ -275,6 +265,13 @@ mod tests {
     }
 
     #[test]
+    fn format_array_reference_type() {
+        let src = " &[ Field ; 3 ]";
+        let expected = "&[Field; 3]";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
     fn format_parenthesized_type() {
         let src = " ( Field )";
         let expected = "(Field)";
@@ -299,6 +296,13 @@ mod tests {
     fn format_function_type_with_env() {
         let src = "  fn  [ Env ] ( ) -> Field ";
         let expected = "fn[Env]() -> Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_function_type_without_return_type() {
+        let src = "  fn   ( )  ";
+        let expected = "fn()";
         assert_format_type(src, expected);
     }
 

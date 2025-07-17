@@ -1,0 +1,6 @@
+[package]
+name = "ski_calculus"
+type = "bin"
+authors = [""]
+
+[dependencies]

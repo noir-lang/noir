@@ -1,5 +1,0 @@
-[package]
-name = "double_verify_proof_recursive"
-type = "bin"
-authors = [""]
-[dependencies]

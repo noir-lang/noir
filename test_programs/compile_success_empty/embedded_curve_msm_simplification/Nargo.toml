@@ -1,0 +1,6 @@
+[package]
+name = "embedded_curve_msm_simplification"
+type = "bin"
+authors = [""]
+
+[dependencies]

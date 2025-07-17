@@ -1,23 +1,24 @@
 use noirc_frontend::{
-    ast::{
-        FunctionDefinition, ItemVisibility, NoirFunction, NoirTraitImpl, Pattern, TraitImplItem,
-        TraitImplItemKind,
-    },
+    ast::{NoirTraitImpl, Pattern, TraitImplItem, TraitImplItemKind},
     token::{Keyword, Token},
 };
 
 use super::Formatter;
 
-impl<'a> Formatter<'a> {
+impl Formatter<'_> {
     pub(super) fn format_trait_impl(&mut self, trait_impl: NoirTraitImpl) {
+        // skip synthetic trait impl's, e.g. generated from trait aliases
+        if trait_impl.is_synthetic {
+            return;
+        }
+
         let has_where_clause = !trait_impl.where_clause.is_empty();
 
         self.write_indentation();
         self.write_keyword(Keyword::Impl);
         self.format_generics(trait_impl.impl_generics);
         self.write_space();
-        self.format_path(trait_impl.trait_name);
-        self.format_generic_type_args(trait_impl.trait_generics);
+        self.format_type(trait_impl.r#trait);
         self.write_space();
         self.write_keyword(Keyword::For);
         self.write_space();
@@ -64,12 +65,10 @@ impl<'a> Formatter<'a> {
     fn format_trait_impl_item(&mut self, item: TraitImplItem) {
         match item.kind {
             TraitImplItemKind::Function(noir_function) => {
-                // Trait impl functions are public, but there's no `pub` keyword in the source code,
-                // so to format it we pass a private one.
-                let def =
-                    FunctionDefinition { visibility: ItemVisibility::Private, ..noir_function.def };
-                let noir_function = NoirFunction { def, ..noir_function };
-                self.format_function(noir_function);
+                self.format_function(
+                    noir_function,
+                    true, // skip visibility
+                );
             }
             TraitImplItemKind::Constant(name, typ, value) => {
                 let pattern = Pattern::Identifier(name);
@@ -175,13 +174,15 @@ fn foo ( ) { }
     }
 
     #[test]
-    fn format_trait_impl_constant_without_type() {
+    fn format_trait_impl_function_with_visibility() {
         let src = " mod moo { impl  Foo  for  Bar {  
-            let X =42 ;
+        /// Some doc comment
+pub fn foo ( ) { }
          } }";
         let expected = "mod moo {
     impl Foo for Bar {
-        let X = 42;
+        /// Some doc comment
+        fn foo() {}
     }
 }
 ";
