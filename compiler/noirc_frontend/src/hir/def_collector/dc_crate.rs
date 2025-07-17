@@ -109,6 +109,7 @@ pub struct UnresolvedTraitImpl {
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
+    pub crate_id: CrateId,
     pub module_id: LocalModuleId,
     pub type_alias_def: NoirTypeAlias,
 }

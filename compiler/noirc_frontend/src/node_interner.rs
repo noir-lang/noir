@@ -838,6 +838,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
         type_id
@@ -1183,10 +1184,6 @@ impl NodeInterner {
 
     pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
         self.module_attributes.get(module_id)
-    }
-
-    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
-        self.try_module_attributes(module_id).and_then(|attrs| attrs.parent)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {

@@ -382,6 +382,7 @@ impl ModCollector<'_> {
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedTypeAlias {
                 file_id: self.file_id,
+                crate_id: krate,
                 module_id: self.module_id,
                 type_alias_def: type_alias,
             };

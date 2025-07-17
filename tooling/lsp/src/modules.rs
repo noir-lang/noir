@@ -17,7 +17,7 @@ pub(crate) fn get_ancestor_module_reexport(
     def_maps: &BTreeMap<CrateId, CrateDefMap>,
     dependencies: &[Dependency],
 ) -> Option<Reexport> {
-    let parent_module = get_parent_module(interner, module_def_id)?;
+    let parent_module = get_parent_module(module_def_id, interner, def_maps)?;
     let reexport =
         interner.get_reexports(ModuleDefId::ModuleId(parent_module)).iter().find(|reexport| {
             module_def_id_is_visible(
