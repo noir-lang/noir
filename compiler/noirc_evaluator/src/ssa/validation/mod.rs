@@ -282,8 +282,8 @@ impl<'f> Validator<'f> {
                         if elements.len() % composite_type.len() != 0 {
                             panic!(
                                 "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
-                                composite_type.len(),
-                                elements.len()
+                                elements.len(),
+                                composite_type.len()
                             );
                         }
                         composite_type
@@ -675,6 +675,21 @@ mod tests {
         acir(inline) fn main f0 {
           b0():
             v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8); 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+    )]
+    fn make_array_slice_returns_incorrect_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
             return v0
         }
         ";
