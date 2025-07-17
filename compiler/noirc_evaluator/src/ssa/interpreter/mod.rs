@@ -234,7 +234,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = self.lookup_all(jump_args)?;
                 }
@@ -250,7 +250,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         *else_destination
                     };
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = Vec::new();
                 }
@@ -873,18 +873,39 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if side_effects_enabled {
-            let array = self.lookup_array_or_slice(array, "array get")?;
-            let index = self.lookup_u32(index, "array get index")?;
-            let index = index - offset.to_u32();
+        let array = self.lookup_array_or_slice(array, "array get")?;
+        let index = self.lookup_u32(index, "array get index")?;
+        let mut index = index - offset.to_u32();
+
+        let element = if array.elements.borrow().len() == 0 {
+            // Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            if side_effects_enabled {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+            } else {
+                let typ = self.dfg().type_of_value(result);
+                Value::uninitialized(&typ, result)
+            }
+        } else {
+            // An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
+                }
+            }
             let elements = array.elements.borrow();
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
             })?;
             element.clone()
-        } else {
-            let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
         };
         self.define(result, element)?;
         Ok(())

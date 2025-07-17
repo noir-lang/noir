@@ -1453,14 +1453,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
             // appears in the "Noir Language Server" output window in case you want to see it.
             if print_newline {
-                eprintln!("{}", contents);
+                eprintln!("{contents}");
             } else {
-                eprint!("{}", contents);
+                eprint!("{contents}");
             }
         } else if print_newline {
-            writeln!(output, "{}", contents).expect("write should succeed");
+            writeln!(output, "{contents}").expect("write should succeed");
         } else {
-            write!(output, "{}", contents).expect("write should succeed");
+            write!(output, "{contents}").expect("write should succeed");
         }
 
         Ok(Value::Unit)

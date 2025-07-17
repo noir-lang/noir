@@ -120,15 +120,19 @@ impl DefCollectorErrorKind {
 
 impl<'a> From<&'a UnsupportedNumericGenericType> for Diagnostic {
     fn from(error: &'a UnsupportedNumericGenericType) -> Diagnostic {
-        let name = error.ident.as_str();
-        let typ = &error.typ;
+        let message = if let Some(name) = &error.name {
+            format!(
+                "{name} has a type of {}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.",
+                error.typ
+            )
+        } else {
+            error.to_string()
+        };
 
         Diagnostic::simple_error(
-            format!(
-                "{name} has a type of {typ}. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`."
-            ),
+            message,
             "Unsupported numeric generic type".to_string(),
-            error.ident.location(),
+            error.location,
         )
     }
 }
@@ -260,7 +264,7 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 *location,
             ),
             DefCollectorErrorKind::ImplIsStricterThanTrait { constraint_typ, constraint_name, constraint_generics, constraint_location, trait_method_name, trait_method_location } => {
-                let constraint = format!("{}{}", constraint_name, constraint_generics);
+                let constraint = format!("{constraint_name}{constraint_generics}");
 
                 let mut diag = Diagnostic::simple_error(
                     "impl has stricter requirements than trait".to_string(),
