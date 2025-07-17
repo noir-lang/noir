@@ -2075,7 +2075,36 @@
 <a href="#2074" id="2074">2074</a>
 <a href="#2075" id="2075">2075</a>
 <a href="#2076" id="2076">2076</a>
-<a href="#2077" id="2077">2077</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2077" id="2077">2077</a>
+<a href="#2078" id="2078">2078</a>
+<a href="#2079" id="2079">2079</a>
+<a href="#2080" id="2080">2080</a>
+<a href="#2081" id="2081">2081</a>
+<a href="#2082" id="2082">2082</a>
+<a href="#2083" id="2083">2083</a>
+<a href="#2084" id="2084">2084</a>
+<a href="#2085" id="2085">2085</a>
+<a href="#2086" id="2086">2086</a>
+<a href="#2087" id="2087">2087</a>
+<a href="#2088" id="2088">2088</a>
+<a href="#2089" id="2089">2089</a>
+<a href="#2090" id="2090">2090</a>
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a>
+<a href="#2093" id="2093">2093</a>
+<a href="#2094" id="2094">2094</a>
+<a href="#2095" id="2095">2095</a>
+<a href="#2096" id="2096">2096</a>
+<a href="#2097" id="2097">2097</a>
+<a href="#2098" id="2098">2098</a>
+<a href="#2099" id="2099">2099</a>
+<a href="#2100" id="2100">2100</a>
+<a href="#2101" id="2101">2101</a>
+<a href="#2102" id="2102">2102</a>
+<a href="#2103" id="2103">2103</a>
+<a href="#2104" id="2104">2104</a>
+<a href="#2105" id="2105">2105</a>
+<a href="#2106" id="2106">2106</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -2104,13 +2133,11 @@
     signed_field::SignedField,
 };
 
-<span class="kw">use </span><span class="kw">crate</span>::Config;
-
 <span class="kw">use super</span>::{
-    CallableId, Context, VariableId, expr,
+    CallableId, Config, Context, VariableId, expr,
     freq::Freq,
     make_name,
-    scope::{Scope, ScopeStack, Variable},
+    scope::{Scope, ScopeStack, Stack, Variable},
     types,
 };
 
@@ -2303,7 +2330,7 @@
     /// by locally defined variables. Block scopes add and remove layers.
     </span>locals: ScopeStack&lt;LocalId&gt;,
     <span class="doccomment">/// Indicate which local variables are derived from function inputs.
-    </span>dynamics: BTreeSet&lt;LocalId&gt;,
+    </span>dynamics: Stack&lt;im::HashMap&lt;LocalId, bool&gt;&gt;,
     <span class="doccomment">/// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     </span>in_loop: bool,
@@ -2325,19 +2352,21 @@
         <span class="kw">let </span>next_local_id = decl.params.iter().map(|p| p.<span class="number">0.0 </span>+ <span class="number">1</span>).max().unwrap_or_default();
         <span class="kw">let </span>budget = ctx.config.max_function_size;
 
-        <span class="kw">let </span>globals = Scope::new(
+        <span class="kw">let </span>globals = Scope::from_variables(
             ctx.globals
                 .iter()
                 .map(|(id, (name, typ, _expr))| (<span class="kw-2">*</span>id, <span class="bool-val">false</span>, name.clone(), typ.clone())),
         );
 
-        <span class="kw">let </span>locals = ScopeStack::new(
+        <span class="comment">// The function parameters are the base layer for local variables.
+        </span><span class="kw">let </span>locals = ScopeStack::from_variables(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
         );
 
-        <span class="kw">let </span>dynamics = locals.current().variable_ids().cloned().collect();
+        <span class="comment">// Function parameters are by definition considered to be dynamic input.
+        </span><span class="kw">let </span>dynamics = Stack::new(locals.current().variable_ids().map(|id| (<span class="kw-2">*</span>id, <span class="bool-val">true</span>)).collect());
 
         <span class="comment">// Collect all the functions we can call from this one.
         </span><span class="kw">let </span><span class="kw-2">mut </span>call_targets = BTreeMap::new();
@@ -2439,11 +2468,42 @@
         id
     }
 
+    <span class="doccomment">/// Enter a new local scope.
+    </span><span class="kw">fn </span>enter_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.locals.enter();
+        <span class="self">self</span>.dynamics.enter();
+    }
+
+    <span class="doccomment">/// Exit the current local scope.
+    </span><span class="kw">fn </span>exit_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="self">self</span>.locals.exit();
+        <span class="self">self</span>.dynamics.exit();
+    }
+
     <span class="doccomment">/// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
     </span><span class="kw">fn </span>is_dynamic(<span class="kw-2">&amp;</span><span class="self">self</span>, id: <span class="kw-2">&amp;</span>LocalId) -&gt; bool {
-        <span class="self">self</span>.dynamics.contains(id)
+        <span class="self">self</span>.dynamics.current().get(id).cloned().unwrap_or_default()
+    }
+
+    <span class="doccomment">/// Mark a variable as dynamic or not dynamic.
+    </span><span class="kw">fn </span>set_dynamic(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId, is_dynamic: bool) {
+        <span class="comment">// When a dynamic variable is assigned a constant value, only the current
+        // scope and any future lower scopes are affected. After this scope we
+        // will revert to whatever it was before.
+        </span><span class="kw">let </span>is_new = <span class="self">self</span>.dynamics.current_mut().insert(id, is_dynamic).is_none();
+
+        <span class="comment">// Becoming dynamic is contagious: if we assign a dynamic value to a mutable
+        // variable in one of the branches of a conditional statement, we have to
+        // consider it dynamic in the outer scopes as well from then on.
+        </span><span class="kw">if </span>!is_new &amp;&amp; is_dynamic {
+            <span class="kw">for </span>layer <span class="kw">in </span><span class="self">self</span>.dynamics.iter_mut() {
+                <span class="kw">if </span>layer.contains_key(<span class="kw-2">&amp;</span>id) {
+                    layer.insert(id, <span class="bool-val">true</span>);
+                }
+            }
+        }
     }
 
     <span class="doccomment">/// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -3091,7 +3151,7 @@
         <span class="comment">// Only the last statement counts into whether the block is dynamic.
         </span><span class="kw">let </span><span class="kw-2">mut </span>is_dyn = <span class="bool-val">false</span>;
 
-        <span class="self">self</span>.locals.enter();
+        <span class="self">self</span>.enter_scope();
         <span class="self">self</span>.decrease_budget(<span class="number">1</span>);
         <span class="kw">for _ in </span><span class="number">0</span>..size - <span class="number">1 </span>{
             <span class="kw">if </span><span class="self">self</span>.budget == <span class="number">0 </span>{
@@ -3109,7 +3169,7 @@
             is_dyn = expr_dyn;
             stmts.push(expr);
         }
-        <span class="self">self</span>.locals.exit();
+        <span class="self">self</span>.exit_scope();
 
         <span class="prelude-val">Ok</span>((Expression::Block(stmts), is_dyn))
     }
@@ -3221,9 +3281,7 @@
             <span class="self">self</span>.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
-        <span class="kw">if </span>is_dynamic {
-            <span class="self">self</span>.dynamics.insert(id);
-        }
+        <span class="self">self</span>.set_dynamic(id, is_dynamic);
 
         expr::let_var(id, mutable, name, expr)
     }
@@ -3279,12 +3337,12 @@
         <span class="comment">// Generate the assigned value.
         </span><span class="kw">let </span>(expr, expr_dyn) = <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lvalue.typ, <span class="self">self</span>.max_depth(), Flags::TOP)<span class="question-mark">?</span>;
 
-        <span class="kw">if </span>lvalue.is_dyn || expr_dyn {
-            <span class="self">self</span>.dynamics.insert(id);
+        <span class="kw">if </span>lvalue.is_dyn || expr_dyn || <span class="self">self</span>.in_dynamic {
+            <span class="self">self</span>.set_dynamic(id, <span class="bool-val">true</span>);
         } <span class="kw">else if </span>!lvalue.is_dyn &amp;&amp; !expr_dyn &amp;&amp; !lvalue.is_compound {
             <span class="comment">// This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            </span><span class="self">self</span>.dynamics.remove(<span class="kw-2">&amp;</span>id);
+            </span><span class="self">self</span>.set_dynamic(id, <span class="bool-val">false</span>);
         }
 
         <span class="kw">let </span>assign =
@@ -3535,7 +3593,7 @@
         <span class="kw">let </span>idx_name = index_name(idx_id);
 
         <span class="comment">// Add a scope which will hold the index variable.
-        </span><span class="self">self</span>.locals.enter();
+        </span><span class="self">self</span>.enter_scope();
         <span class="self">self</span>.locals.add(idx_id, <span class="bool-val">false</span>, idx_name.clone(), idx_type.clone());
 
         <span class="comment">// Decrease budget so we don't nest for loops endlessly.
@@ -3557,7 +3615,7 @@
         });
 
         <span class="comment">// Remove the loop scope.
-        </span><span class="self">self</span>.locals.exit();
+        </span><span class="self">self</span>.exit_scope();
 
         <span class="prelude-val">Ok</span>(expr)
     }
@@ -3852,7 +3910,7 @@
                 // matches on individual fields. We don't do that here, just make the fields available.
                 </span><span class="kw">let </span>constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
                 <span class="kw">let </span><span class="kw-2">mut </span>arguments = Vec::new();
-                <span class="self">self</span>.locals.enter();
+                <span class="self">self</span>.enter_scope();
                 <span class="kw">for </span>item_type <span class="kw">in </span>item_types {
                     <span class="kw">let </span>item_id = <span class="self">self</span>.next_local_id();
                     <span class="kw">let </span>item_name = <span class="macro">format!</span>(<span class="string">"item_{}"</span>, local_name(item_id));
@@ -3864,7 +3922,7 @@
                 is_dyn |= branch_dyn;
                 <span class="kw">let </span>case = MatchCase { constructor, arguments, branch };
                 match_expr.cases.push(case);
-                <span class="self">self</span>.locals.exit();
+                <span class="self">self</span>.exit_scope();
                 <span class="comment">// We must not generate a default, or the compiler will panic.
                 </span><span class="bool-val">false
             </span>}

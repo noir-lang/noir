@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Scope","ScopeStack"],"type":["Variable"]};
+window.SIDEBAR_ITEMS = {"struct":["Scope","Stack"],"type":["ScopeStack","Variable"]};

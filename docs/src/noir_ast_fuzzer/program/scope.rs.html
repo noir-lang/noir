@@ -216,9 +216,29 @@
 <a href="#215" id="215">215</a>
 <a href="#216" id="216">216</a>
 <a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a></pre></div><pre class="rust"><code><span class="kw">use </span>arbitrary::Unstructured;
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a></pre></div><pre class="rust"><code><span class="kw">use </span>arbitrary::Unstructured;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::Type;
-<span class="kw">use </span>std::fmt::Debug;
+<span class="kw">use </span>std::{fmt::Debug, vec};
 
 <span class="kw">use super</span>::{Name, types};
 
@@ -241,7 +261,7 @@
     </span>K: Ord + Clone + Copy + Debug,
 {
     <span class="doccomment">/// Create the initial scope from function parameters.
-    </span><span class="kw">pub fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>from_variables(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>scope = <span class="self">Self </span>{ variables: im::OrdMap::new(), producers: im::OrdMap::new() };
         <span class="kw">for </span>(id, mutable, name, typ) <span class="kw">in </span>vars {
             scope.add(id, mutable, name, typ);
@@ -362,32 +382,51 @@
 }
 
 <span class="doccomment">/// Scope stack as we exit and enter blocks
-</span><span class="kw">pub struct </span>ScopeStack&lt;K: Ord&gt;(Vec&lt;Scope&lt;K&gt;&gt;);
+</span><span class="kw">pub struct </span>Stack&lt;T&gt;(Vec&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;K&gt; ScopeStack&lt;K&gt;
-<span class="kw">where
-    </span>K: Ord + Clone + Copy + Debug,
-{
-    <span class="doccomment">/// Create a stack from the base variables.
-    </span><span class="kw">pub fn </span>new(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(<span class="macro">vec!</span>[Scope::new(vars)])
+<span class="kw">impl</span>&lt;T: Clone&gt; Stack&lt;T&gt; {
+    <span class="doccomment">/// Create a stack from the base layer.
+    </span><span class="kw">pub fn </span>new(base: T) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(<span class="macro">vec!</span>[base])
     }
 
     <span class="doccomment">/// The top scope in the stack.
-    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Scope&lt;K&gt; {
+    </span><span class="kw">pub fn </span>current(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>T {
         <span class="self">self</span>.<span class="number">0</span>.last().expect(<span class="string">"there is always the base layer"</span>)
+    }
+
+    <span class="doccomment">/// The top scope in the stack.
+    </span><span class="kw">pub fn </span>current_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>T {
+        <span class="self">self</span>.<span class="number">0</span>.last_mut().expect(<span class="string">"there is always the base layer"</span>)
     }
 
     <span class="doccomment">/// Push a new scope on top of the current one.
     </span><span class="kw">pub fn </span>enter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-        <span class="comment">// Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        </span><span class="self">self</span>.<span class="number">0</span>.push(<span class="self">self</span>.current().clone());
+        <span class="self">self</span>.<span class="number">0</span>.push(<span class="self">self</span>.current().clone());
     }
 
     <span class="doccomment">/// Remove the last layer of block variables.
     </span><span class="kw">pub fn </span>exit(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="self">self</span>.<span class="number">0</span>.pop();
         <span class="macro">assert!</span>(!<span class="self">self</span>.<span class="number">0</span>.is_empty(), <span class="string">"never pop the base layer"</span>);
+    }
+
+    <span class="doccomment">/// Iterate over the layers, starting the base layer.
+    </span><span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; std::slice::IterMut&lt;T&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.iter_mut()
+    }
+}
+
+<span class="doccomment">/// Scope stack as we exit and enter blocks
+</span><span class="kw">pub type </span>ScopeStack&lt;K&gt; = Stack&lt;Scope&lt;K&gt;&gt;;
+
+<span class="kw">impl</span>&lt;K&gt; ScopeStack&lt;K&gt;
+<span class="kw">where
+    </span>K: Ord + Clone + Copy + Debug,
+{
+    <span class="doccomment">/// Create a stack from the base variables.
+    </span><span class="kw">pub fn </span>from_variables(vars: <span class="kw">impl </span>Iterator&lt;Item = (K, bool, Name, Type)&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(<span class="macro">vec!</span>[Scope::from_variables(vars)])
     }
 
     <span class="doccomment">/// Add a new variable to the current scope.
@@ -416,8 +455,9 @@
         <span class="kw">let </span>foo_type =
             Type::Tuple(<span class="macro">vec!</span>[Type::Field, Type::Bool, Type::Array(<span class="number">4</span>, Box::new(types::U32))]);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>stack =
-            ScopeStack::new([(LocalId(<span class="number">0</span>), <span class="bool-val">false</span>, <span class="string">"foo"</span>.to_string(), foo_type)].into_iter());
+        <span class="kw">let </span><span class="kw-2">mut </span>stack = ScopeStack::from_variables(
+            [(LocalId(<span class="number">0</span>), <span class="bool-val">false</span>, <span class="string">"foo"</span>.to_string(), foo_type)].into_iter(),
+        );
 
         stack.enter();
         stack.add(LocalId(<span class="number">1</span>), <span class="bool-val">false</span>, <span class="string">"bar"</span>.to_string(), Type::String(<span class="number">10</span>));

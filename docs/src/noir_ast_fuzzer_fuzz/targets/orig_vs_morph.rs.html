@@ -917,7 +917,7 @@
     <span class="kw">fn </span>new(func: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>(next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
 
-        <span class="kw">let </span>locals = ScopeStack::new(
+        <span class="kw">let </span>locals = ScopeStack::from_variables(
             func.parameters
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (<span class="kw-2">*</span>id, <span class="kw-2">*</span>mutable, name.clone(), typ.clone())),
