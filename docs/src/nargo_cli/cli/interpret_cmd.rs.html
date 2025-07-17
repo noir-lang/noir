@@ -310,10 +310,7 @@
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::PathBuf;
@@ -495,9 +492,6 @@
     options: <span class="kw-2">&amp;</span>CompileOptions,
 ) -&gt; CompilationResult&lt;(Program, Abi)&gt; {
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    <span class="kw">if </span>options.disable_comptime_printing {
-        context.disable_comptime_printing();
-    }
     context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
     noirc_driver::link_to_debug_crate(<span class="kw-2">&amp;mut </span>context, crate_id);

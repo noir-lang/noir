@@ -3037,7 +3037,12 @@
 <a href="#3036" id="3036">3036</a>
 <a href="#3037" id="3037">3037</a>
 <a href="#3038" id="3038">3038</a>
-<a href="#3039" id="3039">3039</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3039" id="3039">3039</a>
+<a href="#3040" id="3040">3040</a>
+<a href="#3041" id="3041">3041</a>
+<a href="#3042" id="3042">3042</a>
+<a href="#3043" id="3043">3043</a>
+<a href="#3044" id="3044">3044</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3048,7 +3053,10 @@
 
 <span class="kw">use crate</span>::{
     ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::{
+        def_map::ModuleId,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::types::{<span class="self">self</span>},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
@@ -3729,6 +3737,7 @@
     <span class="kw">pub </span>generics: Generics,
     <span class="kw">pub </span>visibility: ItemVisibility,
     <span class="kw">pub </span>location: Location,
+    <span class="kw">pub </span>module_id: ModuleId,
 }
 
 <span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>TypeAlias {
@@ -3769,8 +3778,9 @@
         typ: Type,
         generics: Generics,
         visibility: ItemVisibility,
+        module_id: ModuleId,
     ) -&gt; TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id }
     }
 
     <span class="kw">pub fn </span>set_type_and_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, new_typ: Type, new_generics: Generics) {

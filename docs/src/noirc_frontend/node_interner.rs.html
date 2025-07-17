@@ -2702,15 +2702,7 @@
 <a href="#2701" id="2701">2701</a>
 <a href="#2702" id="2702">2702</a>
 <a href="#2703" id="2703">2703</a>
-<a href="#2704" id="2704">2704</a>
-<a href="#2705" id="2705">2705</a>
-<a href="#2706" id="2706">2706</a>
-<a href="#2707" id="2707">2707</a>
-<a href="#2708" id="2708">2708</a>
-<a href="#2709" id="2709">2709</a>
-<a href="#2710" id="2710">2710</a>
-<a href="#2711" id="2711">2711</a>
-<a href="#2712" id="2712">2712</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2704" id="2704">2704</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2970,10 +2962,6 @@
     <span class="doccomment">/// Store the location of the references in the graph
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) location_indices: LocationIndices,
 
-    <span class="comment">// The module where each reference is
-    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) reference_modules: HashMap&lt;ReferenceId, ModuleId&gt;,
-
     <span class="comment">// All names (and their definitions) that can be offered for auto_import.
     // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
@@ -2991,8 +2979,8 @@
     <span class="doccomment">/// Captures the documentation comments for each module, struct, trait, function, etc.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) doc_comments: HashMap&lt;ReferenceId, Vec&lt;String&gt;&gt;,
 
-    <span class="doccomment">/// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
-    /// In LSP this is used to offer importing the item via one of these exports if
+    <span class="doccomment">/// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     </span><span class="kw">pub </span>reexports: HashMap&lt;ModuleDefId, Vec&lt;Reexport&gt;&gt;,
 }
@@ -3433,7 +3421,6 @@
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
-            reference_modules: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: <span class="macro">vec!</span>[HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
@@ -3550,6 +3537,7 @@
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
         type_id
@@ -3744,7 +3732,7 @@
         <span class="self">self</span>.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         <span class="kw">if </span>is_local {
-            <span class="self">self</span>.add_definition_location(ReferenceId::Local(id), location, <span class="prelude-val">None</span>);
+            <span class="self">self</span>.add_definition_location(ReferenceId::Local(id), location);
         }
 
         id
@@ -3780,7 +3768,7 @@
             name_location,
         };
         <span class="kw">let </span>definition_id = <span class="self">self</span>.push_function_definition(id, modifiers, module, location);
-        <span class="self">self</span>.add_definition_location(ReferenceId::Function(id), name_location, <span class="prelude-val">Some</span>(module));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Function(id), name_location);
         definition_id
     }
 
@@ -3889,16 +3877,12 @@
         <span class="self">self</span>.module_attributes.insert(module_id, attributes);
     }
 
-    <span class="kw">pub fn </span>module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: <span class="kw-2">&amp;</span>ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleAttributes {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.module_attributes[module_id]
+    <span class="kw">pub fn </span>module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleAttributes {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.module_attributes[<span class="kw-2">&amp;</span>module_id]
     }
 
-    <span class="kw">pub fn </span>try_module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: <span class="kw-2">&amp;</span>ModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleAttributes&gt; {
-        <span class="self">self</span>.module_attributes.get(module_id)
-    }
-
-    <span class="kw">pub fn </span>try_module_parent(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: <span class="kw-2">&amp;</span>ModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;LocalModuleId&gt; {
-        <span class="self">self</span>.try_module_attributes(module_id).and_then(|attrs| attrs.parent)
+    <span class="kw">pub fn </span>try_module_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, module_id: ModuleId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleAttributes&gt; {
+        <span class="self">self</span>.module_attributes.get(<span class="kw-2">&amp;</span>module_id)
     }
 
     <span class="kw">pub fn </span>global_attributes(<span class="kw-2">&amp;</span><span class="self">self</span>, global_id: <span class="kw-2">&amp;</span>GlobalId) -&gt; <span class="kw-2">&amp;</span>[SecondaryAttribute] {

@@ -454,7 +454,8 @@
 <a href="#453" id="453">453</a>
 <a href="#454" id="454">454</a>
 <a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -569,6 +570,7 @@
             defining_module,
             <span class="kw-2">&amp;</span>intermediate_name,
             <span class="self">self</span>.interner,
+            <span class="self">self</span>.def_maps,
         ) <span class="kw">else </span>{
             <span class="kw">return</span>;
         };

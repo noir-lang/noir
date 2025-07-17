@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_parent_module","module_def_id_is_visible","module_def_id_relative_path","module_def_id_to_reference_id","module_full_path","relative_module_full_path","relative_module_id_path"]};
+window.SIDEBAR_ITEMS = {"fn":["get_ancestor_module_reexport","get_parent_module","module_def_id_is_visible","module_def_id_relative_path","module_def_id_to_reference_id","module_full_path","relative_module_full_path","relative_module_id_path"]};

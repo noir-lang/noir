@@ -6055,7 +6055,7 @@
 ) -&gt; IResult&lt;Value&gt; {
     <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
-    <span class="kw">let </span>name = <span class="kw-2">&amp;</span>interner.module_attributes(<span class="kw-2">&amp;</span>module_id).name;
+    <span class="kw">let </span>name = <span class="kw-2">&amp;</span>interner.module_attributes(module_id).name;
     <span class="kw">let </span>token = Token::Ident(name.clone());
     <span class="kw">let </span>token = LocatedToken::new(token, location);
     <span class="kw">let </span>tokens = Rc::new(<span class="macro">vec!</span>[token]);

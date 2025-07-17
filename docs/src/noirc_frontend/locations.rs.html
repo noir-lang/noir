@@ -417,20 +417,7 @@
 <a href="#416" id="416">416</a>
 <a href="#417" id="417">417</a>
 <a href="#418" id="418">418</a>
-<a href="#419" id="419">419</a>
-<a href="#420" id="420">420</a>
-<a href="#421" id="421">421</a>
-<a href="#422" id="422">422</a>
-<a href="#423" id="423">423</a>
-<a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a>
-<a href="#427" id="427">427</a>
-<a href="#428" id="428">428</a>
-<a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#419" id="419">419</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>rangemap::RangeMap;
 <span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
@@ -513,7 +500,7 @@
 <span class="kw">impl </span>NodeInterner {
     <span class="kw">pub fn </span>reference_location(<span class="kw-2">&amp;</span><span class="self">self</span>, reference: ReferenceId) -&gt; Location {
         <span class="kw">match </span>reference {
-            ReferenceId::Module(id) =&gt; <span class="self">self</span>.module_attributes(<span class="kw-2">&amp;</span>id).location,
+            ReferenceId::Module(id) =&gt; <span class="self">self</span>.module_attributes(id).location,
             ReferenceId::Function(id) =&gt; <span class="self">self</span>.function_modifiers(<span class="kw-2">&amp;</span>id).name_location,
             ReferenceId::Type(id) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.get_type(id);
@@ -549,10 +536,6 @@
             ReferenceId::Local(id) =&gt; <span class="self">self</span>.definition(id).location,
             ReferenceId::Reference(location, <span class="kw">_</span>) =&gt; location,
         }
-    }
-
-    <span class="kw">pub fn </span>reference_module(<span class="kw-2">&amp;</span><span class="self">self</span>, reference: ReferenceId) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ModuleId&gt; {
-        <span class="self">self</span>.reference_modules.get(<span class="kw-2">&amp;</span>reference)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_module_def_id_reference(
@@ -665,7 +648,6 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         referenced: ReferenceId,
         referenced_location: Location,
-        module_id: <span class="prelude-ty">Option</span>&lt;ModuleId&gt;,
     ) {
         <span class="kw">if </span>!<span class="self">self</span>.lsp_mode {
             <span class="kw">return</span>;
@@ -673,9 +655,6 @@
 
         <span class="kw">let </span>referenced_index = <span class="self">self</span>.get_or_insert_reference(referenced);
         <span class="self">self</span>.location_indices.add_location(referenced_location, referenced_index);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(module_id) = module_id {
-            <span class="self">self</span>.reference_modules.insert(referenced, module_id);
-        }
     }
 
     <span class="attr">#[tracing::instrument(skip(<span class="self">self</span>), ret)]
@@ -782,9 +761,8 @@
         location: Location,
         visibility: ItemVisibility,
         name: String,
-        parent_module_id: ModuleId,
     ) {
-        <span class="self">self</span>.add_definition_location(ReferenceId::Module(id), location, <span class="prelude-val">Some</span>(parent_module_id));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Module(id), location);
         <span class="self">self</span>.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, <span class="prelude-val">None</span>);
     }
 
@@ -794,9 +772,8 @@
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        <span class="self">self</span>.add_definition_location(ReferenceId::Global(id), location, <span class="prelude-val">Some</span>(parent_module_id));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Global(id), location);
         <span class="self">self</span>.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, <span class="prelude-val">None</span>);
     }
 
@@ -806,9 +783,8 @@
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        <span class="self">self</span>.add_definition_location(ReferenceId::Type(id), location, <span class="prelude-val">Some</span>(parent_module_id));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Type(id), location);
         <span class="self">self</span>.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, <span class="prelude-val">None</span>);
     }
 
@@ -818,9 +794,8 @@
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        <span class="self">self</span>.add_definition_location(ReferenceId::Trait(id), location, <span class="prelude-val">Some</span>(parent_module_id));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Trait(id), location);
         <span class="self">self</span>.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, <span class="prelude-val">None</span>);
     }
 
@@ -830,9 +805,8 @@
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        <span class="self">self</span>.add_definition_location(ReferenceId::Alias(id), location, <span class="prelude-val">Some</span>(parent_module_id));
+        <span class="self">self</span>.add_definition_location(ReferenceId::Alias(id), location);
         <span class="self">self</span>.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, <span class="prelude-val">None</span>);
     }
 

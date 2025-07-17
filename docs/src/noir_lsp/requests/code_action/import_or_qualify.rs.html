@@ -360,7 +360,8 @@
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::TextEdit;
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::TextEdit;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
     ast::{Ident, Path},
@@ -430,6 +431,7 @@
                     defining_module,
                     <span class="kw-2">&amp;</span>intermediate_name,
                     <span class="self">self</span>.interner,
+                    <span class="self">self</span>.def_maps,
                 ) <span class="kw">else </span>{
                     <span class="kw">continue</span>;
                 };

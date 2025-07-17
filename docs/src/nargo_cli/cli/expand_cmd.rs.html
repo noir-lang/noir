@@ -70,10 +70,7 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
+<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>nargo::{
     errors::CompileError, insert_all_files_for_workspace_into_file_manager,
@@ -140,9 +137,6 @@
     compile_options: <span class="kw-2">&amp;</span>CompileOptions,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;String, CompileError&gt; {
     <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_package(file_manager, parsed_files, package);
-
-    <span class="comment">// Even though this isn't LSP, we need to active this to be able to go from a ModuleDefId to its parent module
-    </span>context.activate_lsp_mode();
 
     check_crate_and_report_errors(<span class="kw-2">&amp;mut </span>context, crate_id, compile_options)<span class="question-mark">?</span>;
 

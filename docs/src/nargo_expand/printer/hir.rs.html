@@ -996,7 +996,9 @@
 <a href="#995" id="995">995</a>
 <a href="#996" id="996">996</a>
 <a href="#997" id="997">997</a>
-<a href="#998" id="998">998</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1795,6 +1797,8 @@
                     <span class="kw">if </span>data_type.is_enum() {
                         <span class="self">self</span>.show_type_name_as_data_type(<span class="kw-2">&amp;</span>typ);
                         <span class="self">self</span>.push_str(<span class="string">"::"</span>);
+                        <span class="self">self</span>.push_str(global_info.ident.as_str());
+                        <span class="kw">return</span>;
                     }
                 }
                 <span class="kw">let </span>use_import = <span class="bool-val">true</span>;

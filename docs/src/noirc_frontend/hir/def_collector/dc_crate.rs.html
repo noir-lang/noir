@@ -613,8 +613,7 @@
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
 <a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -725,6 +724,7 @@
 <span class="attr">#[derive(Clone)]
 </span><span class="kw">pub struct </span>UnresolvedTypeAlias {
     <span class="kw">pub </span>file_id: FileId,
+    <span class="kw">pub </span>crate_id: CrateId,
     <span class="kw">pub </span>module_id: LocalModuleId,
     <span class="kw">pub </span>type_alias_def: NoirTypeAlias,
 }
@@ -1055,9 +1055,7 @@
                                 visibility,
                             );
 
-                            <span class="kw">if </span>context.def_interner.is_in_lsp_mode()
-                                &amp;&amp; visibility != ItemVisibility::Private
-                            {
+                            <span class="kw">if </span>visibility != ItemVisibility::Private {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,

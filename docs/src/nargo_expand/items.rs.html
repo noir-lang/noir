@@ -642,7 +642,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>build_module(<span class="kw-2">&amp;mut </span><span class="self">self</span>, module_id: ModuleId) -&gt; Item {
-        <span class="kw">let </span>attributes = <span class="self">self</span>.interner.try_module_attributes(<span class="kw-2">&amp;</span>module_id);
+        <span class="kw">let </span>attributes = <span class="self">self</span>.interner.try_module_attributes(module_id);
         <span class="kw">let </span>name = attributes.map(|attributes| attributes.name.clone());
         <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.crate_id][module_id.local_id];
         <span class="kw">let </span>is_contract = module_data.is_contract;

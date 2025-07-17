@@ -955,11 +955,15 @@
 <a href="#954" id="954">954</a>
 <a href="#955" id="955">955</a>
 <a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#957" id="957">957</a>
+<a href="#958" id="958">958</a>
+<a href="#959" id="959">959</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_frontend::NamedGeneric;
 <span class="kw">use </span>noirc_frontend::hir::comptime::Value;
+<span class="kw">use </span>noirc_frontend::hir::def_map::ModuleDefId;
+<span class="kw">use </span>noirc_frontend::modules::get_parent_module;
 <span class="kw">use </span>noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 <span class="kw">use </span>noirc_frontend::shared::Visibility;
 <span class="kw">use </span>noirc_frontend::{
@@ -1051,11 +1055,11 @@
         // This is a workaround to avoid panicking in that case (which brings the LSP server down).
         // Cases where this happens are related to generated code, so once that stops happening
         // this won't be an issue anymore.
-        </span><span class="kw">let </span>module_attributes = args.interner.try_module_attributes(<span class="kw-2">&amp;</span>id)<span class="question-mark">?</span>;
+        </span><span class="kw">let </span>module_attributes = args.interner.try_module_attributes(id)<span class="question-mark">?</span>;
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(parent_local_id) = module_attributes.parent {
             <span class="kw">if </span>format_parent_module_from_module_id(
-                <span class="kw-2">&amp;</span>ModuleId { krate: id.krate, local_id: parent_local_id },
+                ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 <span class="kw-2">&amp;mut </span>string,
             ) {
@@ -1090,7 +1094,7 @@
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
 ) -&gt; String {
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Type(typ.id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TypeId(typ.id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push(<span class="string">'\n'</span>);
     }
     string.push_str(<span class="string">"    "</span>);
@@ -1118,7 +1122,7 @@
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
 ) -&gt; String {
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Type(typ.id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TypeId(typ.id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push(<span class="string">'\n'</span>);
     }
     string.push_str(<span class="string">"    "</span>);
@@ -1156,7 +1160,7 @@
     <span class="kw">let </span>field = struct_type.field_at(field_index);
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Type(id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TypeId(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push_str(<span class="string">"::"</span>);
     }
     string.push_str(struct_type.name.as_str());
@@ -1182,7 +1186,7 @@
     <span class="kw">let </span>variant = enum_type.variant_at(field_index);
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Type(id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TypeId(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push_str(<span class="string">"::"</span>);
     }
     string.push_str(enum_type.name.as_str());
@@ -1209,7 +1213,7 @@
     <span class="kw">let </span>a_trait = args.interner.get_trait(id);
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Trait(id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TraitId(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push(<span class="string">'\n'</span>);
     }
     string.push_str(<span class="string">"    "</span>);
@@ -1228,7 +1232,7 @@
 ) -&gt; String {
     <span class="kw">let </span>associated_type = args.interner.get_trait_associated_type(id);
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Trait(associated_type.trait_id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::TraitId(associated_type.trait_id), args, <span class="kw-2">&amp;mut </span>string) {
         <span class="kw">let </span>trait_ = args.interner.get_trait(associated_type.trait_id);
         string.push_str(<span class="string">"::"</span>);
         string.push_str(trait_.name.as_str());
@@ -1247,7 +1251,7 @@
     <span class="kw">let </span>typ = args.interner.definition_type(definition_id);
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">if </span>format_parent_module(ReferenceId::Global(id), args, <span class="kw-2">&amp;mut </span>string) {
+    <span class="kw">if </span>format_parent_module(ModuleDefId::GlobalId(id), args, <span class="kw-2">&amp;mut </span>string) {
         string.push(<span class="string">'\n'</span>);
     }
 
@@ -1300,14 +1304,14 @@
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     };
 
-    <span class="kw">let </span>reference_id = <span class="kw">if let </span><span class="prelude-val">Some</span>((type_id, variant_index)) = enum_variant {
-        ReferenceId::EnumVariant(type_id, variant_index)
+    <span class="kw">let </span>(reference_id, module_def_id) = <span class="kw">if let </span><span class="prelude-val">Some</span>((type_id, variant_index)) = enum_variant {
+        (ReferenceId::EnumVariant(type_id, variant_index), ModuleDefId::TypeId(type_id))
     } <span class="kw">else </span>{
-        ReferenceId::Function(id)
+        (ReferenceId::Function(id), ModuleDefId::FunctionId(id))
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    <span class="kw">let </span>formatted_parent_module = format_parent_module(reference_id, args, <span class="kw-2">&amp;mut </span>string);
+    <span class="kw">let </span>formatted_parent_module = format_parent_module(module_def_id, args, <span class="kw-2">&amp;mut </span>string);
 
     <span class="kw">let </span>formatted_parent_type = <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_impl_id) = func_meta.trait_impl {
         <span class="kw">let </span>trait_impl = args.interner.get_trait_implementation(trait_impl_id);
@@ -1516,7 +1520,7 @@
     <span class="kw">let </span>type_alias = type_alias.borrow();
 
     <span class="kw">let </span><span class="kw-2">mut </span>string = String::new();
-    format_parent_module(ReferenceId::Alias(id), args, <span class="kw-2">&amp;mut </span>string);
+    format_parent_module(ModuleDefId::TypeAliasId(id), args, <span class="kw-2">&amp;mut </span>string);
     string.push(<span class="string">'\n'</span>);
     string.push_str(<span class="string">"    "</span>);
     string.push_str(<span class="string">"type "</span>);
@@ -1642,11 +1646,11 @@
 }
 
 <span class="kw">fn </span>format_parent_module(
-    referenced: ReferenceId,
+    module_def_id: ModuleDefId,
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
     string: <span class="kw-2">&amp;mut </span>String,
 ) -&gt; bool {
-    <span class="kw">let </span><span class="prelude-val">Some</span>(module) = args.interner.reference_module(referenced) <span class="kw">else </span>{
+    <span class="kw">let </span><span class="prelude-val">Some</span>(module) = get_parent_module(module_def_id, args.interner, args.def_maps) <span class="kw">else </span>{
         <span class="kw">return </span><span class="bool-val">false</span>;
     };
 
@@ -1654,7 +1658,7 @@
 }
 
 <span class="kw">fn </span>format_parent_module_from_module_id(
-    module: <span class="kw-2">&amp;</span>ModuleId,
+    module: ModuleId,
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
     string: <span class="kw-2">&amp;mut </span>String,
 ) -&gt; bool {

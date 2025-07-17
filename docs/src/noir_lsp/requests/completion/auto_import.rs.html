@@ -122,15 +122,14 @@
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
 <a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
-    ast::ItemVisibility, hir::def_map::ModuleDefId, modules::module_def_id_relative_path,
+    ast::ItemVisibility,
+    hir::def_map::ModuleDefId,
+    modules::{get_ancestor_module_reexport, module_def_id_relative_path},
     node_interner::Reexport,
 };
 
-<span class="kw">use crate</span>::{
-    modules::get_ancestor_module_reexport,
-    use_segment_positions::{
-        UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
-    },
+<span class="kw">use </span><span class="kw">crate</span>::use_segment_positions::{
+    UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
 };
 
 <span class="kw">use super</span>::{
@@ -202,6 +201,7 @@
                         defining_module,
                         <span class="kw-2">&amp;</span>intermediate_name,
                         <span class="self">self</span>.interner,
+                        <span class="self">self</span>.def_maps,
                     ) <span class="kw">else </span>{
                         <span class="kw">continue</span>;
                     };

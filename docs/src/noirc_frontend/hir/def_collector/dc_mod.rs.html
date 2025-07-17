@@ -1750,25 +1750,7 @@
 <a href="#1749" id="1749">1749</a>
 <a href="#1750" id="1750">1750</a>
 <a href="#1751" id="1751">1751</a>
-<a href="#1752" id="1752">1752</a>
-<a href="#1753" id="1753">1753</a>
-<a href="#1754" id="1754">1754</a>
-<a href="#1755" id="1755">1755</a>
-<a href="#1756" id="1756">1756</a>
-<a href="#1757" id="1757">1757</a>
-<a href="#1758" id="1758">1758</a>
-<a href="#1759" id="1759">1759</a>
-<a href="#1760" id="1760">1760</a>
-<a href="#1761" id="1761">1761</a>
-<a href="#1762" id="1762">1762</a>
-<a href="#1763" id="1763">1763</a>
-<a href="#1764" id="1764">1764</a>
-<a href="#1765" id="1765">1765</a>
-<a href="#1766" id="1766">1766</a>
-<a href="#1767" id="1767">1767</a>
-<a href="#1768" id="1768">1768</a>
-<a href="#1769" id="1769">1769</a>
-<a href="#1770" id="1770">1770</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1752" id="1752">1752</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2152,6 +2134,7 @@
             <span class="comment">// And store the TypeId -&gt; TypeAlias mapping somewhere it is reachable
             </span><span class="kw">let </span>unresolved = UnresolvedTypeAlias {
                 file_id: <span class="self">self</span>.file_id,
+                crate_id: krate,
                 module_id: <span class="self">self</span>.module_id,
                 type_alias_def: type_alias,
             };
@@ -2194,15 +2177,8 @@
             <span class="self">self</span>.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
             <span class="kw">if </span>context.def_interner.is_in_lsp_mode() {
-                <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: <span class="self">self</span>.module_id };
                 <span class="kw">let </span>name = name.to_string();
-                context.def_interner.register_type_alias(
-                    type_alias_id,
-                    name,
-                    location,
-                    visibility,
-                    parent_module_id,
-                );
+                context.def_interner.register_type_alias(type_alias_id, name, location, visibility);
             }
         }
         errors
@@ -2326,10 +2302,7 @@
                             .push_function_definition(func_id, modifiers, trait_id.<span class="number">0</span>, location);
 
                         <span class="kw">let </span>referenced = ReferenceId::Function(func_id);
-                        <span class="kw">let </span>module_id = <span class="prelude-val">Some</span>(trait_id.<span class="number">0</span>);
-                        context
-                            .def_interner
-                            .add_definition_location(referenced, location, module_id);
+                        context.def_interner.add_definition_location(referenced, location);
 
                         <span class="kw">if </span>!trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
@@ -2468,13 +2441,11 @@
             );
 
             <span class="kw">if </span>context.def_interner.is_in_lsp_mode() {
-                <span class="kw">let </span>parent_module_id = ModuleId { krate, local_id: <span class="self">self</span>.module_id };
                 context.def_interner.register_trait(
                     trait_id,
                     name.to_string(),
                     location,
                     visibility,
-                    parent_module_id,
                 );
             }
 
@@ -2770,14 +2741,7 @@
         );
 
         <span class="kw">if </span>interner.is_in_lsp_mode() {
-            <span class="kw">let </span>parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
-            interner.register_module(
-                mod_id,
-                location,
-                visibility,
-                mod_name.to_string(),
-                parent_module_id,
-            );
+            interner.register_module(mod_id, location, visibility, mod_name.to_string());
         }
     }
 
@@ -2971,7 +2935,7 @@
     }
 
     <span class="kw">if </span>interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     <span class="prelude-val">Some</span>((id, unresolved))
@@ -3075,7 +3039,7 @@
     }
 
     <span class="kw">if </span>interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     <span class="prelude-val">Some</span>((id, unresolved))

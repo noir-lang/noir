@@ -717,7 +717,8 @@
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
 <a href="#718" id="718">718</a>
-<a href="#719" id="719">719</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types::{
     Command, CompletionItem, CompletionItemKind, CompletionItemLabelDetails, Documentation,
     InsertTextFormat, MarkupContent, MarkupKind,
 };
@@ -1153,6 +1154,7 @@
                 <span class="self">self</span>.module_id,
                 current_module_parent_id,
                 <span class="self">self</span>.interner,
+                <span class="self">self</span>.def_maps,
             )<span class="question-mark">?
         </span>};
         <span class="kw">let </span>full_path = <span class="macro">format!</span>(<span class="string">"{module_full_path}::{trait_name}"</span>);

@@ -328,10 +328,7 @@
 <a href="#327" id="327">327</a>
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a>
-<a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a>
-<a href="#333" id="333">333</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#330" id="330">330</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap},
     future::{<span class="self">self</span>, Future},
     ops::Range,
@@ -346,7 +343,7 @@
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
-    modules::module_def_id_is_visible,
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     parser::{Item, ItemKind, ParsedSubModule},
 };
 <span class="kw">use </span>noirc_frontend::{
@@ -360,10 +357,7 @@
     usage_tracker::UsageTracker,
 };
 
-<span class="kw">use crate</span>::{
-    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
-    utils,
-};
+<span class="kw">use crate</span>::{LspState, use_segment_positions::UseSegmentPositions, utils};
 
 <span class="kw">use super</span>::{process_request, to_lsp_location};
 

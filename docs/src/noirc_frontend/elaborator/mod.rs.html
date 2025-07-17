@@ -2549,14 +2549,7 @@
 <a href="#2548" id="2548">2548</a>
 <a href="#2549" id="2549">2549</a>
 <a href="#2550" id="2550">2550</a>
-<a href="#2551" id="2551">2551</a>
-<a href="#2552" id="2552">2552</a>
-<a href="#2553" id="2553">2553</a>
-<a href="#2554" id="2554">2554</a>
-<a href="#2555" id="2555">2555</a>
-<a href="#2556" id="2556">2556</a>
-<a href="#2557" id="2557">2557</a>
-<a href="#2558" id="2558">2558</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2551" id="2551">2551</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -4482,7 +4475,7 @@
                 <span class="kw">for </span>(field_index, field) <span class="kw">in </span>fields.iter().enumerate() {
                     <span class="kw">let </span>location = field.name.location();
                     <span class="kw">let </span>reference_id = ReferenceId::StructMember(<span class="kw-2">*</span>type_id, field_index);
-                    <span class="self">self</span>.interner.add_definition_location(reference_id, location, <span class="prelude-val">None</span>);
+                    <span class="self">self</span>.interner.add_definition_location(reference_id, location);
                 }
             }
 
@@ -4557,7 +4550,6 @@
                 UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 
             datatype.borrow_mut().init_variants();
-            <span class="kw">let </span>module_id = ModuleId { krate: <span class="self">self</span>.crate_id, local_id: typ.module_id };
             <span class="self">self</span>.resolving_ids.insert(<span class="kw-2">*</span>type_id);
 
             <span class="kw">for </span>(i, variant) <span class="kw">in </span>typ.enum_def.variants.iter().enumerate() {
@@ -4583,7 +4575,7 @@
 
                 <span class="kw">let </span>reference_id = ReferenceId::EnumVariant(<span class="kw-2">*</span>type_id, i);
                 <span class="kw">let </span>location = variant.item.name.location();
-                <span class="self">self</span>.interner.add_definition_location(reference_id, location, <span class="prelude-val">Some</span>(module_id));
+                <span class="self">self</span>.interner.add_definition_location(reference_id, location);
             }
 
             <span class="self">self</span>.resolving_ids.remove(type_id);
@@ -4630,13 +4622,7 @@
         <span class="self">self</span>.elaborate_comptime_global(global_id);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(name) = name {
-            <span class="self">self</span>.interner.register_global(
-                global_id,
-                name,
-                location,
-                global.visibility,
-                <span class="self">self</span>.module_id(),
-            );
+            <span class="self">self</span>.interner.register_global(global_id, name, location, global.visibility);
         }
 
         <span class="self">self</span>.local_module = old_module;
