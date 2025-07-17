@@ -651,6 +651,7 @@ mod test {
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             skip_passes: Vec::new(),
+            experimental_optimization: false,
         };
         let pipeline = primary_passes(&options);
         for pass in pipeline {
