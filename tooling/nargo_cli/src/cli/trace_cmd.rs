@@ -7,7 +7,8 @@ use nargo::ops::debug::compile_options_for_debugging;
 use nargo::package::Package;
 use nargo::{constants::PROVER_INPUT_FILE, ops::debug::compile_bin_package_for_debugging};
 use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
-use noir_tracer::tracer_glue::store_trace;
+use noir_tracer::tracer_glue::begin_trace;
+use noir_tracer::tracer_glue::finish_trace;
 use noirc_abi::InputMap;
 use noirc_abi::input_parser::Format;
 use noirc_artifacts::debug::DebugArtifact;
@@ -17,7 +18,7 @@ use noirc_frontend::graph::CrateName;
 use super::fs::inputs::read_inputs_from_file;
 use crate::errors::CliError;
 
-use runtime_tracing::{TraceEventsFileFormat, Tracer};
+use runtime_tracing::{create_trace_writer, TraceEventsFileFormat};
 
 use super::NargoConfig;
 
@@ -141,7 +142,8 @@ pub(crate) fn trace_program(
     };
 
     let crate_name_string: String = crate_name.into();
-    let mut tracer = Tracer::new(crate_name_string.as_str(), &[]);
+    let mut tracer = create_trace_writer(crate_name_string.as_str(), &[], trace_format);
+    begin_trace(&mut *tracer, trace_dir, trace_format);
     if let Err(error) = noir_tracer::trace_circuit(
         &Bn254BlackBoxSolver(pedantic_solving),
         &compiled_program.program.functions,
@@ -149,12 +151,12 @@ pub(crate) fn trace_program(
         initial_witness,
         &compiled_program.program.unconstrained_functions,
         &compiled_program.abi.error_types,
-        &mut tracer,
+        &mut *tracer,
     ) {
         return Err(CliError::from(error));
     };
 
-    store_trace(tracer, trace_dir, trace_format);
+    finish_trace(&mut *tracer, trace_dir);
 
     Ok(())
 }

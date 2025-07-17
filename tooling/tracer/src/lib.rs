@@ -29,7 +29,7 @@ use nargo::NargoError;
 use noir_debugger::context::{DebugCommandResult, DebugContext};
 use noir_debugger::foreign_calls::DefaultDebugForeignCallExecutor;
 use noirc_artifacts::debug::DebugArtifact;
-use runtime_tracing::{Tracer, TypeKind};
+use runtime_tracing::{TraceWriter, TypeKind};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -205,7 +205,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
         }
     }
 
-    fn maybe_report_print_events(&self, tracer: &mut Tracer) {
+    fn maybe_report_print_events(&self, tracer: &mut dyn TraceWriter) {
         let mut s = self.print_output.borrow_mut();
         if !(*s).is_empty() {
             register_print(tracer, (*s).as_str());
@@ -214,7 +214,7 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> TracingContext<'a, B> {
     }
 
     /// Propagates information about the current execution state to `tracer`.
-    fn update_record(&mut self, tracer: &mut Tracer, source_locations: &[SourceLocation]) {
+    fn update_record(&mut self, tracer: &mut dyn TraceWriter, source_locations: &[SourceLocation]) {
         let stack_frames = get_stack_frames(&self.debug_context);
         let (first_nomatch, dropped_frames, new_frames) =
             tail_diff_vecs(&self.stack_frames, &stack_frames);
@@ -268,7 +268,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
     initial_witness: WitnessMap<FieldElement>,
     unconstrained_functions: &[BrilligBytecode<FieldElement>],
     error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
-    tracer: &mut Tracer,
+    tracer: &mut dyn TraceWriter,
 ) -> Result<(), NargoError<FieldElement>> {
     let mut tracing_context = TracingContext::new(
         blackbox_solver,
@@ -351,7 +351,7 @@ fn handle_function_error<F, B: BlackBoxFunctionSolver<FieldElement>>(
     error_types: &BTreeMap<ErrorSelector, AbiErrorType>,
     err: &NargoError<F>,
     tracing_context: &mut TracingContext<B>,
-    tracer: &mut Tracer,
+    tracer: &mut dyn TraceWriter,
 ) where
     F: AcirField,
 {

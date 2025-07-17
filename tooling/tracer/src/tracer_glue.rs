@@ -3,41 +3,64 @@ use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 use acvm::FieldElement;
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{EventLogKind, FullValueRecord, Line, Tracer, ValueRecord, TraceEventsFileFormat};
+use runtime_tracing::{EventLogKind, FullValueRecord, Line, TraceWriter, ValueRecord, TraceEventsFileFormat};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-/// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
-/// multiple JSON files.
-pub fn store_trace(tracer: Tracer, trace_dir: &str, trace_format: TraceEventsFileFormat) {
+pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: TraceEventsFileFormat) {
     let trace_path = Path::new(trace_dir).join(match trace_format {
         TraceEventsFileFormat::Json => "trace.json",
         TraceEventsFileFormat::Binary => "trace.bin",
     });
-    let mut storing_errors = false;
-    match tracer.store_trace_events(&trace_path, trace_format) {
+    match tracer.begin_writing_trace_events(&trace_path) {
         Ok(_) => {}
         Err(err) => {
-            storing_errors = true;
-            println!("Warning: tracer failed to store trace events: {err}")
+            panic!("Error: trace writer failed to begin writing trace events: {err}")
         }
     }
 
     let trace_path = Path::new(trace_dir).join("trace_metadata.json");
-    match tracer.store_trace_metadata(&trace_path) {
+    match tracer.begin_writing_trace_metadata(&trace_path) {
         Ok(_) => {}
         Err(err) => {
-            storing_errors = true;
-            println!("Warning: tracer failed to store trace metadata: {err}")
+            panic!("Error: trace writer failed to begin writing trace metadata: {err}")
         }
     }
 
     let trace_path = Path::new(trace_dir).join("trace_paths.json");
-    match tracer.store_trace_paths(&trace_path) {
+    match tracer.begin_writing_trace_paths(&trace_path) {
+        Ok(_) => {}
+        Err(err) => {
+            panic!("Error: trace writer failed to begin writing trace paths: {err}")
+        }
+    }
+}
+
+/// Stores the trace accumulated in `tracer` in the specified directory. The trace is stored as
+/// multiple JSON files.
+pub fn finish_trace(tracer: &mut dyn TraceWriter, trace_dir: &str) {
+    let mut storing_errors = false;
+    match tracer.finish_writing_trace_events() {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;
-            println!("Warning: tracer failed to store trace paths: {err}")
+            println!("Warning: trace writer failed to finish writing trace events: {err}")
+        }
+    }
+
+    match tracer.finish_writing_trace_metadata() {
+        Ok(_) => {}
+        Err(err) => {
+            storing_errors = true;
+            println!("Warning: trace writer failed to finish writing trace metadata: {err}")
+        }
+    }
+
+    match tracer.finish_writing_trace_paths() {
+        Ok(_) => {}
+        Err(err) => {
+            storing_errors = true;
+            println!("Warning: trace writer failed to finish writing trace paths: {err}")
         }
     }
     if !storing_errors {
@@ -46,7 +69,7 @@ pub fn store_trace(tracer: Tracer, trace_dir: &str, trace_format: TraceEventsFil
 }
 
 /// Registers a tracing step to the given `location` in the given `tracer`.
-pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
+pub(crate) fn register_step(tracer: &mut dyn TraceWriter, location: &SourceLocation) {
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
@@ -56,7 +79,7 @@ pub(crate) fn register_step(tracer: &mut Tracer, location: &SourceLocation) {
 /// Registers all variables in the given frame for the last registered step. Each time a new step is
 /// registered, all of its variables need to be registered too. If no variables are registered for a
 /// step, the frontend will not carry over the variables registered for the previous step.
-pub(crate) fn register_variables(tracer: &mut Tracer, frame: &StackFrame) {
+pub(crate) fn register_variables(tracer: &mut dyn TraceWriter, frame: &StackFrame) {
     for variable in &frame.variables {
         if variable.name != "__debug_return_expr" {
             register_variable(tracer, variable);
@@ -67,14 +90,14 @@ pub(crate) fn register_variables(tracer: &mut Tracer, frame: &StackFrame) {
 /// Registers a variable for the last registered step.
 ///
 /// See `register_variables`.
-fn register_variable(tracer: &mut Tracer, variable: &Variable) {
+fn register_variable(tracer: &mut dyn TraceWriter, variable: &Variable) {
     let value_record = register_value(tracer, &variable.value, &variable.typ);
     tracer.register_variable_with_full_value(&variable.name, value_record);
 }
 
 /// Registers a value of a given type. Registers the type, if it's the first time it occurs.
 fn register_value(
-    tracer: &mut Tracer,
+    tracer: &mut dyn TraceWriter,
     value: &PrintableValue<FieldElement>,
     typ: &PrintableType,
 ) -> ValueRecord {
@@ -227,7 +250,7 @@ fn register_value(
 /// Registers a call to the given `frame` at the given `location` in the given `tracer`.
 ///
 /// A helper method, that makes it easier to interface with `Tracer`.
-pub(crate) fn register_call(tracer: &mut Tracer, location: &SourceLocation, frame: &StackFrame) {
+pub(crate) fn register_call(tracer: &mut dyn TraceWriter, location: &SourceLocation, frame: &StackFrame) {
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
@@ -238,7 +261,7 @@ pub(crate) fn register_call(tracer: &mut Tracer, location: &SourceLocation, fram
 
 /// Extracts the relevant information from the given `frame` to construct a vector of `ArgRecord`
 /// that the `Tracer` interface expects when registering function calls.
-fn convert_params_to_args_vec(tracer: &mut Tracer, frame: &StackFrame) -> Vec<FullValueRecord> {
+fn convert_params_to_args_vec(tracer: &mut dyn TraceWriter, frame: &StackFrame) -> Vec<FullValueRecord> {
     let mut result = Vec::new();
     for param_index in &frame.function_param_indexes {
         let variable = &frame.variables[*param_index];
@@ -252,7 +275,7 @@ fn convert_params_to_args_vec(tracer: &mut Tracer, frame: &StackFrame) -> Vec<Fu
 ///
 /// The tracer seems to be keeping context of which function is returning and is not expecting that
 /// to be specified.
-pub(crate) fn register_return(tracer: &mut Tracer, return_value: &Option<Variable>) {
+pub(crate) fn register_return(tracer: &mut dyn TraceWriter, return_value: &Option<Variable>) {
     if let Some(return_value) = return_value {
         let value_record = register_value(tracer, &return_value.value, &return_value.typ);
         tracer.register_return(value_record);
@@ -263,10 +286,10 @@ pub(crate) fn register_return(tracer: &mut Tracer, return_value: &Option<Variabl
     }
 }
 
-pub(crate) fn register_print(tracer: &mut Tracer, s: &str) {
+pub(crate) fn register_print(tracer: &mut dyn TraceWriter, s: &str) {
     tracer.register_special_event(EventLogKind::Write, s);
 }
 
-pub(crate) fn register_error(tracer: &mut Tracer, s: &str) {
+pub(crate) fn register_error(tracer: &mut dyn TraceWriter, s: &str) {
     tracer.register_special_event(EventLogKind::Error, s);
 }
