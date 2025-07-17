@@ -1,6 +1,6 @@
 use arbitrary::Unstructured;
 use noirc_frontend::monomorphization::ast::Type;
-use std::fmt::Debug;
+use std::{fmt::Debug, vec};
 
 use super::{Name, types};
 
@@ -171,6 +171,11 @@ impl<T: Clone> Stack<T> {
     pub fn exit(&mut self) {
         self.0.pop();
         assert!(!self.0.is_empty(), "never pop the base layer");
+    }
+
+    /// Iterate over the layers, starting the base layer.
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+        self.0.iter_mut()
     }
 }
 

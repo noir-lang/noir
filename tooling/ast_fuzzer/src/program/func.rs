@@ -224,7 +224,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: Stack<im::HashSet<LocalId>>,
+    dynamics: Stack<im::HashMap<LocalId, bool>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
@@ -260,7 +260,7 @@ impl<'a> FunctionContext<'a> {
         );
 
         // Function parameters are by definition considered to be dynamic input.
-        let dynamics = Stack::new(locals.current().variable_ids().cloned().collect());
+        let dynamics = Stack::new(locals.current().variable_ids().map(|id| (*id, true)).collect());
 
         // Collect all the functions we can call from this one.
         let mut call_targets = BTreeMap::new();
@@ -378,7 +378,26 @@ impl<'a> FunctionContext<'a> {
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.dynamics.current().contains(id)
+        self.dynamics.current().get(id).cloned().unwrap_or_default()
+    }
+
+    /// Mark a variable as dynamic or not dynamic.
+    fn set_dynamic(&mut self, id: LocalId, is_dynamic: bool) {
+        // When a dynamic variable is assigned a constant value, only the current
+        // scope and any future lower scopes are affected. After this scope we
+        // will revert to whatever it was before.
+        let is_new = self.dynamics.current_mut().insert(id, is_dynamic).is_none();
+
+        // Becoming dynamic is contagious: if we assign a dynamic value to a mutable
+        // variable in one of the branches of a conditional statement, we have to
+        // consider it dynamic in the outer scopes as well from then on.
+        if !is_new && is_dynamic {
+            for layer in self.dynamics.iter_mut() {
+                if layer.contains_key(&id) {
+                    layer.insert(id, true);
+                }
+            }
+        }
     }
 
     /// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -1156,9 +1175,7 @@ impl<'a> FunctionContext<'a> {
             self.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
-        if is_dynamic {
-            self.dynamics.current_mut().insert(id);
-        }
+        self.set_dynamic(id, is_dynamic);
 
         expr::let_var(id, mutable, name, expr)
     }
@@ -1215,11 +1232,11 @@ impl<'a> FunctionContext<'a> {
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
         if lvalue.is_dyn || expr_dyn {
-            self.dynamics.current_mut().insert(id);
+            self.set_dynamic(id, true);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            self.dynamics.current_mut().remove(&id);
+            self.set_dynamic(id, false);
         }
 
         let assign =
