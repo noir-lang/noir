@@ -110,10 +110,12 @@ impl Context<'_> {
         // leaving an assertion that the side effect variable must be false.
         if self.has_zero_length(array, dfg) {
             // Zero result.
-            let results = dfg.instruction_results(instruction);
-            let res_typ = dfg.type_of_value(results[0]);
-            let zero = self.array_zero_value(&res_typ)?;
-            self.define_result(dfg, instruction, zero);
+            let result_ids = dfg.instruction_results(instruction);
+            for result_id in result_ids {
+                let res_typ = dfg.type_of_value(*result_id);
+                let zero_value = self.array_zero_value(&res_typ)?;
+                self.ssa_values.insert(*result_id, zero_value);
+            }
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, array has size 0".to_string();
             let msg = self.acir_context.generate_assertion_message_payload(msg);
