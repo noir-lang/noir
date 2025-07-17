@@ -245,7 +245,9 @@ impl Context {
         for instruction_id in block.instructions().iter().rev() {
             let instruction = &function.dfg[*instruction_id];
 
-            if self.is_unused(*instruction_id, function) {
+            if self.is_unused(*instruction_id, function)
+                || self.can_remove_with_unreachable_terminator(function, block, *instruction_id)
+            {
                 self.instructions_to_remove.insert(*instruction_id);
             } else {
                 // We can't remove rc instructions if they're loaded from a reference
@@ -288,6 +290,31 @@ impl Context {
             // If the instruction has side effects we should never remove it.
             false
         }
+    }
+
+    /// If we are inside a block that terminates with an [unreachable][TerminatorInstruction::Unreachable]
+    /// we can eliminate any instructions that:
+    /// - Have no side effects
+    /// - Are not the trap instruction which triggered the unreachable (we always expect the instruction preceding an unreachable to trigger a runtime failure)
+    /// - Does not have any results which are used in other instructions
+    fn can_remove_with_unreachable_terminator(
+        &mut self,
+        function: &Function,
+        block: &BasicBlock,
+        instruction_id: InstructionId,
+    ) -> bool {
+        let terminator = block.unwrap_terminator();
+        let TerminatorInstruction::Unreachable { .. } = terminator else {
+            return false;
+        };
+
+        let last_instruction = block.instructions().last().copied();
+        let is_last = Some(instruction_id) == last_instruction;
+        if is_last {
+            return false;
+        }
+
+        self.is_unused(instruction_id, function)
     }
 
     /// Adds values referenced by the terminator to the set of used values.
@@ -1178,5 +1205,61 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn remove_all_instructions_in_unreachable_block_but_final_trap() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1                            
+            v2 = make_array [u1 0, v0] : [(u1, &mut u1); 1]     
+            v4 = array_get v2, index u32 2 -> u1                
+            unreachable
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            unreachable
+        }
+        ");
+    }
+
+    #[test]
+    fn do_not_remove_impure_calls_in_unreachable_block() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            unreachable
+        }
+        acir(inline) fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            unreachable
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+
+        // We expect the program to be unchanged except that functions are labeled with purities now
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            call f1(v0)
+            unreachable
+        }
+        acir(inline) impure fn impure_take_ref f1 {
+          b0(v0: &mut Field):
+            unreachable
+        }
+        "#);
     }
 }
