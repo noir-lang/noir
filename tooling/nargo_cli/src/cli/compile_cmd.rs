@@ -445,8 +445,16 @@ mod tests {
 
                 let width = get_target_width(package.expression_width, None);
 
-                let program_1 = nargo::ops::transform_program(program_0, width, options.experimental_optimization);
-                let program_2 = nargo::ops::transform_program(program_1.clone(), width, options.experimental_optimization);
+                let program_1 = nargo::ops::transform_program(
+                    program_0,
+                    width,
+                    options.experimental_optimization,
+                );
+                let program_2 = nargo::ops::transform_program(
+                    program_1.clone(),
+                    width,
+                    options.experimental_optimization,
+                );
 
                 if verbose {
                     // Compare where the most likely difference is.
