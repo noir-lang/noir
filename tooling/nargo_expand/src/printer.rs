@@ -849,7 +849,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    self.show_value(value);
+                    self.show_value(&value.borrow());
                 }
                 if values.len() == 1 {
                     self.push(',');
@@ -868,7 +868,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                         self.write_indent();
                         self.push_str(name);
                         self.push_str(": ");
-                        self.show_value(value);
+                        self.show_value(&value.borrow());
                         self.push_str(",\n");
                     }
                     self.decrease_indent();

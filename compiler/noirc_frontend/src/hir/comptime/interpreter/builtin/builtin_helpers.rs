@@ -108,7 +108,7 @@ pub(crate) fn get_array(
 pub(crate) fn get_struct_fields(
     name: &str,
     (value, location): (Value, Location),
-) -> IResult<(HashMap<Rc<String>, Value>, Type)> {
+) -> IResult<(HashMap<Rc<String>, Shared<Value>>, Type)> {
     match value {
         Value::Struct(fields, typ) => Ok((fields, typ)),
         _ => {
@@ -128,7 +128,7 @@ pub(crate) fn get_struct_fields(
 /// Get a specific field of a struct and apply a decoder function on it.
 pub(crate) fn get_struct_field<T>(
     field_name: &str,
-    struct_fields: &HashMap<Rc<String>, Value>,
+    struct_fields: &HashMap<Rc<String>, Shared<Value>>,
     struct_type: &Type,
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
@@ -141,7 +141,7 @@ pub(crate) fn get_struct_field<T>(
             location,
         });
     };
-    f((value.clone(), location))
+    f((value.borrow().clone(), location))
 }
 
 pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
@@ -231,7 +231,7 @@ pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<S
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),
-) -> IResult<Vec<Value>> {
+) -> IResult<Vec<Shared<Value>>> {
     match value {
         Value::Tuple(values) => Ok(values),
         value => {
@@ -681,7 +681,7 @@ pub(crate) fn to_struct(
     fields: impl IntoIterator<Item = (&'static str, Value)>,
     typ: Type,
 ) -> Value {
-    let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
+    let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
     Value::Struct(fields, typ)
 }
 
@@ -699,7 +699,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(unary_op_value)));
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::Field(SignedField::positive(unary_op_value))));
 
     Some(Value::Struct(fields, typ))
 }
@@ -709,7 +709,7 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Value::Field(SignedField::positive(binary_op_value)));
+    fields.insert(Rc::new("op".to_string()), Shared::new(Value::Field(SignedField::positive(binary_op_value))));
 
     Value::Struct(fields, typ)
 }

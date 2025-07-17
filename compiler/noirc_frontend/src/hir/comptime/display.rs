@@ -386,7 +386,7 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.display(self.interner).to_string());
+                let fields = vecmap(fields, |field| field.borrow().display(self.interner).to_string());
                 if fields.len() == 1 {
                     write!(f, "({},)", fields[0])
                 } else {
@@ -399,7 +399,7 @@ impl Display for ValuePrinter<'_, '_> {
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.display(self.interner))
+                    format!("{}: {}", name, value.borrow().display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
