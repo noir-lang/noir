@@ -1830,3 +1830,31 @@ fn suggests_importing_trait_via_reexport() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn suggests_importing_trait_via_module_reexport() {
+    let src = r#"
+    mod one {
+        mod two {
+            pub mod three {
+                pub trait Trait {
+                    fn method(self);
+                }
+
+                impl Trait for bool {
+                    fn method(self) {}
+                }
+            }
+        }
+
+        pub use two::three;
+    }
+
+    fn main() {
+        true.method()
+        ^^^^^^^^^^^^^ trait `one::three::Trait` which provides `method` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors!(src);
+}
