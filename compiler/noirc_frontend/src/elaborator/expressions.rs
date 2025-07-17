@@ -1500,6 +1500,8 @@ impl Elaborator<'_> {
         self.interner.push_expr_location(id, location);
 
         let mut bindings = TypeBindings::default();
+
+        // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
         bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
 
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
