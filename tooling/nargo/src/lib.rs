@@ -41,6 +41,7 @@ pub fn prepare_dependencies(
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
                 let crate_id = prepare_dependency(context, &package.entry_path);
+                add_unstable_features(context, crate_id, package);
                 add_dep(context, parent_crate, crate_id, dep_name.clone());
                 prepare_dependencies(context, crate_id, &package.dependencies);
             }
@@ -287,10 +288,15 @@ pub fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
-
     let crate_id = prepare_crate(&mut context, &package.entry_path);
-
+    add_unstable_features(&mut context, crate_id, package);
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
-
     (context, crate_id)
+}
+
+/// Add any unstable features required by the `Package` to the `Context`.
+fn add_unstable_features(context: &mut Context, crate_id: CrateId, package: &Package) {
+    context
+        .required_unstable_features
+        .insert(crate_id, package.compiler_required_unstable_features.clone());
 }
