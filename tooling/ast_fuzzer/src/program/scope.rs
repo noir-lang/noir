@@ -1,6 +1,6 @@
 use arbitrary::Unstructured;
 use noirc_frontend::monomorphization::ast::Type;
-use std::fmt::Debug;
+use std::{fmt::Debug, vec};
 
 use super::{Name, types};
 
@@ -8,7 +8,7 @@ pub(crate) type Variable = (/*mutable*/ bool, Name, Type);
 
 /// A layer of variables available to choose from in blocks.
 #[derive(Debug, Clone)]
-pub(crate) struct Scope<K: Ord> {
+pub struct Scope<K: Ord> {
     /// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
     variables: im::OrdMap<K, Variable>,
@@ -23,7 +23,7 @@ where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create the initial scope from function parameters.
-    pub(super) fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+    pub fn from_variables(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
         let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
         for (id, mutable, name, typ) in vars {
             scope.add(id, mutable, name, typ);
@@ -72,7 +72,7 @@ where
     }
 
     /// Choose a random producer of a type, if there is one.
-    pub(super) fn choose_producer(
+    pub fn choose_producer(
         &self,
         u: &mut Unstructured,
         typ: &Type,
@@ -86,9 +86,35 @@ where
         u.choose_iter(vs.iter()).map(Some).map(|v| v.cloned())
     }
 
+    /// Choose a random producer of a type matching some criteria.
+    pub(super) fn choose_producer_filtered(
+        &self,
+        u: &mut Unstructured,
+        typ: &Type,
+        pred: impl Fn(&K, &Variable) -> bool,
+    ) -> arbitrary::Result<Option<K>> {
+        let Some(vs) = self.producers.get(typ) else {
+            return Ok(None);
+        };
+
+        let candidates = vs
+            .iter()
+            .filter(|id| {
+                let v = self.get_variable(id);
+                pred(id, v)
+            })
+            .collect::<Vec<_>>();
+
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+
+        u.choose_iter(candidates).map(Some).map(|v| v.cloned())
+    }
+
     /// Get a variable in scope.
-    pub(super) fn get_variable(&self, id: &K) -> &Variable {
-        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
+    pub fn get_variable(&self, id: &K) -> &Variable {
+        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {id:?}"))
     }
 }
 
@@ -97,62 +123,81 @@ where
     K: Ord,
 {
     /// Check if there are any variables in scope.
-    pub(super) fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.variables.is_empty()
     }
 
     /// Iterate the variables in scope.
-    pub(super) fn variables(&self) -> impl ExactSizeIterator<Item = (&K, &Variable)> {
+    pub fn variables(&self) -> impl ExactSizeIterator<Item = (&K, &Variable)> {
         self.variables.iter()
     }
 
     /// Iterate the IDs of the variables in scope.
-    pub(super) fn variable_ids(&self) -> impl ExactSizeIterator<Item = &K> {
+    pub fn variable_ids(&self) -> impl ExactSizeIterator<Item = &K> {
         self.variables.keys()
     }
 
     /// Iterate the types we can produce from other variables.
-    pub(super) fn types_produced(&self) -> impl ExactSizeIterator<Item = &Type> {
+    pub fn types_produced(&self) -> impl ExactSizeIterator<Item = &Type> {
         self.producers.keys()
     }
 }
 
 /// Scope stack as we exit and enter blocks
-pub(crate) struct ScopeStack<K: Ord>(Vec<Scope<K>>);
+pub struct Stack<T>(Vec<T>);
+
+impl<T: Clone> Stack<T> {
+    /// Create a stack from the base layer.
+    pub fn new(base: T) -> Self {
+        Self(vec![base])
+    }
+
+    /// The top scope in the stack.
+    pub fn current(&self) -> &T {
+        self.0.last().expect("there is always the base layer")
+    }
+
+    /// The top scope in the stack.
+    pub fn current_mut(&mut self) -> &mut T {
+        self.0.last_mut().expect("there is always the base layer")
+    }
+
+    /// Push a new scope on top of the current one.
+    pub fn enter(&mut self) {
+        self.0.push(self.current().clone());
+    }
+
+    /// Remove the last layer of block variables.
+    pub fn exit(&mut self) {
+        self.0.pop();
+        assert!(!self.0.is_empty(), "never pop the base layer");
+    }
+
+    /// Iterate over the layers, starting the base layer.
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+        self.0.iter_mut()
+    }
+}
+
+/// Scope stack as we exit and enter blocks
+pub type ScopeStack<K> = Stack<Scope<K>>;
 
 impl<K> ScopeStack<K>
 where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create a stack from the base variables.
-    pub(super) fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
-        Self(vec![Scope::new(vars)])
-    }
-
-    /// The top scope in the stack.
-    pub(super) fn current(&self) -> &Scope<K> {
-        self.0.last().expect("there is always the base layer")
-    }
-
-    /// Push a new scope on top of the current one.
-    pub(super) fn enter(&mut self) {
-        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
-        self.0.push(self.current().clone());
-    }
-
-    /// Remove the last layer of block variables.
-    pub(super) fn exit(&mut self) {
-        self.0.pop();
-        assert!(!self.0.is_empty(), "never pop the base layer");
+    pub fn from_variables(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+        Self(vec![Scope::from_variables(vars)])
     }
 
     /// Add a new variable to the current scope.
-    pub(super) fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
+    pub fn add(&mut self, id: K, mutable: bool, name: String, typ: Type) {
         self.0.last_mut().expect("there is always a layer").add(id, mutable, name, typ);
     }
 
     /// Remove a variable from all scopes.
-    pub(super) fn remove(&mut self, id: &K) {
+    pub fn remove(&mut self, id: &K) {
         for scope in self.0.iter_mut() {
             scope.remove(id);
         }
@@ -172,8 +217,9 @@ mod tests {
         let foo_type =
             Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
 
-        let mut stack =
-            ScopeStack::new([(LocalId(0), false, "foo".to_string(), foo_type)].into_iter());
+        let mut stack = ScopeStack::from_variables(
+            [(LocalId(0), false, "foo".to_string(), foo_type)].into_iter(),
+        );
 
         stack.enter();
         stack.add(LocalId(1), false, "bar".to_string(), Type::String(10));

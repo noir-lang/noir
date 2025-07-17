@@ -5,37 +5,38 @@ expression: expanded_code
 global U32_MAX: u32 = 4294967295;
 
 fn main(x: u32, y: u32) {
-    simple_loop(4, x, y);
-    loop_with_predicate(4, x, y);
-    array_read_loop(4, x);
+    simple_loop(4_u32, x, y);
+    loop_with_predicate(4_u32, x, y);
+    array_read_loop(4_u32, x);
     // Safety: comment added by `nargo expand`
     unsafe {
-        loop_with_break_under_predicate(4, y, x);
+        loop_with_break_under_predicate(4_u32, y, x);
     }
 }
 
 fn simple_loop(upper_bound: u32, x: u32, y: u32) {
-    for _ in 0..upper_bound {
+    for _ in 0_u32..upper_bound {
         let mut z: u32 = x * y;
         z = z * x;
-        assert(z == 12);
+        assert(z == 12_u32);
     }
 }
 
 fn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {
-    for _ in 0..upper_bound {
-        if x == 5 {
+    for _ in 0_u32..upper_bound {
+        if x == 5_u32 {
             let mut z: u32 = U32_MAX * y;
-            assert(z == 12);
+            assert(((3_i8 * (y as i8)) * 127_i8) == 12_i8);
+            assert(z == 12_u32);
         }
     }
 }
 
 fn array_read_loop(upper_bound: u32, x: u32) {
-    let arr: [u32; 5] = [2; 5];
-    for i in 0..upper_bound {
-        for j in 0..upper_bound {
-            for _ in 0..upper_bound {
+    let arr: [u32; 5] = [2_u32; 5];
+    for i in 0_u32..upper_bound {
+        for j in 0_u32..upper_bound {
+            for _ in 0_u32..upper_bound {
                 assert(arr[i] == x);
                 assert(arr[j] == x);
             }
@@ -44,9 +45,9 @@ fn array_read_loop(upper_bound: u32, x: u32) {
 }
 
 unconstrained fn loop_with_break_under_predicate(upper_bound: u32, x: u32, y: u32) {
-    for _ in 0..upper_bound {
-        if x == 3 { break; };
+    for _ in 0_u32..upper_bound {
+        if x == 3_u32 { break; };
         let mut z: u32 = U32_MAX * y;
-        assert(z == 12);
+        assert(z == 12_u32);
     }
 }

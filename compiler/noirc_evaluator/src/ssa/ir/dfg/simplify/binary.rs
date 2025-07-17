@@ -2,7 +2,10 @@ use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, binary::eval_constant_binary_op},
+    instruction::{
+        Binary, BinaryOp, Instruction,
+        binary::{BinaryEvaluationResult, eval_constant_binary_op},
+    },
     types::NumericType,
 };
 
@@ -51,11 +54,13 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
         return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-            Some((result, result_type)) => {
+            BinaryEvaluationResult::Success(result, result_type) => {
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            None => SimplifyResult::SimplifiedToInstruction(simplified),
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                SimplifyResult::SimplifiedToInstruction(simplified)
+            }
         };
     }
 
@@ -234,10 +239,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                     (Some(bitmask), None) | (None, Some(bitmask)) => {
                         // This substitution requires the bitmask to retain all of the lower bits.
                         // The bitmask must then be one less than a power of 2.
-                        let bitmask_plus_one = bitmask.to_u128() + 1;
-                        if bitmask_plus_one.is_power_of_two() {
+                        let bitmask = bitmask.to_u128();
+                        if bitmask == u128::MAX || (bitmask + 1).is_power_of_two() {
                             let value = if lhs_value.is_some() { rhs } else { lhs };
-                            let bit_size = bitmask_plus_one.ilog2();
+                            let bit_size =
+                                if bitmask == u128::MAX { 128 } else { (bitmask + 1).ilog2() };
                             let max_bit_size = lhs_type.bit_size();
 
                             if bit_size == max_bit_size {

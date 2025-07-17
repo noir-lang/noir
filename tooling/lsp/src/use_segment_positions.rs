@@ -247,7 +247,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             if let Some(lsp_location) = to_lsp_location(request.files, request.file, span) {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: format!("::{{self, {}}}", name),
+                    new_text: format!("::{{self, {name}}}"),
                     range: Range { start: range.end, end: range.end },
                 }]
             } else {
@@ -282,7 +282,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
                         range: Range { start: range.start, end: range.start },
                     },
                     TextEdit {
-                        new_text: format!(", {}}}", name),
+                        new_text: format!(", {name}}}"),
                         range: Range { start: range.end, end: range.end },
                     },
                 ]
@@ -308,7 +308,7 @@ pub(crate) fn use_completion_item_additional_text_edits(
             {
                 let range = lsp_location.range;
                 vec![TextEdit {
-                    new_text: if list_is_empty { name } else { format!("{}, ", name) },
+                    new_text: if list_is_empty { name } else { format!("{name}, ") },
                     range: Range { start: range.start, end: range.start },
                 }]
             } else {

@@ -107,6 +107,40 @@ jobs:
           path: ./dist/*
           retention-days: 3
 
+  build-noir-inspector:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v4
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu-inspector
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build Nargo
+        run: cargo build --package noir_inspector --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/noir-inspector ./dist/noir-inspector
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-inspector
+          path: ./dist/*
+          retention-days: 3
+
   compare_gates_reports:
     name: Circuit sizes
     needs: [build-nargo]
@@ -144,7 +178,8 @@ jobs:
           summaryQuantile: 0.9 # only display the 10% most significant circuit size diffs in the summary (defaults to 20%)
 
       - name: Add gates diff to sticky comment
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        # We don't run this step on external PRs
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           # delete the comment in case changes no longer impact circuit sizes
@@ -298,7 +333,7 @@ jobs:
           overwrite: true
 
   external_repo_reports:
-    needs: [build-nargo, benchmark-projects-list]
+    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     strategy:
@@ -312,6 +347,7 @@ jobs:
         with:
           sparse-checkout: |
             .github/actions/download-nargo/action.yml
+            .github/actions/download-noir-inspector/action.yml
             scripts/gather_benchmark_data.sh
             scripts/process_benchmark_data.sh
           sparse-checkout-cone-mode: false
@@ -325,6 +361,9 @@ jobs:
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
+
+      - name: Download noir-inspector binary
+        uses: ./.github/actions/download-noir-inspector
 
       - name: Generate compilation report
         id: compilation_report
@@ -632,6 +671,52 @@ jobs:
           alert-comment-cc-users: "@TomAFrench"
           max-items-in-chart: 50
 
+  upload_opcode_reports:
+    name: Upload opcode reports
+    needs: [external_repo_reports]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    if: always()
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+      # deployments permission to deploy GitHub pages website
+      deployments: write
+      # contents permission to update benchmark contents in gh-pages branch
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Merge opcode count reports using jq
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          jq --slurp 'map(.num_opcodes | select(.))' ./reports/* | tee num_opcodes.json
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@4de1bed97a47495fc4c5404952da0499e31f5c29
+        with:
+          name: "Opcode count"
+          tool: "customSmallerIsBetter"
+          output-file-path: ./num_opcodes.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # We want this to only run on master to avoid garbage data from PRs being added.
+          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          alert-threshold: "110%"
+          comment-on-alert: true
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          fail-on-alert: false
+          alert-comment-cc-users: "@TomAFrench"
+          max-items-in-chart: 50
+
   upload_compilation_memory_report:
     name: Upload compilation memory report
     needs: [generate_memory_report, external_repo_memory_report]
@@ -747,6 +832,7 @@ jobs:
       - upload_compilation_reports
       - upload_execution_reports
       - upload_artifact_reports
+      - upload_opcode_reports
       - upload_compilation_memory_report
       - upload_execution_memory_report
 

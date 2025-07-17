@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-  ┌─ src/main.nr:2:21
+  ┌─ src/main.nr:2:24
   │
 2 │     pub fn read<let N: bool>() {
-  │                     - Unsupported numeric generic type
+  │                        ---- Unsupported numeric generic type
   │
 
 error: The numeric generic is not of type `u32`

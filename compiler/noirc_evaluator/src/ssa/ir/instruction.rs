@@ -2,7 +2,10 @@ use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
+use acvm::{
+    AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
+};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -438,13 +441,17 @@ impl Instruction {
             // This should never be side-effectual
             MakeArray { .. } | Noop => false,
 
-            // Some binary math can overflow or underflow
+            // Some binary math can overflow or underflow.
             Binary(binary) => match binary.operator {
                 BinaryOp::Add { unchecked: false }
                 | BinaryOp::Sub { unchecked: false }
-                | BinaryOp::Mul { unchecked: false }
-                | BinaryOp::Div
-                | BinaryOp::Mod => true,
+                | BinaryOp::Mul { unchecked: false } => {
+                    let typ = dfg.type_of_value(binary.lhs);
+                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                }
+                BinaryOp::Div | BinaryOp::Mod => {
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
@@ -853,6 +860,10 @@ pub(crate) enum TerminatorInstruction {
     /// as the block arguments. Then the exit block can terminate in a return
     /// instruction returning these values.
     Return { return_values: Vec<ValueId>, call_stack: CallStackId },
+
+    /// A terminator that will never be reached because an instruction in its block
+    /// will always produce an assertion failure.
+    Unreachable { call_stack: CallStackId },
 }
 
 impl TerminatorInstruction {
@@ -873,6 +884,7 @@ impl TerminatorInstruction {
                     *return_value = f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -893,6 +905,7 @@ impl TerminatorInstruction {
                     f(*return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -913,6 +926,7 @@ impl TerminatorInstruction {
                     f(index, *return_value);
                 }
             }
+            Unreachable { .. } => (),
         }
     }
 
@@ -927,7 +941,7 @@ impl TerminatorInstruction {
             Jmp { destination, .. } => {
                 *destination = f(*destination);
             }
-            Return { .. } => (),
+            Return { .. } | Unreachable { .. } => (),
         }
     }
 
@@ -935,7 +949,8 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack,
         }
     }
 
@@ -943,7 +958,8 @@ impl TerminatorInstruction {
         match self {
             TerminatorInstruction::JmpIf { call_stack, .. }
             | TerminatorInstruction::Jmp { call_stack, .. }
-            | TerminatorInstruction::Return { call_stack, .. } => *call_stack = new_call_stack,
+            | TerminatorInstruction::Return { call_stack, .. }
+            | TerminatorInstruction::Unreachable { call_stack } => *call_stack = new_call_stack,
         }
     }
 }

@@ -63,13 +63,9 @@ impl NumericType {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
                 if value.is_negative() {
-                    return Some(format!("0..={}", max));
+                    return Some(format!("0..={max}"));
                 }
-                if value.absolute_value() <= max.into() {
-                    None
-                } else {
-                    Some(format!("0..={}", max))
-                }
+                if value.absolute_value() <= max.into() { None } else { Some(format!("0..={max}")) }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
@@ -78,7 +74,7 @@ impl NumericType {
                 if value.absolute_value() <= target_max.into() {
                     None
                 } else {
-                    Some(format!("-{}..={}", min, max))
+                    Some(format!("-{min}..={max}"))
                 }
             }
             NumericType::NativeField => None,
@@ -153,6 +149,11 @@ impl Type {
     /// Returns whether the `Type` represents an unsigned numeric type.
     pub fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
+    }
+
+    /// Returns whether the `Type` represents an signed numeric type.
+    pub fn is_signed(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Signed { .. }))
     }
 
     /// Create a new signed integer type with the given amount of bits.
@@ -246,6 +247,11 @@ impl Type {
         }
     }
 
+    /// True if this type is an array (or slice)
+    pub(crate) fn is_array(&self) -> bool {
+        matches!(self, Type::Array(_, _) | Type::Slice(_))
+    }
+
     pub(crate) fn is_nested_slice(&self) -> bool {
         if let Type::Slice(element_types) | Type::Array(element_types, _) = self {
             element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
@@ -294,6 +300,18 @@ impl Type {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(elements, _) | Type::Slice(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
+            }
+        }
+    }
+
+    /// True if this is a function type or if it is a composite type which contains a function.
+    pub(crate) fn contains_function(&self) -> bool {
+        match self {
+            Type::Reference(element_type) => element_type.contains_function(),
+            Type::Function => true,
+            Type::Numeric(_) => false,
+            Type::Array(elements, _) | Type::Slice(elements) => {
+                elements.iter().any(|elem| elem.contains_function())
             }
         }
     }

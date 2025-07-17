@@ -14,17 +14,19 @@ use completion_items::{
 };
 use convert_case::{Case, Casing};
 use fm::{FileId, FileMap, PathString};
+use iter_extended::vecmap;
 use kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -85,7 +87,7 @@ pub(crate) fn on_completion_request(
                     byte,
                     args.crate_id,
                     args.def_maps,
-                    args.dependencies,
+                    args.dependencies(),
                     args.interner,
                 );
                 finder.find(&parsed_module)
@@ -344,9 +346,14 @@ impl<'a> NodeFinder<'a> {
                 ModuleDefId::ModuleId(id) => module_id = id,
                 ModuleDefId::TypeId(type_id) => {
                     let data_type = self.interner.get_type(type_id);
+                    // Use `Type::Error` for the generics since they unify with anything, to get methods from all impls.
+                    // We could use fresh type variables instead, but we have a non-mutable NodeInterner here.
+                    // Note: ideally we'd also use any turbofish for `generics`, but at least Rust Analyzer seems
+                    // to ignore them and offers all methods from all impls, so for now we do the same.
+                    let generics = vecmap(&data_type.borrow().generics, |_| Type::Error);
                     self.complete_enum_variants_without_parameters(&data_type.borrow(), &prefix);
                     self.complete_type_methods(
-                        &Type::DataType(data_type, vec![]),
+                        &Type::DataType(data_type, generics),
                         &prefix,
                         FunctionKind::Any,
                         function_completion_kind,
@@ -380,7 +387,7 @@ impl<'a> NodeFinder<'a> {
                     );
                     return;
                 }
-                ModuleDefId::GlobalId(_) => return,
+                ModuleDefId::GlobalId(_) | ModuleDefId::TraitAssociatedTypeId(_) => return,
             }
         }
 
@@ -577,15 +584,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
-        match generic {
-            UnresolvedGeneric::Variable(ident, _) => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) => (),
-        };
+        if let IdentOrQuotedType::Ident(ident) = generic.ident() {
+            self.type_parameters.insert(ident.to_string());
+        }
     }
 
     fn complete_type_fields_and_methods(
@@ -1036,9 +1037,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1198,7 +1199,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,
@@ -1987,8 +1988,8 @@ fn get_type_type_id(typ: &Type) -> Option<TypeId> {
 ///
 /// For example:
 ///
-/// // "merk" and "ro" match "merkle" and "root" and are in order
-/// name_matches("compute_merkle_root", "merk_ro") == true
+/// // "merk" and "ro" match "merkle" and "root" and are in order  // cSpell:disable-line
+/// name_matches("compute_merkle_root", "merk_ro") == true // cSpell:disable-line
 ///
 /// // "ro" matches "root", but "merkle" comes before it, so no match
 /// name_matches("compute_merkle_root", "ro_mer") == false
@@ -2027,6 +2028,7 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) => Some(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)

@@ -322,7 +322,7 @@ impl DebugInstrumenter {
             }
             ast::LValue::Dereference(_lv, location) => {
                 // TODO: this is a dummy statement for now, but we should
-                // somehow track the derefence and update the pointed to
+                // somehow track the dereference and update the pointed to
                 // variable
                 ast::Statement {
                     kind: ast::StatementKind::Expression(uint_expr(0, *location)),
@@ -606,21 +606,23 @@ pub fn build_debug_crate_file() -> String {
                 // The variable signature has to be generic as Noir supports using any polymorphic integer as an index.
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
+                let indices =
+                    (0..n).map(|i| format!["Index{i}"]).collect::<Vec<String>>().join(", ");
                 let var_sig =
-                    (0..n).map(|i| format!["_v{i}: Index"]).collect::<Vec<String>>().join(", ");
+                    (0..n).map(|i| format!["_v{i}: Index{i}"]).collect::<Vec<String>>().join(", ");
                 let vars = (0..n).map(|i| format!["_v{i}"]).collect::<Vec<String>>().join(", ");
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
-                unconstrained fn __debug_oracle_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_oracle_member_assign_{n}<T, {indices}>(
                     _var_id: u32, _value: T, {var_sig}
                 ) {{}}
-                unconstrained fn __debug_inner_member_assign_{n}<T, Index>(
+                unconstrained fn __debug_inner_member_assign_{n}<T, {indices}>(
                     var_id: u32, value: T, {var_sig}
                 ) {{
                     __debug_oracle_member_assign_{n}(var_id, value, {vars});
                 }}
-                pub fn __debug_member_assign_{n}<T, Index>(var_id: u32, value: T, {var_sig}) {{
+                pub fn __debug_member_assign_{n}<T, {indices}>(var_id: u32, value: T, {var_sig}) {{
                     /// Safety: debug context
                     unsafe {{
                         __debug_inner_member_assign_{n}(var_id, value, {vars});
@@ -726,9 +728,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Tuple(patterns, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             }
-            ast::Pattern::Struct(_, pids, _) => {
-                stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
+            ast::Pattern::Struct(_, fields, _) => {
+                stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
+                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));
@@ -742,7 +744,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
         ast::Pattern::Identifier(id) => id.to_string(),
-        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Mutable(pattern, _, _) => {
+            format!("mut {}", pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
             elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")
@@ -783,12 +787,12 @@ fn id_expr(id: &ast::Ident) -> ast::Expression {
 
 fn uint_expr(x: u128, location: Location) -> ast::Expression {
     let value = SignedField::positive(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }
 
 fn sint_expr(x: i128, location: Location) -> ast::Expression {
     let value = SignedField::from_signed(x);
-    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value));
+    let kind = ast::ExpressionKind::Literal(ast::Literal::Integer(value, None));
     ast::Expression { kind, location }
 }

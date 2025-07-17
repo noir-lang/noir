@@ -18,7 +18,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeVariable,
+    Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, BlockExpression, ConstrainKind, Expression, ExpressionKind, ForRange,
         FunctionKind, FunctionReturnType, Ident, IntegerBitSize, LValue, Literal, Pattern,
@@ -38,11 +38,11 @@ use crate::{
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
@@ -346,11 +346,7 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(
-            format!("static_assert failed: {}", message).clone(),
-            location,
-            call_stack,
-        )
+        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
     }
 }
 
@@ -387,7 +383,7 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -1952,7 +1948,7 @@ fn expr_as_integer(
     location: Location,
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
-        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field))) => {
+        ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
                 Value::Field(SignedField::positive(field.absolute_value())),
                 Value::Bool(field.is_negative()),
@@ -2427,7 +2423,7 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -2473,12 +2469,9 @@ fn function_def_as_typed_expr(
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
-        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
-        let method_index = method_index.expect("Expected to find the method");
-        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
-        let trait_method = TraitMethod { method_id, constraint, assumed: true };
-        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
-        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+        let id = interpreter.elaborator.interner.get_trait_item_id(func_id).unwrap().item_id;
+        let trait_method = TraitItem { definition: id, constraint, assumed: true };
+        HirIdent { location, id, impl_kind: ImplKind::TraitItem(trait_method) }
     } else {
         HirIdent::non_trait_method(definition_id, location)
     };
@@ -2492,7 +2485,15 @@ fn function_def_as_typed_expr(
     ));
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.type_check_variable(hir_ident, expr_id, generics)
+            let bindings = TypeBindings::default();
+            let push_required_type_variables = false;
+            elaborator.type_check_variable_with_bindings(
+                hir_ident,
+                expr_id,
+                generics,
+                bindings,
+                push_required_type_variables,
+            )
         });
     interpreter.elaborator.interner.push_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))

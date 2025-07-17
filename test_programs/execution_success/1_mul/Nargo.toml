@@ -1,7 +1,0 @@
-[package]
-name = "1_mul"
-version = "0.1.0"
-type = "bin"
-authors = [""]
-
-[dependencies]

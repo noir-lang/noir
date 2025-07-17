@@ -1,8 +1,7 @@
-use crate::elaborator::FrontendOptions;
-
-use crate::tests::Expect;
-use crate::{assert_no_errors, check_monomorphization_error};
-use crate::{check_errors, get_program_with_options};
+use crate::{
+    assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
+    get_program_with_options, tests::Expect,
+};
 
 #[named]
 #[test]
@@ -403,61 +402,6 @@ fn trait_alias_polymorphic_inheritance() {
         }"#;
 
     assert_no_errors!(src);
-}
-
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
-// same errors as the desugared version
-#[named]
-#[test]
-fn trait_alias_polymorphic_where_clause() {
-    let src = r#"
-        trait Foo {
-            fn foo(self) -> Self;
-        }
-
-        trait Bar<T> {
-            fn bar(self) -> T;
-        }
-
-        trait Baz {
-            fn baz(self) -> bool;
-        }
-
-        trait Qux<T> = Foo + Bar<T> where T: Baz;
-
-        fn qux<T, U>(x: T) -> bool where T: Qux<U> {
-            x.foo().bar().baz()
-            ^^^^^^^^^^^^^^^^^^^ No method named 'baz' found for type 'U'
-        }
-
-        impl Foo for Field {
-            fn foo(self) -> Self {
-                self + 1
-            }
-        }
-
-        impl Bar<bool> for Field {
-            fn bar(self) -> bool {
-                true
-            }
-        }
-
-        impl Baz for bool {
-            fn baz(self) -> bool {
-                self
-            }
-        }
-
-        fn main() {
-            assert(0.foo().bar().baz() == qux(0));
-                                          ^^^ No matching impl found for `T: Baz`
-                                          ~~~ No impl for `T: Baz`
-        }
-    "#;
-
-    // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors!(src);
-    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
@@ -1665,6 +1609,176 @@ fn errors_on_incorrect_generics_in_type_trait_call() {
     fn main() {
         let _ = U60Repr::<Field>::from2([1, 2, 3]);
                        ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_child_constraint() {
+    let src = r#"
+    trait Parent {}
+
+    trait Child: Parent {
+        fn child() {}
+    }
+
+    pub struct Struct<T> {}
+
+    impl<T: Parent> Parent for Struct<T> {}
+    impl<T: Child> Child for Struct<T> {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_with_same_generic_in_different_default_methods() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let U: u32>(self, _msg: str<U>) { 
+            let _ = self; 
+        }
+
+        fn bar<let U: u32>(self, _msg: str<U>) {
+            let _ = self;
+        }
+    }
+
+    pub struct Struct {}
+
+    impl Trait for Struct {}
+
+    pub fn main() {
+        Struct {}.bar("Hello");
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_of_generic_type_used_in_another_associated_constant() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [Field; N];
+    }
+
+    impl<let M: u32> Serialize for [Field; M] {
+        let N: u32 = M;
+
+        fn serialize(self) -> [Field; Self::N] {
+            self
+        }
+    }
+
+    struct Foo {}
+
+    impl Serialize for Foo {
+        let N: u32 = <[Field; 3] as Serialize>::N;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.serialize();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_of_generic_type_used_in_expression() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+    }
+
+    impl<let M: u32> Serialize for [Field; M] {
+        let N: u32 = M;
+    }
+
+    fn main() {
+        let _ = <[Field; 3] as Serialize>::N;
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_1() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = <T as Trait>::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_2() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = T::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn ambiguous_associated_type() {
+    let src = r#"
+    trait MyTrait {
+        type X;
+    }
+
+    fn main() {
+        let _: MyTrait::X = 1;
+               ^^^^^^^^^^ Ambiguous associated type
+               ~~~~~~~~~~ If there were a type named `Example` that implemented `MyTrait`, you could use the fully-qualified path: `<Example as MyTrait>::X`
     }
     "#;
     check_errors!(src);

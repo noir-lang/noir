@@ -57,7 +57,7 @@ pub struct ReferenceValue {
     pub element_type: Arc<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
@@ -80,7 +80,9 @@ impl Value {
                 Type::Slice(array.element_types.clone())
             }
             Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
+                let len = array.elements.borrow().len().checked_div(array.element_types.len());
+                let len = len.unwrap_or(0) as u32;
+                Type::Array(array.element_types.clone(), len)
             }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
@@ -157,7 +159,7 @@ impl Value {
         Self::Numeric(NumericValue::U1(value))
     }
 
-    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
@@ -210,17 +212,23 @@ impl Value {
     pub fn snapshot(&self) -> Self {
         match self {
             Value::Numeric(n) => Value::Numeric(*n),
-            Value::Reference(r) => Value::Reference(ReferenceValue {
-                original_id: r.original_id,
-                element: Shared::new(r.element.borrow().clone()),
-                element_type: r.element_type.clone(),
-            }),
-            Value::ArrayOrSlice(a) => Value::ArrayOrSlice(ArrayValue {
-                elements: Shared::new(a.elements.borrow().clone()),
-                rc: Shared::new(*a.rc.borrow()),
-                element_types: a.element_types.clone(),
-                is_slice: a.is_slice,
-            }),
+            Value::Reference(r) => {
+                let element = r.element.borrow().as_ref().map(|v| v.snapshot());
+                Value::Reference(ReferenceValue {
+                    original_id: r.original_id,
+                    element: Shared::new(element),
+                    element_type: r.element_type.clone(),
+                })
+            }
+            Value::ArrayOrSlice(a) => {
+                let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
+                Value::ArrayOrSlice(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(*a.rc.borrow()),
+                    element_types: a.element_types.clone(),
+                    is_slice: a.is_slice,
+                })
+            }
             Value::Function(id) => Value::Function(*id),
             Value::Intrinsic(i) => Value::Intrinsic(*i),
             Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
@@ -350,7 +358,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub fn convert_to_field(&self) -> FieldElement {
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
@@ -397,7 +405,7 @@ impl std::fmt::Display for NumericValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NumericValue::Field(value) => write!(f, "Field {value}"),
-            NumericValue::U1(value) => write!(f, "u1 {value}"),
+            NumericValue::U1(value) => write!(f, "u1 {}", if *value { "1" } else { "0" }),
             NumericValue::U8(value) => write!(f, "u8 {value}"),
             NumericValue::U16(value) => write!(f, "u16 {value}"),
             NumericValue::U32(value) => write!(f, "u32 {value}"),
@@ -423,10 +431,51 @@ impl std::fmt::Display for ReferenceValue {
 
 impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let elements = self.elements.borrow();
-        let elements = vecmap(elements.iter(), ToString::to_string).join(", ");
+        let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
+        write!(f, "rc{rc} {is_slice}[")?;
+
+        let length = self.elements.borrow().len() / self.element_types.len();
+        if length == 0 {
+            // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
+            let element_types = if self.element_types.len() == 1 {
+                self.element_types[0].to_string()
+            } else {
+                let element_types =
+                    vecmap(self.element_types.iter(), ToString::to_string).join(", ");
+                format!("({element_types})")
+            };
+            write!(f, "{element_types}; {length}")?;
+        } else {
+            // Otherwise we show the elements, but try to group them if the element type is a composite type
+            // (that way the element types can be inferred from the elements)
+            let element_types_len = self.element_types.len();
+            for (index, element) in self.elements.borrow().iter().enumerate() {
+                if index > 0 {
+                    write!(f, ", ")?;
+                }
+                if element_types_len > 1 && index % element_types_len == 0 {
+                    write!(f, "(")?;
+                }
+                write!(f, "{element}")?;
+                if element_types_len > 1 && index % element_types_len == element_types_len - 1 {
+                    write!(f, ")")?;
+                }
+            }
+        }
+
+        write!(f, "]")
     }
 }
+
+impl PartialEq for ArrayValue {
+    fn eq(&self, other: &Self) -> bool {
+        // Don't compare RC
+        self.elements == other.elements
+            && self.element_types == other.element_types
+            && self.is_slice == other.is_slice
+    }
+}
+
+impl Eq for ArrayValue {}

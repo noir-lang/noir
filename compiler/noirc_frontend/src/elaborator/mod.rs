@@ -6,11 +6,11 @@ use std::{
 
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -45,7 +45,7 @@ use crate::{
         types::{Generics, Kind, ResolvedGeneric},
     },
     node_interner::{
-        DefinitionKind, DependencyId, ExprId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
+        DefinitionKind, DependencyId, FuncId, FunctionModifiers, GlobalId, NodeInterner,
         ReferenceId, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
@@ -54,6 +54,7 @@ use crate::{
 mod comptime;
 mod enums;
 mod expressions;
+mod function_context;
 mod lints;
 mod options;
 mod path_resolution;
@@ -66,6 +67,7 @@ mod traits;
 pub mod types;
 mod unquote;
 
+use function_context::FunctionContext;
 use fxhash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
@@ -124,6 +126,8 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+
+    required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -234,24 +238,6 @@ impl ElaborateReason {
     }
 }
 
-#[derive(Default)]
-struct FunctionContext {
-    /// All type variables created in the current function.
-    /// This map is used to default any integer type variables at the end of
-    /// a function (before checking trait constraints) if a type wasn't already chosen.
-    type_variables: Vec<Type>,
-
-    /// Trait constraints are collected during type checking until they are
-    /// verified at the end of a function. This is because constraints arise
-    /// on each variable, but it is only until function calls when the types
-    /// needed for the trait constraint may become known.
-    /// The `select impl` bool indicates whether, after verifying the trait constraint,
-    /// the resulting trait impl should be the one used for a call (sometimes trait
-    /// constraints are verified but there's no call associated with them, like in the
-    /// case of checking generic arguments)
-    trait_constraints: Vec<(TraitConstraint, ExprId, bool /* select impl */)>,
-}
-
 impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -260,6 +246,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -273,6 +260,7 @@ impl<'context> Elaborator<'context> {
             usage_tracker,
             crate_graph,
             interpreter_output,
+            required_unstable_features,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -306,6 +294,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            &context.required_unstable_features,
             crate_id,
             im::Vector::new(),
             options,
@@ -479,7 +468,7 @@ impl<'context> Elaborator<'context> {
         let old_item = self.current_item.replace(DependencyId::Function(id));
 
         self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
-        self.function_context.push(FunctionContext::default());
+        self.push_function_context();
 
         let modifiers = self.interner.function_modifiers(&id).clone();
 
@@ -583,39 +572,6 @@ impl<'context> Elaborator<'context> {
         self.current_item = old_item;
     }
 
-    /// Defaults all type variables used in this function context then solves
-    /// all still-unsolved trait constraints in this context.
-    fn check_and_pop_function_context(&mut self) {
-        let context = self.function_context.pop().expect("Imbalanced function_context pushes");
-
-        for typ in context.type_variables {
-            if let Type::TypeVariable(variable) = typ.follow_bindings() {
-                let msg = "TypeChecker should only track defaultable type vars";
-                variable.bind(variable.kind().default_type().expect(msg));
-            }
-        }
-
-        for (mut constraint, expr_id, select_impl) in context.trait_constraints {
-            let location = self.interner.expr_location(&expr_id);
-
-            if matches!(&constraint.typ, Type::Reference(..)) {
-                let (_, dereferenced_typ) =
-                    self.insert_auto_dereferences(expr_id, constraint.typ.clone());
-                constraint.typ = dereferenced_typ;
-            }
-
-            self.verify_trait_constraint(
-                &constraint.typ,
-                constraint.trait_bound.trait_id,
-                &constraint.trait_bound.trait_generics.ordered,
-                &constraint.trait_bound.trait_generics.named,
-                expr_id,
-                select_impl,
-                location,
-            );
-        }
-    }
-
     /// This turns function parameters of the form:
     /// `fn foo(x: impl Bar)`
     ///
@@ -695,18 +651,15 @@ impl<'context> Elaborator<'context> {
         generic: &UnresolvedGeneric,
     ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
-        match generic {
-            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } => {
+        match generic.ident() {
+            IdentOrQuotedType::Ident(ident) => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
-                let ident = generic.ident();
                 let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
-            // An already-resolved generic is only possible if it is the result of a
-            // previous macro call being inserted into a generics list.
-            UnresolvedGeneric::Resolved(id, location) => {
+            IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
                         Ok((type_var.clone(), name))
@@ -737,9 +690,11 @@ impl<'context> Elaborator<'context> {
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: unresolved_typ.typ.clone(),
+                        name: ident.ident().map(|name| name.to_string()),
+                        typ: typ.to_string(),
+                        location: unresolved_typ.location,
                     });
+
                 self.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)
@@ -1066,7 +1021,9 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
+            .filter_map(|generic| {
+                generic.ident().ident().and_then(|name| self.find_generic(name.as_str())).cloned()
+            })
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1367,10 +1324,11 @@ impl<'context> Elaborator<'context> {
             {
                 for trait_constrain in &trait_implementation.borrow().where_clause {
                     let trait_bound = &trait_constrain.trait_bound;
-                    self.interner.add_assumed_trait_implementation(
-                        trait_constrain.typ.clone(),
+                    self.add_trait_bound_to_scope(
+                        trait_bound.location,
+                        &trait_constrain.typ,
+                        trait_bound,
                         trait_bound.trait_id,
-                        trait_bound.trait_generics.clone(),
                     );
                 }
             }
@@ -2401,25 +2359,23 @@ impl<'context> Elaborator<'context> {
         // Turn each generic into an Ident
         let mut idents = HashSet::new();
         for generic in generics {
-            match generic {
-                UnresolvedGeneric::Variable(ident, _) => {
+            match generic.ident() {
+                IdentOrQuotedType::Ident(ident) => {
                     idents.insert(ident.clone());
                 }
-                UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                    idents.insert(ident.clone());
-                }
-                UnresolvedGeneric::Resolved(quoted_type_id, span) => {
+                IdentOrQuotedType::Quoted(quoted_type_id, location) => {
                     if let Type::NamedGeneric(NamedGeneric { name, .. }) =
                         self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
                     {
-                        idents.insert(Ident::new(name.to_string(), *span));
+                        idents.insert(Ident::new(name.to_string(), *location));
                     }
                 }
             }
         }
 
         // Remove the ones that show up in `self_type`
-        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        let mut visitor =
+            RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
         self_type.accept(&mut visitor);
 
         // The ones that remain are not mentioned in the impl: it's an error.
@@ -2431,10 +2387,27 @@ impl<'context> Elaborator<'context> {
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
-        if !self.options.enabled_unstable_features.contains(&feature) {
-            let reason = ParserErrorReason::ExperimentalFeature(feature);
-            self.push_err(ParserError::with_reason(reason, location));
+        // Is the feature globally enabled via CLI options?
+        if self.options.enabled_unstable_features.contains(&feature) {
+            return;
         }
+
+        // Can crates require unstable features in their manifest?
+        let enable_required_unstable_features = self.options.enabled_unstable_features.is_empty()
+            && !self.options.disable_required_unstable_features;
+
+        // Is it required by the current crate?
+        if enable_required_unstable_features
+            && self
+                .required_unstable_features
+                .get(&self.crate_id)
+                .is_some_and(|fs| fs.contains(&feature))
+        {
+            return;
+        }
+
+        let reason = ParserErrorReason::ExperimentalFeature(feature);
+        self.push_err(ParserError::with_reason(reason, location));
     }
 
     /// Run the given function using the resolver and return true if any errors (not warnings)
@@ -2448,6 +2421,7 @@ impl<'context> Elaborator<'context> {
 }
 
 struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    interner: &'a NodeInterner,
     idents: &'a mut HashSet<Ident>,
 }
 
@@ -2456,5 +2430,129 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
         }
+    }
+
+    fn visit_resolved_type(&mut self, id: QuotedTypeId, location: Location) {
+        if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+            self.interner.get_quoted_type(id).follow_bindings()
+        {
+            self.idents.remove(&Ident::new(name.as_ref().clone(), location));
+        }
+    }
+}
+
+#[cfg(feature = "test_utils")]
+pub mod test_utils {
+    use std::cell::RefCell;
+    use std::io::Write;
+    use std::rc::Rc;
+
+    use crate::hir::comptime::InterpreterError;
+    use crate::{hir::def_collector::dc_crate::CompilationError, parser::ParserError};
+
+    /// The possible errors of interpreting given code
+    /// into a monomorphized AST expression.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum ElaboratorError {
+        Parse(Vec<ParserError>),
+        Compile(Vec<CompilationError>),
+        Interpret(InterpreterError),
+        HIRConvert(InterpreterError),
+    }
+
+    /// Interpret source code using the elaborator, without
+    /// parsing and compiling it with nargo, converting
+    /// the result into a monomorphized AST expression.
+    pub fn interpret<W: Write + 'static>(
+        src: &str,
+        output: Rc<RefCell<W>>,
+    ) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
+        use crate::elaborator::ElaboratorOptions;
+        use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+        use crate::parse_program;
+        use crate::{
+            elaborator::Elaborator,
+            hir::{
+                Context, ParsedFiles,
+                def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
+                def_map::{CrateDefMap, ModuleData},
+            },
+        };
+        use fm::{FileId, FileManager};
+        use noirc_errors::Location;
+        use std::path::PathBuf;
+
+        let file = FileId::default();
+
+        let location = Location::new(Default::default(), file);
+        let root_module = ModuleData::new(
+            None,
+            location,
+            Vec::new(),
+            Vec::new(),
+            false, // is contract
+            false, // is struct
+        );
+
+        let file_manager = FileManager::new(&PathBuf::new());
+        let parsed_files = ParsedFiles::new();
+        let mut context = Context::new(file_manager, parsed_files);
+        context.def_interner.populate_dummy_operator_traits();
+        context.set_comptime_printing(output);
+
+        let krate = context.crate_graph.add_crate_root(FileId::dummy());
+
+        let (module, errors) = parse_program(src, file);
+        // Skip parser warnings
+        let errors: Vec<_> = errors.iter().filter(|e| !e.is_warning()).cloned().collect();
+        if !errors.is_empty() {
+            return Err(ElaboratorError::Parse(errors));
+        }
+
+        let ast = module.into_sorted();
+
+        let def_map = CrateDefMap::new(krate, root_module);
+        let root_module_id = def_map.root();
+        let mut collector = DefCollector::new(def_map);
+
+        collect_defs(&mut collector, ast, FileId::dummy(), root_module_id, krate, &mut context);
+        context.def_maps.insert(krate, collector.def_map);
+
+        let main = context.get_main_function(&krate).expect("Expected 'main' function");
+
+        let mut elaborator = Elaborator::elaborate_and_return_self(
+            &mut context,
+            krate,
+            collector.items,
+            ElaboratorOptions::test_default(),
+        );
+
+        // Skip the elaborator's compilation warnings
+        let errors: Vec<_> = elaborator.errors.iter().filter(|&e| e.is_error()).cloned().collect();
+        if !errors.is_empty() {
+            return Err(ElaboratorError::Compile(errors));
+        }
+
+        let mut interpreter = elaborator.setup_interpreter();
+
+        // The most straightforward way to convert the interpreter result into
+        // an acceptable monomorphized AST expression seems to be converting it
+        // into HIR first and then processing it with the monomorphizer
+        let expr_id = match interpreter.call_function(
+            main,
+            Vec::new(),
+            Default::default(),
+            Location::dummy(),
+        ) {
+            Err(e) => return Err(ElaboratorError::Interpret(e)),
+            Ok(value) => match value.into_hir_expression(elaborator.interner, Location::dummy()) {
+                Err(e) => return Err(ElaboratorError::HIRConvert(e)),
+                Ok(expr_id) => expr_id,
+            },
+        };
+
+        let mut monomorphizer =
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+        Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

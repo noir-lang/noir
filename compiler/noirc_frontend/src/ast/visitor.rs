@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -19,7 +19,7 @@ use crate::{
     parser::{Item, ItemKind, ParsedSubModule},
     signed_field::SignedField,
     token::{
-        FmtStrFragment, MetaAttribute, MetaAttributeName, SecondaryAttribute,
+        FmtStrFragment, IntegerTypeSuffix, MetaAttribute, MetaAttributeName, SecondaryAttribute,
         SecondaryAttributeKind, Tokens,
     },
 };
@@ -123,12 +123,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_trait_item_constant(
-        &mut self,
-        _name: &Ident,
-        _typ: &UnresolvedType,
-        _default_value: &Option<Expression>,
-    ) -> bool {
+    fn visit_trait_item_constant(&mut self, _name: &Ident, _typ: &UnresolvedType) -> bool {
         true
     }
 
@@ -178,7 +173,13 @@ pub trait Visitor {
 
     fn visit_literal_bool(&mut self, _: bool, _: Span) {}
 
-    fn visit_literal_integer(&mut self, _value: SignedField, _: Span) {}
+    fn visit_literal_integer(
+        &mut self,
+        _value: SignedField,
+        _suffix: Option<IntegerTypeSuffix>,
+        _: Span,
+    ) {
+    }
 
     fn visit_literal_str(&mut self, _: &str, _: Span) {}
 
@@ -430,7 +431,7 @@ pub trait Visitor {
 
     fn visit_unit_type(&mut self, _: Span) {}
 
-    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {}
+    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Location) {}
 
     fn visit_interned_type(&mut self, _: InternedUnresolvedTypeData, _: Span) {}
 
@@ -466,7 +467,13 @@ pub trait Visitor {
         true
     }
 
-    fn visit_constant_type_expression(&mut self, _value: FieldElement, _span: Span) {}
+    fn visit_constant_type_expression(
+        &mut self,
+        _value: FieldElement,
+        _suffix: Option<IntegerTypeSuffix>,
+        _span: Span,
+    ) {
+    }
 
     fn visit_binary_type_expression(
         &mut self,
@@ -781,13 +788,9 @@ impl TraitItem {
                     }
                 }
             }
-            TraitItem::Constant { name, typ, default_value } => {
-                if visitor.visit_trait_item_constant(name, typ, default_value) {
+            TraitItem::Constant { name, typ } => {
+                if visitor.visit_trait_item_constant(name, typ) {
                     typ.accept(visitor);
-
-                    if let Some(default_value) = default_value {
-                        default_value.accept(visitor);
-                    }
                 }
             }
             TraitItem::Type { name, bounds } => {
@@ -993,8 +996,8 @@ impl Literal {
                 }
             }
             Literal::Bool(value) => visitor.visit_literal_bool(*value, span),
-            Literal::Integer(value) => {
-                visitor.visit_literal_integer(*value, span);
+            Literal::Integer(value, suffix) => {
+                visitor.visit_literal_integer(*value, *suffix, span);
             }
             Literal::Str(str) => visitor.visit_literal_str(str, span),
             Literal::RawStr(str, length) => visitor.visit_literal_raw_str(str, *length, span),
@@ -1460,7 +1463,7 @@ impl UnresolvedType {
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
-                visitor.visit_resolved_type(*id, self.location.span);
+                visitor.visit_resolved_type(*id, self.location);
             }
             UnresolvedTypeData::Interned(id) => {
                 visitor.visit_interned_type(*id, self.location.span);
@@ -1548,8 +1551,8 @@ impl UnresolvedTypeExpression {
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, location) => {
-                visitor.visit_constant_type_expression(*field_element, location.span);
+            UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
+                visitor.visit_constant_type_expression(*field_element, *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {
@@ -1625,7 +1628,6 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { ident: _, typ } => {
                 typ.accept(visitor);
             }
-            UnresolvedGeneric::Resolved(_quoted_type_id, _location) => (),
         }
     }
 }

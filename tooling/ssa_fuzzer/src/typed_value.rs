@@ -2,8 +2,9 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
+use serde::{Deserialize, Serialize};
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
 pub enum ValueType {
     Field,
     Boolean,
@@ -134,17 +135,8 @@ impl ValueType {
     }
 
     /// Helper to check if this type could be used for casts into it
-    /// Signed types are not supported right now
     pub fn can_be_used_for_casts(&self) -> bool {
-        match self {
-            //https://github.com/noir-lang/noir/issues/8089
-            ValueType::I8 | ValueType::I16 | ValueType::I32 | ValueType::I64 => false,
-            //https://github.com/noir-lang/noir/issues/7555
-            ValueType::U128 => false,
-            //https://github.com/noir-lang/noir/issues/8157
-            ValueType::Boolean => false,
-            _ => true,
-        }
+        true
     }
 
     /// Convert to the NumericType

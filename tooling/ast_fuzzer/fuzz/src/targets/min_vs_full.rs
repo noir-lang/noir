@@ -15,11 +15,8 @@ use noirc_evaluator::ssa::minimal_passes;
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let passes = minimal_passes();
     let config = Config {
-        // Try to avoid using overflowing operations; see below for the reason.
-        avoid_overflow: true,
-        // Avoid stuff that would be difficult to copy as Noir; we want to verify these failures with nargo.
-        avoid_large_int_literals: true,
-        avoid_negative_int_literals: true,
+        // Overflows are easy to trigger.
+        avoid_overflow: u.arbitrary()?,
         ..Default::default()
     };
 
@@ -49,10 +46,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
     let result = inputs.exec()?;
 
-    // Unfortunately the minimal pipeline can fail on assertions of instructions that get eliminated from the final pipeline,
-    // so if the minimal version fails and the final succeeds, it is most likely because of some overflow in a variable that
-    // was ultimately unused. Therefore we only compare results if both succeeded, or if only the final failed.
-    if matches!(result, CompareResult::BothFailed(_, _) | CompareResult::LeftFailed(_, _)) {
+    if matches!(result, CompareResult::BothFailed(_, _)) {
         Ok(())
     } else {
         compare_results_compiled(&inputs, &result)
@@ -61,19 +55,13 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::targets::tests::is_running_in_ci;
-
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        if is_running_in_ci() {
-            // TODO: Investigate second program constraint failures.
-            return;
-        }
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2000);
     }
 }

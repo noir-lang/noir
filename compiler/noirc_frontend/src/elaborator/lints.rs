@@ -1,6 +1,6 @@
 use crate::{
     Type,
-    ast::{Ident, NoirFunction, UnaryOp},
+    ast::{Ident, NoirFunction},
     graph::CrateId,
     hir::{
         resolution::errors::{PubPosition, ResolverError},
@@ -206,33 +206,31 @@ pub(super) fn unnecessary_pub_argument(
     }
 }
 
-/// Check if an assignment is overflowing with respect to `annotated_type`
-/// in a declaration statement where `annotated_type` is a signed or unsigned integer
-pub(crate) fn overflowing_int(
+/// Checks if an ExprId, which has to be an integer literal, fits in its type.
+pub(crate) fn check_integer_literal_fits_its_type(
     interner: &NodeInterner,
-    rhs_expr: &ExprId,
-    annotated_type: &Type,
-) -> Vec<TypeCheckError> {
-    let expr = interner.expression(rhs_expr);
-    let location = interner.expr_location(rhs_expr);
+    expr_id: &ExprId,
+) -> Option<TypeCheckError> {
+    let expr = interner.expression(expr_id);
+    let typ = interner.id_type(expr_id).follow_bindings();
+    let location = interner.expr_location(expr_id);
 
-    let mut errors = Vec::with_capacity(2);
     match expr {
-        HirExpression::Literal(HirLiteral::Integer(value)) => match annotated_type {
+        HirExpression::Literal(HirLiteral::Integer(value)) => match typ {
             Type::Integer(Signedness::Unsigned, bit_size) => {
-                let bit_size: u32 = (*bit_size).into();
+                let bit_size: u32 = bit_size.into();
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
                 if value.absolute_value() > max.into() || value.is_negative() {
-                    errors.push(TypeCheckError::OverflowingAssignment {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: annotated_type.clone(),
-                        range: format!("0..={}", max),
+                        ty: typ.clone(),
+                        range: format!("0..={max}"),
                         location,
                     });
                 }
             }
             Type::Integer(Signedness::Signed, bit_count) => {
-                let bit_count: u32 = (*bit_count).into();
+                let bit_count: u32 = bit_count.into();
                 let min = 2u128.pow(bit_count - 1);
                 let max = 2u128.pow(bit_count - 1) - 1;
 
@@ -240,33 +238,20 @@ pub(crate) fn overflowing_int(
                 let abs = value.absolute_value();
 
                 if (is_negative && abs > min.into()) || (!is_negative && abs > max.into()) {
-                    errors.push(TypeCheckError::OverflowingAssignment {
+                    return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
-                        ty: annotated_type.clone(),
-                        range: format!("-{}..={}", min, max),
+                        ty: typ.clone(),
+                        range: format!("-{min}..={max}"),
                         location,
                     });
                 }
             }
             _ => (),
         },
-        HirExpression::Prefix(expr) => {
-            overflowing_int(interner, &expr.rhs, annotated_type);
-            if expr.operator == UnaryOp::Minus && annotated_type.is_unsigned() {
-                errors.push(TypeCheckError::InvalidUnaryOp {
-                    kind: annotated_type.to_string(),
-                    location,
-                });
-            }
-        }
-        HirExpression::Infix(expr) => {
-            errors.extend(overflowing_int(interner, &expr.lhs, annotated_type));
-            errors.extend(overflowing_int(interner, &expr.rhs, annotated_type));
-        }
-        _ => {}
+        _ => panic!("Expected an integer literal"),
     }
 
-    errors
+    None
 }
 
 fn func_meta_name_ident(func: &FuncMeta, modifiers: &FunctionModifiers) -> Ident {

@@ -1,11 +1,14 @@
-use super::instruction::{Argument, Instruction};
+use super::instruction::{Argument, FunctionSignature, Instruction};
 use super::options::SsaBlockOptions;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
+use noirc_evaluator::ssa::ir::function::Function;
+use noirc_evaluator::ssa::ir::map::Id;
 use std::collections::{HashMap, VecDeque};
+use std::iter::zip;
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -15,8 +18,6 @@ pub(crate) struct BlockContext {
     pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
     /// Ids of typed addresses of memory (mutable variables)
     pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
-    /// ACIR and Brillig last changed value, used to finalize the block with return
-    pub(crate) last_value: Option<TypedValue>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
@@ -59,7 +60,6 @@ impl BlockContext {
         Self {
             stored_values,
             memory_addresses,
-            last_value: None,
             parent_blocks_history,
             children_blocks: Vec::new(),
             options,
@@ -82,7 +82,6 @@ impl BlockContext {
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
         assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
-        self.last_value = Some(acir_result.clone());
         append_typed_value_to_map(
             &mut self.stored_values,
             &acir_result.to_value_type(),
@@ -109,8 +108,6 @@ impl BlockContext {
         let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
         // insert to brillig, assert id of return is the same
         assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
-
-        self.last_value = Some(result.clone());
         append_typed_value_to_map(&mut self.stored_values, &result.to_value_type(), result);
     }
 
@@ -201,7 +198,6 @@ impl BlockContext {
                 if self.stored_values.get(&value.to_value_type()).unwrap().contains(&acir_result) {
                     return;
                 }
-                self.last_value = Some(acir_result.clone());
                 append_typed_value_to_map(
                     &mut self.stored_values,
                     &acir_result.to_value_type(),
@@ -423,7 +419,6 @@ impl BlockContext {
                     &value.to_value_type(),
                     value.clone(),
                 );
-                self.last_value = Some(value.clone());
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
@@ -466,18 +461,26 @@ impl BlockContext {
         self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
+        return_type: ValueType,
     ) {
-        match self.last_value {
-            Some(last_value) => {
-                acir_builder.finalize_function(&last_value);
-                brillig_builder.finalize_function(&last_value);
+        let array_of_values_with_return_type = self.stored_values.get(&return_type);
+        let return_value = match array_of_values_with_return_type {
+            Some(arr) => arr.iter().last(),
+            _ => None,
+        };
+        match return_value {
+            Some(return_value) => {
+                acir_builder.finalize_function(return_value);
+                brillig_builder.finalize_function(return_value);
             }
             _ => {
-                // If no last value was set, we return boolean, that definitely  set
-                let last_value =
+                // If no last value was set, we take a boolean that is definitely set and cast it to the return type
+                let boolean_value =
                     get_typed_value_from_map(&self.stored_values, &ValueType::Boolean, 0).unwrap();
-                acir_builder.finalize_function(&last_value);
-                brillig_builder.finalize_function(&last_value);
+                let return_value = acir_builder.insert_cast(boolean_value.clone(), return_type);
+                assert_eq!(brillig_builder.insert_cast(boolean_value, return_type), return_value);
+                acir_builder.finalize_function(&return_value);
+                brillig_builder.finalize_function(&return_value);
             }
         }
     }
@@ -487,9 +490,10 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         jmp_destination: BasicBlockId,
+        args: Vec<TypedValue>,
     ) {
-        acir_builder.insert_jmp_instruction(jmp_destination, vec![]);
-        brillig_builder.insert_jmp_instruction(jmp_destination, vec![]);
+        acir_builder.insert_jmp_instruction(jmp_destination, args.clone());
+        brillig_builder.insert_jmp_instruction(jmp_destination, args);
         self.children_blocks.push(jmp_destination);
     }
 
@@ -512,5 +516,49 @@ impl BlockContext {
         brillig_builder.insert_jmpif_instruction(condition, then_destination, else_destination);
         self.children_blocks.push(then_destination);
         self.children_blocks.push(else_destination);
+    }
+
+    /// Inserts a function call to the given function with the given arguments and result type
+    pub(crate) fn process_function_call(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        function_id: Id<Function>,
+        function_signature: FunctionSignature,
+        args: &[usize],
+    ) {
+        // On SSA level you cannot just call a function by its id, you need to import it first
+        let func_as_value_id = acir_builder.insert_import(function_id);
+        assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
+
+        // Get values from stored_values map by indices
+        // If we don't have some value of type of the argument, we skip the function call
+        let mut values = vec![];
+        for (value_type, index) in zip(function_signature.input_types, args) {
+            let value = match get_typed_value_from_map(&self.stored_values, &value_type, *index) {
+                Some(value) => value,
+                None => return,
+            };
+
+            values.push(value);
+        }
+
+        // Insert a call to the function with the given arguments and result type
+        let ret_val =
+            acir_builder.insert_call(func_as_value_id, &values, function_signature.return_type);
+        assert_eq!(
+            ret_val,
+            brillig_builder.insert_call(func_as_value_id, &values, function_signature.return_type)
+        );
+        let typed_ret_val = TypedValue {
+            value_id: ret_val,
+            type_of_variable: function_signature.return_type.to_ssa_type(),
+        };
+        // Append the return value to stored_values map
+        append_typed_value_to_map(
+            &mut self.stored_values,
+            &function_signature.return_type,
+            typed_ret_val,
+        );
     }
 }

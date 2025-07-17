@@ -10,4 +10,18 @@ error: No matching impl found for `T: ToField`
    │
    = Required by `MyType<T>: Serialize<_>`
 
-Aborting due to 1 previous error
+error: Type annotation needed
+   ┌─ src/main.nr:31:13
+   │
+31 │             process_array(serialize_thing(self))
+   │             ------------- Could not determine the value of the generic argument `N` declared on the function `process_array`
+   │
+
+error: Type annotation needed
+   ┌─ src/main.nr:31:27
+   │
+31 │             process_array(serialize_thing(self))
+   │                           --------------- Could not determine the value of the generic argument `N` declared on the function `serialize_thing`
+   │
+
+Aborting due to 3 previous errors

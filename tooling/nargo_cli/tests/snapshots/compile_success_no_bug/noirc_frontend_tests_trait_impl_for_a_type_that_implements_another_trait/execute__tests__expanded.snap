@@ -20,11 +20,8 @@ impl<T> Two for T
 where
     T: One,
 {
-    fn two(self) -> i32
-    where
-        Self: One,
-    {
-        One::one(self) + 1
+    fn two(self) -> i32 {
+        self.one() + 1_i32
     }
 }
 
@@ -32,7 +29,7 @@ pub fn use_it<T>(t: T) -> i32
 where
     T: Two,
 {
-    Two::two(t)
+    t.two()
 }
 
 fn main() {}

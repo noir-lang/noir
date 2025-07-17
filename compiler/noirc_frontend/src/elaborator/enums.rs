@@ -400,8 +400,11 @@ impl Elaborator<'_> {
         };
 
         match expression.kind {
-            ExpressionKind::Literal(Literal::Integer(value)) => {
-                let actual = self.interner.next_type_variable_with_kind(Kind::IntegerOrField);
+            ExpressionKind::Literal(Literal::Integer(value, suffix)) => {
+                let actual = match suffix {
+                    Some(suffix) => suffix.as_type(),
+                    None => self.interner.next_type_variable_with_kind(Kind::IntegerOrField),
+                };
                 unify_with_expected_type(self, &actual);
                 Pattern::Int(value)
             }
@@ -712,6 +715,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
@@ -904,7 +908,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
-            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+            Type::TypeVariable(typevar) if typevar.is_integer() || typevar.is_integer_or_field() => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
@@ -1010,7 +1014,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Compiles the cases and fallback cases for integer and range patterns.
     ///
-    /// Integers have an infinite number of constructors, so we specialise the
+    /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
     fn compile_int_cases(
         &mut self,

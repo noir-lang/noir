@@ -16,5 +16,5 @@ impl<T, U> Foo<T, U> {
 type Bar<T> = Foo<T, i32>;
 
 fn main() {
-    let _: Foo<bool, i32> = Foo::new(true, 1);
+    let _: Foo<bool, i32> = Foo::<bool, i32>::new(true, 1_i32);
 }

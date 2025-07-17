@@ -6,7 +6,8 @@ use crate::{
 };
 
 use super::ast::{
-    Definition, Expression, FuncId, Function, GlobalId, LValue, LocalId, Program, Type, While,
+    Definition, Expression, FuncId, Function, GlobalId, InlineType, LValue, LocalId, Program, Type,
+    While,
 };
 use iter_extended::vecmap;
 use std::fmt::{Display, Formatter};
@@ -20,14 +21,22 @@ pub struct FunctionPrintOptions {
     pub comptime: bool,
 }
 
+/// Some calls can be printed with the intention of parsing the code.
+#[derive(PartialEq)]
+enum SpecialCall {
+    Print,
+    Object(String),
+}
+
 #[derive(Debug)]
 pub struct AstPrinter {
     indent_level: u32,
     in_unconstrained: bool,
     pub show_id: bool,
     pub show_clone_and_drop: bool,
-    pub show_print_as_std: bool,
+    pub show_specials_as_std: bool,
     pub show_type_in_let: bool,
+    pub show_type_of_int_literal: bool,
 }
 
 impl Default for AstPrinter {
@@ -37,15 +46,16 @@ impl Default for AstPrinter {
             in_unconstrained: false,
             show_id: true,
             show_clone_and_drop: true,
-            show_print_as_std: false,
+            show_specials_as_std: false,
             show_type_in_let: false,
+            show_type_of_int_literal: false,
         }
     }
 }
 
 impl AstPrinter {
     fn fmt_ident(&self, name: &str, definition: &Definition) -> String {
-        if self.show_id { format!("{}${}", name, definition) } else { name.to_string() }
+        if self.show_id { format!("{name}${definition}") } else { name.to_string() }
     }
 
     fn fmt_local(&self, name: &str, id: LocalId) -> String {
@@ -58,6 +68,10 @@ impl AstPrinter {
 
     fn fmt_func(&self, name: &str, id: FuncId) -> String {
         self.fmt_ident(name, &Definition::Function(id))
+    }
+
+    fn fmt_match(&self, name: &str, id: LocalId) -> String {
+        if self.show_id { format!("${}", id.0) } else { self.fmt_local(name, id) }
     }
 
     pub fn print_program(&mut self, program: &Program, f: &mut Formatter) -> std::fmt::Result {
@@ -110,6 +124,9 @@ impl AstPrinter {
         let name = self.fmt_func(&function.name, function.id);
         let return_type = &function.return_type;
 
+        if function.inline_type != InlineType::Inline {
+            writeln!(f, "#[{}]", function.inline_type)?;
+        }
         write!(f, "{comptime}{unconstrained}fn {name}({params}) -> {vis}{return_type} {{",)?;
         self.in_unconstrained = function.unconstrained;
         if options.comptime_wrap_body {
@@ -245,7 +262,13 @@ impl AstPrinter {
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, _, _) => x.fmt(f),
+            super::ast::Literal::Integer(x, typ, _) => {
+                if self.show_type_of_int_literal && *typ != Type::Field {
+                    write!(f, "{x}_{typ}")
+                } else {
+                    x.fmt(f)
+                }
+            }
             super::ast::Literal::Bool(x) => x.fmt(f),
             super::ast::Literal::Str(s) => {
                 if s.contains("\"") {
@@ -323,12 +346,20 @@ impl AstPrinter {
         unary: &super::ast::Unary,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "({}", unary.operator)?;
+        // "(-1)" parses back as the literal -1, so if we are printing with the intention of parsing, omit the (), to avoid ambiguity.
+        let print_parens = self.show_id || !matches!(unary.operator, UnaryOp::Minus);
+        if print_parens {
+            write!(f, "(")?;
+        }
+        write!(f, "{}", unary.operator)?;
         if matches!(&unary.operator, UnaryOp::Reference { mutable: true }) {
             write!(f, " ")?;
         }
         self.print_expr(&unary.rhs, f)?;
-        write!(f, ")")
+        if print_parens {
+            write!(f, ")")?;
+        }
+        Ok(())
     }
 
     fn print_binary(
@@ -410,13 +441,14 @@ impl AstPrinter {
         match_expr: &super::ast::Match,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        write!(f, "match ${} {{", match_expr.variable_to_match.0)?;
+        let (var_id, var_name) = &match_expr.variable_to_match;
+        write!(f, "match {} {{", self.fmt_match(var_name, *var_id))?;
         self.indent_level += 1;
         self.next_line(f)?;
 
         for (i, case) in match_expr.cases.iter().enumerate() {
             write!(f, "{}", case.constructor)?;
-            let args = vecmap(&case.arguments, |arg| format!("${}", arg.0)).join(", ");
+            let args = vecmap(&case.arguments, |(id, name)| self.fmt_match(name, *id)).join(", ");
             if !args.is_empty() {
                 write!(f, "({args})")?;
             }
@@ -472,22 +504,32 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        let (print_unsafe, print_oracle) = match call.func.as_ref() {
+        let (print_unsafe, special) = match call.func.as_ref() {
             Expression::Ident(Ident {
                 typ: Type::Function(_, _, _, unconstrained),
                 definition,
+                name,
                 ..
             }) => {
                 let is_unsafe = *unconstrained && !self.in_unconstrained;
-                let is_print = matches!(definition, Definition::Oracle(s) if s == "print");
-                (is_unsafe, is_print)
+                let special = match definition {
+                    Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                    Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                        Some(SpecialCall::Object(name.clone()))
+                    }
+                    _ => None,
+                };
+                (is_unsafe, special)
             }
-            _ => (false, false),
+            _ => (false, None),
         };
-        // If this is the print oracle and we want to display it as Noir, we need to use the stdlib.
-        if print_oracle && self.show_print_as_std {
-            return self.print_println(&call.arguments, f);
+
+        if let Some(special) = special {
+            if self.print_special_call(special, &call.arguments, f)? {
+                return Ok(());
+            }
         }
+
         if print_unsafe {
             write!(f, "unsafe {{ ")?;
         }
@@ -501,13 +543,40 @@ impl AstPrinter {
         Ok(())
     }
 
+    /// Try to display a special call as Noir.
+    fn print_special_call(
+        &mut self,
+        special: SpecialCall,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        if !self.show_specials_as_std {
+            return Ok(false);
+        }
+        match special {
+            SpecialCall::Print => self.print_println(args, f),
+            SpecialCall::Object(method) => {
+                self.print_object_method(&method, args, f)?;
+                Ok(true)
+            }
+        }
+    }
+
     /// Instead of printing a call to the print oracle as a regular function,
     /// print it in a way that makes it look like Noir: without the type
     /// information and bool flags.
-    fn print_println(&mut self, args: &[Expression], f: &mut Formatter) -> std::fmt::Result {
+    ///
+    /// This will only work if the AST bypassed the proxy functions created by
+    /// the monomorphizer. The returned flag indicates whether it managed to
+    /// do so, or false if the arguments were not as expected.
+    fn print_println(
+        &mut self,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
         assert_eq!(args.len(), 4, "print has 4 arguments");
         let Expression::Literal(Literal::Bool(with_newline)) = args[0] else {
-            unreachable!("the first arg of print is a bool");
+            return Ok(false);
         };
         if with_newline {
             write!(f, "println")?;
@@ -519,7 +588,23 @@ impl AstPrinter {
         // they are inserted automatically by the monomorphizer in the AST. Here we ignore them.
         self.print_expr(&args[1], f)?;
         write!(f, ")")?;
-        Ok(())
+        Ok(true)
+    }
+
+    /// Special method for printing builtin array method calls, turning e.g. `len$array_len(x)` into `x.len()`.
+    fn print_object_method(
+        &mut self,
+        method: &str,
+        args: &[Expression],
+        f: &mut Formatter,
+    ) -> Result<bool, std::fmt::Error> {
+        assert!(!args.is_empty(), "methods need at least a self argument");
+        let (arr, args) = args.split_at(1);
+        self.print_expr(&arr[0], f)?;
+        write!(f, ".{method}(")?;
+        self.print_comma_separated(args, f)?;
+        write!(f, ")")?;
+        Ok(true)
     }
 
     fn print_lvalue(&mut self, lvalue: &LValue, f: &mut Formatter) -> std::fmt::Result {
@@ -548,7 +633,7 @@ impl Display for Definition {
         match self {
             Definition::Local(id) => write!(f, "l{}", id.0),
             Definition::Global(id) => write!(f, "g{}", id.0),
-            Definition::Function(id) => write!(f, "f{}", id),
+            Definition::Function(id) => write!(f, "f{id}"),
             Definition::Builtin(name) => write!(f, "{name}"),
             Definition::LowLevel(name) => write!(f, "{name}"),
             Definition::Oracle(name) => write!(f, "{name}"),

@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn f(x: Field) -> Field {
-    x + 1
+    x + 1_Field
 }
 
 fn ret_fn() -> fn(Field) -> Field {
@@ -11,13 +11,13 @@ fn ret_fn() -> fn(Field) -> Field {
 }
 
 fn ret_lambda() -> fn(Field) -> Field {
-    let cl: fn(Field) -> Field = |z: Field| -> Field { z + 1 };
+    let cl: fn(Field) -> Field = |z: Field| -> Field { z + 1_Field };
     cl
 }
 
 fn main(x: Field) {
     let result_fn: fn(Field) -> Field = ret_fn();
-    assert(result_fn(x) == (x + 1));
+    assert(result_fn(x) == (x + 1_Field));
     let result_lambda: fn(Field) -> Field = ret_lambda();
-    assert(result_lambda(x) == (x + 1));
+    assert(result_lambda(x) == (x + 1_Field));
 }

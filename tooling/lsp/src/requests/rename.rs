@@ -45,7 +45,7 @@ pub(crate) fn on_rename_request(
             false,
         )
         .map(|locations| {
-            let rs = locations.iter().fold(
+            locations.iter().fold(
                 HashMap::new(),
                 |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
                     let edit =
@@ -53,8 +53,7 @@ pub(crate) fn on_rename_request(
                     acc.entry(location.uri.clone()).or_default().push(edit);
                     acc
                 },
-            );
-            rs
+            )
         });
 
         let response = WorkspaceEdit {
@@ -113,8 +112,7 @@ mod rename_tests {
                 let extra_in_ranges: Vec<_> =
                     ranges.iter().filter(|range| !changes.contains(range)).collect();
                 panic!(
-                    "Rename locations did not match.\nThese renames were not found: {:?}\nThese renames should not have been found: {:?}",
-                    extra_in_ranges, extra_in_changes
+                    "Rename locations did not match.\nThese renames were not found: {extra_in_ranges:?}\nThese renames should not have been found: {extra_in_changes:?}"
                 );
             }
             assert_eq!(changes, ranges);

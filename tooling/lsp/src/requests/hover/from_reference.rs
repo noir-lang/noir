@@ -3,7 +3,7 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
-use noirc_frontend::node_interner::GlobalValue;
+use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
@@ -70,6 +70,7 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
             Some(format_enum_variant(id, variant_index, args))
         }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
+        ReferenceId::TraitAssociatedType(id) => Some(format_trait_associated_type(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
         ReferenceId::Function(id) => Some(format_function(id, args)),
         ReferenceId::Alias(id) => Some(format_alias(id, args)),
@@ -85,7 +86,7 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
     let mut string = String::new();
 
     if id.local_id == crate_root {
-        let dep = args.dependencies.iter().find(|dep| dep.crate_id == id.krate)?;
+        let dep = args.dependencies().iter().find(|dep| dep.crate_id == id.krate)?;
         string.push_str("    crate ");
         string.push_str(&dep.name.to_string());
     } else {
@@ -264,6 +265,24 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     string
 }
 
+fn format_trait_associated_type(
+    id: TraitAssociatedTypeId,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let associated_type = args.interner.get_trait_associated_type(id);
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Trait(associated_type.trait_id), args, &mut string) {
+        let trait_ = args.interner.get_trait(associated_type.trait_id);
+        string.push_str("::");
+        string.push_str(trait_.name.as_str());
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("type ");
+    string.push_str(associated_type.name.as_str());
+    string
+}
+
 fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let global_info = args.interner.get_global(id);
     let definition_id = global_info.definition_id;
@@ -291,7 +310,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str("global ");
     string.push_str(global_info.ident.as_str());
     string.push_str(": ");
-    string.push_str(&format!("{}", typ));
+    string.push_str(&format!("{typ}"));
 
     if let GlobalValue::Resolved(value) = &global_info.value {
         if let Some(value) = value_to_string(value) {
@@ -454,7 +473,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         }
 
         if enum_variant.is_some() {
-            string.push_str(&format!("{}", typ));
+            string.push_str(&format!("{typ}"));
         } else {
             format_pattern(pattern, args.interner, &mut string);
 
@@ -464,7 +483,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
                 if matches!(visibility, Visibility::Public) {
                     string.push_str("pub ");
                 }
-                string.push_str(&format!("{}", typ));
+                string.push_str(&format!("{typ}"));
             }
         }
 
@@ -481,7 +500,7 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             Type::Unit => (),
             _ => {
                 string.push_str(" -> ");
-                string.push_str(&format!("{}", return_type));
+                string.push_str(&format!("{return_type}"));
             }
         }
 
@@ -581,7 +600,7 @@ fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     string.push_str(&definition_info.name);
     if !matches!(typ, Type::Error) {
         string.push_str(": ");
-        string.push_str(&format!("{}", typ));
+        string.push_str(&format!("{typ}"));
     }
 
     string.push_str(&go_to_type_links(&typ, args.interner, args.files));
@@ -682,8 +701,13 @@ fn format_parent_module_from_module_id(
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let full_path =
-        module_full_path(module, args.interner, args.crate_id, &args.crate_name, args.dependencies);
+    let full_path = module_full_path(
+        module,
+        args.interner,
+        args.crate_id,
+        &args.crate_name,
+        args.dependencies(),
+    );
     if full_path.is_empty() {
         return false;
     }

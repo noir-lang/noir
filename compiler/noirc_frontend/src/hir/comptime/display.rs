@@ -373,7 +373,8 @@ impl Display for ValuePrinter<'_, '_> {
             Value::I16(value) => write!(f, "{value}"),
             Value::I32(value) => write!(f, "{value}"),
             Value::I64(value) => write!(f, "{value}"),
-            Value::U1(value) => write!(f, "{value}"),
+            Value::U1(false) => write!(f, "0"),
+            Value::U1(true) => write!(f, "1"),
             Value::U8(value) => write!(f, "{value}"),
             Value::U16(value) => write!(f, "{value}"),
             Value::U32(value) => write!(f, "{value}"),
@@ -456,7 +457,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let generic_string = if generic_string.is_empty() {
                     generic_string
                 } else {
-                    format!("<{}>", generic_string)
+                    format!("<{generic_string}>")
                 };
 
                 let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
@@ -466,7 +467,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let where_clause = if where_clause.is_empty() {
                     where_clause
                 } else {
-                    format!(" where {}", where_clause)
+                    format!(" where {where_clause}")
                 };
 
                 write!(
@@ -486,11 +487,11 @@ impl Display for ValuePrinter<'_, '_> {
                 }
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{typ}"),
             Value::Expr(expr) => match expr.as_ref() {
                 ExprValue::Expression(expr) => {
                     let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                    write!(f, "{}", expr)
+                    write!(f, "{expr}")
                 }
                 ExprValue::Statement(statement) => {
                     write!(
@@ -743,7 +744,7 @@ fn remove_interned_in_literal(interner: &NodeInterner, literal: Literal) -> Lite
             Literal::Array(remove_interned_in_array_literal(interner, array_literal))
         }
         Literal::Bool(_)
-        | Literal::Integer(_)
+        | Literal::Integer(..)
         | Literal::Str(_)
         | Literal::RawStr(_, _)
         | Literal::FmtStr(_, _)

@@ -20,7 +20,7 @@ async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
 
     let (line, column, src) = get_cursor_line_and_column(src);
 
-    on_did_open_text_document(
+    let _ = on_did_open_text_document(
         &mut state,
         DidOpenTextDocumentParams {
             text_document: TextDocumentItem {
@@ -69,7 +69,7 @@ pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
 
     let result = apply_text_edits(&src.replace(">|<", ""), text_edits);
     if result != expected {
-        println!("Expected:\n```\n{}\n```\n\nGot:\n```\n{}\n```", expected, result);
+        println!("Expected:\n```\n{expected}\n```\n\nGot:\n```\n{result}\n```");
         assert_eq!(result, expected);
     }
 }

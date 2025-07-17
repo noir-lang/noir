@@ -10,7 +10,6 @@ use super::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    // impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
     pub(crate) fn codegen_call(
         &mut self,
         func_id: FunctionId,

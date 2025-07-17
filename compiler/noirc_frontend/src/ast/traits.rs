@@ -10,7 +10,10 @@ use crate::ast::{
 use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
-use super::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
+use super::{
+    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    UnresolvedTypeData,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -45,7 +48,6 @@ pub enum TraitItem {
     Constant {
         name: Ident,
         typ: UnresolvedType,
-        default_value: Option<Expression>,
     },
     Type {
         name: Ident,
@@ -144,12 +146,12 @@ impl Display for NoirTrait {
 
         if self.is_alias {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            return write!(f, " = {};", bounds);
+            return write!(f, " = {bounds};");
         }
 
         if !self.bounds.is_empty() {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            write!(f, ": {}", bounds)?;
+            write!(f, ": {bounds}")?;
         }
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
@@ -207,15 +209,7 @@ impl Display for TraitItem {
 
                 if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
-            TraitItem::Constant { name, typ, default_value } => {
-                write!(f, "let {name}: {typ}")?;
-
-                if let Some(default_value) = default_value {
-                    write!(f, "{default_value};")
-                } else {
-                    write!(f, ";")
-                }
-            }
+            TraitItem::Constant { name, typ } => write!(f, "let {name}: {typ};"),
             TraitItem::Type { name, bounds } => {
                 if bounds.is_empty() {
                     write!(f, "type {name};")
@@ -311,7 +305,8 @@ pub(crate) fn desugar_generic_trait_bounds(
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
     for generic in generics {
-        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+        let UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
+        else {
             continue;
         };
 

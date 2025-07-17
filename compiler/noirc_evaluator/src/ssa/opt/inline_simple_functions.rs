@@ -59,7 +59,7 @@ impl Ssa {
                 return true;
             }
 
-            // Check whether the only instruction is a recursive call, which prevents inlining the callee.
+            // Don't inline recursive functions
             if recursive_functions.contains(&callee.id()) {
                 return false;
             }
@@ -68,7 +68,12 @@ impl Ssa {
         };
 
         self.functions = btree_map(&self.functions, |(id, function)| {
-            (*id, function.inlined(&self, &should_inline_call))
+            (
+                *id,
+                function
+                    .inlined(&self, &should_inline_call)
+                    .expect("simple function should not be recursive"),
+            )
         });
 
         self

@@ -16,10 +16,10 @@ impl Foo for Field {
     }
 
     fn bar() -> Self {
-        1
+        1_Field
     }
 }
 
 fn main() {
-    let _: Field = Foo::foo();
+    let _: Field = <Field as Foo>::foo();
 }

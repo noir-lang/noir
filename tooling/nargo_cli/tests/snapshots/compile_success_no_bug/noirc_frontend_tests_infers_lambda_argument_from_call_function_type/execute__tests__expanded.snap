@@ -7,7 +7,7 @@ struct Foo {
 }
 
 fn call(f: fn(Foo) -> Field) -> Field {
-    f(Foo { value: 1 })
+    f(Foo { value: 1_Field })
 }
 
 fn main() {

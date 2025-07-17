@@ -1,6 +1,6 @@
-use crate::compiler::compile_from_builder;
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
+use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
@@ -9,6 +9,7 @@ use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
+use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
 use thiserror::Error;
@@ -55,15 +56,13 @@ impl FuzzerBuilder {
         self,
         compile_options: CompileOptions,
     ) -> Result<CompiledProgram, FuzzerBuilderError> {
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile_from_builder(self.builder, &compile_options)
-        }));
+        let ssa = self.builder.finish();
+        let result =
+            std::panic::catch_unwind(AssertUnwindSafe(|| compile_from_ssa(ssa, &compile_options)));
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
-                Err(e) => {
-                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
-                }
+                Err(e) => Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {e:?}"))),
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -131,6 +130,11 @@ impl FuzzerBuilder {
             init_bit_length,
             Some("Attempt to multiply with overflow".to_string()),
         );
+        if lhs.to_value_type().bit_length() == 254 {
+            return TypedValue::new(res, lhs.type_of_variable);
+        }
+        let bit_size = lhs.to_value_type().bit_length();
+        let res = self.builder.insert_truncate(res, bit_size, bit_size * 2);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -180,9 +184,6 @@ impl FuzzerBuilder {
                 init_bit_length,
             );
         }
-        if cast_type.bit_length() > value.to_value_type().bit_length() {
-            return value;
-        }
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
@@ -218,7 +219,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values    
+    /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         if !lhs.supports_bitwise() {
             return lhs;
@@ -266,7 +267,7 @@ impl FuzzerBuilder {
     }
 
     /// Gets the index of the entry block
-    pub fn get_current_block(&mut self) -> BasicBlockId {
+    pub fn get_current_block(&self) -> BasicBlockId {
         self.builder.get_current_block_index()
     }
 
@@ -278,6 +279,14 @@ impl FuzzerBuilder {
     /// Inserts a new basic block and returns its index
     pub fn insert_block(&mut self) -> BasicBlockId {
         self.builder.insert_block()
+    }
+
+    /// Inserts a new parameter to the current SSA block and returns its value
+    ///
+    /// b0() -> b0(new_parameter: parameter_type)
+    pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: ValueType) -> TypedValue {
+        let id = self.builder.add_block_parameter(block, typ.to_ssa_type());
+        TypedValue::new(id, typ.to_ssa_type())
     }
 
     /// Inserts a return instruction with the given value
@@ -321,5 +330,39 @@ impl FuzzerBuilder {
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
+    }
+
+    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
+    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+        // maybe use different inline type
+        self.builder.new_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
+    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
+        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Inserts an import function with the given function id
+    pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
+        self.builder.import_function(function)
+    }
+
+    /// Inserts a call to the given function with the given arguments and result type
+    pub fn insert_call(
+        &mut self,
+        function: Id<Value>,
+        arguments: &[TypedValue],
+        result_type: ValueType,
+    ) -> Id<Value> {
+        *self
+            .builder
+            .insert_call(
+                function,
+                arguments.iter().map(|i| i.value_id).collect(),
+                vec![result_type.to_ssa_type()],
+            )
+            .first()
+            .unwrap()
     }
 }

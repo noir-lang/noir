@@ -19,7 +19,7 @@ use noirc_evaluator::{
 };
 
 fn seed_from_env() -> Option<u64> {
-    let Ok(seed) = std::env::var("NOIR_ARBTEST_SEED") else { return None };
+    let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
     let seed = u64::from_str_radix(seed.trim_start_matches("0x"), 16)
         .unwrap_or_else(|e| panic!("failed to parse seed '{seed}': {e}"));
     Some(seed)
@@ -76,15 +76,22 @@ fn arb_ssa_roundtrip() {
         ssa1.normalize_ids();
 
         // Print to str and parse back.
-        let ssa2 = Ssa::from_str(&ssa1.to_string()).unwrap_or_else(|e| {
-            let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
-            print_ast_and_panic(&format!(
-                "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
-            ))
-        });
+        let mut ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
+            .unwrap_or_else(|e| {
+                let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
+                print_ast_and_panic(&format!(
+                    "Could not parse SSA after step {last_pass} ({msg}): \n{e:?}"
+                ))
+            });
+
+        ssa2.normalize_ids();
 
         // Not everything is populated by the parser, and unfortunately serializing to JSON doesn't work either.
         for (func_id, func1) in ssa1.functions {
+            if func1.name() == "apply_dummy" {
+                // The dummy function has different IDs for its parameters. But it's empty, so ignore it.
+                continue;
+            }
             let func2 = &ssa2.functions[&func_id];
             let values1 = function_values_iter(&func1).collect::<Vec<_>>();
             let values2 = function_values_iter(func2).collect::<Vec<_>>();

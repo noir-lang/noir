@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -35,21 +33,44 @@ mod memory;
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
+/// Represents the reason why the Brillig VM failed during execution.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureReason {
-    Trap { revert_data_offset: usize, revert_data_size: usize },
+    /// A trap was encountered, which indicates an explicit failure from within the VM program.
+    ///
+    /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
+    /// The revert data is referenced by the offset and size in the VM memory.
+    Trap {
+        /// Offset in memory where the revert data begins.
+        revert_data_offset: usize,
+        /// Size of the revert data.
+        revert_data_size: usize,
+    },
+    /// A runtime failure during execution.
+    /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
+    /// For example, a [binary operation][Opcode::BinaryIntOp] can trigger a division by zero error.
     RuntimeError { message: String },
 }
 
+/// Represents the current execution status of the Brillig VM.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VMStatus<F> {
+    /// The VM has completed execution successfully.
+    /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
+        /// Offset in memory where the return data begins.
         return_data_offset: usize,
+        /// Size of the return data.
         return_data_size: usize,
     },
+    /// The VM is still in progress and has not yet completed execution.
+    /// This is used when simulating execution.
     InProgress,
+    /// The VM encountered a failure and halted execution.
     Failure {
+        /// The reason for the failure.
         reason: FailureReason,
+        /// The call stack at the time the failure occurred, useful for debugging nested calls.
         call_stack: ErrorCallStack,
     },
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
@@ -67,7 +88,7 @@ pub enum VMStatus<F> {
     },
 }
 
-// A sample for each opcode that was executed.
+/// All samples for each opcode that was executed
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
 /// The position of an opcode that is currently being executed in the bytecode
@@ -93,9 +114,10 @@ pub type UniqueFeatureIndex = usize;
 /// A map for translating encountered branching logic to features for fuzzing
 pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
 
+/// A sample for an executed opcode
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
-    // The call stack when processing a given opcode.
+    /// The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 
@@ -864,8 +886,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write(destination, memory_value);
         } else {
             return Err(format!(
-                "Foreign call result value {} does not fit in bit size {:?}",
-                value, value_bit_size
+                "Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
             ));
         }
         Ok(())
@@ -897,8 +918,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write_slice(destination, &memory_values);
         } else {
             return Err(format!(
-                "Foreign call result values {:?} do not match expected bit sizes",
-                values,
+                "Foreign call result values {values:?} do not match expected bit sizes",
             ));
         }
         Ok(())
@@ -952,8 +972,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             }
                             HeapValueType::Vector { .. } => {
                                 return Err(format!(
-                                    "Unsupported returned type in foreign calls {:?}",
-                                    typ
+                                    "Unsupported returned type in foreign calls {typ:?}"
                                 ));
                             }
                         }
@@ -962,7 +981,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 Ok(())
             }
             HeapValueType::Vector { .. } => {
-                Err(format!("Unsupported returned type in foreign calls {:?}", value_type))
+                Err(format!("Unsupported returned type in foreign calls {value_type:?}"))
             }
         }
     }
@@ -1121,6 +1140,7 @@ mod tests {
     }
 
     #[test]
+    // cSpell:disable-next-line
     fn jmpifnot_opcode() {
         let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 

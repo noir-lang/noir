@@ -1,8 +1,9 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
+use serde::{Deserialize, Serialize};
 
-#[derive(Arbitrary, Debug, Clone, Copy)]
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct Argument {
     /// Index of the argument in the context of stored variables of this type
     /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
@@ -17,7 +18,7 @@ pub(crate) struct Argument {
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
-#[derive(Arbitrary, Debug, Clone, Copy)]
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
@@ -71,7 +72,13 @@ pub(crate) enum Instruction {
 
 /// Represents set of instructions
 /// NOT EQUAL TO SSA BLOCK
-#[derive(Arbitrary, Debug, Clone)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct InstructionBlock {
     pub(crate) instructions: Vec<Instruction>,
+}
+
+#[derive(Clone)]
+pub(crate) struct FunctionSignature {
+    pub(crate) input_types: Vec<ValueType>,
+    pub(crate) return_type: ValueType,
 }

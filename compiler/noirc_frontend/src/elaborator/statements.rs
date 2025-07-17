@@ -7,6 +7,7 @@ use crate::{
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
     hir::{
+        def_collector::dc_crate::CompilationError,
         resolution::{
             errors::ResolverError, import::PathResolutionError,
             visibility::struct_member_is_visible,
@@ -24,7 +25,7 @@ use crate::{
     shared::Signedness,
 };
 
-use super::{Elaborator, Loop, TypedPath, lints};
+use super::{Elaborator, Loop, TypedPath};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -119,19 +120,12 @@ impl Elaborator<'_> {
         // Now check if LHS is the same type as the RHS
         // Importantly, we do not coerce any types implicitly
         self.unify_with_coercions(&expr_type, &annotated_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatch {
+            CompilationError::TypeError(TypeCheckError::TypeMismatch {
                 expected_typ: annotated_type.to_string(),
                 expr_typ: expr_type.to_string(),
                 expr_location,
-            }
+            })
         });
-
-        if annotated_type.is_integer() {
-            let errors = lints::overflowing_int(self.interner, &expression, &annotated_type);
-            for error in errors {
-                self.push_err(error);
-            }
-        }
 
         let warn_if_unused =
             !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
@@ -169,12 +163,12 @@ impl Elaborator<'_> {
         }
 
         self.unify_with_coercions(&expr_type, &lvalue_type, expression, expr_location, || {
-            TypeCheckError::TypeMismatchWithSource {
+            CompilationError::TypeError(TypeCheckError::TypeMismatchWithSource {
                 actual: expr_type.clone(),
                 expected: lvalue_type.clone(),
                 location: expr_location,
                 source: Source::Assignment,
-            }
+            })
         });
 
         let assign = HirAssignStatement { lvalue, expression };

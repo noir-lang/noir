@@ -1,6 +1,0 @@
-[package]
-name = "2_div"
-type = "bin"
-authors = [""]
-
-[dependencies]

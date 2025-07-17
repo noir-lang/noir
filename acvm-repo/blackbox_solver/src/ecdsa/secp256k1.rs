@@ -20,13 +20,14 @@ pub(super) fn verify_signature(
     // Convert the inputs into k256 data structures
     let Ok(signature) = Signature::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
+        log::warn!("Signature provided for ECDSA verification is zero");
         return false;
     };
 
     let point = EncodedPoint::from_affine_coordinates(
         public_key_x_bytes.into(),
         public_key_y_bytes.into(),
-        true,
+        false,
     );
 
     let pubkey = PublicKey::from_encoded_point(&point);
@@ -34,6 +35,7 @@ pub(super) fn verify_signature(
         pubkey.unwrap()
     } else {
         // Public key must sit on the Secp256k1 curve.
+        log::warn!("Invalid public key provided for ECDSA verification");
         return false;
     };
 
@@ -48,6 +50,9 @@ pub(super) fn verify_signature(
 
     // Ensure signature is "low S" normalized ala BIP 0062
     if s.is_high().into() {
+        log::warn!(
+            "Signature provided for ECDSA verification is not properly normalized (high S value)"
+        );
         return false;
     }
 
@@ -102,6 +107,15 @@ mod secp256k1_tests {
         let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
         assert!(valid);
+    }
+
+    #[test]
+    fn rejects_signature_that_doesnt_have_the_full_y_coordinate() {
+        let mut pub_key_y_bytes = [0u8; 32];
+        pub_key_y_bytes[31] = PUB_KEY_Y[31];
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE);
+
+        assert!(!valid);
     }
 
     #[test]

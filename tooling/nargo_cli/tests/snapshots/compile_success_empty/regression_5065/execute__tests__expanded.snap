@@ -32,11 +32,11 @@ fn foo<T>() -> T
 where
     T: MyTrait,
 {
-    MyTrait::new()
+    T::new()
 }
 
 fn concise_regression() -> MyType {
-    Wrapper::new_wrapper(foo()).unwrap()
+    Wrapper::<MyType>::new_wrapper(foo()).unwrap()
 }
 
 fn main() {

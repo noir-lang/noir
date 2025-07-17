@@ -26,7 +26,7 @@ use crate::{
     hir_def::{
         expr::{
             HirBinaryOp, HirCallExpression, HirExpression, HirLiteral, HirMemberAccess,
-            HirMethodReference, HirPrefixExpression, TraitMethod,
+            HirMethodReference, HirPrefixExpression, TraitItem,
         },
         function::FuncMeta,
         stmt::HirStatement,
@@ -34,14 +34,14 @@ use crate::{
     },
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
-        TraitMethodId,
+        TraitItemId,
     },
     shared::Signedness,
     token::SecondaryAttributeKind,
 };
 
 use super::{
-    Elaborator, FunctionContext, PathResolutionTarget, UnsafeBlockStatus, lints,
+    Elaborator, PathResolutionTarget, UnsafeBlockStatus, lints,
     path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath},
 };
 
@@ -55,7 +55,7 @@ pub(super) struct TraitPathResolution {
 
 pub(super) enum TraitPathResolutionMethod {
     NotATraitMethod(FuncId),
-    TraitMethod(TraitMethod),
+    TraitItem(TraitItem),
 }
 
 impl Elaborator<'_> {
@@ -315,6 +315,18 @@ impl Elaborator<'_> {
                     }
                 }
                 typ
+            }
+            Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
+                let associated_type = self.interner.get_trait_associated_type(associated_type_id);
+                let trait_ = self.interner.get_trait(associated_type.trait_id);
+
+                self.push_err(ResolverError::AmbiguousAssociatedType {
+                    trait_name: trait_.name.to_string(),
+                    associated_type_name: associated_type.name.to_string(),
+                    location,
+                });
+
+                Type::Error
             }
             Ok(item) => {
                 self.push_err(ResolverError::Expected {
@@ -598,7 +610,10 @@ impl Elaborator<'_> {
                 let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
                 self.check_kind(typ, expected_kind, location)
             }
-            UnresolvedTypeExpression::Constant(int, _span) => {
+            UnresolvedTypeExpression::Constant(int, suffix, _span) => {
+                if let Some(suffix) = suffix {
+                    self.check_kind(suffix.as_type(), expected_kind, location);
+                }
                 Type::Constant(int, expected_kind.clone())
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
@@ -670,8 +685,9 @@ impl Elaborator<'_> {
         let object_type = self.use_type(path.typ.clone());
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
-            Ok((impl_kind, _instantiation_bindings)) => {
-                self.get_associated_type_from_trait_impl(path, impl_kind)
+            Ok((impl_kind, instantiation_bindings)) => {
+                let typ = self.get_associated_type_from_trait_impl(path, impl_kind);
+                typ.substitute(&instantiation_bindings)
             }
             Err(constraints) => {
                 self.push_trait_constraint_error(&object_type, constraints, location);
@@ -718,12 +734,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let trait_id = if let Some(current_trait) = self.current_trait {
-            current_trait
-        } else {
-            let trait_impl = self.current_trait_impl?;
-            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
-        };
+        let trait_id = self.current_trait?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = path.segments[0].ident.as_str();
@@ -731,10 +742,12 @@ impl Elaborator<'_> {
 
             if name == SELF_TYPE_NAME {
                 let the_trait = self.interner.get_trait(trait_id);
-                let method = the_trait.find_method(method.as_str())?;
+                // Allow referring to trait constants via Self:: as well
+                let definition =
+                    the_trait.find_method_or_constant(method.as_str(), self.interner)?;
                 let constraint = the_trait.as_constraint(path.location);
-                let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
-                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                let trait_method = TraitItem { definition, constraint, assumed: true };
+                let method = TraitPathResolutionMethod::TraitItem(trait_method);
                 return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
             }
         }
@@ -750,10 +763,10 @@ impl Elaborator<'_> {
         let func_id = path_resolution.item.function_id()?;
         let meta = self.interner.try_function_meta(&func_id)?;
         let the_trait = self.interner.get_trait(meta.trait_id?);
-        let method = the_trait.find_method(path.last_name())?;
+        let method = the_trait.find_method(path.last_name(), self.interner)?;
         let constraint = the_trait.as_constraint(path.location);
-        let trait_method = TraitMethod { method_id: method, constraint, assumed: false };
-        let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+        let trait_method = TraitItem { definition: method, constraint, assumed: false };
+        let method = TraitPathResolutionMethod::TraitItem(trait_method);
         let item = Some(path_resolution.item);
         Some(TraitPathResolution { method, item, errors: path_resolution.errors })
     }
@@ -779,9 +792,11 @@ impl Elaborator<'_> {
                 }
 
                 let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-                if let Some(method) = the_trait.find_method(path.last_name()) {
-                    let trait_method = TraitMethod { method_id: method, constraint, assumed: true };
-                    let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                if let Some(definition) =
+                    the_trait.find_method_or_constant(path.last_name(), self.interner)
+                {
+                    let trait_item = TraitItem { definition, constraint, assumed: true };
+                    let method = TraitPathResolutionMethod::TraitItem(trait_item);
                     return Some(TraitPathResolution { method, item: None, errors: Vec::new() });
                 }
             }
@@ -820,6 +835,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
@@ -860,14 +876,12 @@ impl Elaborator<'_> {
                 let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
                 Some(TraitPathResolution { method, item: None, errors })
             }
-            HirMethodReference::TraitMethodId(trait_method_id, _, _) => {
-                let trait_id = trait_method_id.trait_id;
+            HirMethodReference::TraitItemId(definition, trait_id, _, _) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
 
-                let trait_method =
-                    TraitMethod { method_id: trait_method_id, constraint, assumed: false };
+                let trait_method = TraitItem { definition, constraint, assumed: false };
                 let item = PathResolutionItem::TypeTraitFunction(typ, trait_id, func_id);
 
                 let mut errors = path_resolution.errors;
@@ -875,7 +889,7 @@ impl Elaborator<'_> {
                     errors.push(error);
                 }
 
-                let method = TraitPathResolutionMethod::TraitMethod(trait_method);
+                let method = TraitPathResolutionMethod::TraitItem(trait_method);
                 Some(TraitPathResolution { method, item: Some(item), errors })
             }
         }
@@ -929,7 +943,7 @@ impl Elaborator<'_> {
         expected: &Type,
         expression: ExprId,
         location: Location,
-        make_error: impl FnOnce() -> TypeCheckError,
+        make_error: impl FnOnce() -> CompilationError,
     ) {
         let mut errors = Vec::new();
         actual.unify_with_coercions(
@@ -940,14 +954,14 @@ impl Elaborator<'_> {
             &mut errors,
             make_error,
         );
-        self.push_errors(errors.into_iter().map(|error| error.into()));
+        self.push_errors(errors);
     }
 
     /// Return a fresh integer or field type variable and log it
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer_or_field(&mut self) -> Type {
         let typ = Type::polymorphic_integer_or_field(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -955,7 +969,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn polymorphic_integer(&mut self) -> Type {
         let typ = Type::polymorphic_integer(self.interner);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -963,7 +977,7 @@ impl Elaborator<'_> {
     /// in self.type_variables to default it later.
     pub(super) fn type_variable_with_kind(&mut self, type_var_kind: Kind) -> Type {
         let typ = Type::type_variable_with_kind(self.interner, type_var_kind);
-        self.push_type_variable(typ.clone());
+        self.push_defaultable_type_variable(typ.clone());
         typ
     }
 
@@ -1042,11 +1056,11 @@ impl Elaborator<'_> {
 
         for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip(callsite_args) {
             self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, || {
-                TypeCheckError::TypeMismatch {
+                CompilationError::TypeError(TypeCheckError::TypeMismatch {
                     expected_typ: param.to_string(),
                     expr_typ: arg.to_string(),
                     expr_location: *arg_location,
-                }
+                })
             });
         }
 
@@ -1156,7 +1170,13 @@ impl Elaborator<'_> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
-            Type::FieldElement => Type::FieldElement,
+            Type::FieldElement => {
+                if from_follow_bindings.is_signed() {
+                    self.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                }
+
+                Type::FieldElement
+            }
             Type::Bool => {
                 let from_is_numeric = match from_follow_bindings {
                     Type::Integer(..) | Type::FieldElement => true,
@@ -1446,7 +1466,8 @@ impl Elaborator<'_> {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
-                                    kind: rhs_type.to_string(),
+                                    typ: rhs_type.to_string(),
+                                    operator: "!",
                                     location,
                                 }
                             });
@@ -1457,7 +1478,8 @@ impl Elaborator<'_> {
                     Integer(sign_x, bit_width_x) => {
                         if *op == UnaryOp::Minus && *sign_x == Signedness::Unsigned {
                             return Err(TypeCheckError::InvalidUnaryOp {
-                                kind: rhs_type.to_string(),
+                                typ: rhs_type.to_string(),
+                                operator: "-",
                                 location,
                             });
                         }
@@ -1510,14 +1532,12 @@ impl Elaborator<'_> {
     pub(super) fn type_check_operator_method(
         &mut self,
         expr_id: ExprId,
-        trait_method_id: TraitMethodId,
+        trait_method_id: TraitItemId,
         object_type: &Type,
         location: Location,
     ) {
-        let the_trait = self.interner.get_trait(trait_method_id.trait_id);
-
-        let method = &the_trait.methods[trait_method_id.method_index];
-        let (method_type, mut bindings) = method.typ.clone().instantiate(self.interner);
+        let method_type = self.interner.definition_type(trait_method_id.item_id);
+        let (method_type, mut bindings) = method_type.instantiate(self.interner);
 
         match method_type {
             Type::Function(args, _, _, _) => {
@@ -1824,8 +1844,8 @@ impl Elaborator<'_> {
         // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
         let trait_ = self.interner.get_trait(trait_id);
         let generics = trait_.get_trait_generics(location);
-        let trait_method_id = trait_.find_method(method_name).unwrap();
-        HirMethodReference::TraitMethodId(trait_method_id, generics, false)
+        let trait_method_id = trait_.find_method(method_name, self.interner).unwrap();
+        HirMethodReference::TraitItemId(trait_method_id, trait_id, generics, false)
     }
 
     fn lookup_method_in_trait_constraints(
@@ -1846,8 +1866,8 @@ impl Elaborator<'_> {
             if Some(object_type) == self.self_type.as_ref() {
                 let the_trait = self.interner.get_trait(trait_id);
                 let constraint = the_trait.as_constraint(the_trait.name.location());
-                if let Some(HirMethodReference::TraitMethodId(method_id, generics, _)) = self
-                    .lookup_method_in_trait(
+                if let Some(HirMethodReference::TraitItemId(method_id, trait_id, generics, _)) =
+                    self.lookup_method_in_trait(
                         the_trait,
                         method_name,
                         &constraint.trait_bound,
@@ -1855,7 +1875,11 @@ impl Elaborator<'_> {
                     )
                 {
                     // If it is, it's an assumed trait
-                    return Some(HirMethodReference::TraitMethodId(method_id, generics, true));
+                    // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
+                    // might return a method on a parent trait.
+                    return Some(HirMethodReference::TraitItemId(
+                        method_id, trait_id, generics, true,
+                    ));
                 }
             }
         }
@@ -1899,12 +1923,11 @@ impl Elaborator<'_> {
         trait_bound: &ResolvedTraitBound,
         starting_trait_id: TraitId,
     ) -> Option<HirMethodReference> {
-        if let Some(trait_method) = the_trait.find_method(method_name) {
-            return Some(HirMethodReference::TraitMethodId(
-                trait_method,
-                trait_bound.trait_generics.clone(),
-                false,
-            ));
+        if let Some(trait_method) = the_trait.find_method(method_name, self.interner) {
+            let trait_generics = trait_bound.trait_generics.clone();
+            let trait_item_id =
+                HirMethodReference::TraitItemId(trait_method, the_trait.id, trait_generics, false);
+            return Some(trait_item_id);
         }
 
         // Search in the parent traits, if any
@@ -2108,7 +2131,7 @@ impl Elaborator<'_> {
                         "implicitly returns `()` as its body has no tail or `return` expression",
                     );
                     }
-                    error
+                    CompilationError::TypeError(error)
                 },
             );
         }
@@ -2170,7 +2193,7 @@ impl Elaborator<'_> {
                             let existing = existing.follow_bindings();
                             let new = binding.2.follow_bindings();
 
-                            // Exact equality on types is intential here, we never want to
+                            // Exact equality on types is intentional here, we never want to
                             // overwrite even type variables but should probably avoid a panic if
                             // the types are exactly the same.
                             if existing != new {
@@ -2233,39 +2256,19 @@ impl Elaborator<'_> {
         location: Location,
         resolved_generic: &ResolvedGeneric,
     ) {
-        let name = unresolved_generic.ident().as_str();
+        if let Some(name) = unresolved_generic.ident().ident() {
+            let name = name.as_str();
 
-        if let Some(generic) = self.find_generic(name) {
-            self.push_err(ResolverError::DuplicateDefinition {
-                name: name.to_string(),
-                first_location: generic.location,
-                second_location: location,
-            });
-        } else {
-            self.generics.push(resolved_generic.clone());
+            if let Some(generic) = self.find_generic(name) {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.to_string(),
+                    first_location: generic.location,
+                    second_location: location,
+                });
+            } else {
+                self.generics.push(resolved_generic.clone());
+            }
         }
-    }
-
-    /// Push a type variable into the current FunctionContext to be defaulted if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    fn push_type_variable(&mut self, typ: Type) {
-        self.get_function_context().type_variables.push(typ);
-    }
-
-    /// Push a trait constraint into the current FunctionContext to be solved if needed
-    /// at the end of the earlier of either the current function or the current comptime scope.
-    pub fn push_trait_constraint(
-        &mut self,
-        constraint: TraitConstraint,
-        expr_id: ExprId,
-        select_impl: bool,
-    ) {
-        self.get_function_context().trait_constraints.push((constraint, expr_id, select_impl));
-    }
-
-    fn get_function_context(&mut self) -> &mut FunctionContext {
-        let context = self.function_context.last_mut();
-        context.expect("The function_context stack should always be non-empty")
     }
 
     pub fn bind_generics_from_trait_constraint(

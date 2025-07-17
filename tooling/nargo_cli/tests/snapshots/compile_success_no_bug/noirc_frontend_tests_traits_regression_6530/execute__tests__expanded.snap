@@ -14,10 +14,7 @@ impl<T, U> Into2<T> for U
 where
     T: From2<U>,
 {
-    fn into2(self) -> T
-    where
-        T: From2<Self>,
-    {
+    fn into2(self) -> T {
         T::from2(self)
     }
 }
@@ -33,7 +30,7 @@ impl Into2<Field> for Foo {
 }
 
 fn main() {
-    let foo: Foo = Foo { inner: 0 };
-    let _: Field = Into2::into2(foo);
+    let foo: Foo = Foo { inner: 0_Field };
+    let _: Field = foo.into2();
     let _: Field = foo.into2();
 }

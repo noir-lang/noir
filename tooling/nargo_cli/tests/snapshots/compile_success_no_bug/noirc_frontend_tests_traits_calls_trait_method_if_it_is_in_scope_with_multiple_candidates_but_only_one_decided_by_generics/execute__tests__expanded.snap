@@ -23,6 +23,6 @@ trait Converter<N> {
 }
 
 fn main() {
-    let foo: Foo = Foo { inner: 42 };
-    let _: u32 = Converter::convert(foo);
+    let foo: Foo = Foo { inner: 42_Field };
+    let _: u32 = foo.convert();
 }

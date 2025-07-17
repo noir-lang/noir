@@ -1,7 +1,8 @@
 use async_lsp::lsp_types::{
     CodeActionOptions, CompletionOptions, DeclarationCapability, DefinitionOptions,
     DocumentSymbolOptions, HoverOptions, InlayHintOptions, OneOf, ReferencesOptions, RenameOptions,
-    SignatureHelpOptions, TypeDefinitionProviderCapability, WorkspaceSymbolOptions,
+    SignatureHelpOptions, TextDocumentIdentifier, TypeDefinitionProviderCapability,
+    WorkspaceSymbolOptions,
 };
 use noirc_frontend::graph::CrateName;
 use serde::{Deserialize, Serialize};
@@ -16,6 +17,8 @@ pub(crate) use async_lsp::lsp_types::{
 
 pub(crate) mod request {
     use async_lsp::lsp_types::{InitializeParams, request::Request};
+
+    use crate::types::{NargoExpandParams, NargoExpandResult};
 
     use super::{
         InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
@@ -50,6 +53,14 @@ pub(crate) mod request {
         type Params = NargoTestsParams;
         type Result = NargoTestsResult;
         const METHOD: &'static str = "nargo/tests";
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct NargoExpand;
+    impl Request for NargoExpand {
+        type Params = NargoExpandParams;
+        type Result = NargoExpandResult;
+        const METHOD: &'static str = "nargo/expand";
     }
 }
 
@@ -244,6 +255,15 @@ pub(crate) struct NargoTestRunResult {
     pub(crate) result: String,
     pub(crate) message: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NargoExpandParams {
+    pub(crate) text_document: TextDocumentIdentifier,
+    pub(crate) position: Position,
+}
+
+pub(crate) type NargoExpandResult = String;
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
 pub(crate) type GotoDefinitionResult = Option<async_lsp::lsp_types::GotoDefinitionResponse>;

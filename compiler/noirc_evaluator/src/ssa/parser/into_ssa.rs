@@ -16,6 +16,7 @@ use crate::ssa::{
         value::ValueId,
     },
     opt::pure::FunctionPurities,
+    ssa_gen::validate_ssa,
 };
 
 use super::{
@@ -24,8 +25,8 @@ use super::{
 };
 
 impl ParsedSsa {
-    pub(crate) fn into_ssa(self, simplify: bool) -> Result<Ssa, SsaError> {
-        Translator::translate(self, simplify)
+    pub(crate) fn into_ssa(self, simplify: bool, validate: bool) -> Result<Ssa, SsaError> {
+        Translator::translate(self, simplify, validate)
     }
 }
 
@@ -61,7 +62,11 @@ struct Translator {
 }
 
 impl Translator {
-    fn translate(mut parsed_ssa: ParsedSsa, simplify: bool) -> Result<Ssa, SsaError> {
+    fn translate(
+        mut parsed_ssa: ParsedSsa,
+        simplify: bool,
+        validate: bool,
+    ) -> Result<Ssa, SsaError> {
         let mut translator = Self::new(&mut parsed_ssa, simplify)?;
 
         // Note that the `new` call above removed the main function,
@@ -70,7 +75,13 @@ impl Translator {
             translator.translate_non_main_function(function)?;
         }
 
-        Ok(translator.finish())
+        let ssa = translator.finish();
+
+        if validate {
+            validate_ssa(&ssa);
+        }
+
+        Ok(ssa)
     }
 
     fn new(parsed_ssa: &mut ParsedSsa, simplify: bool) -> Result<Self, SsaError> {
@@ -91,6 +102,9 @@ impl Translator {
         // Map function names to their IDs so calls can be resolved
         let mut function_id_counter = 1;
         let mut functions = HashMap::new();
+
+        functions.insert(main_function.internal_name.clone(), main_id);
+
         for function in &parsed_ssa.functions {
             let function_id = FunctionId::new(function_id_counter);
             function_id_counter += 1;
@@ -186,7 +200,7 @@ impl Translator {
 
     /// Computes the order in which blocks should be translated. The order will be according
     /// to the block terminators, starting from the entry block. This is needed because a variable
-    /// in a block might refer to a variable that syntantically happens afterwards, but logically
+    /// in a block might refer to a variable that syntactically happens afterwards, but logically
     /// happens before.
     fn compute_blocks_order(
         &self,
@@ -215,7 +229,7 @@ impl Translator {
                     queue.push_back(self.lookup_block(then_block)?);
                     queue.push_back(self.lookup_block(else_block)?);
                 }
-                ParsedTerminator::Return(..) => (),
+                ParsedTerminator::Return(..) | ParsedTerminator::Unreachable => (),
             }
         }
 
@@ -250,6 +264,9 @@ impl Translator {
             ParsedTerminator::Return(values) => {
                 let return_values = self.translate_values(values)?;
                 self.builder.terminate_with_return(return_values);
+            }
+            ParsedTerminator::Unreachable => {
+                self.builder.terminate_with_unreachable();
             }
         }
 
@@ -440,7 +457,14 @@ impl Translator {
                             .globals_function
                             .dfg
                             .make_constant(constant.value, constant.typ.unwrap_numeric()),
-                        ParsedValue::Variable(identifier) => self.lookup_global(identifier)?,
+                        ParsedValue::Variable(identifier) => {
+                            match self.lookup_global(identifier.clone()) {
+                                Ok(global) => global,
+                                Err(lookup_global_err) => self
+                                    .lookup_call_function(identifier)
+                                    .map_err(|_| lookup_global_err)?,
+                            }
+                        }
                     };
                     elements.push_back(element_id);
                 }

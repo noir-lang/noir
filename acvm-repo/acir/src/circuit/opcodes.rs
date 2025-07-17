@@ -172,8 +172,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
-                    BlockType::CallData(id) => write!(f, "INIT CALLDATA {} ", id)?,
-                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
+                    BlockType::CallData(id) => write!(f, "INIT CALLDATA {id} ")?,
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?, // cSpell:disable-line
                 }
                 let witnesses =
                     init.iter().map(|w| format!("_{}", w.0)).collect::<Vec<String>>().join(", ");
@@ -182,20 +182,20 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             // We keep the display for a BrilligCall and circuit Call separate as they
             // are distinct in their functionality and we should maintain this separation for debugging.
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
-                write!(f, "BRILLIG CALL func {}: ", id)?;
+                write!(f, "BRILLIG CALL func {id}: ")?;
                 if let Some(pred) = predicate {
                     writeln!(f, "PREDICATE = {pred}")?;
                 }
-                write!(f, "inputs: {:?}, ", inputs)?;
-                write!(f, "outputs: {:?}", outputs)
+                write!(f, "inputs: {inputs:?}, ")?;
+                write!(f, "outputs: {outputs:?}")
             }
             Opcode::Call { id, inputs, outputs, predicate } => {
-                write!(f, "CALL func {}: ", id)?;
+                write!(f, "CALL func {id}: ")?;
                 if let Some(pred) = predicate {
                     writeln!(f, "PREDICATE = {pred}")?;
                 }
-                write!(f, "inputs: {:?}, ", inputs)?;
-                write!(f, "outputs: {:?}", outputs)
+                write!(f, "inputs: {inputs:?}, ")?;
+                write!(f, "outputs: {outputs:?}")
             }
         }
     }
