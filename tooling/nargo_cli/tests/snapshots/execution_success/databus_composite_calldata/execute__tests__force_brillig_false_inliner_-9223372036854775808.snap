@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -248,7 +249,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZbLbuJAEEX/pdcs+l3d+ZXRCBkwkSXLIMceaYT491T5uhKyyMZenQPOPZA0jniYS3ua34/dcL19mLc/D3Mau77v3o/97dxM3W3gZx/Pg9GHx2lsW37KvFzn1b0Z22Eyb8Pc9wfzr+nn5Yc+7s2wcGpGvmoPph0uTA5eu74Vex6+1/b3qatuHXvrvuZp05427L2tundl3+t7u+X1A+k+0r598jv3ecs+Fd1n2renne9/277o+YdNn7/Xfd63d1vef3BR9z7t2we3c7/z99+0D1+fn7Dp/EMMv+z/8qPm3I0//mOakPieP5iQAQIKUBdECzjAAwGIAFc8IwMEcIXfTKwLkgW4wn/hxJXECEAEEpABAgpQF2QLOACVjEpGJaOSUcmoZFQyKoQKoUKoEFf43qMIcIVPgjJAQAHqgmIBB3ggABFApaBSUCmoFFQqKhWVikpFpaJSUalyRnz0lVaWlRV01qrIUTkRrxJUokpSySqkUlSkzCfpnFVxKl4lqEg5iCSVrEIqRaWu4qUcRZyKVwkqUSWpZBVSkXISqasEq+JUvIqUs0hUkTKJSLmKSLk+5U4bu+bUt+sXjOs8nF++b0z/73pFv5Hcx9u5vcxjK3faco3vvU8=",
+  "debug_symbols": "pZbLbqNAEEX/pdcs+v3Ir4xGFrZxhISwRWCkkeV/nyqqimQWWaR7da7B9xg3XTZPdR3O2/tpnG/3D/X266nOyzhN4/tpul/6dbzPcPT56pS8PK3LMMAh9eU8tB79Msyrepu3aerUn37a9jd9PPp559ovcFZ3apivQBDexmnA9Oo+2/r7qimRy1Z/1sMP+ubom8Z+quhb46Vvqvq6HP3cdv22Zv2sS9L3qa0fbGM/1vRDln5Mbf3UeP11/WP/u6r9b3M5+qaxH9v6pub7Oyv711lf0z/mz9nQ1nemsd+4flV9d+xfV7X/nHff9H/Dq/4yLv/9Yyjn4TenUy7ApQMiIREyoezwmmAIluAIngAW+HgfCWCBxfRgCYCyI2gCWGBQAlhg3oIjeEIgREIiZELZETXBEMgSyRLJEskSyRLJEskSyZLIksiSyJLAArcweQJYDCx3iszEzMxCzJppmJbpmJ7Jvsy+zL7Mvsy+wr7CvsK+wr7CvsK+gj64AwV9sPYlMwvRaC0BjR6DleAkeAlBQpSQJGQJaIY7aYyWYCRYCU4CmiOGIAHNCUOSkCUUDhbNGYORYCU4CV5CkBAlJAloLhgKB6clGAlWAu5ojcFLwNkwGHA6cA33+XAvnMJl7M/TwA9ft22+fHkWW/8+5Iw8rT2W+2W4bsuAU7ifg7n8Bw==",
   "file_map": {
     "50": {
       "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",
