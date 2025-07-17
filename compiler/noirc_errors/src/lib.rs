@@ -22,3 +22,18 @@ pub fn print_to_stdout(args: std::fmt::Arguments) {
         }
     }
 }
+
+/// Macro to print formatted output to stdout
+#[macro_export]
+macro_rules! print_to_stdout {
+    ($($arg:tt)*) => {
+        noirc_errors::print_to_stdout(format_args!($($arg)*))
+    };
+}
+
+#[macro_export]
+macro_rules! println_to_stdout {
+    ($($arg:tt)*) => {
+        noirc_errors::print_to_stdout(format_args!("{}\n", format!($($arg)*)))
+    };
+}

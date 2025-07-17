@@ -479,8 +479,8 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::print_to_stdout(format_args!("Compiled ACIR for main (unoptimized):\n"));
-        noirc_errors::print_to_stdout(format_args!("{}\n", compiled_program.program));
+        noirc_errors::println_to_stdout!("Compiled ACIR for main (unoptimized):");
+        noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
     Ok((compiled_program, warnings))
