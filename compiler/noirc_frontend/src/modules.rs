@@ -22,6 +22,7 @@ pub fn module_def_id_to_reference_id(module_def_id: ModuleDefId) -> ReferenceId 
         ModuleDefId::TypeId(id) => ReferenceId::Type(id),
         ModuleDefId::TypeAliasId(id) => ReferenceId::Alias(id),
         ModuleDefId::TraitId(id) => ReferenceId::Trait(id),
+        ModuleDefId::TraitAssociatedTypeId(id) => ReferenceId::TraitAssociatedType(id),
         ModuleDefId::GlobalId(id) => ReferenceId::Global(id),
     }
 }

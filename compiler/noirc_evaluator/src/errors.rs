@@ -31,6 +31,10 @@ pub enum RuntimeError {
         range: String,
         call_stack: CallStack,
     },
+    #[error(
+        "Attempted to recurse more than {limit} times during inlining function '{function_name}'"
+    )]
+    RecursionLimit { limit: u32, function_name: String, call_stack: CallStack },
     #[error("Expected array index to fit into a u64")]
     TypeConversion { from: String, into: String, call_stack: CallStack },
     #[error(
@@ -201,7 +205,8 @@ impl RuntimeError {
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }
             | RuntimeError::DynamicIndexingWithReference { call_stack }
-            | RuntimeError::UnknownReference { call_stack } => call_stack,
+            | RuntimeError::UnknownReference { call_stack }
+            | RuntimeError::RecursionLimit { call_stack, .. } => call_stack,
         }
     }
 }

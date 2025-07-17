@@ -3,7 +3,7 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
-use noirc_frontend::node_interner::GlobalValue;
+use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
     DataType, EnumVariant, Generics, Shared, StructField, Type, TypeAlias, TypeBinding,
@@ -70,6 +70,7 @@ fn format_reference(reference: ReferenceId, args: &ProcessRequestCallbackArgs) -
             Some(format_enum_variant(id, variant_index, args))
         }
         ReferenceId::Trait(id) => Some(format_trait(id, args)),
+        ReferenceId::TraitAssociatedType(id) => Some(format_trait_associated_type(id, args)),
         ReferenceId::Global(id) => Some(format_global(id, args)),
         ReferenceId::Function(id) => Some(format_function(id, args)),
         ReferenceId::Alias(id) => Some(format_alias(id, args)),
@@ -261,6 +262,24 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
 
     append_doc_comments(args.interner, ReferenceId::Trait(id), &mut string);
 
+    string
+}
+
+fn format_trait_associated_type(
+    id: TraitAssociatedTypeId,
+    args: &ProcessRequestCallbackArgs,
+) -> String {
+    let associated_type = args.interner.get_trait_associated_type(id);
+    let mut string = String::new();
+    if format_parent_module(ReferenceId::Trait(associated_type.trait_id), args, &mut string) {
+        let trait_ = args.interner.get_trait(associated_type.trait_id);
+        string.push_str("::");
+        string.push_str(trait_.name.as_str());
+        string.push('\n');
+    }
+    string.push_str("    ");
+    string.push_str("type ");
+    string.push_str(associated_type.name.as_str());
     string
 }
 
