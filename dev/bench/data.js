@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752754497772,
+  "lastUpdate": 1752756952011,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19166,48 +19166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e03f3984e3e76739158621b21a702b703869c06f",
-          "message": "chore!: disallow casting signed integers to field (#8818)",
-          "timestamp": "2025-07-07T14:36:47Z",
-          "tree_id": "a2073d9c96a44ee986b6630caf0f17c9e14edad6",
-          "url": "https://github.com/noir-lang/noir/commit/e03f3984e3e76739158621b21a702b703869c06f"
-        },
-        "date": 1751900520806,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250604,
-            "range": "± 2138",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220009,
-            "range": "± 826",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782757,
-            "range": "± 3884",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -21259,6 +21217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777390,
             "range": "± 1418",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "87aeccf88b8a5f9808e06a3714283160017f43a7",
+          "message": "feat: Add `compiler_unstable_features` to `Nargo.toml` (#9219)",
+          "timestamp": "2025-07-17T12:29:07Z",
+          "tree_id": "47927c09823de801e5458cea0d1df2c3c4cad303",
+          "url": "https://github.com/noir-lang/noir/commit/87aeccf88b8a5f9808e06a3714283160017f43a7"
+        },
+        "date": 1752756935823,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247793,
+            "range": "± 402",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218711,
+            "range": "± 4495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779604,
+            "range": "± 1616",
             "unit": "ns/iter"
           }
         ]
