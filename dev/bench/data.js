@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752785257686,
+  "lastUpdate": 1752785259724,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4058,85 +4058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f62788935e2fb649714e0e0e140a48ec75bfc090",
-          "message": "fix: combine turbofish types with potential type bindings (#9062)",
-          "timestamp": "2025-07-08T19:44:34Z",
-          "tree_id": "2221a8135725a1885d8e1f26af4aa53b30386984",
-          "url": "https://github.com/noir-lang/noir/commit/f62788935e2fb649714e0e0e140a48ec75bfc090"
-        },
-        "date": 1752005765172,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.83,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.132,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.344,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 202,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.334,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.506,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.782,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -8101,6 +8022,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.995,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1719bc3a7977248e792816df3a3e907f2d006a95",
+          "message": "fix: suggest traits via visible reexports if they are not directly visible (#9242)",
+          "timestamp": "2025-07-17T20:15:42Z",
+          "tree_id": "9d3db7c8468011f1c9844c3d2af07144bef1ab85",
+          "url": "https://github.com/noir-lang/noir/commit/1719bc3a7977248e792816df3a3e907f2d006a95"
+        },
+        "date": 1752785242564,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.012,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.356,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.562,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 212,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.704,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.834,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.775,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.008,
             "unit": "s"
           }
         ]
