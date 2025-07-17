@@ -102,7 +102,7 @@ pub fn compile<F: AcirField>(
         acir,
         expression_width,
         acir_opcode_positions,
-        experimental_optimization,
+        true, //TEMP experimental_optimization,
     );
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
