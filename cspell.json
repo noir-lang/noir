@@ -228,6 +228,7 @@
         "repr",
         "reqwest",
         "rfind",
+        "ripemd",
         "RMVD",
         "rustc",
         "rustfmt",
