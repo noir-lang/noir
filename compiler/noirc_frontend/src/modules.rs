@@ -99,7 +99,7 @@ pub fn relative_module_id_path(
     let mut segments: Vec<&str> = Vec::new();
     let mut is_relative = false;
 
-    if let Some(module_attributes) = interner.try_module_attributes(&target_module_id) {
+    if let Some(module_attributes) = interner.try_module_attributes(target_module_id) {
         segments.push(&module_attributes.name);
 
         let mut current_attributes = module_attributes;
@@ -122,7 +122,7 @@ pub fn relative_module_id_path(
                 break;
             }
 
-            let Some(parent_attributes) = interner.try_module_attributes(parent_module_id) else {
+            let Some(parent_attributes) = interner.try_module_attributes(*parent_module_id) else {
                 break;
             };
 
@@ -144,7 +144,7 @@ pub fn relative_module_id_path(
 }
 
 pub fn module_full_path(
-    module: &ModuleId,
+    module: ModuleId,
     interner: &NodeInterner,
     crate_id: CrateId,
     crate_name: &str,
@@ -161,10 +161,9 @@ pub fn module_full_path(
                 break;
             };
 
-            let Some(parent_attributes) = interner.try_module_attributes(&ModuleId {
-                krate: module.krate,
-                local_id: parent_local_id,
-            }) else {
+            let Some(parent_attributes) = interner
+                .try_module_attributes(ModuleId { krate: module.krate, local_id: parent_local_id })
+            else {
                 break;
             };
 
@@ -287,7 +286,7 @@ pub fn module_def_id_is_visible(
         // This is a bit strange, but the visibility is always that of the item inside another module,
         // so the visibility we update here is for the next loop check.
         visibility = interner
-            .try_module_attributes(&module_id)
+            .try_module_attributes(module_id)
             .map_or(ItemVisibility::Public, |attributes| attributes.visibility);
     }
 

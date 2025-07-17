@@ -2932,7 +2932,7 @@ fn module_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument)?;
-    let name = &interner.module_attributes(&module_id).name;
+    let name = &interner.module_attributes(module_id).name;
     let token = Token::Ident(name.clone());
     let token = LocatedToken::new(token, location);
     let tokens = Rc::new(vec![token]);

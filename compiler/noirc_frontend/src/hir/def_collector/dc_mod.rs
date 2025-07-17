@@ -425,15 +425,8 @@ impl ModCollector<'_> {
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
             if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 let name = name.to_string();
-                context.def_interner.register_type_alias(
-                    type_alias_id,
-                    name,
-                    location,
-                    visibility,
-                    parent_module_id,
-                );
+                context.def_interner.register_type_alias(type_alias_id, name, location, visibility);
             }
         }
         errors
@@ -557,10 +550,7 @@ impl ModCollector<'_> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         let referenced = ReferenceId::Function(func_id);
-                        let module_id = Some(trait_id.0);
-                        context
-                            .def_interner
-                            .add_definition_location(referenced, location, module_id);
+                        context.def_interner.add_definition_location(referenced, location);
 
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
@@ -699,13 +689,11 @@ impl ModCollector<'_> {
             );
 
             if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 context.def_interner.register_trait(
                     trait_id,
                     name.to_string(),
                     location,
                     visibility,
-                    parent_module_id,
                 );
             }
 
@@ -1001,14 +989,7 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            let parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
-            interner.register_module(
-                mod_id,
-                location,
-                visibility,
-                mod_name.to_string(),
-                parent_module_id,
-            );
+            interner.register_module(mod_id, location, visibility, mod_name.to_string());
         }
     }
 
@@ -1202,7 +1183,7 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     Some((id, unresolved))
@@ -1306,7 +1287,7 @@ pub fn collect_enum(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     Some((id, unresolved))
