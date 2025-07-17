@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752785254695,
+  "lastUpdate": 1752785257686,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -27048,6 +27048,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c30f8ef3c39ec98adee177e43b17fd99d7a10852"
         },
         "date": 1752775261800,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 15080,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11347,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 261916,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 201205,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 70748,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1079444,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1080739,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3136,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1719bc3a7977248e792816df3a3e907f2d006a95",
+          "message": "fix: suggest traits via visible reexports if they are not directly visible (#9242)",
+          "timestamp": "2025-07-17T20:15:42Z",
+          "tree_id": "9d3db7c8468011f1c9844c3d2af07144bef1ab85",
+          "url": "https://github.com/noir-lang/noir/commit/1719bc3a7977248e792816df3a3e907f2d006a95"
+        },
+        "date": 1752785241557,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
