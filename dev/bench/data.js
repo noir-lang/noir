@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752753422132,
+  "lastUpdate": 1752753544097,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19146,48 +19146,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2f11e87c99ad954f105484771aa647ff459dde3e",
-          "message": "fix(ssa): Recursively invalidate cached array instruction in constant folding (#9128)",
-          "timestamp": "2025-07-07T14:04:02Z",
-          "tree_id": "061eeb67c2d65fb8d9ca9dcb8d838b349b0bf849",
-          "url": "https://github.com/noir-lang/noir/commit/2f11e87c99ad954f105484771aa647ff459dde3e"
-        },
-        "date": 1751898584830,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250617,
-            "range": "± 585",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221069,
-            "range": "± 3548",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783318,
-            "range": "± 7870",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -21239,6 +21197,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779896,
             "range": "± 1888",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "39a504c14ba855ab4eed7adf9b016ef07c48bc66",
+          "message": "chore(fuzz): Increase loop frequency in Brillig (#9228)",
+          "timestamp": "2025-07-17T11:16:28Z",
+          "tree_id": "959b6fdf2f946c4de4f33aaf9f17334bffdd7fb0",
+          "url": "https://github.com/noir-lang/noir/commit/39a504c14ba855ab4eed7adf9b016ef07c48bc66"
+        },
+        "date": 1752753528571,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248464,
+            "range": "± 317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218743,
+            "range": "± 2643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2777390,
+            "range": "± 1418",
             "unit": "ns/iter"
           }
         ]
