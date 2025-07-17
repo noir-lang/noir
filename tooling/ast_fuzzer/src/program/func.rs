@@ -226,7 +226,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: BTreeSet<LocalId>,
+    dynamics: Vec<im::HashSet<LocalId>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
@@ -254,13 +254,15 @@ impl<'a> FunctionContext<'a> {
                 .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
+        // The function parameters are the base layer for local variables.
         let locals = ScopeStack::new(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        let dynamics = locals.current().variable_ids().cloned().collect();
+        // Function parameters are by definition considered to be dynamic input.
+        let dynamics = vec![locals.current().variable_ids().cloned().collect()];
 
         // Collect all the functions we can call from this one.
         let mut call_targets = BTreeMap::new();
@@ -365,18 +367,30 @@ impl<'a> FunctionContext<'a> {
     /// Enter a new local scope.
     fn enter_scope(&mut self) {
         self.locals.enter();
+        self.dynamics.push(self.current_dynamics().clone());
     }
 
     /// Exit the current local scope.
     fn exit_scope(&mut self) {
         self.locals.exit();
+        self.dynamics.pop();
+    }
+
+    /// The top layer of dynamic variables.
+    fn current_dynamics(&self) -> &im::HashSet<LocalId> {
+        self.dynamics.last().expect("dynamics have base layer")
+    }
+
+    /// The top layer of dynamic variables.
+    fn current_dynamics_mut(&mut self) -> &mut im::HashSet<LocalId> {
+        self.dynamics.last_mut().expect("dynamics have base layer")
     }
 
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.dynamics.contains(id)
+        self.current_dynamics().contains(id)
     }
 
     /// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -1155,7 +1169,7 @@ impl<'a> FunctionContext<'a> {
         }
 
         if is_dynamic {
-            self.dynamics.insert(id);
+            self.current_dynamics_mut().insert(id);
         }
 
         expr::let_var(id, mutable, name, expr)
@@ -1213,11 +1227,11 @@ impl<'a> FunctionContext<'a> {
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
         if lvalue.is_dyn || expr_dyn {
-            self.dynamics.insert(id);
+            self.current_dynamics_mut().insert(id);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            self.dynamics.remove(&id);
+            self.current_dynamics_mut().remove(&id);
         }
 
         let assign =
