@@ -202,10 +202,16 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub debug_compile_stdin: bool,
 
-    /// Unstable features to enable for this current build
+    /// Unstable features to enable for this current build.
+    ///
+    /// If non-empty, it disables unstable features required in crate manifests.
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
-    #[clap(long, short = 'Z', value_delimiter = ',')]
+    #[clap(long, short = 'Z', value_delimiter = ',', conflicts_with = "no_unstable_features")]
     pub unstable_features: Vec<UnstableFeature>,
+
+    /// Disable any unstable features required in crate manifests.
+    #[arg(long, conflicts_with = "unstable_features")]
+    pub no_unstable_features: bool,
 
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
@@ -268,6 +274,7 @@ impl CompileOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,
             enabled_unstable_features: &self.unstable_features,
+            disable_required_unstable_features: self.no_unstable_features,
         }
     }
 }
