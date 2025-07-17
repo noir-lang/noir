@@ -411,11 +411,14 @@ fn can_be_eliminated_if_unused(
         | Truncate { .. }
         | Allocate
         | Load { .. }
-        | ArrayGet { .. }
         | IfElse { .. }
-        | ArraySet { .. }
         | Noop
         | MakeArray { .. } => true,
+
+        ArrayGet { .. } | ArraySet { .. } => {
+            // Array operations have side effects if they require an ACIR predicate
+            !instruction.requires_acir_gen_predicate(&function.dfg)
+        }
 
         Store { .. } => should_remove_store(function, flattened),
 
@@ -1178,5 +1181,56 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_an_out_of_bounds_array_read() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_get v0, index u32 2 -> Field
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_an_out_of_bounds_array_write() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_set v0, index u32 2, value Field 0
+            return v0
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn removes_an_array_read_which_is_in_bounds_due_to_offset() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_get v0, index u32 1 minus 1 -> Field
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        ");
     }
 }
