@@ -633,8 +633,7 @@
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#635" id="635">635</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -731,6 +730,7 @@
             lhs,
             rhs,
             BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
+            <span class="string">"add"</span>,
             bit_size,
         );
         <span class="self">self</span>.insert_cast(truncated, <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -747,6 +747,7 @@
             lhs,
             rhs,
             BinaryOp::Sub { unchecked: <span class="bool-val">false </span>},
+            <span class="string">"subtract"</span>,
             bit_size,
         );
         <span class="self">self</span>.insert_cast(truncated, <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -764,6 +765,7 @@
             lhs,
             rhs,
             BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
+            <span class="string">"multiply"</span>,
             bit_size,
         );
         <span class="self">self</span>.insert_cast(truncated, <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -787,9 +789,9 @@
         lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOp,
+        operation: <span class="kw-2">&amp;</span>str,
         bit_size: u32,
     ) {
-        <span class="kw">let </span>is_sub = <span class="macro">matches!</span>(operator, BinaryOp::Sub { .. });
         <span class="kw">let </span>half_width = <span class="self">self</span>.numeric_constant(
             FieldElement::from(<span class="number">2_i128</span>.pow(bit_size - <span class="number">1</span>)),
             NumericType::unsigned(bit_size),
@@ -799,13 +801,13 @@
         <span class="kw">let </span>rhs_as_unsigned = <span class="self">self</span>.insert_safe_cast(rhs, NumericType::unsigned(bit_size));
         <span class="kw">let </span>lhs_sign = <span class="self">self</span>.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
         <span class="kw">let </span><span class="kw-2">mut </span>rhs_sign = <span class="self">self</span>.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
-        <span class="kw">let </span>message = <span class="kw">if </span>is_sub {
+        <span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOp::Sub { .. }) {
             <span class="comment">// lhs - rhs = lhs + (-rhs)
             </span>rhs_sign = <span class="self">self</span>.insert_not(rhs_sign);
-            <span class="string">"attempt to subtract with overflow"</span>.to_string()
-        } <span class="kw">else </span>{
-            <span class="string">"attempt to add with overflow"</span>.to_string()
-        };
+        }
+
+        <span class="kw">let </span>message = <span class="macro">format!</span>(<span class="string">"attempt to {operation} with overflow"</span>);
+
         <span class="comment">// same_sign is true if both operands have the same sign
         </span><span class="kw">let </span>same_sign = <span class="self">self</span>.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
         <span class="kw">match </span>operator {
@@ -832,11 +834,7 @@
                 </span><span class="kw">let </span>product_field =
                     <span class="self">self</span>.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, rhs_abs);
                 <span class="comment">// It must not already overflow the bit_size
-                </span><span class="self">self</span>.insert_range_check(
-                    product_field,
-                    bit_size,
-                    <span class="prelude-val">Some</span>(<span class="string">"attempt to multiply with overflow"</span>.to_string()),
-                );
+                </span><span class="self">self</span>.insert_range_check(product_field, bit_size, <span class="prelude-val">Some</span>(message.clone()));
                 <span class="kw">let </span>product = <span class="self">self</span>.insert_safe_cast(product_field, NumericType::unsigned(bit_size));
 
                 <span class="comment">// Then we check the signed product fits in a signed integer of bit_size-bits
@@ -1221,7 +1219,7 @@
             v32 = cast v31 as u32
             v33 = unchecked_add u32 2147483648, v32
             v34 = lt v30, v33
-            constrain v34 == u1 1, "attempt to add with overflow"
+            constrain v34 == u1 1, "attempt to multiply with overflow"
             v36 = cast v4 as i32
             return v36
         }

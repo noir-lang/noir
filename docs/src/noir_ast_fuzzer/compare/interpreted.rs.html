@@ -624,7 +624,7 @@
             {
                 BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to add with overflow"</span>,
                 BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to subtract with overflow"</span>,
-
+                BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; msg == <span class="string">"attempt to multiply with overflow"</span>,
                 <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
             },
             (
