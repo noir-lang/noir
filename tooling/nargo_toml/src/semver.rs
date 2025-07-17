@@ -100,6 +100,7 @@ mod tests {
 
         let mut package = Package {
             compiler_required_version: Some("0.1.0".to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -136,6 +137,7 @@ mod tests {
 
         let mut package = Package {
             compiler_required_version: Some("0.1.0".to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -147,23 +149,13 @@ mod tests {
 
         let valid_dependency = Package {
             compiler_required_version: Some("0.1.0".to_string()),
-            root_dir: PathBuf::new(),
-            package_type: PackageType::Library,
-            entry_path: PathBuf::new(),
             name: CrateName::from_str("good_dependency").unwrap(),
-            dependencies: BTreeMap::new(),
-            version: Some("1.0".to_string()),
-            expression_width: None,
+            ..package.clone()
         };
         let invalid_dependency = Package {
             compiler_required_version: Some("0.2.0".to_string()),
-            root_dir: PathBuf::new(),
-            package_type: PackageType::Library,
-            entry_path: PathBuf::new(),
             name: CrateName::from_str("bad_dependency").unwrap(),
-            dependencies: BTreeMap::new(),
-            version: Some("1.0".to_string()),
-            expression_width: None,
+            ..package.clone()
         };
 
         package.dependencies.insert(
@@ -202,6 +194,7 @@ mod tests {
 
         let package = Package {
             compiler_required_version: Some(">=0.1.0".to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -224,6 +217,7 @@ mod tests {
 
         let package = Package {
             compiler_required_version: Some(">=0.1.0".to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -244,6 +238,7 @@ mod tests {
 
         let package = Package {
             compiler_required_version: Some("0.1.0".to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
