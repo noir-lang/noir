@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_aliases_disallows_numeric_type_aliases_to_expression_with_alias_2"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

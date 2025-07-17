@@ -1,10 +1,4 @@
-use crate::{
-    assert_no_errors, get_program_errors,
-    hir::{
-        def_collector::dc_crate::CompilationError, resolution::errors::ResolverError,
-        type_check::TypeCheckError::TypeKindMismatch,
-    },
-};
+use crate::{assert_no_errors, check_errors};
 
 #[named]
 #[test]
@@ -136,8 +130,11 @@ fn disallows_composing_numeric_type_aliases() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected a numeric expression, but got `Double<Double<N>>`
     fn main() {
         let b: [u32; 12] = foo();
+                           ^^^ Type annotation needed
+                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
@@ -149,11 +146,7 @@ fn disallows_composing_numeric_type_aliases() {
         a
     }
     "#;
-    let errors = get_program_errors!(src);
-    assert!(matches!(
-        errors[0],
-        CompilationError::ResolverError(ResolverError::ExpectedNumericExpression { .. })
-    ));
+    check_errors!(src);
 }
 
 #[named]
@@ -162,8 +155,11 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
     fn main() {
         let b: [u32; 12] = foo();
+                           ^^^ Type annotation needed
+                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
@@ -175,12 +171,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
         a
     }
     "#;
-
-    let errors = get_program_errors!(src);
-    assert!(matches!(
-        errors[0],
-        CompilationError::ResolverError(ResolverError::RecursiveTypeAlias { .. })
-    ));
+    check_errors!(src);
 }
 
 #[named]
@@ -189,9 +180,12 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
+                                   ^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
 
     fn main() {
         let b: [u32; 12] = foo();
+                           ^^^ Type annotation needed
+                           ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
         assert(b[0] == 0);
     }
     fn foo<let N:u32>() -> [u32;Quadruple::<N>] {
@@ -203,11 +197,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
         a
     }
     "#;
-    let errors = get_program_errors!(src);
-    assert!(matches!(
-        errors[0],
-        CompilationError::ResolverError(ResolverError::RecursiveTypeAlias { .. })
-    ));
+    check_errors!(src);
 }
 
 #[named]
@@ -215,13 +205,14 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
     type Foo: u32 = u32;
+                    ^^^ Type provided when a numeric generic was expected
+                    ~~~ the numeric generic is not of type `u32`
 
     fn main(a: Foo) -> pub Foo {
         a
     }
     "#;
-    let errors = get_program_errors!(src);
-    assert!(matches!(errors[0], CompilationError::TypeError(TypeKindMismatch { .. })));
+    check_errors!(src);
 }
 
 #[named]
