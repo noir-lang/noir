@@ -753,12 +753,25 @@
 <a href="#752" id="752">752</a>
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
     collections::BTreeMap,
     path::{Component, Path, PathBuf},
+    str::FromStr,
 };
 
 <span class="kw">use </span>errors::SemverError;
@@ -768,7 +781,7 @@
     workspace::Workspace,
 };
 <span class="kw">use </span>noirc_driver::parse_expression_width;
-<span class="kw">use </span>noirc_frontend::graph::CrateName;
+<span class="kw">use </span>noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 <span class="kw">use </span>serde::Deserialize;
 
 <span class="kw">mod </span>errors;
@@ -996,9 +1009,17 @@
             })
             .map_or(<span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>), |res| res.map(<span class="prelude-val">Some</span>))<span class="question-mark">?</span>;
 
+        <span class="comment">// Collect any unstable features the package needs to compile.
+        // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
+        </span><span class="kw">let </span>compiler_required_unstable_features =
+            <span class="self">self</span>.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
+                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+            });
+
         <span class="prelude-val">Ok</span>(Package {
             version: <span class="self">self</span>.package.version.clone(),
             compiler_required_version: <span class="self">self</span>.package.compiler_version.clone(),
+            compiler_required_unstable_features,
             root_dir: root_dir.to_path_buf(),
             entry_path,
             package_type,
@@ -1072,6 +1093,9 @@
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
     </span><span class="kw">pub </span>compiler_version: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="doccomment">/// List of unstable features we want the compiler to enable to compile this package.
+    /// This is most useful with the LSP, so it can figure out what is allowed without CLI args.
+    </span><span class="kw">pub </span>compiler_unstable_features: <span class="prelude-ty">Option</span>&lt;Vec&lt;String&gt;&gt;,
     <span class="kw">pub </span>license: <span class="prelude-ty">Option</span>&lt;String&gt;,
     <span class="kw">pub </span>expression_width: <span class="prelude-ty">Option</span>&lt;String&gt;,
 }

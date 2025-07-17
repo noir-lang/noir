@@ -297,7 +297,13 @@
 <a href="#296" id="296">296</a>
 <a href="#297" id="297">297</a>
 <a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>resolution;
@@ -306,6 +312,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::UnresolvedGenerics;
 <span class="kw">use </span><span class="kw">crate</span>::debug::DebugInstrumenter;
+<span class="kw">use </span><span class="kw">crate</span>::elaborator::UnstableFeature;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::function::FuncMeta;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TypeId};
@@ -355,6 +362,9 @@
 
     <span class="doccomment">/// Writer for comptime prints.
     </span><span class="kw">pub </span>interpreter_output: <span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
+
+    <span class="doccomment">/// Any unstable features required by the current package or its dependencies.
+    </span><span class="kw">pub </span>required_unstable_features: BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
 }
 
 <span class="attr">#[derive(Debug)]
@@ -377,6 +387,7 @@
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 
@@ -395,6 +406,7 @@
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
+            required_unstable_features: BTreeMap::new(),
         }
     }
 

@@ -255,12 +255,7 @@
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{ManifestError, errors::SemverError};
+<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{ManifestError, errors::SemverError};
 <span class="kw">use </span>nargo::{
     package::{Dependency, Package},
     workspace::Workspace,
@@ -362,6 +357,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>package = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"0.1.0"</span>.to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -398,6 +394,7 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>package = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"0.1.0"</span>.to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -409,23 +406,13 @@
 
         <span class="kw">let </span>valid_dependency = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"0.1.0"</span>.to_string()),
-            root_dir: PathBuf::new(),
-            package_type: PackageType::Library,
-            entry_path: PathBuf::new(),
             name: CrateName::from_str(<span class="string">"good_dependency"</span>).unwrap(),
-            dependencies: BTreeMap::new(),
-            version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
+            ..package.clone()
         };
         <span class="kw">let </span>invalid_dependency = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"0.2.0"</span>.to_string()),
-            root_dir: PathBuf::new(),
-            package_type: PackageType::Library,
-            entry_path: PathBuf::new(),
             name: CrateName::from_str(<span class="string">"bad_dependency"</span>).unwrap(),
-            dependencies: BTreeMap::new(),
-            version: <span class="prelude-val">Some</span>(<span class="string">"1.0"</span>.to_string()),
-            expression_width: <span class="prelude-val">None</span>,
+            ..package.clone()
         };
 
         package.dependencies.insert(
@@ -464,6 +451,7 @@
 
         <span class="kw">let </span>package = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"&gt;=0.1.0"</span>.to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -486,6 +474,7 @@
 
         <span class="kw">let </span>package = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"&gt;=0.1.0"</span>.to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),
@@ -506,6 +495,7 @@
 
         <span class="kw">let </span>package = Package {
             compiler_required_version: <span class="prelude-val">Some</span>(<span class="string">"0.1.0"</span>.to_string()),
+            compiler_required_unstable_features: Vec::new(),
             root_dir: PathBuf::new(),
             package_type: PackageType::Library,
             entry_path: PathBuf::new(),

@@ -468,7 +468,11 @@
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
 <a href="#469" id="469">469</a>
-<a href="#470" id="470">470</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -739,7 +743,10 @@
     </span>}
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_workspace_for_source_path(file_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, LspError&gt; {
+<span class="doccomment">/// Create a workspace based on the source file location:
+/// * if there is a `Nargo.toml` file, use it to read the workspace
+/// * otherwise treat the parent directory as a dummy workspace
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_workspace_for_source_path(file_path: <span class="kw-2">&amp;</span>Path) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, LspError&gt; {
     <span class="kw">if let </span><span class="prelude-val">Some</span>(toml_path) = find_file_manifest(file_path) {
         <span class="kw">match </span>resolve_workspace_from_toml(
             <span class="kw-2">&amp;</span>toml_path,
@@ -774,6 +781,7 @@
     <span class="kw">let </span>assumed_package = Package {
         version: <span class="prelude-val">None</span>,
         compiler_required_version: <span class="prelude-val">Some</span>(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),

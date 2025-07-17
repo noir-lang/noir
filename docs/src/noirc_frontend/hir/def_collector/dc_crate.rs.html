@@ -613,7 +613,8 @@
 <a href="#612" id="612">612</a>
 <a href="#613" id="613">613</a>
 <a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1112,6 +1113,7 @@
             debug_comptime_in_file,
             pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
+            disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
         <span class="kw">let </span><span class="kw-2">mut </span>more_errors =

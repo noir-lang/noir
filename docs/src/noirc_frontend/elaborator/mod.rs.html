@@ -2534,7 +2534,29 @@
 <a href="#2533" id="2533">2533</a>
 <a href="#2534" id="2534">2534</a>
 <a href="#2535" id="2535">2535</a>
-<a href="#2536" id="2536">2536</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2536" id="2536">2536</a>
+<a href="#2537" id="2537">2537</a>
+<a href="#2538" id="2538">2538</a>
+<a href="#2539" id="2539">2539</a>
+<a href="#2540" id="2540">2540</a>
+<a href="#2541" id="2541">2541</a>
+<a href="#2542" id="2542">2542</a>
+<a href="#2543" id="2543">2543</a>
+<a href="#2544" id="2544">2544</a>
+<a href="#2545" id="2545">2545</a>
+<a href="#2546" id="2546">2546</a>
+<a href="#2547" id="2547">2547</a>
+<a href="#2548" id="2548">2548</a>
+<a href="#2549" id="2549">2549</a>
+<a href="#2550" id="2550">2550</a>
+<a href="#2551" id="2551">2551</a>
+<a href="#2552" id="2552">2552</a>
+<a href="#2553" id="2553">2553</a>
+<a href="#2554" id="2554">2554</a>
+<a href="#2555" id="2555">2555</a>
+<a href="#2556" id="2556">2556</a>
+<a href="#2557" id="2557">2557</a>
+<a href="#2558" id="2558">2558</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2663,6 +2685,8 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>CrateGraph,
     <span class="kw">pub</span>(<span class="kw">crate</span>) interpreter_output: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
 
+    required_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
+
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: <span class="prelude-ty">Option</span>&lt;Loop&gt;,
 
@@ -2780,6 +2804,7 @@
         usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>UsageTracker,
         crate_graph: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>CrateGraph,
         interpreter_output: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="prelude-ty">Option</span>&lt;Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;&gt;,
+        required_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'context </span>BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector&lt;Location&gt;,
         options: ElaboratorOptions&lt;<span class="lifetime">'context</span>&gt;,
@@ -2793,6 +2818,7 @@
             usage_tracker,
             crate_graph,
             interpreter_output,
+            required_unstable_features,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: <span class="prelude-val">None</span>,
             generics: Vec::new(),
@@ -2826,6 +2852,7 @@
             <span class="kw-2">&amp;mut </span>context.usage_tracker,
             <span class="kw-2">&amp;</span>context.crate_graph,
             <span class="kw-2">&amp;</span>context.interpreter_output,
+            <span class="kw-2">&amp;</span>context.required_unstable_features,
             crate_id,
             im::Vector::new(),
             options,
@@ -4918,10 +4945,27 @@
     <span class="doccomment">/// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     </span><span class="kw">pub fn </span>use_unstable_feature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, feature: UnstableFeature, location: Location) {
-        <span class="kw">if </span>!<span class="self">self</span>.options.enabled_unstable_features.contains(<span class="kw-2">&amp;</span>feature) {
-            <span class="kw">let </span>reason = ParserErrorReason::ExperimentalFeature(feature);
-            <span class="self">self</span>.push_err(ParserError::with_reason(reason, location));
+        <span class="comment">// Is the feature globally enabled via CLI options?
+        </span><span class="kw">if </span><span class="self">self</span>.options.enabled_unstable_features.contains(<span class="kw-2">&amp;</span>feature) {
+            <span class="kw">return</span>;
         }
+
+        <span class="comment">// Can crates require unstable features in their manifest?
+        </span><span class="kw">let </span>enable_required_unstable_features = <span class="self">self</span>.options.enabled_unstable_features.is_empty()
+            &amp;&amp; !<span class="self">self</span>.options.disable_required_unstable_features;
+
+        <span class="comment">// Is it required by the current crate?
+        </span><span class="kw">if </span>enable_required_unstable_features
+            &amp;&amp; <span class="self">self
+                </span>.required_unstable_features
+                .get(<span class="kw-2">&amp;</span><span class="self">self</span>.crate_id)
+                .is_some_and(|fs| fs.contains(<span class="kw-2">&amp;</span>feature))
+        {
+            <span class="kw">return</span>;
+        }
+
+        <span class="kw">let </span>reason = ParserErrorReason::ExperimentalFeature(feature);
+        <span class="self">self</span>.push_err(ParserError::with_reason(reason, location));
     }
 
     <span class="doccomment">/// Run the given function using the resolver and return true if any errors (not warnings)

@@ -60,7 +60,11 @@
 <a href="#59" id="59">59</a>
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
-<a href="#62" id="62">62</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
+<a href="#62" id="62">62</a>
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a>
+<a href="#65" id="65">65</a>
+<a href="#66" id="66">66</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="attr">#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 </span><span class="kw">pub enum </span>UnstableFeature {
@@ -103,6 +107,9 @@
     <span class="doccomment">/// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
     </span><span class="kw">pub </span>enabled_unstable_features: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[UnstableFeature],
+
+    <span class="doccomment">/// Deny crates from requiring unstable features.
+    </span><span class="kw">pub </span>disable_required_unstable_features: bool,
 }
 
 <span class="doccomment">/// Options from nargo_cli that need to be passed down to the elaborator
@@ -119,6 +126,7 @@
             debug_comptime_in_file: <span class="prelude-val">None</span>,
             pedantic_solving: <span class="bool-val">true</span>,
             enabled_unstable_features: <span class="kw-2">&amp;</span>[UnstableFeature::Enums],
+            disable_required_unstable_features: <span class="bool-val">true</span>,
         }
     }
 }

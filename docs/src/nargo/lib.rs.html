@@ -294,7 +294,13 @@
 <a href="#293" id="293">293</a>
 <a href="#294" id="294">294</a>
 <a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a>
+<a href="#301" id="301">301</a>
+<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="doccomment">//! Nargo is the package manager for Noir
@@ -337,6 +343,7 @@
         <span class="kw">match </span>dep {
             Dependency::Remote { package } | Dependency::Local { package } =&gt; {
                 <span class="kw">let </span>crate_id = prepare_dependency(context, <span class="kw-2">&amp;</span>package.entry_path);
+                add_unstable_features(context, crate_id, package);
                 add_dep(context, parent_crate, crate_id, dep_name.clone());
                 prepare_dependencies(context, crate_id, <span class="kw-2">&amp;</span>package.dependencies);
             }
@@ -583,11 +590,16 @@
     package: <span class="kw-2">&amp;</span>Package,
 ) -&gt; (Context&lt;<span class="lifetime">'file_manager</span>, <span class="lifetime">'parsed_files</span>&gt;, CrateId) {
     <span class="kw">let </span><span class="kw-2">mut </span>context = Context::from_ref_file_manager(file_manager, parsed_files);
-
     <span class="kw">let </span>crate_id = prepare_crate(<span class="kw-2">&amp;mut </span>context, <span class="kw-2">&amp;</span>package.entry_path);
-
+    add_unstable_features(<span class="kw-2">&amp;mut </span>context, crate_id, package);
     prepare_dependencies(<span class="kw-2">&amp;mut </span>context, crate_id, <span class="kw-2">&amp;</span>package.dependencies);
-
     (context, crate_id)
+}
+
+<span class="doccomment">/// Add any unstable features required by the `Package` to the `Context`.
+</span><span class="kw">fn </span>add_unstable_features(context: <span class="kw-2">&amp;mut </span>Context, crate_id: CrateId, package: <span class="kw-2">&amp;</span>Package) {
+    context
+        .required_unstable_features
+        .insert(crate_id, package.compiler_required_unstable_features.clone());
 }
 </code></pre></div></section></main></body></html>

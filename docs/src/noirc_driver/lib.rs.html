@@ -854,7 +854,14 @@
 <a href="#853" id="853">853</a>
 <a href="#854" id="854">854</a>
 <a href="#855" id="855">855</a>
-<a href="#856" id="856">856</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
@@ -1058,10 +1065,16 @@
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>debug_compile_stdin: bool,
 
-    <span class="doccomment">/// Unstable features to enable for this current build
+    <span class="doccomment">/// Unstable features to enable for this current build.
+    ///
+    /// If non-empty, it disables unstable features required in crate manifests.
     </span><span class="attr">#[arg(value_parser = <span class="macro">clap::value_parser!</span>(UnstableFeature))]
-    #[clap(long, short = <span class="string">'Z'</span>, value_delimiter = <span class="string">','</span>)]
+    #[clap(long, short = <span class="string">'Z'</span>, value_delimiter = <span class="string">','</span>, conflicts_with = <span class="string">"no_unstable_features"</span>)]
     </span><span class="kw">pub </span>unstable_features: Vec&lt;UnstableFeature&gt;,
+
+    <span class="doccomment">/// Disable any unstable features required in crate manifests.
+    </span><span class="attr">#[arg(long, conflicts_with = <span class="string">"unstable_features"</span>)]
+    </span><span class="kw">pub </span>no_unstable_features: bool,
 
     <span class="doccomment">/// Used internally to avoid comptime println from producing output
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
@@ -1124,6 +1137,7 @@
             debug_comptime_in_file: <span class="self">self</span>.debug_comptime_in_file.as_deref(),
             pedantic_solving: <span class="self">self</span>.pedantic_solving,
             enabled_unstable_features: <span class="kw-2">&amp;</span><span class="self">self</span>.unstable_features,
+            disable_required_unstable_features: <span class="self">self</span>.no_unstable_features,
         }
     }
 }
