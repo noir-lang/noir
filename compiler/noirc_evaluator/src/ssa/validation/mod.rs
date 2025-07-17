@@ -265,28 +265,33 @@ impl<'f> Validator<'f> {
                 assert_eq!(results.len(), 1, "MakeArray must return exactly one value");
 
                 let result_type = dfg.type_of_value(results[0]);
-                if !matches!(result_type, Type::Slice(_)) {
-                    let Type::Array(composite_type, length) = result_type else {
-                        panic!("MakeArray must return an array or slice type, not {result_type}");
-                    };
-                    let array_flattened_length = composite_type.len() * length as usize;
-                    if elements.len() != array_flattened_length {
-                        panic!(
-                            "MakeArray returns an array of flattened length {}, but it has {} elements",
-                            array_flattened_length,
-                            elements.len()
-                        );
-                    }
 
-                    for (index, element) in elements.iter().enumerate() {
-                        let element_type = dfg.type_of_value(*element);
-                        let expected_type = &composite_type[index % composite_type.len()];
-                        if &element_type != expected_type {
+                let composite_type = match result_type {
+                    Type::Array(composite_type, length) => {
+                        let array_flattened_length = composite_type.len() * length as usize;
+                        if elements.len() != array_flattened_length {
                             panic!(
-                                "MakeArray has incorrect element type at index {index}: expected {}, got {}",
-                                expected_type, element_type
+                                "MakeArray returns an array of flattened length {}, but it has {} elements",
+                                array_flattened_length,
+                                elements.len()
                             );
                         }
+                        composite_type
+                    }
+                    Type::Slice(composite_type) => composite_type,
+                    _ => {
+                        panic!("MakeArray must return an array or slice type, not {result_type}");
+                    }
+                };
+
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = dfg.type_of_value(*element);
+                    let expected_type = &composite_type[index % composite_type.len()];
+                    if &element_type != expected_type {
+                        panic!(
+                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
+                            expected_type, element_type
+                        );
                     }
                 }
             }
