@@ -92,7 +92,7 @@ We do this by directly executing the function with a brillig VM.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.new_value_for_type_and_memory_values" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/opt/constant_folding.rs.html#675-723">Source</a><h4 class="code-header">fn <a href="#method.new_value_for_type_and_memory_values" class="fn">new_value_for_type_and_memory_values</a>(
     typ: <a class="enum" href="../../ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     block_id: <a class="type" href="../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-    memory_values: &amp;[<a class="enum" href="../../../../brillig_vm/memory/enum.MemoryValue.html" title="enum brillig_vm::memory::MemoryValue">MemoryValue</a>&lt;<a class="type" href="../../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>&gt;],
+    memory_values: &amp;[MemoryValue&lt;FieldElement&gt;],
     memory_index: &amp;mut <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.usize.html">usize</a>,
     dfg: &amp;mut <a class="struct" href="../../ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; <a class="type" href="../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a></h4></section></summary><div class="docblock"><p>Creates a new value inside this function by reading it from <code>memory_values</code> starting at
