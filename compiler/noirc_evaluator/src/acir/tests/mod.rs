@@ -21,6 +21,7 @@ use crate::{
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
     ssa::{
         function_builder::FunctionBuilder,
+        interpreter::value::Value,
         ir::{
             function::FunctionId,
             instruction::BinaryOp,
@@ -30,6 +31,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
+use proptest::prelude::*;
 
 mod intrinsics;
 
@@ -923,4 +925,252 @@ fn do_not_overflow_with_constant_constrain_neq() {
 
     assert_eq!(acir_functions.len(), 1);
     assert!(acir_functions[0].opcodes().is_empty());
+}
+
+/// Convert the SSA input into ACIR and use ACVM to execute it
+/// Returns the ACVM execution status and the value of the 'output' witness value,
+/// unless the provided output is None or the ACVM fails during execution.
+fn execute_ssa(
+    ssa: Ssa,
+    initial_witness: WitnessMap<FieldElement>,
+    output: Option<&Witness>,
+) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let (acir_functions, brillig_functions, _, _) = ssa
+        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .expect("Should compile manually written SSA into ACIR");
+    assert_eq!(acir_functions.len(), 1);
+    let main = &acir_functions[0];
+    let mut acvm = ACVM::new(
+        &StubbedBlackBoxSolver(true),
+        main.opcodes(),
+        initial_witness,
+        &brillig_functions,
+        &[],
+    );
+    let status = acvm.solve();
+    if status == ACVMStatus::Solved {
+        (status, output.map(|o| acvm.witness_map()[o]))
+    } else {
+        (status, None)
+    }
+}
+
+fn get_main_src(typ: &str) -> String {
+    format!(
+        "acir(inline) fn main f0 {{
+            b0(inputs: [{typ}; 2]):
+              lhs = array_get inputs, index u32 0 -> {typ}
+              rhs = array_get inputs, index u32 1 -> {typ}
+              "
+    )
+}
+
+/// Create a SSA instruction corresponding to the operator, using v1 and v2 as operands.
+/// Additional information can be added to the string,
+/// for instance, "range_check 8" creates 'range_check v1 to 8 bits'
+fn generate_test_instruction_from_operator(operator: &str) -> (String, bool) {
+    let ops = operator.split(" ").collect::<Vec<_>>();
+    let op = ops[0];
+    let mut output = true;
+    let src = match op {
+        "constrain" => {
+            output = false;
+            format!("constrain lhs {} rhs", ops[1])
+        }
+        "not" => format!("result = {op} lhs"),
+        "truncate" => {
+            format!("result = truncate lhs to {} bits, max_bit_size: {}", ops[1], ops[2])
+        }
+        "range_check" => {
+            output = false;
+            format!("range_check lhs to {} bits", ops[1])
+        }
+        _ => format!("result = {op} lhs, rhs"),
+    };
+
+    if output {
+        (
+            format!(
+                "
+            {src}
+        return result
+        }}"
+            ),
+            true,
+        )
+    } else {
+        (
+            format!(
+                "
+            {src}
+        return
+        }}"
+            ),
+            false,
+        )
+    }
+}
+
+/// Execute a simple operation for each operators
+/// The operation is executed from SSA IR using ACVM after acir-gen
+/// and also directly on the SSA IR using the SSA interpreter.
+/// The results are compared to ensure that both executions yield the same result.
+fn test_operators(
+    // The list of operators to test
+    operators: &[&str],
+    // the type of the input values
+    typ: &str,
+    // the values of the inputs
+    inputs: &[FieldElement],
+) {
+    let main = get_main_src(typ);
+    let num_type = match typ.chars().next().unwrap() {
+        'F' => NumericType::NativeField,
+        'i' => NumericType::Signed { bit_size: typ[1..].parse().unwrap() },
+        'u' => NumericType::Unsigned { bit_size: typ[1..].parse().unwrap() },
+        _ => unreachable!("invalid numeric type"),
+    };
+    let inputs_int = Value::array_from_iter(inputs.iter().cloned(), num_type).unwrap();
+    let inputs =
+        inputs.iter().enumerate().map(|(i, f)| (Witness(i as u32), *f)).collect::<BTreeMap<_, _>>();
+    let len = inputs.len() as u32;
+    let initial_witness = WitnessMap::from(inputs);
+
+    for op in operators {
+        let (src, with_output) = generate_test_instruction_from_operator(op);
+        let output = if with_output { Some(Witness(len)) } else { None };
+        let ssa = Ssa::from_str(&(main.to_owned() + &src)).unwrap();
+        // ssa execution
+        let ssa_interpreter_result = ssa.interpret(vec![inputs_int.clone()]);
+        // acir execution
+        let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+
+        match (ssa_interpreter_result, acir_execution_result) {
+            // Both execution failed, so it is the same behavior, as expected.
+            (Err(_), (ACVMStatus::Failure(_), _)) => (),
+            // Both execution succeeded and output the same value
+            (Ok(ssa_inner_result), (ACVMStatus::Solved, acvm_result)) => {
+                let ssa_result = if let Some(result) = ssa_inner_result.first() {
+                    result.as_numeric().map(|v| v.convert_to_field())
+                } else {
+                    None
+                };
+                assert_eq!(ssa_result, acvm_result);
+            }
+            _ => panic!("ssa and acvm execution should have the same result"),
+        }
+    }
+}
+
+proptest! {
+#[test]
+fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
+            let lhs = FieldElement::from(lhs);
+            let rhs = FieldElement::from(rhs);
+    // Test the following Binary operation on Fields
+    let operators = [
+        "add",
+        "sub",
+        "mul",
+        "div",
+        "eq",
+        // Bitwise operations are not allowed on field elements
+        // SSA interpreter will emit an error but not ACVM
+        // "and",
+        // "xor",
+        "unchecked_add",
+        "unchecked_sub",
+        "unchecked_mul",
+        "range_check 32",
+        "truncate 32 254",
+    ];
+    let inputs = [lhs, rhs];
+    test_operators(&operators, "Field", &inputs);
+}
+
+#[test]
+fn test_u32(lhs in 0u32.., rhs in 0u32..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+
+    // Test the following operations on u32
+    let operators = [
+        "add",
+        "sub",
+        "mul",
+        "div",
+        "eq",
+        "and",
+        "xor",
+        "mod",
+        "lt",
+        "or",
+        "not",
+        "range_check 8",
+        "truncate 8 32",
+    ];
+    let inputs = [lhs, rhs];
+    test_operators(&operators, "u32", &inputs);
+
+    //unchecked operations assume no under/over-flow
+    let mut unchecked_operators = vec![];
+    if (lhs + rhs).to_u128() <= u32::MAX as u128 {
+        unchecked_operators.push("unchecked_add");
+    }
+    if (lhs * rhs).to_u128() <= u32::MAX as u128 {
+    unchecked_operators.push("unchecked_mul");
+    }
+    if lhs >= rhs {
+        unchecked_operators.push("unchecked_sub");
+    }
+    test_operators(&unchecked_operators, "u32", &inputs);
+}
+
+
+ #[test]
+fn test_constraint_field(lhs in 0u128.., rhs in 0u128..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "Field", &[lhs,rhs]);
+    test_operators(&operators, "u128", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u32(lhs in 0u32.., rhs in 0u32..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u32", &[lhs,rhs]);
+    test_operators(&operators, "i32", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
+    let lhs = FieldElement::from(lhs);
+    let rhs = FieldElement::from(rhs);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u64", &[lhs,rhs]);
+    test_operators(&operators, "i64", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
+    let lhs = FieldElement::from(lhs as u128);
+    let rhs = FieldElement::from(rhs as u128);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u16", &[lhs,rhs]);
+    test_operators(&operators, "i16", &[lhs,rhs]);
+}
+
+#[test]
+fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
+    let lhs = FieldElement::from(lhs as u128);
+    let rhs = FieldElement::from(rhs as u128);
+    let operators = ["constrain ==", "constrain !="];
+    test_operators(&operators, "u8", &[lhs,rhs]);
+    test_operators(&operators, "i8", &[lhs,rhs]);
+}
+
 }
