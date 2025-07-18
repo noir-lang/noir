@@ -46,11 +46,5 @@ expression: artifact
       "source": "global G_A: [(bool, bool, str<4>); 3] =\n    [(false, true, \"LZUT\"), (false, true, \"MFFA\"), (false, true, \"XPHT\")];\n\nfn main() -> pub Field {\n    let mut a: ((str<4>, Field, str<4>, str<3>, bool), [&mut u8; 2]) = (\n        (G_A[2].2, (unsafe { func_4() } as Field), G_A[1].2, \"TWC\", false), [(&mut 57), (&mut 219)],\n    );\n    for idx_d in 0..1 {\n        // a.0 = a.0;\n    }\n    a.0 = (a.0.2, 0, a.0.0, a.0.3, ((128 % (*a.1[0])) == (*a.1[1])));\n    0\n}\n\nunconstrained fn func_4() -> bool {\n    let mut a = G_A[1].2;\n    println(a);\n    true\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "func_4"
-  ]
+  }
 }

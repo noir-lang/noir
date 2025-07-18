@@ -54,11 +54,5 @@ expression: artifact
       "source": "global EXPONENTIATE: [[Field; 2]; 2] = [[1, 1], [0, 0]];\n\nfn main(x: Field, y: pub Field) {\n    let mut acc: Field = 0;\n    for i in 0..2 {\n        for j in 0..2 {\n            acc += EXPONENTIATE[i][j];\n        }\n    }\n    assert(!acc.lt(x));\n    assert(x != y);\n\n    dummy_again(x, y);\n}\n\nfn dummy_again(x: Field, y: Field) {\n    let mut acc: Field = 0;\n    for i in 0..2 {\n        for j in 0..2 {\n            acc += EXPONENTIATE[i][j];\n        }\n    }\n    assert(x != y);\n    assert(!acc.lt(x));\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

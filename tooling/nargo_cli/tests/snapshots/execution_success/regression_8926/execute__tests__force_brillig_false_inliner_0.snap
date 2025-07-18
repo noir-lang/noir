@@ -41,11 +41,5 @@ expression: artifact
       "source": "unconstrained fn main() -> pub str<3> {\n    let mut a = (&mut \"ABC\");\n    a = a;\n    let mut idx_b = 0;\n    loop {\n        if (idx_b == 0) {\n            break\n        }\n    }\n    (*a)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

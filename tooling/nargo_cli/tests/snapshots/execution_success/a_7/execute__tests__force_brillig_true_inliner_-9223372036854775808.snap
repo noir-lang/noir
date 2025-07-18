@@ -66,11 +66,5 @@ expression: artifact
       "source": "// This is the same as Blake2s example.\n//\n// Pre-alpha dependencies must now be prefixed with the word \"dep\".\n// The line below indicates that we would like to pull in the standard library dependency.\nfn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake2s(x);\n    assert(digest == result);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

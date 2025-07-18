@@ -92,12 +92,5 @@ expression: artifact
       "source": "pub struct Data {\n    fields: [Field; 1],\n    counter: u32,\n}\n\nfn main(array: call_data(0) [Data; 1], x: bool) {\n    let index = if x { 0 } else { 1 };\n    if index != 0 {\n        assert(array[index - 1].counter < 3);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert",
-    "directive_integer_quotient"
-  ]
+  }
 }

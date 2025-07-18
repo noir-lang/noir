@@ -39,9 +39,5 @@ expression: artifact
     "EXPR [ (1, _3) -1 ]"
   ],
   "debug_symbols": "dY/RCoMwDEX/Jc99cIwxtl8ZQ2KNUghpia0wxH9fFN1ksKf05vRc2glaakpfB+niAPfHBI0G5tDXHD3mEMW20+xgj3VWIlvBgZuVUEky3KUwOxiRy3ppSCjrzKhGKwckrU0r7ALTcprd167+q7fz5p6q68e+mP60hD7o74NH1IAN0xa7Iv5A8yvtZP9w0uipLUpL08qs+w0=",
-  "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "file_map": {}
 }

@@ -41,11 +41,5 @@ expression: artifact
       "source": "fn main(x: i8) {\n    assert_eq(x as i16, -1);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  }
 }

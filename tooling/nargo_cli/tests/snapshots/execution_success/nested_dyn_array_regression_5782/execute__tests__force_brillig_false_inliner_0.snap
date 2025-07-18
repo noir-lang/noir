@@ -48,15 +48,14 @@ expression: artifact
     "return value indices : []",
     "INIT (id: 0, len: 2, witnesses: [_0, _1])",
     "EXPR [ (1, _2) (-1, _3) -1 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(3))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(4)), Simple(Witness(5))]",
-    "BLACKBOX::RANGE [_5]:32 bits []",
-    "EXPR [ (1, _3) (-4294967296, _4) (-1, _5) 4294967294 ]",
-    "EXPR [ (-1, _4) 0 ]",
-    "MEM (id: 0, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _6) 0 ]) ",
-    "EXPR [ (1, _6) -5 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(7)), Simple(Witness(8))]",
-    "BLACKBOX::RANGE [_8]:32 bits []",
-    "EXPR [ (1, _2) (-4294967296, _7) (-1, _8) 4294967294 ]",
+    "BLACKBOX::RANGE [_3]:1 bits []",
+    "MEM (id: 0, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _4) 0 ]) ",
+    "EXPR [ (1, _4) -5 ]",
+    "BLACKBOX::RANGE [_2]:1 bits []",
+    "MEM (id: 0, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _5) 0 ]) ",
+    "EXPR [ (1, _5) -10 ]",
+    "EXPR [ (-1, _6) 2 ]",
+    "MEM (id: 0, write EXPR [ (1, _6) 0 ] at: EXPR [ (1, _2) 0 ]) ",
     "EXPR [ (-1, _7) 0 ]",
     "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _8) 0 ]) ",
     "EXPR [ (1, _8) -5 ]",
@@ -82,9 +81,5 @@ expression: artifact
       "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

@@ -104,11 +104,5 @@ expression: artifact
       "source": "use std::ops::{WrappingAdd, WrappingMul, WrappingSub};\n\n//Basic tests for arrays\nfn main(x: [u32; 5], y: [u32; 5], mut z: u32, t: u32) {\n    let mut c = 2301;\n    z = y[4];\n    //Test 1:\n    for i in 0..5 {\n        c = z * z * y[i];\n        z -= c;\n    }\n    assert(z == 0); //y[4]=0, so c and z are always 0\n    //Test 2:\n    c = 2301 as u32;\n    for i in 0..5 {\n        c = t + 2 as u32;\n        c = z.wrapping_mul(z).wrapping_mul(x[i]);\n        z = z.wrapping_add((x[i] * y[i]).wrapping_sub(c));\n    }\n    assert(z == 3814912846);\n    //Test 3:\n    c = 2300001 as u32;\n    z = y[4];\n    for i in 0..5 {\n        z = z + x[i] * y[i];\n        for _i in 0..3 {\n            c = (i as u32).wrapping_sub(2 as u32);\n            z = z.wrapping_mul(c);\n        }\n    }\n    assert(z == 41472);\n    //Test 4:\n    z = y[4];\n    for i in 0..3 {\n        z += x[i] * y[i];\n        for j in 0..2 {\n            z += x[i + j] - y[i + j];\n        }\n    }\n    assert(z == 11539);\n    //Test 5:\n    let cc = if z < 1 { x } else { y };\n    assert(cc[0] == y[0]);\n    // Test 6: for-each loops\n    for y_elem in y {\n        for x_elem in x {\n            assert(x_elem != y_elem);\n        }\n    }\n    // Test 7: Arrays of tuples/structs\n    let mut tuple_array = [(1, 2), (3, 4), (5, 6)];\n    tuple_array[1] = (7, 8);\n    assert(tuple_array[1].1 == 8);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

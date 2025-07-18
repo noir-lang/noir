@@ -56,12 +56,5 @@ expression: artifact
       "source": "fn main(x: Field) {\n    // Regression test for #6451\n    let y = unsafe { empty(x) };\n    let mut value = 0;\n    let term1 = x * x - x * y;\n    std::as_witness(term1);\n    value += term1;\n    let term2 = x * x - y * x;\n    value += term2;\n    value.assert_max_bit_size::<1>();\n\n    // Regression test for #6447 (Aztec Packages issue #9488)\n    // Safety: testing context\n    let y = unsafe { empty(x + 1) };\n    let z = y + x + 1;\n    let z1 = z + y;\n    assert(z + z1 != 3);\n    let w = y + 2 * x + 3;\n    assert(w + z1 != z);\n}\n\nunconstrained fn empty(_: Field) -> Field {\n    0\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "empty",
-    "directive_invert"
-  ]
+  }
 }

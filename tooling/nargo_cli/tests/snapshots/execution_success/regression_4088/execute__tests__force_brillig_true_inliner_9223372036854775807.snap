@@ -48,11 +48,5 @@ expression: artifact
       "source": "trait Serialize<let N: u32> {\n    fn serialize(self) -> [Field; N];\n}\n\nstruct ValueNote {\n    value: Field,\n}\n\nimpl Serialize<1> for ValueNote {\n    fn serialize(self) -> [Field; 1] {\n        [self.value]\n    }\n}\n\nfn check<let N: u32>(serialized_note: [Field; N]) {\n    assert(serialized_note[0] == 0);\n}\n\nfn oopsie<Note, let N: u32>(note: Note)\nwhere\n    Note: Serialize<N>,\n{\n    let serialized_note = Note::serialize(note);\n\n    check(serialized_note)\n}\n\nfn main(mut note: ValueNote) {\n    oopsie(note);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

@@ -162,12 +162,5 @@ expression: artifact
       "source": "fn main(\n    a: bool,\n    b: ([bool; 2], [bool; 2], str<2>, (u16, u16), u16),\n    c: ((Field, bool, bool), (u16, str<2>)),\n) -> pub u16 {\n    b.4\n        % if c.0.2 {\n            b.3.0\n        } else {\n            if (!a) {\n                37995\n            } else {\n                (b.3.1 % 64485)\n            }\n        }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

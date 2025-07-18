@@ -31,11 +31,5 @@ expression: artifact
       "source": "fn main() {\n    // Safety: testing context\n    unsafe {\n        func_2()\n    }\n}\nunconstrained fn func_2() {\n    let mut a: [&mut bool; 1] = [&mut true];\n    let mut idx_b: u32 = 0;\n    while *a[0] {\n        if idx_b == 0 {\n            break;\n        }\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

@@ -41,9 +41,5 @@ expression: artifact
       "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

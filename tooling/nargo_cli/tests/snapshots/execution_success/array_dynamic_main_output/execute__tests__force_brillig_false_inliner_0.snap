@@ -96,11 +96,5 @@ expression: artifact
       "source": "fn main(mut x: [Field; 10], index: u32) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  }
 }

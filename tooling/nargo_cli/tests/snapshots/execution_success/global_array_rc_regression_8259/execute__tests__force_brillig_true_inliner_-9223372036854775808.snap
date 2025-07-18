@@ -52,11 +52,5 @@ expression: artifact
       "source": "global G_C: [bool; 3] = [true, false, true];\nfn main(a: bool) -> pub [bool; 3] {\n    let b = func_1(a, G_C);\n    if a {\n        G_C\n    } else {\n        b\n    }\n}\nfn func_1(a: bool, mut b: [bool; 3]) -> [bool; 3] {\n    b[1] = a;\n    b\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

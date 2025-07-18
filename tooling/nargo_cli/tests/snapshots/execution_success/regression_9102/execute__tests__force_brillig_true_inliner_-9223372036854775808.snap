@@ -40,11 +40,5 @@ expression: artifact
       "source": "fn main() -> pub [bool; 2] {\n    // safety: Test\n    unsafe {\n        func_1([[true, true], [true, false]])\n    }\n}\n\nunconstrained fn func_1(mut a: [[bool; 2]; 2]) -> [bool; 2] {\n    let mut i: u32 = 1;\n    loop {\n        if (i == 1) {\n            break\n        }\n    }\n    a[1][1] = true;\n    [true, false]\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

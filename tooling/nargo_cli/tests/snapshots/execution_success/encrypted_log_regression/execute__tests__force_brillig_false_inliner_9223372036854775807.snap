@@ -106,9 +106,5 @@ expression: artifact
     "EXPR [ (-1, _13, _14) (1, _29) 0 ]"
   ],
   "debug_symbols": "ndHBCoQgEAbgd/HcwXLbrFdZljCbQhAV02CJ3n0tcquFLp105nc+kJlQC43va6E6PaDqNaHGCilFX0vNmRNahe40JyiWtbMAoYUOeZgyzIJyqFJeygSNTPr10WCYWk/HbEhxgkC14QxgJyQstznZp/H1aFricpvO8IP8gPwspNdCRgsSBUrpDYGkmG4CSUlxR6BZ/AWh+fOOUJS7kJ2Fd6gYF/Z/dyOzgjUStrLzih9S9zExibs3VnNovYVFWrNgfwE=",
-  "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "file_map": {}
 }

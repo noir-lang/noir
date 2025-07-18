@@ -61,11 +61,5 @@ expression: artifact
       "source": "unconstrained fn main(start: i64, end: i64) -> pub u32 {\n    let start = (start % 5);\n    let end = (end % 5);\n    let mut sum = 0;\n    for i in start..end {\n        sum += 1;\n    }\n    sum\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

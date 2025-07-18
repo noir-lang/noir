@@ -65,14 +65,5 @@ expression: artifact
       "source": "mod consts;\nuse consts::EXPONENTIATE;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point_only_const_global(x) == 2);\n        check_acc_entry_point(x, y);\n        assert(entry_point_only_const_global(x) == 2);\n        entry_point_inner_func_globals(x as Field, y);\n        // NOTE: We want a lot of these calls to display clearly\n        // that execution time has not been tainted by accidentally initializing globals\n        // for entry points which do not use them.\n        assert(entry_point_no_globals(x, y) == 1);\n        assert(entry_point_no_globals(x, y) == 1);\n        assert(entry_point_only_const_global(x) == 2);\n        assert(entry_point_only_const_global(x) == 2);\n        assert(entry_point_only_const_global(x) == 2);\n        assert(entry_point_only_const_global(x) == 2);\n        assert(entry_point_only_const_global(x) == 2);\n        assert(entry_point_no_globals(x, y) == 1);\n        assert(entry_point_no_globals(x, y) == 1);\n        assert(entry_point_no_globals(x, y) == 1);\n    }\n}\n\nunconstrained fn check_acc_entry_point(x: Field, y: Field) {\n    let mut acc: Field = 0;\n    for i in 0..2 {\n        for j in 0..2 {\n            acc += EXPONENTIATE[i][j];\n        }\n    }\n    assert(!acc.lt(x));\n    assert(x != y);\n\n    assert(inner(x + 1) == 2);\n}\n\nfn inner(x: Field) -> Field {\n    x + 1\n}\n\nunconstrained fn entry_point_only_const_global(x: Field) -> Field {\n    inner(x + 1)\n}\n\nunconstrained fn entry_point_no_globals(x: Field, y: Field) -> Field {\n    x + y\n}\n\nunconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {\n    one_more_wrapper(x, y);\n}\n\nunconstrained fn one_more_wrapper(x: Field, y: Field) {\n    check_acc_entry_point(x, y);\n    check_acc_entry_point(x, y);\n    check_acc_entry_point(x, y);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "entry_point_only_const_global",
-    "check_acc_entry_point",
-    "entry_point_inner_func_globals",
-    "entry_point_no_globals"
-  ]
+  }
 }

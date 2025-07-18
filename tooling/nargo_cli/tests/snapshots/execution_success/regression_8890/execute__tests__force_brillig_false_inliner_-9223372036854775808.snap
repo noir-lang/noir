@@ -48,11 +48,5 @@ expression: artifact
       "source": "// Regression test for issue \"V-NSCA-VUL-003: Missing ArraySet case in Removing Unreachable Functions pass\"\n// found in Veridise Audit.\n\nfn main(x: Field, y: pub Field) -> pub Field {\n    assert(x != y);\n    let mut f = [my_fun];\n    f[0] = my_fun2;\n    (f[0])(x)\n}\n\nfn my_fun(x: Field) -> Field {\n    x + 1\n}\n\nfn my_fun2(x: Field) -> Field {\n    x + 2\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

@@ -41,11 +41,5 @@ expression: artifact
       "source": "fn main(x: u32) {\n    if (x == 43) {\n        let _ = foo(x);\n    }\n    assert(foo(x) != 0);\n}\n\nfn foo(input: u32) -> u32 {\n    assert(input != 0);\n    input % 100\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

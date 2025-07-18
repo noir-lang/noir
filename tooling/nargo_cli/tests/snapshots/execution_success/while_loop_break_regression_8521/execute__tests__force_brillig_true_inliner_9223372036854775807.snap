@@ -55,11 +55,5 @@ expression: artifact
       "source": "// Regression for issue #8521 (https://github.com/noir-lang/noir/issues/8521)\n// We do not expect division by zero in the while loop to be hoisted\n// x = 0\nunconstrained fn main(x: u32) -> pub str<3> {\n    let mut idx_b = 0;\n    while true {\n        if (idx_b == 0) {\n            break\n        } else {\n            idx_b = (idx_b + 1);\n            let c = (5 / x);\n            println(c);\n        }\n    }\n    \"SQF\"\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

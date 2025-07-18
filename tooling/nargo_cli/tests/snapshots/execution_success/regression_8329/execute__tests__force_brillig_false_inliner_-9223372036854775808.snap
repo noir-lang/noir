@@ -104,12 +104,5 @@ expression: artifact
       "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p != 0 {\n        let a = x / z;\n        let b = a - z;\n        if b != 0 {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert",
-    "directive_integer_quotient"
-  ]
+  }
 }

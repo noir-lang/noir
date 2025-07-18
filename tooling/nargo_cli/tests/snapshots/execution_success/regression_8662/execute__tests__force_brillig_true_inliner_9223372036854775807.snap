@@ -44,11 +44,5 @@ expression: artifact
       "source": "struct Context {\n    f: fn() -> bool,\n}\nfn main(c: bool) -> pub bool {\n    let mut ctx = Context { f: bar };\n    if c {\n        ctx.f = qux;\n    }\n    foo(&mut ctx)\n}\n\nfn foo(ctx: &mut Context) -> bool {\n    (ctx.f)()\n}\n\nfn bar() -> bool {\n    false\n}\n\nfn qux() -> bool {\n    true\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

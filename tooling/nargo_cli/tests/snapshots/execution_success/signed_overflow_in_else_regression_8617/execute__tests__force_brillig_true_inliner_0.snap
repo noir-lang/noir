@@ -63,11 +63,5 @@ expression: artifact
       "source": "fn main(a: i32, c: bool) -> pub i32 {\n    if c {\n        a\n    } else {\n        ((-a) * a)\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }
