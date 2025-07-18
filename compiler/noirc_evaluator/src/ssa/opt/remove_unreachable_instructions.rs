@@ -173,7 +173,39 @@ impl Function {
                         }
                     }
                 }
-                _ => {}
+
+                Instruction::ArrayGet { array, index, offset }
+                | Instruction::ArraySet { array, index, offset, .. } => {
+                    let array_or_slice_type = context.dfg.type_of_value(*array);
+                    let array_op_always_fails = match array_or_slice_type {
+                        Type::Slice(_) => false,
+                        array_type @ Type::Array(_, len) => {
+                            len == 0
+                                || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                                    (index.try_to_u32().unwrap() - offset.to_u32())
+                                        >= array_type.flattened_size()
+                                })
+                        }
+
+                        _ => unreachable!(
+                            "Encountered non-array type during array read/write operation"
+                        ),
+                    };
+
+                    if array_op_always_fails {
+                        let is_predicate_constant_one =
+                            match context.dfg.get_numeric_constant(side_effects_condition) {
+                                Some(predicate) => predicate.is_one(),
+                                None => false, // The predicate is a variable
+                            };
+                        current_block_reachability = if is_predicate_constant_one {
+                            Reachability::Unreachable
+                        } else {
+                            Reachability::UnreachableUnderPredicate
+                        };
+                    }
+                }
+                _ => (),
             };
 
             if current_block_reachability == Reachability::Unreachable {
@@ -389,6 +421,45 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn removes_unreachable_instructions_in_block_for_invalid_array_get() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 10], v1: u32):
+            v2 = make_array [] : [Field; 0]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v3 = array_get v2, index v1 -> Field
+            jmp b4()
+          b3():
+            v4 = array_get v0, index u32 11 -> Field
+            jmp b4()
+          b4():
+            return Field 1
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 10], v1: u32):
+            v2 = make_array [] : [Field; 0]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            v4 = array_get v2, index v1 -> Field
+            unreachable
+          b3():
+            v6 = array_get v0, index u32 11 -> Field
+            unreachable
+        }
+        ");
     }
 
     #[test]
