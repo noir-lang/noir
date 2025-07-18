@@ -765,7 +765,8 @@
 <a href="#764" id="764">764</a>
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -1033,6 +1034,7 @@
 <span class="doccomment">/// Contains all the information about a package, as loaded from a `Nargo.toml`.
 </span><span class="attr">#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 </span><span class="kw">pub enum </span>Config {
     <span class="doccomment">/// Represents a `Nargo.toml` with package fields.
     </span>Package {
