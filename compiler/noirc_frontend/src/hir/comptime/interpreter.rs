@@ -494,7 +494,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
                     Value::Pointer(reference, true, _) => {
-                        *reference.borrow_mut() = argument;
+                        // We can't store to the reference directly, we need to check if the value
+                        // is a struct or tuple to store to each field instead. This is so any
+                        // references to these fields are also updated.
+                        let reference = reference.clone();
+                        self.store_flattened(reference, argument);
                     }
                     _ => {
                         entry.insert(argument);
@@ -1172,7 +1176,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        *value.borrow_mut() = rhs;
+                        self.store_flattened(value, rhs);
                         Ok(())
                     }
                     value => {
@@ -1224,6 +1228,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    /// When we store to a struct such as in
+    /// ```noir
+    /// let mut a = (false,);
+    /// let b = &mut a.0;
+    /// a = (true,);
+    /// ```
+    /// we must flatten the store to store to each individual field so that any existing
+    /// references, such as `b` above, will also reflect the mutation.
+    fn store_flattened(&mut self, lvalue: Shared<Value>, rvalue: Value) {
+        let lvalue_ref = lvalue.borrow();
+        match (&*lvalue_ref, rvalue) {
+            (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
+                for (name, lvalue) in lvalue_fields.iter() {
+                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    self.store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
+                    self.store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (_, rvalue) => {
+                drop(lvalue_ref);
+                *lvalue.borrow_mut() = rvalue;
+            }
+        }
+    }
+
     fn evaluate_lvalue(&mut self, lvalue: &HirLValue) -> IResult<Value> {
         match lvalue {
             HirLValue::Ident(ident, _) => match self.lookup(ident)? {
@@ -1252,7 +1285,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut values) => Ok(values.swap_remove(index).unwrap_or_clone()),
-                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone().unwrap_or_clone()),
+                    Value::Struct(fields, _) => {
+                        Ok(fields[field_name.as_string()].clone().unwrap_or_clone())
+                    }
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,

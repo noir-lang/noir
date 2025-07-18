@@ -681,7 +681,8 @@ pub(crate) fn to_struct(
     fields: impl IntoIterator<Item = (&'static str, Value)>,
     typ: Type,
 ) -> Value {
-    let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
+    let fields =
+        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
     Value::Struct(fields, typ)
 }
 
@@ -699,7 +700,10 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::Field(SignedField::positive(unary_op_value))));
+    fields.insert(
+        Rc::new("op".to_string()),
+        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
+    );
 
     Some(Value::Struct(fields, typ))
 }
@@ -709,7 +713,10 @@ pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::Field(SignedField::positive(binary_op_value))));
+    fields.insert(
+        Rc::new("op".to_string()),
+        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
+    );
 
     Value::Struct(fields, typ)
 }

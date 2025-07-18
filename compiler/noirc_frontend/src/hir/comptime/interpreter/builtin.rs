@@ -711,7 +711,8 @@ fn type_def_set_fields(
             let type_var = elaborator.interner.next_type_variable();
             let expected = Type::Tuple(vec![type_var.clone(), type_var]);
 
-            let actual = Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
+            let actual =
+                Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
 
             return Err(InterpreterError::TypeMismatch { expected, actual, location });
         }
@@ -787,7 +788,9 @@ fn slice_pop_back(
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_back() {
-        Some(element) => Ok(Value::Tuple(vec![Shared::new(Value::Slice(values, typ)), Shared::new(element)])),
+        Some(element) => {
+            Ok(Value::Tuple(vec![Shared::new(Value::Slice(values, typ)), Shared::new(element)]))
+        }
         None => failing_constraint("slice_pop_back called on empty slice", location, call_stack),
     }
 }
@@ -1501,7 +1504,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             }
         }
         Type::Unit => Value::Unit,
-        Type::Tuple(fields) => Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location)))),
+        Type::Tuple(fields) => {
+            Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location))))
+        }
         Type::DataType(data_type, generics) => {
             let typ = data_type.borrow();
 
@@ -1888,8 +1893,10 @@ fn expr_as_function_call(
             let function = Shared::new(Value::expression(call_expression.func.kind));
             let arguments = call_expression.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments =
-                Shared::new(Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)))));
+            let arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
             Some(Value::Tuple(vec![function, arguments]))
         } else {
             None
@@ -2090,7 +2097,10 @@ fn expr_as_member_access(
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, location: _ }) => {
-            Some(Value::Tuple(vec![Shared::new(Value::lvalue(*object)), Shared::new(quote_ident(&field_name, location))]))
+            Some(Value::Tuple(vec![
+                Shared::new(Value::lvalue(*object)),
+                Shared::new(quote_ident(&field_name, location)),
+            ]))
         }
         _ => None,
     })
@@ -2118,8 +2128,10 @@ fn expr_as_method_call(
 
             let arguments = method_call.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments =
-                Shared::new(Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr)))));
+            let arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
 
             Some(Value::Tuple(vec![object, name, generics, arguments]))
         } else {

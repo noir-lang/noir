@@ -250,8 +250,9 @@ impl Value {
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.unwrap_or_clone().into_expression(elaborator, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_expression(elaborator, location)
+                })?;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
@@ -418,8 +419,9 @@ impl Value {
                 return Ok(expr_id);
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.unwrap_or_clone().into_hir_expression(interner, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
@@ -621,7 +623,9 @@ impl Value {
             Value::Slice(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Tuple(values) => values.iter().any(|value| value.borrow().contains_function_or_closure()),
+            Value::Tuple(values) => {
+                values.iter().any(|value| value.borrow().contains_function_or_closure())
+            }
             Value::Struct(fields, _) => {
                 fields.values().any(|value| value.borrow().contains_function_or_closure())
             }
