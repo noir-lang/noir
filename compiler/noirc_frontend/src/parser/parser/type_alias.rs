@@ -35,7 +35,7 @@ impl Parser<'_> {
             // It must be a numeric type
             num_typ = Some(self.parse_type_or_error());
         }
-        let expr_location = self.location_at_previous_token_end();
+        let mut expr_location = self.current_token_location;
         let location;
         let typ = if !self.eat_assign() {
             self.expected_token(Token::Assign);
@@ -46,6 +46,7 @@ impl Parser<'_> {
                 location: self.location_at_previous_token_end(),
             }
         } else {
+            expr_location = self.current_token_location;
             let typ = self.parse_type_or_type_expression().unwrap();
             location = self.location_since(start_location);
             self.eat_semicolon_or_error();
