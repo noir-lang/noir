@@ -4794,3 +4794,19 @@ fn cannot_assign_to_module() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn cannot_assign_to_nested_struct() {
+    let src = r#"
+    mod foo {
+        pub struct bar {}
+    }
+
+    fn main() {
+        foo::bar = 1;
+        ^^^^^^^^ expected value got type
+    }
+    "#;
+    check_errors!(src);
+}
