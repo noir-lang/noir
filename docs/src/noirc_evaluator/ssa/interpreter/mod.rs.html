@@ -2419,7 +2419,7 @@
         <span class="kw">let </span>index = <span class="self">self</span>.lookup_u32(index, <span class="string">"array get index"</span>)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>index = index - offset.to_u32();
 
-        <span class="kw">let </span>element = <span class="kw">if </span>array.elements.borrow().len() == <span class="number">0 </span>{
+        <span class="kw">let </span>element = <span class="kw">if </span>array.elements.borrow().is_empty() {
             <span class="comment">// Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
