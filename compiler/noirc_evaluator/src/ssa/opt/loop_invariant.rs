@@ -158,9 +158,9 @@ struct LoopInvariantContext<'f> {
     // Maps current loop induction variable -> fixed lower and upper loop bound
     // This map is expected to only ever contain a singular value.
     // However, we store it in a map in order to match the definition of
-    // `all_induction_variables` as both maps share checks for evaluating binary operations.
+    // `outer_induction_variables` as both maps share checks for evaluating binary operations.
     current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    // Maps loop induction variable -> fixed lower and upper loop bound
+    // Maps outer loop induction variable -> fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
     // have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
@@ -420,7 +420,8 @@ impl<'f> LoopInvariantContext<'f> {
                 continue;
             }
             let Some(induction_variable) = self.get_induction_variable(nested) else {
-                continue;
+                // If we don't know what the induction variable is, we can't say if it executes.
+                return false;
             };
             if !check_bounds(self.all_induction_variables.get(&induction_variable)) {
                 return false;
