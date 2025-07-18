@@ -4,10 +4,10 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
-use crate::hir::comptime::value::StructFields;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
