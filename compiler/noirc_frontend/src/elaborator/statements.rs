@@ -377,31 +377,39 @@ impl Elaborator<'_> {
                 let mut mutable = true;
                 let location = ident.location();
                 let path = TypedPath::from_single(ident.to_string(), location);
-                let ((ident, scope_index), _) = self.get_ident_from_path(path);
+                match self.get_ident_from_path_or_error(path) {
+                    Ok(((ident, scope_index), _)) => {
+                        self.resolve_local_variable(ident.clone(), scope_index);
 
-                self.resolve_local_variable(ident.clone(), scope_index);
+                        if let Some(definition) = self.interner.try_definition(ident.id) {
+                            mutable = definition.mutable;
 
-                let typ = if ident.id == DefinitionId::dummy_id() {
-                    Type::Error
-                } else {
-                    if let Some(definition) = self.interner.try_definition(ident.id) {
-                        mutable = definition.mutable;
-
-                        if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name: definition.name.clone(),
-                                location: ident.location,
-                            });
+                            if definition.comptime && !self.in_comptime_context() {
+                                self.push_err(
+                                    ResolverError::MutatingComptimeInNonComptimeContext {
+                                        name: definition.name.clone(),
+                                        location: ident.location,
+                                    },
+                                );
+                            }
                         }
+
+                        let typ =
+                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
+                        let typ = typ.follow_bindings();
+
+                        self.interner.add_local_reference(ident.id, location);
+
+                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
                     }
-
-                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                    typ.follow_bindings()
-                };
-
-                self.interner.add_local_reference(ident.id, location);
-
-                (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                    Err(error) => {
+                        self.push_err(error);
+                        let id = DefinitionId::dummy_id();
+                        let ident = HirIdent::non_trait_method(id, location);
+                        let typ = Type::Error;
+                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                    }
+                }
             }
             LValue::MemberAccess { object, field_name, location } => {
                 let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);
