@@ -12,6 +12,7 @@ message Circuit {
   repeated native.Witness public_parameters = 5;
   repeated native.Witness return_values = 6;
   repeated AssertMessage assert_messages = 7;
+  string name = 8;
 }
 
 message ExpressionWidth {

@@ -17,7 +17,6 @@ use super::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
 pub type Artifacts = (
     Vec<GeneratedAcir<FieldElement>>,
     Vec<BrilligBytecode<FieldElement>>,
-    Vec<String>,
     BTreeMap<ErrorSelector, HirType>,
 );
 
@@ -87,11 +86,11 @@ pub(super) fn codegen_acir(
         }
     }
 
-    let (brillig_bytecode, brillig_names) = shared_context
+    let brillig_bytecode = shared_context
         .generated_brillig
         .into_iter()
-        .map(|brillig| (BrilligBytecode { bytecode: brillig.byte_code }, brillig.name))
-        .unzip();
+        .map(|brillig| BrilligBytecode { name: brillig.name, bytecode: brillig.byte_code })
+        .collect();
 
-    Ok((acirs, brillig_bytecode, brillig_names, ssa.error_selector_to_type))
+    Ok((acirs, brillig_bytecode, ssa.error_selector_to_type))
 }

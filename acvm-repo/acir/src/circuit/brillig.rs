@@ -56,6 +56,8 @@ pub enum BrilligOutputs {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BrilligBytecode<F> {
+    #[serde(default)] // For backwards compatibility
+    pub name: String,
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 

@@ -17,11 +17,12 @@ impl<F: AcirField> ProtoCodec<circuit::brillig::BrilligBytecode<F>, BrilligBytec
     for ProtoSchema<F>
 {
     fn encode(value: &circuit::brillig::BrilligBytecode<F>) -> BrilligBytecode {
-        BrilligBytecode { bytecode: Self::encode_vec(&value.bytecode) }
+        BrilligBytecode { name: value.name.clone(), bytecode: Self::encode_vec(&value.bytecode) }
     }
 
     fn decode(value: &BrilligBytecode) -> eyre::Result<circuit::brillig::BrilligBytecode<F>> {
         Ok(circuit::brillig::BrilligBytecode {
+            name: value.name.clone(),
             bytecode: Self::decode_vec_wrap(&value.bytecode, "bytecode")?,
         })
     }
