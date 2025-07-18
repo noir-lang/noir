@@ -369,8 +369,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let radix_range = 2..=256;
         assert!(
             radix_range.contains(&radix),
-            "ICE: Radix must be in the range 2..=256, but found: {:?}",
-            radix
+            "ICE: Radix must be in the range 2..=256, but found: {radix:?}"
         );
         let radix_big = BigUint::from(radix);
         assert_eq!(

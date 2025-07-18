@@ -27,7 +27,7 @@ pub(super) fn verify_signature(
     let point = EncodedPoint::from_affine_coordinates(
         public_key_x_bytes.into(),
         public_key_y_bytes.into(),
-        true,
+        false,
     );
 
     let pubkey = PublicKey::from_encoded_point(&point);
@@ -107,6 +107,15 @@ mod secp256k1_tests {
         let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &PUB_KEY_Y, &SIGNATURE);
 
         assert!(valid);
+    }
+
+    #[test]
+    fn rejects_signature_that_doesnt_have_the_full_y_coordinate() {
+        let mut pub_key_y_bytes = [0u8; 32];
+        pub_key_y_bytes[31] = PUB_KEY_Y[31];
+        let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE);
+
+        assert!(!valid);
     }
 
     #[test]

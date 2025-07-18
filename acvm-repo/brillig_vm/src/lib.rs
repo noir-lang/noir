@@ -877,8 +877,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write(destination, memory_value);
         } else {
             return Err(format!(
-                "Foreign call result value {} does not fit in bit size {:?}",
-                value, value_bit_size
+                "Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
             ));
         }
         Ok(())
@@ -910,8 +909,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write_slice(destination, &memory_values);
         } else {
             return Err(format!(
-                "Foreign call result values {:?} do not match expected bit sizes",
-                values,
+                "Foreign call result values {values:?} do not match expected bit sizes",
             ));
         }
         Ok(())
@@ -965,8 +963,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             }
                             HeapValueType::Vector { .. } => {
                                 return Err(format!(
-                                    "Unsupported returned type in foreign calls {:?}",
-                                    typ
+                                    "Unsupported returned type in foreign calls {typ:?}"
                                 ));
                             }
                         }
@@ -975,7 +972,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 Ok(())
             }
             HeapValueType::Vector { .. } => {
-                Err(format!("Unsupported returned type in foreign calls {:?}", value_type))
+                Err(format!("Unsupported returned type in foreign calls {value_type:?}"))
             }
         }
     }

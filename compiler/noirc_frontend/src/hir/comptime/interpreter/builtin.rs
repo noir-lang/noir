@@ -346,11 +346,7 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(
-            format!("static_assert failed: {}", message).clone(),
-            location,
-            call_stack,
-        )
+        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
     }
 }
 
@@ -387,7 +383,7 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -2427,7 +2423,7 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -2936,7 +2932,7 @@ fn module_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument)?;
-    let name = &interner.module_attributes(&module_id).name;
+    let name = &interner.module_attributes(module_id).name;
     let token = Token::Ident(name.clone());
     let token = LocatedToken::new(token, location);
     let tokens = Rc::new(vec![token]);

@@ -107,6 +107,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 /// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
+        SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions")
@@ -157,7 +158,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
-        SsaPass::new(Ssa::fold_constants_using_constraints, "Constraint Folding using constraints"),
+        SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
         SsaPass::new_try(
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
@@ -172,6 +173,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
         // if they are unreachable and would cause the DIE post-checks to fail.
+        // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
@@ -191,7 +193,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
-        ),
+        )
+        .and_then(|ssa| {
+            // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+            // that we don't know how to attribute to a concrete error with the Noir code.
+            ssa.dead_instruction_elimination_post_check(true);
+            ssa
+        }),
     ]
 }
 
@@ -219,6 +227,8 @@ pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
 /// In the future, we can potentially execute the actual initial version using the SSA interpreter.
 pub fn minimal_passes() -> Vec<SsaPass<'static>> {
     vec![
+        // Signed integer operations need to be expanded in order to have the appropriate overflow checks applied.
+        SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         // We need to get rid of function pointer parameters, otherwise they cause panic in Brillig generation.
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
         // Even the initial SSA generation can result in optimizations that leave a function

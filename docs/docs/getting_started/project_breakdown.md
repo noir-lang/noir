@@ -62,6 +62,7 @@ The package section defines a number of fields including:
 - `type` (**required**) - can be "bin", "lib", or "contract" to specify whether its a binary, library or Aztec contract
 - `authors` (optional) - authors of the project
 - `compiler_version` - specifies the version of the compiler to use. This is enforced by the compiler and follow's [Rust's versioning](https://doc.rust-lang.org/cargo/reference/manifest.html#the-version-field), so a `compiler_version = 0.18.0` will enforce Nargo version 0.18.0, `compiler_version = ^0.18.0` will enforce anything above 0.18.0 but below 0.19.0, etc. For more information, see how [Rust handles these operators](https://docs.rs/semver/latest/semver/enum.Op.html)
+- `compiler_unstable_features` (optional) - A list of unstable features required by this package to compile.
 - `description` (optional)
 - `entry` (optional) - a relative filepath to use as the entry point into your package (overrides the default of `src/lib.nr` or `src/main.nr`)
 - `backend` (optional)

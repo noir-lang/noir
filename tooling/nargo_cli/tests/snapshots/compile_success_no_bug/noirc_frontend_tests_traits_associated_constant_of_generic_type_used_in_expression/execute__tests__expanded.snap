@@ -11,5 +11,5 @@ impl<let M: u32> Serialize for [Field; M] {
 }
 
 fn main() {
-    let _: u32 = N;
+    let _: u32 = <[Field; 3] as Serialize>::N;
 }

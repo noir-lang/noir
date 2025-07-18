@@ -68,6 +68,7 @@ impl Function {
                     context.remove_current_instruction();
                     return;
                 }
+                active_condition = *condition;
 
                 // If we're seeing an `enable_side_effects u1 1` then we want to insert it immediately.
                 // This is because we want to maximize the effect it will have.
@@ -75,15 +76,13 @@ impl Function {
                     .dfg
                     .get_numeric_constant(*condition)
                     .is_some_and(|condition| condition.is_one());
+
                 if condition_is_one {
                     last_side_effects_enabled_instruction = None;
-                    active_condition = *condition;
-                    return;
+                } else {
+                    last_side_effects_enabled_instruction = Some(instruction_id);
+                    context.remove_current_instruction();
                 }
-
-                last_side_effects_enabled_instruction = Some(instruction_id);
-                active_condition = *condition;
-                context.remove_current_instruction();
                 return;
             }
 
@@ -93,7 +92,7 @@ impl Function {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
-                    context.insert_instruction(enable_side_effects_instruction_id);
+                    context.insert_instruction_by_id(enable_side_effects_instruction_id);
                 }
             }
         });

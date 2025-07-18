@@ -72,7 +72,7 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _46",
+    "current witness index : _38",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10]",
     "public parameters indices : []",
     "return value indices : []",
@@ -147,7 +147,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZRBboMwEEXv4nUWtmcMJlepqogQp0KyADlQqYpy9w7+QJNFpYpu/LDN/zPjsXxXl3CePk5td+1v6vh2V+fUxth+nGLf1GPbd7J6fxzUOj2NKQRZUk/7ohrqFLpRHbspxoP6rOOUf7oNdZc51kl29UGF7iIUw2sbw/z1OPyo9e9SolVMZDa5+7u+dKu+rHboWdOiZ71Lb+yqN/5/8XfpyVdb/npPfCpXPe85f+ZN7/bp3aa3u/LXW/6v+neZ1U2bXm68KtVRGubzWOXRaMDIYQosQAADDigA8WCBB8RFSrAaEJdCYAECOEewDigAZGJ99rRVBmkAuRByIcqBiHMEckCRrQkuhIIIFTEqYrgwXBgVMSpiVMRFtuYye7IHqmztxMULDGABAsRF7p0TFyPn74qF5UK/sAILvdAstDMfc1dTW59jWB6j69Q1T2/T+DWsO+vrNaS+CZcphbmreU/6/A0=",
+  "debug_symbols": "pZTRboMgFED/hWcfkAui/ZVlaailDQlBQ3XJ0vTfd+WCax+WLPTFU6XnSMBwZ2d7Wq9HFy7TjR0+7uwUnffuevTTaBY3BXx6fzSs3B6XaC0+Yk/jaM0m2rCwQ1i9b9iX8Wv60202IXExEUd5w2w4IzF4cd5uvx7Nr83/VgGKDNDuuvq/r1Xx9VDhSw7Zl7zKb0Xx2/6991f50A/7/HnN+0EXX9asv5S7r+p8tfuiav58n/+r/4l3ZnTx5Ytnmh1ww/p0HdK15YQWFxMhCECQ2EUoQodlhCZgpEMMCYIT2hQTggAESVCpKTqCTk3Rp5gYEoAqQBWgClAFqAJUAaoAVYAqQBVJFYmVHoEV/EYkVlpcKykzVWaXqTP7zIGo+MbHtgPRmZO3+eC4rGF8OkeW77mMlJNmjtNoz2u02w6kMdyTHw==",
   "file_map": {
     "50": {
       "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",

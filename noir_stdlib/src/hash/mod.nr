@@ -265,7 +265,7 @@ impl Hash for i8 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u8 as Field);
     }
 }
 
@@ -274,7 +274,7 @@ impl Hash for i16 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u16 as Field);
     }
 }
 
@@ -283,7 +283,7 @@ impl Hash for i32 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u32 as Field);
     }
 }
 
@@ -292,7 +292,7 @@ impl Hash for i64 {
     where
         H: Hasher,
     {
-        H::write(state, self as Field);
+        H::write(state, self as u64 as Field);
     }
 }
 

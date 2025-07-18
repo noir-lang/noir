@@ -203,7 +203,7 @@ fn check_errors_with_options(
         let secondary = error
             .secondaries
             .first()
-            .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
+            .unwrap_or_else(|| panic!("Expected {error:?} to have a secondary label"));
         let span = secondary.location.span;
         let message = &error.message;
 
@@ -284,7 +284,7 @@ fn get_error_line_span_and_message(
 
     let chars = line.chars().collect::<Vec<_>>();
     let first_caret = chars.iter().position(|c| *c == char).unwrap();
-    let last_caret = chars.iter().rposition(|c| *c == char).unwrap();
+    let last_caret = chars.iter().rposition(|c| *c == char).unwrap(); // cSpell:disable-line
     let start = byte - last_line_length;
     let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
     let error = line.trim().trim_start_matches(char).trim().to_string();
@@ -1593,8 +1593,8 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                   ^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                   ~ Unsupported numeric generic type
+                      ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                      ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
     "#;
@@ -1610,8 +1610,8 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                       ^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                       ~ Unsupported numeric generic type
+                          ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                          ~~~ Unsupported numeric generic type
     "#;
     check_errors!(src);
 }
@@ -1621,8 +1621,8 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                    ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                    ~ Unsupported numeric generic type
+                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ~~~~ Unsupported numeric generic type
         if N {
             0
         } else {
@@ -1652,8 +1652,8 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                    ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                    ~ Unsupported numeric generic type
+                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
                              ~ expected `u32`, found `bool`
@@ -2036,6 +2036,30 @@ fn cast_negative_one_to_u8_size_checks() {
         }
     "#;
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn cast_signed_i8_to_field_must_error() {
+    let src = r#"
+        fn main() {
+            assert((-1 as i8) as Field != 0);
+                   ^^^^^^^^^^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
+}
+
+#[named]
+#[test]
+fn cast_signed_i32_to_field_must_error() {
+    let src = r#"
+        fn main(x: i32) {
+            assert(x as Field != 0);
+                   ^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
 }
 
 #[named]
@@ -3190,7 +3214,7 @@ fn unconditional_recursion_fail() {
     // wouldn't panic due to infinite recursion, but the errors asserted here
     // come from the compilation checks, which does static analysis to catch the
     // problem before it even has a chance to cause a panic.
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
            ^^^^ function `main` cannot return without recursing
@@ -3272,7 +3296,7 @@ fn unconditional_recursion_fail() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         check_errors(src, Some(&format!("{}_{index}", function_path!())));
     }
 }
@@ -3280,7 +3304,7 @@ fn unconditional_recursion_fail() {
 #[named]
 #[test]
 fn unconditional_recursion_pass() {
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
             if false { main(); }
@@ -3322,7 +3346,7 @@ fn unconditional_recursion_pass() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         assert_no_errors(src, &format!("{}_{index}", function_path!()));
     }
 }
@@ -4738,4 +4762,21 @@ fn cannot_use_prefix_minus_on_u32() {
     }
     "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn static_method_with_generics_on_type_and_method() {
+    let src = r#"
+    struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn static_method<U>() {}
+    }
+
+    fn main() {
+        Foo::<u8>::static_method::<Field>();
+    }
+    "#;
+    assert_no_errors!(src);
 }

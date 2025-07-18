@@ -93,7 +93,7 @@ jobs:
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
-            --profile ci
+            --profile ci-master
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

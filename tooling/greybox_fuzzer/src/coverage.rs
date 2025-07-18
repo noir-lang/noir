@@ -126,7 +126,7 @@ pub enum BrilligCoverageItemRange {
 
 pub type BrilligCoverageRanges = Vec<BrilligCoverageItemRange>;
 
-/// Raw brillig coverage is just a buffer of uints that contain counters
+/// Raw brillig coverage is just a buffer of unsigned ints that contain counters
 pub type RawBrilligCoverage = Vec<u32>;
 
 /// Information about the coverage of a single testcase execution

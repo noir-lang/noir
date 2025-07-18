@@ -37,10 +37,6 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
       "7233212735005103307": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"

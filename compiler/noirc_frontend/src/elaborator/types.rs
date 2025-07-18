@@ -16,7 +16,7 @@ use crate::{
     elaborator::UnstableFeature,
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::fully_qualified_module_path,
+        def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -32,6 +32,7 @@ use crate::{
         stmt::HirStatement,
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
         TraitItemId,
@@ -315,6 +316,18 @@ impl Elaborator<'_> {
                     }
                 }
                 typ
+            }
+            Ok(PathResolutionItem::TraitAssociatedType(associated_type_id)) => {
+                let associated_type = self.interner.get_trait_associated_type(associated_type_id);
+                let trait_ = self.interner.get_trait(associated_type.trait_id);
+
+                self.push_err(ResolverError::AmbiguousAssociatedType {
+                    trait_name: trait_.name.to_string(),
+                    associated_type_name: associated_type.name.to_string(),
+                    location,
+                });
+
+                Type::Error
             }
             Ok(item) => {
                 self.push_err(ResolverError::Expected {
@@ -722,12 +735,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let trait_id = if let Some(current_trait) = self.current_trait {
-            current_trait
-        } else {
-            let trait_impl = self.current_trait_impl?;
-            self.interner.try_get_trait_implementation(trait_impl)?.borrow().trait_id
-        };
+        let trait_id = self.current_trait?;
 
         if path.kind == PathKind::Plain && path.segments.len() == 2 {
             let name = path.segments[0].ident.as_str();
@@ -828,6 +836,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::Module(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..)
             | PathResolutionItem::Method(..)
@@ -1162,7 +1171,13 @@ impl Elaborator<'_> {
 
         match to {
             Type::Integer(sign, bits) => Type::Integer(sign, bits),
-            Type::FieldElement => Type::FieldElement,
+            Type::FieldElement => {
+                if from_follow_bindings.is_signed() {
+                    self.push_err(TypeCheckError::UnsupportedFieldCast { location });
+                }
+
+                Type::FieldElement
+            }
             Type::Bool => {
                 let from_is_numeric = match from_follow_bindings {
                     Type::Integer(..) | Type::FieldElement => true,
@@ -2179,7 +2194,7 @@ impl Elaborator<'_> {
                             let existing = existing.follow_bindings();
                             let new = binding.2.follow_bindings();
 
-                            // Exact equality on types is intential here, we never want to
+                            // Exact equality on types is intentional here, we never want to
                             // overwrite even type variables but should probably avoid a panic if
                             // the types are exactly the same.
                             if existing != new {
@@ -2242,16 +2257,18 @@ impl Elaborator<'_> {
         location: Location,
         resolved_generic: &ResolvedGeneric,
     ) {
-        let name = unresolved_generic.ident().as_str();
+        if let Some(name) = unresolved_generic.ident().ident() {
+            let name = name.as_str();
 
-        if let Some(generic) = self.find_generic(name) {
-            self.push_err(ResolverError::DuplicateDefinition {
-                name: name.to_string(),
-                first_location: generic.location,
-                second_location: location,
-            });
-        } else {
-            self.generics.push(resolved_generic.clone());
+            if let Some(generic) = self.find_generic(name) {
+                self.push_err(ResolverError::DuplicateDefinition {
+                    name: name.to_string(),
+                    first_location: generic.location,
+                    second_location: location,
+                });
+            } else {
+                self.generics.push(resolved_generic.clone());
+            }
         }
     }
 
@@ -2301,7 +2318,62 @@ impl Elaborator<'_> {
     }
 
     pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
-        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
+        let module_def_id = ModuleDefId::TraitId(trait_.id);
+        let visibility = trait_.visibility;
+        let defining_module = None;
+        let trait_is_visible = module_def_id_is_visible(
+            module_def_id,
+            self.module_id(),
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+            &self.crate_graph[self.crate_id].dependencies,
+        );
+
+        if !trait_is_visible {
+            let dependencies = &self.crate_graph[self.crate_id].dependencies;
+
+            for reexport in self.interner.get_trait_reexports(trait_.id) {
+                let reexport_is_visible = module_def_id_is_visible(
+                    module_def_id,
+                    self.module_id(),
+                    reexport.visibility,
+                    Some(reexport.module_id),
+                    self.interner,
+                    self.def_maps,
+                    dependencies,
+                );
+                if reexport_is_visible {
+                    let module_path = fully_qualified_module_path(
+                        self.def_maps,
+                        self.crate_graph,
+                        &self.crate_id,
+                        reexport.module_id,
+                    );
+                    return format!("{module_path}::{}", reexport.name);
+                }
+            }
+
+            if let Some(reexport) = get_ancestor_module_reexport(
+                module_def_id,
+                visibility,
+                self.module_id(),
+                self.interner,
+                self.def_maps,
+                dependencies,
+            ) {
+                let module_path = fully_qualified_module_path(
+                    self.def_maps,
+                    self.crate_graph,
+                    &self.crate_id,
+                    reexport.module_id,
+                );
+                return format!("{module_path}::{}::{}", reexport.name, trait_.name);
+            }
+        }
+
+        fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
     }
 }
 

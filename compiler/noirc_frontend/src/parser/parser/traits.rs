@@ -64,7 +64,7 @@ impl Parser<'_> {
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
-            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident, Vec::new());
+            let object_type_generic = UnresolvedGeneric::from(object_type_ident.clone());
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
@@ -78,14 +78,17 @@ impl Parser<'_> {
             let trait_name = Path::from_ident(name.clone());
             let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
                 let is_synthesized = true;
-                let generic_type = UnresolvedType {
-                    typ: UnresolvedTypeData::Named(
-                        Path::from_ident(generic.ident().clone()),
+
+                let typ = match generic.ident().ident() {
+                    Some(ident) => UnresolvedTypeData::Named(
+                        Path::from_ident(ident.clone()),
                         vec![].into(),
                         is_synthesized,
                     ),
-                    location,
+                    None => UnresolvedTypeData::Error,
                 };
+
+                let generic_type = UnresolvedType { typ, location };
 
                 GenericTypeArg::Ordered(generic_type)
             })
@@ -188,7 +191,7 @@ impl Parser<'_> {
         Some(TraitItem::Type { name, bounds })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -213,12 +216,18 @@ impl Parser<'_> {
             UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
-        let default_value =
-            if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
+        if self.eat_assign() {
+            let expr_start_location = self.current_token_location;
+            let _ = self.parse_expression_or_error();
+            self.push_error(
+                ParserErrorReason::AssociatedTraitConstantDefaultValuesAreNotSupported,
+                self.location_since(expr_start_location),
+            );
+        }
 
         self.eat_semicolon_or_error();
 
-        Some(TraitItem::Constant { name, typ, default_value })
+        Some(TraitItem::Constant { name, typ })
     }
 
     /// TraitFunction = Modifiers Function
@@ -510,18 +519,29 @@ mod tests {
 
     #[test]
     fn parse_trait_with_constant() {
-        let src = "trait Foo { let x: Field = 1; }";
+        let src = "trait Foo { let x: Field; }";
         let mut noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Constant { name, typ, default_value } = item else {
+        let TraitItem::Constant { name, typ } = item else {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
-        assert_eq!(default_value.unwrap().to_string(), "1");
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_default_value() {
+        let src = "
+        trait Foo { let x: Field = 1 + 2; }
+                                   ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_module, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span).to_string();
+        assert!(error.contains("Associated trait constant default values are not supported"));
     }
 
     #[test]

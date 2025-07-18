@@ -64,7 +64,7 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _14",
+    "current witness index : _10",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6]",
     "public parameters indices : []",
     "return value indices : []",
@@ -93,7 +93,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZHBCoMwDIbfJecerHVz+ipjSNUohVKltoMhvvuiVaeHwdjpa/PnK6EZocbSt4UyTTdAfh+htEpr1Ra6q6RTnaHqODHYroWziFSCQ05WLy0aB7nxWjN4Su2XpqGXZqGTltKIAZqaSA82SuN8mtjHjr6rPEpXmXOx65ff/Xj3xV++yDY/SU7+g26yUvb0Y8Aj6mTAeUAcIAKSgEvAFfKYkAbcIBeEjDDN41glS43rFhpvqsNS3Kvfkm1tve0qrL3FeZwlowHf",
+  "debug_symbols": "nZHBCoMwDIbfJecerDqcvsoYUjVKodRS28EQ332xs04Pg7FL/yZ/vqYkM3TY+KGWuh8nqG4zNFYqJYdaja1wctSUnRcGMaydRaQUHHyijLCoHVTaK8XgIZQPRZMROqgTltyEAeqOlB7spcL1trAPnXxHeVJsMOfZjl9+59Odz/7iszLyeX7i7xSJVtrTxKCgQgbXcJZQpQx48hYOVUaSkixrPytFo3Abc+91e5i6e5roxL0YO7bYeYtrv+DRD14=",
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",
@@ -103,7 +103,5 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  "brillig_names": []
 }

@@ -8,6 +8,7 @@
 use crate::fuzz_lib::instruction::InstructionBlock;
 use crate::mutations::configuration::{
     BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION, InstructionBlockMutationOptions,
+    SIZE_OF_SMALL_ARBITRARY_BUFFER,
 };
 use crate::mutations::instructions::instruction_mutator::instruction_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
@@ -21,7 +22,7 @@ trait InstructionBlockMutator {
 struct RandomMutation;
 impl InstructionBlockMutator for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut InstructionBlock) {
-        let mut bytes = [0u8; 25];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
@@ -43,7 +44,7 @@ impl InstructionBlockMutator for InstructionBlockDeletionMutation {
 struct InstructionBlockInsertionMutation;
 impl InstructionBlockMutator for InstructionBlockInsertionMutation {
     fn mutate(rng: &mut StdRng, value: &mut InstructionBlock) {
-        let mut bytes = [0u8; 25];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         let mut unstructured = Unstructured::new(&bytes);
         let instruction = unstructured.arbitrary().unwrap();

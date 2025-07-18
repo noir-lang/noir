@@ -256,7 +256,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
         // Values of odd length require an additional "0" prefix
         let sanitized_value =
-            if value.len() % 2 == 0 { value.to_string() } else { format!("0{}", value) };
+            if value.len() % 2 == 0 { value.to_string() } else { format!("0{value}") };
         let hex_as_bytes = hex::decode(sanitized_value).ok()?;
         Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
     }
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(from_le, field);
 
         // Additional test with a larger number to ensure proper byte handling
-        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64); // cSpell:disable-line
         let large_le = large_field.to_le_bytes();
         let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
         assert_eq!(reconstructed, large_field);

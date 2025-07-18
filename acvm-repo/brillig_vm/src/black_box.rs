@@ -344,28 +344,32 @@ pub(crate) fn evaluate_black_box<F: AcirField, Solver: BlackBoxFunctionSolver<F>
             };
 
             let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
 
+            // maximum number of bits that the limbs can hold
+            let max_bit_size = radix.ilog2() * num_limbs as u32;
+            let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
             let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
 
             assert!(
                 radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
-                "Radix out of the valid range [2,256]. Value: {}",
-                radix
+                "Radix out of the valid range [2,256]. Value: {radix}"
             );
 
             assert!(
                 num_limbs >= 1 || input == BigUint::from(0u32),
-                "Input value {} is not zero but number of limbs is zero.",
-                input
+                "Input value {input} is not zero but number of limbs is zero."
             );
 
             assert!(
                 !output_bits || radix == BigUint::from(2u32),
-                "Radix {} is not equal to 2 and bit mode is activated.",
-                radix
+                "Radix {radix} is not equal to 2 and bit mode is activated."
             );
 
+            if (input.bits() as u32) > max_bit_size {
+                return Err(BlackBoxResolutionError::AssertFailed(format!(
+                    "Field failed to decompose into specified {num_limbs} limbs"
+                )));
+            }
             for i in (0..num_limbs).rev() {
                 let limb = &input % &radix;
                 if output_bits {

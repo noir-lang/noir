@@ -55,7 +55,7 @@ pub enum InterpreterError {
     )]
     IncRcRevive { value_id: ValueId, value: String },
     #[error("An overflow occurred while evaluating {instruction}")]
-    Overflow { instruction: String },
+    Overflow { operator: BinaryOp, instruction: String },
     #[error(
         "if-else instruction with then condition `{then_condition_id}` and else condition `{else_condition_id}` has both branches as true. This should be impossible except for malformed SSA code"
     )]
@@ -68,6 +68,8 @@ pub enum InterpreterError {
     BlackBoxError { name: String, reason: String },
     #[error("Reached the unreachable")]
     ReachedTheUnreachable,
+    #[error("Array index {index} is out of bounds for array of length {length}")]
+    IndexOutOfBounds { index: u32, length: u32 },
 }
 
 /// These errors can only result from interpreting malformed SSA
@@ -179,6 +181,19 @@ pub enum InternalError {
         expected_length: usize,
         actual_length: usize,
         instruction: &'static str,
+    },
+    #[error(
+        "make_array with {elements_count} elements and {types_count} types but {elements_count} % {types_count} != 0"
+    )]
+    MakeArrayElementCountMismatch { result: ValueId, elements_count: usize, types_count: usize },
+    #[error(
+        "make_array element at index `{index}` has type `{actual_type}` but the expected type is `{expected_type}`"
+    )]
+    MakeArrayElementTypeMismatch {
+        result: ValueId,
+        index: usize,
+        expected_type: String,
+        actual_type: String,
     },
     #[error("Expected input to be `{expected_type}` for `{name}` but it was `{value}`")]
     UnexpectedInput { name: &'static str, expected_type: &'static str, value: String },

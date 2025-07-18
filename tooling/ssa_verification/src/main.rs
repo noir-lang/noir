@@ -58,7 +58,7 @@ fn save_artifacts(all_artifacts: Vec<InstructionArtifacts>, dir: &str) {
         match save_to_file(&ungzip(acir), &filename) {
             Ok(_) => (),
             Err(error) => {
-                eprintln!("Error saving data: {}", error);
+                eprintln!("Error saving data: {error}");
                 std::process::exit(1);
             }
         }
