@@ -76,14 +76,13 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         .map(|acir| vec![(acir.input_witnesses.len() as u32, Visibility::Private)])
         .collect();
 
-    let SsaProgramArtifact { program, debug, warnings, names, brillig_names, .. } =
-        combine_artifacts(
-            artifacts,
-            &dummy_arg_info,
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-        );
+    let SsaProgramArtifact { program, debug, warnings, .. } = combine_artifacts(
+        artifacts,
+        &dummy_arg_info,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    );
     let file_map = BTreeMap::new();
     CompiledProgram {
         hash: 1, // const hash, doesn't matter in this case
@@ -93,8 +92,6 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
-        names,
-        brillig_names,
     }
 }
 
