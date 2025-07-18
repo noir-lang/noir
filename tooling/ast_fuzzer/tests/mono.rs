@@ -80,10 +80,11 @@ fn monomorphize_snippet(source: String) -> Result<Program, Vec<CustomDiagnostic>
     let mut context = Context::new(file_manager, parsed_files);
     let crate_id = prepare_crate(&mut context, file_name);
 
-    context.disable_comptime_printing();
-
-    let options =
-        CompileOptions { unstable_features: vec![UnstableFeature::Enums], ..Default::default() };
+    let options = CompileOptions {
+        unstable_features: vec![UnstableFeature::Enums],
+        disable_comptime_printing: true,
+        ..Default::default()
+    };
 
     let _ = noirc_driver::check_crate(&mut context, crate_id, &options)?;
 

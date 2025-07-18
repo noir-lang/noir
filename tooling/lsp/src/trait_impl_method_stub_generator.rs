@@ -9,8 +9,8 @@ use noirc_frontend::{
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    modules::relative_module_id_path,
-    node_interner::{FunctionModifiers, NodeInterner, ReferenceId},
+    modules::{get_parent_module, relative_module_id_path},
+    node_interner::{FunctionModifiers, NodeInterner},
 };
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
@@ -230,15 +230,19 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     }
                 }
 
-                let parent_module_id =
-                    self.interner.reference_module(ReferenceId::Alias(type_alias.id)).unwrap();
+                let parent_module_id = get_parent_module(
+                    ModuleDefId::TypeAliasId(type_alias.id),
+                    self.interner,
+                    self.def_maps,
+                )
+                .unwrap();
 
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
 
                 let relative_path = relative_module_id_path(
-                    *parent_module_id,
+                    parent_module_id,
                     self.module_id,
                     current_module_parent_id,
                     self.interner,
@@ -263,15 +267,19 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     return;
                 }
 
-                let parent_module_id =
-                    self.interner.reference_module(ReferenceId::Trait(*trait_id)).unwrap();
+                let parent_module_id = get_parent_module(
+                    ModuleDefId::TraitId(*trait_id),
+                    self.interner,
+                    self.def_maps,
+                )
+                .unwrap();
 
                 let current_module_parent_id = current_module_data
                     .parent
                     .map(|parent| ModuleId { krate: self.module_id.krate, local_id: parent });
 
                 let relative_path = relative_module_id_path(
-                    *parent_module_id,
+                    parent_module_id,
                     self.module_id,
                     current_module_parent_id,
                     self.interner,

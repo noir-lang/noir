@@ -127,6 +127,8 @@ pub struct Elaborator<'context> {
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
 
+    required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
+
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
 
@@ -244,6 +246,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -257,6 +260,7 @@ impl<'context> Elaborator<'context> {
             usage_tracker,
             crate_graph,
             interpreter_output,
+            required_unstable_features,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -290,6 +294,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            &context.required_unstable_features,
             crate_id,
             im::Vector::new(),
             options,
@@ -1919,7 +1924,7 @@ impl<'context> Elaborator<'context> {
                 for (field_index, field) in fields.iter().enumerate() {
                     let location = field.name.location();
                     let reference_id = ReferenceId::StructMember(*type_id, field_index);
-                    self.interner.add_definition_location(reference_id, location, None);
+                    self.interner.add_definition_location(reference_id, location);
                 }
             }
 
@@ -1994,7 +1999,6 @@ impl<'context> Elaborator<'context> {
                 UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 
             datatype.borrow_mut().init_variants();
-            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
             self.resolving_ids.insert(*type_id);
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
@@ -2020,7 +2024,7 @@ impl<'context> Elaborator<'context> {
 
                 let reference_id = ReferenceId::EnumVariant(*type_id, i);
                 let location = variant.item.name.location();
-                self.interner.add_definition_location(reference_id, location, Some(module_id));
+                self.interner.add_definition_location(reference_id, location);
             }
 
             self.resolving_ids.remove(type_id);
@@ -2067,13 +2071,7 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            self.interner.register_global(
-                global_id,
-                name,
-                location,
-                global.visibility,
-                self.module_id(),
-            );
+            self.interner.register_global(global_id, name, location, global.visibility);
         }
 
         self.local_module = old_module;
@@ -2382,10 +2380,27 @@ impl<'context> Elaborator<'context> {
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
-        if !self.options.enabled_unstable_features.contains(&feature) {
-            let reason = ParserErrorReason::ExperimentalFeature(feature);
-            self.push_err(ParserError::with_reason(reason, location));
+        // Is the feature globally enabled via CLI options?
+        if self.options.enabled_unstable_features.contains(&feature) {
+            return;
         }
+
+        // Can crates require unstable features in their manifest?
+        let enable_required_unstable_features = self.options.enabled_unstable_features.is_empty()
+            && !self.options.disable_required_unstable_features;
+
+        // Is it required by the current crate?
+        if enable_required_unstable_features
+            && self
+                .required_unstable_features
+                .get(&self.crate_id)
+                .is_some_and(|fs| fs.contains(&feature))
+        {
+            return;
+        }
+
+        let reason = ParserErrorReason::ExperimentalFeature(feature);
+        self.push_err(ParserError::with_reason(reason, location));
     }
 
     /// Run the given function using the resolver and return true if any errors (not warnings)

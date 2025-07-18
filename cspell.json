@@ -255,6 +255,7 @@
         "repr",
         "reqwest",
         "rfind",
+        "ripemd",
         "RMVD",
         "rngs",
         "rustc",
