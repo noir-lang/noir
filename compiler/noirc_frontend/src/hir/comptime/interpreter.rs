@@ -497,8 +497,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // We can't store to the reference directly, we need to check if the value
                         // is a struct or tuple to store to each field instead. This is so any
                         // references to these fields are also updated.
-                        let reference = reference.clone();
-                        self.store_flattened(reference, argument);
+                        Self::store_flattened(reference.clone(), argument);
                     }
                     _ => {
                         entry.insert(argument);
@@ -1176,7 +1175,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        self.store_flattened(value, rhs);
+                        Self::store_flattened(value, rhs);
                         Ok(())
                     }
                     value => {
@@ -1236,18 +1235,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// ```
     /// we must flatten the store to store to each individual field so that any existing
     /// references, such as `b` above, will also reflect the mutation.
-    fn store_flattened(&mut self, lvalue: Shared<Value>, rvalue: Value) {
+    fn store_flattened(lvalue: Shared<Value>, rvalue: Value) {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
                 for (name, lvalue) in lvalue_fields.iter() {
                     let Some(rvalue) = rvalue_fields.remove(name) else { continue };
-                    self.store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
             (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
                 for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
-                    self.store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
                 }
             }
             (_, rvalue) => {

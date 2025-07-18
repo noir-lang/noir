@@ -4,6 +4,7 @@ use std::{hash::Hasher, rc::Rc};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::hir::comptime::value::StructFields;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
@@ -108,7 +109,7 @@ pub(crate) fn get_array(
 pub(crate) fn get_struct_fields(
     name: &str,
     (value, location): (Value, Location),
-) -> IResult<(HashMap<Rc<String>, Shared<Value>>, Type)> {
+) -> IResult<(StructFields, Type)> {
     match value {
         Value::Struct(fields, typ) => Ok((fields, typ)),
         _ => {

@@ -65,7 +65,7 @@ pub enum Value {
 
     /// Struct elements are automatically shared to support projection:
     /// `let elem = &mut my_struct.field` should mutate the original element.
-    Struct(HashMap<Rc<String>, Shared<Value>>, Type),
+    Struct(StructFields, Type),
 
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
@@ -84,6 +84,8 @@ pub enum Value {
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
+
+pub type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {

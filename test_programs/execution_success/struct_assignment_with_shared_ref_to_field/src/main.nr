@@ -7,7 +7,7 @@ fn main() {
     assert(b);
     assert(c);
 
-    // Bug! <https://doesn't-exist-yet>
+    // Bug! https://github.com/noir-lang/noir/issues/9251
     assert(!d);
 }
 
@@ -15,7 +15,6 @@ fn plain_store() -> bool {
     let mut a = (false,);
     let b = &mut a.0;
     a = (true,);
-    println(*b);
     *b
 }
 
@@ -23,6 +22,5 @@ fn store_through_pointer() -> bool {
     let a = &mut (false,);
     let b = &mut a.0;
     *a = (true,);
-    println(*b);
     *b
 }
