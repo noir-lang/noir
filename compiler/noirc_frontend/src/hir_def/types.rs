@@ -9,7 +9,10 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::{
+        def_map::ModuleId,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::types::{self},
     node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
@@ -692,6 +695,7 @@ pub struct TypeAlias {
     pub location: Location,
     /// Optional expression, used by type aliases to numeric generics
     pub numeric_expr: Option<UnresolvedTypeExpression>,
+    pub module_id: ModuleId,
 }
 
 impl std::hash::Hash for TypeAlias {
@@ -732,8 +736,9 @@ impl TypeAlias {
         typ: Type,
         generics: Generics,
         visibility: ItemVisibility,
+        module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility, numeric_expr: None }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
     }
 
     pub fn set_type_and_generics(

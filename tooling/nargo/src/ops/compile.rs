@@ -87,9 +87,6 @@ pub fn compile_program_with_debug_instrumenter(
     debug_instrumenter: DebugInstrumenter,
 ) -> CompilationResult<CompiledProgram> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    if compile_options.disable_comptime_printing {
-        context.disable_comptime_printing();
-    }
 
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;

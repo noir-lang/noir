@@ -1952,7 +1952,7 @@ impl<'context> Elaborator<'context> {
                 for (field_index, field) in fields.iter().enumerate() {
                     let location = field.name.location();
                     let reference_id = ReferenceId::StructMember(*type_id, field_index);
-                    self.interner.add_definition_location(reference_id, location, None);
+                    self.interner.add_definition_location(reference_id, location);
                 }
             }
 
@@ -2027,7 +2027,6 @@ impl<'context> Elaborator<'context> {
                 UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 
             datatype.borrow_mut().init_variants();
-            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
             self.resolving_ids.insert(*type_id);
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
@@ -2053,7 +2052,7 @@ impl<'context> Elaborator<'context> {
 
                 let reference_id = ReferenceId::EnumVariant(*type_id, i);
                 let location = variant.item.name.location();
-                self.interner.add_definition_location(reference_id, location, Some(module_id));
+                self.interner.add_definition_location(reference_id, location);
             }
 
             self.resolving_ids.remove(type_id);
@@ -2100,13 +2099,7 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            self.interner.register_global(
-                global_id,
-                name,
-                location,
-                global.visibility,
-                self.module_id(),
-            );
+            self.interner.register_global(global_id, name, location, global.visibility);
         }
 
         self.local_module = old_module;
