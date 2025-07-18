@@ -29,7 +29,7 @@ toml.workspace = true
 
 acir.workspace = true
 acvm.workspace = true
-bn254_blackbox_solver.workspace = true
+m31_blackbox_solver.workspace = true
 nargo.workspace = true
 noir_artifact_cli.workspace = true
 
