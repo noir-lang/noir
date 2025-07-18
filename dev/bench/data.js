@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752846789176,
+  "lastUpdate": 1752846791531,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4078,85 +4078,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3ea0b8cacaec75aa7841d0381944d5105a729169",
-          "message": "chore: fix cSpell issues in all Rust files (#9144)",
-          "timestamp": "2025-07-09T16:13:27Z",
-          "tree_id": "9c3aab06a299e04b941a1aab01ebb7e8f3a30d5a",
-          "url": "https://github.com/noir-lang/noir/commit/3ea0b8cacaec75aa7841d0381944d5105a729169"
-        },
-        "date": 1752079425962,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.88,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.064,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.326,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.598,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.771,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "isennovskiy@gmail.com",
             "name": "Innokentii Sennovskii",
             "username": "Rumata888"
@@ -8141,6 +8062,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.906,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80b04ec8eab3ca74fc6c9457ca1fd8828044675d",
+          "message": "chore: enforce clippy in `ssa_fuzzer` (#9247)",
+          "timestamp": "2025-07-18T14:44:46+01:00",
+          "tree_id": "8ca3e495d6c2b921fd284d975542b5e081b93586",
+          "url": "https://github.com/noir-lang/noir/commit/80b04ec8eab3ca74fc6c9457ca1fd8828044675d"
+        },
+        "date": 1752846775544,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.936,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.136,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.624,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.716,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.802,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.779,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.972,
             "unit": "s"
           }
         ]
