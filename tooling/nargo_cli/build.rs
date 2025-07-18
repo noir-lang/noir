@@ -233,7 +233,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 12] = [
     // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_1",
     // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_2",
     // This creates a struct at comptime which, expanded, gives a visibility error
-    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime", // This creates a struct at comptime which, expanded, gives a visibility error
+    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
