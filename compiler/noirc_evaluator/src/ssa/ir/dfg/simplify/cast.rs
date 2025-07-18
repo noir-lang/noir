@@ -45,10 +45,10 @@ pub(super) fn simplify_cast(
                 NumericType::Unsigned { bit_size },
             ) => {
                 // Field/Unsigned -> unsigned: truncate
-                let integer_modulus = BigUint::from(2u128).pow(bit_size);
-                let constant: BigUint = constant.to_biguint().expect("constant is too large");
-                let truncated = constant % integer_modulus;
-                let truncated = BigInt::from_bytes_be(Sign::Plus, &truncated.to_bytes_be());
+                let integer_modulus = BigInt::from(1) << bit_size;
+                // Handles both positive and negative constants
+                let truncated =
+                    ((constant % &integer_modulus) + &integer_modulus) % &integer_modulus;
                 SimplifiedTo(dfg.make_constant(truncated, dst_typ))
             }
             (

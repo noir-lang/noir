@@ -623,8 +623,39 @@ impl<'a> FunctionContext<'a> {
         let incoming_type = self.builder.type_of_value(value);
 
         let result = match (&incoming_type, typ) {
-            // Casting to field is safe
-            (_, NumericType::NativeField) => value,
+            // Casting to field is safe - px: no longer true!
+            (Type::Numeric(NumericType::NativeField), NumericType::NativeField) => value,
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::NativeField,
+            ) => {
+                if *incoming_type_size < FieldElement::max_num_bits() {
+                    // px: need to add range check here
+                    self.builder.insert_range_check(value, *incoming_type_size, None);
+                    value
+                } else {
+                    // Truncate to field size
+                    self.builder.insert_truncate(
+                        value,
+                        FieldElement::max_num_bits(),
+                        *incoming_type_size,
+                    )
+                }
+            }
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::NativeField,
+            ) => {
+                if *incoming_type_size < FieldElement::max_num_bits() {
+                    // px: need to add range check here
+                    self.builder.insert_range_check(value, FieldElement::max_num_bits(), None);
+                    value
+                } else {
+                    // px: Need for sign extension
+                    // TODO: Implement sign extension
+                    value
+                }
+            }
             (
                 Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
                 NumericType::Signed { bit_size: target_type_size },
@@ -752,7 +783,17 @@ impl<'a> FunctionContext<'a> {
                 Type::Numeric(NumericType::NativeField),
                 NumericType::Signed { bit_size: target_type_size },
             ) => {
-                self.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+                if FieldElement::max_num_bits() <= target_type_size {
+                    // px: need to add range check here
+                    self.builder.insert_range_check(value, target_type_size, None);
+                    value
+                } else {
+                    self.builder.insert_truncate(
+                        value,
+                        target_type_size,
+                        FieldElement::max_num_bits(),
+                    )
+                }
             }
             _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
         };

@@ -135,8 +135,6 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     let ssa = function_context.builder.finish();
     validate_ssa(&ssa);
 
-    println!("SSA: {:#?}", ssa);
-
     Ok(ssa)
 }
 
