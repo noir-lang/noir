@@ -88,16 +88,16 @@ pub(crate) fn instruction_block_mutator(
     match BASIC_INSTRUCTION_BLOCK_MUTATION_CONFIGURATION.select(rng) {
         InstructionBlockMutationOptions::Random => RandomMutation::mutate(rng, instruction_block),
         InstructionBlockMutationOptions::InstructionDeletion => {
-            InstructionBlockDeletionMutation::mutate(rng, instruction_block)
+            InstructionBlockDeletionMutation::mutate(rng, instruction_block);
         }
         InstructionBlockMutationOptions::InstructionInsertion => {
-            InstructionBlockInsertionMutation::mutate(rng, instruction_block)
+            InstructionBlockInsertionMutation::mutate(rng, instruction_block);
         }
         InstructionBlockMutationOptions::InstructionMutation => {
-            InstructionBlockInstructionMutation::mutate(rng, instruction_block)
+            InstructionBlockInstructionMutation::mutate(rng, instruction_block);
         }
         InstructionBlockMutationOptions::InstructionSwap => {
-            InstructionBlockInstructionSwapMutation::mutate(rng, instruction_block)
+            InstructionBlockInstructionSwapMutation::mutate(rng, instruction_block);
         }
     }
 }
