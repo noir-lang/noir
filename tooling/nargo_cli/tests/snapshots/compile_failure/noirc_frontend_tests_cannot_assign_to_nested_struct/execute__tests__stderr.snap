@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: foo is private and not visible from the current module
+  ┌─ src/main.nr:7:14
+  │
+7 │         foo::foo = 1;
+  │              --- foo is private
+  │
+
+warning: foo is private and not visible from the current module
+  ┌─ src/main.nr:7:14
+  │
+7 │         foo::foo = 1;
+  │              --- foo is private
+  │
+
+error: expected value got type
+  ┌─ src/main.nr:7:9
+  │
+7 │         foo::foo = 1;
+  │         --------
+  │
+
+Aborting due to 1 previous error
