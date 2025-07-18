@@ -1,7 +1,5 @@
 fn main() {
-    let (a, b) = comptime {
-        (plain_store(), store_through_pointer())
-    };
+    let (a, b) = comptime { (plain_store(), store_through_pointer()) };
     let (c, d) = (plain_store(), store_through_pointer());
     assert(a);
     assert(b);
