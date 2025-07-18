@@ -59,7 +59,7 @@ expression: artifact
   },
   "bytecode": [
     "func 0",
-    "current witness index : _20",
+    "current witness index : _22",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
     "public parameters indices : []",
     "return value indices : []",
@@ -83,12 +83,25 @@ expression: artifact
     "BLACKBOX::RANGE [(_17, 1)] []",
     "BLACKBOX::RANGE [(_18, 1)] []",
     "BLACKBOX::RANGE [(_19, 8)] []",
-    "BLACKBOX::RANGE [(_20, 8)] []"
+    "BLACKBOX::RANGE [(_20, 8)] []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(2, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: [Simple(Witness(21)), Simple(Witness(22))]",
+    "BLACKBOX::RANGE [(_21, 31)] []",
+    "BLACKBOX::RANGE [(_22, 1)] []",
+    "EXPR [ (2, _1) (-2, _21) (-1, _22) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc99ULbB8FfGkFijFEJbYisM8d8XxaIM9pTenJ5Lu0BPXR5b54cwQfNaoBPH7MaWg8XkgtftshoosU1CpCu4cLUiCvkEjc/MBmbkvF+aIvp9JhSllQHyvU4tHBzTdlrNaVf/1fp2P+T6eeoP9d+a0Dr5ffGM4rBjOuKQvb3Q9ImFlB9HCZb6LLQ17Uy7vw==",
-  "file_map": {},
+  "debug_symbols": "nZLNDoMgEITfZc8clGqtvkrTGNTVkBA0CE0a47t3/cHqoRdOw+7wMSGZCRqsXFdK3fYjFM8JKiOVkl2p+lpY2WvaTjMDP5bWINIKTj5RgzCoLRTaKcXgLZRbL42D0KtaYciNGKBuSOnBVipcTjP70dF/NL5lOxwn8YGnQXwexN89f8+C+NTzWRrEJ55/RCE8zw+eB/A88vk8vf7/RZOopbk0BnhMLgPON7ltkpDMS4iRolK4d6t1uj5VzX4G7/gyDqavsXEGl5DVo9gv",
+  "file_map": {
+    "50": {
+      "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",
+      "path": ""
+    }
+  },
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }
