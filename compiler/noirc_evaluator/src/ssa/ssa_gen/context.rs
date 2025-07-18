@@ -651,9 +651,12 @@ impl<'a> FunctionContext<'a> {
                     self.builder.insert_range_check(value, FieldElement::max_num_bits(), None);
                     value
                 } else {
-                    // px: Need for sign extension
-                    // TODO: Implement sign extension
-                    value
+                    // px: check that this is correct
+                    self.insert_safe_cast(
+                        value,
+                        NumericType::unsigned(*incoming_type_size),
+                        location,
+                    )
                 }
             }
             (
