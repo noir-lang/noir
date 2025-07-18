@@ -4666,111 +4666,6 @@ namespace Acir {
         }
     };
 
-    struct ExpressionWidth {
-
-        struct Unbounded {
-            friend bool operator==(const Unbounded&, const Unbounded&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Unbounded bincodeDeserialize(std::vector<uint8_t>);
-
-            void msgpack_pack(auto& packer) const {}
-            void msgpack_unpack(msgpack::object const& o) {}
-        };
-
-        struct Bounded {
-            uint64_t width;
-
-            friend bool operator==(const Bounded&, const Bounded&);
-            std::vector<uint8_t> bincodeSerialize() const;
-            static Bounded bincodeDeserialize(std::vector<uint8_t>);
-
-            void msgpack_pack(auto& packer) const {
-                packer.pack_map(1);
-                packer.pack(std::make_pair("width", width));
-            }
-
-            void msgpack_unpack(msgpack::object const& o) {
-                auto name = "Bounded";
-                auto kvmap = Helpers::make_kvmap(o, name);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
-            }
-        };
-
-        std::variant<Unbounded, Bounded> value;
-
-        friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
-        std::vector<uint8_t> bincodeSerialize() const;
-        static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
-
-        void msgpack_pack(auto& packer) const {
-            std::string tag;
-            bool is_unit;
-            switch (value.index()) {
-                
-                case 0:
-                    tag = "Unbounded";
-                    is_unit = true;
-                    break;
-                case 1:
-                    tag = "Bounded";
-                    is_unit = false;
-                    break;
-                default:
-                    throw_or_abort("unknown enum 'ExpressionWidth' variant index: " + std::to_string(value.index()));
-            }
-            if (is_unit) {
-                packer.pack(tag);
-            } else {
-                std::visit([&packer, tag](const auto& arg) {
-                    std::map<std::string, msgpack::object> data;
-                    data[tag] = msgpack::object(arg);
-                    packer.pack(data);
-                }, value);
-            }
-        }
-
-        void msgpack_unpack(msgpack::object const& o) {
-
-            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
-                std::cerr << o << std::endl;
-                throw_or_abort("expected MAP or STR for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
-            }
-            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
-                throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(o.via.map.size));
-            }
-            std::string tag;
-            try {
-                if (o.type == msgpack::type::object_type::MAP) {
-                    o.via.map.ptr[0].key.convert(tag);
-                } else {
-                    o.convert(tag);
-                }
-            } catch(const msgpack::type_error&) {
-                std::cerr << o << std::endl;
-                throw_or_abort("error converting tag to string for enum 'ExpressionWidth'");
-            }
-            if (tag == "Unbounded") {
-                Unbounded v;
-                value = v;
-            }
-            else if (tag == "Bounded") {
-                Bounded v;
-                try {
-                    o.via.map.ptr[0].val.convert(v);
-                } catch (const msgpack::type_error&) {
-                    std::cerr << o << std::endl;
-                    throw_or_abort("error converting into enum variant 'ExpressionWidth::Bounded'");
-                }
-                
-                value = v;
-            }
-            else {
-                std::cerr << o << std::endl;
-                throw_or_abort("unknown 'ExpressionWidth' enum variant: " + tag);
-            }
-        }
-    };
-
     struct OpcodeLocation {
 
         struct Acir {
@@ -4916,9 +4811,9 @@ namespace Acir {
     };
 
     struct Circuit {
+        std::string name;
         uint32_t current_witness_index;
         std::vector<Acir::Opcode> opcodes;
-        Acir::ExpressionWidth expression_width;
         std::vector<Acir::Witness> private_parameters;
         Acir::PublicInputs public_parameters;
         Acir::PublicInputs return_values;
@@ -4930,9 +4825,9 @@ namespace Acir {
 
         void msgpack_pack(auto& packer) const {
             packer.pack_map(7);
+            packer.pack(std::make_pair("name", name));
             packer.pack(std::make_pair("current_witness_index", current_witness_index));
             packer.pack(std::make_pair("opcodes", opcodes));
-            packer.pack(std::make_pair("expression_width", expression_width));
             packer.pack(std::make_pair("private_parameters", private_parameters));
             packer.pack(std::make_pair("public_parameters", public_parameters));
             packer.pack(std::make_pair("return_values", return_values));
@@ -4942,9 +4837,9 @@ namespace Acir {
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "Circuit";
             auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "name", name, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "current_witness_index", current_witness_index, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "opcodes", opcodes, false);
-            Helpers::conv_fld_from_kvmap(kvmap, name, "expression_width", expression_width, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "private_parameters", private_parameters, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "public_parameters", public_parameters, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "return_values", return_values, false);
@@ -4953,6 +4848,7 @@ namespace Acir {
     };
 
     struct BrilligBytecode {
+        std::string name;
         std::vector<Acir::BrilligOpcode> bytecode;
 
         friend bool operator==(const BrilligBytecode&, const BrilligBytecode&);
@@ -4960,13 +4856,15 @@ namespace Acir {
         static BrilligBytecode bincodeDeserialize(std::vector<uint8_t>);
 
         void msgpack_pack(auto& packer) const {
-            packer.pack_map(1);
+            packer.pack_map(2);
+            packer.pack(std::make_pair("name", name));
             packer.pack(std::make_pair("bytecode", bytecode));
         }
 
         void msgpack_unpack(msgpack::object const& o) {
             auto name = "BrilligBytecode";
             auto kvmap = Helpers::make_kvmap(o, name);
+            Helpers::conv_fld_from_kvmap(kvmap, name, "name", name, false);
             Helpers::conv_fld_from_kvmap(kvmap, name, "bytecode", bytecode, false);
         }
     };
@@ -5009,6 +4907,111 @@ namespace Acir {
             auto name = "ProgramWithoutBrillig";
             auto kvmap = Helpers::make_kvmap(o, name);
             Helpers::conv_fld_from_kvmap(kvmap, name, "functions", functions, false);
+        }
+    };
+
+    struct ExpressionWidth {
+
+        struct Unbounded {
+            friend bool operator==(const Unbounded&, const Unbounded&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Unbounded bincodeDeserialize(std::vector<uint8_t>);
+
+            void msgpack_pack(auto& packer) const {}
+            void msgpack_unpack(msgpack::object const& o) {}
+        };
+
+        struct Bounded {
+            uint64_t width;
+
+            friend bool operator==(const Bounded&, const Bounded&);
+            std::vector<uint8_t> bincodeSerialize() const;
+            static Bounded bincodeDeserialize(std::vector<uint8_t>);
+
+            void msgpack_pack(auto& packer) const {
+                packer.pack_map(1);
+                packer.pack(std::make_pair("width", width));
+            }
+
+            void msgpack_unpack(msgpack::object const& o) {
+                auto name = "Bounded";
+                auto kvmap = Helpers::make_kvmap(o, name);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "width", width, false);
+            }
+        };
+
+        std::variant<Unbounded, Bounded> value;
+
+        friend bool operator==(const ExpressionWidth&, const ExpressionWidth&);
+        std::vector<uint8_t> bincodeSerialize() const;
+        static ExpressionWidth bincodeDeserialize(std::vector<uint8_t>);
+
+        void msgpack_pack(auto& packer) const {
+            std::string tag;
+            bool is_unit;
+            switch (value.index()) {
+                
+                case 0:
+                    tag = "Unbounded";
+                    is_unit = true;
+                    break;
+                case 1:
+                    tag = "Bounded";
+                    is_unit = false;
+                    break;
+                default:
+                    throw_or_abort("unknown enum 'ExpressionWidth' variant index: " + std::to_string(value.index()));
+            }
+            if (is_unit) {
+                packer.pack(tag);
+            } else {
+                std::visit([&packer, tag](const auto& arg) {
+                    std::map<std::string, msgpack::object> data;
+                    data[tag] = msgpack::object(arg);
+                    packer.pack(data);
+                }, value);
+            }
+        }
+
+        void msgpack_unpack(msgpack::object const& o) {
+
+            if (o.type != msgpack::type::object_type::MAP && o.type != msgpack::type::object_type::STR) {
+                std::cerr << o << std::endl;
+                throw_or_abort("expected MAP or STR for enum 'ExpressionWidth'; got type " + std::to_string(o.type));
+            }
+            if (o.type == msgpack::type::object_type::MAP && o.via.map.size != 1) {
+                throw_or_abort("expected 1 entry for enum 'ExpressionWidth'; got " + std::to_string(o.via.map.size));
+            }
+            std::string tag;
+            try {
+                if (o.type == msgpack::type::object_type::MAP) {
+                    o.via.map.ptr[0].key.convert(tag);
+                } else {
+                    o.convert(tag);
+                }
+            } catch(const msgpack::type_error&) {
+                std::cerr << o << std::endl;
+                throw_or_abort("error converting tag to string for enum 'ExpressionWidth'");
+            }
+            if (tag == "Unbounded") {
+                Unbounded v;
+                value = v;
+            }
+            else if (tag == "Bounded") {
+                Bounded v;
+                try {
+                    o.via.map.ptr[0].val.convert(v);
+                } catch (const msgpack::type_error&) {
+                    std::cerr << o << std::endl;
+                    throw_or_abort("error converting into enum variant 'ExpressionWidth::Bounded'");
+                }
+                
+                value = v;
+            }
+            else {
+                std::cerr << o << std::endl;
+                throw_or_abort("unknown 'ExpressionWidth' enum variant: " + tag);
+            }
         }
     };
 
@@ -7893,6 +7896,7 @@ Acir::BlockType::ReturnData serde::Deserializable<Acir::BlockType::ReturnData>::
 namespace Acir {
 
     inline bool operator==(const BrilligBytecode &lhs, const BrilligBytecode &rhs) {
+        if (!(lhs.name == rhs.name)) { return false; }
         if (!(lhs.bytecode == rhs.bytecode)) { return false; }
         return true;
     }
@@ -7918,6 +7922,7 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::BrilligBytecode>::serialize(const Acir::BrilligBytecode &obj, Serializer &serializer) {
     serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.name)>::serialize(obj.name, serializer);
     serde::Serializable<decltype(obj.bytecode)>::serialize(obj.bytecode, serializer);
     serializer.decrease_container_depth();
 }
@@ -7927,6 +7932,7 @@ template <typename Deserializer>
 Acir::BrilligBytecode serde::Deserializable<Acir::BrilligBytecode>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::BrilligBytecode obj;
+    obj.name = serde::Deserializable<decltype(obj.name)>::deserialize(deserializer);
     obj.bytecode = serde::Deserializable<decltype(obj.bytecode)>::deserialize(deserializer);
     deserializer.decrease_container_depth();
     return obj;
@@ -9054,9 +9060,9 @@ Acir::BrilligOutputs::Array serde::Deserializable<Acir::BrilligOutputs::Array>::
 namespace Acir {
 
     inline bool operator==(const Circuit &lhs, const Circuit &rhs) {
+        if (!(lhs.name == rhs.name)) { return false; }
         if (!(lhs.current_witness_index == rhs.current_witness_index)) { return false; }
         if (!(lhs.opcodes == rhs.opcodes)) { return false; }
-        if (!(lhs.expression_width == rhs.expression_width)) { return false; }
         if (!(lhs.private_parameters == rhs.private_parameters)) { return false; }
         if (!(lhs.public_parameters == rhs.public_parameters)) { return false; }
         if (!(lhs.return_values == rhs.return_values)) { return false; }
@@ -9085,9 +9091,9 @@ template <>
 template <typename Serializer>
 void serde::Serializable<Acir::Circuit>::serialize(const Acir::Circuit &obj, Serializer &serializer) {
     serializer.increase_container_depth();
+    serde::Serializable<decltype(obj.name)>::serialize(obj.name, serializer);
     serde::Serializable<decltype(obj.current_witness_index)>::serialize(obj.current_witness_index, serializer);
     serde::Serializable<decltype(obj.opcodes)>::serialize(obj.opcodes, serializer);
-    serde::Serializable<decltype(obj.expression_width)>::serialize(obj.expression_width, serializer);
     serde::Serializable<decltype(obj.private_parameters)>::serialize(obj.private_parameters, serializer);
     serde::Serializable<decltype(obj.public_parameters)>::serialize(obj.public_parameters, serializer);
     serde::Serializable<decltype(obj.return_values)>::serialize(obj.return_values, serializer);
@@ -9100,9 +9106,9 @@ template <typename Deserializer>
 Acir::Circuit serde::Deserializable<Acir::Circuit>::deserialize(Deserializer &deserializer) {
     deserializer.increase_container_depth();
     Acir::Circuit obj;
+    obj.name = serde::Deserializable<decltype(obj.name)>::deserialize(deserializer);
     obj.current_witness_index = serde::Deserializable<decltype(obj.current_witness_index)>::deserialize(deserializer);
     obj.opcodes = serde::Deserializable<decltype(obj.opcodes)>::deserialize(deserializer);
-    obj.expression_width = serde::Deserializable<decltype(obj.expression_width)>::deserialize(deserializer);
     obj.private_parameters = serde::Deserializable<decltype(obj.private_parameters)>::deserialize(deserializer);
     obj.public_parameters = serde::Deserializable<decltype(obj.public_parameters)>::deserialize(deserializer);
     obj.return_values = serde::Deserializable<decltype(obj.return_values)>::deserialize(deserializer);

@@ -31,6 +31,7 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
 
     Program {
         functions: vec![Circuit {
+            name: "main".to_string(),
             current_witness_index: 4000,
             opcodes: assert_zero_opcodes.to_vec(),
             expression_width: ExpressionWidth::Bounded { width: 4 },
