@@ -480,7 +480,7 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
             Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
                     write!(f, "{}", &attributes.name)
                 } else {
                     write!(f, "(crate root)")
