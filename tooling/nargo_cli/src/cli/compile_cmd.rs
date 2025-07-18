@@ -249,7 +249,11 @@ fn compile_programs(
             }
         }
         // Run ACVM optimizations and set the target width.
-        let program = nargo::ops::transform_program(program, target_width);
+        let program = nargo::ops::transform_program(
+            program,
+            target_width,
+            compile_options.experimental_optimization,
+        );
         // Check solvability.
         nargo::ops::check_program(&program)?;
         // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
@@ -284,7 +288,11 @@ fn compile_contracts(
                 compile_contract(file_manager, parsed_files, package, compile_options)?;
             let target_width =
                 get_target_width(package.expression_width, compile_options.expression_width);
-            let contract = nargo::ops::transform_contract(contract, target_width);
+            let contract = nargo::ops::transform_contract(
+                contract,
+                target_width,
+                compile_options.experimental_optimization,
+            );
             save_contract(contract, package, target_dir, compile_options.show_artifact_paths);
             Ok(((), warnings))
         })
@@ -437,8 +445,16 @@ mod tests {
 
                 let width = get_target_width(package.expression_width, None);
 
-                let program_1 = nargo::ops::transform_program(program_0, width);
-                let program_2 = nargo::ops::transform_program(program_1.clone(), width);
+                let program_1 = nargo::ops::transform_program(
+                    program_0,
+                    width,
+                    options.experimental_optimization,
+                );
+                let program_2 = nargo::ops::transform_program(
+                    program_1.clone(),
+                    width,
+                    options.experimental_optimization,
+                );
 
                 if verbose {
                     // Compare where the most likely difference is.

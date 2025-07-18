@@ -22,6 +22,7 @@ mod tests {
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
+            experimental_optimization: false,
         };
 
         let builder = SsaBuilder::from_ssa(ssa, options.ssa_logging.clone(), false, None);

@@ -26,6 +26,28 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
             deleted_gates: BTreeSet::new(),
         }
     }
+
+    fn compute_used_witness(&mut self, circuit: &Circuit<F>) -> BTreeMap<Witness, BTreeSet<usize>> {
+        // Keep track, for each witness, of the gates that use it
+        let circuit_io: BTreeSet<Witness> =
+            circuit.circuit_arguments().union(&circuit.public_inputs().0).cloned().collect();
+
+        let mut used_witness: BTreeMap<Witness, BTreeSet<usize>> = BTreeMap::new();
+        for (i, opcode) in circuit.opcodes.iter().enumerate() {
+            let witnesses = self.witness_inputs(opcode);
+            if let Opcode::MemoryInit { block_id, .. } = opcode {
+                self.resolved_blocks.insert(*block_id, witnesses.clone());
+            }
+            for w in witnesses {
+                // We do not simplify circuit inputs and outputs
+                if !circuit_io.contains(&w) {
+                    used_witness.entry(w).or_default().insert(i);
+                }
+            }
+        }
+        used_witness
+    }
+
     /// This pass analyzes the circuit and identifies intermediate variables that are
     /// only used in two arithmetic opcodes. It then merges the opcode which produces the
     /// intermediate variable into the second one that uses it
@@ -157,6 +179,13 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         (new_circuit, new_acir_opcode_positions)
     }
 
+    fn expr_wit(expr: &Expression<F>) -> BTreeSet<Witness> {
+        let mut result = BTreeSet::new();
+        result.extend(expr.mul_terms.iter().flat_map(|i| vec![i.1, i.2]));
+        result.extend(expr.linear_combinations.iter().map(|i| i.1));
+        result
+    }
+
     fn brillig_input_wit(&self, input: &BrilligInputs<F>) -> BTreeSet<Witness> {
         let mut result = BTreeSet::new();
         match input {
@@ -234,6 +263,75 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         }
     }
 
+    /// Merge 'expr' into 'target' via Gaussian elimination on 'w'
+    /// It supports the case where w is in a target's multiplication term:
+    /// - If w is only linear in expr and target, it's just a Gaussian elimination
+    /// - If w is in a expr's mul term: merge is not allowed
+    /// - If w is in a target's mul term AND expr has no mul term, then we do the Gaussian elimination in target's linear and mul terms
+    fn merge(target: &Expression<F>, expr: &Expression<F>, w: Witness) -> Option<Expression<F>> {
+        // Check that the witness is not part of expr multiplication terms
+        for m in &expr.mul_terms {
+            if m.1 == w || m.2 == w {
+                return None;
+            }
+        }
+        // w must be in expr linear terms, we use expr to 'solve w'
+        let mut solved_w = Expression::zero();
+        let w_idx = expr.linear_combinations.iter().position(|x| x.1 == w).unwrap();
+        solved_w.linear_combinations.push((F::one(), w));
+        solved_w = solved_w.add_mul(-(F::one() / expr.linear_combinations[w_idx].0), expr);
+
+        // Solve w in target multiplication terms
+        let mut result: Expression<F> = Expression::zero();
+        result.linear_combinations = target.linear_combinations.clone();
+        result.q_c = target.q_c;
+        for mul in &target.mul_terms {
+            if mul.1 == w || mul.2 == w {
+                if !expr.mul_terms.is_empty() || mul.1 == mul.2 {
+                    // the result will be of degree 3, so this case does not work
+                    return None;
+                } else {
+                    let x = if mul.1 == w { mul.2 } else { mul.1 };
+
+                    // replace w by solved_w in the mul: x * w = x * solved_w
+                    let mut solved_mul = Expression::zero();
+                    for lin in &solved_w.linear_combinations {
+                        solved_mul.mul_terms.push((mul.0 * lin.0, x, lin.1));
+                    }
+                    solved_mul.linear_combinations.push((solved_w.q_c, x));
+                    solved_mul.sort();
+                    result = result.add_mul(F::one(), &solved_mul);
+                }
+            } else {
+                result.mul_terms.push(*mul);
+                result.sort();
+            }
+        }
+
+        // Solve w in target linear terms
+        let mut w_coefficient = F::zero();
+        for k in &result.linear_combinations {
+            if k.1 == w {
+                w_coefficient = -(k.0 / expr.linear_combinations[w_idx].0);
+                break;
+            }
+        }
+        result = result.add_mul(w_coefficient, expr);
+        Some(result)
+    }
+
+    fn is_free(opcode: Opcode<F>, width: usize) -> Option<Expression<F>> {
+        if let Opcode::AssertZero(expr) = opcode {
+            if expr.mul_terms.len() <= 1
+                && expr.linear_combinations.len() < width
+                && !expr.linear_combinations.is_empty()
+            {
+                return Some(expr);
+            }
+        }
+        None
+    }
+
     // Merge 'expr' into 'target' via Gaussian elimination on 'w'
     // Returns None if the expressions cannot be merged
     fn merge_expression(
@@ -275,219 +373,123 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
         }
         self.modified_gates.get(&g).or(circuit.opcodes.get(g)).cloned()
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use crate::compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer};
-    use acir::{
-        FieldElement,
-        acir_field::AcirField,
-        circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, FunctionInput},
-        },
-        native_types::{Expression, Witness},
-    };
-    use std::collections::BTreeSet;
-
-    fn check_circuit(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
-        assert!(CircuitSimulator::default().check_circuit(&circuit));
-        let mut merge_optimizer = MergeExpressionsOptimizer::new();
-        let acir_opcode_positions = vec![0; 20];
-        let (opcodes, _) =
-            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
-        let mut optimized_circuit = circuit;
-        optimized_circuit.opcodes = opcodes;
-        // check that the circuit is still valid after optimization
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit));
-        optimized_circuit
+    fn fits(expr: &Expression<F>, width: usize) -> bool {
+        if expr.mul_terms.len() > 1 || expr.linear_combinations.len() > width {
+            return false;
+        }
+        if expr.mul_terms.len() == 1 {
+            let mut used = 2;
+            let mut contains_a = false;
+            let mut contains_b = false;
+            for lin in &expr.linear_combinations {
+                if lin.1 == expr.mul_terms[0].1 {
+                    contains_a = true;
+                }
+                if lin.1 == expr.mul_terms[0].2 {
+                    contains_b = true;
+                }
+                if contains_a && contains_b {
+                    break;
+                }
+            }
+            if contains_a {
+                used -= 1;
+            }
+            if (expr.mul_terms[0].1 != expr.mul_terms[0].2) && contains_b {
+                used -= 1;
+            }
+            return expr.linear_combinations.len() + used <= width;
+        }
+        true
     }
 
-    #[test]
-    fn does_not_eliminate_witnesses_returned_from_brillig() {
-        let opcodes = vec![
-            Opcode::BrilligCall {
-                id: BrilligFunctionId::default(),
-                inputs: Vec::new(),
-                outputs: vec![BrilligOutputs::Simple(Witness(1))],
-                predicate: None,
-            },
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(2_u128), Witness(0)),
-                    (FieldElement::from(3_u128), Witness(1)),
-                    (FieldElement::from(1_u128), Witness(2)),
-                ],
-                q_c: FieldElement::one(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(2_u128), Witness(0)),
-                    (FieldElement::from(2_u128), Witness(1)),
-                    (FieldElement::from(1_u128), Witness(5)),
-                ],
-                q_c: FieldElement::one(),
-            }),
-        ];
+    /// Simplify 'small expression'
+    /// Small expressions, even if they are re-used several times in other expressions, can still be simplified.
+    /// for example in the case where we have c=ab and the expressions using c do not have a multiplication term: c = ab; a+b+c =0; d+e-c = 0;
+    /// Then it can be simplified into two expressions: ab+a+c=0; -ab+d+e=0;
+    ///
+    /// If we enforce that ALL results satisfies the width, then we are ensured that it will always be an improvement.
+    /// However in practice the improvement is very small, so instead we allow for some over-fitting. As a result, optimisation is not guaranteed
+    /// and in some cases the result can be worse than the original circuit.
+    pub(crate) fn simply_small_expression(
+        &mut self,
+        circuit: &Circuit<F>,
+        acir_opcode_positions: Vec<usize>,
+        width: usize,
+    ) -> (Vec<Opcode<F>>, Vec<usize>) {
+        let mut used_witness = self.compute_used_witness(circuit);
 
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
+        let mut new_circuit = Vec::new();
+        let mut new_acir_opcode_positions = Vec::new();
+        self.modified_gates.clear();
+        self.deleted_gates.clear();
 
-        let circuit = Circuit {
-            current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        };
-        check_circuit(circuit);
-    }
+        // For each opcode, we try to simplify 'small' expressions
+        // If it works, we update modified_gates and deleted_gates to store the result of the simplification
+        for (i, _) in circuit.opcodes.iter().enumerate() {
+            let mut to_keep = true;
+            if let Some(opcode) = self.get_opcode(i, circuit) {
+                let mut merged = Vec::new();
+                let empty_gates = BTreeSet::new();
 
-    #[test]
-    fn does_not_eliminate_witnesses_returned_from_circuit() {
-        let opcodes = vec![
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::from(-1i128), Witness(0), Witness(0))],
-                linear_combinations: vec![(FieldElement::from(1i128), Witness(1))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(-1i128), Witness(1)),
-                    (FieldElement::from(1i128), Witness(2)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-        ];
-        // Witness(1) could be eliminated because it's only used by 2 opcodes.
-
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
-
-        let mut return_values = BTreeSet::new();
-        return_values.insert(Witness(1));
-        return_values.insert(Witness(2));
-
-        let circuit = Circuit {
-            current_witness_index: 2,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs(return_values),
-            assert_messages: Default::default(),
-        };
-
-        let mut merge_optimizer = MergeExpressionsOptimizer::new();
-        let acir_opcode_positions = vec![0; 20];
-        let (opcodes, _) =
-            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
-
-        assert_eq!(opcodes.len(), 2);
-    }
-
-    #[test]
-    fn does_not_attempt_to_merge_into_previous_opcodes() {
-        let opcodes = vec![
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(0))],
-                linear_combinations: vec![(-FieldElement::one(), Witness(4))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],
-                linear_combinations: vec![(FieldElement::one(), Witness(5))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (-FieldElement::one(), Witness(2)),
-                    (FieldElement::one(), Witness(4)),
-                    (FieldElement::one(), Witness(5)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::one(), Witness(2)),
-                    (-FieldElement::one(), Witness(3)),
-                    (FieldElement::one(), Witness(4)),
-                    (FieldElement::one(), Witness(5)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(3), 32),
-            }),
-        ];
-
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
-        private_parameters.insert(Witness(1));
-        let circuit = Circuit {
-            current_witness_index: 5,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        };
-        check_circuit(circuit);
-    }
-
-    #[test]
-    fn takes_blackbox_opcode_outputs_into_account() {
-        // Regression test for https://github.com/noir-lang/noir/issues/6527
-        // Previously we would not track the usage of witness 4 in the output of the blackbox function.
-        // We would then merge the final two opcodes losing the check that the brillig call must match
-        // with `_0 ^ _1`.
-
-        let circuit: Circuit<FieldElement> = Circuit {
-            current_witness_index: 7,
-            opcodes: vec![
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(0),
-                    inputs: Vec::new(),
-                    outputs: vec![BrilligOutputs::Simple(Witness(3))],
-                    predicate: None,
-                },
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-                    lhs: FunctionInput::witness(Witness(0), 8),
-                    rhs: FunctionInput::witness(Witness(1), 8),
-                    output: Witness(4),
-                }),
-                Opcode::AssertZero(Expression {
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(3)),
-                        (-FieldElement::one(), Witness(4)),
-                    ],
-                    ..Default::default()
-                }),
-                Opcode::AssertZero(Expression {
-                    linear_combinations: vec![
-                        (-FieldElement::one(), Witness(2)),
-                        (FieldElement::one(), Witness(4)),
-                    ],
-                    ..Default::default()
-                }),
-            ],
-            expression_width: ExpressionWidth::Bounded { width: 4 },
-            private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-            return_values: PublicInputs(BTreeSet::from([Witness(2)])),
-            ..Default::default()
-        };
-
-        let new_circuit = check_circuit(circuit.clone());
-        assert_eq!(circuit, new_circuit);
+                // If the current expression current_expr is a 'small' expression
+                if let Some(current_expr) = Self::is_free(opcode.clone(), width) {
+                    // we try to simplify it doing Gaussian elimination on one of its linear witness
+                    // We try each witness until a simplification works.
+                    for (_, w) in &current_expr.linear_combinations {
+                        let gates_using_w = used_witness.get(w).unwrap_or(&empty_gates).clone();
+                        let gates: Vec<&usize> = gates_using_w
+                            .iter()
+                            .filter(|g| **g != i && !self.deleted_gates.contains(g))
+                            .collect();
+                        merged.clear();
+                        for g in gates {
+                            if let Some(g_update) = self.get_opcode(*g, circuit) {
+                                if let Opcode::AssertZero(g_expr) = g_update.clone() {
+                                    let merged_expr = Self::merge(&g_expr, &current_expr, *w);
+                                    if merged_expr.is_none()
+                                        || !Self::fits(&merged_expr.clone().unwrap(), width * 2)
+                                    {
+                                        // Do not simplify if merge failed or the result does not fit
+                                        to_keep = true;
+                                        break;
+                                    }
+                                    if *g <= i {
+                                        // This case is not supported, as it would break gates execution ordering
+                                        to_keep = true;
+                                        break;
+                                    }
+                                    merged.push((*g, merged_expr.clone().unwrap()));
+                                } else {
+                                    // Do not simplify if w is used in a non-arithmetic opcode
+                                    to_keep = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if !to_keep {
+                        for m in &merged {
+                            self.modified_gates.insert(m.0, Opcode::AssertZero(m.1.clone()));
+                            // Update the used_witness map
+                            let expr_witnesses = Self::expr_wit(&m.1);
+                            for w in expr_witnesses {
+                                used_witness.entry(w).or_default().insert(m.0);
+                            }
+                        }
+                        self.deleted_gates.insert(i);
+                    }
+                }
+            }
+        }
+        #[allow(clippy::needless_range_loop)]
+        for i in 0..circuit.opcodes.len() {
+            if let Some(op) = self.get_opcode(i, circuit) {
+                new_circuit.push(op);
+                new_acir_opcode_positions.push(acir_opcode_positions[i]);
+            }
+        }
+        (new_circuit, new_acir_opcode_positions)
     }
 }

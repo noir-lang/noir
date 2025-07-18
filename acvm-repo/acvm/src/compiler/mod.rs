@@ -92,13 +92,18 @@ fn transform_assert_messages<F: Clone>(
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
+    _experimental_optimization: bool,
 ) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
     let (acir, acir_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+    let (mut acir, acir_opcode_positions) = transform_internal(
+        acir,
+        expression_width,
+        acir_opcode_positions,
+        true, //TEMP experimental_optimization,
+    );
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);

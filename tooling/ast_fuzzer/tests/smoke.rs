@@ -44,6 +44,7 @@ fn arb_program_can_be_executed() {
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
+            experimental_optimization: false,
         };
 
         // Print the AST if something goes wrong, then panic.

@@ -245,6 +245,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
+        experimental_optimization: false,
     };
     let (acir_functions, brillig, _, _) = match optimize_ssa_builder_into_acir(
         builder,

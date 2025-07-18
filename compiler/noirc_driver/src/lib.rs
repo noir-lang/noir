@@ -151,6 +151,11 @@ pub struct CompileOptions {
     #[arg(long)]
     pub skip_underconstrained_check: bool,
 
+    /// Flag to enable experimental ACIR optimizations
+    #[arg(long, default_value = "false")]
+    pub experimental_optimization: bool,
+
+    /// Setting to decide on an inlining strategy for brillig functions.
     /// Flag to turn off the compiler check for missing Brillig call constraints.
     /// Warning: This can improve compilation speed but can also lead to correctness errors.
     /// This check should always be run on production code.
@@ -241,6 +246,7 @@ impl CompileOptions {
             },
             emit_ssa: if self.emit_ssa { Some(package_build_path) } else { None },
             skip_underconstrained_check: !self.silence_warnings && self.skip_underconstrained_check,
+            experimental_optimization: self.experimental_optimization,
             enable_brillig_constraints_check_lookback: self
                 .enable_brillig_constraints_check_lookback,
             skip_brillig_constraints_check: !self.silence_warnings

@@ -92,19 +92,31 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
+                let (unused_params, common_values) =
+                    func.dead_instruction_elimination(flattened, skip_brillig);
                 let mut result = DIEResult::default();
-
+                let main_common =
+                    if func.id() == self.main_id { Some(common_values) } else { None };
                 result.unused_parameters.insert(*id, unused_params);
 
-                result
+                (result, main_common)
             })
-            .reduce(DIEResult::default, |mut a, b| {
-                a.unused_parameters.extend(b.unused_parameters);
-                a
-            });
-
-        (self, result)
+            // .reduce(DIEResult::default, |mut a, b| {
+            //     a.unused_parameters.extend(b.unused_parameters);
+            //     a
+            // });
+            .reduce(
+                || (DIEResult::default(), None),
+                |(mut a_result, a_main), (b_result, b_main)| {
+                    a_result.unused_parameters.extend(b_result.unused_parameters);
+                    let main_common = a_main.or(b_main);
+                    (a_result, main_common)
+                },
+            );
+        if let Some(common_values) = result.1 {
+            self.common_values = common_values;
+        }
+        (self, result.0)
     }
 
     /// Sanity check on the final SSA, panicking if the assumptions don't hold.
@@ -143,9 +155,9 @@ impl Function {
         &mut self,
         flattened: bool,
         skip_brillig: bool,
-    ) -> HashMap<BasicBlockId, Vec<ValueId>> {
+    ) -> (HashMap<BasicBlockId, Vec<ValueId>>, HashSet<ValueId>) {
         if skip_brillig && self.dfg.runtime().is_brillig() {
-            return HashMap::default();
+            return (HashMap::default(), HashSet::default());
         }
 
         let mut context = Context { flattened, ..Default::default() };
@@ -176,10 +188,9 @@ impl Function {
             unused_params_per_block.insert(*block, unused_params);
             context.parameter_keep_list.insert(*block, keep_list);
         }
-
         context.remove_rc_instructions(&mut self.dfg);
 
-        unused_params_per_block
+        (unused_params_per_block, context.common_values)
     }
 }
 
@@ -216,6 +227,9 @@ struct Context {
     /// simply because they appear as terminator arguments. Only parameters marked as live here
     /// should result in values being marked as used in terminator arguments.
     parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
+
+    /// Values that are used by multiple instructions
+    common_values: HashSet<ValueId>,
 }
 
 impl Context {
@@ -310,10 +324,20 @@ impl Context {
 
     /// Inspects a value and marks all instruction results as used.
     fn mark_used_instruction_results(&mut self, dfg: &DataFlowGraph, value_id: ValueId) {
-        if matches!(&dfg[value_id], Value::Instruction { .. } | Value::Param { .. })
-            || dfg.is_global(value_id)
-        {
-            self.used_values.insert(value_id);
+        match &dfg[value_id] {
+            Value::Instruction { .. } => {
+                if !self.used_values.insert(value_id) {
+                    self.common_values.insert(value_id);
+                }
+            }
+            Value::Param { .. } => {
+                self.used_values.insert(value_id);
+            }
+            _ => {
+                if dfg.is_global(value_id) {
+                    self.used_values.insert(value_id);
+                }
+            }
         }
     }
 

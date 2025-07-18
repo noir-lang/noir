@@ -10,10 +10,9 @@ use crate::ssa::ir::{
     function::{Function, FunctionId},
     map::AtomicCounter,
     value::Value,
+    value::ValueId,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
-
-use super::ValueId;
 
 /// Contains the entire SSA representation of the program.
 #[serde_as]
@@ -34,6 +33,8 @@ pub struct Ssa {
     // ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+
+    pub(crate) common_values: fxhash::FxHashSet<ValueId>,
 }
 
 impl Ssa {
@@ -54,6 +55,7 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            common_values: fxhash::FxHashSet::default(),
         }
     }
 

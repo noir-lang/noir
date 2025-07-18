@@ -29,13 +29,18 @@ const MAX_TRANSFORMER_PASSES: usize = 3;
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
+    experimental_optimization: bool,
 ) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-    let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+    let (mut acir, acir_opcode_positions) = transform_internal(
+        acir,
+        expression_width,
+        acir_opcode_positions,
+        experimental_optimization,
+    );
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
 
@@ -54,6 +59,7 @@ pub(super) fn transform_internal<F: AcirField>(
     mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
     mut acir_opcode_positions: Vec<usize>,
+    experimental_optimization: bool,
 ) -> (Circuit<F>, Vec<usize>) {
     if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping transformation pass");
@@ -67,8 +73,12 @@ pub(super) fn transform_internal<F: AcirField>(
     // don't stabilize unless we also repeat the backend agnostic optimizations.
     for _ in 0..MAX_TRANSFORMER_PASSES {
         info!("Number of opcodes {}", acir.opcodes.len());
-        let (new_acir, new_acir_opcode_positions) =
-            transform_internal_once(acir, expression_width, acir_opcode_positions);
+        let (new_acir, new_acir_opcode_positions) = transform_internal_once(
+            acir,
+            expression_width,
+            acir_opcode_positions,
+            experimental_optimization,
+        );
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
@@ -109,9 +119,9 @@ fn transform_internal_once<F: AcirField>(
     mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
+    experimental_optimization: bool,
 ) -> (Circuit<F>, Vec<usize>) {
-    // If the expression width is unbounded, we don't need to do anything.
-    let mut transformer = match &expression_width {
+    let (mut transformer, width) = match &expression_width {
         ExpressionWidth::Unbounded => {
             return (acir, acir_opcode_positions);
         }
@@ -120,9 +130,37 @@ fn transform_internal_once<F: AcirField>(
             for value in acir.circuit_arguments() {
                 csat.mark_solvable(value);
             }
-            csat
+            (csat, width)
         }
     };
+
+    let current_witness_index = acir.current_witness_index;
+    let mut merge_optimizer = MergeExpressionsOptimizer::new();
+
+    if experimental_optimization {
+        let (opcodes, new_acir_opcode_positions) =
+            merge_optimizer.simply_small_expression(&acir, acir_opcode_positions, *width);
+        let acir = Circuit {
+            current_witness_index,
+            expression_width,
+            opcodes,
+            // The optimizer does not add new public inputs
+            ..acir
+        };
+
+        let (opcodes, new_acir_opcode_positions) =
+            merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
+
+        // n.b. we do not update current_witness_index after the eliminate_intermediate_variable pass, the real index could be less.
+        let acir = Circuit {
+            current_witness_index,
+            expression_width,
+            opcodes,
+            // The optimizer does not add new public inputs
+            ..acir
+        };
+        return (acir, new_acir_opcode_positions);
+    }
 
     // 1. CSAT transformation
     // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
@@ -225,10 +263,7 @@ fn transform_internal_once<F: AcirField>(
         // The transformer does not add new public inputs
         ..acir
     };
-
     // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
-    let mut merge_optimizer = MergeExpressionsOptimizer::new();
-
     let (opcodes, new_acir_opcode_positions) =
         merge_optimizer.eliminate_intermediate_variable(&acir, new_acir_opcode_positions);
 

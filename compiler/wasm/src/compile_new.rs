@@ -117,7 +117,11 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_program = nargo::ops::transform_program(compiled_program, expression_width);
+        let optimized_program = nargo::ops::transform_program(
+            compiled_program,
+            expression_width,
+            compile_options.experimental_optimization,
+        );
         nargo::ops::check_program(&optimized_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
@@ -156,8 +160,11 @@ impl CompilerContext {
                 })?
                 .0;
 
-        let optimized_contract =
-            nargo::ops::transform_contract(compiled_contract, expression_width);
+        let optimized_contract = nargo::ops::transform_contract(
+            compiled_contract,
+            expression_width,
+            compile_options.experimental_optimization,
+        );
         let warnings = optimized_contract.warnings.clone();
 
         Ok(JsCompileContractResult::new(optimized_contract.into(), warnings))

@@ -42,6 +42,7 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
         inliner_aggressiveness: 0,
         max_bytecode_increase_percent: None,
         skip_passes: Default::default(),
+        experimental_optimization: false,
     }
 }
 
