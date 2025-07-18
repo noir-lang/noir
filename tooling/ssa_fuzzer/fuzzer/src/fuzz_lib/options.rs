@@ -2,24 +2,24 @@ use noirc_driver::CompileOptions;
 
 /// Options for the instructions that can be used in the SSA blocks
 #[derive(Clone, Copy, Debug)]
-pub struct InstructionOptions {
-    pub cast_enabled: bool,
-    pub xor_enabled: bool,
-    pub and_enabled: bool,
-    pub or_enabled: bool,
-    pub not_enabled: bool,
-    pub add_enabled: bool,
-    pub sub_enabled: bool,
-    pub mul_enabled: bool,
-    pub mod_enabled: bool,
-    pub div_enabled: bool,
-    pub shl_enabled: bool,
-    pub shr_enabled: bool,
-    pub eq_enabled: bool,
-    pub lt_enabled: bool,
-    pub load_enabled: bool,
-    pub store_enabled: bool,
-    pub alloc_enabled: bool,
+pub(crate) struct InstructionOptions {
+    pub(crate) cast_enabled: bool,
+    pub(crate) xor_enabled: bool,
+    pub(crate) and_enabled: bool,
+    pub(crate) or_enabled: bool,
+    pub(crate) not_enabled: bool,
+    pub(crate) add_enabled: bool,
+    pub(crate) sub_enabled: bool,
+    pub(crate) mul_enabled: bool,
+    pub(crate) mod_enabled: bool,
+    pub(crate) div_enabled: bool,
+    pub(crate) shl_enabled: bool,
+    pub(crate) shr_enabled: bool,
+    pub(crate) eq_enabled: bool,
+    pub(crate) lt_enabled: bool,
+    pub(crate) load_enabled: bool,
+    pub(crate) store_enabled: bool,
+    pub(crate) alloc_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -48,31 +48,31 @@ impl Default for InstructionOptions {
 
 /// Options for the SSA block
 #[derive(Clone, Debug)]
-pub struct SsaBlockOptions {
+pub(crate) struct SsaBlockOptions {
     /// If false, we don't add constraints for idempotent morphing results
-    pub constrain_idempotent_enabled: bool,
+    pub(crate) constrain_idempotent_enabled: bool,
     /// Options for the instructions that can be used in the SSA block
-    pub instruction_options: InstructionOptions,
+    pub(crate) instruction_options: InstructionOptions,
 }
 
 /// Options of the program context
 #[derive(Clone, Debug)]
-pub struct FunctionContextOptions {
+pub(crate) struct FunctionContextOptions {
     /// If false, we don't add constraints for idempotent morphing results
-    pub idempotent_morphing_enabled: bool,
+    pub(crate) idempotent_morphing_enabled: bool,
     /// Options for the program compilation
-    pub compile_options: CompileOptions,
+    pub(crate) compile_options: CompileOptions,
     /// Maximum number of SSA blocks in the program
-    pub max_ssa_blocks_num: usize,
+    pub(crate) max_ssa_blocks_num: usize,
     /// Maximum number of instructions inserted in the program
-    pub max_instructions_num: usize,
+    pub(crate) max_instructions_num: usize,
     /// Options for the instructions that can be used in the SSA block
-    pub instruction_options: InstructionOptions,
+    pub(crate) instruction_options: InstructionOptions,
     /// Options for the fuzzer commands that can be used in the SSA block
-    pub fuzzer_command_options: FuzzerCommandOptions,
+    pub(crate) fuzzer_command_options: FuzzerCommandOptions,
 
     /// Maximum number of iterations in the program
-    pub max_iterations_num: usize,
+    pub(crate) max_iterations_num: usize,
 }
 
 impl From<FunctionContextOptions> for SsaBlockOptions {
@@ -86,14 +86,14 @@ impl From<FunctionContextOptions> for SsaBlockOptions {
 
 /// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
-pub struct FuzzerCommandOptions {
+pub(crate) struct FuzzerCommandOptions {
     /// If false, we don't insert jmp_if
-    pub jmp_if_enabled: bool,
+    pub(crate) jmp_if_enabled: bool,
     /// If false, we don't insert jmp command
-    pub jmp_block_enabled: bool,
+    pub(crate) jmp_block_enabled: bool,
     /// If false, we don't switch to the next block
-    pub switch_to_next_block_enabled: bool,
-    pub loops_enabled: bool,
+    pub(crate) switch_to_next_block_enabled: bool,
+    pub(crate) loops_enabled: bool,
 }
 
 impl Default for FuzzerCommandOptions {
@@ -108,15 +108,15 @@ impl Default for FuzzerCommandOptions {
 }
 
 #[derive(Clone)]
-pub struct FuzzerOptions {
-    pub constrain_idempotent_morphing_enabled: bool,
-    pub constant_execution_enabled: bool,
-    pub compile_options: CompileOptions,
-    pub max_ssa_blocks_num: usize,
-    pub max_instructions_num: usize,
-    pub max_iterations_num: usize,
-    pub instruction_options: InstructionOptions,
-    pub fuzzer_command_options: FuzzerCommandOptions,
+pub(crate) struct FuzzerOptions {
+    pub(crate) constrain_idempotent_morphing_enabled: bool,
+    pub(crate) constant_execution_enabled: bool,
+    pub(crate) compile_options: CompileOptions,
+    pub(crate) max_ssa_blocks_num: usize,
+    pub(crate) max_instructions_num: usize,
+    pub(crate) max_iterations_num: usize,
+    pub(crate) instruction_options: InstructionOptions,
+    pub(crate) fuzzer_command_options: FuzzerCommandOptions,
 }
 
 impl Default for FuzzerOptions {
