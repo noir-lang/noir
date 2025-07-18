@@ -157,7 +157,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
     fn main() {
         let b: [u32; 12] = foo();
                            ^^^ Type annotation needed
@@ -182,7 +182,7 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
     type Quadruple<let N: u32>: u32 = N*(Double::<N>+3);
-                                   ^^^^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
+                                      ^^^^^^^^^^^^^^^^^^ Cannot use a type alias inside a type alias
 
     fn main() {
         let b: [u32; 12] = foo();
