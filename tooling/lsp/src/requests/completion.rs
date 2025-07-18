@@ -1595,12 +1595,8 @@ impl Visitor for NodeFinder<'_> {
 
     fn visit_lvalue_path(&mut self, path: &Path) {
         // If we have `foo.>|<` we suggest `foo`'s type fields and methods
-        let Some(ident) = path.as_ident() else {
-            return;
-        };
-
-        if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
-            let location = Location::new(ident.span(), self.file);
+        if self.byte == Some(b'.') && path.span().end() as usize == self.byte_index - 1 {
+            let location = Location::new(path.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
                 let typ = self.interner.definition_type(definition_id);
