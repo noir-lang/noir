@@ -245,7 +245,9 @@ impl Context {
         for instruction_id in block.instructions().iter().rev() {
             let instruction = &function.dfg[*instruction_id];
 
-            if self.is_unused(*instruction_id, function) {
+            if self.is_unused(*instruction_id, function)
+                || self.can_remove_with_unreachable_terminator(function, block, *instruction_id)
+            {
                 self.instructions_to_remove.insert(*instruction_id);
             } else {
                 // We can't remove rc instructions if they're loaded from a reference
@@ -288,6 +290,31 @@ impl Context {
             // If the instruction has side effects we should never remove it.
             false
         }
+    }
+
+    /// If we are inside a block that terminates with an [unreachable][TerminatorInstruction::Unreachable]
+    /// we can eliminate any instructions that:
+    /// - Have no side effects
+    /// - Are not the trap instruction which triggered the unreachable (we always expect the instruction preceding an unreachable to trigger a runtime failure)
+    /// - Does not have any results which are used in other instructions
+    fn can_remove_with_unreachable_terminator(
+        &mut self,
+        function: &Function,
+        block: &BasicBlock,
+        instruction_id: InstructionId,
+    ) -> bool {
+        let terminator = block.unwrap_terminator();
+        let TerminatorInstruction::Unreachable { .. } = terminator else {
+            return false;
+        };
+
+        let last_instruction = block.instructions().last().copied();
+        let is_last = Some(instruction_id) == last_instruction;
+        if is_last {
+            return false;
+        }
+
+        self.is_unused(instruction_id, function)
     }
 
     /// Adds values referenced by the terminator to the set of used values.
