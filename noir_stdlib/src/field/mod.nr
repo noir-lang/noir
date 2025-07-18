@@ -1,6 +1,6 @@
-pub mod bn254;
+pub mod m31;
 use crate::{runtime::is_unconstrained, static_assert};
-use bn254::lt as bn254_lt;
+use m31::lt as m31_lt;
 
 impl Field {
     /// Asserts that `self` can be represented in `bit_size` bits.
@@ -195,8 +195,8 @@ impl Field {
     }
 
     pub fn lt(self, another: Field) -> bool {
-        if crate::compat::is_bn254() {
-            bn254_lt(self, another)
+        if crate::compat::is_m31() {
+            m31_lt(self, another)
         } else {
             lt_fallback(self, another)
         }
@@ -296,20 +296,21 @@ pub(crate) unconstrained fn field_less_than(x: Field, y: Field) -> bool {
 }
 
 // Convert a 32 byte array to a field element by modding
-pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
-    // Convert it to a field element
-    let mut v = 1;
-    let mut high = 0 as Field;
-    let mut low = 0 as Field;
+// NOT RELEVANT FOR M31
+// pub fn bytes32_to_field(bytes32: [u8; 32]) -> Field {
+//     // Convert it to a field element
+//     let mut v = 1;
+//     let mut high = 0 as Field;
+//     let mut low = 0 as Field;
 
-    for i in 0..16 {
-        high = high + (bytes32[15 - i] as Field) * v;
-        low = low + (bytes32[16 + 15 - i] as Field) * v;
-        v = v * 256;
-    }
-    // Abuse that a % p + b % p = (a + b) % p and that low < p
-    low + high * v
-}
+//     for i in 0..16 {
+//         high = high + (bytes32[15 - i] as Field) * v;
+//         low = low + (bytes32[16 + 15 - i] as Field) * v;
+//         v = v * 256;
+//     }
+//     // Abuse that a % p + b % p = (a + b) % p and that low < p
+//     low + high * v
+// }
 
 fn lt_fallback(x: Field, y: Field) -> bool {
     if is_unconstrained() {
@@ -469,15 +470,16 @@ mod tests {
         }
     }
 
-    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
-    unconstrained fn not_enough_limbs_brillig() {
-        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
-    }
+    
+    // #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    // unconstrained fn not_enough_limbs_brillig() {
+    //     let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
+    // }
 
-    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
-    fn not_enough_limbs() {
-        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
-    }
+    // #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    // fn not_enough_limbs() {
+    //     let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
+    // }
 
     // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
     //#[test]

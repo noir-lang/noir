@@ -169,6 +169,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// Example, you only need 254 bits to represent a field element in BN256
     /// But the representation uses 256 bits, so the top two bits are always zero
     /// This method would return 254
+    /// For M31 it would return 31
     fn max_num_bits() -> u32 {
         F::MODULUS_BIT_SIZE
     }
@@ -177,6 +178,7 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
     /// We are not guaranteed that the number of bits being used to represent a field element
     /// will always be divisible by 8. If the case that it is not, we add one to the max number of bytes
     /// For example, a max bit size of 254 would give a max byte size of 32.
+    /// For M31 it would return 4.
     fn max_num_bytes() -> u32 {
         let num_bytes = Self::max_num_bits() / 8;
         if Self::max_num_bits() % 8 == 0 { num_bytes } else { num_bytes + 1 }
