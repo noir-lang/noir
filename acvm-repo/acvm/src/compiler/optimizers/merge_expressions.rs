@@ -335,6 +335,7 @@ mod tests {
         private_parameters.insert(Witness(0));
 
         let circuit = Circuit {
+            name: "test".to_string(),
             current_witness_index: 1,
             expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
@@ -373,6 +374,7 @@ mod tests {
         return_values.insert(Witness(2));
 
         let circuit = Circuit {
+            name: "test".to_string(),
             current_witness_index: 2,
             expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
@@ -432,6 +434,7 @@ mod tests {
         private_parameters.insert(Witness(0));
         private_parameters.insert(Witness(1));
         let circuit = Circuit {
+            name: "test".to_string(),
             current_witness_index: 5,
             expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
