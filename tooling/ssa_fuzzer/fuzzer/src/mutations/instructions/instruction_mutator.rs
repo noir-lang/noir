@@ -113,7 +113,7 @@ pub(crate) fn instruction_mutator(instruction: &mut Instruction, rng: &mut StdRn
     match BASIC_INSTRUCTION_MUTATION_CONFIGURATION.select(rng) {
         InstructionMutationOptions::Random => RandomMutation::mutate(rng, instruction),
         InstructionMutationOptions::ArgumentMutation => {
-            InstructionArgumentsMutation::mutate(rng, instruction)
+            InstructionArgumentsMutation::mutate(rng, instruction);
         }
     }
 }

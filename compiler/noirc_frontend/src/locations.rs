@@ -81,7 +81,7 @@ pub struct AutoImportEntry {
 impl NodeInterner {
     pub fn reference_location(&self, reference: ReferenceId) -> Location {
         match reference {
-            ReferenceId::Module(id) => self.module_attributes(&id).location,
+            ReferenceId::Module(id) => self.module_attributes(id).location,
             ReferenceId::Function(id) => self.function_modifiers(&id).name_location,
             ReferenceId::Type(id) => {
                 let typ = self.get_type(id);
@@ -117,10 +117,6 @@ impl NodeInterner {
             ReferenceId::Local(id) => self.definition(id).location,
             ReferenceId::Reference(location, _) => location,
         }
-    }
-
-    pub fn reference_module(&self, reference: ReferenceId) -> Option<&ModuleId> {
-        self.reference_modules.get(&reference)
     }
 
     pub(crate) fn add_module_def_id_reference(
@@ -233,7 +229,6 @@ impl NodeInterner {
         &mut self,
         referenced: ReferenceId,
         referenced_location: Location,
-        module_id: Option<ModuleId>,
     ) {
         if !self.lsp_mode {
             return;
@@ -241,9 +236,6 @@ impl NodeInterner {
 
         let referenced_index = self.get_or_insert_reference(referenced);
         self.location_indices.add_location(referenced_location, referenced_index);
-        if let Some(module_id) = module_id {
-            self.reference_modules.insert(referenced, module_id);
-        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -350,9 +342,8 @@ impl NodeInterner {
         location: Location,
         visibility: ItemVisibility,
         name: String,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Module(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Module(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::ModuleId(id), visibility, None);
     }
 
@@ -362,9 +353,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Global(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Global(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::GlobalId(id), visibility, None);
     }
 
@@ -374,9 +364,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Type(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Type(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TypeId(id), visibility, None);
     }
 
@@ -386,9 +375,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Trait(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Trait(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TraitId(id), visibility, None);
     }
 
@@ -398,9 +386,8 @@ impl NodeInterner {
         name: String,
         location: Location,
         visibility: ItemVisibility,
-        parent_module_id: ModuleId,
     ) {
-        self.add_definition_location(ReferenceId::Alias(id), location, Some(parent_module_id));
+        self.add_definition_location(ReferenceId::Alias(id), location);
         self.register_name_for_auto_import(name, ModuleDefId::TypeAliasId(id), visibility, None);
     }
 
