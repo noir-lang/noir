@@ -13,7 +13,7 @@ use fm::{FileId, FileMap, PathString};
 use noirc_errors::Span;
 use noirc_frontend::{
     ParsedModule,
-    modules::module_def_id_is_visible,
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     parser::{Item, ItemKind, ParsedSubModule},
 };
 use noirc_frontend::{
@@ -27,10 +27,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 
-use crate::{
-    LspState, modules::get_ancestor_module_reexport, use_segment_positions::UseSegmentPositions,
-    utils,
-};
+use crate::{LspState, use_segment_positions::UseSegmentPositions, utils};
 
 use super::{process_request, to_lsp_location};
 

@@ -16,7 +16,7 @@ use crate::{
     elaborator::UnstableFeature,
     hir::{
         def_collector::dc_crate::CompilationError,
-        def_map::fully_qualified_module_path,
+        def_map::{ModuleDefId, fully_qualified_module_path},
         resolution::{errors::ResolverError, import::PathResolutionError},
         type_check::{
             NoMatchingImplFoundError, Source, TypeCheckError,
@@ -32,6 +32,7 @@ use crate::{
         stmt::HirStatement,
         traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
+    modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
         DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplKind,
         TraitItemId,
@@ -2320,7 +2321,62 @@ impl Elaborator<'_> {
     }
 
     pub(crate) fn fully_qualified_trait_path(&self, trait_: &Trait) -> String {
-        fully_qualified_module_path(self.def_maps, self.crate_graph, &trait_.crate_id, trait_.id.0)
+        let module_def_id = ModuleDefId::TraitId(trait_.id);
+        let visibility = trait_.visibility;
+        let defining_module = None;
+        let trait_is_visible = module_def_id_is_visible(
+            module_def_id,
+            self.module_id(),
+            visibility,
+            defining_module,
+            self.interner,
+            self.def_maps,
+            &self.crate_graph[self.crate_id].dependencies,
+        );
+
+        if !trait_is_visible {
+            let dependencies = &self.crate_graph[self.crate_id].dependencies;
+
+            for reexport in self.interner.get_trait_reexports(trait_.id) {
+                let reexport_is_visible = module_def_id_is_visible(
+                    module_def_id,
+                    self.module_id(),
+                    reexport.visibility,
+                    Some(reexport.module_id),
+                    self.interner,
+                    self.def_maps,
+                    dependencies,
+                );
+                if reexport_is_visible {
+                    let module_path = fully_qualified_module_path(
+                        self.def_maps,
+                        self.crate_graph,
+                        &self.crate_id,
+                        reexport.module_id,
+                    );
+                    return format!("{module_path}::{}", reexport.name);
+                }
+            }
+
+            if let Some(reexport) = get_ancestor_module_reexport(
+                module_def_id,
+                visibility,
+                self.module_id(),
+                self.interner,
+                self.def_maps,
+                dependencies,
+            ) {
+                let module_path = fully_qualified_module_path(
+                    self.def_maps,
+                    self.crate_graph,
+                    &self.crate_id,
+                    reexport.module_id,
+                );
+                return format!("{module_path}::{}::{}", reexport.name, trait_.name);
+            }
+        }
+
+        fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
     }
 }
 
