@@ -419,6 +419,10 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
+    if options.disable_comptime_printing {
+        context.disable_comptime_printing();
+    }
+
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
