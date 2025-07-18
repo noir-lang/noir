@@ -258,10 +258,6 @@ pub struct NodeInterner {
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
 
-    // The module where each reference is
-    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
-    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
-
     // All names (and their definitions) that can be offered for auto_import.
     // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
@@ -279,8 +275,8 @@ pub struct NodeInterner {
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 
-    /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
-    /// In LSP this is used to offer importing the item via one of these exports if
+    /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
@@ -721,7 +717,6 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
-            reference_modules: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
@@ -838,6 +833,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
         type_id
@@ -1032,7 +1028,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id), location, None);
+            self.add_definition_location(ReferenceId::Local(id), location);
         }
 
         id
@@ -1068,7 +1064,7 @@ impl NodeInterner {
             name_location,
         };
         let definition_id = self.push_function_definition(id, modifiers, module, location);
-        self.add_definition_location(ReferenceId::Function(id), name_location, Some(module));
+        self.add_definition_location(ReferenceId::Function(id), name_location);
         definition_id
     }
 
@@ -1177,16 +1173,12 @@ impl NodeInterner {
         self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
-        &self.module_attributes[module_id]
+    pub fn module_attributes(&self, module_id: ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[&module_id]
     }
 
-    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
-        self.module_attributes.get(module_id)
-    }
-
-    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
-        self.try_module_attributes(module_id).and_then(|attrs| attrs.parent)
+    pub fn try_module_attributes(&self, module_id: ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(&module_id)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {

@@ -62,7 +62,6 @@ use thiserror::Error;
 use tower::Service;
 
 mod attribute_reference_finder;
-mod modules;
 mod notifications;
 mod requests;
 mod solver;

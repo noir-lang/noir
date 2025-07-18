@@ -180,9 +180,6 @@ fn compile_into_program(
     options: &CompileOptions,
 ) -> CompilationResult<(Program, Abi)> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    if options.disable_comptime_printing {
-        context.disable_comptime_printing();
-    }
     context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
