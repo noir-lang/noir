@@ -6,6 +6,7 @@ use crate::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
+    elaborator::PathResolutionTarget,
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{
@@ -403,7 +404,27 @@ impl Elaborator<'_> {
                         (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
                     }
                     Err(error) => {
-                        self.push_err(error);
+                        // We couldn't find a variable or global. Let's see if the identifier refers to something
+                        // else, like a module or type.
+                        let path = TypedPath::from_single(ident.to_string(), location);
+                        let result = self.resolve_path_inner(
+                            path,
+                            PathResolutionTarget::Value,
+                            super::PathResolutionMode::MarkAsUsed,
+                        );
+                        if let Ok(result) = result {
+                            for error in result.errors {
+                                self.push_err(error);
+                            }
+                            self.push_err(ResolverError::Expected {
+                                location,
+                                expected: "value",
+                                got: result.item.description(),
+                            });
+                        } else {
+                            self.push_err(error);
+                        }
+
                         let id = DefinitionId::dummy_id();
                         let ident = HirIdent::non_trait_method(id, location);
                         let typ = Type::Error;
