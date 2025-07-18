@@ -105,10 +105,10 @@ version = "0.40.0"
 dependencies = [
  "acir",
  "acvm",
- "bn254_blackbox_solver",
  "clap",
  "color-eyre",
  "const_format",
+ "m31_blackbox_solver",
  "nargo",
  "noir_artifact_cli",
  "proptest",

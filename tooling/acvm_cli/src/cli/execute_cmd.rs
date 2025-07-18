@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use acir::FieldElement;
 use acir::circuit::Program;
 use acir::native_types::{WitnessMap, WitnessStack};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use clap::Args;
 
 use nargo::foreign_calls::DefaultForeignCallBuilder;
@@ -98,7 +98,7 @@ pub(crate) fn execute_program_from_witness(
     nargo::ops::execute_program(
         &program,
         inputs_map,
-        &Bn254BlackBoxSolver(pedantic_solving),
+        &M31BlackBoxSolver(pedantic_solving),
         &mut foreign_call_executor,
     )
     .map_err(CliError::CircuitExecutionError)
