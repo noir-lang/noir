@@ -65,6 +65,34 @@ impl Type {
     /// and other simplifications
     fn canonicalize_helper(&self, found_checked_cast: bool, run_simplifications: bool) -> Type {
         match self {
+            Type::InfixExpr(
+                lhs,
+                op @ (BinaryTypeOperator::Addition
+                | BinaryTypeOperator::Subtraction
+                | BinaryTypeOperator::Division
+                | BinaryTypeOperator::Modulo),
+                rhs,
+                inversion,
+            ) if run_simplifications && lhs == rhs => match op {
+                BinaryTypeOperator::Addition => {
+                    let two = Type::Constant(FieldElement::from(2u32), lhs.kind());
+                    Type::InfixExpr(
+                        Box::new(two),
+                        BinaryTypeOperator::Multiplication,
+                        rhs.clone(),
+                        *inversion,
+                    )
+                }
+                BinaryTypeOperator::Subtraction | BinaryTypeOperator::Modulo => {
+                    Type::Constant(FieldElement::from(0u32), lhs.kind())
+                }
+                BinaryTypeOperator::Division => {
+                    Type::Constant(FieldElement::from(1u32), lhs.kind())
+                }
+                BinaryTypeOperator::Multiplication => {
+                    unreachable!("Prevented by outer match statement")
+                }
+            },
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
@@ -345,6 +373,74 @@ mod tests {
         NamedGeneric,
         hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
     };
+
+    #[test]
+    fn simplifies_n_plus_n_into_2_times_n() {
+        // We want to canonicalize the expression `N + N` to `2 * N`.
+
+        let n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
+            name: std::rc::Rc::new("N".to_owned()),
+            implicit: false,
+        });
+
+        let n_plus_n = Type::infix_expr(
+            Box::new(n.clone()),
+            BinaryTypeOperator::Addition,
+            Box::new(n.clone()),
+        );
+
+        let canonicalized_typ = n_plus_n.canonicalize();
+
+        let two_times_n = Type::infix_expr(
+            Box::new(Type::Constant(FieldElement::from(2u32), Kind::u32())),
+            BinaryTypeOperator::Multiplication,
+            Box::new(n),
+        );
+
+        assert_eq!(canonicalized_typ, two_times_n);
+    }
+
+    #[test]
+    fn simplifies_n_minus_n_into_zero() {
+        // We want to canonicalize the expression `N - N` to `0`.
+
+        let n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
+            name: std::rc::Rc::new("N".to_owned()),
+            implicit: false,
+        });
+
+        let n_sub_n =
+            Type::infix_expr(Box::new(n.clone()), BinaryTypeOperator::Subtraction, Box::new(n));
+
+        let canonicalized_typ = n_sub_n.canonicalize();
+
+        let zero = Type::Constant(FieldElement::zero(), Kind::u32());
+
+        assert_eq!(canonicalized_typ, zero);
+    }
+
+    #[test]
+    fn simplifies_one_times_n_into_n() {
+        // We want to canonicalize the expression `1 * N` to `N`.
+
+        let n = Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
+            name: std::rc::Rc::new("N".to_owned()),
+            implicit: false,
+        });
+
+        let one_times_n = Type::infix_expr(
+            Box::new(Type::Constant(FieldElement::from(1u32), Kind::u32())),
+            BinaryTypeOperator::Multiplication,
+            Box::new(n.clone()),
+        );
+
+        let canonicalized_typ = one_times_n.canonicalize();
+
+        assert_eq!(canonicalized_typ, n);
+    }
 
     #[test]
     fn solves_n_minus_one_plus_one_through_checked_casts() {
