@@ -101,7 +101,7 @@ impl Loops {
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
-            let Ok(pre_header) = loop_.get_pre_header(&context.inserter.function, &self.cfg) else {
+            let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
                 continue;
             };
             context.current_pre_header = Some(pre_header);
@@ -519,12 +519,10 @@ impl<'f> LoopInvariantContext<'f> {
             return false;
         }
 
-        let can_be_hoisted = matches!(instruction, MakeArray { .. })
+        matches!(instruction, MakeArray { .. })
             || can_be_hoisted(&instruction, self.inserter.function, false)
             || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
-            || self.can_be_hoisted_from_loop_bounds(&instruction);
-
-        can_be_hoisted
+            || self.can_be_hoisted_from_loop_bounds(&instruction)
     }
 
     /// Check [can_be_hoisted] with extra control dependence information that
@@ -1108,7 +1106,6 @@ fn can_be_hoisted(
 
 #[cfg(test)]
 mod test {
-    use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
     use crate::ssa::opt::assert_normalized_ssa_equals;
 
@@ -1860,11 +1857,14 @@ mod test {
 
 #[cfg(test)]
 mod control_dependence {
-    use crate::ssa::{
-        interpreter::{errors::InterpreterError, tests::from_constant},
-        ir::types::NumericType,
-        opt::assert_normalized_ssa_equals,
-        ssa_gen::Ssa,
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::{errors::InterpreterError, tests::from_constant},
+            ir::types::NumericType,
+            opt::assert_normalized_ssa_equals,
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
