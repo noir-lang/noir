@@ -40,7 +40,7 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : [_1]",
-    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: -10 })], outputs: [Simple(Witness(2))]",
     "EXPR [ (1, _0, _2) (-10, _2) (1, _3) -1 ]",
     "EXPR [ (1, _0, _3) (-10, _3) 0 ]",
@@ -58,11 +58,5 @@ expression: artifact
       "source": "global G_A: [Field] = &[];\nfn main(a: u32) -> pub Field {\n    if a == 10 {\n        G_A[1_u32 % G_A.len()]\n    } else if a == 20 {\n        (a as Field)\n    } else {\n        -1\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

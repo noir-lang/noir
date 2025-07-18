@@ -37,11 +37,5 @@ expression: artifact
       "source": "fn main() -> pub str<2> {\n    let mut b = 0_i8;\n    if unsafe { func_1_proxy() } {\n        b = 112;\n        b = ((-b) * b);\n    };\n    \"ok\"\n}\nunconstrained fn func_1_proxy() -> bool {\n    false\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

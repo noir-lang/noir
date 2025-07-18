@@ -44,11 +44,5 @@ expression: artifact
       "source": "// A simple program to test mutable variables\nfn main(x: Field) -> pub Field {\n    let mut y = 2;\n    y += x;\n    y\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

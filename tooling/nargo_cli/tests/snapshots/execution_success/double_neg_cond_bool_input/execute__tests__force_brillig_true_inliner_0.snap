@@ -44,11 +44,5 @@ expression: artifact
       "source": "unconstrained fn main(a: bool) -> pub Field {\n    if ((!a) > (!a)) {\n        (-(-(a as Field)))\n    } else {\n        (-(-(a as Field)))\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

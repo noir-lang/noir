@@ -52,11 +52,5 @@ expression: artifact
       "source": "fn main(v0: u64) -> pub u64 {\n    let v1 = v0 - 1;\n    v1 & 1\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

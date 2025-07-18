@@ -44,11 +44,5 @@ expression: artifact
       "source": "unconstrained fn main(c: bool) -> pub bool {\n    let b = if c {\n        [(&mut true, 1)]\n    } else {\n        [(&mut true, 1)]\n    };\n    *b[0].0\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

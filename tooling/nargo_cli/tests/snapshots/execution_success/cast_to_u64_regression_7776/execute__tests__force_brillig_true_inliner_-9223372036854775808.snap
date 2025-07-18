@@ -53,11 +53,5 @@ expression: artifact
       "source": "fn main(a: Field, b: bool) -> pub u64 {\n    let c = b as Field;\n    let res = a - c;\n    res as u64\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

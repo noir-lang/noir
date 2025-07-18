@@ -43,11 +43,5 @@ expression: artifact
       "source": "type Foo<T> = [T; 2];\n\ntype Bar = Field;\n\ntype One<A, B> = (A, B);\ntype Two<A> = One<A, u32>;\ntype Three = Two<u8>;\n\nstruct MyStruct {\n    foo: Bar,\n}\n\nfn main(x: [Field; 2]) {\n    let a: Foo<Field> = [1, 2];\n    assert(a[0] != x[0]);\n\n    let b: Bar = 2;\n    assert(x[0] == b);\n\n    let c: u8 = 1;\n    let d: u32 = 2;\n    let e: Three = (c, d);\n    assert(e.0 == 1);\n\n    let s = MyStruct { foo: 10 };\n    assert(s.foo == 10);\n\n    let _regression2502: Regression2502Alias = Regression2502 {};\n}\n// An ICE was occurring if a type alias referred to a struct before it was initialized\n// during name resolution. The fix was to initialize structs during def collection instead.\ntype Regression2502Alias = Regression2502;\nstruct Regression2502 {}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

@@ -3683,11 +3683,5 @@ expression: artifact
       "source": "// Tests that we run liveness in block parameters by trying to create too many block parameters to fit in the stack\n// Uses up 10 stack items\nstruct Inner {\n    a: u64,\n    b: u64,\n    c: u64,\n    d: u64,\n    e: u64,\n    f: u64,\n    g: u64,\n    h: u64,\n    i: u64,\n    j: u64,\n}\n\n// Uses up 50 stack items\nstruct Middle {\n    inner_a: Inner,\n    inner_b: Inner,\n    inner_c: Inner,\n    inner_d: Inner,\n    inner_e: Inner,\n}\n\n// Uses up 500 stack items\nstruct Outer {\n    middle_a: Middle,\n    middle_b: Middle,\n    middle_c: Middle,\n    middle_d: Middle,\n    middle_e: Middle,\n    middle_f: Middle,\n    middle_g: Middle,\n    middle_h: Middle,\n}\n\n// If we don't take into account block parameter liveness, this function will need 5*500=2500 stack items\nunconstrained fn main(conditions: [bool; 5]) -> pub Outer {\n    let out0 = if conditions[0] {\n        let mut outer: Outer = std::mem::zeroed();\n        outer.middle_a.inner_a.a = 1;\n        outer\n    } else {\n        let mut outer: Outer = std::mem::zeroed();\n        outer.middle_f.inner_c.d = 2;\n        outer\n    };\n\n    let out1 = if conditions[1] {\n        let mut new_outer = out0;\n        new_outer.middle_a.inner_a.b = 3;\n        new_outer\n    } else {\n        let mut new_outer = out0;\n        new_outer.middle_f.inner_c.c = 4;\n        new_outer\n    };\n\n    let out2 = if conditions[2] {\n        let mut new_outer = out1;\n        new_outer.middle_a.inner_a.c = 5;\n        new_outer\n    } else {\n        let mut new_outer = out1;\n        new_outer.middle_f.inner_c.b = 6;\n        new_outer\n    };\n\n    let out3 = if conditions[3] {\n        let mut new_outer = out2;\n        new_outer.middle_a.inner_a.d = 7;\n        new_outer\n    } else {\n        let mut new_outer = out2;\n        new_outer.middle_f.inner_c.a = 8;\n        new_outer\n    };\n\n    let out4 = if conditions[4] {\n        let mut new_outer = out3;\n        new_outer.middle_a.inner_a.f = 9;\n        new_outer\n    } else {\n        let mut new_outer = out3;\n        new_outer.middle_f.inner_c.f = 10;\n        new_outer\n    };\n\n    out4\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

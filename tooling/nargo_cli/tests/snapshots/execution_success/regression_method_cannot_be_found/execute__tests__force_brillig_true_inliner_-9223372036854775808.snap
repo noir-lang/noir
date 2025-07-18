@@ -35,11 +35,5 @@ expression: artifact
       "source": "struct Item {\n    id: Field,\n}\n\nimpl Item {\n    fn log(self) {\n        let id = self.id;\n        std::println(id);\n    }\n}\n\nfn create<V>(something: V) -> V {\n    something\n}\n\nfn main() {\n    let a = Item { id: 1 };\n    let b = create(a);\n    let _id = b.id;\n    // Regression for:  cannot find this method\n    b.log();\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

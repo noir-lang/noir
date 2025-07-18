@@ -39,11 +39,5 @@ expression: artifact
       "source": "unconstrained fn main() {\n    let mut inner = [1, 2];\n    foo(inner, &mut inner);\n}\n\nunconstrained fn foo(a: [Field; 2], b: &mut [Field; 2]) {\n    b[0] = 100;\n    assert_eq(a, [1, 2]);\n    assert_eq(*b, [100, 2]);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

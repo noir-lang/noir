@@ -50,11 +50,5 @@ expression: artifact
       "source": "unconstrained fn main(x: u32, y: pub u32) {\n    intermediate_function(x, y);\n}\n\nfn intermediate_function(x: u32, y: u32) {\n    basic_checks(x, y);\n}\n\n#[no_predicates]\nfn basic_checks(x: u32, y: u32) {\n    if x > y {\n        assert(x == 10);\n    } else {\n        assert(y == 20);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

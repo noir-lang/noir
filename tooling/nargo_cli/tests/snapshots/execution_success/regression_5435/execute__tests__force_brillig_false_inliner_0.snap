@@ -36,7 +36,7 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [_1]:1 bits []",
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 })], outputs: [Simple(Witness(2))]",
     "EXPR [ (1, _0, _2) (1, _3) -1 ]",
     "EXPR [ (1, _0, _3) 0 ]",
@@ -53,12 +53,5 @@ expression: artifact
       "source": "fn main(input: Field, enable: bool) {\n    if enable {\n        let hash = no_predicate_function(input);\n        // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,\n        // resulting in execution failure.\n        // Safety: testing context\n        unsafe { fail(hash) };\n    }\n}\n\n#[no_predicates]\nfn no_predicate_function(enable: Field) -> Field {\n    // if-statement ensures that an `EnableSideEffects` instruction is emitted.\n    if enable == 0 {\n        1\n    } else {\n        0\n    }\n}\n\nunconstrained fn fail(_: Field) {\n    assert(false);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "fail",
-    "directive_invert"
-  ]
+  }
 }

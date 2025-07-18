@@ -51,9 +51,5 @@ expression: artifact
     "EXPR [ (-1, _4) (-1, _5) (1, _6) 0 ]"
   ],
   "debug_symbols": "nZDRCoMwDEX/pc8+2MHG9FfGkFijFEJbYisM8d8XRZ0bDMaekpubcwMZVYN16irrWt+r8jaqmi2R7SryBqL1TqbjlKlNVpERZaQOvlABGF1UpUtEmRqA0rLUB3BLjcDi5plC10iVwNYSzt2Uvej8O1rolS2uO3z+mdb5ecW1Pv3B79e1vrzhd1FgLH++awC2UBOusk3OHNz4CJuzvTuwN9gkxjlp8ST7CQ==",
-  "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "file_map": {}
 }

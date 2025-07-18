@@ -56,11 +56,5 @@ expression: artifact
       "source": "global G_B: ([bool; 1],) = ([false],);\nunconstrained fn main() -> pub [[bool; 1]; 1] {\n    let mut ctx_limit: u32 = 25_u32;\n    let _ = func_3(([true],), [G_B.0], (&mut ctx_limit));\n    [G_B.0]\n}\nunconstrained fn func_3(a: ([bool; 1],), mut c: [[bool; 1]; 1], ctx_limit: &mut u32) -> bool {\n    if ((*ctx_limit) > 0_u32) {\n        *ctx_limit = ((*ctx_limit) - 1_u32);\n        if func_3(G_B, [a.0], ctx_limit) {\n            c[0_u32] = {\n                {\n                    let mut idx_d: u32 = 0_u32;\n                    loop {\n                        if (idx_d == 3_u32) {\n                            break\n                        } else {\n                            idx_d = (idx_d + 1_u32);\n                            ()\n                        }\n                    }\n                };\n                a.0\n            };\n        }\n    }\n    true\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

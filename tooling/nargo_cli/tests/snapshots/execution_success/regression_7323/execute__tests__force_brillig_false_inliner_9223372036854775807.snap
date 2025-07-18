@@ -55,11 +55,5 @@ expression: artifact
       "source": "// This program lead to panics previously due to the compiler lowering it to multiple blocks\n// which all jumped to the same end block. It runs now due to the compiler lowering to the\n// equivalent of a nested series of if-else instead.\nfn main(x: Field) {\n    match x {\n        1 => panic(f\"Branch 1 should not be taken\"),\n        2 => panic(f\"Branch 2 should not be taken\"),\n        3 => panic(f\"Branch 3 should not be taken\"),\n        _ => (),\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

@@ -205,8 +205,8 @@ pub(super) fn simplify_poseidon2_permutation(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    match (dfg.get_array_constant(arguments[0]), dfg.get_numeric_constant(arguments[1])) {
-        (Some((state, _)), Some(state_length)) if array_is_constant(dfg, &state) => {
+    match dfg.get_array_constant(arguments[0]) {
+        Some((state, _)) if array_is_constant(dfg, &state) => {
             let state: Vec<FieldElement> = state
                 .iter()
                 .map(|id| {
@@ -215,11 +215,7 @@ pub(super) fn simplify_poseidon2_permutation(
                 })
                 .collect();
 
-            let Some(state_length) = state_length.try_to_u32() else {
-                return SimplifyResult::None;
-            };
-
-            let Ok(new_state) = solver.poseidon2_permutation(&state, state_length) else {
+            let Ok(new_state) = solver.poseidon2_permutation(&state) else {
                 return SimplifyResult::None;
             };
 

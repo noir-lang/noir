@@ -6,12 +6,12 @@ use crate::{
     },
     proto::acir::circuit::{
         AssertMessage, AssertionPayload, BlackBoxFuncCall, BlockType, BrilligInputs,
-        BrilligOutputs, Circuit, ConstantOrWitnessEnum, ExpressionOrMemory, ExpressionWidth,
-        FunctionInput, MemOp, Opcode, OpcodeLocation,
+        BrilligOutputs, Circuit, ExpressionOrMemory, ExpressionWidth, FunctionInput, MemOp, Opcode,
+        OpcodeLocation,
     },
 };
 use acir_field::AcirField;
-use color_eyre::eyre::{self, Context};
+use color_eyre::eyre::{self};
 use noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 use super::ProtoSchema;
@@ -19,6 +19,7 @@ use super::ProtoSchema;
 impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
     fn encode(value: &circuit::Circuit<F>) -> Circuit {
         Circuit {
+            name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::encode_vec(&value.opcodes),
             expression_width: Self::encode_some(&value.expression_width),
@@ -31,6 +32,7 @@ impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
 
     fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
         Ok(circuit::Circuit {
+            name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::decode_vec_wrap(&value.opcodes, "opcodes")?,
             expression_width: Self::decode_some_wrap(&value.expression_width, "expression_width")?,
@@ -182,11 +184,10 @@ where
             circuit::Opcode::BlackBoxFuncCall(black_box_func_call) => {
                 Value::BlackboxFuncCall(Self::encode(black_box_func_call))
             }
-            circuit::Opcode::MemoryOp { block_id, op, predicate } => Value::MemoryOp(MemoryOp {
-                block_id: block_id.0,
-                op: Self::encode_some(op),
-                predicate: predicate.as_ref().map(Self::encode),
-            }),
+            circuit::Opcode::MemoryOp { block_id, op } => Value::MemoryOp(
+                #[allow(deprecated)]
+                MemoryOp { block_id: block_id.0, op: Self::encode_some(op), predicate: None },
+            ),
             circuit::Opcode::MemoryInit { block_id, init, block_type } => {
                 Value::MemoryInit(MemoryInit {
                     block_id: block_id.0,
@@ -224,7 +225,6 @@ where
             Value::MemoryOp(memory_op) => Ok(circuit::Opcode::MemoryOp {
                 block_id: BlockId(memory_op.block_id),
                 op: Self::decode_some_wrap(&memory_op.op, "op")?,
-                predicate: Self::decode_opt_wrap(&memory_op.predicate, "predicate")?,
             }),
             Value::MemoryInit(memory_init) => Ok(circuit::Opcode::MemoryInit {
                 block_id: BlockId(memory_init.block_id),
@@ -283,18 +283,20 @@ where
                     outputs: Self::encode_vec(outputs),
                 })
             }
-            opcodes::BlackBoxFuncCall::AND { lhs, rhs, output } => Value::And(And {
+            opcodes::BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => Value::And(And {
                 lhs: Self::encode_some(lhs),
                 rhs: Self::encode_some(rhs),
+                num_bits: *num_bits,
                 output: Self::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, output } => Value::Xor(Xor {
+            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => Value::Xor(Xor {
                 lhs: Self::encode_some(lhs),
                 rhs: Self::encode_some(rhs),
+                num_bits: *num_bits,
                 output: Self::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::RANGE { input } => {
-                Value::Range(Range { input: Self::encode_some(input) })
+            opcodes::BlackBoxFuncCall::RANGE { input, num_bits } => {
+                Value::Range(Range { input: Self::encode_some(input), num_bits: *num_bits })
             }
             opcodes::BlackBoxFuncCall::Blake2s { inputs, outputs } => Value::Blake2s(Blake2s {
                 inputs: Self::encode_vec(inputs),
@@ -390,11 +392,10 @@ where
                     outputs: Self::encode_vec(outputs),
                 })
             }
-            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
+            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     inputs: Self::encode_vec(inputs),
                     outputs: Self::encode_vec(outputs),
-                    len: *len,
                 })
             }
             opcodes::BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
@@ -423,15 +424,18 @@ where
                     Value::And(v) => Ok(opcodes::BlackBoxFuncCall::AND {
                         lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
                         rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        num_bits: v.num_bits,
                         output: Self::decode_some_wrap(&v.output, "output")?,
                     }),
                     Value::Xor(v) => Ok(opcodes::BlackBoxFuncCall::XOR {
                         lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
                         rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        num_bits: v.num_bits,
                         output: Self::decode_some_wrap(&v.output, "output")?,
                     }),
                     Value::Range(v) => Ok(opcodes::BlackBoxFuncCall::RANGE {
                         input: Self::decode_some_wrap(&v.input, "input")?,
+                        num_bits: v.num_bits,
                     }),
                     Value::Blake2s(v) => Ok(opcodes::BlackBoxFuncCall::Blake2s {
                         inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
@@ -527,7 +531,6 @@ where
                         Ok(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                             inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
                             outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
-                            len: v.len,
                         })
                     }
                     Value::Sha256Compression(v) => {
@@ -548,46 +551,22 @@ where
     F: AcirField,
 {
     fn encode(value: &opcodes::FunctionInput<F>) -> FunctionInput {
-        FunctionInput { input: Self::encode_some(value.input_ref()), num_bits: value.num_bits() }
+        use crate::proto::acir::circuit::function_input::*;
+        let value = match value {
+            opcodes::FunctionInput::Constant(field) => Value::Constant(Self::encode(field)),
+            opcodes::FunctionInput::Witness(witness) => Value::Witness(Self::encode(witness)),
+        };
+        FunctionInput { value: Some(value) }
     }
 
     fn decode(value: &FunctionInput) -> eyre::Result<opcodes::FunctionInput<F>> {
-        let input = Self::decode_some_wrap(&value.input, "input")?;
-
-        match input {
-            opcodes::ConstantOrWitnessEnum::Constant(c) => {
-                opcodes::FunctionInput::constant(c, value.num_bits).wrap_err("constant")
-            }
-            opcodes::ConstantOrWitnessEnum::Witness(w) => {
-                Ok(opcodes::FunctionInput::witness(w, value.num_bits))
-            }
-        }
-    }
-}
-
-impl<F> ProtoCodec<opcodes::ConstantOrWitnessEnum<F>, ConstantOrWitnessEnum> for ProtoSchema<F>
-where
-    F: AcirField,
-{
-    fn encode(value: &opcodes::ConstantOrWitnessEnum<F>) -> ConstantOrWitnessEnum {
-        use crate::proto::acir::circuit::constant_or_witness_enum::*;
-        let value = match value {
-            opcodes::ConstantOrWitnessEnum::Constant(field) => Value::Constant(Self::encode(field)),
-            opcodes::ConstantOrWitnessEnum::Witness(witness) => {
-                Value::Witness(Self::encode(witness))
-            }
-        };
-        ConstantOrWitnessEnum { value: Some(value) }
-    }
-
-    fn decode(value: &ConstantOrWitnessEnum) -> eyre::Result<opcodes::ConstantOrWitnessEnum<F>> {
-        use crate::proto::acir::circuit::constant_or_witness_enum::*;
+        use crate::proto::acir::circuit::function_input::*;
         decode_oneof_map(&value.value, |value| match value {
             Value::Constant(field) => {
-                Ok(opcodes::ConstantOrWitnessEnum::Constant(Self::decode_wrap(field, "constant")?))
+                Ok(opcodes::FunctionInput::Constant(Self::decode_wrap(field, "constant")?))
             }
             Value::Witness(witness) => {
-                Ok(opcodes::ConstantOrWitnessEnum::Witness(Self::decode_wrap(witness, "witness")?))
+                Ok(opcodes::FunctionInput::Witness(Self::decode_wrap(witness, "witness")?))
             }
         })
     }

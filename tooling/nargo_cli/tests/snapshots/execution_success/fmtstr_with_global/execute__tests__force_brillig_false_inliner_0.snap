@@ -35,11 +35,5 @@ expression: artifact
       "source": "global FOO: Field = 1;\n\nfn main() {\n    println(f\"foo = {FOO}\");\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "print_unconstrained"
-  ]
+  }
 }

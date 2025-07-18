@@ -42,11 +42,5 @@ expression: artifact
       "source": "unconstrained fn main() -> pub [i8; 2] {\n    if *func_5()[0][1].0 {\n        [0, 1]\n    } else {\n        [2, 3]\n    }\n}\nunconstrained fn func_5() -> [[(&mut bool, str<2>, str<4>, str<4>); 2]] {\n    [[((&mut true), \"AB\", \"WTGS\", \"AELL\"), ((&mut false), \"CD\", \"PKHQ\", \"LDWE\")]]\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

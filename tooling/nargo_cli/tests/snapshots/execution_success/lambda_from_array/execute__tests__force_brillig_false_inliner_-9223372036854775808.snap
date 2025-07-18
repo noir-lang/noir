@@ -204,7 +204,7 @@ expression: artifact
     "BRILLIG CALL func 1: PREDICATE = EXPR [ (1, _83) 0 ]",
     "inputs: [Single(Expression { mul_terms: [], linear_combinations: [], q_c: 1 }), Array([Expression { mul_terms: [], linear_combinations: [], q_c: 98 }, Expression { mul_terms: [], linear_combinations: [], q_c: 105 }, Expression { mul_terms: [], linear_combinations: [], q_c: 103 }])], outputs: []",
     "EXPR [ (1, _0) (-1, _84) 2 ]",
-    "BLACKBOX::RANGE [(_84, 2)] []",
+    "BLACKBOX::RANGE [_84]:2 bits []",
     "MEM (id: 0, read at: EXPR [ (1, _84) 0 ], value: EXPR [ (1, _85) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(85))], q_c: -7 })], outputs: [Simple(Witness(86))]",
     "EXPR [ (1, _85, _86) (-7, _86) (1, _87) -1 ]",
@@ -283,7 +283,7 @@ expression: artifact
     "BRILLIG CALL func 1: PREDICATE = EXPR [ (1, _123) 0 ]",
     "inputs: [Single(Expression { mul_terms: [], linear_combinations: [], q_c: 1 }), Array([Expression { mul_terms: [], linear_combinations: [], q_c: 98 }, Expression { mul_terms: [], linear_combinations: [], q_c: 105 }, Expression { mul_terms: [], linear_combinations: [], q_c: 103 }])], outputs: []",
     "EXPR [ (1, _0) (-1, _124) 1 ]",
-    "BLACKBOX::RANGE [(_124, 2)] []",
+    "BLACKBOX::RANGE [_124]:2 bits []",
     "MEM (id: 0, read at: EXPR [ (1, _124) 0 ], value: EXPR [ (1, _125) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(125))], q_c: -7 })], outputs: [Simple(Witness(126))]",
     "EXPR [ (1, _125, _126) (-7, _126) (1, _127) -1 ]",
@@ -754,7 +754,7 @@ expression: artifact
     "EXPR [ (1, _326, _364) (-25, _364) 0 ]",
     "BRILLIG CALL func 1: PREDICATE = EXPR [ (1, _364) 0 ]",
     "inputs: [Single(Expression { mul_terms: [], linear_combinations: [], q_c: 1 }), Array([Expression { mul_terms: [], linear_combinations: [], q_c: 98 }, Expression { mul_terms: [], linear_combinations: [], q_c: 105 }, Expression { mul_terms: [], linear_combinations: [], q_c: 103 }])], outputs: []",
-    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [_0]:1 bits []",
     "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _365) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(365))], q_c: -7 })], outputs: [Simple(Witness(366))]",
     "EXPR [ (1, _365, _366) (-7, _366) (1, _367) -1 ]",
@@ -1011,14 +1011,5 @@ expression: artifact
       "source": "// Many parts of the code here are regressions from issue #5503 (https://github.com/noir-lang/noir/issues/5503)\nfn main(x: u32) {\n    lambdas_in_array_literal(x - 1);\n    lambdas_in_array_literal(x);\n    lambdas_in_array_literal(x + 2);\n    lambdas_in_array_literal(x + 1);\n\n    lambdas_in_slice_literal(x - 1);\n    lambdas_in_slice_literal(x);\n    lambdas_in_slice_literal(x + 1);\n    lambdas_in_slice_literal(x + 2);\n\n    functions_in_array_literal(x - 1);\n    functions_in_array_literal(x);\n    functions_in_slice_literal(x - 1);\n    functions_in_slice_literal(x);\n\n    let example_lambda: fn(u8) -> u8 = |x| x + 1;\n    let lambdas: [fn(u8) -> u8; 8] = [example_lambda; 8];\n    println(lambdas[0](5));\n    // Dynamic dispatch\n    println(lambdas[x - 1](5));\n\n    let lambdas: [fn(()) -> (); 1] = [|_: ()| {}];\n    lambdas[0](());\n    lambdas[x - 1](());\n\n    // Also check against slices\n    let lambdas: [fn(()) -> ()] = &[|_: ()| {}];\n    lambdas[0](());\n    lambdas[x - 1](());\n}\n\nfn lambdas_in_array_literal(x: u32) {\n    let xs = [|| println(\"hi\"), || println(\"bye\"), || println(\"wow\"), || println(\"big\")];\n    (xs[x])();\n}\n\nfn lambdas_in_slice_literal(x: u32) {\n    let xs = &[|| println(\"hi\"), || println(\"bye\"), || println(\"big\"), || println(\"wow\")];\n    (xs[x])();\n}\n\nfn functions_in_array_literal(x: u32) {\n    let xs = [foo, bar];\n    (xs[x])();\n}\n\nfn functions_in_slice_literal(x: u32) {\n    let xs = &[baz, qux];\n    (xs[x])();\n}\n\nfn foo() {\n    println(\"hi\");\n}\nfn bar() {\n    println(\"bye\");\n}\nfn baz() {\n    println(\"hi\");\n}\nfn qux() {\n    println(\"bye\");\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "print_unconstrained",
-    "print_unconstrained",
-    "print_unconstrained",
-    "directive_invert"
-  ]
+  }
 }

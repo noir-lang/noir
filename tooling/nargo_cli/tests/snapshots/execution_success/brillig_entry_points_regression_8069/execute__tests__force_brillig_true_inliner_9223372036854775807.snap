@@ -40,11 +40,5 @@ expression: artifact
       "source": "fn main() -> pub bool {\n    let ctx_depth = 5;\n    // Safety: testing context\n    let cond = unsafe { func_1(true, 1, ctx_depth) };\n    let _ = if !cond {\n        // Safety: testing context\n        unsafe { func_2(1, true, ctx_depth) }[0]\n    } else {\n        0\n    };\n    false\n}\nunconstrained fn func_1(a: bool, b: i8, mut ctx_depth: u32) -> bool {\n    if (ctx_depth == 0) {\n        false\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_1(false, func_2((a as Field), false, ctx_depth)[3], ctx_depth)\n    }\n}\nunconstrained fn func_2(mut a: Field, mut b: bool, mut ctx_depth: u32) -> [i8; 4] {\n    if (ctx_depth == 0) {\n        [6, 101, 92, 30]\n    } else {\n        ctx_depth = (ctx_depth - 1);\n        func_2(a, func_1(b, 0, ctx_depth), ctx_depth)\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

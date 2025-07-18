@@ -26,18 +26,18 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 16 })], outputs: [Simple(Witness(1)), Simple(Witness(2))]",
-    "BLACKBOX::RANGE [(_1, 28)] []",
-    "BLACKBOX::RANGE [(_2, 4)] []",
+    "BLACKBOX::RANGE [_1]:28 bits []",
+    "BLACKBOX::RANGE [_2]:4 bits []",
     "EXPR [ (1, _0) (-16, _1) (-1, _2) 0 ]",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(16, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(3)), Simple(Witness(4))]",
-    "BLACKBOX::RANGE [(_3, 4)] []",
-    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BLACKBOX::RANGE [_3]:4 bits []",
+    "BLACKBOX::RANGE [_4]:32 bits []",
     "EXPR [ (16, _0) (-4294967296, _3) (-1, _4) 0 ]",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(4))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 256 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
-    "BLACKBOX::RANGE [(_5, 24)] []",
-    "BLACKBOX::RANGE [(_6, 8)] []",
+    "BLACKBOX::RANGE [_5]:24 bits []",
+    "BLACKBOX::RANGE [_6]:8 bits []",
     "EXPR [ (1, _4) (-256, _5) (-1, _6) 0 ]",
     "EXPR [ (1, _1) (-1, _5) 0 ]",
     "unconstrained func 0",
@@ -49,11 +49,5 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested are left and right shifts.\nfn main(x: u32) {\n    let z = x >> 4;\n    let t = x << 4;\n    assert(z == t >> 8);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  }
 }

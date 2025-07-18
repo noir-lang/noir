@@ -46,11 +46,5 @@ expression: artifact
       "source": "fn main(x: Field, y: Field) {\n    let pair = (x, y);\n    assert(pair.0 == 1);\n    assert(pair.1 == 0);\n\n    let (a, b) = if true { (0, 1) } else { (2, 3) };\n    assert(a == 0);\n    assert(b == 1);\n\n    let (u, v) = if x as u32 < 1 { (x, x + 1) } else { (x + 1, x) };\n    assert(u == x + 1);\n    assert(v == x);\n    // Test mutating tuples\n    let mut mutable = ((0, 0), 1, 2, 3);\n    mutable.0 = (x, y);\n    mutable.2 = 7;\n    assert(mutable.0.0 == 1);\n    assert(mutable.0.1 == 0);\n    assert(mutable.1 == 1);\n    assert(mutable.2 == 7);\n    assert(mutable.3 == 3);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

@@ -43,9 +43,5 @@ expression: artifact
       "source": "fn main(a: bool) -> pub bool {\n    if (a) {\n        let b = func_4(1569582039);\n        true\n    } else {\n        false\n    }\n}\nfn func_4(a: u32) -> u32 {\n    (a / (a % a))\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

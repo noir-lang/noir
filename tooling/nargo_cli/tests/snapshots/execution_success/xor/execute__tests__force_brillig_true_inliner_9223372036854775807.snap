@@ -50,11 +50,5 @@ expression: artifact
       "source": "fn main(x: u32, y: pub u32) {\n    let m = x ^ y;\n\n    assert(m != 10);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

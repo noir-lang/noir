@@ -40,8 +40,8 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : [_1]",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []",
-    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
+    "BLACKBOX::RANGE [_1]:32 bits []",
     "EXPR [ (-1, _2) 3 ]",
     "CALL func 1: PREDICATE = EXPR [ 1 ]",
     "inputs: [Witness(0), Witness(1), Witness(2)], outputs: [Witness(3), Witness(4), Witness(5)]",
@@ -51,11 +51,11 @@ expression: artifact
     "private parameters indices : [_0, _1, _2]",
     "public parameters indices : []",
     "return value indices : [_3, _4, _5]",
-    "BLACKBOX::RANGE [(_0, 32)] []",
-    "BLACKBOX::RANGE [(_1, 32)] []",
-    "BLACKBOX::RANGE [(_2, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
+    "BLACKBOX::RANGE [_1]:32 bits []",
+    "BLACKBOX::RANGE [_2]:32 bits []",
     "EXPR [ (1, _0) (-1, _6) 20 ]",
-    "BLACKBOX::RANGE [(_6, 32)] []",
+    "BLACKBOX::RANGE [_6]:32 bits []",
     "EXPR [ (1, _3) (-1, _6) 0 ]",
     "EXPR [ (-1, _1) (1, _4) 0 ]",
     "EXPR [ (-1, _2) (1, _5) 0 ]"
@@ -66,10 +66,5 @@ expression: artifact
       "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main",
-    "new_field_in_array"
-  ],
-  "brillig_names": []
+  }
 }

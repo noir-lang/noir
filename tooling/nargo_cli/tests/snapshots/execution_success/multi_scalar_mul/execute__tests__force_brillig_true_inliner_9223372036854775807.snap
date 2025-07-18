@@ -117,11 +117,5 @@ expression: artifact
       "source": "// This test provides a basic implementation of a MSM in Noir, that allows us to check\n// performance improvements and regressions.\nuse std::embedded_curve_ops::embedded_curve_add;\nuse std::embedded_curve_ops::EmbeddedCurvePoint;\n\n// `main` must be marked unconstrained as the function uses `break` internally\nunconstrained fn main(\n    points: [EmbeddedCurvePoint; 5],\n    scalars: [Field; 5],\n) -> pub EmbeddedCurvePoint {\n    double_then_add_msm(points, scalars)\n}\n\nunconstrained fn double_then_add_msm<let N: u32>(\n    points: [EmbeddedCurvePoint; N],\n    scalars: [Field; N],\n) -> EmbeddedCurvePoint {\n    // EmbeddedCurveScalar are two 128-bit numbers\n    let mut acc = EmbeddedCurvePoint::point_at_infinity();\n    for i in 0..N {\n        // These should probably be EmbeddedCurveScalars\n        // let full_scalar: Field = scalars[i].hi * 2.pow_32(128) + scalars[i].lo;\n        let full_scalar = scalars[i];\n        // If the scalar is zero we won't add anything to acc\n        if full_scalar == 0 {\n            continue;\n        }\n        let full_scalar_bits: [u1; 254] = full_scalar.to_be_bits();\n        let mut index_of_msb = 0;\n        // Iterates in BE\n        for j in 0..254 {\n            if full_scalar_bits[j] == 1 {\n                index_of_msb = j;\n                break;\n            }\n        }\n\n        let temp = points[i];\n        let mut res = points[i];\n        // traversing from second MSB to LSB\n        for j in (index_of_msb + 1)..(254) {\n            // Double\n            res = embedded_curve_add(res, res);\n            // Add\n            if full_scalar_bits[j] == 1 {\n                res = embedded_curve_add(res, temp);\n            }\n        }\n\n        acc = embedded_curve_add(acc, res);\n    }\n    acc\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

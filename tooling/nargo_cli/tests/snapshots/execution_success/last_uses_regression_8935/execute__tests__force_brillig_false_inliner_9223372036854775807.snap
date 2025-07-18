@@ -66,11 +66,5 @@ expression: artifact
       "source": "unconstrained fn main(a: [u16; 1], b: [u16; 1]) {\n    case1(a);\n    case2(b);\n}\n\nunconstrained fn case1(array: [u16; 1]) {\n    if false {} else {\n        let mut d = array;\n        if (true) {\n            d[0] = 2;\n            assert(array[0] != 2);\n\n            // This println is needed to ensure d is not optimized out\n            println(d);\n        } else {\n            ()\n        }\n    }\n}\n\nunconstrained fn case2(array: [u16; 1]) {\n    if true {\n        if true {\n            let mut foo = array;\n            foo[0] = 0;\n\n            // This println is needed to ensure foo is not optimized out\n            println(foo);\n        }\n    }\n\n    if true {\n        if false {\n            ()\n        } else {\n            assert(array[0] != 0);\n        }\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

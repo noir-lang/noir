@@ -76,11 +76,5 @@ expression: artifact
       "source": "fn main(x: u64, y: u8, z: i16, u: i64) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n    // regression tests for issue #8176, superseded by issue #8791\n    assert(u >> (x as u8) == -1);\n    assert(z >> (x as u8) == -1);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n\n    assert(z >> 16 == -1);\n    assert(-z >> x as u8 == 0);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

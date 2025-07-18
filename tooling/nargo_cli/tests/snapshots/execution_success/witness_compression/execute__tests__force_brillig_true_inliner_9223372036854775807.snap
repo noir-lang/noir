@@ -51,11 +51,5 @@ expression: artifact
       "source": "// This test should be used to regenerate the serialized witness used in the `acvm_js` integration tests.\n// The `acvm_js` test file containing the serialized witness should be also called `witness_compression`.\n// After recompiling Noir, you can manually print the witness byte array to be written to file after execution.\nfn main(x: Field, y: pub Field) -> pub Field {\n    assert(x != y);\n    x + y\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

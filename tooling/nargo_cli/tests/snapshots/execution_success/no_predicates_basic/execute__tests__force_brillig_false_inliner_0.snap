@@ -42,11 +42,5 @@ expression: artifact
       "source": "fn main(x: Field, y: pub Field) {\n    basic_check(x, y);\n}\n\n#[no_predicates]\nfn basic_check(x: Field, y: Field) {\n    assert(x != y);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

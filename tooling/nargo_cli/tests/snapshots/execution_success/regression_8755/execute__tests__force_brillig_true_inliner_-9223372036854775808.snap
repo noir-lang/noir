@@ -40,11 +40,5 @@ expression: artifact
       "source": "unconstrained fn main() -> pub Field {\n    func_2([(0, &mut -292434322542114415011969994633470574393)])\n}\nunconstrained fn func_2(mut b: [(u32, &mut Field); 1]) -> Field {\n    let mut idx_e: u32 = 0;\n    loop {\n        if idx_e == 1 {\n            break;\n        } else {\n            idx_e = idx_e + 1;\n        }\n    }\n    (157653526363045079447323020681982670581 / *b[0].1)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

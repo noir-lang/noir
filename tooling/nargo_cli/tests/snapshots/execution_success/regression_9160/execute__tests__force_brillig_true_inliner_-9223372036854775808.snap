@@ -56,11 +56,5 @@ expression: artifact
       "source": "fn main() -> pub [[bool; 1]; 1] {\n    let mut ctx_limit: u32 = 1;\n    // Safety: test program\n    unsafe {\n        func_1([[true]], [[true]], ctx_limit)\n    }\n}\nunconstrained fn func_1(\n    a: [[bool; 1]; 1],\n    mut b: [[bool; 1]; 1],\n    mut ctx_limit: u32,\n) -> [[bool; 1]; 1] {\n    if (ctx_limit == 0) {\n        [[true]]\n    } else {\n        b[0][0] = false;\n        println(a);\n        b = func_1(a, b, ctx_limit - 1);\n        a\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

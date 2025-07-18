@@ -18,9 +18,5 @@ expression: artifact
     "return value indices : []"
   ],
   "debug_symbols": "nZHhCoMgFIXfxd/92EopepUxwuwWgqjcNBjRu+8WubXBYPTreu7xOwd0Zh20cWi07d3I6tvMWtTG6KExTsmgnaXtvGQsySYgAK3YwSfKSwQbWG2jMRmbpInbpdFLu80gkdxLxsB2NCmw1wbW05K96ctvtBD5DheifOHib55fy53neX6Gr1I/r870C576hfjsv5OSSuP3i08StWwN7LKPVh3c8PDJST/m0SnoIsKatHmU/QQ=",
-  "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "file_map": {}
 }

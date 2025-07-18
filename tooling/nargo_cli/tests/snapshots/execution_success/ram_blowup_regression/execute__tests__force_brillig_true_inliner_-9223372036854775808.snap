@@ -64,11 +64,5 @@ expression: artifact
       "source": "global TX_EFFECTS_HASH_INPUT_FIELDS: u32 = 256;\n\n// Convert a 32 byte array to a field element by truncating the final byte\npub fn field_from_bytes_32_trunc(bytes32: [u8; 32]) -> Field {\n    // Convert it to a field element\n    let mut v = 1;\n    let mut high = 0 as Field;\n    let mut low = 0 as Field;\n\n    for i in 0..15 {\n        // covers bytes 16..30 (31 is truncated and ignored)\n        low = low + (bytes32[15 + 15 - i] as Field) * v;\n        v = v * 256;\n        // covers bytes 0..14\n        high = high + (bytes32[14 - i] as Field) * v;\n    }\n    // covers byte 15\n    low = low + (bytes32[15] as Field) * v;\n\n    low + high * v\n}\n\npub fn blake2s_to_field<let N: u32>(bytes_to_hash: [u8; N]) -> Field {\n    let blake2s_hashed = std::hash::blake2s(bytes_to_hash);\n    let hash_in_a_field = field_from_bytes_32_trunc(blake2s_hashed);\n\n    hash_in_a_field\n}\n\nfn main(tx_effects_hash_input: [Field; TX_EFFECTS_HASH_INPUT_FIELDS]) -> pub Field {\n    let mut hash_input_flattened = [0; TX_EFFECTS_HASH_INPUT_FIELDS * 32];\n    for offset in 0..TX_EFFECTS_HASH_INPUT_FIELDS {\n        let input_as_bytes: [u8; 32] = tx_effects_hash_input[offset].to_be_bytes();\n        for byte_index in 0..32 {\n            hash_input_flattened[offset * 32 + byte_index] = input_as_bytes[byte_index];\n        }\n    }\n\n    let blake2s_digest = blake2s_to_field(hash_input_flattened);\n    blake2s_digest\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

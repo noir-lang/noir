@@ -75,11 +75,5 @@ expression: artifact
       "source": "// This test aims to check that we have consistent behavior\n// between a `to_be_bytes` call (which is radix decomposition under the hood)\n// with constant inputs or with witness inputs.\n// x = 2040124\nfn main(x: Field) {\n    let byte_array: [u8; 31] = x.to_be_bytes();\n    let x_as_constant = 2040124;\n    let constant_byte_array: [u8; 31] = x_as_constant.to_be_bytes();\n    assert(constant_byte_array.len() == byte_array.len());\n    for i in 0..constant_byte_array.len() {\n        assert(constant_byte_array[i] == byte_array[i]);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_to_radix"
-  ]
+  }
 }

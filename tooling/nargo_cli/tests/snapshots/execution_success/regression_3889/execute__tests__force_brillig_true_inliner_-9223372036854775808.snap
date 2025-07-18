@@ -85,11 +85,5 @@ expression: artifact
       "source": "mod Foo {\n    pub(crate) struct NewType {\n        pub(crate) a: Field,\n    }\n}\n\nmod Bar {\n    pub(crate) use crate::Foo::NewType;\n    pub(crate) use crate::Foo::NewType as BarStruct;\n}\n\nmod Baz {\n    pub(crate) struct Works {\n        pub(crate) a: Field,\n    }\n    pub(crate) use crate::Bar::BarStruct;\n    pub(crate) use crate::Bar::NewType;\n}\n\nfn main(works: Baz::Works, fails: Baz::BarStruct, also_fails: Bar::NewType) -> pub Field {\n    works.a + fails.a + also_fails.a\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

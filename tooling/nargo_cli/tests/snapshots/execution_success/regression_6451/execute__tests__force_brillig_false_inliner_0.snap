@@ -35,7 +35,7 @@ expression: artifact
     "return value indices : []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 })], outputs: [Simple(Witness(1))]",
     "EXPR [ (2, _0, _0) (-2, _0, _1) (-1, _3) 0 ]",
-    "BLACKBOX::RANGE [(_3, 1)] []",
+    "BLACKBOX::RANGE [_3]:1 bits []",
     "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 1 })], outputs: [Simple(Witness(4))]",
     "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(2, Witness(0)), (3, Witness(4))], q_c: -1 })], outputs: [Simple(Witness(5))]",
     "EXPR [ (2, _0, _5) (3, _4, _5) (-1, _5) -1 ]",
@@ -56,12 +56,5 @@ expression: artifact
       "source": "fn main(x: Field) {\n    // Regression test for #6451\n    let y = unsafe { empty(x) };\n    let mut value = 0;\n    let term1 = x * x - x * y;\n    std::as_witness(term1);\n    value += term1;\n    let term2 = x * x - y * x;\n    value += term2;\n    value.assert_max_bit_size::<1>();\n\n    // Regression test for #6447 (Aztec Packages issue #9488)\n    // Safety: testing context\n    let y = unsafe { empty(x + 1) };\n    let z = y + x + 1;\n    let z1 = z + y;\n    assert(z + z1 != 3);\n    let w = y + 2 * x + 3;\n    assert(w + z1 != z);\n}\n\nunconstrained fn empty(_: Field) -> Field {\n    0\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "empty",
-    "directive_invert"
-  ]
+  }
 }

@@ -39,11 +39,5 @@ expression: artifact
       "source": "// Regression for issue #8319 (https://github.com/noir-lang/noir/issues/8319)\nunconstrained fn main() {\n    func_4(([982714762, 1608230664, 671108204]))\n}\n\nunconstrained fn func_4(a: [u32; 3]) {\n    {\n        let mut idx_b = 0;\n        loop {\n            if (idx_b == 6) {\n                break\n            } else {\n                idx_b = (idx_b + 1);\n                {\n                    let mut idx_c = 0;\n                    loop {\n                        if (idx_c == 7) {\n                            break\n                        } else {\n                            idx_c = (idx_c + 1);\n                            for idx_d in ((a[2] / 1193346642) % 4)..(a[1] % 4) {\n                                {\n                                    let mut idx_g = 0;\n                                    loop {\n                                        if (idx_g == 3) {\n                                            break\n                                        } else {\n                                            idx_g = (idx_g + 1);\n                                            let h = (a[0] % idx_d);\n                                            println(h);\n                                        }\n                                    }\n                                };\n                                break;\n                            }\n                        }\n                    }\n                };\n            }\n        }\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

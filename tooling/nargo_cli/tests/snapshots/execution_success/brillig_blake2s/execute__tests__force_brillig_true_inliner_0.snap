@@ -66,11 +66,5 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested is blake2s in brillig\nfn main(x: [u8; 5], result: [u8; 32]) {\n    // Safety: testing context\n    unsafe {\n        assert(blake2s(x) == result);\n    }\n}\n\nunconstrained fn blake2s(x: [u8; 5]) -> [u8; 32] {\n    std::hash::blake2s(x)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

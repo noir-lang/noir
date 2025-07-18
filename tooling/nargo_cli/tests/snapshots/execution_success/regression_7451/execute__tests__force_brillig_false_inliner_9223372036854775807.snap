@@ -34,9 +34,5 @@ expression: artifact
       "source": "fn main(x: u8) {\n    // Safety: test code\n    let predicate = unsafe { return_true() };\n    let tmp: u8 = if predicate { 0xff } else { 0 };\n\n    let y = tmp & x;\n    assert_eq(y, 1);\n}\n\nunconstrained fn return_true() -> bool {\n    true\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

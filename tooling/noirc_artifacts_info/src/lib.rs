@@ -2,7 +2,7 @@ use acvm::acir::circuit::ExpressionWidth;
 use iter_extended::vecmap;
 use noirc_artifacts::program::ProgramArtifact;
 use prettytable::{Row, row, table};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use serde::Serialize;
 
 #[derive(Debug, Default, Serialize)]
@@ -65,18 +65,20 @@ pub fn count_opcodes_and_gates_in_program(
         .bytecode
         .functions
         .into_par_iter()
-        .enumerate()
-        .map(|(i, function)| FunctionInfo {
-            name: compiled_program.names[i].clone(),
+        .map(|function| FunctionInfo {
+            name: function.name.clone(),
             opcodes: function.opcodes.len(),
         })
         .collect();
 
-    let opcodes_len: Vec<usize> = compiled_program
+    let unconstrained_info: Vec<FunctionInfo> = compiled_program
         .bytecode
         .unconstrained_functions
         .iter()
-        .map(|func| func.bytecode.len())
+        .map(|function| FunctionInfo {
+            name: function.name.clone(),
+            opcodes: function.bytecode.len(),
+        })
         .collect();
     let unconstrained_functions_opcodes = compiled_program
         .bytecode
@@ -84,13 +86,6 @@ pub fn count_opcodes_and_gates_in_program(
         .into_par_iter()
         .map(|function| function.bytecode.len())
         .sum();
-    let unconstrained_info: Vec<FunctionInfo> = compiled_program
-        .brillig_names
-        .clone()
-        .iter()
-        .zip(opcodes_len)
-        .map(|(name, len)| FunctionInfo { name: name.clone(), opcodes: len })
-        .collect();
 
     ProgramInfo {
         package_name,
