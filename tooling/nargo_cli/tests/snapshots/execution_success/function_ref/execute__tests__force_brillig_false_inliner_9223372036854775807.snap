@@ -47,11 +47,5 @@ expression: artifact
       "source": "fn main(c: bool) -> pub str<3> {\n    let mut f = foo;\n    if c {\n        f = bar;\n    }\n    f()\n}\n\nfn foo() -> str<3> {\n    \"foo\"\n}\n\nfn bar() -> str<3> {\n    \"bar\"\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

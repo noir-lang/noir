@@ -49,10 +49,5 @@ expression: artifact
       "source": "fn main(x: u32) {\n    // We want to call a foldable function after a call to a function that is set to be inlined\n    assert(increment(x) == x + 1);\n    foo(x);\n}\n\n#[fold]\nfn foo(x: u32) {\n    assert(x == 1);\n}\n\nfn increment(x: u32) -> u32 {\n    x + 1\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main",
-    "foo"
-  ],
-  "brillig_names": []
+  }
 }

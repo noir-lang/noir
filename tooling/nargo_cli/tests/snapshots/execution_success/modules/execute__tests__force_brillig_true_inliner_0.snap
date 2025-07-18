@@ -46,11 +46,5 @@ expression: artifact
       "source": "mod foo;\n// This is a comment.\n//\n// `main` is the entry point to a binary\n//\n// You can have a `Binary` or a `Library`\n// Release : 0.2\n//\n// To run a proof on the command line, type `cargo run prove {proof_name}`\n//\n// To verify that proof, type `cargo run verify {proof_name}`\nfn main(x: Field, y: pub Field) {\n    assert(x != foo::hello(y));\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

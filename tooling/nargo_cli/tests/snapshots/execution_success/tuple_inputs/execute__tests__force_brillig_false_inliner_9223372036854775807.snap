@@ -197,12 +197,5 @@ expression: artifact
       "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(pair: (Field, Field), x: [(u8, u8, u8); 2], struct_pair: (Foo, Bar)) -> pub (Field, u8) {\n    let mut start_val = 0;\n    for i in 0..2 {\n        assert(x[i].0 == start_val);\n        assert(x[i].1 == start_val + 1);\n        assert(x[i].2 == start_val + 2);\n        start_val += 3;\n    }\n\n    assert(struct_pair.0.a == 1);\n    assert(struct_pair.0.b == [2, 3, 20]);\n    assert(struct_pair.0.bar.inner == [100, 101, 102]);\n    assert(struct_pair.1.inner == [103, 104, 105]);\n\n    let (u, v) = if pair.0 as u32 < 1 {\n        (pair.0, pair.0 + 1)\n    } else {\n        (pair.0 + 1, pair.0)\n    };\n\n    assert(u == pair.0 + 1);\n    assert(v == pair.0);\n\n    (u, v as u8)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

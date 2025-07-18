@@ -89,13 +89,5 @@ expression: artifact
       "source": "fn main(x: u8) {\n    // This would previously overflow in ACIR. Now it returns zero.\n    let value = 1 >> x;\n    assert_eq(value, 0);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_to_radix",
-    "directive_invert"
-  ]
+  }
 }

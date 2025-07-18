@@ -39,11 +39,5 @@ expression: artifact
       "source": "global FN_TUPLE: (fn() -> Field, fn() -> Field) = (f1, f2);\n\nfn main(y: Field) {\n    assert((FN_TUPLE.0)() != y);\n    assert((FN_TUPLE.1)() == y);\n}\n\nfn f1() -> Field {\n    1\n}\n\nfn f2() -> Field {\n    2\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

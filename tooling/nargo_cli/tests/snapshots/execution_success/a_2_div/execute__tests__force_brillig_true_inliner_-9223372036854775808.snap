@@ -67,11 +67,5 @@ expression: artifact
       "source": "// Testing integer division: 7/3 = 2\nfn main(mut x: u32, y: u32, z: u32) {\n    let a = x % y;\n    assert(x / y == z);\n    assert(a == x - z * y);\n    assert(50_u64 % 9 == 5);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

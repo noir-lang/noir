@@ -39,11 +39,5 @@ expression: artifact
       "source": "fn main() {\n    comptime let mut x = 1;\n\n    println(x); // prints 1\n\n    comptime {\n        x += 1;\n    }\n\n    println(x); // prints 2\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

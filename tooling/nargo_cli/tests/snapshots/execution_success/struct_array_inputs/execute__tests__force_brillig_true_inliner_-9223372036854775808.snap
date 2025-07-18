@@ -63,11 +63,5 @@ expression: artifact
       "source": "struct Foo {\n    bar: Field,\n    baz: Field,\n}\n\nfn main(foos: [Foo; 3]) -> pub Field {\n    foos[2].bar + foos[2].baz\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

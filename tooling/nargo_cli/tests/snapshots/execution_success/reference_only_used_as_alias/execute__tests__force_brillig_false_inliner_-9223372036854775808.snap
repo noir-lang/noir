@@ -60,11 +60,5 @@ expression: artifact
       "source": "struct ExampleEvent0 {\n    value0: Field,\n    value1: Field,\n}\n\ntrait EventInterface {\n    fn emit<Env>(self, _emit: fn[Env](Self));\n}\n\nimpl EventInterface for ExampleEvent0 {\n    fn emit<Env>(self: ExampleEvent0, _emit: fn[Env](Self)) {\n        _emit(self);\n    }\n}\n\nstruct Context {\n    a: u32,\n    b: [u32; 3],\n    log_hashes: BoundedVec<LogHash, 4>,\n}\n\nstruct LogHash {\n    value: Field,\n    counter: u32,\n    length: Field,\n    randomness: Field,\n}\n\nimpl Context {\n    fn emit_raw_log<let M: u32>(&mut self, randomness: Field, _log: [u8; M], log_hash: Field) {\n        let log_hash = LogHash { value: log_hash, counter: 0, length: 0, randomness };\n        self.log_hashes.push(log_hash);\n    }\n}\n\nfn compute<Event>(_event: Event) -> ([u8; 5], Field)\nwhere\n    Event: EventInterface,\n{\n    ([0_u8; 5], 0)\n}\n\nfn emit_with_keys<Event, let OB: u32>(\n    context: &mut Context,\n    randomness: Field,\n    event: Event,\n    inner_compute: fn(Event) -> ([u8; OB], Field),\n)\nwhere\n    Event: EventInterface,\n{\n    let (log, log_hash) = inner_compute(event);\n    context.emit_raw_log(randomness, log, log_hash);\n}\n\nfn encode_event_with_randomness<Event>(\n    context: &mut Context,\n    randomness: Field,\n) -> fn[(&mut Context, Field)](Event)\nwhere\n    Event: EventInterface,\n{\n    |e: Event| {\n        // Safety: testing context\n        unsafe {\n            func(context.a);\n        }\n        emit_with_keys(context, randomness, e, compute);\n    }\n}\n\nunconstrained fn func(input: u32) {\n    let mut var = input;\n    let ref = &mut &mut var;\n\n    for _ in 0..1 {\n        **ref = 2;\n    }\n\n    assert(var == 2);\n    assert(**ref == 2);\n}\n\n// This test aims to allocate a reference which is aliased and only accessed through its alias\n// across multiple blocks. We want to guarantee that this allocation is not removed.\nfn main(input: [Field; 4], randomness: Field, context_input: u32) {\n    let b = [context_input, context_input, context_input];\n    let mut context = Context { a: context_input, b, log_hashes: BoundedVec::new() };\n\n    let event0 = ExampleEvent0 { value0: input[0], value1: input[1] };\n    event0.emit(encode_event_with_randomness(&mut context, randomness));\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "func"
-  ]
+  }
 }

@@ -95,11 +95,5 @@ expression: artifact
       "source": "fn main(\n    zero: i32,\n    one: i32,\n    two: i32,\n    three: i32,\n    minus_one: i32,\n    minus_two: i32,\n    minus_three: i32,\n) {\n    assert_eq(zero as u1, 0);\n    assert_eq(one as u1, 1);\n    assert_eq(two as u1, 0);\n    assert_eq(three as u1, 1);\n    assert_eq(minus_one as u1, 1);\n    assert_eq(minus_two as u1, 0);\n    assert_eq(minus_three as u1, 1);\n\n    let zero: i32 = 0;\n    let one: i32 = 1;\n    let two: i32 = 2;\n    let three: i32 = 3;\n    let minus_one: i32 = -1;\n    let minus_two: i32 = -2;\n    let minus_three: i32 = -3;\n    assert_eq(zero as u1, 0);\n    assert_eq(one as u1, 1);\n    assert_eq(two as u1, 0);\n    assert_eq(three as u1, 1);\n    assert_eq(minus_one as u1, 1);\n    assert_eq(minus_two as u1, 0);\n    assert_eq(minus_three as u1, 1);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

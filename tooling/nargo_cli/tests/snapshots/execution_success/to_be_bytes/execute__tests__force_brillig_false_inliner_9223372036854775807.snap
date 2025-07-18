@@ -120,11 +120,5 @@ expression: artifact
       "source": "fn main(x: Field) -> pub [u8; 31] {\n    // The result of this byte array will be big-endian\n    let byte_array: [u8; 31] = x.to_be_bytes();\n    let mut bytes = [0; 31];\n    for i in 0..31 {\n        bytes[i] = byte_array[i];\n    }\n    if (bytes[30] != 60) | (bytes[29] != 33) | (bytes[28] != 31) {\n        assert(false);\n    }\n    assert(Field::from_be_bytes::<31>(bytes) == x);\n    bytes\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_to_radix"
-  ]
+  }
 }

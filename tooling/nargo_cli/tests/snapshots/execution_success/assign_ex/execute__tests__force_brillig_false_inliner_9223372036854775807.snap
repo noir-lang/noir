@@ -40,9 +40,5 @@ expression: artifact
       "source": "fn main(x: Field, y: Field) {\n    let mut z = x + y;\n    assert(z == 3);\n    z = x * y;\n    assert(z == 2);\n\n    regression_3057();\n}\n// Ensure parsing parenthesized lvalues works\nfn regression_3057() {\n    let mut array = [[0, 1], [2, 3]];\n    (array[0])[1] = 2;\n    assert(array[0][1] == 2);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

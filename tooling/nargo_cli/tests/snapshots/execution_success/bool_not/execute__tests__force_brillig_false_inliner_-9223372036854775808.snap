@@ -34,9 +34,5 @@ expression: artifact
       "source": "fn main(x: u1) {\n    assert(!x == 0);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

@@ -32,9 +32,5 @@ expression: artifact
       "source": "fn main(mut x: Field) {\n    let one = 1;\n    let add1 = |z| { *z = *z + one; };\n\n    let two = 2;\n    let add2 = |z| { *z = *z + two; };\n\n    add1(&mut x);\n    assert(x == 1);\n\n    add2(&mut x);\n    assert(x == 3);\n\n    issue_2120();\n}\n// https://github.com/noir-lang/noir/issues/2120\nfn issue_2120() {\n    let x1 = &mut 42;\n    let set_x1 = |y| { *x1 = y; };\n\n    assert(*x1 == 42);\n    set_x1(44);\n    assert(*x1 == 44);\n    set_x1(*x1);\n    assert(*x1 == 44);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

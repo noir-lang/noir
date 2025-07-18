@@ -69,12 +69,5 @@ expression: artifact
       "source": "global NUM_RESULTS: u32 = 2;\nfn main(x: Field, y: pub Field, enable: bool) -> pub [Field; NUM_RESULTS] {\n    let mut result = [0; NUM_RESULTS];\n    for i in 0..NUM_RESULTS {\n        if enable {\n            result[i] = return_value(x, y);\n        }\n    }\n    result\n}\n\n#[fold]\nfn return_value(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main",
-    "return_value"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  }
 }

@@ -54,11 +54,5 @@ expression: artifact
       "source": "fn main(a: u32, mut c: [u32; 4]) {\n    if a == c[0] {\n        assert(c[0] == 0);\n    } else if a == c[1] {\n        assert(c[1] == 0);\n    } else if a == c[2] {\n        assert(c[2] == 0);\n    } else if a == c[3] {\n        // expect to match this case\n        assert(c[3] == 0);\n    } else {\n        assert(c[0] == 10);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

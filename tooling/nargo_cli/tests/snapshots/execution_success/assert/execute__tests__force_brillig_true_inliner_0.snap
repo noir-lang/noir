@@ -48,11 +48,5 @@ expression: artifact
       "source": "fn main(x: Field) {\n    assert(x == 1);\n    assert(1 == conditional(x != 0));\n}\n\nfn conditional(x: bool) -> Field {\n    assert(x, f\"Expected x to be true but got {x}\");\n    assert_eq(x, true, f\"Expected x to be true but got {x}\");\n    1\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

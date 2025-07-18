@@ -39,11 +39,5 @@ expression: artifact
       "source": "// Regression for issue #7359 (https://github.com/noir-lang/noir/issues/7359)\n// We want the loop to be small enough that the compiler may attempt to unroll it.\nunconstrained fn main(x: Field) {\n    let mut count = 0;\n\n    for i in 0..1 {\n        if x == 5 {\n            count = i;\n            break;\n        }\n    }\n    assert(count == 0);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

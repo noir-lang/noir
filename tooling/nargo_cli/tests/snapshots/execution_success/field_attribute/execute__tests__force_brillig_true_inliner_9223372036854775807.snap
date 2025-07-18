@@ -41,11 +41,5 @@ expression: artifact
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32) {\n    assert(x > foo());\n}\n\n#[field(bn254)]\nfn foo() -> u32 {\n    1\n}\n\n#[field(23)]\nfn foo() -> u32 {\n    2\n}\n\n#[field(bls12_381)]\nfn foo() -> u32 {\n    3\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

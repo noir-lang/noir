@@ -49,11 +49,5 @@ expression: artifact
       "source": "fn main(minus_one: i8) {\n    assert(minus_one < 0);\n    assert(0 < minus_one as u8);\n    assert(0 > minus_one);\n    let most_negative_number = minus_one * 127 - 1;\n    assert(most_negative_number < 0);\n    assert(127 > most_negative_number);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

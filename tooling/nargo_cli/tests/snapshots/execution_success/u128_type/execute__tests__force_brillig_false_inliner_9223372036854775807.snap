@@ -249,13 +249,5 @@ expression: artifact
       "source": "fn main(x: u128, y: u128, z: u8) {\n    let const_x = 12345;\n    let const_y = 2345678;\n    let const_z = 2;\n\n    assert_eq(x + y, const_x + const_y);\n    assert_eq(y - x, const_y - const_x);\n    assert_eq(x * y, const_x * const_y);\n    assert_eq(y / x, const_y / const_x);\n    assert_eq(y % x, const_y % const_x);\n    assert_eq(!x, !const_x);\n    assert_eq(x ^ y, const_x ^ const_y);\n    assert_eq(x & y, const_x & const_y);\n    assert_eq(x | y, const_x | const_y);\n    assert_eq(x >> z, const_x >> const_z);\n    assert_eq(x << z, const_x << const_z);\n    assert_eq(x < y, const_x < const_y);\n    assert_eq(x <= y, const_x <= const_y);\n    assert_eq(x != y, const_x != const_y);\n    assert_eq(y > x, const_y > const_x);\n    assert_eq(y >= x, const_y >= const_x);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert",
-    "directive_to_radix"
-  ]
+  }
 }

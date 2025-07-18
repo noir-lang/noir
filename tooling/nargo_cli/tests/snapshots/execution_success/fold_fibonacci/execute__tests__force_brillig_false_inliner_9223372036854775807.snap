@@ -69,12 +69,5 @@ expression: artifact
       "source": "fn main(x: u32) {\n    assert(fibonacci(x) == 55);\n}\n\n#[fold]\nfn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main",
-    "fibonacci"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  }
 }

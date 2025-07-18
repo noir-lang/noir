@@ -50,11 +50,5 @@ expression: artifact
       "source": "pub struct MyStruct {\n    pub Q: Field,\n}\n\nimpl crate1::MyTrait for MyStruct {\n    fn Add10(&mut self) {\n        self.Q += 10;\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

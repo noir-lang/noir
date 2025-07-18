@@ -18,12 +18,8 @@ expression: artifact
         "return_type": null,
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/5XDsQkAAADCMAv+f7PuTgaCFm19Arunwj5IAAAA",
-      "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
-      "names": [
-        "fn1"
-      ],
-      "brillig_names": []
+      "bytecode": "H4sIAAAAAAAA/53FIREAAAwCQHZLtFKT9JcISMCbH9jm56EgMDEbLEcAAAA=",
+      "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH"
     },
     {
       "name": "fn2",
@@ -38,12 +34,8 @@ expression: artifact
         "return_type": null,
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/5XDsQkAAADCMAv+f7PuTgaCFm19Arunwj5IAAAA",
-      "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
-      "names": [
-        "fn2"
-      ],
-      "brillig_names": []
+      "bytecode": "H4sIAAAAAAAA/53FIREAAAwCQHZrtFCT9JcISMCbH9jm56Eg8+Fyr0cAAAA=",
+      "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH"
     }
   ],
   "outputs": {

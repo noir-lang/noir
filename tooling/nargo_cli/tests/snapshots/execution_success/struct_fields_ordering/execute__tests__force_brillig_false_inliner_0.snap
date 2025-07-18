@@ -50,9 +50,5 @@ expression: artifact
       "source": "// Note that fields are not in alphabetical order.\n// We want to check that this ordering is maintained\nstruct myStruct {\n    foo: u32,\n    bar: Field,\n}\n\nfn main(y: pub myStruct) {\n    assert(y.foo == 5);\n    assert(y.bar == 7);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

@@ -76,12 +76,5 @@ expression: artifact
       "source": "// Test unsafe integer arithmetic\n// Test odd bits integer\nuse std::ops::WrappingMul;\nfn main(mut x: u32, y: u32) {\n    x = x.wrapping_mul(x);\n    assert(y == x);\n\n    let c: u1 = 0;\n    assert(x as u1 > c);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

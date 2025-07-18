@@ -561,12 +561,5 @@ expression: artifact
       "source": "struct SignedDivOp {\n    lhs: i8,\n    rhs: i8,\n    result: i8,\n}\n\nfn main(ops: [SignedDivOp; 15]) {\n    for i in 0..15 {\n        assert_eq(ops[i].lhs / ops[i].rhs, ops[i].result);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

@@ -49,11 +49,5 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested are left and right shifts.\nfn main(x: u32) {\n    let z = x >> 4;\n    let t = x << 4;\n    assert(z == t >> 8);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  }
 }

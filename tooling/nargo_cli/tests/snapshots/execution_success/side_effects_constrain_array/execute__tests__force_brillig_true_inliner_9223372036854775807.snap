@@ -45,11 +45,5 @@ expression: artifact
       "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nfn main(y: pub u32) {\n    let bar = Bar { inner: [100, 101, 102] };\n\n    // The assert inside the if should be hit\n    if y < 10 {\n        assert(bar.inner == [100, 101, 102]);\n    }\n\n    // The assert inside the if should not be hit\n    if y > 10 {\n        assert(bar.inner == [0, 1, 2]);\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

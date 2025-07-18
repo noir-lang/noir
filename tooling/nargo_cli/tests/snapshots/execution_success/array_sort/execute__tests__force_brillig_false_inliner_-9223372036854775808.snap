@@ -165,15 +165,5 @@ expression: artifact
       "source": "fn main(xs: [u8; 3]) {\n    let sorted = xs.sort();\n    assert(sorted[0] == 1);\n    assert(sorted[1] == 2);\n    assert(sorted[2] == 3);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "quicksort",
-    "__get_shuffle_indices",
-    "__get_index",
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

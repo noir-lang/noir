@@ -41,9 +41,5 @@ expression: artifact
       "source": "// Test that we can apply a range constraint to a field using\n// a builtin.\nfn main(x: Field) {\n    x.assert_max_bit_size::<48>();\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

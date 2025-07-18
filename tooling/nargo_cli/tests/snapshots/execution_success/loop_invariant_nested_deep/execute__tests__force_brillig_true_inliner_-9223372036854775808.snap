@@ -39,11 +39,5 @@ expression: artifact
       "source": "// We expect this program to fail if we incorrectly hoist the division.\n// This is an expansion of the `loop_invariant_regression_8586` test.\n// a = false\nfn main(a: pub bool) {\n    for _ in 0..1 {\n        for _ in 0..1 {\n            for _ in 0..1 {\n                for _ in 0..1 {\n                    if a {\n                        for _ in 0..1 {\n                            let _ = (1 / (a as Field));\n                        }\n                    };\n                }\n            }\n        }\n    }\n\n    for _ in 0..1 {\n        if a {\n            for _ in 0..1 {\n                let _ = (1 / (a as Field));\n\n                for _ in 0..1 {\n                    for _ in 0..1 {\n                        for _ in 0..1 {\n                            let _ = (1 / (a as Field));\n                        }\n                    }\n                }\n            }\n        }\n    }\n\n    for _ in 0..1 {\n        for _ in 0..1 {\n            for _ in 0..1 {\n                if a {\n                    for _ in 0..1 {\n                        let _ = (1 / (a as Field));\n\n                        for _ in 0..1 {\n                            let _ = (1 / (a as Field));\n                        }\n                    }\n                }\n            }\n        }\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

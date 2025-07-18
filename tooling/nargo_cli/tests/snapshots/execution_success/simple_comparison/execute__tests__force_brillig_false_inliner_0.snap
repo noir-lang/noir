@@ -68,12 +68,5 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested is comparison\nfn main(x: Field, y: Field) {\n    assert(x as u32 < y as u32);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

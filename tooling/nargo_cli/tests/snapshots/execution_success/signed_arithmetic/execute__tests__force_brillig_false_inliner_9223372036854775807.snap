@@ -252,12 +252,5 @@ expression: artifact
       "source": "fn main(mut x: i32, mut y: i32, z: i32) {\n    let mut s1: i8 = 5;\n    let mut s2: i8 = 8;\n    assert(s1 + s2 == 13);\n    assert(x + y == 13);\n\n    s2 = -8;\n    y = -y;\n    assert(s1 + s2 == -3);\n    assert(x + y == -3);\n\n    s1 = -15;\n    assert(s1 - s2 == -7);\n    assert(z - y == -7);\n\n    s1 = -5;\n    s2 = 8;\n    x = -x;\n    y = -y;\n    assert(s1 - s2 == -13);\n    assert(x - y == -13);\n\n    s2 = -8;\n    y = -y;\n    assert(s1 * s2 == 40);\n    assert(x * y == 40);\n\n    s1 = 1;\n    s2 = -8;\n    assert(s1 * s2 == -8);\n    assert(x / x * y == -8);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_invert"
-  ]
+  }
 }

@@ -39,9 +39,5 @@ expression: artifact
       "source": "fn main(x: Field, y: Field) {\n    let p = x == y;\n    assert(p == true);\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  }
 }

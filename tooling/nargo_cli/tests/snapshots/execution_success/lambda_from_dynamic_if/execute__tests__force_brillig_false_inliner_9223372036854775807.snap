@@ -173,14 +173,5 @@ expression: artifact
       "source": "fn main(x: u32) {\n    lambdas_no_inputs(x);\n    println(lambdas_with_input_and_return_values(x - 1));\n    println(lambdas_with_input_and_return_values(x));\n    println(lambdas_with_input_and_return_values(x + 1));\n}\nfn lambdas_no_inputs(x: u32) {\n    let f1 = || println(\"hi\");\n    let f2 = || println(\"bye\");\n    let f = if x == 0 {\n        f1\n    } else if x == 1 {\n        f2\n    } else {\n        panic(f\"!\")\n    };\n    f();\n}\nfn lambdas_with_input_and_return_values(x: u32) -> u32 {\n    let f1 = |value: u32| value;\n    let f2 = |value: u32| value + 1;\n    let f3 = |value: u32| value + 2;\n    let f = if x == 0 {\n        f1\n    } else if x == 1 {\n        f2\n    } else {\n        f3\n    };\n    f(x)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "print_unconstrained",
-    "print_unconstrained",
-    "print_unconstrained",
-    "directive_invert"
-  ]
+  }
 }

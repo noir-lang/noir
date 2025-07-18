@@ -67,11 +67,5 @@ expression: artifact
       "source": "// Regression taken from issue #7961 (https://github.com/noir-lang/noir/issues/7961)\nfn main(a: bool, b: [[bool; 2]; 3]) -> pub [bool; 2] {\n    if (!!a) {\n        if (!!a) {\n            b[0]\n        } else {\n            b[0]\n        }\n    } else {\n        b[0]\n    }\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  }
 }

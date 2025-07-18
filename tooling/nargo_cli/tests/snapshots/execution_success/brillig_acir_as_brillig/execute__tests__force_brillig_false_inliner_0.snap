@@ -56,13 +56,5 @@ expression: artifact
       "source": "fn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x) == 2);\n        swap_entry_point(x, x + 1);\n        assert(deep_entry_point(x) == 4);\n    }\n}\n\nfn inner(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    inner(x + 1)\n}\n\nfn swap(x: u32, y: u32) -> (u32, u32) {\n    (y, x)\n}\n\nunconstrained fn swap_entry_point(x: u32, y: u32) {\n    let swapped = swap(x, y);\n    assert(swapped.0 == y);\n    assert(swapped.1 == x);\n    let swapped_twice = swap(swapped.0, swapped.1);\n    assert(swapped_twice.0 == x);\n    assert(swapped_twice.1 == y);\n}\n\nfn level_3(x: u32) -> u32 {\n    x + 1\n}\n\nfn level_2(x: u32) -> u32 {\n    level_3(x + 1)\n}\n\nfn level_1(x: u32) -> u32 {\n    level_2(x + 1)\n}\n\nunconstrained fn deep_entry_point(x: u32) -> u32 {\n    level_1(x + 1)\n}\n",
       "path": ""
     }
-  },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "entry_point",
-    "swap_entry_point",
-    "deep_entry_point"
-  ]
+  }
 }
