@@ -1,0 +1,4 @@
+[package]
+name = "struct_assignment_with_shared_ref_to_field"
+type = "bin"
+authors = [""]
