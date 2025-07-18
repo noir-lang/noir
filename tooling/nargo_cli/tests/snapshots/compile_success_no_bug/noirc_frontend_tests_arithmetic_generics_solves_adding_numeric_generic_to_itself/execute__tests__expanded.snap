@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Deserialize {
+    let N: u32;
+
+    fn deserialize(_: [Field; N]);
+}
+
+impl Deserialize for Field {
+    let N: u32 = 1;
+
+    fn deserialize(_: [Self; 1]) {
+    }
+}
+
+struct Gen<T> {
+}
+
+impl<T> Deserialize for Gen<T> where T: Deserialize {
+    let N: u32 = 2 * <T as Deserialize>::N;
+
+    fn deserialize(_: [Field; 2 * <T as Deserialize>::N]) {
+    }
+}
+
+pub fn foo() {
+    let _: () = <Gen<Field> as Deserialize>::deserialize([0_Field; 2]);
+}
+
+// Warning: the generated code has syntax errors

@@ -193,3 +193,37 @@ fn global_arithmetic_generic_larger_than_u32() {
     "#;
     assert_no_errors!(source);
 }
+
+#[named]
+#[test]
+fn solves_adding_numeric_generic_to_itself() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; Self::N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    struct Gen<T> {}
+
+    impl<T> Deserialize for Gen<T>
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + <T as Deserialize>::N;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo() {
+        let _ = <Gen<Field> as Deserialize>::deserialize([0; 2]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
