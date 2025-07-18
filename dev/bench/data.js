@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752785774538,
+  "lastUpdate": 1752833773896,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19291,48 +19291,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "913ee6308f6ea040608df452a66bcb20bece3ca6",
-          "message": "fix(ssa interpreter): Add out of bounds error (#9147)",
-          "timestamp": "2025-07-08T20:13:40Z",
-          "tree_id": "cc289c4dc0895b3aa8d812d540097fa13f97db3a",
-          "url": "https://github.com/noir-lang/noir/commit/913ee6308f6ea040608df452a66bcb20bece3ca6"
-        },
-        "date": 1752007120875,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249780,
-            "range": "± 695",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219967,
-            "range": "± 3853",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789482,
-            "range": "± 1234",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "rkarabut@users.noreply.github.com",
             "name": "Ratmir Karabut",
             "username": "rkarabut"
@@ -21384,6 +21342,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785639,
             "range": "± 7926",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9d04ff58d6da0bab8bdb11f7d1e296dfdb618621",
+          "message": "chore: mark bignum as expected to pass (#9244)",
+          "timestamp": "2025-07-18T11:12:28+01:00",
+          "tree_id": "0dceaf3c0c371c76b0300283683ae8f06431a2d3",
+          "url": "https://github.com/noir-lang/noir/commit/9d04ff58d6da0bab8bdb11f7d1e296dfdb618621"
+        },
+        "date": 1752833755780,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248523,
+            "range": "± 470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218794,
+            "range": "± 5171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778238,
+            "range": "± 28118",
             "unit": "ns/iter"
           }
         ]
