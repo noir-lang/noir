@@ -15,8 +15,6 @@ mod items;
 mod printer;
 
 /// Returns the expanded code for the given crate.
-/// Note that `context` that holds the crate graph, def maps and interner
-/// must have `activate_lsp_mode` called on it before invoking this function.
 pub fn get_expanded_crate(
     crate_id: CrateId,
     crate_graph: &CrateGraph,
