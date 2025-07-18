@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1752836329747,
+  "lastUpdate": 1752836406470,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11712,75 +11712,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "8f7b3fa81a146999cef2d1af466be1cd47f9ed9a",
-          "message": "fix(fuzz): fix wrong source listing order for comptime (#9149)",
-          "timestamp": "2025-07-09T09:36:29Z",
-          "tree_id": "740fbd2c2bcb3d3b5547aa38038d963b60d0114f",
-          "url": "https://github.com/noir-lang/noir/commit/8f7b3fa81a146999cef2d1af466be1cd47f9ed9a"
-        },
-        "date": 1752056167914,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 189.54,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.33,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 178.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.16,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "rkarabut@users.noreply.github.com",
-            "name": "Ratmir Karabut",
-            "username": "rkarabut"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "cf71daf11fe7f6fcfc001836ee131cc0a7d5d936",
           "message": "chore(fuzz): enable constrain operations for comptime_vs_brillig_direct (#9152)",
           "timestamp": "2025-07-09T10:25:52Z",
@@ -15205,6 +15136,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9d04ff58d6da0bab8bdb11f7d1e296dfdb618621"
         },
         "date": 1752835118436,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 238.04,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 435.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 327.35,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.28,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a5846e654aa00d97cd2607c7c4817e2ac31ad799",
+          "message": "chore: skip `ram_blowup_regression` on PRs (#9231)",
+          "timestamp": "2025-07-18T10:14:59Z",
+          "tree_id": "6e5c46da9093aec87924b6e1dc3187c55d03e15d",
+          "url": "https://github.com/noir-lang/noir/commit/a5846e654aa00d97cd2607c7c4817e2ac31ad799"
+        },
+        "date": 1752836390715,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
