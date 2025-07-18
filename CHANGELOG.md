@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.0.0-beta.9](https://github.com/noir-lang/noir/compare/v1.0.0-beta.8...v1.0.0-beta.9) (2025-07-18)
+
+
+### Features
+
+* Add `compiler_unstable_features` to `Nargo.toml` ([#9219](https://github.com/noir-lang/noir/issues/9219)) ([87aeccf](https://github.com/noir-lang/noir/commit/87aeccf88b8a5f9808e06a3714283160017f43a7))
+* **fuzz:** Generate Match expressions and statements ([#9108](https://github.com/noir-lang/noir/issues/9108)) ([49c49ce](https://github.com/noir-lang/noir/commit/49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a))
+* Optimize "out of bounds" checks on arrays with lengths which are powers of two ([#9182](https://github.com/noir-lang/noir/issues/9182)) ([6b2efe0](https://github.com/noir-lang/noir/commit/6b2efe05967610d2bc7547046019d24c12831439))
+* Optimize array reads from length 1 arrays ([#9203](https://github.com/noir-lang/noir/issues/9203)) ([e7a98f2](https://github.com/noir-lang/noir/commit/e7a98f2ffb2521b834747bf9a40dc7be1f813bcd))
+* **ssa_fuzzer:** Functions ([#9088](https://github.com/noir-lang/noir/issues/9088)) ([3f0aba0](https://github.com/noir-lang/noir/commit/3f0aba0f2c4edac6a1558cefad3a60760f9cc165))
+* **ssa:** Following an always failing binary, replace instructions with defaults until the next predicate ([#9211](https://github.com/noir-lang/noir/issues/9211)) ([e294e66](https://github.com/noir-lang/noir/commit/e294e66d7d8c6f18a92f708742c6fabbe7f6828f))
+
+
+### Bug Fixes
+
+* **acir-gen:** Do not generate ACIR array opcodes when the length is zero ([#9195](https://github.com/noir-lang/noir/issues/9195)) ([11d86ef](https://github.com/noir-lang/noir/commit/11d86ef432ffc23a2f90b55ba12833ded4c467a3))
+* **acir-gen:** Do not use array storage size for 0-length check ([#9208](https://github.com/noir-lang/noir/issues/9208)) ([ffb63c3](https://github.com/noir-lang/noir/commit/ffb63c30795fc64feebbac2b516f2fed9a6d3495))
+* Allow unquote in numeric generic intro ([#9213](https://github.com/noir-lang/noir/issues/9213)) ([d867e35](https://github.com/noir-lang/noir/commit/d867e35628c265daf18bd8ceaa4e777dac51d67e))
+* Bind self when type-checking AsTraitPath ([#9236](https://github.com/noir-lang/noir/issues/9236)) ([c30f8ef](https://github.com/noir-lang/noir/commit/c30f8ef3c39ec98adee177e43b17fd99d7a10852))
+* Cast values before inserting them in the databus ([#8918](https://github.com/noir-lang/noir/issues/8918)) ([1c7c6f2](https://github.com/noir-lang/noir/commit/1c7c6f28b1ffd8629b33848be61fe95f8770cd4a))
+* Disallow trait associated constants to have a default value ([#9172](https://github.com/noir-lang/noir/issues/9172)) ([71f57a2](https://github.com/noir-lang/noir/commit/71f57a2e3ce850ce65d88a16598d665f99e311b0))
+* **fuzz:** `Value::snapshot` needs to be recursive ([#9215](https://github.com/noir-lang/noir/issues/9215)) ([e5c6d5d](https://github.com/noir-lang/noir/commit/e5c6d5d30869e1c32a69db5d871d56df2a1c1026))
+* **fuzz:** Avoid suffixing slice length modulo blocks with an index access ([#9177](https://github.com/noir-lang/noir/issues/9177)) ([9efc476](https://github.com/noir-lang/noir/commit/9efc476d14414b55412ad187c0960871a5f33997))
+* **fuzz:** Ignore `-0` vs `0` in parsing roundtrip ([#9222](https://github.com/noir-lang/noir/issues/9222)) ([2cf083e](https://github.com/noir-lang/noir/commit/2cf083e33acd4e47e50a8a6609b503ecf14eb496))
+* **fuzz:** Use scoping for variable dynamism ([#9233](https://github.com/noir-lang/noir/issues/9233)) ([c7ce62a](https://github.com/noir-lang/noir/commit/c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e))
+* Handle MakeArray values in DIE for finding mutated array types ([#9176](https://github.com/noir-lang/noir/issues/9176)) ([fc79564](https://github.com/noir-lang/noir/commit/fc79564ffe76da545e0db681b440524ecdeb9c39))
+* **ssa_fuzzer:** Fix panic if compiler removed return value ([#9216](https://github.com/noir-lang/noir/issues/9216)) ([e6ccc3e](https://github.com/noir-lang/noir/commit/e6ccc3ed37408fdab6a6d5e2af11da981409acc1))
+* **ssa:** Change constraint message to "multiply" ([#9230](https://github.com/noir-lang/noir/issues/9230)) ([8797651](https://github.com/noir-lang/noir/commit/8797651e4dcfe77cd46353188b0f60c2a1dce8b2))
+* **ssa:** Do not unroll loops with a constant back-edge value ([#9173](https://github.com/noir-lang/noir/issues/9173)) ([fe44a1e](https://github.com/noir-lang/noir/commit/fe44a1e273ee55ae9cd713cc5baf43e5b51601d7))
+* Suggest traits via visible reexports if they are not directly visible ([#9242](https://github.com/noir-lang/noir/issues/9242)) ([1719bc3](https://github.com/noir-lang/noir/commit/1719bc3a7977248e792816df3a3e907f2d006a95))
+
 ## [1.0.0-beta.8](https://github.com/noir-lang/noir/compare/v1.0.0-beta.7...v1.0.0-beta.8) (2025-07-10)
 
 
