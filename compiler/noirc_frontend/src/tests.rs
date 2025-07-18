@@ -4780,3 +4780,33 @@ fn static_method_with_generics_on_type_and_method() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn cannot_assign_to_module() {
+    let src = r#"
+    mod foo {}
+
+    fn main() {
+        foo = 1;
+        ^^^ expected value got module
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_assign_to_nested_struct() {
+    let src = r#"
+    mod foo {
+        pub struct bar {}
+    }
+
+    fn main() {
+        foo::bar = 1;
+        ^^^^^^^^ expected value got type
+    }
+    "#;
+    check_errors!(src);
+}
