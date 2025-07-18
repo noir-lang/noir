@@ -26,7 +26,7 @@ use crate::{
     shared::Signedness,
 };
 
-use super::{Elaborator, Loop, TypedPath};
+use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -374,11 +374,11 @@ impl Elaborator<'_> {
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
-            LValue::Ident(ident) => {
+            LValue::Path(path) => {
                 let mut mutable = true;
-                let location = ident.location();
-                let path = TypedPath::from_single(ident.to_string(), location);
-                match self.get_ident_from_path_or_error(path) {
+                let location = path.location;
+                let path = self.validate_path(path);
+                match self.get_ident_from_path_or_error(path.clone()) {
                     Ok(((ident, scope_index), _)) => {
                         self.resolve_local_variable(ident.clone(), scope_index);
 
@@ -406,7 +406,6 @@ impl Elaborator<'_> {
                     Err(error) => {
                         // We couldn't find a variable or global. Let's see if the identifier refers to something
                         // else, like a module or type.
-                        let path = TypedPath::from_single(ident.to_string(), location);
                         let result = self.resolve_path_inner(
                             path,
                             PathResolutionTarget::Value,
