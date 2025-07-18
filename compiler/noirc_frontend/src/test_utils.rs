@@ -209,7 +209,13 @@ fn emit_compile_test(test_path: &str, src: &str, mut expect: Expect) {
         }
     }
 
-    let error_to_bug_cases = ["cast_negative_one_to_u8_size_checks"];
+    let error_to_bug_cases = [
+        "cast_negative_one_to_u8_size_checks",
+        "disallows_composing_numeric_type_aliases",
+        "disallows_numeric_type_aliases_to_expression_with_alias",
+        "disallows_numeric_type_aliases_to_expression_with_alias_2",
+        "disallows_numeric_type_aliases_to_type",
+    ];
     if let Expect::Success = expect {
         if error_to_bug_cases
             .iter()

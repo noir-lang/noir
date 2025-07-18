@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot use a type alias inside a type alias
+  ┌─ src/main.nr:3:36
+  │
+3 │     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
+  │                                    ---------------------------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:5:28
+  │
+5 │         let b: [u32; 12] = foo();
+  │                            --- Could not determine the value of the generic argument `N` declared on the function `foo`
+  │
+
+Aborting due to 2 previous errors

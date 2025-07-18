@@ -6,7 +6,7 @@ use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        PathSegment, Pattern, TypePath,
+        PathSegment, Pattern, TypePath, UnresolvedTypeExpression,
     },
     elaborator::{
         Turbofish,
@@ -568,6 +568,7 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+        // let unresolved_turbofish = variable.segments.last().unwrap().generics.clone();
         let variable = self.validate_path(variable);
         if let Some((expr_id, typ)) =
             self.elaborate_variable_as_self_method_or_associated_constant(&variable)
@@ -581,6 +582,19 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
+        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
+            // A type alias to a numeric generics is considered like a variable
+            // but it is not a real variable so it does not resolve to a valid Identifier
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            let type_alias = self.interner.get_type_alias(alias);
+            if let Some(expr) = type_alias.borrow().numeric_expr.clone() {
+                let expr = UnresolvedTypeExpression::to_expression_kind(&expr);
+                let expr = Expression::new(expr, type_alias.borrow().location);
+                return self.elaborate_expression(expr);
+            }
+        }
+
+        //    let type_generics = item.map(|item| self.resolve_item_turbofish(item)).unwrap_or_default();
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
         } else {
@@ -1116,6 +1130,15 @@ impl Elaborator<'_> {
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
+                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
+                    if dummy_id == DefinitionId::dummy_id() =>
+                {
+                    // Allow path which resolves to a type alias
+                    return (
+                        (HirIdent::non_trait_method(dummy_id, location), 4),
+                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
+                    );
+                }
                 Ok((id, item)) => {
                     return ((HirIdent::non_trait_method(id, location), 0), Some(item));
                 }
