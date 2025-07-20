@@ -501,4 +501,12 @@ mod tests {
         assert(field_less_than(0x100, 0 - 1));
         assert(!field_less_than(0 - 1, 0));
     }
+
+    #[test]
+    fn test_lt() {
+        // TODO : works till most ssa, check again after brillling_gen is fixed
+        assert(1.lt(2));
+        assert(!2.lt(1));
+        assert(!1.lt(1));
+    }
 }
