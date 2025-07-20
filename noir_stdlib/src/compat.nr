@@ -8,6 +8,9 @@ pub fn is_m31() -> bool {
         let modulus_be_bytes = crate::field::modulus_be_bytes();
 
         // modulus num bytes returns 31 as a u64 for m31
+
+        // TODO : This is logically sound but Rust/analyzer will show it as error, the test for this is written in fields::lt test
+        // which generates ssa till most passes, recheck this after brillling_gen is fixed
         assert_eq(crate::field::modulus_num_bits(), 31 as u64);
 
         for i in 0..4 {
