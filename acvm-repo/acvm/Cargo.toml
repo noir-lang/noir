@@ -26,6 +26,7 @@ indexmap = "^2.10.0"
 
 [features]
 bn254 = ["acir/bn254", "brillig_vm/bn254", "acvm_blackbox_solver/bn254"]
+m31 = ["acir/m31", "brillig_vm/m31", "acvm_blackbox_solver/m31"]
 bls12_381 = [
     "acir/bls12_381",
     "brillig_vm/bls12_381",

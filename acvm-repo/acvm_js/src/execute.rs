@@ -8,7 +8,7 @@ use acvm::{
     acir::native_types::{WitnessMap, WitnessStack},
     pwg::{ACVM, ACVMStatus, ErrorLocation, OpcodeResolutionError, ResolvedAssertionPayload},
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 
 use js_sys::Error;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -173,7 +173,7 @@ async fn execute_program_with_native_program_and_return(
     foreign_call_executor: &ForeignCallHandler,
     pedantic_solving: bool,
 ) -> Result<WitnessStack<FieldElement>, Error> {
-    let blackbox_solver = Bn254BlackBoxSolver(pedantic_solving);
+    let blackbox_solver = M31BlackBoxSolver(pedantic_solving);
     let executor = ProgramExecutor::new(
         &program.functions,
         &program.unconstrained_functions,

@@ -34,6 +34,7 @@ criterion.workspace = true
 [features]
 bn254 = []
 bls12_381 = ["dep:ark-bls12-381"]
+m31 = []
 
 [[bench]]
 name = "field_element"

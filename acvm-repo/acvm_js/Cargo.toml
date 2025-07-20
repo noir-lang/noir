@@ -21,6 +21,7 @@ crate-type = ["cdylib"]
 [dependencies]
 acvm.workspace = true
 bn254_blackbox_solver = { workspace = true, optional = true }
+m31_blackbox_solver = { workspace = true, optional = true }
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 console_error_panic_hook.workspace = true
@@ -44,6 +45,7 @@ pkg-config = "0.3"
 wasm-bindgen-test.workspace = true
 
 [features]
-default = ["bn254"]
+default = ["m31"]
 bn254 = ["acvm/bn254", "dep:bn254_blackbox_solver"]
 bls12_381 = ["acvm/bls12_381"]
+m31 = ["acvm/m31", "dep:m31_blackbox_solver"]
