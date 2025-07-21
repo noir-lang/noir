@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753104812836,
+  "lastUpdate": 1753104882401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4113,85 +4113,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "00980ec0946990b7fc7d01688677e38403725ec2",
-          "message": "fix(fuzz): Do not access arrays with `&mut` inside `if` using dynamic condition (#9072)",
-          "timestamp": "2025-07-10T13:44:10Z",
-          "tree_id": "d9bef189cca301846bde198801d7a8887cee9679",
-          "url": "https://github.com/noir-lang/noir/commit/00980ec0946990b7fc7d01688677e38403725ec2"
-        },
-        "date": 1752158409528,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.776,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.354,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.378,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 191,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.468,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.54,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.766,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "2bffde404e59bdac6dbca583985db585dedd5ab5",
           "message": "fix(ssa): Iterative branch analysis (#9139)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-07-10T14:34:49Z",
@@ -8191,6 +8112,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.038,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
+          "message": "feat: allow paths in l-values (#9254)",
+          "timestamp": "2025-07-21T12:55:49Z",
+          "tree_id": "0cc8be7688f33a1fce85eb368c30905176a6c130",
+          "url": "https://github.com/noir-lang/noir/commit/de536523e69a21733361ff0e9ff4748a0005e2a1"
+        },
+        "date": 1753104866932,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.944,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.09,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.806,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.807,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.411,
             "unit": "s"
           }
         ]
