@@ -91,15 +91,19 @@ impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
         let mut context = LoopInvariantContext::new(function);
 
+        // Insert all loop bounds up front, so we can inspect both outer and nested loops.
+        for loop_ in &self.yet_to_unroll {
+            context.set_induction_var_bounds(loop_, None);
+        }
+
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
+            // If the loop does not have a preheader we skip hoisting loop invariants for this loop
             let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
-                // If the loop does not have a preheader we skip hoisting loop invariants for this loop
                 continue;
             };
-
             context.current_pre_header = Some(pre_header);
             context.hoist_loop_invariants(&loop_, &self.yet_to_unroll);
         }
@@ -123,9 +127,12 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    /// In the example above, `v1` is the induction variable
-    fn get_induction_variable(&self, function: &Function) -> ValueId {
-        function.dfg.block_parameters(self.header)[0]
+    /// In the example above, `v1` is the induction variable.
+    ///
+    /// There is an example in the tests where a loop does not have an induction variable,
+    /// but rather loads a reference in the header, in which case this will return `None`.
+    fn get_induction_variable(&self, function: &Function) -> Option<ValueId> {
+        function.dfg.block_parameters(self.header).iter().next().copied()
     }
 
     // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
@@ -155,8 +162,10 @@ struct LoopInvariantContext<'f> {
     current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // Maps outer loop induction variable -> fixed lower and upper loop bound
     // This will be used by inner loops to determine whether they
-    // have safe operations reliant upon an outer loop's maximum induction variable.
+    // have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
+    // All induction variables collected up front.
+    all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     // This context struct processes runs across all loops.
     // This stores the current loop's pre-header block.
     // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
@@ -164,8 +173,6 @@ struct LoopInvariantContext<'f> {
 
     cfg: ControlFlowGraph,
 
-    // Stores whether the current block being processed is control dependent
-    current_block_control_dependent: bool,
     /// Caches all blocks that belong to nested loops determined to be control dependent
     /// on blocks in an outer loop. This allows short circuiting future control dependence
     /// checks during loop invariant analysis, as these blocks are guaranteed to be
@@ -178,9 +185,16 @@ struct LoopInvariantContext<'f> {
     // This map should be precomputed a single time and used for checking control dependence.
     post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
 
+    // Stores whether the current block being processed is control dependent
+    current_block_control_dependent: bool,
+
     // Tracks whether the current block has a side-effectual instruction.
     // This is maintained per instruction for hoisting control dependent instructions
     current_block_impure: bool,
+
+    // Stores whether the current block has known fix upper and lower bounds that
+    // indicate that it is guaranteed to execute at least once.
+    current_block_executes: bool,
 
     // Indicates whether the current loop has break or early returns
     no_break: bool,
@@ -206,12 +220,14 @@ impl<'f> LoopInvariantContext<'f> {
             loop_invariants: HashSet::default(),
             current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
+            all_induction_variables: HashMap::default(),
             current_pre_header: None,
             cfg,
-            current_block_control_dependent: false,
             nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
+            current_block_control_dependent: false,
             current_block_impure: false,
+            current_block_executes: false,
             true_value,
             false_value,
             no_break: false,
@@ -227,6 +243,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         for block in loop_.blocks.iter() {
             // Reset the per block state
+            self.current_block_executes = self.does_block_execute(*block, all_loops);
             self.current_block_impure = false;
             self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
 
@@ -273,7 +290,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
 
-        self.set_induction_var_bounds(loop_, false);
+        self.set_induction_var_bounds(loop_, Some(false));
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
@@ -370,6 +387,55 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    /// Determine whether a block in the loop body is guaranteed to execute.
+    ///
+    /// We know a loop body will execute if we have constant loop bounds where the upper bound
+    /// is greater than the lower bound.
+    ///
+    /// The loop will never be executed if we have equal loop bounds
+    /// or we are unsure if the loop will ever be executed (dynamic loop bounds).
+    /// If certain instructions were to be hoisted out of a loop that never executed it
+    /// could potentially cause the program to fail when it is not meant to fail.
+    ///
+    /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
+    fn does_block_execute(&mut self, block: BasicBlockId, all_loops: &[Loop]) -> bool {
+        /// Check that we have fixed bounds and upper is higher than lower.
+        fn check_bounds(bounds: Option<&(IntegerConstant, IntegerConstant)>) -> bool {
+            bounds
+                .copied()
+                .and_then(|(lower_bound, upper_bound)| {
+                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+                })
+                .unwrap_or(false)
+        }
+
+        // If the current loop doesn't execute, then nothing does.
+        if !check_bounds(self.current_induction_variables.values().next()) {
+            return false;
+        }
+
+        // If the block is part of any nested loop, they have to execute as well.
+        for nested in all_loops.iter() {
+            if !nested.blocks.contains(&block) {
+                continue;
+            }
+            let Some(induction_variable) = self.get_induction_variable(nested) else {
+                // If we don't know what the induction variable is, we can't say if it executes.
+                return false;
+            };
+            if !check_bounds(self.all_induction_variables.get(&induction_variable)) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Get and resolve the induction variable of a loop.
+    fn get_induction_variable(&mut self, loop_: &Loop) -> Option<ValueId> {
+        loop_.get_induction_variable(self.inserter.function).map(|v| self.inserter.resolve(v))
+    }
+
     /// Checks whether a `block` is control dependent on a `parent_block`.
     /// Uses post-dominance frontiers to determine control dependence.
     /// Reference the doc comments at the top of the this module for more information
@@ -392,7 +458,7 @@ impl<'f> LoopInvariantContext<'f> {
         // For a new loop, we clear the previous induction variable and then
         // set the new current induction variable.
         self.current_induction_variables.clear();
-        self.set_induction_var_bounds(loop_, true);
+        self.set_induction_var_bounds(loop_, Some(true));
         self.no_break = loop_.is_fully_executed(&self.cfg);
         // Clear any cached control dependent nested loop blocks from the previous loop.
         // This set is only relevant within the scope of a single loop.
@@ -450,12 +516,14 @@ impl<'f> LoopInvariantContext<'f> {
             is_loop_invariant &= self.is_loop_invariant(&value);
         });
 
-        let can_be_hoisted = can_be_hoisted(&instruction, self.inserter.function, false)
-            || matches!(instruction, MakeArray { .. })
-            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
-            || self.can_be_hoisted_from_loop_bounds(&instruction);
+        if !is_loop_invariant {
+            return false;
+        }
 
-        is_loop_invariant && can_be_hoisted
+        matches!(instruction, MakeArray { .. })
+            || can_be_hoisted(&instruction, self.inserter.function, false)
+            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
+            || self.can_be_hoisted_from_loop_bounds(&instruction)
     }
 
     /// Check [can_be_hoisted] with extra control dependence information that
@@ -470,21 +538,46 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
+    ///
     /// In the case of a nested loop, this will be used by later loops to determine
     /// whether they have operations reliant upon the maximum induction variable.
+    ///
     /// When within the current loop, the known upper bound can be used to simplify instructions,
     /// such as transforming a checked add to an unchecked add.
-    fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: bool) {
-        let bounds = loop_.get_const_bounds(self.inserter.function, self.pre_header());
+    ///
+    /// Depending on the value of `current_loop` this has 3 modes:
+    /// * `true` sets it in `current_induction_variables`
+    /// * `false` sets it for the `outer_induction_variables`, but this must only happen after the current one is finished
+    /// * `None` sets it in `all_induction_variables`, which is used to make decisions about inner nested loops
+    fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: Option<bool>) {
+        let pre_header = if current_loop.is_some() {
+            self.pre_header()
+        } else if let Ok(pre_header) = loop_.get_pre_header(self.inserter.function, &self.cfg) {
+            pre_header
+        } else {
+            // We will skip this loop.
+            return;
+        };
+
+        let bounds = loop_.get_const_bounds(self.inserter.function, pre_header);
+
         if let Some((lower_bound, upper_bound)) = bounds {
-            let induction_variable = loop_.get_induction_variable(self.inserter.function);
-            let induction_variable = self.inserter.resolve(induction_variable);
-            if current_loop {
-                self.current_induction_variables
-                    .insert(induction_variable, (lower_bound, upper_bound));
-            } else {
-                self.outer_induction_variables
-                    .insert(induction_variable, (lower_bound, upper_bound));
+            let Some(induction_variable) = self.get_induction_variable(loop_) else {
+                return;
+            };
+            match current_loop {
+                Some(true) => {
+                    self.current_induction_variables
+                        .insert(induction_variable, (lower_bound, upper_bound));
+                }
+                Some(false) => {
+                    self.outer_induction_variables
+                        .insert(induction_variable, (lower_bound, upper_bound));
+                }
+                None => {
+                    self.all_induction_variables
+                        .insert(induction_variable, (lower_bound, upper_bound));
+                }
             }
         }
     }
@@ -534,7 +627,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// - The current block is not impure
     fn can_hoist_control_dependent_instruction(&self) -> bool {
         !self.current_block_control_dependent
-            && self.does_loop_body_execute()
+            && self.current_block_executes
             && !self.current_block_impure
     }
 
@@ -542,23 +635,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
     /// that simplification does not require that current block is pure to be simplified.
     fn can_simplify_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.does_loop_body_execute()
-    }
-
-    /// Determine whether the loop body is guaranteed to execute.
-    /// We know a loop body will execute if we have constant loop bounds where the upper bound
-    /// is greater than the lower bound.
-    fn does_loop_body_execute(&self) -> bool {
-        // The loop will never be executed if we have equal loop bounds
-        // or we are unsure if the loop will ever be executed (dynamic loop bounds).
-        // If certain instructions were to be hoisted out of a loop that never executed it
-        // could potentially cause the program to fail when it is not meant to fail.
-        let bounds = self.current_induction_variables.values().next().copied();
-        bounds
-            .and_then(|(lower_bound, upper_bound)| {
-                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-            })
-            .unwrap_or(false)
+        !self.current_block_control_dependent && self.current_block_executes
     }
 
     /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
@@ -716,7 +793,7 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        assert!(self.does_loop_body_execute(), "executing a non executable loop");
+        assert!(self.current_block_executes, "executing a non executable loop");
 
         let (upper_field, upper_type) = upper.dec().into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
@@ -816,7 +893,7 @@ impl<'f> LoopInvariantContext<'f> {
         header: bool,
     ) -> SimplifyResult {
         // Checks the operands are an induction variable and a constant
-        // Note that here we allow outer_induction_variables
+        // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
         let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
@@ -1686,7 +1763,7 @@ mod test {
 
     #[test]
     fn negative_lower_bound() {
-        // Regression fro issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
+        // Regression from issue #8858 (https://github.com/noir-lang/noir/issues/8858) that we
         // do not panic on a negative lower bound
         let src = "
       acir(inline) predicate_pure fn main f0 {
@@ -1716,6 +1793,66 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_hoist_from_non_executed_nested_loop() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u128 2)
+          b1(v0: u128):
+            v4 = lt v0, u128 5
+            jmpif v4 then: b2, else: b3
+          b2():
+            v6 = mod v0, u128 9
+            jmp b4(u128 4)
+          b3():
+            return
+          b4(v1: u128):
+            v8 = lt v1, v6
+            jmpif v8 then: b5, else: b6
+          b5():
+            v12 = lt u128 0, v0
+            constrain v12 == u1 0
+            v14 = unchecked_add v1, u128 1
+            jmp b4(v14)
+          b6():
+            v10 = unchecked_add v0, u128 1
+            jmp b1(v10)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // We expect that the constraint will be turned into an always-fail one,
+        // but not be hoisted into the pre-header.
+        let expected = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u128 2)
+          b1(v0: u128):
+            v4 = lt v0, u128 5
+            jmpif v4 then: b2, else: b3
+          b2():
+            v6 = mod v0, u128 9
+            jmp b4(u128 4)
+          b3():
+            return
+          b4(v1: u128):
+            v8 = lt v1, v6
+            jmpif v8 then: b5, else: b6
+          b5():
+            constrain u1 1 == u1 0
+            v14 = unchecked_add v1, u128 1
+            jmp b4(v14)
+          b6():
+            v10 = unchecked_add v0, u128 1
+            jmp b1(v10)
+        }
+        "#;
+        assert_normalized_ssa_equals(ssa, expected);
     }
 }
 
