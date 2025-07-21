@@ -877,7 +877,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let index = self.lookup_u32(index, "array get index")?;
         let mut index = index - offset.to_u32();
 
-        let element = if array.elements.borrow().len() == 0 {
+        let element = if array.elements.borrow().is_empty() {
             // Accessing an array of 0-len is replaced by asserting
             // the branch is not-taken during acir-gen and
             // a zeroed type is used in case of array get
