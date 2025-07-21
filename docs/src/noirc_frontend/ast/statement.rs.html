@@ -1588,7 +1588,7 @@
 <span class="doccomment">/// Represents an Ast form that can be assigned to
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone)]
 </span><span class="kw">pub enum </span>LValue {
-    Ident(Ident),
+    Path(Path),
     MemberAccess { object: Box&lt;LValue&gt;, field_name: Ident, location: Location },
     Index { array: Box&lt;LValue&gt;, index: Expression, location: Location },
     Dereference(Box&lt;LValue&gt;, Location),
@@ -1666,7 +1666,7 @@
 <span class="kw">impl </span>LValue {
     <span class="kw">pub fn </span>as_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Expression {
         <span class="kw">let </span>kind = <span class="kw">match </span><span class="self">self </span>{
-            LValue::Ident(ident) =&gt; ExpressionKind::Variable(Path::from_ident(ident.clone())),
+            LValue::Path(path) =&gt; ExpressionKind::Variable(path.clone()),
             LValue::MemberAccess { object, field_name, location: <span class="kw">_ </span>} =&gt; {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -1696,7 +1696,7 @@
 
     <span class="kw">pub fn </span>from_expression_kind(expr: ExpressionKind, location: Location) -&gt; <span class="prelude-ty">Option</span>&lt;LValue&gt; {
         <span class="kw">match </span>expr {
-            ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Some</span>(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Some</span>(LValue::Path(path)),
             ExpressionKind::MemberAccess(member_access) =&gt; <span class="prelude-val">Some</span>(LValue::MemberAccess {
                 object: Box::new(LValue::from_expression(member_access.lhs)<span class="question-mark">?</span>),
                 field_name: member_access.rhs,
@@ -1728,7 +1728,7 @@
 
     <span class="kw">pub fn </span>location(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Location {
         <span class="kw">match </span><span class="self">self </span>{
-            LValue::Ident(ident) =&gt; ident.location(),
+            LValue::Path(path) =&gt; path.location,
             LValue::MemberAccess { location, .. }
             | LValue::Index { location, .. }
             | LValue::Dereference(<span class="kw">_</span>, location)
@@ -1958,7 +1958,7 @@
 <span class="kw">impl </span>Display <span class="kw">for </span>LValue {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            LValue::Ident(ident) =&gt; ident.fmt(f),
+            LValue::Path(ident) =&gt; ident.fmt(f),
             LValue::MemberAccess { object, field_name, location: <span class="kw">_ </span>} =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"{object}.{field_name}"</span>)
             }

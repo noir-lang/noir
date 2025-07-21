@@ -1810,7 +1810,7 @@
 <span class="comment">// Returns a new LValue where all Interned LValues have been turned into LValue.
 </span><span class="kw">fn </span>remove_interned_in_lvalue(interner: <span class="kw-2">&amp;</span>NodeInterner, lvalue: LValue) -&gt; LValue {
     <span class="kw">match </span>lvalue {
-        LValue::Ident(<span class="kw">_</span>) =&gt; lvalue,
+        LValue::Path(<span class="kw">_</span>) =&gt; lvalue,
         LValue::MemberAccess { object, field_name, location: span } =&gt; LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, <span class="kw-2">*</span>object)),
             field_name,

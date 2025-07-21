@@ -3194,7 +3194,7 @@
 
     <span class="kw">fn </span>get_lvalue_type(<span class="kw-2">&amp;</span><span class="self">self</span>, lvalue: <span class="kw-2">&amp;</span>LValue) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">match </span>lvalue {
-            LValue::Ident(ident) =&gt; {
+            LValue::Path(ident) =&gt; {
                 <span class="kw">let </span>location = Location::new(ident.span(), <span class="self">self</span>.file);
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceId::Local(definition_id)) =
                     <span class="self">self</span>.interner.find_referenced(location)
@@ -3650,10 +3650,10 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_lvalue_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>Ident) {
+    <span class="kw">fn </span>visit_lvalue_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) {
         <span class="comment">// If we have `foo.&gt;|&lt;` we suggest `foo`'s type fields and methods
-        </span><span class="kw">if </span><span class="self">self</span>.byte == <span class="prelude-val">Some</span>(<span class="string">b'.'</span>) &amp;&amp; ident.span().end() <span class="kw">as </span>usize == <span class="self">self</span>.byte_index - <span class="number">1 </span>{
-            <span class="kw">let </span>location = Location::new(ident.span(), <span class="self">self</span>.file);
+        </span><span class="kw">if </span><span class="self">self</span>.byte == <span class="prelude-val">Some</span>(<span class="string">b'.'</span>) &amp;&amp; path.span().end() <span class="kw">as </span>usize == <span class="self">self</span>.byte_index - <span class="number">1 </span>{
+            <span class="kw">let </span>location = Location::new(path.span(), <span class="self">self</span>.file);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceId::Local(definition_id)) = <span class="self">self</span>.interner.find_referenced(location)
             {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.definition_type(definition_id);

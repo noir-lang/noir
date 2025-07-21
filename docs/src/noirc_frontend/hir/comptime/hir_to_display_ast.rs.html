@@ -554,7 +554,9 @@
 <a href="#553" id="553">553</a>
 <a href="#554" id="554">554</a>
 <a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
@@ -1058,7 +1060,9 @@
     <span class="doccomment">/// Convert to AST for display (some details lost)
     </span><span class="kw">fn </span>to_display_ast(<span class="kw-2">&amp;</span><span class="self">self</span>, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; LValue {
         <span class="kw">match </span><span class="self">self </span>{
-            HirLValue::Ident(ident, <span class="kw">_</span>) =&gt; LValue::Ident(ident.to_display_ast(interner)),
+            HirLValue::Ident(path, <span class="kw">_</span>) =&gt; {
+                LValue::Path(Path::from_ident(path.to_display_ast(interner)))
+            }
             HirLValue::MemberAccess { object, field_name, field_index: <span class="kw">_</span>, typ: <span class="kw">_</span>, location } =&gt; {
                 <span class="kw">let </span>object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), location: <span class="kw-2">*</span>location }

@@ -2030,7 +2030,7 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_lvalue_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Ident) {}
+    <span class="kw">fn </span>visit_lvalue_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>Path) {}
 
     <span class="kw">fn </span>visit_lvalue_member_access(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -3004,7 +3004,7 @@
 
     <span class="kw">pub fn </span>accept_children(<span class="kw-2">&amp;</span><span class="self">self</span>, visitor: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Visitor) {
         <span class="kw">match </span><span class="self">self </span>{
-            LValue::Ident(ident) =&gt; visitor.visit_lvalue_ident(ident),
+            LValue::Path(path) =&gt; visitor.visit_lvalue_path(path),
             LValue::MemberAccess { object, field_name, location } =&gt; {
                 <span class="kw">if </span>visitor.visit_lvalue_member_access(object, field_name, location.span) {
                     object.accept(visitor);

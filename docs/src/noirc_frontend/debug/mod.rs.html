@@ -796,7 +796,14 @@
 <a href="#795" id="795">795</a>
 <a href="#796" id="796">796</a>
 <a href="#797" id="797">797</a>
-<a href="#798" id="798">798</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ast::PathSegment;
 <span class="kw">use </span><span class="kw">crate</span>::parse_program;
 <span class="kw">use </span><span class="kw">crate</span>::parser::{ParsedModule, ParsedSubModule};
 <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
@@ -1112,10 +1119,13 @@
         );
         <span class="kw">let </span>expression_location = assign_stmt.expression.location;
         <span class="kw">let </span>new_assign_stmt = <span class="kw">match </span><span class="kw-2">&amp;</span>assign_stmt.lvalue {
-            ast::LValue::Ident(id) =&gt; {
+            ast::LValue::Path(id) =&gt; {
+                <span class="kw">let </span><span class="prelude-val">Some</span>(id) = id.as_ident() <span class="kw">else </span>{
+                    <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={id}"</span>);
+                };
                 <span class="kw">let </span>var_id = <span class="self">self
                     </span>.lookup_var(id.as_str())
-                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, id.as_str()));
+                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={id}"</span>));
                 build_assign_var_stmt(var_id, id_expr(<span class="kw-2">&amp;</span>ident(<span class="string">"__debug_expr"</span>, id.location())))
             }
             ast::LValue::Dereference(_lv, location) =&gt; {
@@ -1133,10 +1143,14 @@
                 <span class="kw">let </span>var_id;
                 <span class="kw">loop </span>{
                     <span class="kw">match </span>cursor {
-                        ast::LValue::Ident(id) =&gt; {
-                            var_id = <span class="self">self</span>.lookup_var(id.as_str()).unwrap_or_else(|| {
-                                <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={}"</span>, id.as_str())
-                            });
+                        ast::LValue::Path(id) =&gt; {
+                            <span class="kw">let </span><span class="prelude-val">Some</span>(id) = id.as_ident() <span class="kw">else </span>{
+                                <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={id}"</span>);
+                            };
+
+                            var_id = <span class="self">self
+                                </span>.lookup_var(id.as_str())
+                                .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"var lookup failed for var_name={id}"</span>));
                             <span class="kw">break</span>;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } =&gt; {

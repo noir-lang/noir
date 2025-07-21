@@ -1975,7 +1975,7 @@
 
 <span class="kw">fn </span>lvalue_with_file(lvalue: LValue, file: FileId) -&gt; LValue {
     <span class="kw">match </span>lvalue {
-        LValue::Ident(ident) =&gt; LValue::Ident(ident_with_file(ident, file)),
+        LValue::Path(path) =&gt; LValue::Path(path_with_file(path, file)),
         LValue::MemberAccess { object, field_name, location } =&gt; LValue::MemberAccess {
             object: Box::new(lvalue_with_file(<span class="kw-2">*</span>object, file)),
             field_name: ident_with_file(field_name, file),
