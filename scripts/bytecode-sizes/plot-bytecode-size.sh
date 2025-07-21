@@ -7,7 +7,7 @@ DAT=$(dirname $IN)/$NAME.dat
 PNG=$(dirname $IN)/$NAME.png
 PLT=$(dirname $0)/bytecode-size-scatter.plt
 
-cat $IN | jq -r '[.name, .base_size, .alt_size, .ratio] | @tsv' > $DAT
+jq -r '[.name, .base_size, .alt_size, .ratio] | @tsv' > $DAT
 
 gnuplot \
   -e "NAME='$(echo $NAME | tr _ - )'" \
