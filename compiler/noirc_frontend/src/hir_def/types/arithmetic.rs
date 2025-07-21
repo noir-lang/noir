@@ -67,10 +67,7 @@ impl Type {
         match self {
             Type::InfixExpr(
                 lhs,
-                op @ (BinaryTypeOperator::Addition
-                | BinaryTypeOperator::Subtraction
-                | BinaryTypeOperator::Division
-                | BinaryTypeOperator::Modulo),
+                op @ (BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction),
                 rhs,
                 inversion,
             ) if run_simplifications && lhs == rhs => match op {
@@ -83,13 +80,12 @@ impl Type {
                         *inversion,
                     )
                 }
-                BinaryTypeOperator::Subtraction | BinaryTypeOperator::Modulo => {
+                BinaryTypeOperator::Subtraction => {
                     Type::Constant(FieldElement::from(0u32), lhs.kind())
                 }
-                BinaryTypeOperator::Division => {
-                    Type::Constant(FieldElement::from(1u32), lhs.kind())
-                }
-                BinaryTypeOperator::Multiplication => {
+                BinaryTypeOperator::Multiplication
+                | BinaryTypeOperator::Division
+                | BinaryTypeOperator::Modulo => {
                     unreachable!("Prevented by outer match statement")
                 }
             },
@@ -417,46 +413,6 @@ mod tests {
         let canonicalized_typ = n_sub_n.canonicalize();
 
         let zero = Type::Constant(FieldElement::zero(), Kind::u32());
-
-        assert_eq!(canonicalized_typ, zero);
-    }
-
-    #[test]
-    fn simplifies_n_mod_n_into_zero() {
-        // We want to canonicalize the expression `N % N` to `0`.
-
-        let n = Type::NamedGeneric(NamedGeneric {
-            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
-            name: std::rc::Rc::new("N".to_owned()),
-            implicit: false,
-        });
-
-        let n_sub_n =
-            Type::infix_expr(Box::new(n.clone()), BinaryTypeOperator::Modulo, Box::new(n));
-
-        let canonicalized_typ = n_sub_n.canonicalize();
-
-        let zero = Type::Constant(FieldElement::zero(), Kind::u32());
-
-        assert_eq!(canonicalized_typ, zero);
-    }
-
-    #[test]
-    fn simplifies_n_div_n_into_one() {
-        // We want to canonicalize the expression `N / N` to `1`.
-
-        let n = Type::NamedGeneric(NamedGeneric {
-            type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
-            name: std::rc::Rc::new("N".to_owned()),
-            implicit: false,
-        });
-
-        let n_sub_n =
-            Type::infix_expr(Box::new(n.clone()), BinaryTypeOperator::Division, Box::new(n));
-
-        let canonicalized_typ = n_sub_n.canonicalize();
-
-        let zero = Type::Constant(FieldElement::from(1u32), Kind::u32());
 
         assert_eq!(canonicalized_typ, zero);
     }

@@ -10,8 +10,8 @@ fn size<let F: Field>(_x: Foo<F>) -> Field {
 
 global A: Field = 4294967295;
 
-fn foo<let A: Field>() -> Foo<A + A> {
-    Foo::<A + A> {}
+fn foo<let A: Field>() -> Foo<2 * A> {
+    Foo::<2 * A> {}
 }
 
 fn main() {
