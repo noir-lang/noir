@@ -68,6 +68,7 @@ impl Serialize for Field {
 }
 
 fn main() {
-    let x: (Field, [Field; 3]) = (1_Field, [2_Field, 3_Field, 4_Field]);
-    assert(x.serialize().len() == 4_u32);
+    let x: (((Field, [Field; 3]), [Field; 4]), Field) =
+        (((1_Field, [2_Field, 3_Field, 4_Field]), [5_Field, 6_Field, 7_Field, 8_Field]), 9_Field);
+    assert(x.serialize().len() == 9_u32);
 }
