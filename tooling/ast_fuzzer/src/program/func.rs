@@ -664,8 +664,22 @@ impl<'a> FunctionContext<'a> {
         tgt_type: &Type,
         max_depth: usize,
     ) -> arbitrary::Result<Option<TrackedExpression>> {
-        // If we found our type, return it without further ado.
+        // If we found our type, we can return it without further ado.
         if src_type == tgt_type {
+            // If we want a slice, we can push onto it.
+            if let Type::Slice(item_type) = src_type {
+                if bool::arbitrary(u)? {
+                    let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
+                    let push_expr = self.call_slice_push(
+                        src_expr,
+                        src_type.clone(),
+                        item,
+                        item_type.as_ref().clone(),
+                        bool::arbitrary(u)?,
+                    );
+                    return Ok(Some((push_expr, src_dyn || item_dyn)));
+                }
+            }
             return Ok(Some((src_expr, src_dyn)));
         }
 
@@ -794,27 +808,7 @@ impl<'a> FunctionContext<'a> {
                 let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
 
                 // Get the runtime length.
-                let len_expr = {
-                    let array_len_ident = Ident {
-                        location: None,
-                        definition: Definition::Builtin("array_len".to_string()),
-                        mutable: false,
-                        name: "len".to_string(),
-                        typ: Type::Function(
-                            vec![src_type.clone()],
-                            Box::new(types::U32),
-                            Box::new(Type::Unit),
-                            false,
-                        ),
-                        id: self.next_ident_id(),
-                    };
-                    Expression::Call(Call {
-                        func: Box::new(Expression::Ident(array_len_ident)),
-                        arguments: vec![Expression::Ident(ident_1)],
-                        return_type: types::U32,
-                        location: Location::dummy(),
-                    })
-                };
+                let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
 
                 // Take the modulo.
                 let idx_expr = expr::modulo(idx_expr, len_expr);
@@ -2044,6 +2038,57 @@ impl<'a> FunctionContext<'a> {
             unreachable!("expected Let; got {let_expr:?}");
         };
         (*id, name.clone(), let_expr)
+    }
+
+    /// Construct a `Call` to the `array_len` builtin function, calling it with the
+    /// identifier of a slice or an array.
+    fn call_array_len(&mut self, array_or_slice: Expression, typ: Type) -> Expression {
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin("array_len".to_string()),
+            mutable: false,
+            name: "len".to_string(),
+            typ: Type::Function(vec![typ], Box::new(types::U32), Box::new(Type::Unit), false),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: vec![array_or_slice],
+            return_type: types::U32,
+            location: Location::dummy(),
+        })
+    }
+
+    /// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function,
+    /// calling it with the identifier of a slice.
+    fn call_slice_push(
+        &mut self,
+        slice: Expression,
+        slice_type: Type,
+        item: Expression,
+        item_type: Type,
+        is_front: bool,
+    ) -> Expression {
+        let name = if is_front { "push_front" } else { "push_back" };
+        let func_ident = Ident {
+            location: None,
+            definition: Definition::Builtin(format!("slice_{name}")),
+            mutable: false,
+            name: name.to_string(),
+            typ: Type::Function(
+                vec![slice_type.clone(), item_type],
+                Box::new(slice_type.clone()),
+                Box::new(Type::Unit),
+                false,
+            ),
+            id: self.next_ident_id(),
+        };
+        Expression::Call(Call {
+            func: Box::new(Expression::Ident(func_ident)),
+            arguments: vec![slice, item],
+            return_type: slice_type,
+            location: Location::dummy(),
+        })
     }
 }
 
