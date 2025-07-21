@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod foo {
+    struct Struct {
+        pub field: Field,
+    }
+
+    pub comptime mut global bar: u32 = 2;
+
+    pub comptime mut global baz: Struct = Struct { field: 3 };
+}
+
+fn main() {
+    ()
+}

@@ -143,6 +143,7 @@ impl Parser<'_> {
     /// AtomTypeExpression
     ///     = ConstantTypeExpression
     ///     | VariableTypeExpression
+    ///     | AsTraitPathTypeExpression
     ///     | ParenthesizedTypeExpression
     fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
@@ -151,6 +152,10 @@ impl Parser<'_> {
 
         if let Some(type_expr) = self.parse_variable_type_expression() {
             return Some(type_expr);
+        }
+
+        if let Some(as_trait_path) = self.parse_as_trait_path() {
+            return Some(UnresolvedTypeExpression::AsTraitPath(Box::new(as_trait_path)));
         }
 
         if let Some(type_expr) = self.parse_parenthesized_type_expression() {
@@ -472,6 +477,18 @@ mod tests {
         let src = "-N";
         let expr = parse_type_expression_no_errors(src);
         assert_eq!(expr.to_string(), "(0 - N)");
+    }
+
+    #[test]
+    fn parses_as_trait_path_type_expression() {
+        let src = "<Type as Trait>::AssociatedType";
+        let typ = parse_type_expression_no_errors(src);
+        let UnresolvedTypeExpression::AsTraitPath(as_trait_path) = typ else {
+            panic!("Expected AsTraitPath");
+        };
+        assert_eq!(as_trait_path.typ.to_string(), "Type");
+        assert_eq!(as_trait_path.trait_path.to_string(), "Trait");
+        assert_eq!(as_trait_path.impl_item.to_string(), "AssociatedType");
     }
 
     #[test]
