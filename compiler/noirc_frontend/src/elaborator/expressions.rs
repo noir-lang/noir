@@ -56,6 +56,7 @@ impl Elaborator<'_> {
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
         let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
+        let reserved_id = self.interner.reserve_expr();
 
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
@@ -107,15 +108,16 @@ impl Elaborator<'_> {
             }
             ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, expr.location);
-        self.interner.push_expr_type(id, typ.clone());
+
+        self.interner.replace_expr(reserved_id, hir_expr);
+        self.interner.push_expr_location(reserved_id, expr.location);
+        self.interner.push_expr_type(reserved_id, typ.clone());
 
         if is_integer_literal {
-            self.push_integer_literal_expr_id(id);
+            self.push_integer_literal_expr_id(reserved_id);
         }
 
-        (id, typ)
+        (reserved_id, typ)
     }
 
     fn elaborate_interned_statement_as_expr(

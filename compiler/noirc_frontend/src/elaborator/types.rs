@@ -1027,7 +1027,7 @@ impl Elaborator<'_> {
 
                 // `object` will have a different type now, which will be filled in
                 // later when type checking the method call as a function call.
-                self.interner.replace_expr(&object, HirExpression::MemberAccess(access));
+                self.interner.replace_expr(object, HirExpression::MemberAccess(access));
                 Some(object)
             }
             HirExpression::Prefix(prefix) => match prefix.operator {
@@ -1611,7 +1611,7 @@ impl Elaborator<'_> {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
                 // We must update `access` in case we added any dereferences to it
-                self.interner.replace_expr(&expr_id, HirExpression::MemberAccess(access));
+                self.interner.replace_expr(expr_id, HirExpression::MemberAccess(access));
                 element_type
             }
             None => Type::Error,

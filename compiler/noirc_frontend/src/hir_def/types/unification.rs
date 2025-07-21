@@ -669,7 +669,7 @@ fn invoke_function_on_expression(
     let arguments = vec![argument];
     let is_macro_call = false;
     let call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
-    interner.replace_expr(&expression, call);
+    interner.replace_expr(expression, call);
 
     interner.push_expr_location(func, location);
     interner.push_expr_type(expression, target_type.clone());

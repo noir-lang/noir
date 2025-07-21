@@ -74,9 +74,10 @@ impl Elaborator<'_> {
         target_type: Option<&Type>,
     ) -> (StmtId, Type) {
         let location = statement.location;
+        let id = self.interner.reserve_stmt();
         let (hir_statement, typ) =
             self.elaborate_statement_value_with_target_type(statement, target_type);
-        let id = self.interner.push_stmt(hir_statement);
+        self.interner.replace_statement(id, hir_statement);
         self.interner.push_stmt_location(id, location);
         (id, typ)
     }
