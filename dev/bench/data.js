@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753115517601,
+  "lastUpdate": 1753115551644,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4122,85 +4122,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3937585118057ad1ab094e76181b0411f1ad94cc",
-          "message": "fix(parser): don't simplify double minus (#9163)",
-          "timestamp": "2025-07-10T15:13:19Z",
-          "tree_id": "ad36f7b223517b6d779021bc28a23e17ccdb3189",
-          "url": "https://github.com/noir-lang/noir/commit/3937585118057ad1ab094e76181b0411f1ad94cc"
-        },
-        "date": 1752162164503,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.806,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.82,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.394,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 199,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.318,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.508,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.783,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "692e94cbab199cd249d4b9d3016398be34402b07",
           "message": "fix: track trait associated types as such (#9170)",
@@ -8211,6 +8132,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.069,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3bec934937e3a7a8566ab0f436b06d0dced717bb",
+          "message": "fix: comptime code not mutating shared ref to struct field (#9250)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-07-21T15:55:47Z",
+          "tree_id": "37b19baa82323adb7ac56d821ed84616bc6d442a",
+          "url": "https://github.com/noir-lang/noir/commit/3bec934937e3a7a8566ab0f436b06d0dced717bb"
+        },
+        "date": 1753115535093,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 2.082,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.212,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.628,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 19.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 15.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.77,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.838,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.762,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.825,
             "unit": "s"
           }
         ]
