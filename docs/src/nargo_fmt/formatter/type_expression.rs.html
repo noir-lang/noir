@@ -61,8 +61,8 @@
                 <span class="self">self</span>.write_space();
                 <span class="self">self</span>.format_type_expression(<span class="kw-2">*</span>rhs);
             }
-            UnresolvedTypeExpression::AsTraitPath(..) =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"Should not be present in the AST"</span>)
+            UnresolvedTypeExpression::AsTraitPath(as_trait_path) =&gt; {
+                <span class="self">self</span>.format_as_trait_path(<span class="kw-2">*</span>as_trait_path);
             }
         }
 

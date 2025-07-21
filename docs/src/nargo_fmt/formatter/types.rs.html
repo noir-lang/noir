@@ -355,7 +355,14 @@
 <a href="#354" id="354">354</a>
 <a href="#355" id="355">355</a>
 <a href="#356" id="356">356</a>
-<a href="#357" id="357">357</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#357" id="357">357</a>
+<a href="#358" id="358">358</a>
+<a href="#359" id="359">359</a>
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a>
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{AsTraitPath, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
@@ -709,6 +716,13 @@
     </span><span class="kw">fn </span>format_as_trait_path_type() {
         <span class="kw">let </span>src = <span class="string">" &lt; Field as foo :: Bar&gt; :: baz "</span>;
         <span class="kw">let </span>expected = <span class="string">"&lt;Field as foo::Bar&gt;::baz"</span>;
+        assert_format_type(src, expected);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>format_as_trait_path_type_expression() {
+        <span class="kw">let </span>src = <span class="string">"[ Field ; &lt; Field as foo :: Bar&gt; :: baz ]"</span>;
+        <span class="kw">let </span>expected = <span class="string">"[Field; &lt;Field as foo::Bar&gt;::baz]"</span>;
         assert_format_type(src, expected);
     }
 }
