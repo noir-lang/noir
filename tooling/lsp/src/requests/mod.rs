@@ -678,7 +678,7 @@ pub(crate) fn find_all_references(
 fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option<String> {
     match reference {
         ReferenceId::Module(module_id) => {
-            Some(interner.try_module_attributes(&module_id)?.name.clone())
+            Some(interner.try_module_attributes(module_id)?.name.clone())
         }
         ReferenceId::Type(type_id) => Some(interner.get_type(type_id).borrow().name.to_string()),
         ReferenceId::StructMember(type_id, index) => {

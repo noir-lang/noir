@@ -84,7 +84,7 @@ impl VariableContext {
     fn new(func: &Function) -> Self {
         let (next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
 
-        let locals = ScopeStack::new(
+        let locals = ScopeStack::from_variables(
             func.parameters
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
