@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753117932287,
+  "lastUpdate": 1753124049256,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19531,48 +19531,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8a25291005f229ee003960aedd707de1ec315506",
-          "message": "fix(parser): allow type expressions in turbofish named arguments (#9171)",
-          "timestamp": "2025-07-10T19:47:53Z",
-          "tree_id": "f976736981f0298e2bf8e742bee90dd6e184691e",
-          "url": "https://github.com/noir-lang/noir/commit/8a25291005f229ee003960aedd707de1ec315506"
-        },
-        "date": 1752178337545,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259003,
-            "range": "± 556",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229207,
-            "range": "± 6461",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792479,
-            "range": "± 1859",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -21624,6 +21582,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781014,
             "range": "± 15137",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "366149fbe94c206efc35ce0141e82a18888fd390",
+          "message": "fix(SSA): validate MakeArray instruction (#9183)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-07-21T18:24:56Z",
+          "tree_id": "08c3eb92a1d8375910873b9a1f2873bd096d2844",
+          "url": "https://github.com/noir-lang/noir/commit/366149fbe94c206efc35ce0141e82a18888fd390"
+        },
+        "date": 1753124032834,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249369,
+            "range": "± 646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223103,
+            "range": "± 5182",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778912,
+            "range": "± 1982",
             "unit": "ns/iter"
           }
         ]
