@@ -136,4 +136,31 @@ mod tests {
             _ => {}
         }
     }
+
+    #[test]
+    fn foo() {
+        let ssa_without_runtime = "
+            (inline) fn main f0 {
+              b0(v0: u1):
+                v1 = cast v0 as Field
+                return v1
+            }
+        ";
+        let acir_ssa = "acir".to_string() + ssa_without_runtime;
+        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(Witness(0), FieldElement::from(1337_u32));
+        let acir_result =
+            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        let brillig_result =
+            execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
+        match (acir_result, brillig_result) {
+            (Err(acir), Ok(brillig)) => panic!(
+                "Acir failed with: {}, brillig succeeded with the result: {}",
+                acir,
+                brillig[&Witness(1)]
+            ),
+            _ => {}
+        }
+    }
 }

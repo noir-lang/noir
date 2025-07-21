@@ -353,7 +353,7 @@ impl<'a> Context<'a> {
 
         let inputs = try_vecmap(dfg[main_func.entry_block()].parameters(), |param_id| {
             let typ = dfg.type_of_value(*param_id);
-            self.create_value_from_type(&typ, &mut |this, _| Ok(this.acir_context.add_variable()))
+            self.convert_ssa_block_param(&typ)
         })?;
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
