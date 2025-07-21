@@ -29,7 +29,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/62QsQ2AMAwEMWIgO7aJ3bEKEc7+IyCUFFEKGjjp9cVLVzwsDeiZWXsfvRl3kcgpiOnE5MUURctuZKSmVzLmMLHsxTM6CQdVdY7aGF34DYL/XPi4tuGLGXjZbl/bHHBEAQAA",
+      "bytecode": "H4sIAAAAAAAA/6XRTU7DMBAF4BZxIDtOGmcHHION5dgTsJTYYWyXbgMLtkmvgFBVJMSfEGfhNlhBQt13djOLJ833Tu72TbQqGGf99PClIiLYIG5NsOC9MFbDZrlzvXIa/DQ8n3sPGC4B3f2+i60IgJ0fP1tjQaJQrquNlXPadvtzxsgqz6HMgDIqSVbVvCB5Ua845bTghc44Y8BzXlZ1VZKK5gxoU1QMmr9ZpAxy3NDl441QR8eQN9j0mEjSa0lHh+thd+Fi4tHD07yffvRo1jKA6CXKDpKMnxbvfaxbow5u4wtCiGjFWrYxmS5f5WwqupQur8CP36mQBBhQJlUt/vsZfwEqkzXdrQEAAA==",
       "debug_symbols": "dY/RCoMwDEX/Jc99GIyB81fGkFijFEJaYisM8d8XRTcZ7Cm9OT2XdoaO2jI0Qfo4Qv2YodXAHIaGo8ccoth2XhwcsclKZCs4cbMSKkmGWgqzgwm5bJfGhLLNjGr04oCks2mFfWBaT4v72pf/alXt7v36kW9mPy2hD/r73gk1YMu0x76IP9H8Sgc5/ps0euqK0tq0Met+Aw==",
       "names": [
         "double"
@@ -59,7 +59,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/7WR0QrDIAxFq2z/k5ikJm/7lUnT//+ErZ0FkT7N9sBFkHCJxzj9iDUbz29CzUFo5tr7nVc9YQxsO+PF3aHpIpiZPSdHwjckKyrAUmZFRVFZkhK5smYrlsGQyXEVI193lnjdXrDt9egkTyfi+884m+2dDb4z3+UfBvnH2cEHq8+0wPECAAA=",
+      "bytecode": "H4sIAAAAAAAA/9WTS07DMBBAm4gDxU3SODs+t2BjOfYULCV28Kd0G0Bim+YI/KogIX5CnIXbYEUCsUEIpZvOyp7FjOa9mfCsnzvJrFDSdJdvzGkN0pJTYSUYQ4TksAzXqmaKg+mamwNalhdXggd3QtbOmtVkrZwdXmFfa+CCUQvnfeVKYkFXpn0thQSqCVNVISQdOrXXJ4R97EbjAjX3e8aAtoeg1V8tu258v8DXiKNZkkA2BRQjGk3zAqdRkhYzjDBKccqnOI4BJzjLizyLcpTEgOZpHsN8CB5uZPToCZaetjF+NC+L2+Nmva+ct8Wb2+G/81JrsfAuSE01rcCT8bKea1eUgv3ItQ8arNOSLGjpwKyCRzowJZWvTo/AtL9sRfC1Fav/ahiJMJtsQuXWaXj3Z+oBWk09VU6+r7b9BC/bX3TDAwAA",
       "debug_symbols": "zZDBCoMwDIbfJWcPnduY81WGSK1RCqUtsR0M6buvFXV6GIOxw05p8vcL7TdCi43va6k7M0B5G6EhqZTsa2UEd9LoOB1DBktbO0KMI9jkkbKcUDsotVcqgztXfro0WK6n6jjFlGWAuo01LuykwnQK2Ytm79GcFTOcH64rfv6Gz487voodF5J2PwYG5SGkdSR5o3C20HktNlLcwy7Jos2SEdh6wrRuytID/1XqZZVSnD5L+ZGPKjwB",
       "names": [
         "times_40",
@@ -90,7 +90,7 @@ expression: artifact
         },
         "error_types": {}
       },
-      "bytecode": "H4sIAAAAAAAA/62QsQ2AMAwEMWIgO7aJ3bEKEc7+IyAgRZSCBk56ffHSFQ/TA7SMzK231oyrSOQUxLRj8mKKomU1MlLTIxlzmFj24hmdhIOqOke9id6F3yD4z4WXa+m+GIGX7QSI948TRAEAAA==",
+      "bytecode": "H4sIAAAAAAAA/6XRPU7EMBAF4A3iQHacbJwOOAaN5dgTsJTYYWwv2wYK2mSvgNBqkRB/QpyF22ClQPQ73UzxpPneyd2hjVYF46yfH75URAQbxK0JFrwXxmrYZns3KKfBz+PzufeA4RLQ3R/62IkA2PvpszMWJArl+sZYuaTtdj9njKyLAqocKKOS5HXDS1KUzZpTTkte6pwzBrzgVd3UFalpwYC2Zc2gXQZWKYMcNzR7vBHq6BjyBtsBE0l6LenocD3uL1xMPHp8WvbTjwHNRgYQg0TZQ5Lx8+p9iE1n1L/b9IIQIlqxkV1MptmrXExFn9LlFfjpOxWSAAPKpKrFXz/TL9esnu+tAQAA",
       "debug_symbols": "dY/RCoMwDEX/Jc990DEZ+CtjSKxRCqEtsRWG+O+LopsMfEpvTs+lnaGjNg+N830YoX7O0IpjdkPDwWJywet2XgwcsUlCpCs4cbUiCvkEtc/MBibkvF0aI/ptJhSlhQHynU4t7B3TelrMzy6u1fL+2OWyun31Sv2XJrRO/l88oThsmfbYZ29PNL3jQY4fRwmWuiy0Nm1Muz8=",
       "names": [
         "triple"
