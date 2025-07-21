@@ -182,8 +182,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             ModuleDefId::GlobalId(global_id) => {
                 self.show_secondary_attributes(self.interner.global_attributes(&global_id));
             }
-            ModuleDefId::ModuleId(..) | ModuleDefId::TypeAliasId(..) | ModuleDefId::TraitId(..) => {
-            }
+            ModuleDefId::ModuleId(..)
+            | ModuleDefId::TypeAliasId(..)
+            | ModuleDefId::TraitId(..)
+            | ModuleDefId::TraitAssociatedTypeId(..) => {}
         }
     }
 
@@ -819,18 +821,17 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::U32(value) => self.push_str(&value.to_string()),
             Value::U64(value) => self.push_str(&value.to_string()),
             Value::U128(value) => self.push_str(&value.to_string()),
-            Value::String(string) => self.push_str(&format!("{:?}", string)),
+            Value::String(string) => self.push_str(&format!("{string:?}")),
             Value::FormatString(string, _typ) => {
                 // Note: at this point the format string was already expanded so we can't recover the original
                 // interpolation and this will result in a compile-error. But... the expanded code is meant
                 // to be browsed, not compiled.
-                self.push_str(&format!("f{:?}", string));
+                self.push_str(&format!("f{string:?}"));
             }
             Value::CtString(string) => {
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
-                    "{}::meta::ctstring::AsCtString::as_ctstring({:?})",
-                    std, string
+                    "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
                 ));
             }
             Value::Function(func_id, ..) => {
@@ -1122,7 +1123,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         // Recurse on the parent module, but only if the parent module isn't the current module
         // (if so, we can already reach the definition just by printing its name)
-        let module_def_id_parent_module = get_parent_module(self.interner, module_def_id);
+        let module_def_id_parent_module =
+            get_parent_module(module_def_id, self.interner, self.def_maps);
         if module_def_id_parent_module != Some(self.module_id) {
             if let Some(module_def_id_parent_module) = module_def_id_parent_module {
                 let visibility = self
@@ -1185,7 +1187,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn module_def_id_name(&self, module_def_id: ModuleDefId) -> String {
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(&module_id);
+                let attributes = self.interner.try_module_attributes(module_id);
                 let name = attributes.map(|attributes| &attributes.name);
                 // A module might not have a name if it's the root module of a crate
                 name.cloned().unwrap_or_else(|| "crate".to_string())
@@ -1205,6 +1207,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.name.to_string()
             }
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                let associated_type = self.interner.get_trait_associated_type(id);
+                associated_type.name.to_string()
+            }
             ModuleDefId::GlobalId(global_id) => {
                 let global_info = self.interner.get_global(global_id);
                 global_info.ident.to_string()
@@ -1215,7 +1221,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(&module_id);
+                let attributes = self.interner.try_module_attributes(module_id);
                 attributes.map_or(ItemVisibility::Private, |a| a.visibility)
             }
             ModuleDefId::FunctionId(func_id) => {
@@ -1229,6 +1235,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 type_alias.borrow().visibility
             }
+            ModuleDefId::TraitAssociatedTypeId(_) => ItemVisibility::Public,
             ModuleDefId::TraitId(trait_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
                 trait_.visibility

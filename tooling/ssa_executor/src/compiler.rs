@@ -24,11 +24,11 @@ pub fn optimize_ssa_into_acir(
 
     std::panic::set_hook(Box::new(move |panic_info| {
         let message = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
-            format!("Panic: {}", s)
+            format!("Panic: {s}")
         } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
-            format!("Panic: {}", s)
+            format!("Panic: {s}")
         } else {
-            format!("Unknown panic: {:?}", panic_info)
+            format!("Unknown panic: {panic_info:?}")
         };
 
         if let Some(location) = panic_info.location() {
@@ -59,7 +59,7 @@ pub fn optimize_ssa_into_acir(
         Err(_) => {
             let error_msg = panic_message.lock().unwrap().clone();
             Err(RuntimeError::InternalError(InternalError::General {
-                message: format!("Panic occurred: {}", error_msg),
+                message: format!("Panic occurred: {error_msg}"),
                 call_stack: CallStack::default(),
             }))
         }

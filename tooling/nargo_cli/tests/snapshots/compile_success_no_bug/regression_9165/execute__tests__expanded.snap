@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() {
+    for idx_a in 4048979427_u32..4048979430_u32 {
+        assert(
+            idx_a
+                == {
+                    let internal___variable: u32 = idx_a;
+                    match internal___variable {
+                        198384605 => idx_a,
+                        _ => {
+                            let _: u32 = internal___variable;
+                            3138276502_u32
+                        },
+                    }
+                },
+        );
+    }
+}

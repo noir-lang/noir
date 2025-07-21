@@ -9,9 +9,12 @@ use acvm::{AcirField, FieldElement};
 
 use crate::{
     ast::{IntegerBitSize, ItemVisibility},
-    hir::type_check::{TypeCheckError, generics::TraitGenerics},
+    hir::{
+        def_map::ModuleId,
+        type_check::{TypeCheckError, generics::TraitGenerics},
+    },
     hir_def::types::{self},
-    node_interner::{NodeInterner, TraitId, TypeAliasId},
+    node_interner::{NodeInterner, TraitAssociatedTypeId, TraitId, TypeAliasId},
     signed_field::{AbsU128, SignedField},
     token::IntegerTypeSuffix,
 };
@@ -282,7 +285,7 @@ impl std::fmt::Display for Kind {
             Kind::Normal => write!(f, "normal"),
             Kind::Integer => write!(f, "int"),
             Kind::IntegerOrField => write!(f, "intOrField"),
-            Kind::Numeric(typ) => write!(f, "numeric {}", typ),
+            Kind::Numeric(typ) => write!(f, "numeric {typ}"),
         }
     }
 }
@@ -309,6 +312,26 @@ pub enum QuotedType {
 /// TypeVariable in addition to the matching TypeVariableId allows
 /// the binding to later be undone if needed.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
+
+/// Pretty print type bindings for debugging
+#[allow(unused)]
+pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
+    if bindings.is_empty() {
+        return "bindings: (none)".to_string();
+    }
+
+    let mut ret = if bindings.len() == 1 {
+        "1 binding:".to_string()
+    } else {
+        format!("{} bindings:", bindings.len())
+    };
+
+    for (var, _, binding) in bindings.values() {
+        ret += &format!("\n    {var:?} := {binding:?}");
+    }
+
+    ret
+}
 
 /// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all Type::DataType variants that represent
@@ -670,6 +693,7 @@ pub struct TypeAlias {
     pub generics: Generics,
     pub visibility: ItemVisibility,
     pub location: Location,
+    pub module_id: ModuleId,
 }
 
 impl std::hash::Hash for TypeAlias {
@@ -710,8 +734,9 @@ impl TypeAlias {
         typ: Type,
         generics: Generics,
         visibility: ItemVisibility,
+        module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id }
     }
 
     pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
@@ -739,6 +764,13 @@ impl TypeAlias {
         let args = vecmap(&self.generics, |_| interner.next_type_variable());
         self.get_type(&args)
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TraitAssociatedType {
+    pub id: TraitAssociatedTypeId,
+    pub trait_id: TraitId,
+    pub name: Ident,
 }
 
 /// A shared, mutable reference to some T.
@@ -996,7 +1028,7 @@ impl std::fmt::Display for Type {
                         Kind::Numeric(_typ) => write!(f, "_"),
                     },
                     TypeBinding::Bound(binding) => {
-                        write!(f, "{}", binding)
+                        write!(f, "{binding}")
                     }
                 }
             }
@@ -1017,7 +1049,7 @@ impl std::fmt::Display for Type {
                 }
             }
             Type::TraitAsType(_id, name, generics) => {
-                write!(f, "impl {}{}", name, generics)
+                write!(f, "impl {name}{generics}")
             }
             Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
@@ -1065,7 +1097,7 @@ impl std::fmt::Display for Type {
             Type::Reference(element, _) => {
                 write!(f, "&{element}")
             }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::Quoted(quoted) => write!(f, "{quoted}"),
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let this = self.canonicalize_checked();
 
@@ -2741,17 +2773,17 @@ impl std::fmt::Debug for Type {
                 let binding = &var.1;
                 if let TypeBinding::Unbound(_, type_var_kind) = &*binding.borrow() {
                     match type_var_kind {
-                        Kind::Any | Kind::Normal => write!(f, "{:?}", var),
-                        Kind::IntegerOrField => write!(f, "IntOrField{:?}", binding),
-                        Kind::Integer => write!(f, "Int{:?}", binding),
-                        Kind::Numeric(typ) => write!(f, "Numeric({:?}: {:?})", binding, typ),
+                        Kind::Any | Kind::Normal => write!(f, "{var:?}"),
+                        Kind::IntegerOrField => write!(f, "IntOrField{binding:?}"),
+                        Kind::Integer => write!(f, "Int{binding:?}"),
+                        Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
                     write!(f, "{}", binding.borrow())
                 }
             }
             Type::DataType(s, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
+                let args = vecmap(args, |arg| format!("{arg:?}"));
                 if args.is_empty() {
                     write!(f, "{}", s.borrow())
                 } else {
@@ -2759,16 +2791,16 @@ impl std::fmt::Debug for Type {
                 }
             }
             Type::Alias(alias, args) => {
-                let args = vecmap(args, |arg| format!("{:?}", arg));
+                let args = vecmap(args, |arg| format!("{arg:?}"));
                 if args.is_empty() {
                     write!(f, "{}", alias.borrow())
                 } else {
                     write!(f, "{}<{}>", alias.borrow(), args.join(", "))
                 }
             }
-            Type::TraitAsType(_id, name, generics) => write!(f, "impl {}{:?}", name, generics),
+            Type::TraitAsType(_id, name, generics) => write!(f, "impl {name}{generics:?}"),
             Type::Tuple(elements) => {
-                let elements = vecmap(elements, |arg| format!("{:?}", arg));
+                let elements = vecmap(elements, |arg| format!("{arg:?}"));
                 if elements.len() == 1 {
                     write!(f, "({},)", elements[0])
                 } else {
@@ -2782,18 +2814,18 @@ impl std::fmt::Debug for Type {
             }
             Type::Unit => write!(f, "()"),
             Type::Error => write!(f, "error"),
-            Type::CheckedCast { to, .. } => write!(f, "{:?}", to),
+            Type::CheckedCast { to, .. } => write!(f, "{to:?}"),
             Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => match type_var.kind() {
                 Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
-                    write!(f, "{}{:?}", name, type_var)
+                    write!(f, "{name}{type_var:?}")
                 }
                 Kind::Numeric(typ) => {
-                    write!(f, "({} : {}){:?}", name, typ, type_var)
+                    write!(f, "({name} : {typ}){type_var:?}")
                 }
             },
-            Type::Constant(x, kind) => write!(f, "({}: {})", x, kind),
+            Type::Constant(x, kind) => write!(f, "({x}: {kind})"),
             Type::Forall(typevars, typ) => {
-                let typevars = vecmap(typevars, |var| format!("{:?}", var));
+                let typevars = vecmap(typevars, |var| format!("{var:?}"));
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env, unconstrained) => {
@@ -2806,7 +2838,7 @@ impl std::fmt::Debug for Type {
                     _ => format!(" with env {env:?}"),
                 };
 
-                let args = vecmap(args.iter(), |arg| format!("{:?}", arg));
+                let args = vecmap(args.iter(), |arg| format!("{arg:?}"));
 
                 write!(f, "fn({}) -> {ret:?}{closure_env_text}", args.join(", "))
             }
@@ -2816,7 +2848,7 @@ impl std::fmt::Debug for Type {
             Type::Reference(element, true) => {
                 write!(f, "&mut {element:?}")
             }
-            Type::Quoted(quoted) => write!(f, "{}", quoted),
+            Type::Quoted(quoted) => write!(f, "{quoted}"),
             Type::InfixExpr(lhs, op, rhs, _) => write!(f, "({lhs:?} {op} {rhs:?})"),
         }
     }

@@ -109,6 +109,7 @@ pub struct UnresolvedTraitImpl {
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
+    pub crate_id: CrateId,
     pub module_id: LocalModuleId,
     pub type_alias_def: NoirTypeAlias,
 }
@@ -220,13 +221,13 @@ impl CompilationError {
 impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompilationError::ParseError(error) => write!(f, "{}", error),
-            CompilationError::DefinitionError(error) => write!(f, "{}", error),
-            CompilationError::ResolverError(error) => write!(f, "{}", error),
-            CompilationError::TypeError(error) => write!(f, "{}", error),
-            CompilationError::InterpreterError(error) => write!(f, "{:?}", error),
-            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{:?}", error),
-            CompilationError::ComptimeError(error) => write!(f, "{:?}", error),
+            CompilationError::ParseError(error) => write!(f, "{error}"),
+            CompilationError::DefinitionError(error) => write!(f, "{error}"),
+            CompilationError::ResolverError(error) => write!(f, "{error}"),
+            CompilationError::TypeError(error) => write!(f, "{error}"),
+            CompilationError::InterpreterError(error) => write!(f, "{error:?}"),
+            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{error:?}"),
+            CompilationError::ComptimeError(error) => write!(f, "{error:?}"),
         }
     }
 }
@@ -439,9 +440,7 @@ impl DefCollector {
                                 visibility,
                             );
 
-                            if context.def_interner.is_in_lsp_mode()
-                                && visibility != ItemVisibility::Private
-                            {
+                            if visibility != ItemVisibility::Private {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,
@@ -497,6 +496,7 @@ impl DefCollector {
             debug_comptime_in_file,
             pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
+            disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
         let mut more_errors =

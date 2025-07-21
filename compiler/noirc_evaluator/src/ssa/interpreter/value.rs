@@ -212,17 +212,23 @@ impl Value {
     pub fn snapshot(&self) -> Self {
         match self {
             Value::Numeric(n) => Value::Numeric(*n),
-            Value::Reference(r) => Value::Reference(ReferenceValue {
-                original_id: r.original_id,
-                element: Shared::new(r.element.borrow().clone()),
-                element_type: r.element_type.clone(),
-            }),
-            Value::ArrayOrSlice(a) => Value::ArrayOrSlice(ArrayValue {
-                elements: Shared::new(a.elements.borrow().clone()),
-                rc: Shared::new(*a.rc.borrow()),
-                element_types: a.element_types.clone(),
-                is_slice: a.is_slice,
-            }),
+            Value::Reference(r) => {
+                let element = r.element.borrow().as_ref().map(|v| v.snapshot());
+                Value::Reference(ReferenceValue {
+                    original_id: r.original_id,
+                    element: Shared::new(element),
+                    element_type: r.element_type.clone(),
+                })
+            }
+            Value::ArrayOrSlice(a) => {
+                let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
+                Value::ArrayOrSlice(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(*a.rc.borrow()),
+                    element_types: a.element_types.clone(),
+                    is_slice: a.is_slice,
+                })
+            }
             Value::Function(id) => Value::Function(*id),
             Value::Intrinsic(i) => Value::Intrinsic(*i),
             Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
@@ -352,7 +358,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub fn convert_to_field(&self) -> FieldElement {
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),

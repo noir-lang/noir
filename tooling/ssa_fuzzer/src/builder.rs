@@ -9,6 +9,7 @@ use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
+use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
 use thiserror::Error;
@@ -61,9 +62,7 @@ impl FuzzerBuilder {
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
-                Err(e) => {
-                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
-                }
+                Err(e) => Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {e:?}"))),
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -184,9 +183,6 @@ impl FuzzerBuilder {
                 cast_type.bit_length(),
                 init_bit_length,
             );
-        }
-        if cast_type.bit_length() > value.to_value_type().bit_length() {
-            return value;
         }
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
@@ -334,5 +330,39 @@ impl FuzzerBuilder {
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
+    }
+
+    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
+    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+        // maybe use different inline type
+        self.builder.new_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
+    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
+        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Inserts an import function with the given function id
+    pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
+        self.builder.import_function(function)
+    }
+
+    /// Inserts a call to the given function with the given arguments and result type
+    pub fn insert_call(
+        &mut self,
+        function: Id<Value>,
+        arguments: &[TypedValue],
+        result_type: ValueType,
+    ) -> Id<Value> {
+        *self
+            .builder
+            .insert_call(
+                function,
+                arguments.iter().map(|i| i.value_id).collect(),
+                vec![result_type.to_ssa_type()],
+            )
+            .first()
+            .unwrap()
     }
 }

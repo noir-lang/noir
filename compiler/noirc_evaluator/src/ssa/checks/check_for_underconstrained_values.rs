@@ -434,8 +434,7 @@ impl DependencyContext {
                             self.update_children(&[*value_id], &results);
                         } else {
                             panic!(
-                                "load instruction {} has attempted to access previously unused memory location",
-                                instruction
+                                "load instruction {instruction} has attempted to access previously unused memory location"
                             );
                         }
                     }

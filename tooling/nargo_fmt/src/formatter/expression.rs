@@ -343,7 +343,7 @@ impl ChunkFormatter<'_, '_> {
             '(' => ')',
             '{' => '}',
             '[' => ']',
-            _ => panic!("Unexpected delimiter: {}", delimiter_start),
+            _ => panic!("Unexpected delimiter: {delimiter_start}"),
         };
 
         // We use the current token rather than the Tokens we got from `Token::Quote` because
@@ -1386,6 +1386,13 @@ mod tests {
     fn format_negative_integer() {
         let src = "global x =  - 42 ;";
         let expected = "global x = -42;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_double_negative_integer() {
+        let src = "global x =  - - 42 ;";
+        let expected = "global x = --42;\n";
         assert_format(src, expected);
     }
 

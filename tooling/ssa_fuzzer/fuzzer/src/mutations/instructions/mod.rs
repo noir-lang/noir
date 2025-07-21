@@ -11,8 +11,8 @@ mod instruction_mutator;
 mod type_mutations;
 
 use super::configuration::{
-    BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION,
-    VectorOfInstructionBlocksMutationOptions,
+    BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION, SIZE_OF_LARGE_ARBITRARY_BUFFER,
+    SIZE_OF_SMALL_ARBITRARY_BUFFER, VectorOfInstructionBlocksMutationOptions,
 };
 use crate::fuzz_lib::instruction::InstructionBlock;
 use instruction_block_mutator::instruction_block_mutator;
@@ -27,7 +27,7 @@ trait MutateVecInstructionBlock {
 struct RandomMutation;
 impl MutateVecInstructionBlock for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
-        let mut bytes = [0u8; 128];
+        let mut bytes = [0u8; SIZE_OF_LARGE_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
@@ -51,7 +51,7 @@ impl MutateVecInstructionBlock for InstructionBlockInsertionMutation {
     fn mutate(rng: &mut StdRng, value: &mut Vec<InstructionBlock>) {
         let blocks = value;
         let block_idx = if blocks.is_empty() { 0 } else { rng.gen_range(0..blocks.len()) };
-        let mut bytes = [0u8; 25];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         let mut unstructured = Unstructured::new(&bytes);
         let instruction_block = unstructured.arbitrary().unwrap();
@@ -83,25 +83,22 @@ impl MutateVecInstructionBlock for InstructionBlockInstructionSwapMutation {
     }
 }
 
-pub(crate) fn mutate_vec_instruction_block(
-    vec_instruction_block: &mut Vec<InstructionBlock>,
-    rng: &mut StdRng,
-) {
+pub(crate) fn mutate(vec_instruction_block: &mut Vec<InstructionBlock>, rng: &mut StdRng) {
     match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
         VectorOfInstructionBlocksMutationOptions::Random => {
-            RandomMutation::mutate(rng, vec_instruction_block)
+            RandomMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion => {
-            InstructionBlockDeletionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockDeletionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion => {
-            InstructionBlockInsertionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInsertionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation => {
-            InstructionBlockInstructionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInstructionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockSwap => {
-            InstructionBlockInstructionSwapMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInstructionSwapMutation::mutate(rng, vec_instruction_block);
         }
     }
 }

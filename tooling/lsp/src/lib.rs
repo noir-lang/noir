@@ -62,7 +62,6 @@ use thiserror::Error;
 use tower::Service;
 
 mod attribute_reference_finder;
-mod modules;
 mod notifications;
 mod requests;
 mod solver;
@@ -269,6 +268,9 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
+/// Create a workspace based on the source file location:
+/// * if there is a `Nargo.toml` file, use it to read the workspace
+/// * otherwise treat the parent directory as a dummy workspace
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
         match resolve_workspace_from_toml(
@@ -278,7 +280,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         ) {
             Ok(workspace) => return Ok(workspace),
             Err(error) => {
-                eprintln!("Error while processing {:?}: {}", toml_path, error);
+                eprintln!("Error while processing {toml_path:?}: {error}");
             }
         }
     }
@@ -289,15 +291,14 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
         .and_then(|file_name_os_str| file_name_os_str.to_str())
     else {
         return Err(LspError::WorkspaceResolutionError(format!(
-            "Could not resolve parent folder for file: {:?}",
-            file_path
+            "Could not resolve parent folder for file: {file_path:?}"
         )));
     };
 
     let crate_name = match CrateName::from_str(parent_folder) {
         Ok(name) => name,
         Err(error) => {
-            eprintln!("{}", error);
+            eprintln!("{error}");
             CrateName::from_str("root").unwrap()
         }
     };
@@ -305,6 +306,7 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
     let assumed_package = Package {
         version: None,
         compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from(parent_folder),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from(file_path),

@@ -1787,3 +1787,95 @@ fn short_syntax_for_trait_constraint_on_trait_generic() {
     "#;
     check_monomorphization_error!(src);
 }
+
+#[named]
+#[test]
+fn ambiguous_associated_type() {
+    let src = r#"
+    trait MyTrait {
+        type X;
+    }
+
+    fn main() {
+        let _: MyTrait::X = 1;
+               ^^^^^^^^^^ Ambiguous associated type
+               ~~~~~~~~~~ If there were a type named `Example` that implemented `MyTrait`, you could use the fully-qualified path: `<Example as MyTrait>::X`
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_self_type() {
+    let src = r#"
+    pub trait BigCurve<B> {
+        fn one() -> Self;
+    }
+
+    struct Bn254 {}
+
+    impl<B> BigCurve<B> for Bn254 {
+        fn one() -> Self { Bn254 {} }
+    }
+
+    fn main() {
+        let _ = <Bn254 as BigCurve<()>>::one();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn suggests_importing_trait_via_reexport() {
+    let src = r#"
+    mod one {
+        mod two {
+            pub trait Trait {
+                fn method(self);
+            }
+
+            impl Trait for bool {
+                fn method(self) {}
+            }
+        }
+
+        pub use two::Trait;
+    }
+
+    fn main() {
+        true.method()
+        ^^^^^^^^^^^^^ trait `one::Trait` which provides `method` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn suggests_importing_trait_via_module_reexport() {
+    let src = r#"
+    mod one {
+        mod two {
+            pub mod three {
+                pub trait Trait {
+                    fn method(self);
+                }
+
+                impl Trait for bool {
+                    fn method(self) {}
+                }
+            }
+        }
+
+        pub use two::three;
+    }
+
+    fn main() {
+        true.method()
+        ^^^^^^^^^^^^^ trait `one::three::Trait` which provides `method` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors!(src);
+}

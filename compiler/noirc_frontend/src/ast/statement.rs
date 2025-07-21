@@ -564,7 +564,7 @@ pub struct AssignStatement {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
-    Ident(Ident),
+    Path(Path),
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
     Index { array: Box<LValue>, index: Expression, location: Location },
     Dereference(Box<LValue>, Location),
@@ -642,7 +642,7 @@ impl Pattern {
 impl LValue {
     pub fn as_expression(&self) -> Expression {
         let kind = match self {
-            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
+            LValue::Path(path) => ExpressionKind::Variable(path.clone()),
             LValue::MemberAccess { object, field_name, location: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -672,7 +672,7 @@ impl LValue {
 
     pub fn from_expression_kind(expr: ExpressionKind, location: Location) -> Option<LValue> {
         match expr {
-            ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::Variable(path) => Some(LValue::Path(path)),
             ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
                 object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
@@ -704,7 +704,7 @@ impl LValue {
 
     pub fn location(&self) -> Location {
         match self {
-            LValue::Ident(ident) => ident.location(),
+            LValue::Path(path) => path.location,
             LValue::MemberAccess { location, .. }
             | LValue::Index { location, .. }
             | LValue::Dereference(_, location)
@@ -901,7 +901,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {}", block),
+            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }
@@ -934,7 +934,7 @@ impl Display for AssignStatement {
 impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LValue::Ident(ident) => ident.fmt(f),
+            LValue::Path(ident) => ident.fmt(f),
             LValue::MemberAccess { object, field_name, location: _ } => {
                 write!(f, "{object}.{field_name}")
             }
@@ -996,7 +996,7 @@ impl Display for Pattern {
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
             }
             Pattern::Parenthesized(pattern, _) => {
-                write!(f, "({})", pattern)
+                write!(f, "({pattern})")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

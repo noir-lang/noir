@@ -579,7 +579,7 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(&typ.to_string());
             }
             HirLiteral::Str(string) => {
-                self.push_str(&format!("{:?}", string));
+                self.push_str(&format!("{string:?}"));
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
                 self.push_str("f\"");
@@ -797,6 +797,8 @@ impl ItemPrinter<'_, '_> {
                     if data_type.is_enum() {
                         self.show_type_name_as_data_type(&typ);
                         self.push_str("::");
+                        self.push_str(global_info.ident.as_str());
+                        return;
                     }
                 }
                 let use_import = true;

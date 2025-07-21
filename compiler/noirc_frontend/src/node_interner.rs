@@ -32,6 +32,7 @@ use crate::token::MetaAttributeName;
 
 use crate::GenericTypeVars;
 use crate::Generics;
+use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::expr::HirIdent;
@@ -124,6 +125,11 @@ pub struct NodeInterner {
     // Map type aliases to the actual type.
     // When resolving types, check against this map to see if a type alias is defined.
     pub(crate) type_aliases: Vec<Shared<TypeAlias>>,
+
+    /// Each trait associated type. These are tracked so that we can distinguish them
+    /// from other types and know that, when directly referenced, they should also
+    /// lead to an "ambiguous associated type" error.
+    pub(crate) trait_associated_types: Vec<TraitAssociatedType>,
 
     // Trait map.
     //
@@ -252,10 +258,6 @@ pub struct NodeInterner {
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
 
-    // The module where each reference is
-    // (ReferenceId::Reference and ReferenceId::Local aren't included here)
-    pub(crate) reference_modules: HashMap<ReferenceId, ModuleId>,
-
     // All names (and their definitions) that can be offered for auto_import.
     // The third value in the tuple is the module where the definition is (only for pub use).
     // These include top-level functions, global variables and types, but excludes
@@ -273,8 +275,8 @@ pub struct NodeInterner {
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<String>>,
 
-    /// Only for LSP: a map of ModuleDefId to each module that pub or pub(crate) exports it.
-    /// In LSP this is used to offer importing the item via one of these exports if
+    /// A map of ModuleDefId to each module that pub or pub(crate) exports it.
+    /// This is used to offer importing the item via one of these exports if
     /// the item is not visible where it's defined.
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
@@ -308,6 +310,7 @@ pub enum ReferenceId {
     StructMember(TypeId, usize),
     EnumVariant(TypeId, usize),
     Trait(TraitId),
+    TraitAssociatedType(TraitAssociatedTypeId),
     Global(GlobalId),
     Function(FuncId),
     Alias(TypeAliasId),
@@ -505,12 +508,6 @@ impl TypeId {
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
 pub struct TypeAliasId(pub usize);
 
-impl TypeAliasId {
-    pub fn dummy_id() -> TypeAliasId {
-        TypeAliasId(usize::MAX)
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TraitId(pub ModuleId);
 
@@ -522,6 +519,9 @@ impl TraitId {
         TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
     }
 }
+
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
+pub struct TraitAssociatedTypeId(pub usize);
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 pub struct TraitImplId(pub usize);
@@ -691,6 +691,7 @@ impl Default for NodeInterner {
             data_types: HashMap::default(),
             type_attributes: HashMap::default(),
             type_aliases: Vec::new(),
+            trait_associated_types: Vec::new(),
             traits: HashMap::default(),
             trait_implementations: HashMap::default(),
             next_trait_implementation_id: 0,
@@ -716,7 +717,6 @@ impl Default for NodeInterner {
             location_indices: LocationIndices::default(),
             reference_graph: petgraph::graph::DiGraph::new(),
             reference_graph_indices: HashMap::default(),
-            reference_modules: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],
             trait_impl_associated_types: HashMap::default(),
@@ -833,6 +833,7 @@ impl NodeInterner {
             Type::Error,
             generics,
             typ.type_alias_def.visibility,
+            ModuleId { krate: typ.crate_id, local_id: typ.module_id },
         )));
 
         type_id
@@ -842,6 +843,16 @@ impl NodeInterner {
     /// So that we can later resolve [Location]s type aliases from the LSP requests
     pub fn add_type_alias_ref(&mut self, type_id: TypeAliasId, location: Location) {
         self.type_alias_ref.push((type_id, location));
+    }
+
+    pub fn push_trait_associated_type(
+        &mut self,
+        trait_id: TraitId,
+        name: Ident,
+    ) -> TraitAssociatedTypeId {
+        let id = TraitAssociatedTypeId(self.trait_associated_types.len());
+        self.trait_associated_types.push(TraitAssociatedType { id, trait_id, name });
+        id
     }
 
     pub fn update_type(&mut self, type_id: TypeId, f: impl FnOnce(&mut DataType)) {
@@ -1017,7 +1028,7 @@ impl NodeInterner {
         self.definitions.push(DefinitionInfo { name, mutable, comptime, kind, location });
 
         if is_local {
-            self.add_definition_location(ReferenceId::Local(id), location, None);
+            self.add_definition_location(ReferenceId::Local(id), location);
         }
 
         id
@@ -1053,7 +1064,7 @@ impl NodeInterner {
             name_location,
         };
         let definition_id = self.push_function_definition(id, modifiers, module, location);
-        self.add_definition_location(ReferenceId::Function(id), name_location, Some(module));
+        self.add_definition_location(ReferenceId::Function(id), name_location);
         definition_id
     }
 
@@ -1162,16 +1173,12 @@ impl NodeInterner {
         self.module_attributes.insert(module_id, attributes);
     }
 
-    pub fn module_attributes(&self, module_id: &ModuleId) -> &ModuleAttributes {
-        &self.module_attributes[module_id]
+    pub fn module_attributes(&self, module_id: ModuleId) -> &ModuleAttributes {
+        &self.module_attributes[&module_id]
     }
 
-    pub fn try_module_attributes(&self, module_id: &ModuleId) -> Option<&ModuleAttributes> {
-        self.module_attributes.get(module_id)
-    }
-
-    pub fn try_module_parent(&self, module_id: &ModuleId) -> Option<LocalModuleId> {
-        self.try_module_attributes(module_id).and_then(|attrs| attrs.parent)
+    pub fn try_module_attributes(&self, module_id: ModuleId) -> Option<&ModuleAttributes> {
+        self.module_attributes.get(&module_id)
     }
 
     pub fn global_attributes(&self, global_id: &GlobalId) -> &[SecondaryAttribute] {
@@ -1283,6 +1290,10 @@ impl NodeInterner {
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
         &self.traits[&id]
+    }
+
+    pub fn get_trait_associated_type(&self, id: TraitAssociatedTypeId) -> &TraitAssociatedType {
+        &self.trait_associated_types[id.0]
     }
 
     pub fn get_trait_mut(&mut self, id: TraitId) -> &mut Trait {

@@ -21,11 +21,12 @@ use noirc_frontend::{
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -386,7 +387,7 @@ impl<'a> NodeFinder<'a> {
                     );
                     return;
                 }
-                ModuleDefId::GlobalId(_) => return,
+                ModuleDefId::GlobalId(_) | ModuleDefId::TraitAssociatedTypeId(_) => return,
             }
         }
 
@@ -583,15 +584,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
-        match generic {
-            UnresolvedGeneric::Variable(ident, _) => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) => (),
-        };
+        if let IdentOrQuotedType::Ident(ident) = generic.ident() {
+            self.type_parameters.insert(ident.to_string());
+        }
     }
 
     fn complete_type_fields_and_methods(
@@ -1042,9 +1037,9 @@ impl<'a> NodeFinder<'a> {
         for name in attributes {
             if name_matches(name, prefix) {
                 self.completion_items.push(snippet_completion_item(
-                    format!("{}(…)", name),
+                    format!("{name}(…)"),
                     CompletionItemKind::METHOD,
-                    format!("{}(${{1:name}})", name),
+                    format!("{name}(${{1:name}})"),
                     None,
                 ));
             }
@@ -1142,7 +1137,7 @@ impl<'a> NodeFinder<'a> {
 
     fn get_lvalue_type(&self, lvalue: &LValue) -> Option<Type> {
         match lvalue {
-            LValue::Ident(ident) => {
+            LValue::Path(ident) => {
                 let location = Location::new(ident.span(), self.file);
                 if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.find_referenced(location)
@@ -1204,7 +1199,7 @@ impl<'a> NodeFinder<'a> {
                 continue;
             }
 
-            let label = if module.has_semicolon { name.to_string() } else { format!("{};", name) };
+            let label = if module.has_semicolon { name.to_string() } else { format!("{name};") };
             self.completion_items.push(simple_completion_item(
                 label,
                 CompletionItemKind::MODULE,
@@ -1598,10 +1593,10 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_lvalue_ident(&mut self, ident: &Ident) {
+    fn visit_lvalue_path(&mut self, path: &Path) {
         // If we have `foo.>|<` we suggest `foo`'s type fields and methods
-        if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
-            let location = Location::new(ident.span(), self.file);
+        if self.byte == Some(b'.') && path.span().end() as usize == self.byte_index - 1 {
+            let location = Location::new(path.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
                 let typ = self.interner.definition_type(definition_id);
@@ -2033,6 +2028,7 @@ fn module_def_id_from_reference_id(reference_id: ReferenceId) -> Option<ModuleDe
         ReferenceId::Module(module_id) => Some(ModuleDefId::ModuleId(module_id)),
         ReferenceId::Type(type_id) => Some(ModuleDefId::TypeId(type_id)),
         ReferenceId::Trait(trait_id) => Some(ModuleDefId::TraitId(trait_id)),
+        ReferenceId::TraitAssociatedType(id) => Some(ModuleDefId::TraitAssociatedTypeId(id)),
         ReferenceId::Function(func_id) => Some(ModuleDefId::FunctionId(func_id)),
         ReferenceId::Alias(type_alias_id) => Some(ModuleDefId::TypeAliasId(type_alias_id)),
         ReferenceId::StructMember(_, _)
