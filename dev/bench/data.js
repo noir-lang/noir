@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753115493245,
+  "lastUpdate": 1753115517601,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -28247,6 +28247,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ed329988a7d21de0380ca42bf8ed08b07133fea8"
         },
         "date": 1753111524546,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 15080,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11347,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 261916,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 201205,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 70748,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1079444,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1080739,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3136,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3bec934937e3a7a8566ab0f436b06d0dced717bb",
+          "message": "fix: comptime code not mutating shared ref to struct field (#9250)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-07-21T15:55:47Z",
+          "tree_id": "37b19baa82323adb7ac56d821ed84616bc6d442a",
+          "url": "https://github.com/noir-lang/noir/commit/3bec934937e3a7a8566ab0f436b06d0dced717bb"
+        },
+        "date": 1753115501243,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
