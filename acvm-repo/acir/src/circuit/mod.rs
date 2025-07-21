@@ -412,10 +412,7 @@ mod tests {
         Circuit, Compression, Opcode, PublicInputs,
         opcodes::{BlackBoxFuncCall, FunctionInput},
     };
-    use crate::{
-        circuit::Program,
-        native_types::Witness,
-    };
+    use crate::{circuit::Program, native_types::Witness};
     use acir_field::{AcirField, FieldElement};
     use serde::{Deserialize, Serialize};
 

@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, time::Duration};
 
 use acir::{
     FieldElement,
-    circuit::{Circuit, ExpressionWidth, Opcode, Program, PublicInputs},
+    circuit::{Circuit, Opcode, Program, PublicInputs},
     native_types::{Expression, Witness},
 };
 
