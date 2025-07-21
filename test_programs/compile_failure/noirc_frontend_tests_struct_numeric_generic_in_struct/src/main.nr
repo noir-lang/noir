@@ -1,7 +1,5 @@
+pub struct Foo {
+    inner: u64,
+}
 
-    pub struct Foo {
-        inner: u64
-    }
-
-    pub struct Bar<let N: Foo> { }
-    
+pub struct Bar<let N: Foo> {}
