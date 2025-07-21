@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753089670369,
+  "lastUpdate": 1753090976978,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19391,48 +19391,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "409c8386abbe83c133dfde1f4732d1b9834bb7cf",
-          "message": "fix: check for maximum limbs during radix decomposition (#9134)",
-          "timestamp": "2025-07-10T08:15:54Z",
-          "tree_id": "490117c70fed6a91d2f6fffd0a681c78c8e1ddb2",
-          "url": "https://github.com/noir-lang/noir/commit/409c8386abbe83c133dfde1f4732d1b9834bb7cf"
-        },
-        "date": 1752136887799,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256684,
-            "range": "± 1808",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227759,
-            "range": "± 3418",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2813301,
-            "range": "± 3125",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -21484,6 +21442,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776937,
             "range": "± 3878",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "566de3f20199259e1594d778e47ad3550aa344cd",
+          "message": "fix(licm): Ensure that all nested loops the current block is part of are guaranteed to execute (#9249)",
+          "timestamp": "2025-07-21T09:18:17Z",
+          "tree_id": "74351d0506a127948c7b14d5e8c11e90b1fc62c6",
+          "url": "https://github.com/noir-lang/noir/commit/566de3f20199259e1594d778e47ad3550aa344cd"
+        },
+        "date": 1753090961222,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248917,
+            "range": "± 1181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219669,
+            "range": "± 3822",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783747,
+            "range": "± 7630",
             "unit": "ns/iter"
           }
         ]
