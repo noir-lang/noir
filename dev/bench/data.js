@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753105373161,
+  "lastUpdate": 1753105375061,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11822,75 +11822,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "00980ec0946990b7fc7d01688677e38403725ec2",
-          "message": "fix(fuzz): Do not access arrays with `&mut` inside `if` using dynamic condition (#9072)",
-          "timestamp": "2025-07-10T13:44:10Z",
-          "tree_id": "d9bef189cca301846bde198801d7a8887cee9679",
-          "url": "https://github.com/noir-lang/noir/commit/00980ec0946990b7fc7d01688677e38403725ec2"
-        },
-        "date": 1752158718717,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 189.55,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 178.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.18,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "2bffde404e59bdac6dbca583985db585dedd5ab5",
           "message": "fix(ssa): Iterative branch analysis (#9139)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2025-07-10T14:34:49Z",
@@ -15400,6 +15331,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 55.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
+          "message": "feat: allow paths in l-values (#9254)",
+          "timestamp": "2025-07-21T12:55:49Z",
+          "tree_id": "0cc8be7688f33a1fce85eb368c30905176a6c130",
+          "url": "https://github.com/noir-lang/noir/commit/de536523e69a21733361ff0e9ff4748a0005e2a1"
+        },
+        "date": 1753105357953,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 238.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.37,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 435.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 327.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.3,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.56,
             "unit": "MB"
           }
         ]
