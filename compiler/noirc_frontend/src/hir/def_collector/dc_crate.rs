@@ -498,9 +498,14 @@ impl DefCollector {
             enabled_unstable_features: options.enabled_unstable_features,
             disable_required_unstable_features: options.disable_required_unstable_features,
         };
+        let now = std::time::Instant::now();
 
         let mut more_errors =
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
+
+        let elapsed = now.elapsed();
+        let name = context.file_manager.path(root_file_id).unwrap();
+        eprintln!("{name:?}: {elapsed:.2?}");
 
         errors.append(&mut more_errors);
 

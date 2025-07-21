@@ -200,9 +200,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if matches!(&meta.function_body, FunctionBody::Unresolved(..)) {
+                    let now = std::time::Instant::now();
+
                     self.elaborate_in_function(None, None, |elaborator| {
                         elaborator.elaborate_function(function);
                     });
+                    let elapsed = now.elapsed();
+                    eprintln!("Elaborate: -{elapsed:.2?}");
 
                     self.get_function_body(function, location)
                 } else {

@@ -249,9 +249,17 @@ impl<'context> Elaborator<'context> {
 
         arguments.insert(0, (item, location));
 
+        let now = std::time::Instant::now();
+
         let value = interpreter
             .call_function(function, arguments, TypeBindings::default(), location)
             .map_err(CompilationError::from)?;
+
+        let elapsed = now.elapsed();
+        // let name = interpreter.elaborator.interner.function_name(&function);
+        // eprintln!("Macro {name}: {elapsed:.2?}");
+        // let name = interpreter.elaborator.interner.function_name(&function);
+        eprintln!("Macro: {elapsed:.2?}");
 
         self.debug_comptime(location, |interner| value.display(interner).to_string());
 
