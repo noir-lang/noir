@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_aliases_disallows_composing_numeric_type_aliases"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
