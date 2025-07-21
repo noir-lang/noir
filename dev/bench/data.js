@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753101638663,
+  "lastUpdate": 1753101640553,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4093,85 +4093,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4092be1b01e83781481eeb92074b5bcf66a8e0a2",
-          "message": "fix: Make `<T as Trait>` no longer an assumed impl (#9146)",
-          "timestamp": "2025-07-10T10:48:16Z",
-          "tree_id": "882720e87731b551b2c772036b39a9c096c76f5f",
-          "url": "https://github.com/noir-lang/noir/commit/4092be1b01e83781481eeb92074b5bcf66a8e0a2"
-        },
-        "date": 1752146295047,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.812,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.03,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.31,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 222,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.49,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.786,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -8171,6 +8092,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.885,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "67ac4563c3df74a5a464f6f097472551a6b8f7cb",
+          "message": "chore: add acir-gen unit tests per ssa instruction (2) (#9185)",
+          "timestamp": "2025-07-21T12:10:08Z",
+          "tree_id": "cbfb9f89f2e4111c634a07bc3255e90d16615a56",
+          "url": "https://github.com/noir-lang/noir/commit/67ac4563c3df74a5a464f6f097472551a6b8f7cb"
+        },
+        "date": 1753101622742,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.964,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.082,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.616,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 219,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.742,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.8,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.846,
             "unit": "s"
           }
         ]
