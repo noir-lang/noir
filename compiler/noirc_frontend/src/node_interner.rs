@@ -1652,40 +1652,7 @@ impl NodeInterner {
                 continue;
             }
 
-            if let TraitImplKind::Normal(impl_id) = impl_kind {
-                let trait_impl = self.get_trait_implementation(*impl_id);
-                let trait_impl = trait_impl.borrow();
-                let _ = self.validate_where_clause(
-                    &trait_impl.where_clause,
-                    &mut fresh_bindings,
-                    &instantiation_bindings,
-                    recursion_limit,
-                );
-            }
-
-            let mut check_trait_generics =
-                |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
-                    let generics_unify = trait_generics.iter().zip(impl_generics).all(
-                        |(trait_generic, impl_generic)| {
-                            let impl_generic =
-                                impl_generic.force_substitute(&instantiation_bindings);
-                            trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                        },
-                    );
-
-                    let associated_types_unify = trait_associated_types
-                        .iter()
-                        .zip(impl_associated_types)
-                        .all(|(trait_generic, impl_generic)| {
-                            let impl_generic2 =
-                                impl_generic.typ.force_substitute(&instantiation_bindings);
-                            trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                        });
-
-                    generics_unify && associated_types_unify
-                };
-
-            let trait_generics = match impl_kind {
+            let impl_trait_generics = match impl_kind {
                 TraitImplKind::Normal(id) => {
                     let shared_impl = self.get_trait_implementation(*id);
                     let shared_impl = shared_impl.borrow();
@@ -1696,7 +1663,14 @@ impl NodeInterner {
                 TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
 
-            if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
+            let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
+                |(trait_generic, impl_generic)| {
+                    let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
+                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
+                },
+            );
+
+            if !generics_unify {
                 continue;
             }
 
@@ -1718,11 +1692,22 @@ impl NodeInterner {
                 }
             }
 
+            let associated_types_unify = trait_associated_types
+                .iter()
+                .zip(&impl_trait_generics.named)
+                .all(|(trait_generic, impl_generic)| {
+                    let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
+                    trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
+                });
+            if !associated_types_unify {
+                continue;
+            }
+
             let constraint = TraitConstraint {
                 typ: existing_object_type,
                 trait_bound: ResolvedTraitBound {
                     trait_id,
-                    trait_generics,
+                    trait_generics: impl_trait_generics,
                     location: Location::dummy(),
                 },
             };
