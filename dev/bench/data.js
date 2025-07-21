@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753114952001,
+  "lastUpdate": 1753115464107,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21602,85 +21602,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "3937585118057ad1ab094e76181b0411f1ad94cc",
-          "message": "fix(parser): don't simplify double minus (#9163)",
-          "timestamp": "2025-07-10T15:13:19Z",
-          "tree_id": "ad36f7b223517b6d779021bc28a23e17ccdb3189",
-          "url": "https://github.com/noir-lang/noir/commit/3937585118057ad1ab094e76181b0411f1ad94cc"
-        },
-        "date": 1752162172069,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 769.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2060.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 577.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4946.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3984.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32752.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32781.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 185,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 401.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.8,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "692e94cbab199cd249d4b9d3016398be34402b07",
           "message": "fix: track trait associated types as such (#9170)",
@@ -25631,6 +25552,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ed329988a7d21de0380ca42bf8ed08b07133fea8"
         },
         "date": 1753111509829,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 716.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1972.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 543,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4943,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3958.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3881.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 32668.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 32702.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 398.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 622.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3bec934937e3a7a8566ab0f436b06d0dced717bb",
+          "message": "fix: comptime code not mutating shared ref to struct field (#9250)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
+          "timestamp": "2025-07-21T15:55:47Z",
+          "tree_id": "37b19baa82323adb7ac56d821ed84616bc6d442a",
+          "url": "https://github.com/noir-lang/noir/commit/3bec934937e3a7a8566ab0f436b06d0dced717bb"
+        },
+        "date": 1753115448241,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
