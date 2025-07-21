@@ -281,7 +281,7 @@ mod tests {
         FieldElement,
         acir_field::AcirField,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
+            Circuit, Opcode, PublicInputs,
             brillig::{BrilligFunctionId, BrilligOutputs},
             opcodes::{BlackBoxFuncCall, FunctionInput},
         },

@@ -220,7 +220,7 @@ mod tests {
     use acir::{
         FieldElement,
         circuit::{
-            Circuit, ExpressionWidth, Opcode, PublicInputs,
+            Circuit, Opcode, PublicInputs,
             opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
