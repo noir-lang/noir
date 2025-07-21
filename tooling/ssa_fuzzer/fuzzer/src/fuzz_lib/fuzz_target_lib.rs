@@ -52,7 +52,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
 
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
     for func in data.functions {
-        log::debug!("initial_witness: {:?}", witness_map);
+        log::debug!("initial_witness: {witness_map:?}");
         log::debug!("commands: {:?}", func.commands);
         fuzzer.process_function(func, types.clone());
     }
@@ -745,9 +745,9 @@ mod tests {
             0,
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
         ); // add true boolean
-        log::debug!("commands: {:?}", commands);
+        log::debug!("commands: {commands:?}");
         blocks.push(add_boolean_block);
-        log::debug!("blocks: {:?}", blocks);
+        log::debug!("blocks: {blocks:?}");
         let main_func = FunctionData {
             commands,
             return_instruction_block_idx: 3,

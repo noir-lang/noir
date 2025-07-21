@@ -147,10 +147,10 @@ pub(crate) fn mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
         WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(rng, witness_value),
         WitnessMutationOptions::MinValue => MinValueMutation::mutate(rng, witness_value),
         WitnessMutationOptions::SmallAddSub => {
-            WitnessSmallAddSubMutation::mutate(rng, witness_value)
+            WitnessSmallAddSubMutation::mutate(rng, witness_value);
         }
         WitnessMutationOptions::PowerOfTwoAddSub => {
-            WitnessAddSubPowerOfTwoMutation::mutate(rng, witness_value)
+            WitnessAddSubPowerOfTwoMutation::mutate(rng, witness_value);
         }
     }
 }
