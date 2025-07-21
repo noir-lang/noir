@@ -182,7 +182,7 @@ impl Function {
                             *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                                     (index.try_to_u32().unwrap() - offset.to_u32())
-                                        >= array_type.flattened_size()
+                                        >= (array_type.element_size() as u32 * len)
                                 })
                         }
 
