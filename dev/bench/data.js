@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753112039165,
+  "lastUpdate": 1753112121193,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11822,75 +11822,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2bffde404e59bdac6dbca583985db585dedd5ab5",
-          "message": "fix(ssa): Iterative branch analysis (#9139)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-10T14:34:49Z",
-          "tree_id": "98b7bbcbc53478842963f1a098dc2e9a7aa15902",
-          "url": "https://github.com/noir-lang/noir/commit/2bffde404e59bdac6dbca583985db585dedd5ab5"
-        },
-        "date": 1752161468173,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 189.55,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 178.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.18,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15365,6 +15296,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/de536523e69a21733361ff0e9ff4748a0005e2a1"
         },
         "date": 1753105357953,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 202.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 238.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 191.37,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 435.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1510,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 324.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 327.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.3,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.56,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ed329988a7d21de0380ca42bf8ed08b07133fea8",
+          "message": "fix(acir_gen): Bail out of `handle_constant_index` when it encounters `DynamicArray` (#9259)",
+          "timestamp": "2025-07-21T14:43:00Z",
+          "tree_id": "b071162d971ff3a6c0c85fc597dfc04743ab0e05",
+          "url": "https://github.com/noir-lang/noir/commit/ed329988a7d21de0380ca42bf8ed08b07133fea8"
+        },
+        "date": 1753112105116,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
