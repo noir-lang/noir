@@ -58,6 +58,7 @@ fn run_stdlib_tests(force_brillig: bool, inliner_aggressiveness: i64) {
     let dummy_package = Package {
         version: None,
         compiler_required_version: None,
+        compiler_required_unstable_features: Vec::new(),
         root_dir: PathBuf::from("."),
         package_type: PackageType::Binary,
         entry_path: PathBuf::from("main.nr"),

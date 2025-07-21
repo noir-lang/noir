@@ -68,6 +68,7 @@ impl CodeActionFinder<'_> {
                     defining_module,
                     &intermediate_name,
                     self.interner,
+                    self.def_maps,
                 ) else {
                     continue;
                 };
