@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753090976978,
+  "lastUpdate": 1753091322963,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4088,85 +4088,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "409c8386abbe83c133dfde1f4732d1b9834bb7cf",
-          "message": "fix: check for maximum limbs during radix decomposition (#9134)",
-          "timestamp": "2025-07-10T08:15:54Z",
-          "tree_id": "490117c70fed6a91d2f6fffd0a681c78c8e1ddb2",
-          "url": "https://github.com/noir-lang/noir/commit/409c8386abbe83c133dfde1f4732d1b9834bb7cf"
-        },
-        "date": 1752137216981,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.816,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.09,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.324,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 192,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 193,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.336,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.474,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.777,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -8161,6 +8082,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.854,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "566de3f20199259e1594d778e47ad3550aa344cd",
+          "message": "fix(licm): Ensure that all nested loops the current block is part of are guaranteed to execute (#9249)",
+          "timestamp": "2025-07-21T09:18:17Z",
+          "tree_id": "74351d0506a127948c7b14d5e8c11e90b1fc62c6",
+          "url": "https://github.com/noir-lang/noir/commit/566de3f20199259e1594d778e47ad3550aa344cd"
+        },
+        "date": 1753091307212,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.944,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.036,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.716,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.662,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.864,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.885,
             "unit": "s"
           }
         ]
