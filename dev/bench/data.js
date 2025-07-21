@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753101285419,
+  "lastUpdate": 1753101638663,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -27801,6 +27801,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/566de3f20199259e1594d778e47ad3550aa344cd"
         },
         "date": 1753091310316,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 15080,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11347,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 261916,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 201205,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 70748,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1079444,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1080739,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3136,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "67ac4563c3df74a5a464f6f097472551a6b8f7cb",
+          "message": "chore: add acir-gen unit tests per ssa instruction (2) (#9185)",
+          "timestamp": "2025-07-21T12:10:08Z",
+          "tree_id": "cbfb9f89f2e4111c634a07bc3255e90d16615a56",
+          "url": "https://github.com/noir-lang/noir/commit/67ac4563c3df74a5a464f6f097472551a6b8f7cb"
+        },
+        "date": 1753101622808,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
