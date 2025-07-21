@@ -907,7 +907,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
                 if index > 0 {
                     string.push_str(", ");
                 }
-                append_value_to_string(value, string)?;
+                append_value_to_string(&value.borrow(), string)?;
             }
             if len == 1 {
                 string.push(',');
