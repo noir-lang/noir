@@ -73,11 +73,6 @@ export default {
           position: 'right',
         },
         {
-          href: 'https://noir-lang.github.io/noir/docs/nargo/index.html',
-          label: 'Source reference',
-          position: 'right',
-        },
-        {
           type: 'docsVersionDropdown',
           position: 'left',
           dropdownActiveClassDisabled: true,
