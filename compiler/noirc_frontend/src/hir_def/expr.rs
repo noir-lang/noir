@@ -256,6 +256,10 @@ impl HirMethodReference {
                 (interner.function_definition_id(func_id), ImplKind::NotATraitMethod)
             }
             HirMethodReference::TraitItemId(definition, trait_id, trait_generics, assumed) => {
+                // Problem: `object_type != Self`: we can have `object_type = &mut Foo` and `&mut Self`,
+                // therefore `Self = Foo`, not `&mut Foo`
+                // Need to match object_type against the self parameter of this method to solve this.
+
                 let constraint = TraitConstraint {
                     typ: object_type,
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },

@@ -976,8 +976,8 @@ impl Elaborator<'_> {
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
-                method.assumed,
                 &mut bindings,
+                ident.location,
             );
         }
 

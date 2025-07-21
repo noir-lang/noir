@@ -1,0 +1,6 @@
+[package]
+name = "trait_constraint_self_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]
