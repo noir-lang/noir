@@ -1866,7 +1866,7 @@
                 <span class="kw">if </span>index &gt; <span class="number">0 </span>{
                     string.push_str(<span class="string">", "</span>);
                 }
-                append_value_to_string(value, string)<span class="question-mark">?</span>;
+                append_value_to_string(<span class="kw-2">&amp;</span>value.borrow(), string)<span class="question-mark">?</span>;
             }
             <span class="kw">if </span>len == <span class="number">1 </span>{
                 string.push(<span class="string">','</span>);

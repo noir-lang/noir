@@ -741,7 +741,35 @@
 <a href="#740" id="740">740</a>
 <a href="#741" id="741">741</a>
 <a href="#742" id="742">742</a>
-<a href="#743" id="743">743</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -802,8 +830,14 @@
     // in case they use functions such as `Quoted::as_type` which require them.
     </span>Closure(Box&lt;Closure&gt;),
 
-    Tuple(Vec&lt;Value&gt;),
-    Struct(HashMap&lt;Rc&lt;String&gt;, Value&gt;, Type),
+    <span class="doccomment">/// Tuple elements are automatically shared to support projection into a tuple:
+    /// `let elem = &amp;mut tuple.0` should mutate the original element.
+    </span>Tuple(Vec&lt;Shared&lt;Value&gt;&gt;),
+
+    <span class="doccomment">/// Struct elements are automatically shared to support projection:
+    /// `let elem = &amp;mut my_struct.field` should mutate the original element.
+    </span>Struct(StructFields, Type),
+
     Enum(<span class="comment">/*tag*/ </span>usize, <span class="comment">/*args*/ </span>Vec&lt;Value&gt;, Type),
     Pointer(Shared&lt;Value&gt;, <span class="comment">/* auto_deref */ </span>bool, <span class="comment">/* mutable */ </span>bool),
     Array(Vector&lt;Value&gt;, Type),
@@ -821,6 +855,8 @@
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
+
+<span class="kw">pub type </span>StructFields = HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>Closure {
@@ -888,7 +924,7 @@
             Value::Function(<span class="kw">_</span>, typ, <span class="kw">_</span>) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Closure(closure) =&gt; <span class="kw">return </span>Cow::Borrowed(<span class="kw-2">&amp;</span>closure.typ),
             Value::Tuple(fields) =&gt; {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+                Type::Tuple(vecmap(fields, |field| field.borrow().get_type().into_owned()))
             }
             Value::Struct(<span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
             Value::Enum(<span class="kw">_</span>, <span class="kw">_</span>, typ) =&gt; <span class="kw">return </span>Cow::Borrowed(typ),
@@ -987,13 +1023,14 @@
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>fields =
-                    try_vecmap(fields, |field| field.into_expression(elaborator, location))<span class="question-mark">?</span>;
+                <span class="kw">let </span>fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_expression(elaborator, location)
+                })<span class="question-mark">?</span>;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) =&gt; {
                 <span class="kw">let </span>fields = try_vecmap(fields, |(name, field)| {
-                    <span class="kw">let </span>field = field.into_expression(elaborator, location)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>field = field.unwrap_or_clone().into_expression(elaborator, location)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>((Ident::new(unwrap_rc(name), location), field))
                 })<span class="question-mark">?</span>;
 
@@ -1155,13 +1192,14 @@
                 <span class="kw">return </span><span class="prelude-val">Ok</span>(expr_id);
             }
             Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>fields =
-                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))<span class="question-mark">?</span>;
+                <span class="kw">let </span>fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                })<span class="question-mark">?</span>;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) =&gt; {
                 <span class="kw">let </span>fields = try_vecmap(fields, |(name, field)| {
-                    <span class="kw">let </span>field = field.into_hir_expression(interner, location)<span class="question-mark">?</span>;
+                    <span class="kw">let </span>field = field.unwrap_or_clone().into_hir_expression(interner, location)<span class="question-mark">?</span>;
                     <span class="prelude-val">Ok</span>((Ident::new(unwrap_rc(name), location), field))
                 })<span class="question-mark">?</span>;
 
@@ -1358,9 +1396,11 @@
             Value::Slice(values, <span class="kw">_</span>) =&gt; {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Tuple(values) =&gt; values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Tuple(values) =&gt; {
+                values.iter().any(|value| value.borrow().contains_function_or_closure())
+            }
             Value::Struct(fields, <span class="kw">_</span>) =&gt; {
-                fields.values().any(|value| value.contains_function_or_closure())
+                fields.values().any(|value| value.borrow().contains_function_or_closure())
             }
             Value::Enum(<span class="kw">_</span>, values, <span class="kw">_</span>) =&gt; {
                 values.iter().any(|value| value.contains_function_or_closure())
@@ -1449,6 +1489,22 @@
             Value::I64(x) =&gt; <span class="kw-2">*</span>x &lt; <span class="number">0</span>,
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>, <span class="comment">// Unsigned or Field types are never negative
         </span>}
+    }
+
+    <span class="doccomment">/// Copies an argument ensuring any references to struct/tuple fields are replaced with fresh ones.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>copy(<span class="self">self</span>) -&gt; Value {
+        <span class="kw">match </span><span class="self">self </span>{
+            Value::Tuple(fields) =&gt; {
+                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().copy())))
+            }
+            Value::Struct(fields, typ) =&gt; {
+                <span class="kw">let </span>fields = fields
+                    .into_iter()
+                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().copy())));
+                Value::Struct(fields.collect(), typ)
+            }
+            other =&gt; other,
+        }
     }
 }
 

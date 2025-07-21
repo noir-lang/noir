@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ExprValue","TypedExpr","Value"],"fn":["parse_tokens","unwrap_rc"],"struct":["Closure"]};
+window.SIDEBAR_ITEMS = {"enum":["ExprValue","TypedExpr","Value"],"fn":["parse_tokens","unwrap_rc"],"struct":["Closure"],"type":["StructFields"]};

@@ -971,7 +971,8 @@
 <a href="#970" id="970">970</a>
 <a href="#971" id="971">971</a>
 <a href="#972" id="972">972</a>
-<a href="#973" id="973">973</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#973" id="973">973</a>
+<a href="#974" id="974">974</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -1359,7 +1360,8 @@
             Value::Function(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(function)"</span>),
             Value::Closure(..) =&gt; <span class="macro">write!</span>(f, <span class="string">"(closure)"</span>),
             Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>fields = vecmap(fields, |field| field.display(<span class="self">self</span>.interner).to_string());
+                <span class="kw">let </span>fields =
+                    vecmap(fields, |field| field.borrow().display(<span class="self">self</span>.interner).to_string());
                 <span class="kw">if </span>fields.len() == <span class="number">1 </span>{
                     <span class="macro">write!</span>(f, <span class="string">"({},)"</span>, fields[<span class="number">0</span>])
                 } <span class="kw">else </span>{
@@ -1372,7 +1374,7 @@
                     other =&gt; other.to_string(),
                 };
                 <span class="kw">let </span>fields = vecmap(fields, |(name, value)| {
-                    <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, name, value.display(<span class="self">self</span>.interner))
+                    <span class="macro">format!</span>(<span class="string">"{}: {}"</span>, name, value.borrow().display(<span class="self">self</span>.interner))
                 });
                 <span class="macro">write!</span>(f, <span class="string">"{typename} {{ {} }}"</span>, fields.join(<span class="string">", "</span>))
             }

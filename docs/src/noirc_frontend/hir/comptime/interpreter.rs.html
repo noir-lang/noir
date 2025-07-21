@@ -1700,7 +1700,49 @@
 <a href="#1699" id="1699">1699</a>
 <a href="#1700" id="1700">1700</a>
 <a href="#1701" id="1701">1701</a>
-<a href="#1702" id="1702">1702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -2124,6 +2166,7 @@
                         <span class="kw">for </span>((pattern, typ), argument) <span class="kw">in
                             </span>pattern_fields.iter().zip(type_fields).zip(fields)
                         {
+                            <span class="kw">let </span>argument = argument.borrow().clone();
                             <span class="self">self</span>.define_pattern(pattern, typ, argument, location)<span class="question-mark">?</span>;
                         }
                         <span class="prelude-val">Ok</span>(())
@@ -2152,6 +2195,7 @@
                                 }
                             })<span class="question-mark">?</span>;
 
+                            <span class="kw">let </span>field = field.borrow();
                             <span class="kw">let </span>field_type = field.get_type().into_owned();
                             <span class="kw">let </span>result = <span class="self">self</span>.define_pattern(
                                 field_pattern,
@@ -2194,7 +2238,10 @@
             <span class="kw">if let </span>Entry::Occupied(<span class="kw-2">mut </span>entry) = scope.entry(id) {
                 <span class="kw">match </span>entry.get() {
                     Value::Pointer(reference, <span class="bool-val">true</span>, <span class="kw">_</span>) =&gt; {
-                        <span class="kw-2">*</span>reference.borrow_mut() = argument;
+                        <span class="comment">// We can't store to the reference directly, we need to check if the value
+                        // is a struct or tuple to store to each field instead. This is so any
+                        // references to these fields are also updated.
+                        </span><span class="self">Self</span>::store_flattened(reference.clone(), argument);
                     }
                     <span class="kw">_ </span>=&gt; {
                         entry.insert(argument);
@@ -2600,8 +2647,8 @@
     /// - `&lt;=`: `ordering != Ordering::Less`
     </span><span class="kw">fn </span>evaluate_ordering(<span class="kw-2">&amp;</span><span class="self">self</span>, ordering: Value, operator: BinaryOpKind) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>ordering = <span class="kw">match </span>ordering {
-            Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="kw">match </span>fields.into_iter().next().unwrap().<span class="number">1 </span>{
-                Value::Field(ordering) =&gt; ordering,
+            Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>fields.into_iter().next().unwrap().<span class="number">1</span>.borrow() {
+                Value::Field(ordering) =&gt; <span class="kw-2">*</span>ordering,
                 <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`cmp` should always return an Ordering value"</span>),
             },
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"`cmp` should always return an Ordering value"</span>),
@@ -2640,7 +2687,7 @@
             .fields
             .into_iter()
             .map(|(name, expr)| {
-                <span class="kw">let </span>field_value = <span class="self">self</span>.evaluate(expr)<span class="question-mark">?</span>;
+                <span class="kw">let </span>field_value = Shared::new(<span class="self">self</span>.evaluate(expr)<span class="question-mark">?</span>);
                 <span class="prelude-val">Ok</span>((Rc::new(name.into_string()), field_value))
             })
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
@@ -2663,11 +2710,11 @@
         <span class="kw">let </span>(fields, struct_type) = <span class="kw">match </span><span class="self">self</span>.evaluate(access.lhs)<span class="question-mark">? </span>{
             Value::Struct(fields, typ) =&gt; (fields, typ),
             Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>(fields, field_types): (HashMap&lt;Rc&lt;String&gt;, Value&gt;, Vec&lt;Type&gt;) = fields
+                <span class="kw">let </span>(fields, field_types): (HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;, Vec&lt;Type&gt;) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
-                        <span class="kw">let </span>field_type = field.get_type().into_owned();
+                        <span class="kw">let </span>field_type = field.borrow().get_type().into_owned();
                         <span class="kw">let </span>key_val_pair = (Rc::new(i.to_string()), field);
                         (key_val_pair, field_type)
                     })
@@ -2681,19 +2728,25 @@
             }
         };
 
-        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
+        <span class="kw">let </span>field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
             <span class="kw">let </span>value = Value::Struct(fields, struct_type);
             <span class="kw">let </span>field_name = access.rhs.into_string();
             <span class="kw">let </span>typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })
+        })<span class="question-mark">?</span>;
+
+        <span class="comment">// Return a reference to the field so that `&amp;mut foo.bar.baz` can use this reference.
+        // We set auto_deref to true so that when it is used elsewhere it is dereferenced
+        // automatically.
+        </span><span class="prelude-val">Ok</span>(Value::Pointer(field, <span class="bool-val">true</span>, <span class="bool-val">false</span>))
     }
 
     <span class="kw">fn </span>evaluate_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: HirCallExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>function = <span class="self">self</span>.evaluate(call.func)<span class="question-mark">?</span>;
         <span class="kw">let </span>arguments = try_vecmap(call.arguments, |arg| {
-            <span class="prelude-val">Ok</span>((<span class="self">self</span>.evaluate(arg)<span class="question-mark">?</span>, <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>arg)))
+            <span class="kw">let </span>value = <span class="self">self</span>.evaluate(arg)<span class="question-mark">?</span>.copy();
+            <span class="prelude-val">Ok</span>((value, <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>arg)))
         })<span class="question-mark">?</span>;
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
 
@@ -2786,7 +2839,7 @@
     }
 
     <span class="kw">fn </span>evaluate_tuple(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tuple: Vec&lt;ExprId&gt;) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>fields = try_vecmap(tuple, |field| <span class="self">self</span>.evaluate(field))<span class="question-mark">?</span>;
+        <span class="kw">let </span>fields = try_vecmap(tuple, |field| <span class="prelude-val">Ok</span>(Shared::new(<span class="self">self</span>.evaluate(field)<span class="question-mark">?</span>)))<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Value::Tuple(fields))
     }
 
@@ -2867,7 +2920,7 @@
             HirLValue::Dereference { lvalue, element_type: <span class="kw">_</span>, location, implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.evaluate_lvalue(<span class="kw-2">&amp;</span>lvalue)<span class="question-mark">? </span>{
                     Value::Pointer(value, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
-                        <span class="kw-2">*</span>value.borrow_mut() = rhs;
+                        <span class="self">Self</span>::store_flattened(value, rhs);
                         <span class="prelude-val">Ok</span>(())
                     }
                     value =&gt; {
@@ -2888,11 +2941,11 @@
 
                 <span class="kw">match </span>object_value {
                     Value::Tuple(<span class="kw-2">mut </span>fields) =&gt; {
-                        fields[index] = rhs;
+                        fields[index] = Shared::new(rhs);
                         <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Tuple(fields))
                     }
                     Value::Struct(<span class="kw-2">mut </span>fields, typ) =&gt; {
-                        fields.insert(Rc::new(field_name.into_string()), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), Shared::new(rhs));
                         <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value =&gt; {
@@ -2915,6 +2968,35 @@
 
                 <span class="kw">let </span>new_array = constructor(elements.update(index, rhs), typ);
                 <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>array, new_array)
+            }
+        }
+    }
+
+    <span class="doccomment">/// When we store to a struct such as in
+    /// ```noir
+    /// let mut a = (false,);
+    /// let b = &amp;mut a.0;
+    /// a = (true,);
+    /// ```
+    /// we must flatten the store to store to each individual field so that any existing
+    /// references, such as `b` above, will also reflect the mutation.
+    </span><span class="kw">fn </span>store_flattened(lvalue: Shared&lt;Value&gt;, rvalue: Value) {
+        <span class="kw">let </span>lvalue_ref = lvalue.borrow();
+        <span class="kw">match </span>(<span class="kw-2">&amp;*</span>lvalue_ref, rvalue) {
+            (Value::Struct(lvalue_fields, <span class="kw">_</span>), Value::Struct(<span class="kw-2">mut </span>rvalue_fields, <span class="kw">_</span>)) =&gt; {
+                <span class="kw">for </span>(name, lvalue) <span class="kw">in </span>lvalue_fields.iter() {
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(rvalue) = rvalue_fields.remove(name) <span class="kw">else </span>{ <span class="kw">continue </span>};
+                    <span class="self">Self</span>::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) =&gt; {
+                <span class="kw">for </span>(lvalue, rvalue) <span class="kw">in </span>lvalue_fields.iter().zip(rvalue_fields) {
+                    <span class="self">Self</span>::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (<span class="kw">_</span>, rvalue) =&gt; {
+                drop(lvalue_ref);
+                <span class="kw-2">*</span>lvalue.borrow_mut() = rvalue;
             }
         }
     }
@@ -2946,8 +3028,10 @@
                 })<span class="question-mark">?</span>;
 
                 <span class="kw">match </span>object_value {
-                    Value::Tuple(<span class="kw-2">mut </span>values) =&gt; <span class="prelude-val">Ok</span>(values.swap_remove(index)),
-                    Value::Struct(fields, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(fields[field_name.as_string()].clone()),
+                    Value::Tuple(<span class="kw-2">mut </span>values) =&gt; <span class="prelude-val">Ok</span>(values.swap_remove(index).unwrap_or_clone()),
+                    Value::Struct(fields, <span class="kw">_</span>) =&gt; {
+                        <span class="prelude-val">Ok</span>(fields[field_name.as_string()].clone().unwrap_or_clone())
+                    }
                     value =&gt; <span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: <span class="kw-2">*</span>location,

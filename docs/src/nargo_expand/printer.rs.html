@@ -2132,7 +2132,7 @@
                     <span class="kw">if </span>index != <span class="number">0 </span>{
                         <span class="self">self</span>.push_str(<span class="string">", "</span>);
                     }
-                    <span class="self">self</span>.show_value(value);
+                    <span class="self">self</span>.show_value(<span class="kw-2">&amp;</span>value.borrow());
                 }
                 <span class="kw">if </span>values.len() == <span class="number">1 </span>{
                     <span class="self">self</span>.push(<span class="string">','</span>);
@@ -2151,7 +2151,7 @@
                         <span class="self">self</span>.write_indent();
                         <span class="self">self</span>.push_str(name);
                         <span class="self">self</span>.push_str(<span class="string">": "</span>);
-                        <span class="self">self</span>.show_value(value);
+                        <span class="self">self</span>.show_value(<span class="kw-2">&amp;</span>value.borrow());
                         <span class="self">self</span>.push_str(<span class="string">",\n"</span>);
                     }
                     <span class="self">self</span>.decrease_indent();

@@ -3121,7 +3121,30 @@
 <a href="#3120" id="3120">3120</a>
 <a href="#3121" id="3121">3121</a>
 <a href="#3122" id="3122">3122</a>
-<a href="#3123" id="3123">3123</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3123" id="3123">3123</a>
+<a href="#3124" id="3124">3124</a>
+<a href="#3125" id="3125">3125</a>
+<a href="#3126" id="3126">3126</a>
+<a href="#3127" id="3127">3127</a>
+<a href="#3128" id="3128">3128</a>
+<a href="#3129" id="3129">3129</a>
+<a href="#3130" id="3130">3130</a>
+<a href="#3131" id="3131">3131</a>
+<a href="#3132" id="3132">3132</a>
+<a href="#3133" id="3133">3133</a>
+<a href="#3134" id="3134">3134</a>
+<a href="#3135" id="3135">3135</a>
+<a href="#3136" id="3136">3136</a>
+<a href="#3137" id="3137">3137</a>
+<a href="#3138" id="3138">3138</a>
+<a href="#3139" id="3139">3139</a>
+<a href="#3140" id="3140">3140</a>
+<a href="#3141" id="3141">3141</a>
+<a href="#3142" id="3142">3142</a>
+<a href="#3143" id="3143">3143</a>
+<a href="#3144" id="3144">3144</a>
+<a href="#3145" id="3145">3145</a>
+<a href="#3146" id="3146">3146</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3632,8 +3655,8 @@
                 Kind::Numeric(numeric_type) =&gt; <span class="prelude-val">Some</span>(Value::Type(<span class="kw-2">*</span>numeric_type)),
                 <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
             };
-            <span class="kw">let </span>numeric_type = option(option_typ.clone(), numeric_type, location);
-            Value::Tuple(<span class="macro">vec!</span>[Value::Type(generic_as_named), numeric_type])
+            <span class="kw">let </span>numeric_type = Shared::new(option(option_typ.clone(), numeric_type, location));
+            Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Type(generic_as_named)), numeric_type])
         })
         .collect();
 
@@ -3699,9 +3722,10 @@
     <span class="kw">if let </span><span class="prelude-val">Some</span>(struct_fields) = struct_def.get_fields(<span class="kw-2">&amp;</span>generic_args) {
         <span class="kw">for </span>(field_name, field_type, visibility) <span class="kw">in </span>struct_fields {
             <span class="kw">let </span>token = LocatedToken::new(Token::Ident(field_name), location);
-            <span class="kw">let </span>name = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
-            <span class="kw">let </span>visibility = visibility_to_quoted(visibility, location);
-            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, Value::Type(field_type), visibility]));
+            <span class="kw">let </span>name = Shared::new(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])));
+            <span class="kw">let </span>field_type = Shared::new(Value::Type(field_type));
+            <span class="kw">let </span>visibility = Shared::new(visibility_to_quoted(visibility, location));
+            fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, field_type, visibility]));
         }
     }
 
@@ -3732,9 +3756,10 @@
     <span class="kw">if let </span><span class="prelude-val">Some</span>(struct_fields) = struct_def.get_fields_as_written() {
         <span class="kw">for </span>field <span class="kw">in </span>struct_fields {
             <span class="kw">let </span>token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
-            <span class="kw">let </span>name = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
-            <span class="kw">let </span>typ = Value::Type(field.typ);
-            <span class="kw">let </span>visibility = visibility_to_quoted(field.visibility, location);
+            <span class="kw">let </span>name = Shared::new(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])));
+
+            <span class="kw">let </span>typ = Shared::new(Value::Type(field.typ));
+            <span class="kw">let </span>visibility = Shared::new(visibility_to_quoted(field.visibility, location));
             fields.push_back(Value::Tuple(<span class="macro">vec!</span>[name, typ, visibility]));
         }
     }
@@ -3799,9 +3824,9 @@
 
     <span class="kw">for </span>(index, <span class="kw-2">mut </span>field_pair) <span class="kw">in </span>fields {
         <span class="kw">if </span>field_pair.len() == <span class="number">3 </span>{
-            <span class="kw">let </span>visibility = field_pair.pop().unwrap();
-            <span class="kw">let </span>typ = field_pair.pop().unwrap();
-            <span class="kw">let </span>name_value = field_pair.pop().unwrap();
+            <span class="kw">let </span>visibility = field_pair.pop().unwrap().unwrap_or_clone();
+            <span class="kw">let </span>typ = field_pair.pop().unwrap().unwrap_or_clone();
+            <span class="kw">let </span>name_value = field_pair.pop().unwrap().unwrap_or_clone();
 
             <span class="kw">let </span>name_tokens = get_quoted((name_value.clone(), field_location))<span class="question-mark">?</span>;
             <span class="kw">let </span>typ = get_type((typ, field_location))<span class="question-mark">?</span>;
@@ -3832,7 +3857,8 @@
             <span class="kw">let </span>type_var = elaborator.interner.next_type_variable();
             <span class="kw">let </span>expected = Type::Tuple(<span class="macro">vec!</span>[type_var.clone(), type_var]);
 
-            <span class="kw">let </span>actual = Type::Tuple(vecmap(<span class="kw-2">&amp;</span>field_pair, |value| value.get_type().into_owned()));
+            <span class="kw">let </span>actual =
+                Type::Tuple(vecmap(<span class="kw-2">&amp;</span>field_pair, |value| value.borrow().get_type().into_owned()));
 
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location });
         }
@@ -3865,8 +3891,8 @@
         <span class="kw">return </span>failing_constraint(message, location, call_stack);
     }
 
-    <span class="kw">let </span>element = values.remove(index);
-    <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Slice(values, typ), element]))
+    <span class="kw">let </span>element = Shared::new(values.remove(index));
+    <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), element]))
 }
 
 <span class="kw">fn </span>slice_push_front(
@@ -3891,7 +3917,9 @@
 
     <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_front() {
-        <span class="prelude-val">Some</span>(element) =&gt; <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[element, Value::Slice(values, typ)])),
+        <span class="prelude-val">Some</span>(element) =&gt; {
+            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(element), Shared::new(Value::Slice(values, typ))]))
+        }
         <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"slice_pop_front called on empty slice"</span>, location, call_stack),
     }
 }
@@ -3906,7 +3934,9 @@
 
     <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_slice(interner, argument)<span class="question-mark">?</span>;
     <span class="kw">match </span>values.pop_back() {
-        <span class="prelude-val">Some</span>(element) =&gt; <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Slice(values, typ), element])),
+        <span class="prelude-val">Some</span>(element) =&gt; {
+            <span class="prelude-val">Ok</span>(Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Slice(values, typ)), Shared::new(element)]))
+        }
         <span class="prelude-val">None </span>=&gt; failing_constraint(<span class="string">"slice_pop_back called on empty slice"</span>, location, call_stack),
     }
 }
@@ -4128,7 +4158,9 @@
 ) -&gt; IResult&lt;Value&gt; {
     type_as(arguments, return_type, location, |typ| {
         <span class="kw">if let </span>Type::Array(length, array_type) = typ {
-            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Type(<span class="kw-2">*</span>array_type), Value::Type(<span class="kw-2">*</span>length)]))
+            <span class="kw">let </span>array_type = Shared::new(Value::Type(<span class="kw-2">*</span>array_type));
+            <span class="kw">let </span>length_type = Shared::new(Value::Type(<span class="kw-2">*</span>length));
+            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[array_type, length_type]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -4168,7 +4200,9 @@
 ) -&gt; IResult&lt;Value&gt; {
     type_as(arguments, return_type, location, |typ| {
         <span class="kw">if let </span>Type::Integer(sign, bits) = typ {
-            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+            <span class="kw">let </span>sign = Shared::new(Value::Bool(sign.is_signed()));
+            <span class="kw">let </span>bit_size = Shared::new(Value::U8(bits.bit_size()));
+            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[sign, bit_size]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>}
@@ -4217,11 +4251,11 @@
     type_as(arguments, return_type, location, |typ| {
         <span class="kw">if let </span>Type::DataType(struct_type, generics) = typ {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::TypeDefinition(struct_type.borrow().id),
-                Value::Slice(
+                Shared::new(Value::TypeDefinition(struct_type.borrow().id)),
+                Shared::new(Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
-                ),
+                )),
             ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4616,7 +4650,9 @@
             }
         }
         Type::Unit =&gt; Value::Unit,
-        Type::Tuple(fields) =&gt; Value::Tuple(vecmap(fields, |field| zeroed(field, location))),
+        Type::Tuple(fields) =&gt; {
+            Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location))))
+        }
         Type::DataType(data_type, generics) =&gt; {
             <span class="kw">let </span>typ = data_type.borrow();
 
@@ -4624,7 +4660,7 @@
                 <span class="kw">let </span><span class="kw-2">mut </span>values = HashMap::default();
 
                 <span class="kw">for </span>(field_name, field_type, <span class="kw">_</span>) <span class="kw">in </span>fields {
-                    <span class="kw">let </span>field_value = zeroed(field_type, location);
+                    <span class="kw">let </span>field_value = Shared::new(zeroed(field_type, location));
                     values.insert(Rc::new(field_name), field_value);
                 }
 
@@ -4709,7 +4745,7 @@
                 } <span class="kw">else </span>{
                     (<span class="prelude-val">Some</span>(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
                 };
-                <span class="kw">let </span>predicate = Value::expression(predicate.kind);
+                <span class="kw">let </span>predicate = Shared::new(Value::expression(predicate.kind));
 
                 <span class="kw">let </span>option_type = extract_option_generic_type(return_type);
                 <span class="kw">let </span>Type::Tuple(<span class="kw-2">mut </span>tuple_types) = option_type <span class="kw">else </span>{
@@ -4719,7 +4755,7 @@
 
                 <span class="kw">let </span>option_type = tuple_types.pop().unwrap();
                 <span class="kw">let </span>message = message.map(|msg| Value::expression(msg.kind));
-                <span class="kw">let </span>message = option(option_type, message, location);
+                <span class="kw">let </span>message = Shared::new(option(option_type, message, location));
 
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[predicate, message]))
             } <span class="kw">else </span>{
@@ -4754,8 +4790,8 @@
                     )
                 };
 
-                <span class="kw">let </span>lhs = Value::expression(lhs.kind);
-                <span class="kw">let </span>rhs = Value::expression(rhs.kind);
+                <span class="kw">let </span>lhs = Shared::new(Value::expression(lhs.kind));
+                <span class="kw">let </span>rhs = Shared::new(Value::expression(rhs.kind));
 
                 <span class="kw">let </span>option_type = extract_option_generic_type(return_type);
                 <span class="kw">let </span>Type::Tuple(<span class="kw-2">mut </span>tuple_types) = option_type <span class="kw">else </span>{
@@ -4765,7 +4801,7 @@
 
                 <span class="kw">let </span>option_type = tuple_types.pop().unwrap();
                 <span class="kw">let </span>message = message.map(|message| Value::expression(message.kind));
-                <span class="kw">let </span>message = option(option_type, message, location);
+                <span class="kw">let </span>message = Shared::new(option(option_type, message, location));
 
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, rhs, message]))
             } <span class="kw">else </span>{
@@ -4786,8 +4822,8 @@
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Statement(StatementKind::Assign(assign)) = expr {
-            <span class="kw">let </span>lhs = Value::lvalue(assign.lvalue);
-            <span class="kw">let </span>rhs = Value::expression(assign.expression.kind);
+            <span class="kw">let </span>lhs = Shared::new(Value::lvalue(assign.lvalue));
+            <span class="kw">let </span>rhs = Shared::new(Value::expression(assign.expression.kind));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, rhs]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4812,9 +4848,9 @@
 
             tuple_types.pop().unwrap();
             <span class="kw">let </span>binary_op_type = tuple_types.pop().unwrap();
-            <span class="kw">let </span>binary_op = new_binary_op(infix_expr.operator, binary_op_type);
-            <span class="kw">let </span>lhs = Value::expression(infix_expr.lhs.kind);
-            <span class="kw">let </span>rhs = Value::expression(infix_expr.rhs.kind);
+            <span class="kw">let </span>binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            <span class="kw">let </span>lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
+            <span class="kw">let </span>rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, binary_op, rhs]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4863,8 +4899,8 @@
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
-            <span class="kw">let </span>lhs = Value::expression(cast.lhs.kind);
-            <span class="kw">let </span>typ = Value::UnresolvedType(cast.r#type.typ);
+            <span class="kw">let </span>lhs = Shared::new(Value::expression(cast.lhs.kind));
+            <span class="kw">let </span>typ = Shared::new(Value::UnresolvedType(cast.r#type.typ));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[lhs, typ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4918,17 +4954,19 @@
 
     <span class="kw">let </span>option_value =
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
-            <span class="kw">let </span>typ = Value::UnresolvedType(constructor.typ.typ);
+            <span class="kw">let </span>typ = Shared::new(Value::UnresolvedType(constructor.typ.typ));
             <span class="kw">let </span>fields = constructor.fields.into_iter();
             <span class="kw">let </span>fields = fields.map(|(name, value)| {
-                Value::Tuple(<span class="macro">vec!</span>[quote_ident(<span class="kw-2">&amp;</span>name, location), Value::expression(value.kind)])
+                <span class="kw">let </span>ident = Shared::new(quote_ident(<span class="kw-2">&amp;</span>name, location));
+                <span class="kw">let </span>expr = Shared::new(Value::expression(value.kind));
+                Value::Tuple(<span class="macro">vec!</span>[ident, expr])
             });
             <span class="kw">let </span>fields = fields.collect();
             <span class="kw">let </span>fields_type = Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
                 Type::Quoted(QuotedType::Quoted),
                 Type::Quoted(QuotedType::Expr),
             ])));
-            <span class="kw">let </span>fields = Value::Slice(fields, fields_type);
+            <span class="kw">let </span>fields = Shared::new(Value::Slice(fields, fields_type));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[typ, fields]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -4949,9 +4987,9 @@
             <span class="kw">if let </span>ForRange::Array(array) = for_statement.range {
                 <span class="kw">let </span>token = Token::Ident(for_statement.identifier.into_string());
                 <span class="kw">let </span>token = LocatedToken::new(token, location);
-                <span class="kw">let </span>identifier = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
-                <span class="kw">let </span>array = Value::expression(array.kind);
-                <span class="kw">let </span>body = Value::expression(for_statement.block.kind);
+                <span class="kw">let </span>identifier = Shared::new(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])));
+                <span class="kw">let </span>array = Shared::new(Value::expression(array.kind));
+                <span class="kw">let </span>body = Shared::new(Value::expression(for_statement.block.kind));
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[identifier, array, body]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -4975,10 +5013,10 @@
                 <span class="kw">let </span>(from, to) = bounds.into_half_open();
                 <span class="kw">let </span>token = Token::Ident(for_statement.identifier.into_string());
                 <span class="kw">let </span>token = LocatedToken::new(token, location);
-                <span class="kw">let </span>identifier = Value::Quoted(Rc::new(<span class="macro">vec!</span>[token]));
-                <span class="kw">let </span>from = Value::expression(from.kind);
-                <span class="kw">let </span>to = Value::expression(to.kind);
-                <span class="kw">let </span>body = Value::expression(for_statement.block.kind);
+                <span class="kw">let </span>identifier = Shared::new(Value::Quoted(Rc::new(<span class="macro">vec!</span>[token])));
+                <span class="kw">let </span>from = Shared::new(Value::expression(from.kind));
+                <span class="kw">let </span>to = Shared::new(Value::expression(to.kind));
+                <span class="kw">let </span>body = Shared::new(Value::expression(for_statement.block.kind));
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[identifier, from, to, body]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -4998,11 +5036,13 @@
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Call(call_expression)) = expr {
-            <span class="kw">let </span>function = Value::expression(call_expression.func.kind);
+            <span class="kw">let </span>function = Shared::new(Value::expression(call_expression.func.kind));
             <span class="kw">let </span>arguments = call_expression.arguments.into_iter();
             <span class="kw">let </span>arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            <span class="kw">let </span>arguments =
-                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+            <span class="kw">let </span>arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[function, arguments]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5034,9 +5074,9 @@
             );
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::expression(if_expr.condition.kind),
-                Value::expression(if_expr.consequence.kind),
-                alternative,
+                Shared::new(Value::expression(if_expr.condition.kind)),
+                Shared::new(Value::expression(if_expr.consequence.kind)),
+                Shared::new(alternative),
             ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5054,8 +5094,8 @@
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::expression(index_expr.collection.kind),
-                Value::expression(index_expr.index.kind),
+                Shared::new(Value::expression(index_expr.collection.kind)),
+                Shared::new(Value::expression(index_expr.index.kind)),
             ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5073,15 +5113,15 @@
     expr_as(interner, arguments, return_type.clone(), location, |expr| <span class="kw">match </span>expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) =&gt; {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::Field(SignedField::positive(field.absolute_value())),
-                Value::Bool(field.is_negative()),
+                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                Shared::new(Value::Bool(field.is_negative())),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) =&gt; {
             <span class="kw">if let </span>HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(<span class="kw-2">&amp;</span>id) {
                 <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                    Value::Field(SignedField::positive(field.absolute_value())),
-                    Value::Bool(field.is_negative()),
+                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                    Shared::new(Value::Bool(field.is_negative())),
                 ]))
             } <span class="kw">else </span>{
                 <span class="prelude-val">None
@@ -5117,23 +5157,23 @@
                 .parameters
                 .into_iter()
                 .map(|(pattern, typ)| {
-                    <span class="kw">let </span>pattern = Value::pattern(pattern);
+                    <span class="kw">let </span>pattern = Shared::new(Value::pattern(pattern));
                     <span class="kw">let </span>typ = <span class="kw">if let </span>UnresolvedTypeData::Unspecified = typ.typ {
                         <span class="prelude-val">None
                     </span>} <span class="kw">else </span>{
                         <span class="prelude-val">Some</span>(Value::UnresolvedType(typ.typ))
                     };
-                    <span class="kw">let </span>typ = option(option_unresolved_type.clone(), typ, location);
+                    <span class="kw">let </span>typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
                     Value::Tuple(<span class="macro">vec!</span>[pattern, typ])
                 })
                 .collect();
-            <span class="kw">let </span>parameters = Value::Slice(
+            <span class="kw">let </span>parameters = Shared::new(Value::Slice(
                 parameters,
                 Type::Slice(Box::new(Type::Tuple(<span class="macro">vec!</span>[
                     Type::Quoted(QuotedType::Expr),
                     Type::Quoted(QuotedType::UnresolvedType),
                 ]))),
-            );
+            ));
 
             <span class="kw">let </span>return_type = lambda.return_type.typ;
             <span class="kw">let </span>return_type = <span class="kw">if let </span>UnresolvedTypeData::Unspecified = return_type {
@@ -5142,9 +5182,9 @@
                 <span class="prelude-val">Some</span>(return_type)
             };
             <span class="kw">let </span>return_type = return_type.map(Value::UnresolvedType);
-            <span class="kw">let </span>return_type = option(option_unresolved_type, return_type, location);
+            <span class="kw">let </span>return_type = Shared::new(option(option_unresolved_type, return_type, location));
 
-            <span class="kw">let </span>body = Value::expression(lambda.body.kind);
+            <span class="kw">let </span>body = Shared::new(Value::expression(lambda.body.kind));
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[parameters, return_type, body]))
         } <span class="kw">else </span>{
@@ -5179,9 +5219,9 @@
             <span class="kw">let </span>typ = option(option_type, typ, location);
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::pattern(let_statement.pattern),
-                typ,
-                Value::expression(let_statement.expression.kind),
+                Shared::new(Value::pattern(let_statement.pattern)),
+                Shared::new(typ),
+                Shared::new(Value::expression(let_statement.expression.kind)),
             ]))
         }
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -5198,12 +5238,15 @@
     expr_as(interner, arguments, return_type, location, |expr| <span class="kw">match </span>expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) =&gt; {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::expression(member_access.lhs.kind),
-                quote_ident(<span class="kw-2">&amp;</span>member_access.rhs, location),
+                Shared::new(Value::expression(member_access.lhs.kind)),
+                Shared::new(quote_ident(<span class="kw-2">&amp;</span>member_access.rhs, location)),
             ]))
         }
         ExprValue::LValue(<span class="kw">crate</span>::ast::LValue::MemberAccess { object, field_name, location: <span class="kw">_ </span>}) =&gt; {
-            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[Value::lvalue(<span class="kw-2">*</span>object), quote_ident(<span class="kw-2">&amp;</span>field_name, location)]))
+            <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
+                Shared::new(Value::lvalue(<span class="kw-2">*</span>object)),
+                Shared::new(quote_ident(<span class="kw-2">&amp;</span>field_name, location)),
+            ]))
         }
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
     })
@@ -5218,21 +5261,23 @@
 ) -&gt; IResult&lt;Value&gt; {
     expr_as(interner, arguments, return_type, location, |expr| {
         <span class="kw">if let </span>ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
-            <span class="kw">let </span>object = Value::expression(method_call.object.kind);
+            <span class="kw">let </span>object = Shared::new(Value::expression(method_call.object.kind));
 
-            <span class="kw">let </span>name = quote_ident(<span class="kw-2">&amp;</span>method_call.method_name, location);
+            <span class="kw">let </span>name = Shared::new(quote_ident(<span class="kw-2">&amp;</span>method_call.method_name, location));
 
             <span class="kw">let </span>generics = method_call.generics.unwrap_or_default().into_iter();
             <span class="kw">let </span>generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
-            <span class="kw">let </span>generics = Value::Slice(
+            <span class="kw">let </span>generics = Shared::new(Value::Slice(
                 generics,
                 Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
-            );
+            ));
 
             <span class="kw">let </span>arguments = method_call.arguments.into_iter();
             <span class="kw">let </span>arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            <span class="kw">let </span>arguments =
-                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+            <span class="kw">let </span>arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
 
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[object, name, generics, arguments]))
         } <span class="kw">else </span>{
@@ -5254,8 +5299,8 @@
         ))) = expr
         {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::expression(repeated_element.kind),
-                Value::expression(length.kind),
+                Shared::new(Value::expression(repeated_element.kind)),
+                Shared::new(Value::expression(length.kind)),
             ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5276,8 +5321,8 @@
         ))) = expr
         {
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[
-                Value::expression(repeated_element.kind),
-                Value::expression(length.kind),
+                Shared::new(Value::expression(repeated_element.kind)),
+                Shared::new(Value::expression(length.kind)),
             ]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5342,8 +5387,8 @@
 
             tuple_types.pop().unwrap();
             <span class="kw">let </span>unary_op_type = tuple_types.pop().unwrap();
-            <span class="kw">let </span>unary_op = new_unary_op(prefix_expr.operator, unary_op_type)<span class="question-mark">?</span>;
-            <span class="kw">let </span>rhs = Value::expression(prefix_expr.rhs.kind);
+            <span class="kw">let </span>unary_op = Shared::new(new_unary_op(prefix_expr.operator, unary_op_type)<span class="question-mark">?</span>);
+            <span class="kw">let </span>rhs = Shared::new(Value::expression(prefix_expr.rhs.kind));
             <span class="prelude-val">Some</span>(Value::Tuple(<span class="macro">vec!</span>[unary_op, rhs]))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
@@ -5436,16 +5481,16 @@
     };
 
     <span class="kw">let </span>is_some = fields.get(<span class="kw-2">&amp;</span>Rc::new(<span class="string">"_is_some"</span>.to_string())).unwrap();
-    <span class="kw">let </span>Value::Bool(is_some) = is_some <span class="kw">else </span>{
+    <span class="kw">let </span>Value::Bool(is_some) = is_some.borrow().clone() <span class="kw">else </span>{
         <span class="macro">panic!</span>(<span class="string">"Expected is_some to be a boolean"</span>);
     };
 
-    <span class="kw">let </span>function_to_resolve_in = <span class="kw">if </span><span class="kw-2">*</span>is_some {
+    <span class="kw">let </span>function_to_resolve_in = <span class="kw">if </span>is_some {
         <span class="kw">let </span>value = fields.get(<span class="kw-2">&amp;</span>Rc::new(<span class="string">"_value"</span>.to_string())).unwrap();
-        <span class="kw">let </span>Value::FunctionDefinition(func_id) = value <span class="kw">else </span>{
+        <span class="kw">let </span>Value::FunctionDefinition(func_id) = value.borrow().clone() <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"Expected option value to be a FunctionDefinition"</span>);
         };
-        <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func_id)
+        <span class="prelude-val">Some</span>(func_id)
     } <span class="kw">else </span>{
         interpreter.current_function
     };
@@ -5722,8 +5767,8 @@
         .map(|(hir_pattern, typ, _visibility)| {
             <span class="kw">let </span>tokens = hir_pattern_to_tokens(interner, hir_pattern);
             <span class="kw">let </span>tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-            <span class="kw">let </span>name = Value::Quoted(Rc::new(tokens));
-            <span class="kw">let </span>typ = Value::Type(typ.clone());
+            <span class="kw">let </span>name = Shared::new(Value::Quoted(Rc::new(tokens)));
+            <span class="kw">let </span>typ = Shared::new(Value::Type(typ.clone()));
             Value::Tuple(<span class="macro">vec!</span>[name, typ])
         })
         .collect();
@@ -5815,10 +5860,11 @@
             interpreter.elaborator.interner,
             (input_parameter, parameters_argument_location),
         )<span class="question-mark">?</span>;
-        <span class="kw">let </span>parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))<span class="question-mark">?</span>;
+        <span class="kw">let </span>parameter = tuple.pop().unwrap().unwrap_or_clone();
+        <span class="kw">let </span>parameter_type = get_type((parameter, parameters_argument_location))<span class="question-mark">?</span>;
         <span class="kw">let </span>parameter_pattern = parse(
             interpreter.elaborator,
-            (tuple.pop().unwrap(), parameters_argument_location),
+            (tuple.pop().unwrap().unwrap_or_clone(), parameters_argument_location),
             Parser::parse_pattern_or_error,
             <span class="string">"a pattern"</span>,
         )<span class="question-mark">?</span>;
@@ -6153,8 +6199,8 @@
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-    fields.insert(Rc::new(<span class="string">"_is_some"</span>.to_string()), is_some);
-    fields.insert(Rc::new(<span class="string">"_value"</span>.to_string()), value);
+    fields.insert(Rc::new(<span class="string">"_is_some"</span>.to_string()), Shared::new(is_some));
+    fields.insert(Rc::new(<span class="string">"_value"</span>.to_string()), Shared::new(value));
     Value::Struct(fields, option_type)
 }
 
@@ -6221,12 +6267,12 @@
         <span class="kw">let </span>y = FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>y_big.to_bytes_be());
         <span class="kw">let </span><span class="kw-2">mut </span>embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields
-            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
+            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
-            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
         embedded_curve_point_fields.insert(
             is_infinite_field_name.clone(),
-            Value::Field(SignedField::positive(is_infinite)),
+            Shared::new(Value::Field(SignedField::positive(is_infinite))),
         );
         <span class="kw">let </span>embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, <span class="kw-2">*</span>elements.clone());

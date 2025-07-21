@@ -728,7 +728,15 @@
 <a href="#727" id="727">727</a>
 <a href="#728" id="728">728</a>
 <a href="#729" id="729">729</a>
-<a href="#730" id="730">730</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::Hash;
 <span class="kw">use </span>std::{hash::Hasher, rc::Rc};
 
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
@@ -737,6 +745,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::tokens_to_string;
+<span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::StructFields;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::unwrap_rc;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::CompilationError;
 <span class="kw">use </span><span class="kw">crate</span>::lexer::Lexer;
@@ -838,7 +847,7 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_struct_fields(
     name: <span class="kw-2">&amp;</span>str,
     (value, location): (Value, Location),
-) -&gt; IResult&lt;(HashMap&lt;Rc&lt;String&gt;, Value&gt;, Type)&gt; {
+) -&gt; IResult&lt;(StructFields, Type)&gt; {
     <span class="kw">match </span>value {
         Value::Struct(fields, typ) =&gt; <span class="prelude-val">Ok</span>((fields, typ)),
         <span class="kw">_ </span>=&gt; {
@@ -858,7 +867,7 @@
 <span class="doccomment">/// Get a specific field of a struct and apply a decoder function on it.
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_struct_field&lt;T&gt;(
     field_name: <span class="kw-2">&amp;</span>str,
-    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Rc&lt;String&gt;, Value&gt;,
+    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;,
     struct_type: <span class="kw-2">&amp;</span>Type,
     location: Location,
     f: <span class="kw">impl </span>Fn((Value, Location)) -&gt; IResult&lt;T&gt;,
@@ -871,7 +880,7 @@
             location,
         });
     };
-    f((value.clone(), location))
+    f((value.borrow().clone(), location))
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_bool((value, location): (Value, Location)) -&gt; IResult&lt;bool&gt; {
@@ -961,7 +970,7 @@
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_tuple(
     interner: <span class="kw-2">&amp;</span>NodeInterner,
     (value, location): (Value, Location),
-) -&gt; IResult&lt;Vec&lt;Value&gt;&gt; {
+) -&gt; IResult&lt;Vec&lt;Shared&lt;Value&gt;&gt;&gt; {
     <span class="kw">match </span>value {
         Value::Tuple(values) =&gt; <span class="prelude-val">Ok</span>(values),
         value =&gt; {
@@ -1411,7 +1420,8 @@
     fields: <span class="kw">impl </span>IntoIterator&lt;Item = (<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, Value)&gt;,
     typ: Type,
 ) -&gt; Value {
-    <span class="kw">let </span>fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
+    <span class="kw">let </span>fields =
+        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
     Value::Struct(fields, typ)
 }
 
@@ -1429,7 +1439,10 @@
     };
 
     <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(SignedField::positive(unary_op_value)));
+    fields.insert(
+        Rc::new(<span class="string">"op"</span>.to_string()),
+        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
+    );
 
     <span class="prelude-val">Some</span>(Value::Struct(fields, typ))
 }
@@ -1439,7 +1452,10 @@
     </span><span class="kw">let </span>binary_op_value = operator.contents <span class="kw">as </span>u128;
 
     <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Value::Field(SignedField::positive(binary_op_value)));
+    fields.insert(
+        Rc::new(<span class="string">"op"</span>.to_string()),
+        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
+    );
 
     Value::Struct(fields, typ)
 }
