@@ -1648,6 +1648,28 @@ impl NodeInterner {
 
             let mut fresh_bindings = type_bindings.clone();
 
+            if !object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
+                continue;
+            }
+
+            if let TraitImplKind::Normal(impl_id) = impl_kind {
+                let trait_impl = self.get_trait_implementation(*impl_id);
+                let trait_impl = trait_impl.borrow();
+
+                if let Err(error) = self.validate_where_clause(
+                    &trait_impl.where_clause,
+                    &mut fresh_bindings,
+                    &instantiation_bindings,
+                    recursion_limit,
+                ) {
+                    // Only keep the first errors we get from a failing where clause
+                    if where_clause_error.is_none() {
+                        where_clause_error = Some(error);
+                    }
+                    continue;
+                }
+            }
+
             let mut check_trait_generics =
                 |impl_generics: &[Type], impl_associated_types: &[NamedType]| {
                     let generics_unify = trait_generics.iter().zip(impl_generics).all(
@@ -1685,40 +1707,20 @@ impl NodeInterner {
                 continue;
             }
 
-            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
-                if let TraitImplKind::Normal(impl_id) = impl_kind {
-                    let trait_impl = self.get_trait_implementation(*impl_id);
-                    let trait_impl = trait_impl.borrow();
-
-                    if let Err(error) = self.validate_where_clause(
-                        &trait_impl.where_clause,
-                        &mut fresh_bindings,
-                        &instantiation_bindings,
-                        recursion_limit,
-                    ) {
-                        // Only keep the first errors we get from a failing where clause
-                        if where_clause_error.is_none() {
-                            where_clause_error = Some(error);
-                        }
-                        continue;
-                    }
-                }
-
-                let constraint = TraitConstraint {
-                    typ: existing_object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id,
-                        trait_generics,
-                        location: Location::dummy(),
-                    },
-                };
-                matching_impls.push((
-                    impl_kind.clone(),
-                    fresh_bindings,
-                    instantiation_bindings,
-                    constraint,
-                ));
-            }
+            let constraint = TraitConstraint {
+                typ: existing_object_type,
+                trait_bound: ResolvedTraitBound {
+                    trait_id,
+                    trait_generics,
+                    location: Location::dummy(),
+                },
+            };
+            matching_impls.push((
+                impl_kind.clone(),
+                fresh_bindings,
+                instantiation_bindings,
+                constraint,
+            ));
         }
 
         if matching_impls.len() == 1 {
