@@ -138,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn foo() {
+    fn invalid_entry_point_input_returned_as_field() {
         let ssa_without_runtime = "
             (inline) fn main f0 {
               b0(v0: u1):
@@ -154,13 +154,9 @@ mod tests {
             execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
         let brillig_result =
             execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
-        match (acir_result, brillig_result) {
-            (Err(acir), Ok(brillig)) => panic!(
-                "Acir failed with: {}, brillig succeeded with the result: {}",
-                acir,
-                brillig[&Witness(1)]
-            ),
-            _ => {}
+        match (&acir_result, &brillig_result) {
+            (Err(_), Err(_)) => {},
+            _ => panic!("Expected two failures, but got ACIR success: {}, Brillig success: {}", acir_result.is_ok(), brillig_result.is_ok())
         }
     }
 }
