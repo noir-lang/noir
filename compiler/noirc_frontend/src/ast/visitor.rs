@@ -338,7 +338,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_ident(&mut self, _: &Ident) {}
+    fn visit_lvalue_path(&mut self, _: &Path) {}
 
     fn visit_lvalue_member_access(
         &mut self,
@@ -1312,7 +1312,7 @@ impl LValue {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
+            LValue::Path(path) => visitor.visit_lvalue_path(path),
             LValue::MemberAccess { object, field_name, location } => {
                 if visitor.visit_lvalue_member_access(object, field_name, location.span) {
                     object.accept(visitor);

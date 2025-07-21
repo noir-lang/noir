@@ -950,7 +950,7 @@ fn assign_statement_with_file(assign: AssignStatement, file: FileId) -> AssignSt
 
 fn lvalue_with_file(lvalue: LValue, file: FileId) -> LValue {
     match lvalue {
-        LValue::Ident(ident) => LValue::Ident(ident_with_file(ident, file)),
+        LValue::Path(path) => LValue::Path(path_with_file(path, file)),
         LValue::MemberAccess { object, field_name, location } => LValue::MemberAccess {
             object: Box::new(lvalue_with_file(*object, file)),
             field_name: ident_with_file(field_name, file),

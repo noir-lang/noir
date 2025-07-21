@@ -1110,6 +1110,19 @@ impl Elaborator<'_> {
         path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), path.location.file);
+
+        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
+            self.push_err(error);
+            let id = DefinitionId::dummy_id();
+            ((HirIdent::non_trait_method(id, location), 0), None)
+        })
+    }
+
+    pub(crate) fn get_ident_from_path_or_error(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
+        let location = Location::new(path.last_ident().span(), path.location.file);
         let use_variable_result = path.as_single_segment().map(|segment| {
             let result = self.use_variable(&segment.ident);
             if result.is_ok() && segment.generics.is_some() {
@@ -1121,11 +1134,11 @@ impl Elaborator<'_> {
         });
 
         let error = match use_variable_result {
-            Some(Ok(found)) => return (found, None),
+            Some(Ok(found)) => return Ok((found, None)),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(_) => error,
             },
@@ -1134,20 +1147,19 @@ impl Elaborator<'_> {
                     if dummy_id == DefinitionId::dummy_id() =>
                 {
                     // Allow path which resolves to a type alias
-                    return (
+                    return Ok((
                         (HirIdent::non_trait_method(dummy_id, location), 4),
                         Some(PathResolutionItem::TypeAlias(type_alias_id)),
-                    );
+                    ));
                 }
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(error) => error,
             },
         };
-        self.push_err(error);
-        let id = DefinitionId::dummy_id();
-        ((HirIdent::non_trait_method(id, location), 0), None)
+
+        Err(error)
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
