@@ -506,6 +506,9 @@ impl UnresolvedTypeData {
             {
                 Some(UnresolvedTypeExpression::Variable(path.clone()))
             }
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path.clone()))
+            }
             _ => None,
         }
     }
