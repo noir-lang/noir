@@ -207,8 +207,11 @@ pub(crate) fn simplify(
         Instruction::IncrementRc { .. } => None,
         Instruction::DecrementRc { .. } => None,
         Instruction::RangeCheck { value, max_bit_size, .. } => {
-            let max_potential_bits = dfg.get_value_max_num_bits(*value);
-            if max_potential_bits <= *max_bit_size { Remove } else { None }
+            // let max_potential_bits = dfg.get_value_max_num_bits(*value);
+            // if max_potential_bits <= *max_bit_size { Remove } else { None }
+            // px: removing this optimization for now, because ssa validation requires range check
+            // before casting from field
+            None
         }
         Instruction::IfElse { then_condition, then_value, else_condition, else_value } => {
             let then_condition = *then_condition;

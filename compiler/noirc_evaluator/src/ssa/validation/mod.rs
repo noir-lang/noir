@@ -154,7 +154,7 @@ impl<'f> Validator<'f> {
     /// 2. A constant value known to be in-range
     /// 3. A division or other operation whose result is known to fit within the target bit size
     ///
-    /// Our initial SSA gen only generates preceding truncates for safe casts.
+    /// Our initial SSA gen only generates preceding truncates for safe casts. - px: now adds range checks as well
     /// The cases accepted here are extended past what we perform during our initial SSA gen
     /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
     fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
