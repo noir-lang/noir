@@ -1648,7 +1648,7 @@ impl NodeInterner {
 
             let mut fresh_bindings = type_bindings.clone();
 
-            if !object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_ok() {
+            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_err() {
                 continue;
             }
 
