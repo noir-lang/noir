@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753104890535,
+  "lastUpdate": 1753104901230,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -28029,6 +28029,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/127c4d18dbfbc8339a8f0271d1bcb33e9b8efebf"
         },
         "date": 1753104360400,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 15080,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11347,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 261916,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 201205,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 70748,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1079444,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1080739,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3136,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
+          "message": "feat: allow paths in l-values (#9254)",
+          "timestamp": "2025-07-21T12:55:49Z",
+          "tree_id": "0cc8be7688f33a1fce85eb368c30905176a6c130",
+          "url": "https://github.com/noir-lang/noir/commit/de536523e69a21733361ff0e9ff4748a0005e2a1"
+        },
+        "date": 1753104885661,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
