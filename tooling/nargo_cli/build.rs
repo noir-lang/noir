@@ -178,7 +178,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 8] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -196,8 +196,6 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     "trait_static_methods",
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
-    // bug
-    "type_trait_method_call_multiple_candidates",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
