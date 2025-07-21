@@ -266,6 +266,7 @@ impl PackageConfig {
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
+#[allow(clippy::large_enum_variant)]
 pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
     Package {
