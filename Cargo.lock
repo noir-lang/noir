@@ -130,6 +130,7 @@ dependencies = [
  "getrandom 0.2.16",
  "gloo-utils",
  "js-sys",
+ "m31_blackbox_solver",
  "pkg-config",
  "serde",
  "tracing-subscriber",

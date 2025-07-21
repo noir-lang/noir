@@ -20,5 +20,6 @@ fn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {
     // Regression for #1023, ensure .len still works after calling to_le_bytes on a witness.
     // This was needed because normally .len is evaluated before acir-gen where to_le_bytes
     // on a witness is only evaluated during/after acir-gen.
-    assert(x.to_le_bytes::<8>().len() != 0);
+    assert(x.to_le_bytes::<3>().len() != 0);
+    // Originally it was 8, which always passed because 8 < 32, but our m31 field comes within 4 limbs of 8, so 2<4
 }
