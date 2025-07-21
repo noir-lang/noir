@@ -837,7 +837,7 @@ fn remove_interned_in_statement_kind(
 // Returns a new LValue where all Interned LValues have been turned into LValue.
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
-        LValue::Ident(_) => lvalue,
+        LValue::Path(_) => lvalue,
         LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,
