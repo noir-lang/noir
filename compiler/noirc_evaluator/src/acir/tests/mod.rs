@@ -936,7 +936,7 @@ fn execute_ssa(
     output: Option<&Witness>,
 ) -> (ACVMStatus<FieldElement>, Option<FieldElement>) {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
-    let (acir_functions, brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     assert_eq!(acir_functions.len(), 1);
