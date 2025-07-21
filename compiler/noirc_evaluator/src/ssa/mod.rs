@@ -481,7 +481,6 @@ pub fn convert_generated_acir_into_circuit(
     let circuit = Circuit {
         name: name.clone(),
         current_witness_index,
-        expression_width: ExpressionWidth::Unbounded,
         opcodes,
         private_parameters,
         public_parameters,

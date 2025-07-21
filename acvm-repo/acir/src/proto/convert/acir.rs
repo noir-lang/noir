@@ -22,7 +22,6 @@ impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
             name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::encode_vec(&value.opcodes),
-            expression_width: Self::encode_some(&value.expression_width),
             private_parameters: Self::encode_vec(value.private_parameters.iter()),
             public_parameters: Self::encode_vec(value.public_parameters.0.iter()),
             return_values: Self::encode_vec(value.return_values.0.iter()),
@@ -35,7 +34,6 @@ impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
             name: value.name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::decode_vec_wrap(&value.opcodes, "opcodes")?,
-            expression_width: Self::decode_some_wrap(&value.expression_width, "expression_width")?,
             private_parameters: Self::decode_vec_wrap(
                 &value.private_parameters,
                 "private_parameters",

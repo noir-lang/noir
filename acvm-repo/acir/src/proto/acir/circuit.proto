@@ -7,12 +7,11 @@ import "acir/native.proto";
 message Circuit {
   uint32 current_witness_index = 1;
   repeated Opcode opcodes = 2;
-  ExpressionWidth expression_width = 3;
-  repeated native.Witness private_parameters = 4;
-  repeated native.Witness public_parameters = 5;
-  repeated native.Witness return_values = 6;
-  repeated AssertMessage assert_messages = 7;
-  string name = 8;
+  repeated native.Witness private_parameters = 3;
+  repeated native.Witness public_parameters = 4;
+  repeated native.Witness return_values = 5;
+  repeated AssertMessage assert_messages = 6;
+  string name = 7;
 }
 
 message ExpressionWidth {

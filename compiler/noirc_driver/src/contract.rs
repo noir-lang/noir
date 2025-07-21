@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
-use acvm::{FieldElement, acir::circuit::Program};
+use acvm::{
+    FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
+};
 use fm::FileId;
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_errors::debug_info::DebugInfo;
@@ -56,4 +59,6 @@ pub struct ContractFunction {
     pub bytecode: Program<FieldElement>,
 
     pub debug: Vec<DebugInfo>,
+    /// Maximum width of the [expression][Expression]'s which will be constrained
+    pub expression_width: ExpressionWidth,
 }

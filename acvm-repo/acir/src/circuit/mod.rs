@@ -65,9 +65,6 @@ pub struct Circuit<F: AcirField> {
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
-    #[serde(skip)]
-    /// Maximum width of the [expression][Expression]'s which will be constrained
-    pub expression_width: ExpressionWidth,
 
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
@@ -416,7 +413,7 @@ mod tests {
         opcodes::{BlackBoxFuncCall, FunctionInput},
     };
     use crate::{
-        circuit::{ExpressionWidth, Program},
+        circuit::Program,
         native_types::Witness,
     };
     use acir_field::{AcirField, FieldElement};
@@ -451,7 +448,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 5,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
@@ -477,7 +473,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 0,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
@@ -524,7 +519,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 3,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],

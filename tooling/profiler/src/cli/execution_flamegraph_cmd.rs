@@ -242,6 +242,7 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
+            expression_width: acir::circuit::ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file

@@ -220,7 +220,6 @@ fn transform_internal_once<F: AcirField>(
 
     acir = Circuit {
         current_witness_index,
-        expression_width,
         opcodes: transformed_opcodes,
         // The transformer does not add new public inputs
         ..acir

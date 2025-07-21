@@ -209,7 +209,6 @@ mod tests {
         Circuit {
             name: "test_circuit".to_string(),
             current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters,
             public_parameters,

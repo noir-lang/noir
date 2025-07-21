@@ -337,7 +337,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters,
             public_parameters: PublicInputs::default(),
@@ -376,7 +375,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 2,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters,
             public_parameters: PublicInputs::default(),
@@ -436,7 +434,6 @@ mod tests {
         let circuit = Circuit {
             name: "test".to_string(),
             current_witness_index: 5,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters,
             public_parameters: PublicInputs::default(),
@@ -483,7 +480,6 @@ mod tests {
                     ..Default::default()
                 }),
             ],
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
             return_values: PublicInputs(BTreeSet::from([Witness(2)])),
             ..Default::default()

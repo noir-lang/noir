@@ -675,6 +675,7 @@ fn compile_contract_inner(
             bytecode: function.program,
             debug: function.debug,
             is_unconstrained: modifiers.is_unconstrained,
+            expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
         });
     }
 
@@ -828,6 +829,7 @@ pub fn compile_no_check(
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,
+        expression_width: options.expression_width.unwrap_or(DEFAULT_EXPRESSION_WIDTH),
     })
 }
 

@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use acvm::{FieldElement, acir::circuit::Program};
+use acvm::{
+    FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
+};
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
@@ -27,4 +30,6 @@ pub struct CompiledProgram {
     pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
+    /// Maximum width of the [expression][Expression]'s which will be constrained
+    pub expression_width: ExpressionWidth,
 }

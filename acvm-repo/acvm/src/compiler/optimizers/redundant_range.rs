@@ -254,7 +254,6 @@ mod tests {
         Circuit {
             name: "test".to_string(),
             current_witness_index: 1,
-            expression_width: ExpressionWidth::Bounded { width: 4 },
             opcodes,
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs::default(),
