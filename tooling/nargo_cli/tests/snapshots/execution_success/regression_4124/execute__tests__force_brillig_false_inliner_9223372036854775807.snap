@@ -32,5 +32,10 @@ expression: artifact
       "source": "use std::option::Option;\n\ntrait MyDeserialize<let N: u32> {\n    fn deserialize(fields: [Field; N]) -> Self;\n}\n\nimpl MyDeserialize<1> for Field {\n    fn deserialize(fields: [Field; 1]) -> Self {\n        fields[0]\n    }\n}\n\npub fn storage_read<let N: u32>() -> [Field; N] {\n    std::mem::zeroed()\n}\n\nstruct PublicMutable<T> {\n    storage_slot: Field,\n}\n\nimpl<T> PublicMutable<T> {\n    pub fn new(storage_slot: Field) -> Self {\n        assert(storage_slot != 0, \"Storage slot 0 not allowed. Storage slots must start from 1.\");\n        PublicMutable { storage_slot }\n    }\n\n    pub fn read<let T_SERIALIZED_LEN: u32>(_self: Self) -> T\n    where\n        T: MyDeserialize<T_SERIALIZED_LEN>,\n    {\n        // storage_read returns slice here\n        let fields: [Field; T_SERIALIZED_LEN] = storage_read();\n        T::deserialize(fields)\n    }\n}\n\nfn main(value: Field) {\n    let ps: PublicMutable<Field> = PublicMutable::new(27);\n\n    // error here\n    assert(ps.read() == value);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

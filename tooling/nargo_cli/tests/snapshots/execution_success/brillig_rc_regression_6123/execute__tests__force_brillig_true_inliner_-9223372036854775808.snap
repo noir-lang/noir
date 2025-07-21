@@ -47,5 +47,10 @@ expression: artifact
       "source": "struct Builder {\n    note_hashes: BoundedVec<Field, 2>,\n    nullifiers: BoundedVec<Field, 2>,\n}\n\nimpl Builder {\n    fn append_note_hashes_with_logs(&mut self, num_note_hashes: u32) {\n        let index_offset = self.note_hashes.len();\n        for i in 0..self.note_hashes.max_len() {\n            if i < num_note_hashes {\n                self.add_new_note_hash((index_offset + i) as Field);\n            }\n        }\n    }\n\n    fn add_new_note_hash(&mut self, value: Field) {\n        self.note_hashes.push(value);\n    }\n}\n\nfn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_index: u32) {\n    let tmp = vec.get_unchecked(from_index);\n    vec.set_unchecked(from_index, vec.get_unchecked(to_index));\n    vec.set_unchecked(to_index, tmp);\n}\n\nunconstrained fn main() {\n    let mut builder = Builder { note_hashes: BoundedVec::new(), nullifiers: BoundedVec::new() };\n\n    builder.append_note_hashes_with_logs(2);\n    builder.nullifiers.set_unchecked(1, 27);\n    // Get ordered items before shuffling.\n    let note_hashes = builder.note_hashes.storage();\n    let original_first_note_hash = note_hashes[0];\n    // Shuffle.\n    swap_items(&mut builder.note_hashes, 1, 0);\n\n    for i in 0..1 {\n        assert_eq(note_hashes[i], original_first_note_hash);\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

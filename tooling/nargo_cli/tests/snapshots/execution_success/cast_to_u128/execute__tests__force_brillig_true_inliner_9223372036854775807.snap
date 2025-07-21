@@ -41,5 +41,10 @@ expression: artifact
       "source": "fn main(x: i8) {\n    let y: i8 = -1;\n\n    assert_eq(x as u128, 340282366920938463463374607431768211455);\n    assert_eq(y as u128, 340282366920938463463374607431768211455);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

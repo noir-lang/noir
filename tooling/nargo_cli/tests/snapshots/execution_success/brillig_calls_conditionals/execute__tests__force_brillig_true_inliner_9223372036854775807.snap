@@ -45,5 +45,10 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested is brillig calls with conditionals\nfn main(x: [u32; 3]) {\n    // Safety: testing context\n    unsafe {\n        assert(entry_point(x[0]) == 7);\n        assert(entry_point(x[1]) == 8);\n        assert(entry_point(x[2]) == 9);\n        assert(entry_point(42) == 0);\n    }\n}\n\nunconstrained fn inner_1() -> u32 {\n    7\n}\n\nunconstrained fn inner_2() -> u32 {\n    8\n}\n\nunconstrained fn inner_3() -> u32 {\n    9\n}\n\nunconstrained fn entry_point(x: u32) -> u32 {\n    let mut result: u32 = 0;\n\n    if x == 1 {\n        result = inner_1();\n    } else if x == 2 {\n        result = inner_2();\n    } else if x == 3 {\n        result = inner_3();\n    }\n\n    result\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

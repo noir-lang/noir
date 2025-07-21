@@ -124,5 +124,10 @@ expression: artifact
       "source": "fn main(x: [u8; 5], result: [u8; 32]) {\n    let digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -39,5 +39,10 @@ expression: artifact
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/4722\nunconstrained fn return_array(val: Field) -> [Field; 1] {\n    [val; 1]\n}\n\nfn main(val: Field) {\n    // Safety: testing context\n    unsafe {\n        let array = return_array(val);\n        assert_constant(array.as_slice().len());\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

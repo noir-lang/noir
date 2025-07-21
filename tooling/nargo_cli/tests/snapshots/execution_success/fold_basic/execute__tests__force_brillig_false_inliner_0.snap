@@ -50,5 +50,10 @@ expression: artifact
       "source": "fn main(x: Field, y: pub Field) {\n    let z = foo(x, y);\n    let z2 = foo(x, y);\n    let z3 = foo(x, y);\n    assert(z == z2);\n    assert(z2 == z3);\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

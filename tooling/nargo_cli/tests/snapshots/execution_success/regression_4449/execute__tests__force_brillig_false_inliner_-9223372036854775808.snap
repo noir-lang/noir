@@ -689,5 +689,10 @@ expression: artifact
       "source": "// Regression test for issue #4449\nfn main(x: u8, result: [u8; 32]) {\n    let x = x % 31;\n    let mut digest = [0; 32];\n    for i in 0..70 {\n        let y = x + i;\n        let a = [y, x, 32, 0, y + 1, y - 1, y - 2, 5];\n        digest = std::hash::blake3(a);\n    }\n\n    assert(digest == result);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

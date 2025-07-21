@@ -56,5 +56,10 @@ expression: artifact
       "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

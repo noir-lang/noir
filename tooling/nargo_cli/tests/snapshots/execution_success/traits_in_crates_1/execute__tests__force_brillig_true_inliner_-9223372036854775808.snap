@@ -50,5 +50,10 @@ expression: artifact
       "source": "pub trait MyTrait {\n    fn Add10(&mut self);\n}\n\nimpl MyTrait for crate2::MyStruct {\n    fn Add10(&mut self) {\n        self.Q += 10;\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

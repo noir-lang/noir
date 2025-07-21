@@ -93,5 +93,10 @@ expression: artifact
       "source": "// docs:start:pedersen-commitment\nfn main(x: Field, y: Field, expected_commitment: std::embedded_curve_ops::EmbeddedCurvePoint) {\n    let commitment = std::hash::pedersen_commitment([x, y]);\n    assert_eq(commitment.x, expected_commitment.x);\n    assert_eq(commitment.y, expected_commitment.y);\n}\n// docs:end:pedersen-commitment\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

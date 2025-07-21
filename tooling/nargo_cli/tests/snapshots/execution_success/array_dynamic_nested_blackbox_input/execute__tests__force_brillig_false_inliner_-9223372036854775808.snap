@@ -242,5 +242,10 @@ expression: artifact
       "source": "struct Bar {\n    inner: [u8; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(mut x: [Foo; 3], y: pub u32, hash_result: pub [u8; 32]) {\n    // Simple dynamic array set for entire inner most array\n    x[y - 1].bar.inner = [106, 107, 10];\n    let mut hash_input = x[y - 1].bar.inner;\n    // Make sure that we are passing a dynamic array to the black box function call\n    // by setting the array using a dynamic index here\n    hash_input[y - 1] = 0;\n    let hash = std::hash::blake3(hash_input);\n    assert_eq(hash, hash_result);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

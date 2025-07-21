@@ -79,5 +79,10 @@ expression: artifact
       "source": "fn main(mut x: u32) {\n    if x == 0 {\n        x = (x + 1) / x;\n    } else {\n        x = (x + 1) / x;\n    }\n    assert(x != 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

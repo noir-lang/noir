@@ -75,5 +75,10 @@ expression: artifact
       "source": "struct MyStruct {\n    operation: unconstrained fn(u32) -> u32,\n}\n\nfn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(wrapper(increment, x) == x + 1);\n        assert(wrapper(increment_acir, x) == x + 1);\n        assert(wrapper(decrement, x) == x - 1);\n        assert(wrapper_with_struct(MyStruct { operation: increment }, x) == x + 1);\n        assert(wrapper_with_struct(MyStruct { operation: decrement }, x) == x - 1);\n        // https://github.com/noir-lang/noir/issues/1975\n        assert(increment(x) == x + 1);\n    }\n}\n\nunconstrained fn wrapper(func: unconstrained fn(u32) -> u32, param: u32) -> u32 {\n    func(param)\n}\n\nunconstrained fn increment(x: u32) -> u32 {\n    x + 1\n}\n\nunconstrained fn decrement(x: u32) -> u32 {\n    x - 1\n}\n\nunconstrained fn wrapper_with_struct(my_struct: MyStruct, param: u32) -> u32 {\n    let func = my_struct.operation;\n    func(param)\n}\n\nfn increment_acir(x: u32) -> u32 {\n    x + 1\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

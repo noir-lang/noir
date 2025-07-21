@@ -66,5 +66,10 @@ expression: artifact
       "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

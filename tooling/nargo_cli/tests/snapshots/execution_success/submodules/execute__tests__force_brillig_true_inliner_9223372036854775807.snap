@@ -50,5 +50,10 @@ expression: artifact
       "source": "use my_submodule::my_helper;\n\nfn main(x: u1, y: u1) {\n    my_helper();\n    my_submodule::my_bool_or(x, y);\n}\n\nmod my_submodule {\n    pub fn my_bool_or(x: u1, y: u1) {\n        assert(x | y == 1);\n    }\n\n    pub fn my_helper() {}\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

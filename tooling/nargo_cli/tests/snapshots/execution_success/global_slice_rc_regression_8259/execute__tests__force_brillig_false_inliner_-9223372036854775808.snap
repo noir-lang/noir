@@ -45,5 +45,10 @@ expression: artifact
       "source": "global G_C: [bool] = &[true, false, true];\nfn main(a: bool) {\n    println(func_1(a, G_C));\n    println(G_C);\n}\nfn func_1(a: bool, mut b: [bool]) -> [bool] {\n    b[1] = a;\n    b\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

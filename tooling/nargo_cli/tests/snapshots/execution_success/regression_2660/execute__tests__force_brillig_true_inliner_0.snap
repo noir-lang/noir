@@ -45,5 +45,10 @@ expression: artifact
       "source": "global foo: i32 = -1;\n\nfn main(x: i32) {\n    let y = x + foo;\n    assert(y == 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

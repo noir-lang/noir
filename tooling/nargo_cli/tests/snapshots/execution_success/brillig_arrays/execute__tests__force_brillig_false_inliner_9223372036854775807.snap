@@ -50,5 +50,10 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested are array reads and writes\nfn main(x: [Field; 3]) {\n    // Safety: testing context\n    unsafe {\n        read_array(x);\n        read_write_array(x);\n    }\n}\n\nunconstrained fn read_array(x: [Field; 3]) {\n    assert(x[0] == 1);\n    let y = [1, 5, 27];\n\n    assert(y[x[0] as u32] == 5);\n}\n\nunconstrained fn read_write_array(x: [Field; 3]) {\n    let mut y = x;\n\n    y[0] = 5;\n\n    assert(y[0] == 5);\n    assert(y[1] == 2);\n    assert(y[2] == 3);\n\n    assert(x[0] == 1);\n    assert(x[1] == 2);\n    assert(x[2] == 3);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

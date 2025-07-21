@@ -56,5 +56,10 @@ expression: artifact
       "source": "fn bar(y: Field) {\n    assert(y != 0);\n}\n\nfn foo(x: Field) {\n    // Safety: test\n    let y = unsafe { baz(x) };\n    bar(y);\n}\n\nunconstrained fn baz(x: Field) -> Field {\n    x\n}\n\nfn main(x: Field, y: pub Field) {\n    // Safety: test\n    let x = unsafe { baz(x) };\n    foo(x);\n    foo(y);\n    assert(x != y);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

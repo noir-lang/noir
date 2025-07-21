@@ -63,5 +63,10 @@ expression: artifact
       "source": "fn main(v1: u16, v2: bool) -> pub u8 {\n    if v2 {\n        (v1 - 257) as u8\n    } else {\n        0\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

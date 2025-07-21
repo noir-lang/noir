@@ -24,5 +24,10 @@ expression: artifact
     "EXPR [ (1, _0) -1 ]"
   ],
   "debug_symbols": "ndLRCoMgFAbgd/G6i7KtslcZI8xOIYiKaTCid5+Fbm0wGF7pOb/fQdAVDdC7qeNyVDNqbyvqDReCT51QjFqupO+uW4Zi2VkD4FvolHulqQFpUSudEBlaqHDHoVlTeayWGp/mGQI5+NUPHLmAfbdlb53/plW0VfPC1791UTSBF2Wd4kkZPUnx+EKCx9c8xVfx/rjGKZ7g4Mv80999RRk33++9UMNpLyCUo5PslNqHjkn8L9ooBoMzsE86Mj/7CQ==",
-  "file_map": {}
+  "file_map": {},
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

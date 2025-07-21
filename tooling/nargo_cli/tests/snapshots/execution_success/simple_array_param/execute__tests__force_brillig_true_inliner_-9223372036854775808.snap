@@ -48,5 +48,10 @@ expression: artifact
       "source": "// This program tests:\n// - the allocation of virtual arrays for array params to main\n// - load instructions for such arrays\nfn main(xs: [Field; 2]) -> pub Field {\n    xs[1]\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

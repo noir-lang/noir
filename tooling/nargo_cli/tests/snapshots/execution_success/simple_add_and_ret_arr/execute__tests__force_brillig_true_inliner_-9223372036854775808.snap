@@ -48,5 +48,10 @@ expression: artifact
       "source": "// A simple program to test that SSA array values elements\n// aren't disconnected from their instruction results, and\n// that dead instruction elemination looks inside of arrays\n// when deciding whether of not an instruction should be\n// retained.\nfn main(x: Field) -> pub [Field; 1] {\n    [x + 1]\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

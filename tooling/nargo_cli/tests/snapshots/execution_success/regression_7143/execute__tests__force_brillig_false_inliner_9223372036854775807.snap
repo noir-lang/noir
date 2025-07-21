@@ -53,5 +53,10 @@ expression: artifact
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
   "debug_symbols": "dY/RCoMwDEX/Jc992MPmwF8ZQ2KNUghpia0wxH9fFN1ksKf05vRc2hk6asvQBOnjCPVjhlYDcxgajh5ziGLbeXFwxCYrka3gxM1KqCQZainMDibksl0aE8o2M6rRiwOSzqYV9oFpPS3ua1/+q1W1u/frR76Z/bSEPujveyfUgC3THvsi/kTzKx3k+G/S6KkrSmvTxqz7DQ==",
-  "file_map": {}
+  "file_map": {},
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

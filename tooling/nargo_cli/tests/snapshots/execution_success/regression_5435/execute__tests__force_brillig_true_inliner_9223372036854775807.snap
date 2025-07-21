@@ -46,5 +46,10 @@ expression: artifact
       "source": "fn main(input: Field, enable: bool) {\n    if enable {\n        let hash = no_predicate_function(input);\n        // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,\n        // resulting in execution failure.\n        // Safety: testing context\n        unsafe { fail(hash) };\n    }\n}\n\n#[no_predicates]\nfn no_predicate_function(enable: Field) -> Field {\n    // if-statement ensures that an `EnableSideEffects` instruction is emitted.\n    if enable == 0 {\n        1\n    } else {\n        0\n    }\n}\n\nunconstrained fn fail(_: Field) {\n    assert(false);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -44,5 +44,10 @@ expression: artifact
       "source": "// Regression from issue #7964 (https://github.com/noir-lang/noir/issues/7964)\nglobal G_A: bool = false;\nfn main(a: Field) -> pub Field {\n    if (\n        (\n            if (!G_A) {\n                if (!G_A) {\n                    (a as u128)\n                } else {\n                    (a as u128)\n                }\n            } else {\n                (a as u128)\n            }\n                <= (a as u128)\n        ) as bool\n    ) {\n        (-(-a))\n    } else {\n        (-(-a))\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

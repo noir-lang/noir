@@ -39,5 +39,10 @@ expression: artifact
       "source": "// Regression for issue #8586 (https://github.com/noir-lang/noir/issues/8586)\nfn main(a: pub bool) {\n    for _ in 0..1 {\n        if a {\n            for _ in 0..1 {\n                let _ = (1 / (a as Field));\n            }\n        };\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

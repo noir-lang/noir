@@ -52,5 +52,10 @@ expression: artifact
       "source": "global FN_ARRAY: [fn() -> Field; 2] = [f1, f2];\n\nfn main(x: u32, y: Field) {\n    assert(FN_ARRAY[x]() == y);\n}\n\nfn f1() -> Field {\n    1\n}\n\nfn f2() -> Field {\n    2\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

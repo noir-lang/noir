@@ -48,5 +48,10 @@ expression: artifact
       "source": "fn main(x: i64) -> pub i64 {\n    let y = x / x;\n    x / y\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

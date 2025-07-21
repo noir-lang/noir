@@ -43,5 +43,10 @@ expression: artifact
       "source": "struct Header {\n    params: [Field; 3],\n}\n\nstruct MyNote {\n    plain: Field,\n    array: [Field; 2],\n    header: Header,\n}\n\nfn access_nested(notes: [MyNote; 2]) -> Field {\n    notes[0].array[1] + notes[1].array[0] + notes[0].plain + notes[1].header.params[0]\n}\n\nunconstrained fn create_inside_brillig(values: [Field; 6]) -> [MyNote; 2] {\n    let header = Header { params: [values[0], values[1], values[2]] };\n    let note0 = MyNote { array: [values[0], values[1]], plain: values[2], header };\n    let note1 = MyNote { array: [values[3], values[4]], plain: values[5], header };\n    [note0, note1]\n}\n\nfn main(values: [Field; 6]) {\n    // Safety: testing context\n    let notes = unsafe { create_inside_brillig(values) };\n    assert(access_nested(notes) == (2 + 4 + 3 + 1));\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

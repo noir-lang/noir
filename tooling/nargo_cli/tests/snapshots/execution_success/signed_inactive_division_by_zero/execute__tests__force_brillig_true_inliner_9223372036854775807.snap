@@ -64,5 +64,10 @@ expression: artifact
       "source": "fn main(a: i32, b: i32, condition: bool) -> pub i32 {\n    if condition {\n        // If `condition` is not set then we should not trigger an assertion failure here.\n        a / b\n    } else {\n        0\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

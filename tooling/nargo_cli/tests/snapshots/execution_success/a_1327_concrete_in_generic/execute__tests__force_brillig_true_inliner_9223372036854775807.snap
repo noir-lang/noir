@@ -44,5 +44,10 @@ expression: artifact
       "source": "// ---\nfn new_concrete_c_over_d() -> C<D> {\n    let d_method_interface = get_d_method_interface();\n    C::new(d_method_interface)\n}\n// ---\n// Map<V>\nstruct B<T_C> {\n    new_concrete_t_c_constructor: fn() -> T_C,\n}\n\nimpl<T_C> B<T_C> {\n    fn new(new_concrete_t_c_constructor: fn() -> T_C) -> B<T_C> {\n        B { new_concrete_t_c_constructor }\n    }\n\n    fn get_t_c(self) -> T_C {\n        let new_concrete_t_c_constructor = self.new_concrete_t_c_constructor;\n        new_concrete_t_c_constructor()\n    }\n}\n// ---\n// PrivateSet<Note>\nstruct C<T_D> {\n    t_d_interface: MethodInterface<T_D>,\n}\n\nimpl<T_D> C<T_D> {\n    fn new(t_d_interface: MethodInterface<T_D>) -> Self {\n        C { t_d_interface }\n    }\n\n    fn call_method_of_t_d(self, t_d: T_D) -> Field {\n        let some_method_on_t_d = self.t_d_interface.some_method_on_t_d;\n        some_method_on_t_d(t_d)\n    }\n}\n// ---\nstruct MethodInterface<T_D> {\n    some_method_on_t_d: fn(T_D) -> Field,\n}\n// ---\n// Note\nstruct D {\n    d: Field,\n}\n\nfn d_method(input: D) -> Field {\n    input.d * input.d\n}\n\nfn get_d_method_interface() -> MethodInterface<D> {\n    MethodInterface { some_method_on_t_d: d_method }\n}\n// ---\nfn main(input: Field) -> pub Field {\n    let b: B<C<D>> = B::new(new_concrete_c_over_d);\n    let c: C<D> = b.get_t_c(); // PrivateMutable<Note>\n    let d: D = D { d: input }; // Note\n    let output = c.call_method_of_t_d(d);\n\n    output\n}\n// ---\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -61,5 +61,10 @@ expression: artifact
       "source": "pub fn main(a: Field, b: Field) -> pub u8 {\n    (a - b) as u8\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

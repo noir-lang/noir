@@ -37,5 +37,10 @@ expression: artifact
       "source": "fn main(mut x: Field) {\n    let mut q = 0;\n\n    if x != 10 {\n        q = 2;\n    }\n\n    assert(q == 2);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

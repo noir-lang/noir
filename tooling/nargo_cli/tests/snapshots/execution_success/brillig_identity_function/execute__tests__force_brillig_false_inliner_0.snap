@@ -51,5 +51,10 @@ expression: artifact
       "source": "struct myStruct {\n    foo: Field,\n    foo_arr: [Field; 2],\n}\n// Tests a very simple program.\n//\n// The features being tested is the identity function in Brillig\nfn main(x: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(x == identity(x));\n        // TODO: add support for array comparison\n        let arr = identity_array([x, x]);\n        assert(x == arr[0]);\n        assert(x == arr[1]);\n\n        let s = myStruct { foo: x, foo_arr: [x, x] };\n        let identity_struct = identity_struct(s);\n        assert(x == identity_struct.foo);\n        assert(x == identity_struct.foo_arr[0]);\n        assert(x == identity_struct.foo_arr[1]);\n    }\n}\n\nunconstrained fn identity(x: Field) -> Field {\n    x\n}\n\nunconstrained fn identity_array(arr: [Field; 2]) -> [Field; 2] {\n    arr\n}\n\nunconstrained fn identity_struct(s: myStruct) -> myStruct {\n    s\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -47,5 +47,10 @@ expression: artifact
       "source": "// Simple program to test to_radix\nfn main(x: Field) {\n    let bits: [u1; 3] = x.to_le_bits();\n    assert(bits[0] == 0);\n    assert(bits[1] == 1);\n    assert(bits[2] == 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

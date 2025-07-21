@@ -65,5 +65,10 @@ expression: artifact
       "source": "global G_A: [u16; 3] = [33700, 47314, 35095];\nglobal G_B: [u16; 3] = [59890, 17417, 14409];\nfn main(a: [u16; 3], b: [bool; 1]) -> pub bool {\n    // Safety: testing context\n    let res = unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)];\n    if res {\n        // Safety: testing context\n        let c = unsafe { func_1(a, b[0]) };\n        b[0]\n    } else {\n        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))\n    }\n}\nunconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {\n    [false]\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

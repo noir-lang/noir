@@ -59,5 +59,10 @@ expression: artifact
       "source": "fn main(x: Field, y: pub Field) {\n    let z = func_with_nested_foo_call(x, y);\n    let z2 = func_with_nested_foo_call(x, y);\n    assert(z == z2);\n}\n\n#[fold]\nfn func_with_nested_foo_call(x: Field, y: Field) -> Field {\n    foo(x + 2, y)\n}\n\n#[fold]\nfn foo(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

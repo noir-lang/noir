@@ -61,5 +61,10 @@ expression: artifact
       "source": "// Many parts of the code here are regressions from issue #5503 (https://github.com/noir-lang/noir/issues/5503)\nfn main(x: u32) {\n    lambdas_in_array_literal(x - 1);\n    lambdas_in_array_literal(x);\n    lambdas_in_array_literal(x + 2);\n    lambdas_in_array_literal(x + 1);\n\n    lambdas_in_slice_literal(x - 1);\n    lambdas_in_slice_literal(x);\n    lambdas_in_slice_literal(x + 1);\n    lambdas_in_slice_literal(x + 2);\n\n    functions_in_array_literal(x - 1);\n    functions_in_array_literal(x);\n    functions_in_slice_literal(x - 1);\n    functions_in_slice_literal(x);\n\n    let example_lambda: fn(u8) -> u8 = |x| x + 1;\n    let lambdas: [fn(u8) -> u8; 8] = [example_lambda; 8];\n    println(lambdas[0](5));\n    // Dynamic dispatch\n    println(lambdas[x - 1](5));\n\n    let lambdas: [fn(()) -> (); 1] = [|_: ()| {}];\n    lambdas[0](());\n    lambdas[x - 1](());\n\n    // Also check against slices\n    let lambdas: [fn(()) -> ()] = &[|_: ()| {}];\n    lambdas[0](());\n    lambdas[x - 1](());\n}\n\nfn lambdas_in_array_literal(x: u32) {\n    let xs = [|| println(\"hi\"), || println(\"bye\"), || println(\"wow\"), || println(\"big\")];\n    (xs[x])();\n}\n\nfn lambdas_in_slice_literal(x: u32) {\n    let xs = &[|| println(\"hi\"), || println(\"bye\"), || println(\"big\"), || println(\"wow\")];\n    (xs[x])();\n}\n\nfn functions_in_array_literal(x: u32) {\n    let xs = [foo, bar];\n    (xs[x])();\n}\n\nfn functions_in_slice_literal(x: u32) {\n    let xs = &[baz, qux];\n    (xs[x])();\n}\n\nfn foo() {\n    println(\"hi\");\n}\nfn bar() {\n    println(\"bye\");\n}\nfn baz() {\n    println(\"hi\");\n}\nfn qux() {\n    println(\"bye\");\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

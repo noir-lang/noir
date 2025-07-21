@@ -45,5 +45,10 @@ expression: artifact
       "source": "fn main(x: Field, y: Field) {\n    let z = x == y;\n    let t = z as u8;\n    assert(t == 1);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

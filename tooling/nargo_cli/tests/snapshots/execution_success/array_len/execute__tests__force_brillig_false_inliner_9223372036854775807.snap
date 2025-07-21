@@ -80,5 +80,10 @@ expression: artifact
       "source": "fn len_plus_1<T, let N: u32>(array: [T; N]) -> u32 {\n    array.len() + 1\n}\n\nfn add_lens<T, let N: u32, let M: u32>(a: [T; N], b: [Field; M]) -> u32 {\n    a.len() + b.len()\n}\n\nfn nested_call<let N: u32>(b: [Field; N]) -> u32 {\n    len_plus_1(b)\n}\n\nfn main(x: Field, len3: [u8; 3], len4: [Field; 4]) {\n    assert(len_plus_1(len3) == 4);\n    assert(len_plus_1(len4) == 5);\n    assert(add_lens(len3, len4) == 7);\n    assert(nested_call(len4) == 5);\n    // std::array::len returns a compile-time known value\n    assert(len4[len3.len()] == 4);\n    // Regression for #1023, ensure .len still works after calling to_le_bytes on a witness.\n    // This was needed because normally .len is evaluated before acir-gen where to_le_bytes\n    // on a witness is only evaluated during/after acir-gen.\n    assert(x.to_le_bytes::<8>().len() != 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

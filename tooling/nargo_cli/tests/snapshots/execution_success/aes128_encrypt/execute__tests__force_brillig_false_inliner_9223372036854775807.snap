@@ -224,5 +224,10 @@ expression: artifact
       "source": "unconstrained fn decode_ascii(ascii: u8) -> u8 {\n    if ascii < 58 {\n        ascii - 48\n    } else if ascii < 71 {\n        ascii - 55\n    } else {\n        ascii - 87\n    }\n}\n\nunconstrained fn decode_hex<let N: u32, let M: u32>(s: str<N>) -> [u8; M] {\n    let mut result: [u8; M] = [0; M];\n    let as_bytes = s.as_bytes();\n    for i in 0..N {\n        if i % 2 != 0 {\n            continue;\n        }\n        result[i / 2] = decode_ascii(as_bytes[i]) * 16 + decode_ascii(as_bytes[i + 1]);\n    }\n    result\n}\n\nunconstrained fn cipher(plaintext: [u8; 12], iv: [u8; 16], key: [u8; 16]) -> [u8; 16] {\n    let result = std::aes128::aes128_encrypt(plaintext, iv, key);\n    result\n}\n\nfn main(inputs: str<12>, iv: str<16>, key: str<16>, output: str<32>) {\n    let result: [u8; 16] =\n        std::aes128::aes128_encrypt(inputs.as_bytes(), iv.as_bytes(), key.as_bytes());\n\n    // Safety: testing context\n    let output_bytes: [u8; 16] = unsafe { decode_hex(output) };\n    assert(result == output_bytes);\n\n    // Safety: testing context\n    let unconstrained_result = unsafe { cipher(inputs.as_bytes(), iv.as_bytes(), key.as_bytes()) };\n    assert(unconstrained_result == output_bytes);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -50,5 +50,10 @@ expression: artifact
       "source": "// Simple program for testing the logging\n// of single witnesses and witness arrays.\nfn main(x: Field, y: pub Field) {\n    std::println(x);\n    std::println([x, y]);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

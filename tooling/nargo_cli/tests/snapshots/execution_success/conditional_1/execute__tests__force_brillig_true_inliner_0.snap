@@ -100,5 +100,10 @@ expression: artifact
       "source": "fn sort(mut a: [u32; 4]) -> [u32; 4] {\n    for i in 1..4 {\n        for j in 0..i {\n            if a[i] < a[j] {\n                let c = a[j];\n                a[j] = a[i];\n                a[i] = c;\n            }\n        }\n    }\n    a\n}\n\nfn must_be_zero(x: u8) {\n    assert(x == 0);\n}\n\nfn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //Test case for short-circuit\n    let mut data = [0u32; 32];\n    let mut ba = a;\n    for i in 0..32 {\n        let i_u32 = i as u32;\n        if i_u32 == a {\n            for j in 0..4 {\n                data[i + j] = c[4 - 1 - j];\n                for k in 0..4 {\n                    ba = ba + data[k];\n                }\n                if ba == 4864 {\n                    c[3] = ba;\n                }\n            }\n        }\n    }\n    assert(data[31] == 0);\n    assert(ba != 13);\n    //Test case for conditional with arrays from function parameters\n    let b = sort([1, 2, 3, 4]);\n    assert(b[0] == 1);\n\n    if a == 0 {\n        must_be_zero(0);\n        c[0] = 3;\n    } else {\n        must_be_zero(1);\n        c[0] = 1;\n        c[1] = c[2] / a + 11 % a;\n        let f1 = a as Field;\n        assert(10 / f1 != 0);\n    }\n    assert(c[0] == 3);\n\n    let mut y = 0;\n    if a == 0 {\n        let digest = std::hash::blake3(x);\n        y = digest[0];\n    } else {\n        y = 5;\n    }\n    assert(y == result[0]);\n    c = sort(c);\n    assert(c[0] == 0);\n    //test 1\n    let mut x: u32 = 0;\n    if a == 0 {\n        c[0] = 12;\n        if a != 0 {\n            x = 6;\n        } else {\n            x = 2;\n            assert(x == 2);\n        }\n    } else {\n        x = 5;\n        assert(x == 5);\n    }\n    if c[0] == 0 {\n        x = 3;\n    }\n    assert(x == 2);\n    //test2: loops\n    let mut x: u32 = 0;\n    x = a - a;\n    for i in 0..4 {\n        if c[i] == 0 {\n            x = i as u32 + 2;\n        }\n    }\n    assert(x == 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

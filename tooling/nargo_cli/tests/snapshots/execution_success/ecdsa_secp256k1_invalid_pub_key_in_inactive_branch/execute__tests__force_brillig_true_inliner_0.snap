@@ -91,5 +91,10 @@ expression: artifact
       "source": "fn main(\n    pub_key_x: [u8; 32],\n    pub_key_y: [u8; 32],\n    signature: [u8; 64], // r || s\n    hashed_message: [u8; 32],\n    active: bool,\n) {\n    if active {\n        assert(std::ecdsa_secp256k1::verify_signature(\n            pub_key_x,\n            pub_key_y,\n            signature,\n            hashed_message,\n        ));\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

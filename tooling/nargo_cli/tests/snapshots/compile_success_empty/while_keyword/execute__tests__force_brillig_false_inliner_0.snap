@@ -18,5 +18,10 @@ expression: artifact
     "return value indices : []"
   ],
   "debug_symbols": "nZJLCoMwEIbvkrWLPKqoVylFoo4SCEmIiVDEuzeKsbZQKFlNZv5882IW1EPrx0aoQU+ovi+otUJKMTZSd9wJrUJ0WTMU3cZZgBBCFz1QhltQDtXKS5mhmUu/f5oMV7t13AYVZwhUH2xIOAgJ22vN3jT+jZIiwqQgJ57/z5ck8iVN4av84CnGCTzD9OAZLlN4Fvtnt5T5KbnF/mlK/5Sd86fVL8/61ef+H8HjnbDfFzdzK3gr4XAHr7qL6p4mKvFijdUd9N7ClmnXQu4X",
-  "file_map": {}
+  "file_map": {},
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

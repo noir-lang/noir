@@ -59,5 +59,10 @@ expression: artifact
       "source": "pub global RESOLVE_THIS: Field = 3;\n\npub fn call_dep2(x: Field, y: Field) -> Field {\n    x + y\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

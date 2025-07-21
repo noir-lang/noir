@@ -50,5 +50,10 @@ expression: artifact
       "source": "fn main(x: u1, y: u1) {\n    assert(x | y == 1);\n\n    assert(x | y | x == 1);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

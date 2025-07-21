@@ -44,5 +44,10 @@ expression: artifact
       "source": "fn main(x: Field) -> pub Field {\n    // Regression test for issue #547\n    // Warning: it must be kept at the start of main\n    let arr: [u8; 2] = [1, 2];\n    if arr[0] != arr[1] {\n        for i in 0..1 {\n            assert(i != 2);\n        }\n    }\n    // Regression for predicate simplification\n    x + safe_inverse(0)\n}\n\nfn safe_inverse(n: Field) -> Field {\n    if n == 0 {\n        0\n    } else {\n        1 / n\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

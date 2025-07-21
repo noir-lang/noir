@@ -38,7 +38,7 @@ pub struct ProgramArtifact {
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
-    /// Maximum width of the [expression][Expression]'s which will be constrained
+    /// Maximum width of the expressions which will be constrained
     pub expression_width: ExpressionWidth,
 }
 

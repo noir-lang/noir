@@ -56,5 +56,10 @@ expression: artifact
       "source": "fn main(in0: Field) -> pub Field {\n    let mut out0: Field = 0;\n    let tmp1: Field = in0;\n\n    if (out0 == out0) // <== changing out0 to in0 or removing\n    {\n        //     the comparison changes the result\n        let in0_as_bytes: [u8; 32] = in0.to_be_bytes();\n        let mut result: [u8; 32] = [0; 32];\n        for i in 0..32 {\n            result[i] = in0_as_bytes[i];\n        }\n    }\n\n    let mut tmp2: Field = 0; // <== moving this to the top of main,\n    if (0.lt(in0)) //     changes the result\n    {\n        tmp2 = 1;\n    }\n\n    out0 = (tmp2 - tmp1);\n\n    assert(out0 == 0, \"completeness violation\");\n\n    out0\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

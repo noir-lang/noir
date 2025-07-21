@@ -60,5 +60,10 @@ expression: artifact
       "source": "struct bar {\n    enable: [bool; 4],\n    data: [Field; 2],\n    pad: u32,\n}\n\nfn main(enable: [Field; 2]) -> pub [Field; 4] {\n    let mut result = [0; 4];\n    let a: [_; 4] = foo(enable[1]);\n    for i in 0..4 {\n        result[i] = a[i].data[i % 2];\n    }\n    result\n}\n\nfn foo(x: Field) -> [bar; 4] {\n    [\n        bar { enable: [true, true, false, false], data: [x, x + 1], pad: 0 },\n        bar { enable: [true, false, false, false], data: [x + 2, x + 7], pad: 0 },\n        bar { enable: [true, true, false, true], data: [x + 3, x + 5], pad: 0 },\n        bar { enable: [false, false, false, false], data: [x + 4, x - 1], pad: 0 },\n    ]\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

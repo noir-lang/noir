@@ -35,5 +35,10 @@ expression: artifact
       "source": "trait Foo {\n    fn foo(self) -> Field;\n}\n\nimpl Foo for Field {\n    fn foo(self) -> Field {\n        self + 1\n    }\n}\n\ntrait Bar {\n    fn bar(self) -> u64;\n}\n\nimpl Bar for u64 {\n    fn bar(self) -> u64 {\n        self + 1\n    }\n}\n\nfn main() {\n    std::println(1.foo());\n    std::println(1.bar());\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

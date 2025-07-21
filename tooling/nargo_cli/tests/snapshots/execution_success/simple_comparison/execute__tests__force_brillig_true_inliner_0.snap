@@ -46,5 +46,10 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The features being tested is comparison\nfn main(x: Field, y: Field) {\n    assert(x as u32 < y as u32);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

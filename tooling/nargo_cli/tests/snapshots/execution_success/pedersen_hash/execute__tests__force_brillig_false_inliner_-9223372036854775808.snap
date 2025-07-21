@@ -66,5 +66,10 @@ expression: artifact
       "source": "// docs:start:pedersen-hash\nfn main(x: Field, y: Field, expected_hash: Field) {\n    let hash = std::hash::pedersen_hash([x, y]);\n    assert_eq(hash, expected_hash);\n}\n// docs:end:pedersen-hash\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

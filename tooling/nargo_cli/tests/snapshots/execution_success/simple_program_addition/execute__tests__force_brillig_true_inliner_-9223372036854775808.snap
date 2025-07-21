@@ -44,5 +44,10 @@ expression: artifact
       "source": "// The feature being tested is handling of\n// a binary operation.\nfn main(x: Field) -> pub Field {\n    x + 1\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

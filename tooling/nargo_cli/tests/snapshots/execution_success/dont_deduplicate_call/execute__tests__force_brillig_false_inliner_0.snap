@@ -51,5 +51,10 @@ expression: artifact
       "source": "fn main(x: Field, active: bool) {\n    let mut x1 = false;\n    // Safety:)\n    unsafe {\n        if active {\n            x1 = foo(x);\n        }\n\n        let x2 = foo(x);\n        assert(x2);\n    }\n}\n\nunconstrained fn foo(_x: Field) -> bool {\n    true\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

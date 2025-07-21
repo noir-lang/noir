@@ -101,5 +101,10 @@ expression: artifact
       "source": "struct foo {\n    value: Field,\n    counter: u8,\n    dummy: u8,\n}\nstruct bar {\n    dummy: [u8; 3],\n    value: Field,\n    counter: u8,\n}\nstruct bar_field {\n    dummy: [Field; 3],\n    value: Field,\n    counter: u8,\n}\nfn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {\n    let a = [y, z, x[y].counter as u32];\n    let mut b = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    let mut c = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    for i in 0..3 {\n        b[i].value = x[i].value;\n        b[i].counter = x[i].counter;\n        b[i].dummy[0] = x[i].dummy;\n        c[i].value = x[i].value;\n        c[i].counter = x[i].counter;\n        c[i].dummy[0] = x[i].dummy as Field;\n    }\n    if z == 0 {\n        // offset\n        assert(y as u8 < x[y].counter);\n        assert(y <= a[y]);\n        // first element is compatible\n        assert(y as u8 < b[y].counter);\n        // fallback\n        assert(y as u8 < c[y].counter);\n    }\n    x[0].counter\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -106,5 +106,10 @@ expression: artifact
       "source": "// You can only do bit operations with integers.\n// (Kobi/Daira/Circom/#37) https://github.com/iden3/circom/issues/37\nfn main(x: Field, y: Field, a: Field, b: Field) {\n    let x_as_u8 = x as u8;\n    let y_as_u8 = y as u8;\n\n    assert((x_as_u8 & y_as_u8) == x_as_u8);\n    //bitwise and with 1 bit:\n    let flag = (x == 0) & (y == 16);\n    assert(flag);\n    //bitwise and with odd bits:\n    let a_as_u8 = a as u8;\n    let b_as_u8 = b as u8;\n    assert((a_as_u8 & b_as_u8) == a_as_u8);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

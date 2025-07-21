@@ -58,5 +58,10 @@ expression: artifact
       "source": "use std::ops::{WrappingAdd, WrappingMul, WrappingSub};\n\nfn main(x: u8, y: u8) {\n    assert(x.wrapping_sub(1) == y);\n    assert(y.wrapping_add(1) == x);\n    assert(y.wrapping_mul(y) == 1);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

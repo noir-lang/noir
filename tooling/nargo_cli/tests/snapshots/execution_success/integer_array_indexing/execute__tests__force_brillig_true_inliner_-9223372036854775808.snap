@@ -57,5 +57,10 @@ expression: artifact
       "source": "global ARRAY_LEN: u32 = 3;\n\nfn main(arr: [Field; ARRAY_LEN], x: u32) -> pub Field {\n    let mut value = arr[ARRAY_LEN - 1];\n\n    value += arr[0u32];\n    value += arr[1u32];\n\n    value + x as Field\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

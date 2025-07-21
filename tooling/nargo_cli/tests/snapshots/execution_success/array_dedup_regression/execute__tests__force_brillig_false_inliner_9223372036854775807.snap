@@ -61,5 +61,10 @@ expression: artifact
       "source": "unconstrained fn main(x: u32) {\n    let a1 = [1, 2, 3, 4, 5];\n\n    for i in 0..5 {\n        let mut a2 = [1, 2, 3, 4, 5];\n        a2[x + i] = 128;\n        println(a2);\n\n        if i != 0 {\n            assert(a2[x + i - 1] != 128);\n        }\n    }\n\n    // Can't use `== [1, 2, 3, 4, 5]` here, that make_array may get\n    // deduplicated to equal a1 in the bugged version\n    assert_eq(a1[0], 1);\n    assert_eq(a1[1], 2);\n    assert_eq(a1[2], 3);\n    assert_eq(a1[3], 4);\n    assert_eq(a1[4], 5);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

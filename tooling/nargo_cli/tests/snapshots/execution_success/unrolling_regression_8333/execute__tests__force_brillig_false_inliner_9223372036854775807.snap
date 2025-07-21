@@ -97,5 +97,10 @@ expression: artifact
     "EXPR [ (1, _63) 0 ]"
   ],
   "debug_symbols": "dY/RCoMwDEX/Jc99UJwv/soYEmuUQmhLbIUh/vui6CYDn9Kb03NpF+ipy2Pr/BAmaJ4LdOKY3dhysJhc8LpdVgNnbJMQ6QouXK2IQj5B4zOzgRk575emiH6fCUVpYYB8r1MLB8e0nVbzs4t7taweh1xW9Vev1X9pQuvk/8UzisOO6YhD9vZC0zue5PxxlGCpz0Jb0860+wM=",
-  "file_map": {}
+  "file_map": {},
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

@@ -35,5 +35,10 @@ expression: artifact
       "source": "fn main() {\n    let x = comptime {\n        println(\"hello from compile-time!\");\n        1 + 2\n    };\n    println(x);\n\n    comptime {\n        let exp = [1, 2, 3];\n        let quoted = quote {\n            struct Foo { fn foo() { \n            // Some comment\n            [ $exp ]\n            } }\n        };\n\n        println(quoted);\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

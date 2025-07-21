@@ -86,5 +86,10 @@ expression: artifact
       "source": "fn main(a: bool, b: bool, c: u8, d: u8) -> pub u8 {\n    let i = a & b;\n    let j = a ^ b;\n    let k = a | b;\n    let x = c & d;\n    let y = c ^ d;\n    let z = c | d;\n    (i as u8) + (j as u8) + (k as u8) + x + y + z\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

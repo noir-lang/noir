@@ -107,5 +107,10 @@ expression: artifact
       "source": "fn main(\n    // Public key of note\n    // all notes have the same denomination\n    priv_key: Field,\n    // Merkle membership proof\n    note_root: pub Field,\n    index: Field,\n    note_hash_path: [Field; 3],\n    // Receiver public key\n    to_pubkey_x: Field,\n    to_pubkey_y: Field,\n) -> pub [Field; 2] {\n    let priv_key_as_scalar = std::embedded_curve_ops::EmbeddedCurveScalar { lo: priv_key, hi: 0 };\n    // Compute public key from private key to show ownership\n    let pubkey = std::embedded_curve_ops::fixed_base_scalar_mul(priv_key_as_scalar);\n    // Compute input note commitment\n    let note_commitment = std::hash::pedersen_commitment([pubkey.x, pubkey.y]);\n    // Compute input note nullifier\n    let nullifier = std::hash::pedersen_commitment([note_commitment.x, index, priv_key]);\n    // Compute output note nullifier\n    let receiver_note_commitment = std::hash::pedersen_commitment([to_pubkey_x, to_pubkey_y]);\n    // Check that the input note nullifier is in the root\n    assert(note_root == compute_merkle_root(note_commitment.x, index, note_hash_path));\n\n    [nullifier.x, receiver_note_commitment.x]\n}\n\nfn compute_merkle_root<let N: u32>(leaf: Field, index: Field, hash_path: [Field; N]) -> Field {\n    let index_bits: [u1; N] = index.to_le_bits();\n    let mut current = leaf;\n    for i in 0..N {\n        let path_bit = index_bits[i] != 0;\n        let (hash_left, hash_right) = if path_bit {\n            (hash_path[i], current)\n        } else {\n            (current, hash_path[i])\n        };\n        current = std::hash::pedersen_hash([hash_left, hash_right]);\n    }\n    current\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

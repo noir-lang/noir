@@ -36,5 +36,10 @@ expression: artifact
       "source": "fn main() -> pub bool {\n    // Safety:\n    unsafe {\n        func_1()\n    }\n    true\n}\nunconstrained fn func_1() {\n    func_2([&mut true])\n}\nunconstrained fn func_2(mut b: [&mut bool; 1]) {\n    b[0] = (&mut false);\n    {\n        let mut idx_c: u32 = 0;\n        while (*b[0]) {\n            if (idx_c == 0) {\n                break\n            }\n        }\n    };\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

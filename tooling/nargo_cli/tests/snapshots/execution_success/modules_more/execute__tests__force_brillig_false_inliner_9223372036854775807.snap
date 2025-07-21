@@ -42,5 +42,10 @@ expression: artifact
       "source": "mod foo;\n// An example of the module system\nfn main(x: Field, y: Field) {\n    assert(x != foo::bar::from_bar(y));\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

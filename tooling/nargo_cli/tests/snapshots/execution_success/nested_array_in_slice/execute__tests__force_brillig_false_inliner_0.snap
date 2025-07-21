@@ -1004,5 +1004,10 @@ expression: artifact
       "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(y: u32) {\n    let foo_one = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] } };\n    let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] } };\n    let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };\n    let foo_four = Foo { a: 10, b: [11, 12, 23], bar: Bar { inner: [109, 110, 111] } };\n    let mut x = &[foo_one];\n    x = x.push_back(foo_two);\n    x = x.push_back(foo_three);\n    x = x.push_back(foo_four);\n\n    assert(x[y - 3].a == 1);\n    assert(x[y - 3].b == [2, 3, 20]);\n    assert(x[y - 2].a == 4);\n    assert(x[y - 2].b == [5, 6, 21]);\n    assert(x[y - 1].a == 7);\n    assert(x[y - 1].b == [8, 9, 22]);\n    assert(x[y].a == 10);\n    assert(x[y].b == [11, 12, 23]);\n    assert(x[y].bar.inner == [109, 110, 111]);\n\n    if y != 2 {\n        x[y - 2].a = 50;\n    } else {\n        x[y - 2].a = 100;\n    }\n    assert(x[y - 2].a == 50);\n\n    if y == 2 {\n        x[y - 1].b = [50, 51, 52];\n    } else {\n        x[y - 1].b = [100, 101, 102];\n    }\n    assert(x[2].b == [100, 101, 102]);\n\n    assert(x[y - 3].bar.inner == [100, 101, 102]);\n    assert(x[y - 2].bar.inner == [103, 104, 105]);\n    assert(x[y - 1].bar.inner == [106, 107, 108]);\n    assert(x[y].bar.inner == [109, 110, 111]);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

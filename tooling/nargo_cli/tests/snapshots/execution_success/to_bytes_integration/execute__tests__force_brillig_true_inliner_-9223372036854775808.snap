@@ -50,5 +50,10 @@ expression: artifact
       "source": "fn main(x: Field, a: Field) {\n    let y: Field = 2040124;\n    let be_byte_array: [u8; 31] = y.to_be_bytes();\n    let le_byte_array: [u8; 31] = x.to_le_bytes();\n\n    assert(le_byte_array[0] == 60);\n    assert(le_byte_array[0] == be_byte_array[30]);\n    assert(le_byte_array[1] == be_byte_array[29]);\n    assert(le_byte_array[2] == be_byte_array[28]);\n\n    let z = 0 - 1;\n    let p_bytes = std::field::modulus_le_bytes();\n    let z_bytes: [u8; 32] = z.to_le_bytes();\n    assert(p_bytes[10] == z_bytes[10]);\n    assert(p_bytes[0] == z_bytes[0] as u8 + 1);\n\n    let p_bits = std::field::modulus_le_bits();\n    let z_bits: [u1; 254] = z.to_le_bits();\n    assert(z_bits[0] == 0);\n    assert(p_bits[100] == z_bits[100]);\n\n    let _: [u1; 254] = a.to_le_bits();\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -46,5 +46,10 @@ expression: artifact
       "source": "fn main(a: Field) -> pub u128 {\n    let c = -a;\n    let c = c as u128;\n    assert_eq(c, 53438638232309528388129535304893203149);\n    c\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

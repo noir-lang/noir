@@ -35,5 +35,10 @@ expression: artifact
       "source": "global N: u32 = 10;\n\nunconstrained fn main() {\n    let mut arr = [0; N];\n    let mut mid_change = arr;\n\n    for i in 0..N {\n        if i == N / 2 {\n            mid_change = arr;\n        }\n        arr[i] = 27;\n    }\n\n    // Expect:\n    // arr        = [27, 27, 27, 27, 27, 27, 27, 27, 27, 27]\n    // mid_change = [27, 27, 27, 27, 27, 0, 0, 0, 0, 0]\n    let modified_i = N / 2 + 1;\n    assert_eq(arr[modified_i], 27);\n\n    // Fail here!\n    assert(mid_change[modified_i] != 27);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -49,5 +49,10 @@ expression: artifact
       "source": "// Tests a very simple program.\n//\n// The feature being tested is brillig recursion\nfn main(x: u32) {\n    // Safety: testing context\n    unsafe {\n        assert(fibonacci(x) == 55);\n    }\n}\n\nunconstrained fn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

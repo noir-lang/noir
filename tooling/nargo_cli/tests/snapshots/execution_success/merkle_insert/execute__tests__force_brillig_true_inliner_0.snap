@@ -94,5 +94,10 @@ expression: artifact
       "source": "fn main(\n    old_root: Field,\n    old_leaf: Field,\n    old_hash_path: [Field; 3],\n    new_root: pub Field,\n    leaf: Field,\n    index: Field,\n) {\n    assert(old_root == compute_merkle_root(old_leaf, index, old_hash_path));\n\n    let calculated_root = compute_merkle_root(leaf, index, old_hash_path);\n    assert(new_root == calculated_root);\n}\n\nfn compute_merkle_root<let N: u32>(leaf: Field, index: Field, hash_path: [Field; N]) -> Field {\n    let index_bits: [u1; N] = index.to_le_bits();\n    let mut current = leaf;\n    for i in 0..N {\n        let path_bit = index_bits[i] != 0;\n        let (hash_left, hash_right) = if path_bit {\n            (hash_path[i], current)\n        } else {\n            (current, hash_path[i])\n        };\n        current = std::hash::pedersen_hash([hash_left, hash_right]);\n    }\n    current\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

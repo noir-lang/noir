@@ -42,5 +42,10 @@ expression: artifact
       "source": "unconstrained fn main() -> pub u32 {\n    let s1 = loop_with_negative_literal();\n    let s2 = loop_with_u128_literal();\n    assert_eq(s1, s2);\n    s1\n}\n\nfn loop_with_negative_literal() -> u32 {\n    let s: i64 = -5;\n    let e: i64 = 10;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}\n\nfn loop_with_u128_literal() -> u32 {\n    let s: u128 = 170141183460469231731687303715884105715;\n    let e: u128 = 170141183460469231731687303715884105730;\n    let mut sum = 0;\n    for _ in s..e {\n        sum += 1;\n    }\n    sum\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

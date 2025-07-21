@@ -35,5 +35,10 @@ expression: artifact
       "source": "fn main() {\n    let _xs: Vec<Field> = Vec::new();\n    let _option: Option<Field> = Option::none();\n\n    print(\"42\\n\");\n    println(\"42\");\n}\n\nmod a {\n    // We don't want to give an error due to re-importing elements that are already in the prelude.\n    use std::collections::vec::Vec;\n    use std::option::Option;\n\n    fn main() {\n        let _xs: Vec<Field> = Vec::new();\n        let _option: Option<Field> = Option::none();\n\n        print(\"42\\n\");\n        println(\"42\");\n    }\n}\n\nmod b {\n    fn main() {\n        let _xs: Vec<Field> = Vec::new();\n        let _option: Option<Field> = Option::none();\n\n        print(\"42\\n\");\n        println(\"42\");\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

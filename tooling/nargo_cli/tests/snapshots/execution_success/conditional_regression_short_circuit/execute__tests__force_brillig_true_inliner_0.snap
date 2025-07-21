@@ -96,5 +96,10 @@ expression: artifact
       "source": "fn main(a: u32, mut c: [u32; 4], x: [u8; 5], result: pub [u8; 32]) {\n    //regression for short-circuit2\n    if 35 == a {\n        assert(false);\n    }\n    bar(a as Field);\n\n    if a == 3 {\n        c = test4();\n    }\n    assert(c[1] != 2);\n    call_intrinsic(x, result);\n}\n\nfn foo() {\n    let mut x = 1;\n    x /= 0;\n}\n\nfn bar(x: Field) {\n    if x == 15 {\n        foo();\n    }\n}\n\nfn call_intrinsic(x: [u8; 5], result: [u8; 32]) {\n    let mut digest = std::hash::blake3(x);\n    digest[0] = 5;\n    digest = std::hash::blake3(x);\n    assert(digest == result);\n}\n\nfn test4() -> [u32; 4] {\n    let b: [u32; 4] = [1, 2, 3, 4];\n    b\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

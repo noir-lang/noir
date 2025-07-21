@@ -59,5 +59,10 @@ expression: artifact
       "source": "mod import;\nuse crate::import::hello;\n\nfn main(x: Field, y: Field) {\n    let _k = std::hash::pedersen_commitment([x]);\n    let _l = hello(x);\n\n    assert(x != import::hello(y));\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

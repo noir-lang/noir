@@ -90,5 +90,10 @@ expression: artifact
       "source": "unconstrained fn main(\n    x: Field,\n    y: Field,\n    salt: Field,\n    out_x: Field,\n    out_y: Field,\n    out_hash: Field,\n) {\n    let res = std::hash::pedersen_commitment_with_separator([x, y], 0);\n    assert(res.x == out_x);\n    assert(res.y == out_y);\n\n    let res_hash = std::hash::pedersen_hash_with_separator([x, y], 0);\n    assert_eq(res_hash, out_hash);\n\n    assert(res_hash != res.x);\n\n    let raw_data = [x, y];\n    let mut state = 0;\n    for i in 0..(2 as u32) {\n        state = state * 8 + raw_data[i];\n    }\n    state += salt;\n    let hash = std::hash::pedersen_commitment_with_separator([state], 0);\n    assert(std::hash::pedersen_commitment_with_separator([43], 0).x == hash.x);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

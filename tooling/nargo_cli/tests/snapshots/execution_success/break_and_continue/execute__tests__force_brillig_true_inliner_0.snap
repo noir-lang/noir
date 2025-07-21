@@ -31,5 +31,10 @@ expression: artifact
       "source": "unconstrained fn main() {\n    let mut count = 0;\n\n    for i in 0..10 {\n        if i == 2 {\n            continue;\n        }\n        if i == 5 {\n            break;\n        }\n        count += 1;\n    }\n\n    assert(count == 4);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

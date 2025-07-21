@@ -50,5 +50,10 @@ expression: artifact
       "source": "fn main(x: bool, y: [bool; 2]) {\n    if x {\n        assert(1 != 2);\n    }\n\n    assert(x);\n    assert(y[0] != y[1]);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -78,5 +78,10 @@ expression: artifact
       "source": "fn main(mut x: u32, y: call_data(0) u32, z: call_data(0) [u32; 4]) -> return_data u32 {\n    let a = z[x];\n    unsafe {\n        a + foo(y)\n    }\n}\n\n// Use an unconstrained function to force the compiler to avoid inlining\nunconstrained fn foo(x: u32) -> u32 {\n    x + 1\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

@@ -65,5 +65,10 @@ expression: artifact
       "source": "fn must_be_zero(x: u8) {\n    assert(x == 0);\n}\n\nfn test3(x: u8) {\n    if x == 0 {\n        must_be_zero(x);\n    }\n}\n\nfn test4() -> [u32; 4] {\n    let b: [u32; 4] = [1, 2, 3, 4];\n    b\n}\n\nfn main(a: u32, mut c: [u32; 4]) {\n    test3(1);\n\n    if a == 0 {\n        c = test4();\n    } else {\n        assert(c[1] != 2);\n    }\n    if false {\n        c[1] = 5;\n    }\n    assert(c[1] == 2);\n\n    test5(4);\n    // Test case for function synchronisation\n    let mut c_sync = 0;\n    if a == 42 {\n        c_sync = foo2();\n    } else {\n        c_sync = foo2() + foo2();\n    }\n    assert(c_sync == 6);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn foo2() -> Field {\n    3\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

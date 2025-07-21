@@ -164,5 +164,10 @@ expression: artifact
       "source": "mod foo;\n\nstruct myStruct {\n    foo: u32,\n    bar: Field,\n    message: str<5>,\n}\n\nfn main(x: Field, y: pub myStruct, z: pub foo::bar::barStruct, a: pub foo::fooStruct) -> pub Field {\n    let struct_from_bar = foo::bar::barStruct { val: 1, array: [0, 1], message: \"hello\" };\n\n    check_inner_struct(a, z);\n\n    for i in 0..struct_from_bar.array.len() {\n        assert(struct_from_bar.array[i] == z.array[i]);\n    }\n    assert(z.val == struct_from_bar.val);\n\n    assert((struct_from_bar.val * x) == x);\n\n    assert(x != y.bar);\n\n    assert(y.message == \"hello\");\n    assert(a.bar_struct.message == struct_from_bar.message);\n\n    a.bar_struct.array[1]\n}\n\nfn check_inner_struct(a: foo::fooStruct, z: foo::bar::barStruct) {\n    assert(a.bar_struct.val == z.val);\n    for i in 0..a.bar_struct.array.len() {\n        assert(a.bar_struct.array[i] == z.array[i]);\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

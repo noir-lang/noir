@@ -62,5 +62,10 @@ expression: artifact
       "source": "fn main(a: i32) -> pub i32 {\n    let mut r: i32 = 0;\n    let s: i32 = -2;\n    let e: i32 = -1;\n    for _ in (s - 0)..(e + 0) {\n        r = r + a;\n    }\n    r\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

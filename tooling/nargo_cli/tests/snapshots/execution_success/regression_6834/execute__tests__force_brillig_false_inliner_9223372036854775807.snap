@@ -91,5 +91,10 @@ expression: artifact
       "source": "fn main(year: u32, min_age: u8) -> pub u32 {\n    if min_age == 0 {\n        (year - 2) / 4\n    } else if year > 1 {\n        (year - 2) / 4\n    } else {\n        0\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

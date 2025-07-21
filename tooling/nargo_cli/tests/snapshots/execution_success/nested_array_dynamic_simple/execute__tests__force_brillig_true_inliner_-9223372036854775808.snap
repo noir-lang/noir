@@ -49,5 +49,10 @@ expression: artifact
       "source": "fn main(x: u32) {\n    // x = 3\n    let array: [[(Field, [Field; 1], [Field; 1]); 1]; 1] = [[(1, [2], [3])]];\n\n    let fetched_value = array[x - 3];\n    assert(fetched_value[0].0 == 1);\n    assert(fetched_value[0].1[0] == 2);\n    assert(fetched_value[0].2[0] == 3);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

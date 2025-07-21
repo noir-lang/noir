@@ -35,5 +35,10 @@ expression: artifact
       "source": "global FOO: Field = 1;\n\nfn main() {\n    println(f\"foo = {FOO}\");\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

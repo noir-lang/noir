@@ -54,5 +54,10 @@ expression: artifact
       "source": "// Regression for issue #8333 (https://github.com/noir-lang/noir/issues/8333)\nfn main() -> pub [[u8; 32]; 2] {\n    let mut result = [[0; 32]; 2];\n    let actions_data: [Field; 30] = [0; 30];\n    for i in 0..1 {\n        result = [actions_data[i].to_be_bytes::<32>(), actions_data[i + 1].to_be_bytes::<32>()];\n    }\n    result\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

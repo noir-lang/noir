@@ -53,5 +53,10 @@ expression: artifact
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

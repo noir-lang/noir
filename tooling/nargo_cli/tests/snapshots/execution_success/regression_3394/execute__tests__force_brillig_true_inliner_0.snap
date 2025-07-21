@@ -35,5 +35,10 @@ expression: artifact
       "source": "fn main() {\n    let x: i8 = -128;\n    std::println(x);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

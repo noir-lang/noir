@@ -100,5 +100,10 @@ expression: artifact
       "source": "fn main(leaf: [u8; 32], path: [u8; 64], index: u32, root: [u8; 32]) {\n    compute_root(leaf, path, index, root);\n}\n\nfn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {\n    let mut current = leaf;\n    let mut index = _index;\n\n    for i in 0..2 {\n        let mut hash_input = [0; 64];\n        let offset = i * 32;\n        let is_right = (index & 1) != 0;\n        let a = if is_right { 32 } else { 0 };\n        let b = if is_right { 0 } else { 32 };\n\n        for j in 0..32 {\n            hash_input[j + a] = current[j];\n            hash_input[j + b] = path[offset + j];\n        }\n\n        current = std::hash::blake3(hash_input);\n        index = index >> 1;\n    }\n\n    // Regression for issue #4258\n    assert(root == current);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

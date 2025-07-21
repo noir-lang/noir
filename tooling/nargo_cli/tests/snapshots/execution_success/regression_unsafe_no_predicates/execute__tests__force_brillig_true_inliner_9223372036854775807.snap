@@ -48,5 +48,10 @@ expression: artifact
       "source": "fn main(x: u8, nest: bool) {\n    if nest {\n        let foo = unsafe_assert([x]);\n        assert(foo != 0);\n    }\n}\n\n#[no_predicates]\npub fn unsafe_assert<let N: u32>(msg: [u8; N]) -> u8 {\n    // Safety: testing context\n    let block = unsafe { get_block(msg) };\n    verify_block(msg, block);\n    block[0]\n}\n\nunconstrained fn get_block<let N: u32>(msg: [u8; N]) -> [u8; 2] {\n    let mut block: [u8; 2] = [0; 2];\n    block[0] = msg[0];\n    block\n}\n\nfn verify_block<let N: u32>(msg: [u8; N], block: [u8; 2]) {\n    assert_eq(block[0], msg[0]);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

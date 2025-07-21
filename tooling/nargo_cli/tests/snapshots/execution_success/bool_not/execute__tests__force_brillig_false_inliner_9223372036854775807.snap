@@ -34,5 +34,10 @@ expression: artifact
       "source": "fn main(x: u1) {\n    assert(!x == 0);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }

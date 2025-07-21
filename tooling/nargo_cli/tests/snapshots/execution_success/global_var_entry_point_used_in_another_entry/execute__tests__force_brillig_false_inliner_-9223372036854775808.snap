@@ -55,5 +55,10 @@ expression: artifact
       "source": "global ONE: Field = 1;\nglobal TWO: Field = 2;\nglobal THREE: Field = 3;\n\nfn main(x: Field, y: pub Field) {\n    // Safety: testing context\n    unsafe {\n        entry_point_no_global(x, y);\n        entry_point_inner_func_globals(x, y);\n        entry_point_one_global(x, y);\n        entry_point_one_diff_global(x, y);\n    }\n}\n\nunconstrained fn entry_point_no_global(x: Field, y: Field) {\n    assert(x + y != 100);\n}\n\nunconstrained fn entry_point_one_global(x: Field, y: Field) {\n    let z = TWO + x + y;\n    assert(z == 3);\n}\n\nunconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {\n    wrapper(x, y);\n}\n\n// Test that we duplicate Brillig entry points called within\n// another entry point's inner calls\nunconstrained fn wrapper(x: Field, y: Field) {\n    let z = ONE + x + y;\n    assert(z == 2);\n    entry_point_one_global(x, y);\n    // Test that we handle repeated entry point calls\n    // `entry_point_one_diff_global` should be duplicated and the duplicated function\n    // should use the globals from `entry_point_inner_func_globals`\n    entry_point_one_diff_global(y, x);\n}\n\nunconstrained fn entry_point_one_diff_global(x: Field, y: Field) {\n    let z = THREE + x + y;\n    assert(z == 4);\n}\n",
       "path": ""
     }
+  },
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
   }
 }
