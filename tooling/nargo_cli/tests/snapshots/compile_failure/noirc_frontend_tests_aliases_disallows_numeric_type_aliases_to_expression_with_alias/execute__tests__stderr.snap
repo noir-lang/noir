@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Cannot use a type alias inside a type alias
-  ┌─ src/main.nr:3:36
+  ┌─ src/main.nr:3:39
   │
 3 │     type Quadruple<let N: u32>: u32 = Double::<N>+Double::<N>;
-  │                                    ---------------------------
+  │                                       ------------------------
   │
 
 error: Type annotation needed
