@@ -6,7 +6,7 @@ global PHI: Field = 32767;
 
 pub(crate) global TWO_POW_16: Field = 0x10000; 
 
-// Decomposes a single field into 2 bytes fields.
+// Decomposes a single field into two 2 byte fields.
 fn compute_decomposition(x: Field) -> (Field, Field) {
     let low = (x as u16) as Field;
     let high = (x - low) / TWO_POW_16;
