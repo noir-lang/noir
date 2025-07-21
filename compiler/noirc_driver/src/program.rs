@@ -30,6 +30,6 @@ pub struct CompiledProgram {
     pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
-    /// Maximum width of the [expression][Expression]'s which will be constrained
+    /// Maximum width of the expressions which will be constrained
     pub expression_width: ExpressionWidth,
 }

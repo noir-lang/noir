@@ -59,6 +59,6 @@ pub struct ContractFunction {
     pub bytecode: Program<FieldElement>,
 
     pub debug: Vec<DebugInfo>,
-    /// Maximum width of the [expression][Expression]'s which will be constrained
+    /// Maximum width of the expressions which will be constrained
     pub expression_width: ExpressionWidth,
 }

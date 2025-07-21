@@ -90,7 +90,7 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-    /// Maximum width of the [expression][Expression]'s which will be constrained
+    /// Maximum width of the expressions which will be constrained
     pub expression_width: ExpressionWidth,
 }
 

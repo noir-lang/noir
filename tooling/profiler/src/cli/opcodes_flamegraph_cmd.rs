@@ -160,7 +160,7 @@ mod tests {
     use fm::codespan_files::Files;
     use noirc_artifacts::program::ProgramArtifact;
     use noirc_errors::debug_info::{DebugInfo, ProgramDebugInfo};
-    use std::{collections::BTreeMap, f32::consts::E, path::Path};
+    use std::{collections::BTreeMap, path::Path};
 
     use crate::flamegraph::Sample;
 
@@ -263,7 +263,7 @@ mod tests {
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
             file_map: BTreeMap::default(),
-            expression_width: acir::circuit::ExpressionWidth::Bounded { width: 4 },
+            expression_width: ExpressionWidth::Bounded { width: 4 },
         };
 
         // Write the artifact to a file
