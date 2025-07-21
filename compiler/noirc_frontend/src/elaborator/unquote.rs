@@ -27,7 +27,8 @@ impl Elaborator<'_> {
                             // Don't want the leading `$` anymore
                             new_tokens.pop();
                             let path = Path::from_single(name, location);
-                            let (expr_id, _) = self.elaborate_variable(path);
+                            let expr_id = self.interner.reserve_expr();
+                            let _ = self.elaborate_variable(expr_id, path);
                             new_tokens
                                 .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
                         }

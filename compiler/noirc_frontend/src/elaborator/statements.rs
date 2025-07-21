@@ -100,6 +100,7 @@ impl Elaborator<'_> {
 
         let pattern_location = let_stmt.pattern.location();
         let expr_location = let_stmt.expression.location;
+
         let (expression, expr_type) =
             self.elaborate_expression_with_target_type(let_stmt.expression, Some(&annotated_type));
 
@@ -706,11 +707,12 @@ impl Elaborator<'_> {
             self.elaborate_in_comptime_context(|this| this.elaborate_statement(statement));
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_statement(hir_statement);
-        let (expr, typ) = self.inline_comptime_value(value, location);
+        let expr_id = self.interner.reserve_expr();
+        let typ = self.inline_comptime_value(value, expr_id, location);
 
         let location = self.interner.id_location(hir_statement);
-        self.debug_comptime(location, |interner| expr.to_display_ast(interner).kind);
+        self.debug_comptime(location, |interner| expr_id.to_display_ast(interner).kind);
 
-        (HirStatement::Expression(expr), typ)
+        (HirStatement::Expression(expr_id), typ)
     }
 }

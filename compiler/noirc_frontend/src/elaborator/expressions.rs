@@ -55,48 +55,76 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
-        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
         let reserved_id = self.interner.reserve_expr();
+        let typ = self.elaborate_expression_with_id(expr, reserved_id, target_type);
+        (reserved_id, typ)
+    }
+
+    pub(crate) fn elaborate_expression_with_id(
+        &mut self,
+        expr: Expression,
+        reserved_id: ExprId,
+        target_type: Option<&Type>,
+    ) -> Type {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
-            ExpressionKind::Prefix(prefix) => return self.elaborate_prefix(*prefix, expr.location),
+            ExpressionKind::Prefix(prefix) => {
+                return self.elaborate_prefix(reserved_id, *prefix, expr.location);
+            }
             ExpressionKind::Index(index) => self.elaborate_index(*index),
             ExpressionKind::Call(call) => self.elaborate_call(*call, expr.location),
             ExpressionKind::MethodCall(call) => self.elaborate_method_call(*call, expr.location),
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location);
+                return self.elaborate_member_access(reserved_id, *access, expr.location);
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
-            ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
+            ExpressionKind::Infix(infix) => {
+                return self.elaborate_infix(reserved_id, *infix, expr.location);
+            }
             ExpressionKind::If(if_) => self.elaborate_if(*if_, target_type),
             ExpressionKind::Match(match_) => self.elaborate_match(*match_, expr.location),
-            ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
+            ExpressionKind::Variable(variable) => {
+                return self.elaborate_variable(reserved_id, variable);
+            }
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
             ExpressionKind::Lambda(lambda) => {
                 self.elaborate_lambda_with_target_type(*lambda, target_type)
             }
             ExpressionKind::Parenthesized(expr) => {
-                return self.elaborate_expression_with_target_type(*expr, target_type);
+                return self.elaborate_expression_with_id(*expr, reserved_id, target_type);
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(comptime, _) => {
-                return self.elaborate_comptime_block(comptime, expr.location, target_type);
+                return self.elaborate_comptime_block(
+                    reserved_id,
+                    comptime,
+                    expr.location,
+                    target_type,
+                );
             }
             ExpressionKind::Unsafe(unsafe_expression) => {
                 self.elaborate_unsafe_block(unsafe_expression, target_type)
             }
-            ExpressionKind::Resolved(id) => return (id, self.interner.id_type(id)),
+            ExpressionKind::Resolved(id) => {
+                // We must copy over data to the new reserved id
+                self.interner.replace_expr(reserved_id, self.interner.expression(&id));
+                self.interner.push_expr_location(reserved_id, self.interner.expr_location(&id));
+                let typ = self.interner.id_type(id);
+                self.interner.push_expr_type(reserved_id, typ.clone());
+                return typ;
+            }
             ExpressionKind::Interned(id) => {
                 let expr_kind = self.interner.get_expression_kind(id);
                 let expr = Expression::new(expr_kind.clone(), expr.location);
-                return self.elaborate_expression(expr);
+                return self.elaborate_expression_with_id(expr, reserved_id, target_type);
             }
             ExpressionKind::InternedStatement(id) => {
-                return self.elaborate_interned_statement_as_expr(id, expr.location);
+                return self.elaborate_interned_statement_as_expr(id, reserved_id, expr.location);
             }
             ExpressionKind::Error => (HirExpression::Error, Type::Error),
             ExpressionKind::Unquote(_) => {
@@ -104,9 +132,9 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(*path);
+                return self.elaborate_as_trait_path(reserved_id, *path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(reserved_id, *path),
         };
 
         self.interner.replace_expr(reserved_id, hir_expr);
@@ -117,22 +145,25 @@ impl Elaborator<'_> {
             self.push_integer_literal_expr_id(reserved_id);
         }
 
-        (reserved_id, typ)
+        typ
     }
 
     fn elaborate_interned_statement_as_expr(
         &mut self,
         id: InternedStatementKind,
+        reserved_id: ExprId,
         location: Location,
-    ) -> (ExprId, Type) {
+    ) -> Type {
         match self.interner.get_statement_kind(id) {
             StatementKind::Expression(expr) | StatementKind::Semi(expr) => {
-                self.elaborate_expression(expr.clone())
+                self.elaborate_expression_with_id(expr.clone(), reserved_id, None)
             }
-            StatementKind::Interned(id) => self.elaborate_interned_statement_as_expr(*id, location),
+            StatementKind::Interned(id) => {
+                self.elaborate_interned_statement_as_expr(*id, reserved_id, location)
+            }
             StatementKind::Error => {
                 let expr = Expression::new(ExpressionKind::Error, location);
-                self.elaborate_expression(expr)
+                self.elaborate_expression_with_id(expr, reserved_id, None)
             }
             other => {
                 let statement = other.to_string();
@@ -141,7 +172,7 @@ impl Elaborator<'_> {
                     location,
                 });
                 let expr = Expression::new(ExpressionKind::Error, location);
-                self.elaborate_expression(expr)
+                self.elaborate_expression_with_id(expr, reserved_id, None)
             }
         }
     }
@@ -403,7 +434,12 @@ impl Elaborator<'_> {
         (HirExpression::Literal(HirLiteral::FmtStr(fragments, fmt_str_idents, length)), typ)
     }
 
-    fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
+    fn elaborate_prefix(
+        &mut self,
+        expr_id: ExprId,
+        prefix: PrefixExpression,
+        location: Location,
+    ) -> Type {
         let rhs_location = prefix.rhs.location;
 
         let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
@@ -420,7 +456,7 @@ impl Elaborator<'_> {
         }
 
         let expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
-        let expr_id = self.interner.push_expr(expr);
+        self.interner.replace_expr(expr_id, expr);
         self.interner.push_expr_location(expr_id, location);
 
         let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
@@ -433,7 +469,7 @@ impl Elaborator<'_> {
         );
 
         self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        typ
     }
 
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
@@ -1018,24 +1054,21 @@ impl Elaborator<'_> {
 
     fn elaborate_member_access(
         &mut self,
+        expr_id: ExprId,
         access: MemberAccessExpression,
         location: Location,
-    ) -> (ExprId, Type) {
+    ) -> Type {
         let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
         let rhs = access.rhs;
         let rhs_location = rhs.location();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
         let access = HirMemberAccess { lhs, rhs, is_offset: false };
-        let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
+        let expr = HirExpression::MemberAccess(access.clone());
+        self.interner.replace_expr(expr_id, expr);
+        self.interner.push_expr_location(expr_id, location);
         let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
-    }
-
-    pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
-        let id = self.interner.push_expr(expr);
-        self.interner.push_expr_location(id, location);
-        id
+        typ
     }
 
     fn elaborate_cast(
@@ -1050,7 +1083,12 @@ impl Elaborator<'_> {
         (expr, result)
     }
 
-    fn elaborate_infix(&mut self, infix: InfixExpression, location: Location) -> (ExprId, Type) {
+    fn elaborate_infix(
+        &mut self,
+        expr_id: ExprId,
+        infix: InfixExpression,
+        location: Location,
+    ) -> Type {
         let (lhs, lhs_type) = self.elaborate_expression(infix.lhs);
         let (rhs, rhs_type) = self.elaborate_expression(infix.rhs);
         let trait_id = self.interner.get_operator_trait_method(infix.operator.contents);
@@ -1064,7 +1102,7 @@ impl Elaborator<'_> {
             rhs,
         });
 
-        let expr_id = self.interner.push_expr(expr);
+        self.interner.replace_expr(expr_id, expr);
         self.interner.push_expr_location(expr_id, location);
 
         let result = self.infix_operand_type_rules(&lhs_type, &operator, &rhs_type, location);
@@ -1077,7 +1115,7 @@ impl Elaborator<'_> {
         );
 
         self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        typ
     }
 
     fn handle_operand_type_rules_result(
@@ -1325,37 +1363,39 @@ impl Elaborator<'_> {
 
     fn elaborate_comptime_block(
         &mut self,
+        expr_id: ExprId,
         block: BlockExpression,
         location: Location,
         target_type: Option<&Type>,
-    ) -> (ExprId, Type) {
+    ) -> Type {
         let (block, _typ) = self.elaborate_in_comptime_context(|this| {
             this.elaborate_block_expression(block, target_type)
         });
 
         let mut interpreter = self.setup_interpreter();
         let value = interpreter.evaluate_block(block);
-        let (id, typ) = self.inline_comptime_value(value, location);
+        let typ = self.inline_comptime_value(value, expr_id, location);
 
-        let location = self.interner.id_location(id);
+        let location = self.interner.id_location(expr_id);
         self.debug_comptime(location, |interner| {
-            interner.expression(&id).to_display_ast(interner, location).kind
+            interner.expression(&expr_id).to_display_ast(interner, location).kind
         });
 
-        (id, typ)
+        typ
     }
 
     pub fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
+        reserved_id: ExprId,
         location: Location,
-    ) -> (ExprId, Type) {
+    ) -> Type {
         let make_error = |this: &mut Self, error: InterpreterError| {
             let error: CompilationError = error.into();
             this.push_err(error);
-            let error = this.interner.push_expr(HirExpression::Error);
-            this.interner.push_expr_location(error, location);
-            (error, Type::Error)
+            this.interner.replace_expr(reserved_id, HirExpression::Error);
+            this.interner.push_expr_location(reserved_id, location);
+            Type::Error
         };
 
         let value = match value {
@@ -1371,7 +1411,7 @@ impl Elaborator<'_> {
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
                 self.silence_field_visibility_errors += 1;
-                let value = self.elaborate_expression(new_expr);
+                let value = self.elaborate_expression_with_id(new_expr, reserved_id, None);
                 self.silence_field_visibility_errors -= 1;
                 value
             }
@@ -1449,11 +1489,12 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let (expr_id, typ) = self.inline_comptime_value(result, location);
+        let expr_id = self.interner.reserve_expr();
+        let typ = self.inline_comptime_value(result, expr_id, location);
         Some((self.interner.expression(&expr_id), typ))
     }
 
-    fn elaborate_as_trait_path(&mut self, path: AsTraitPath) -> (ExprId, Type) {
+    fn elaborate_as_trait_path(&mut self, id: ExprId, path: AsTraitPath) -> Type {
         let location = path.typ.location.merge(path.trait_path.location);
 
         let constraint = UnresolvedTraitConstraint {
@@ -1469,8 +1510,10 @@ impl Elaborator<'_> {
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
-            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
-            return (error, Type::Error);
+            self.interner.replace_expr(id, HirExpression::Error);
+            self.interner.push_expr_location(id, location);
+            self.interner.push_expr_type(id, Type::Error);
+            return Type::Error;
         };
 
         let constraint = TraitConstraint { typ, trait_bound };
@@ -1486,8 +1529,10 @@ impl Elaborator<'_> {
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
             self.push_err(ResolverError::NoSuchMethodInTrait { trait_name, method_name, location });
-            let error = self.interner.push_expr_full(HirExpression::Error, location, Type::Error);
-            return (error, Type::Error);
+            self.interner.replace_expr(id, HirExpression::Error);
+            self.interner.push_expr_location(id, location);
+            self.interner.push_expr_type(id, Type::Error);
+            return Type::Error;
         };
 
         let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: false };
@@ -1498,7 +1543,7 @@ impl Elaborator<'_> {
             impl_kind: ImplKind::TraitItem(trait_item),
         };
 
-        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
+        self.interner.replace_expr(id, HirExpression::Ident(ident.clone(), None));
         self.interner.push_expr_location(id, location);
 
         let mut bindings = TypeBindings::default();
@@ -1517,6 +1562,6 @@ impl Elaborator<'_> {
             push_required_type_variables,
         );
         self.interner.push_expr_type(id, typ.clone());
-        (id, typ)
+        typ
     }
 }
