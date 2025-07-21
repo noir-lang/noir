@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 struct ArrData<let N: u32> {
     a: [Field; N],
-    b: [Field; (N + N) - 1],
+    b: [Field; (N * 2) - 1],
 }
 
 fn main() {

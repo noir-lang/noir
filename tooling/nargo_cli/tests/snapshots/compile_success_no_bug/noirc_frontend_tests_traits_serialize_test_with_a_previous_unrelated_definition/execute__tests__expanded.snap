@@ -15,7 +15,7 @@ where
     A: Serialize,
     B: Serialize,
 {
-    let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
+    let Size: u32 = 2 * <B as Serialize>::Size;
 
     fn serialize(self) {
         self.0.serialize();
