@@ -502,7 +502,9 @@ impl HirLValue {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
-            HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
+            HirLValue::Ident(path, _) => {
+                LValue::Path(Path::from_ident(path.to_display_ast(interner)))
+            }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
                 let object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), location: *location }
