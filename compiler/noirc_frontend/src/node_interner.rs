@@ -1655,19 +1655,12 @@ impl NodeInterner {
             if let TraitImplKind::Normal(impl_id) = impl_kind {
                 let trait_impl = self.get_trait_implementation(*impl_id);
                 let trait_impl = trait_impl.borrow();
-
-                if let Err(error) = self.validate_where_clause(
+                let _ = self.validate_where_clause(
                     &trait_impl.where_clause,
                     &mut fresh_bindings,
                     &instantiation_bindings,
                     recursion_limit,
-                ) {
-                    // Only keep the first errors we get from a failing where clause
-                    if where_clause_error.is_none() {
-                        where_clause_error = Some(error);
-                    }
-                    continue;
-                }
+                );
             }
 
             let mut check_trait_generics =
@@ -1705,6 +1698,24 @@ impl NodeInterner {
 
             if !check_trait_generics(&trait_generics.ordered, &trait_generics.named) {
                 continue;
+            }
+
+            if let TraitImplKind::Normal(impl_id) = impl_kind {
+                let trait_impl = self.get_trait_implementation(*impl_id);
+                let trait_impl = trait_impl.borrow();
+
+                if let Err(error) = self.validate_where_clause(
+                    &trait_impl.where_clause,
+                    &mut fresh_bindings,
+                    &instantiation_bindings,
+                    recursion_limit,
+                ) {
+                    // Only keep the first errors we get from a failing where clause
+                    if where_clause_error.is_none() {
+                        where_clause_error = Some(error);
+                    }
+                    continue;
+                }
             }
 
             let constraint = TraitConstraint {
