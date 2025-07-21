@@ -176,10 +176,10 @@ impl Function {
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. } => {
                     let array_or_slice_type = context.dfg.type_of_value(*array);
-                    let array_op_always_fails = match array_or_slice_type {
+                    let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
-                            len == 0
+                            *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                                     (index.try_to_u32().unwrap() - offset.to_u32())
                                         >= (array_type.element_size() as u32 * len)
@@ -198,6 +198,44 @@ impl Function {
                                 None => false, // The predicate is a variable
                             };
                         current_block_reachability = if is_predicate_constant_one {
+                            // If we have an array that contains references we no longer need to bother with resolution of those references.
+                            // However, we want a trap to still be triggered by an OOB array access.
+                            // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
+                            // making there way further down the compilation pipeline (e.g. ACIR where references are not supported).
+                            let (old_instruction, old_array, trap_array) = match array_or_slice_type
+                            {
+                                Type::Array(_, len) => {
+                                    let dummy_array_typ = Type::Array(
+                                        Arc::new(vec![Type::Numeric(NumericType::unsigned(1))]),
+                                        len,
+                                    );
+                                    (
+                                        instruction.clone(),
+                                        *array,
+                                        zeroed_value(
+                                            context.dfg,
+                                            func_id,
+                                            block_id,
+                                            &dummy_array_typ,
+                                        ),
+                                    )
+                                }
+                                _ => unreachable!("Expected an array type"),
+                            };
+                            let new_instruction = old_instruction.map_values(|value| {
+                                if value == old_array { trap_array } else { value }
+                            });
+                            let stack =
+                                context.dfg.get_instruction_call_stack_id(context.instruction_id);
+                            context.dfg.insert_instruction_and_results(
+                                new_instruction,
+                                block_id,
+                                Some(vec![Type::Numeric(NumericType::unsigned(1))]),
+                                stack,
+                            );
+                            // Remove the old failing array access in favor of the dummy one
+                            context.remove_current_instruction();
+
                             Reachability::Unreachable
                         } else {
                             Reachability::UnreachableUnderPredicate
@@ -824,5 +862,38 @@ mod test {
             unreachable
         }
         "#);
+    }
+
+    #[test]
+    fn transforms_failing_array_access_to_work_on_dummy_array() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8                      
+            store u8 0 at v0                               
+            v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
+            v4 = array_get v2, index u32 2 -> u8         
+            v6 = array_get v2, index u32 3 -> &mut u8      
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // We expect the array containing references to no longer be in use,
+        // for the failing array get to now be over a dummy array.
+        // We expect the new assertion to also use the correct dummy type (u1) as to have a well formed SSA.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
+            v4 = make_array [u1 0] : [u1; 1]
+            v6 = array_get v4, index u32 2 -> u1
+            unreachable
+        }
+        ");
     }
 }
