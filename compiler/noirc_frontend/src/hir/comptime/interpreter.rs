@@ -1001,7 +1001,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
+            let value = self.evaluate(arg)?.copy();
+            Ok((value, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 

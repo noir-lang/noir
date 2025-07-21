@@ -719,6 +719,22 @@ impl Value {
             _ => false, // Unsigned or Field types are never negative
         }
     }
+
+    /// Copies an argument ensuring any references to struct/tuple fields are replaced with fresh ones.
+    pub(crate) fn copy(self) -> Value {
+        match self {
+            Value::Tuple(fields) => {
+                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().copy())))
+            }
+            Value::Struct(fields, typ) => {
+                let fields = fields
+                    .into_iter()
+                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().copy())));
+                Value::Struct(fields.collect(), typ)
+            }
+            other => other,
+        }
+    }
 }
 
 /// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
