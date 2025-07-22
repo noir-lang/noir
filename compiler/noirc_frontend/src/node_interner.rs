@@ -1105,8 +1105,8 @@ impl NodeInterner {
 
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
     pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
-        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.try_definition(id).map(|def| &def.kind) {
+        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(*expr) {
+            match self.try_definition(*id).map(|def| &def.kind) {
                 Some(DefinitionKind::Function(func_id)) => Some(*func_id),
                 Some(DefinitionKind::Local(Some(expr_id))) => {
                     self.lookup_function_from_expr(expr_id)
@@ -1186,12 +1186,10 @@ impl NodeInterner {
     }
 
     /// Returns the interned statement corresponding to `stmt_id`
-    pub fn statement(&self, stmt_id: &StmtId) -> HirStatement {
-        let def =
-            self.nodes.get(stmt_id.0).expect("ice: all statement ids should have definitions");
-
-        match def {
-            Node::Statement(stmt) => stmt.clone(),
+    pub fn statement(&self, stmt_id: StmtId) -> &HirStatement {
+        match self.nodes.get(stmt_id.0) {
+            Some(Node::Statement(stmt)) => stmt,
+            None => panic!("ice: all statement ids should have definitions"),
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
         }
     }
@@ -1216,15 +1214,11 @@ impl NodeInterner {
     }
 
     /// Returns the interned expression corresponding to `expr_id`
-    pub fn expression(&self, expr_id: &ExprId) -> HirExpression {
-        let def =
-            self.nodes.get(expr_id.0).expect("ice: all expression ids should have definitions");
-
-        match def {
-            Node::Expression(expr) => expr.clone(),
-            _ => {
-                panic!("ice: all expression ids should correspond to a expression in the interner")
-            }
+    pub fn expression(&self, expr_id: ExprId) -> &HirExpression {
+        match self.nodes.get(expr_id.0) {
+            Some(Node::Expression(expr)) => expr,
+            None => panic!("ice: all expression ids should have definitions"),
+            _ => panic!("ice: all expression ids should correspond to a expression in the interner"),
         }
     }
 
@@ -2512,7 +2506,7 @@ impl NodeInterner {
         match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
             MetaAttributeName::Resolved(expr_id) => {
-                let HirExpression::Ident(ident, _) = self.expression(expr_id) else {
+                let HirExpression::Ident(ident, _) = self.expression(*expr_id) else {
                     return None;
                 };
                 self.try_definition(ident.id).map(|def| def.name.clone())

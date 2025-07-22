@@ -346,7 +346,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         self.return_location =
             self.interner.function(&main_id).block(self.interner).statements().last().and_then(
-                |x| match self.interner.statement(x) {
+                |x| match self.interner.statement(*x) {
                     HirStatement::Expression(id) => Some(self.interner.id_location(id)),
                     _ => None,
                 },
@@ -491,33 +491,33 @@ impl<'interner> Monomorphizer<'interner> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
-        let expr = match self.interner.expression(&expr) {
+        let expr = match self.interner.expression(expr) {
             HirExpression::Ident(ident, generics) => self.ident(ident, expr, generics)?,
-            HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents)),
+            HirExpression::Literal(HirLiteral::Str(contents)) => Literal(Str(contents.clone())),
             HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) => {
-                let fields = try_vecmap(idents, |ident| self.expr(ident))?;
+                let fields = try_vecmap(idents, |ident| self.expr(*ident))?;
                 Literal(FmtStr(
-                    fragments,
+                    fragments.clone(),
                     fields.len() as u64,
                     Box::new(ast::Expression::Tuple(fields)),
                 ))
             }
-            HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
+            HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(*value)),
             HirExpression::Literal(HirLiteral::Integer(value)) => {
                 let location = self.interner.id_location(expr);
                 let typ = Self::convert_type(&self.interner.id_type(expr), location)?;
-                Literal(Integer(value, typ, location))
+                Literal(Integer(*value, typ, location))
             }
             HirExpression::Literal(HirLiteral::Array(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, false)?,
                 HirArrayLiteral::Repeated { repeated_element, length } => {
-                    self.repeated_array(expr, repeated_element, length, false)?
+                    self.repeated_array(expr, *repeated_element, *length, false)?
                 }
             },
             HirExpression::Literal(HirLiteral::Slice(array)) => match array {
                 HirArrayLiteral::Standard(array) => self.standard_array(expr, array, true)?,
                 HirArrayLiteral::Repeated { repeated_element, length } => {
-                    self.repeated_array(expr, repeated_element, length, true)?
+                    self.repeated_array(expr, *repeated_element, *length, true)?
                 }
             },
             HirExpression::Literal(HirLiteral::Unit) => ast::Expression::Block(vec![]),
@@ -702,12 +702,12 @@ impl<'interner> Monomorphizer<'interner> {
     fn standard_array(
         &mut self,
         array: node_interner::ExprId,
-        array_elements: Vec<node_interner::ExprId>,
+        array_elements: &[node_interner::ExprId],
         is_slice: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
         let typ = Self::convert_type(&self.interner.id_type(array), location)?;
-        let contents = try_vecmap(array_elements, |id| self.expr(id))?;
+        let contents = try_vecmap(array_elements, |id| self.expr(*id))?;
         if is_slice {
             Ok(ast::Expression::Literal(ast::Literal::Slice(ast::ArrayLiteral { contents, typ })))
         } else {
@@ -741,7 +741,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn index(
         &mut self,
         id: node_interner::ExprId,
-        index: HirIndexExpression,
+        index: &HirIndexExpression,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
         let element_type = Self::convert_type(&self.interner.id_type(id), location)?;
@@ -753,7 +753,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn statement(&mut self, id: StmtId) -> Result<ast::Expression, MonomorphizationError> {
-        match self.interner.statement(&id) {
+        match self.interner.statement(id) {
             HirStatement::Let(let_statement) => self.let_statement(let_statement),
             HirStatement::Assign(assign) => self.assign(assign),
             HirStatement::For(for_loop) => {
@@ -781,17 +781,17 @@ impl<'interner> Monomorphizer<'interner> {
                 }))
             }
             HirStatement::Loop(block) => {
-                let block = Box::new(self.expr(block)?);
+                let block = Box::new(self.expr(*block)?);
                 Ok(ast::Expression::Loop(block))
             }
             HirStatement::While(condition, body) => {
-                let condition = Box::new(self.expr(condition)?);
-                let body = Box::new(self.expr(body)?);
+                let condition = Box::new(self.expr(*condition)?);
+                let body = Box::new(self.expr(*body)?);
                 Ok(ast::Expression::While(While { condition, body }))
             }
-            HirStatement::Expression(expr) => self.expr(expr),
+            HirStatement::Expression(expr) => self.expr(*expr),
             HirStatement::Semi(expr) => {
-                self.expr(expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
+                self.expr(*expr).map(|expr| ast::Expression::Semi(Box::new(expr)))
             }
             HirStatement::Break => Ok(ast::Expression::Break),
             HirStatement::Continue => Ok(ast::Expression::Continue),
@@ -804,11 +804,11 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn let_statement(
         &mut self,
-        let_statement: HirLetStatement,
+        let_statement: &HirLetStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expr = self.expr(let_statement.expression)?;
         let expected_type = self.interner.id_type(let_statement.expression);
-        self.unpack_pattern(let_statement.pattern, expr, &expected_type)
+        self.unpack_pattern(&let_statement.pattern, expr, &expected_type)
     }
 
     fn constructor(
@@ -923,7 +923,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn unpack_pattern(
         &mut self,
-        pattern: HirPattern,
+        pattern: &'interner HirPattern,
         value: ast::Expression,
         typ: &HirType,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -940,17 +940,17 @@ impl<'interner> Monomorphizer<'interner> {
                     expression: Box::new(value),
                 }))
             }
-            HirPattern::Mutable(pattern, _) => self.unpack_pattern(*pattern, value, typ),
+            HirPattern::Mutable(pattern, _) => self.unpack_pattern(pattern, value, typ),
             HirPattern::Tuple(patterns, _) => {
                 let fields = unwrap_tuple_type(typ);
-                self.unpack_tuple_pattern(value, patterns.into_iter().zip(fields), typ)
+                self.unpack_tuple_pattern(value, patterns.iter().zip(fields), typ)
             }
             HirPattern::Struct(_, patterns, location) => {
-                let fields = unwrap_struct_type(typ, location)?;
+                let fields = unwrap_struct_type(typ, *location)?;
                 assert_eq!(patterns.len(), fields.len());
 
                 let mut patterns =
-                    btree_map(patterns, |(name, pattern)| (name.into_string(), pattern));
+                    btree_map(patterns, |(name, pattern)| (name.to_string(), pattern));
 
                 // We iterate through the type's fields to match the order defined in the struct type
                 let patterns_iter = fields.into_iter().map(|(field_name, field_type, _)| {
@@ -966,7 +966,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn unpack_tuple_pattern(
         &mut self,
         value: ast::Expression,
-        fields: impl Iterator<Item = (HirPattern, HirType)>,
+        fields: impl Iterator<Item = (&'interner HirPattern, HirType)>,
         tuple_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let fresh_id = self.next_local_id();
@@ -1041,13 +1041,13 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn ident(
         &mut self,
-        ident: HirIdent,
+        ident: &'interner HirIdent,
         expr_id: node_interner::ExprId,
-        generics: Option<Vec<HirType>>,
+        generics: &'interner Option<Vec<HirType>>,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let typ = self.interner.id_type(expr_id);
 
-        if let ImplKind::TraitItem(item) = ident.impl_kind {
+        if let ImplKind::TraitItem(item) = &ident.impl_kind {
             return self.resolve_trait_item_expr(expr_id, typ, item.id());
         }
 
@@ -1072,11 +1072,14 @@ impl<'interner> Monomorphizer<'interner> {
                 let mutable = definition.mutable;
                 let location = Some(ident.location);
                 let name = definition.name.clone();
+                let empty = Vec::new();
+                let generics = generics.as_ref().unwrap_or(&empty);
+
                 let definition = self.lookup_function(
                     *func_id,
                     expr_id,
                     &typ,
-                    &generics.unwrap_or_default(),
+                    generics,
                     None,
                 );
                 let typ = Self::convert_type(&typ, ident.location)?;
@@ -1647,12 +1650,12 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn function_call(
         &mut self,
-        call: HirCallExpression,
+        call: &'interner HirCallExpression,
         id: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.expr(call.func)?);
         let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
-        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
+        let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(*id));
 
         self.patch_debug_instrumentation_call(&call, &mut arguments)?;
 
@@ -1896,7 +1899,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn assign(
         &mut self,
-        assign: HirAssignStatement,
+        assign: &'interner HirAssignStatement,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.interner.id_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
@@ -1906,11 +1909,11 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let expression = Box::new(self.expr(assign.expression)?);
-        let lvalue = self.lvalue(assign.lvalue)?;
+        let lvalue = self.lvalue(&assign.lvalue)?;
         Ok(ast::Expression::Assign(ast::Assign { expression, lvalue }))
     }
 
-    fn lvalue(&mut self, lvalue: HirLValue) -> Result<ast::LValue, MonomorphizationError> {
+    fn lvalue(&mut self, lvalue: &HirLValue) -> Result<ast::LValue, MonomorphizationError> {
         let value = match lvalue {
             HirLValue::Ident(ident, typ) => match self.lookup_captured_lvalue(ident.id) {
                 Some(value) => value,
@@ -1918,18 +1921,19 @@ impl<'interner> Monomorphizer<'interner> {
             },
             HirLValue::MemberAccess { object, field_index, .. } => {
                 let field_index = field_index.unwrap();
-                let object = Box::new(self.lvalue(*object)?);
+                let object = Box::new(self.lvalue(object)?);
                 ast::LValue::MemberAccess { object, field_index }
             }
             HirLValue::Index { array, index, typ, location } => {
-                let array = Box::new(self.lvalue(*array)?);
-                let index = Box::new(self.expr(index)?);
-                let element_type = Self::convert_type(&typ, location)?;
+                let array = Box::new(self.lvalue(array)?);
+                let index = Box::new(self.expr(*index)?);
+                let location = *location;
+                let element_type = Self::convert_type(typ, location)?;
                 ast::LValue::Index { array, index, element_type, location }
             }
             HirLValue::Dereference { lvalue, element_type, location, implicitly_added: _ } => {
-                let reference = Box::new(self.lvalue(*lvalue)?);
-                let element_type = Self::convert_type(&element_type, location)?;
+                let reference = Box::new(self.lvalue(lvalue)?);
+                let element_type = Self::convert_type(element_type, *location)?;
                 ast::LValue::Dereference { reference, element_type }
             }
         };
@@ -1939,7 +1943,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn lambda(
         &mut self,
-        lambda: HirLambda,
+        lambda: &HirLambda,
         expr: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         if lambda.captures.is_empty() {
@@ -1952,7 +1956,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn lambda_no_capture(
         &mut self,
-        lambda: HirLambda,
+        lambda: &HirLambda,
         expr: node_interner::ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr);
@@ -2002,7 +2006,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn lambda_with_setup(
         &mut self,
-        lambda: HirLambda,
+        lambda: &HirLambda,
         expr: node_interner::ExprId,
     ) -> Result<(ast::Expression, ast::Expression), MonomorphizationError> {
         // returns (<closure setup>, <closure variable>)
@@ -2147,7 +2151,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn match_expr(
         &mut self,
-        match_expr: HirMatch,
+        match_expr: &'interner HirMatch,
         expr_id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let result_type = self.interner.id_type(expr_id);
@@ -2159,7 +2163,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         match match_expr {
-            HirMatch::Success(id) => self.expr(id),
+            HirMatch::Success(id) => self.expr(*id),
             HirMatch::Failure { .. } => {
                 let false_ = Box::new(ast::Expression::Literal(ast::Literal::Bool(false)));
                 let msg = "match failure";
@@ -2174,32 +2178,32 @@ impl<'interner> Monomorphizer<'interner> {
                 Ok(ast::Expression::Constrain(false_, location, msg))
             }
             HirMatch::Guard { cond, body, otherwise } => {
-                let condition = Box::new(self.expr(cond)?);
-                let consequence = Box::new(self.expr(body)?);
-                let alternative = Some(Box::new(self.match_expr(*otherwise, expr_id)?));
+                let condition = Box::new(self.expr(*cond)?);
+                let consequence = Box::new(self.expr(*body)?);
+                let alternative = Some(Box::new(self.match_expr(otherwise, expr_id)?));
                 let typ = Self::convert_type(&result_type, location)?;
                 Ok(ast::Expression::If(ast::If { condition, consequence, alternative, typ }))
             }
             HirMatch::Switch(variable_to_match, cases, default) => {
-                let variable_name = self.interner.definition(variable_to_match).name.clone();
-                let variable_id = match self.lookup_local(variable_to_match) {
+                let variable_name = self.interner.definition(*variable_to_match).name.clone();
+                let variable_id = match self.lookup_local(*variable_to_match) {
                     Some(Definition::Local(id)) => id,
                     other => unreachable!("Expected match variable to be defined. Found {other:?}"),
                 };
 
                 let cases = try_vecmap(cases, |case| {
-                    let arguments = vecmap(case.arguments, |arg| {
-                        let arg_name = self.interner.definition(arg).name.clone();
+                    let arguments = vecmap(&case.arguments, |arg| {
+                        let arg_name = self.interner.definition(*arg).name.clone();
                         let new_id = self.next_local_id();
-                        self.define_local(arg, new_id);
+                        self.define_local(*arg, new_id);
                         (new_id, arg_name)
                     });
-                    let branch = self.match_expr(case.body, expr_id)?;
-                    Ok(ast::MatchCase { constructor: case.constructor, arguments, branch })
+                    let branch = self.match_expr(&case.body, expr_id)?;
+                    Ok(ast::MatchCase { constructor: case.constructor.clone(), arguments, branch })
                 })?;
 
                 let default_case = match default {
-                    Some(case) => Some(Box::new(self.match_expr(*case, expr_id)?)),
+                    Some(case) => Some(Box::new(self.match_expr(case, expr_id)?)),
                     None => None,
                 };
 
