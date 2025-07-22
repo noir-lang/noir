@@ -172,10 +172,44 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
+            #[cfg(debug_assertions)]
+            flatten_cfg_pre_check(function);
+
             flatten_function_cfg(function, &no_predicates);
         }
         self
     }
+}
+
+/// Pre-check condition for [Ssa::flatten_cfg].
+///
+/// Succeeds if:
+///   - no block contains a jmpif with a constant condition.
+///
+/// Otherwise panics.
+#[cfg(debug_assertions)]
+fn flatten_cfg_pre_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        if let TerminatorInstruction::JmpIf { condition, .. } =
+            function.dfg[*block].unwrap_terminator()
+        {
+            if function
+                .dfg
+                .get_numeric_constant(*condition)
+                .is_some_and(|c| c.is_zero() || c.is_one())
+            {
+                // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
+                // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
+                //
+                // We could add handling for this inside of the pass itself but it's simpler to just run `simplfy_cfg`
+                // immmediately before flattening.
+                panic!(
+                    "Function {} has a jmpif with a constant condition {condition}",
+                    function.id()
+                );
+            }
+        }
+    });
 }
 
 pub(crate) struct Context<'f> {
