@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753175652295,
+  "lastUpdate": 1753175771027,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21653,85 +21653,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ba05d729b9753aa5ce2b076c1dd4795edb173f68",
-          "message": "chore: Release Noir(1.0.0-beta.8) (#8892)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-11T14:11:00Z",
-          "tree_id": "cdb74cd83b1d94706edcb9a14af3f266bd5eaa22",
-          "url": "https://github.com/noir-lang/noir/commit/ba05d729b9753aa5ce2b076c1dd4795edb173f68"
-        },
-        "date": 1752244864066,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 769.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2060.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 577.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4946.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3984.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32752.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32781.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 185,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 401.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.8,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25758,6 +25679,40 @@ window.BENCHMARK_DATA = {
             "value": 398.6,
             "unit": "KB"
           },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 622.9,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb0982ee8859640b18a1874b1d92b29d0e2c0499",
+          "message": "chore!: enforce visibility warnings as errors (#7657)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-07-22T08:48:22Z",
+          "tree_id": "0e741edd7eb25297160d9740ef9498bc2962f0f5",
+          "url": "https://github.com/noir-lang/noir/commit/eb0982ee8859640b18a1874b1d92b29d0e2c0499"
+        },
+        "date": 1753175755182,
+        "tool": "customSmallerIsBetter",
+        "benches": [
           {
             "name": "semaphore-depth-10",
             "value": 632.4,
