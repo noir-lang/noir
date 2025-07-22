@@ -3,6 +3,8 @@ use async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Posi
 use fm::{FileId, FileMap};
 use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
+use noirc_frontend::hir::def_map::ModuleDefId;
+use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
@@ -94,11 +96,11 @@ fn format_module(id: ModuleId, args: &ProcessRequestCallbackArgs) -> Option<Stri
         // This is a workaround to avoid panicking in that case (which brings the LSP server down).
         // Cases where this happens are related to generated code, so once that stops happening
         // this won't be an issue anymore.
-        let module_attributes = args.interner.try_module_attributes(&id)?;
+        let module_attributes = args.interner.try_module_attributes(id)?;
 
         if let Some(parent_local_id) = module_attributes.parent {
             if format_parent_module_from_module_id(
-                &ModuleId { krate: id.krate, local_id: parent_local_id },
+                ModuleId { krate: id.krate, local_id: parent_local_id },
                 args,
                 &mut string,
             ) {
@@ -133,7 +135,7 @@ fn format_struct(
     args: &ProcessRequestCallbackArgs,
 ) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -161,7 +163,7 @@ fn format_enum(
     args: &ProcessRequestCallbackArgs,
 ) -> String {
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(typ.id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(typ.id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -199,7 +201,7 @@ fn format_struct_member(
     let field = struct_type.field_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(struct_type.name.as_str());
@@ -225,7 +227,7 @@ fn format_enum_variant(
     let variant = enum_type.variant_at(field_index);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Type(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TypeId(id), args, &mut string) {
         string.push_str("::");
     }
     string.push_str(enum_type.name.as_str());
@@ -252,7 +254,7 @@ fn format_trait(id: TraitId, args: &ProcessRequestCallbackArgs) -> String {
     let a_trait = args.interner.get_trait(id);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Trait(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TraitId(id), args, &mut string) {
         string.push('\n');
     }
     string.push_str("    ");
@@ -271,7 +273,7 @@ fn format_trait_associated_type(
 ) -> String {
     let associated_type = args.interner.get_trait_associated_type(id);
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Trait(associated_type.trait_id), args, &mut string) {
+    if format_parent_module(ModuleDefId::TraitId(associated_type.trait_id), args, &mut string) {
         let trait_ = args.interner.get_trait(associated_type.trait_id);
         string.push_str("::");
         string.push_str(trait_.name.as_str());
@@ -290,7 +292,7 @@ fn format_global(id: GlobalId, args: &ProcessRequestCallbackArgs) -> String {
     let typ = args.interner.definition_type(definition_id);
 
     let mut string = String::new();
-    if format_parent_module(ReferenceId::Global(id), args, &mut string) {
+    if format_parent_module(ModuleDefId::GlobalId(id), args, &mut string) {
         string.push('\n');
     }
 
@@ -343,14 +345,14 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
         _ => None,
     };
 
-    let reference_id = if let Some((type_id, variant_index)) = enum_variant {
-        ReferenceId::EnumVariant(type_id, variant_index)
+    let (reference_id, module_def_id) = if let Some((type_id, variant_index)) = enum_variant {
+        (ReferenceId::EnumVariant(type_id, variant_index), ModuleDefId::TypeId(type_id))
     } else {
-        ReferenceId::Function(id)
+        (ReferenceId::Function(id), ModuleDefId::FunctionId(id))
     };
 
     let mut string = String::new();
-    let formatted_parent_module = format_parent_module(reference_id, args, &mut string);
+    let formatted_parent_module = format_parent_module(module_def_id, args, &mut string);
 
     let formatted_parent_type = if let Some(trait_impl_id) = func_meta.trait_impl {
         let trait_impl = args.interner.get_trait_implementation(trait_impl_id);
@@ -559,7 +561,7 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     let type_alias = type_alias.borrow();
 
     let mut string = String::new();
-    format_parent_module(ReferenceId::Alias(id), args, &mut string);
+    format_parent_module(ModuleDefId::TypeAliasId(id), args, &mut string);
     string.push('\n');
     string.push_str("    ");
     string.push_str("type ");
@@ -685,11 +687,11 @@ fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
 }
 
 fn format_parent_module(
-    referenced: ReferenceId,
+    module_def_id: ModuleDefId,
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
-    let Some(module) = args.interner.reference_module(referenced) else {
+    let Some(module) = get_parent_module(module_def_id, args.interner, args.def_maps) else {
         return false;
     };
 
@@ -697,7 +699,7 @@ fn format_parent_module(
 }
 
 fn format_parent_module_from_module_id(
-    module: &ModuleId,
+    module: ModuleId,
     args: &ProcessRequestCallbackArgs,
     string: &mut String,
 ) -> bool {
@@ -905,7 +907,7 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
                 if index > 0 {
                     string.push_str(", ");
                 }
-                append_value_to_string(value, string)?;
+                append_value_to_string(&value.borrow(), string)?;
             }
             if len == 1 {
                 string.push(',');

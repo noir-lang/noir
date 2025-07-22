@@ -422,6 +422,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         for ((pattern, typ), argument) in
                             pattern_fields.iter().zip(type_fields).zip(fields)
                         {
+                            let argument = argument.borrow().clone();
                             self.define_pattern(pattern, typ, argument, location)?;
                         }
                         Ok(())
@@ -450,6 +451,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 }
                             })?;
 
+                            let field = field.borrow();
                             let field_type = field.get_type().into_owned();
                             let result = self.define_pattern(
                                 field_pattern,
@@ -492,7 +494,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
                     Value::Pointer(reference, true, _) => {
-                        *reference.borrow_mut() = argument;
+                        // We can't store to the reference directly, we need to check if the value
+                        // is a struct or tuple to store to each field instead. This is so any
+                        // references to these fields are also updated.
+                        Self::store_flattened(reference.clone(), argument);
                     }
                     _ => {
                         entry.insert(argument);
@@ -898,8 +903,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// - `<=`: `ordering != Ordering::Less`
     fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
         let ordering = match ordering {
-            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
-                Value::Field(ordering) => ordering,
+            Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
+                Value::Field(ordering) => *ordering,
                 _ => unreachable!("`cmp` should always return an Ordering value"),
             },
             _ => unreachable!("`cmp` should always return an Ordering value"),
@@ -938,7 +943,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .fields
             .into_iter()
             .map(|(name, expr)| {
-                let field_value = self.evaluate(expr)?;
+                let field_value = Shared::new(self.evaluate(expr)?);
                 Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
@@ -961,11 +966,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let (fields, struct_type) = match self.evaluate(access.lhs)? {
             Value::Struct(fields, typ) => (fields, typ),
             Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
+                let (fields, field_types): (HashMap<Rc<String>, Shared<Value>>, Vec<Type>) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
-                        let field_type = field.get_type().into_owned();
+                        let field_type = field.borrow().get_type().into_owned();
                         let key_val_pair = (Rc::new(i.to_string()), field);
                         (key_val_pair, field_type)
                     })
@@ -979,19 +984,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
+        let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
             let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })
+        })?;
+
+        // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
+        // We set auto_deref to true so that when it is used elsewhere it is dereferenced
+        // automatically.
+        Ok(Value::Pointer(field, true, false))
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
+            let value = self.evaluate(arg)?.copy();
+            Ok((value, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -1084,7 +1095,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
-        let fields = try_vecmap(tuple, |field| self.evaluate(field))?;
+        let fields = try_vecmap(tuple, |field| Ok(Shared::new(self.evaluate(field)?)))?;
         Ok(Value::Tuple(fields))
     }
 
@@ -1165,7 +1176,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        *value.borrow_mut() = rhs;
+                        Self::store_flattened(value, rhs);
                         Ok(())
                     }
                     value => {
@@ -1186,11 +1197,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut fields) => {
-                        fields[index] = rhs;
+                        fields[index] = Shared::new(rhs);
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.into_string()), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), Shared::new(rhs));
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1213,6 +1224,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
+            }
+        }
+    }
+
+    /// When we store to a struct such as in
+    /// ```noir
+    /// let mut a = (false,);
+    /// let b = &mut a.0;
+    /// a = (true,);
+    /// ```
+    /// we must flatten the store to store to each individual field so that any existing
+    /// references, such as `b` above, will also reflect the mutation.
+    fn store_flattened(lvalue: Shared<Value>, rvalue: Value) {
+        let lvalue_ref = lvalue.borrow();
+        match (&*lvalue_ref, rvalue) {
+            (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
+                for (name, lvalue) in lvalue_fields.iter() {
+                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (_, rvalue) => {
+                drop(lvalue_ref);
+                *lvalue.borrow_mut() = rvalue;
             }
         }
     }
@@ -1244,8 +1284,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 })?;
 
                 match object_value {
-                    Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
+                    Value::Tuple(mut values) => Ok(values.swap_remove(index).unwrap_or_clone()),
+                    Value::Struct(fields, _) => {
+                        Ok(fields[field_name.as_string()].clone().unwrap_or_clone())
+                    }
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,

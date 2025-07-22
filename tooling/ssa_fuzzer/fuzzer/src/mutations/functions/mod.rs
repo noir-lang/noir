@@ -74,16 +74,16 @@ impl MutateFunctionVec for FunctionInsertionMutation {
 pub(crate) fn mutate(vec_fuzzer_command: &mut Vec<FunctionData>, rng: &mut StdRng) {
     match BASIC_FUNCTION_VEC_MUTATION_CONFIGURATION.select(rng) {
         FunctionVecMutationOptions::CopyFunction => {
-            CopyFunctionMutation::mutate(rng, vec_fuzzer_command)
+            CopyFunctionMutation::mutate(rng, vec_fuzzer_command);
         }
         FunctionVecMutationOptions::Remove => {
-            RemoveFunctionMutation::mutate(rng, vec_fuzzer_command)
+            RemoveFunctionMutation::mutate(rng, vec_fuzzer_command);
         }
         FunctionVecMutationOptions::Insertion => {
-            FunctionInsertionMutation::mutate(rng, vec_fuzzer_command)
+            FunctionInsertionMutation::mutate(rng, vec_fuzzer_command);
         }
         FunctionVecMutationOptions::InsertEmpty => {
-            InsertEmptyFunctionMutation::mutate(rng, vec_fuzzer_command)
+            InsertEmptyFunctionMutation::mutate(rng, vec_fuzzer_command);
         }
         FunctionVecMutationOptions::MutateFunction => {
             MutateFunction::mutate(rng, vec_fuzzer_command);
