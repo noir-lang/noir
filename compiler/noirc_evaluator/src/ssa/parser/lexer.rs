@@ -3,7 +3,7 @@ use std::str::{CharIndices, FromStr};
 use acvm::{AcirField, FieldElement};
 use noirc_errors::{Position, Span};
 use noirc_frontend::token::IntType;
-use num_bigint::BigInt;
+use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, One};
 use thiserror::Error;
 
@@ -22,7 +22,8 @@ impl<'a> Lexer<'a> {
             chars: source.char_indices(),
             position: 0,
             done: false,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
+            // WARN: Replaced from FieldElement::modulus() to 2^256 - 1 to avoid overflow errors
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, BigUint::from(2u8).pow(256u32)) // cSpell:disable-line
                 - BigInt::one(),
         }
     }
