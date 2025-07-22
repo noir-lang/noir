@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753124944644,
+  "lastUpdate": 1753175652295,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19551,48 +19551,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ba05d729b9753aa5ce2b076c1dd4795edb173f68",
-          "message": "chore: Release Noir(1.0.0-beta.8) (#8892)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-11T14:11:00Z",
-          "tree_id": "cdb74cd83b1d94706edcb9a14af3f266bd5eaa22",
-          "url": "https://github.com/noir-lang/noir/commit/ba05d729b9753aa5ce2b076c1dd4795edb173f68"
-        },
-        "date": 1752244523123,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 260026,
-            "range": "± 1038",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235112,
-            "range": "± 2140",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788873,
-            "range": "± 19319",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -21644,6 +21602,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778912,
             "range": "± 1982",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb0982ee8859640b18a1874b1d92b29d0e2c0499",
+          "message": "chore!: enforce visibility warnings as errors (#7657)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-07-22T08:48:22Z",
+          "tree_id": "0e741edd7eb25297160d9740ef9498bc2962f0f5",
+          "url": "https://github.com/noir-lang/noir/commit/eb0982ee8859640b18a1874b1d92b29d0e2c0499"
+        },
+        "date": 1753175636265,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249344,
+            "range": "± 920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219283,
+            "range": "± 3408",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781875,
+            "range": "± 5395",
             "unit": "ns/iter"
           }
         ]
