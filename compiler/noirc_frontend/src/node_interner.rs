@@ -734,9 +734,22 @@ impl NodeInterner {
     pub fn push_stmt(&mut self, stmt: HirStatement) -> StmtId {
         StmtId(self.nodes.insert(Node::Statement(stmt)))
     }
+
     /// Interns a HIR expression.
     pub fn push_expr(&mut self, expr: HirExpression) -> ExprId {
         ExprId(self.nodes.insert(Node::Expression(expr)))
+    }
+
+    /// Reserves space for a future statement. Used to give a more efficient
+    /// ordering for nodes for the CPU cache.
+    pub fn reserve_stmt(&mut self) -> StmtId {
+        StmtId(self.nodes.insert(Node::Statement(HirStatement::Error)))
+    }
+
+    /// Reserves space for a future expression. Used to give a more efficient
+    /// ordering for nodes for the CPU cache.
+    pub fn reserve_expr(&mut self) -> ExprId {
+        ExprId(self.nodes.insert(Node::Expression(HirExpression::Error)))
     }
 
     /// Intern an expression with everything needed for it (location & Type)
@@ -1378,7 +1391,7 @@ impl NodeInterner {
     }
 
     /// Replaces the HirExpression at the given ExprId with a new HirExpression
-    pub fn replace_expr(&mut self, id: &ExprId, new: HirExpression) {
+    pub fn replace_expr(&mut self, id: ExprId, new: HirExpression) {
         let old = self.nodes.get_mut(id.into()).unwrap();
         *old = Node::Expression(new);
     }

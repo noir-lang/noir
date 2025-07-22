@@ -519,8 +519,7 @@ impl<'context> Elaborator<'context> {
             FunctionKind::Normal => {
                 let return_type = func_meta.return_type();
                 let (block, body_type) = self.elaborate_block(body, Some(return_type));
-                let expr_id = self.intern_expr(block, body_location);
-                self.interner.push_expr_type(expr_id, body_type.clone());
+                let expr_id = self.interner.push_expr_full(block, body_location, body_type.clone());
                 (HirFunction::unchecked_from_expr(expr_id), body_type)
             }
         };

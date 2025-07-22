@@ -567,12 +567,12 @@ impl Elaborator<'_> {
         })
     }
 
-    pub(super) fn elaborate_variable(&mut self, variable: Path) -> (ExprId, Type) {
+    pub(super) fn elaborate_variable(&mut self, reserved_id: ExprId, variable: Path) -> Type {
         let variable = self.validate_path(variable);
-        if let Some((expr_id, typ)) =
-            self.elaborate_variable_as_self_method_or_associated_constant(&variable)
+        if let Some(typ) =
+            self.elaborate_variable_as_self_method_or_associated_constant(&variable, reserved_id)
         {
-            return (expr_id, typ);
+            return typ;
         }
 
         let resolved_turbofish = variable.segments.last().unwrap().generics.clone();
@@ -627,7 +627,8 @@ impl Elaborator<'_> {
             }
         }
 
-        let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
+        let id = reserved_id;
+        self.interner.replace_expr(id, HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
         // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
@@ -649,14 +650,14 @@ impl Elaborator<'_> {
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
             if value.is_ok() {
-                let (id, typ) = self.inline_comptime_value(value, location);
+                let typ = self.inline_comptime_value(value, reserved_id, location);
                 self.debug_comptime(location, |interner| id.to_display_ast(interner).kind);
-                (id, typ)
+                typ
             } else {
-                (id, typ)
+                typ
             }
         } else {
-            (id, typ)
+            typ
         }
     }
 
@@ -672,7 +673,8 @@ impl Elaborator<'_> {
     fn elaborate_variable_as_self_method_or_associated_constant(
         &mut self,
         variable: &TypedPath,
-    ) -> Option<(ExprId, Type)> {
+        reserved_id: ExprId,
+    ) -> Option<Type> {
         if !(variable.segments.len() == 2 && variable.segments[0].ident.is_self_type_name()) {
             return None;
         }
@@ -688,10 +690,10 @@ impl Elaborator<'_> {
         {
             let hir_ident = HirIdent::non_trait_method(definition_id, location);
             let hir_expr = HirExpression::Ident(hir_ident, None);
-            let id = self.interner.push_expr(hir_expr);
-            self.interner.push_expr_location(id, location);
-            self.interner.push_expr_type(id, numeric_type.clone());
-            return Some((id, numeric_type));
+            self.interner.replace_expr(reserved_id, hir_expr);
+            self.interner.push_expr_location(reserved_id, location);
+            self.interner.push_expr_type(reserved_id, numeric_type.clone());
+            return Some(numeric_type);
         }
 
         // Check the `Self::method_name` case when `Self` is a primitive type
@@ -701,7 +703,13 @@ impl Elaborator<'_> {
 
         let ident = variable.segments[1].ident.clone();
         let typ_location = variable.segments[0].location;
-        Some(self.elaborate_type_path_impl(self_type.clone(), ident, None, typ_location))
+        Some(self.elaborate_type_path_impl(
+            self_type.clone(),
+            ident,
+            reserved_id,
+            None,
+            typ_location,
+        ))
     }
 
     pub(crate) fn validate_path(&mut self, path: Path) -> TypedPath {
@@ -1139,20 +1147,21 @@ impl Elaborator<'_> {
         Err(error)
     }
 
-    pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
+    pub(super) fn elaborate_type_path(&mut self, expr_id: ExprId, path: TypePath) -> Type {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
         let typ = self.use_type(path.typ);
-        self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
+        self.elaborate_type_path_impl(typ, path.item, expr_id, turbofish, typ_location)
     }
 
     fn elaborate_type_path_impl(
         &mut self,
         typ: Type,
         ident: Ident,
+        expr_id: ExprId,
         turbofish: Option<GenericTypeArgs>,
         typ_location: Location,
-    ) -> (ExprId, Type) {
+    ) -> Type {
         let ident_location = ident.location();
         let check_self_param = false;
 
@@ -1166,7 +1175,7 @@ impl Elaborator<'_> {
             check_self_param,
         ) else {
             let error = Expression::new(ExpressionKind::Error, ident_location);
-            return self.elaborate_expression(error);
+            return self.elaborate_expression_with_id(error, expr_id, None);
         };
 
         let func_id = method
@@ -1189,13 +1198,13 @@ impl Elaborator<'_> {
         };
 
         let ident = HirIdent { location: ident_location, id, impl_kind };
-        let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), generics.clone()));
-        self.interner.push_expr_location(id, ident_location);
+        self.interner.replace_expr(expr_id, HirExpression::Ident(ident.clone(), generics.clone()));
+        self.interner.push_expr_location(expr_id, ident_location);
 
-        let typ = self.type_check_variable(ident, id, generics);
-        self.interner.push_expr_type(id, typ.clone());
+        let typ = self.type_check_variable(ident, expr_id, generics);
+        self.interner.push_expr_type(expr_id, typ.clone());
 
-        (id, typ)
+        typ
     }
 }
 
