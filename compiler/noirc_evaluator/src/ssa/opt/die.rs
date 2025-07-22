@@ -271,7 +271,7 @@ impl Context {
                     possible_index_out_of_bounds_indexes
                         .push(instructions_len - instruction_index - 1);
                     // We need to still mark the array index as used as we refer to it in the inserted bounds check.
-                    let (Instruction::ArrayGet { array, index, .. } | Instruction::ArraySet { array, index, .. }) =
+                    let (Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
                         instruction
                     else {
                         unreachable!("Only enter this branch on array gets/sets")
@@ -786,7 +786,8 @@ fn instruction_might_result_in_out_of_bounds(
     use Instruction::*;
     match instruction {
         ArrayGet { array, index, .. } | ArraySet { array, index, .. } => {
-            function.dfg.try_get_array_length(*array).is_some() && !function.dfg.is_safe_index(*index, *array)
+            function.dfg.try_get_array_length(*array).is_some()
+                && !function.dfg.is_safe_index(*index, *array)
         }
         _ => false,
     }
