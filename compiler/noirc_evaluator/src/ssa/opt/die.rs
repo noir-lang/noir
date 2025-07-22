@@ -587,9 +587,7 @@ fn can_be_eliminated_if_unused(
         | Truncate { .. }
         | Allocate
         | Load { .. }
-        | ArrayGet { .. }
         | IfElse { .. }
-        | ArraySet { .. }
         | Noop
         | MakeArray { .. } => true,
 
