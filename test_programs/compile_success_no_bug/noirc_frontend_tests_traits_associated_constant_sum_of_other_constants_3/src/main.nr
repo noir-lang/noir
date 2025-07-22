@@ -24,4 +24,6 @@
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
+
+    fn main() {}
     

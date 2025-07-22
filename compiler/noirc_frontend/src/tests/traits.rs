@@ -1946,6 +1946,8 @@ fn associated_constant_sum_of_other_constants_2() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X + 1]);
     }
+
+    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1979,6 +1981,8 @@ fn associated_constant_sum_of_other_constants_3() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
+
+    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2012,6 +2016,8 @@ fn associated_constant_mul_of_other_constants() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
+
+    fn main() {}
     "#;
     assert_no_errors!(src);
 }
