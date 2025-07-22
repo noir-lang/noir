@@ -176,6 +176,9 @@ impl Ssa {
             flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
+
+            #[cfg(debug_assertions)]
+            flatten_cfg_post_check(function);
         }
         self
     }
@@ -201,7 +204,7 @@ fn flatten_cfg_pre_check(function: &Function) {
                 // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
                 // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
                 //
-                // We could add handling for this inside of the pass itself but it's simpler to just run `simpilfy_cfg`
+                // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
                 // immediately before flattening.
                 panic!(
                     "Function {} has a jmpif with a constant condition {condition}",
@@ -209,6 +212,28 @@ fn flatten_cfg_pre_check(function: &Function) {
                 );
             }
         }
+    });
+}
+
+/// Post-check condition for [Ssa::flatten_cfg].
+///
+/// Panics if:
+///   - Any `enable_side_effects u1 0` instructions exist.
+///
+/// Otherwise succeeds.
+#[cfg(debug_assertions)]
+fn flatten_cfg_post_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        function.dfg[*block].instructions().iter().for_each(|instruction| {
+            if let Instruction::EnableSideEffectsIf { condition } = function.dfg[*instruction] {
+                if function.dfg.get_numeric_constant(condition).is_some_and(|c| c.is_zero()) {
+                    panic!(
+                        "Function {} has an enable_side_effects u1 0 instruction",
+                        function.id()
+                    );
+                }
+            }
+        });
     });
 }
 
