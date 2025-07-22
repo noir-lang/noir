@@ -26,9 +26,9 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "12639702852095440652": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Index out of bounds, array has size 0"
+        "string": "Index out of bounds"
       }
     }
   },
@@ -39,7 +39,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []",
     "BLACKBOX::RANGE [(_1, 32)] []",
-    "EXPR [ (1, _0) 0 ]"
+    "EXPR [ (-1, _0) 0 ]"
   ],
   "debug_symbols": "dY/BCoMwDIbfJecelLHDfJUxpNYogZCW2A6G+O6Lops77JQmf76/+WfosStjSzLECZr7DJ0SM40tx+AzRbHpvDg42jYroo3gpBuVvKJkaKQwO3h6LtvSlLxsNXs1tXKA0ls1w4EY19fivnT1H71ddrau6g99NfxhnQ+kPwdDbYvL6qbkO8Y9xFAknDLlVzqUI3XSGLAviqvdptkHbw==",
   "file_map": {

@@ -93,12 +93,16 @@ expression: artifact
       "5019202896831570965": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
   "bytecode": [
     "func 0",
-    "current witness index : _118",
+    "current witness index : _120",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35]",
     "public parameters indices : []",
     "return value indices : [_36]",
@@ -228,11 +232,17 @@ expression: artifact
     "INIT (id: 7, len: 2, witnesses: [_114, _116])",
     "MEM (id: 7, read at: EXPR [ (1, _35) 0 ], value: EXPR [ (1, _117) 0 ]) ",
     "EXPR [ (1, _104) (-1, _117) 0 ]",
-    "EXPR [ (1, _44) (1, _72) (-1, _118) 0 ]",
-    "BLACKBOX::RANGE [(_118, 32)] []",
-    "EXPR [ (1, _36) (-1, _118) 0 ]"
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(45))], q_c: 4294967292 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(118)), Simple(Witness(119))]",
+    "BLACKBOX::RANGE [(_119, 32)] []",
+    "EXPR [ (1, _45) (-4294967296, _118) (-1, _119) 4294967292 ]",
+    "EXPR [ (-1, _118) 0 ]",
+    "EXPR [ (1, _44) (1, _72) (-1, _120) 0 ]",
+    "BLACKBOX::RANGE [(_120, 32)] []",
+    "EXPR [ (1, _36) (-1, _120) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZVLjqMwFEX34jED/54/tZVWKyKJU0JCJKKgpFZUe+9nLq86PaiJGZ0Lzj0kxo6f6lrO6/tpmG73D/X266nO8zCOw/tpvF/6ZbhPfPf51Sm5PC1zKXxLvYxz69HPZVrU27SOY6c++3HdPvTx6KeNSz/zqO5Uma5MFt6GsdT01f1r65+rJpu9bLX5rlNTPzb0rc7SN+nY861ueb6L0id7sB9a+pSkHw8+v62fZP5d0/t/7YdjfdPy/Z3x0rd0rO/Mwf7B39/Ud9/rxzW9f+fdD/3ffNVfhvm/fyzlPO+5TjkCAhCBBOQNXgMGsIADYPGweFg8LB4WDwvBQrAQLAQLwUKwECwEC8FCsARYAiwBlgBLgCWwxTICwBaemJCAvCFqwAAWcIAHCAgALBGWCEuCJcGSYEmwJFgSLAmWBEuCJcGSYcls4QWY2RIYDmALr4rMFl5cOQARSEDeYLTeaXbanXVudA1eAkkIEqKEOtemhrwHU+fb1mAkWAlOgpdAEoKEKKGaXQ15D1ZLMBKshGr2NXgJ1Uw1VHOsoZrrOfXZz0N/Hst+DN/W6fJyKi9/HjIi5/Zjvl/KdZ1L3Q/bGO+Qvw==",
+  "debug_symbols": "pZbLjptAEEX/hTWLflU/5leiyMI2HiEhbDEwUmTNv6eKS02cSNk0q3OhfU/b7cbtZ3Ptz+v7aZhu94/m7cezOc/DOA7vp/F+6ZbhPvHd51fb6OVpmfuebzUv49x6dHM/Lc3btI5j23x247q96OPRTRuXbuZR0zb9dGWy8DaMvaSv9k/b/L9qi93LztjvOlX1U0XfmaJ9m4/N70zN/D5pn9zBfqzpU9Z+Ojh/XT/r+vuq7/+1H4/1bc379zZo39GxvrcH+wc/f1XfB6998jX97/3nq/bPy/z/9H/yVXcZ5r9+8Rof+JltG09ABBKQgbIhGMACDvAALAGWAEuAJcASYCFYCBaChWAhWAgWgoVgIVgIlghLhCXCEmGJsES2OEYE2MILEzNQNiQDWMABHggAARGAJcGSYMmwZFgyLBmWDEuGJcOSYcmwZFgKLIUtvIELWyLDA2zhXVHYwpuzRCABGSgbrDE77U63U9bGSAgaSEPUkDTIWlsJZQ9W1ttJsBqcBq8haCANUUPSIGYvoezBGQ1Wg9Mg5iAhaBAzSRBzlJA0ZA1lD17MWYKY5Sz77OahO4/9ftTf1unycvIvvx46ov8NHvP90l/XuZdnZhvjp+g3",
   "file_map": {
     "50": {
       "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",
@@ -242,5 +252,7 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": []
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
 }
