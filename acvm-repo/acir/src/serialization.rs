@@ -48,7 +48,8 @@ impl Format {
 ///
 /// This format is compact, but provides no backwards compatibility.
 pub(crate) fn bincode_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    bincode::serde::encode_to_vec(value, bincode::config::legacy()).map_err(std::io::Error::other)
+    let config = bincode::config::standard().with_limit::<{ 10 * 1024 * 1024 * 1024 }>();
+    bincode::serde::encode_to_vec(value, config).map_err(std::io::Error::other)
 }
 
 /// Deserialize a value using `bincode`, based on `serde`.
