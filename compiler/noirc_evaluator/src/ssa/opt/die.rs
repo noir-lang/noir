@@ -93,7 +93,8 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
+                let unused_params =
+                    func.dead_instruction_elimination(true, flattened, skip_brillig);
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -142,6 +143,7 @@ impl Function {
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
     fn dead_instruction_elimination(
         &mut self,
+        insert_out_of_bounds_checks: bool,
         flattened: bool,
         skip_brillig: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
@@ -157,10 +159,16 @@ impl Function {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
 
+        let mut inserted_out_of_bounds_checks = false;
+
         let blocks = PostOrder::with_function(self);
         let mut unused_params_per_block = HashMap::default();
         for block in blocks.as_slice() {
-            context.remove_unused_instructions_in_block(self, *block);
+            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
+                self,
+                *block,
+                insert_out_of_bounds_checks,
+            );
 
             let parameters = self.dfg[*block].parameters();
             let mut keep_list = Vec::with_capacity(parameters.len());
@@ -176,6 +184,13 @@ impl Function {
 
             unused_params_per_block.insert(*block, unused_params);
             context.parameter_keep_list.insert(*block, keep_list);
+        }
+
+        // If we inserted out of bounds check, let's run the pass again with those new
+        // instructions (we don't want to remove those checks, or instructions that are
+        // dependencies of those checks)
+        if inserted_out_of_bounds_checks {
+            return self.dead_instruction_elimination(false, flattened, skip_brillig);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -231,10 +246,17 @@ impl Context {
     /// values set. This allows DIE to identify whole chains of unused instructions. (If the
     /// values referenced by an unused instruction were considered to be used, only the head of
     /// such chains would be removed.)
+    ///
+    /// If `insert_out_of_bounds_checks` is true and there are unused ArrayGet/ArraySet that
+    /// might be out of bounds, this method will insert out of bounds checks instead of
+    /// removing unused instructions and return `true`. The idea then is to later call this
+    /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
+    /// unused instructions but leave the out of bounds checks.
     fn remove_unused_instructions_in_block(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
+        insert_out_of_bounds_checks: bool,
     ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
@@ -263,6 +285,7 @@ impl Context {
                 // if we have an unused array operation we need insert an OOB check so that the
                 // side effects ordering remains correct.
                 if function.runtime().is_acir()
+                    && insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
