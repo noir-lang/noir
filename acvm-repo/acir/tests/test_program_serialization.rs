@@ -23,6 +23,7 @@ use acir_field::{AcirField, FieldElement};
 use brillig::{
     BitSize, HeapArray, HeapValueType, HeapVector, IntegerBitSize, MemoryAddress, ValueOrArray,
 };
+use num_bigint::BigInt;
 
 #[test]
 fn addition_circuit() {
@@ -93,211 +94,212 @@ fn multi_scalar_mul_circuit() {
 }
 
 #[test]
-// fn simple_brillig_foreign_call() {
-//     let w_input = Witness(1);
-//     let w_inverted = Witness(2);
+fn simple_brillig_foreign_call() {
+    let w_input = Witness(1);
+    let w_inverted = Witness(2);
 
-//     let value_address = MemoryAddress::direct(0);
-//     let zero_usize = MemoryAddress::direct(1);
-//     let one_usize = MemoryAddress::direct(2);
+    let value_address = MemoryAddress::direct(0);
+    let zero_usize = MemoryAddress::direct(1);
+    let one_usize = MemoryAddress::direct(2);
 
-//     let brillig_bytecode = BrilligBytecode {
-//         bytecode: vec![
-//             brillig::Opcode::Const {
-//                 destination: zero_usize,
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(0_usize),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: one_usize,
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(1_usize),
-//             },
-//             brillig::Opcode::CalldataCopy {
-//                 destination_address: value_address,
-//                 size_address: one_usize,
-//                 offset_address: zero_usize,
-//             },
-//             brillig::Opcode::ForeignCall {
-//                 function: "invert".into(),
-//                 destinations: vec![ValueOrArray::MemoryAddress(value_address)],
-//                 destination_value_types: vec![HeapValueType::field()],
-//                 inputs: vec![ValueOrArray::MemoryAddress(value_address)],
-//                 input_value_types: vec![HeapValueType::field()],
-//             },
-//             brillig::Opcode::Stop {
-//                 return_data: HeapVector { pointer: zero_usize, size: one_usize },
-//             },
-//         ],
-//     };
+    let brillig_bytecode = BrilligBytecode {
+        bytecode: vec![
+            brillig::Opcode::Const {
+                destination: zero_usize,
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(0_usize),
+            },
+            brillig::Opcode::Const {
+                destination: one_usize,
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(1_usize),
+            },
+            brillig::Opcode::CalldataCopy {
+                destination_address: value_address,
+                size_address: one_usize,
+                offset_address: zero_usize,
+            },
+            brillig::Opcode::ForeignCall {
+                function: "invert".into(),
+                destinations: vec![ValueOrArray::MemoryAddress(value_address)],
+                destination_value_types: vec![HeapValueType::field()],
+                inputs: vec![ValueOrArray::MemoryAddress(value_address)],
+                input_value_types: vec![HeapValueType::field()],
+            },
+            brillig::Opcode::Stop {
+                return_data: HeapVector { pointer: zero_usize, size: one_usize },
+            },
+        ],
+    };
 
-//     let opcodes = vec![Opcode::BrilligCall {
-//         id: BrilligFunctionId(0),
-//         inputs: vec![
-//             BrilligInputs::Single(w_input.into()), // Input Register 0,
-//         ],
-//         // This tells the BrilligSolver which witnesses its output values correspond to
-//         outputs: vec![
-//             BrilligOutputs::Simple(w_inverted), // Output Register 1
-//         ],
-//         predicate: None,
-//     }];
+    let opcodes = vec![Opcode::BrilligCall {
+        id: BrilligFunctionId(0),
+        inputs: vec![
+            BrilligInputs::Single(w_input.into()), // Input Register 0,
+        ],
+        // This tells the BrilligSolver which witnesses its output values correspond to
+        outputs: vec![
+            BrilligOutputs::Simple(w_inverted), // Output Register 1
+        ],
+        predicate: None,
+    }];
 
-//     let circuit: Circuit<FieldElement> = Circuit {
-//         current_witness_index: 8,
-//         opcodes,
-//         private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
-//         ..Circuit::default()
-//     };
-//     let program =
-//         Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
+    let circuit: Circuit<FieldElement> = Circuit {
+        current_witness_index: 8,
+        opcodes,
+        private_parameters: BTreeSet::from([Witness(1), Witness(2)]),
+        ..Circuit::default()
+    };
+    let program =
+        Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
 
-//     let bytes = Program::serialize_program(&program);
+    let bytes = Program::serialize_program(&program);
 
-//     insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 81, 203, 10, 128, 48, 12, 179, 243, 57, 240, 230, 143, 108, 127, 224, 207, 120, 240, 226, 65, 196, 239, 119, 98, 11, 101, 100, 94, 214, 64, 73, 26, 88, 73, 24, 53, 31, 166, 52, 196, 186, 99, 150, 93, 67, 188, 149, 57, 212, 33, 146, 221, 173, 160, 243, 186, 92, 144, 54, 127, 138, 245, 204, 62, 243, 95, 110, 13, 195, 122, 144, 207, 240, 126, 28, 65, 71, 7, 250, 206, 105, 6, 214, 251, 113, 111, 231, 133, 190, 93, 191, 40, 237, 37, 127, 1, 190, 36, 121, 0, 128, 254, 118, 42, 127, 2, 0, 0]");
+    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 173, 81, 203, 10, 128, 48, 12, 179, 243, 57, 240, 230, 143, 108, 127, 224, 207, 120, 240, 226, 65, 196, 239, 119, 98, 11, 101, 100, 94, 214, 64, 73, 26, 88, 73, 24, 53, 31, 166, 52, 196, 186, 99, 150, 93, 67, 188, 149, 57, 212, 33, 146, 221, 173, 160, 243, 186, 92, 144, 54, 127, 138, 245, 204, 62, 243, 95, 110, 13, 195, 122, 144, 207, 240, 126, 28, 65, 71, 7, 250, 206, 105, 6, 214, 251, 113, 111, 231, 133, 190, 93, 191, 40, 237, 37, 127, 1, 190, 36, 121, 0, 128, 254, 118, 42, 127, 2, 0, 0]");
 
-//     let program_de = Program::deserialize_program(&bytes).unwrap();
-//     assert_eq!(program_de, program);
-// }
-// #[test]
-// fn complex_brillig_foreign_call() {
-//     let fe_0 = FieldElement::zero();
-//     let fe_1 = FieldElement::one();
-//     let a = Witness(1);
-//     let b = Witness(2);
-//     let c = Witness(3);
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
+}
+#[test]
+fn complex_brillig_foreign_call() {
+    let fe_0 = FieldElement::zero();
+    let fe_1 = FieldElement::one();
+    let a = Witness(1);
+    let b = Witness(2);
+    let c = Witness(3);
 
-//     let a_times_2 = Witness(4);
-//     let b_times_3 = Witness(5);
-//     let c_times_4 = Witness(6);
-//     let a_plus_b_plus_c = Witness(7);
-//     let a_plus_b_plus_c_times_2 = Witness(8);
+    let a_times_2 = Witness(4);
+    let b_times_3 = Witness(5);
+    let c_times_4 = Witness(6);
+    let a_plus_b_plus_c = Witness(7);
+    let a_plus_b_plus_c_times_2 = Witness(8);
 
-//     let brillig_bytecode = BrilligBytecode {
-//         bytecode: vec![
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(0),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(3_usize),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(1),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(0_usize),
-//             },
-//             brillig::Opcode::CalldataCopy {
-//                 destination_address: MemoryAddress::direct(32),
-//                 size_address: MemoryAddress::direct(0),
-//                 offset_address: MemoryAddress::direct(1),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(0),
-//                 value: FieldElement::from(32_usize),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(3),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(1_usize),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(4),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(3_usize),
-//             },
-//             brillig::Opcode::CalldataCopy {
-//                 destination_address: MemoryAddress::direct(1),
-//                 size_address: MemoryAddress::direct(3),
-//                 offset_address: MemoryAddress::direct(4),
-//             },
-//             // Oracles are named 'foreign calls' in brillig
-//             brillig::Opcode::ForeignCall {
-//                 function: "complex".into(),
-//                 inputs: vec![
-//                     ValueOrArray::HeapArray(HeapArray {
-//                         pointer: MemoryAddress::direct(0),
-//                         size: 3,
-//                     }),
-//                     ValueOrArray::MemoryAddress(MemoryAddress::direct(1)),
-//                 ],
-//                 input_value_types: vec![
-//                     HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
-//                     HeapValueType::field(),
-//                 ],
-//                 destinations: vec![
-//                     ValueOrArray::HeapArray(HeapArray {
-//                         pointer: MemoryAddress::direct(0),
-//                         size: 3,
-//                     }),
-//                     ValueOrArray::MemoryAddress(MemoryAddress::direct(35)),
-//                     ValueOrArray::MemoryAddress(MemoryAddress::direct(36)),
-//                 ],
-//                 destination_value_types: vec![
-//                     HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
-//                     HeapValueType::field(),
-//                     HeapValueType::field(),
-//                 ],
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(0),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(32_usize),
-//             },
-//             brillig::Opcode::Const {
-//                 destination: MemoryAddress::direct(1),
-//                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-//                 value: FieldElement::from(5_usize),
-//             },
-//             brillig::Opcode::Stop {
-//                 return_data: HeapVector {
-//                     pointer: MemoryAddress::direct(0),
-//                     size: MemoryAddress::direct(1),
-//                 },
-//             },
-//         ],
-//     };
+    let brillig_bytecode = BrilligBytecode {
+        bytecode: vec![
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(3_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(0_usize),
+            },
+            brillig::Opcode::CalldataCopy {
+                destination_address: MemoryAddress::direct(32),
+                size_address: MemoryAddress::direct(0),
+                offset_address: MemoryAddress::direct(1),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                value: BigInt::from(32_usize),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(3),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(1_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(4),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(3_usize),
+            },
+            brillig::Opcode::CalldataCopy {
+                destination_address: MemoryAddress::direct(1),
+                size_address: MemoryAddress::direct(3),
+                offset_address: MemoryAddress::direct(4),
+            },
+            // Oracles are named 'foreign calls' in brillig
+            brillig::Opcode::ForeignCall {
+                function: "complex".into(),
+                inputs: vec![
+                    ValueOrArray::HeapArray(HeapArray {
+                        pointer: MemoryAddress::direct(0),
+                        size: 3,
+                    }),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(1)),
+                ],
+                input_value_types: vec![
+                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
+                    HeapValueType::field(),
+                ],
+                destinations: vec![
+                    ValueOrArray::HeapArray(HeapArray {
+                        pointer: MemoryAddress::direct(0),
+                        size: 3,
+                    }),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(35)),
+                    ValueOrArray::MemoryAddress(MemoryAddress::direct(36)),
+                ],
+                destination_value_types: vec![
+                    HeapValueType::Array { size: 3, value_types: vec![HeapValueType::field()] },
+                    HeapValueType::field(),
+                    HeapValueType::field(),
+                ],
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(0),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(32_usize),
+            },
+            brillig::Opcode::Const {
+                destination: MemoryAddress::direct(1),
+                bit_size: BitSize::Integer(IntegerBitSize::U32),
+                value: BigInt::from(5_usize),
+            },
+            brillig::Opcode::Stop {
+                return_data: HeapVector {
+                    pointer: MemoryAddress::direct(0),
+                    size: MemoryAddress::direct(1),
+                },
+            },
+        ],
+    };
 
-//     let opcodes = vec![Opcode::BrilligCall {
-//         id: BrilligFunctionId(0),
-//         inputs: vec![
-//             // Input 0,1,2
-//             BrilligInputs::Array(vec![
-//                 Expression::from(a),
-//                 Expression::from(b),
-//                 Expression::from(c),
-//             ]),
-//             // Input 3
-//             BrilligInputs::Single(Expression {
-//                 mul_terms: vec![],
-//                 linear_combinations: vec![(fe_1, a), (fe_1, b), (fe_1, c)],
-//                 q_c: fe_0,
-//             }),
-//         ],
-//         // This tells the BrilligSolver which witnesses its output values correspond to
-//         outputs: vec![
-//             BrilligOutputs::Array(vec![a_times_2, b_times_3, c_times_4]), // Output 0,1,2
-//             BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output 3
-//             BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output 4
-//         ],
-//         predicate: None,
-//     }];
+    let opcodes = vec![Opcode::BrilligCall {
+        id: BrilligFunctionId(0),
+        inputs: vec![
+            // Input 0,1,2
+            BrilligInputs::Array(vec![
+                Expression::from(a),
+                Expression::from(b),
+                Expression::from(c),
+            ]),
+            // Input 3
+            BrilligInputs::Single(Expression {
+                mul_terms: vec![],
+                linear_combinations: vec![(fe_1, a), (fe_1, b), (fe_1, c)],
+                q_c: fe_0,
+            }),
+        ],
+        // This tells the BrilligSolver which witnesses its output values correspond to
+        outputs: vec![
+            BrilligOutputs::Array(vec![a_times_2, b_times_3, c_times_4]), // Output 0,1,2
+            BrilligOutputs::Simple(a_plus_b_plus_c),                      // Output 3
+            BrilligOutputs::Simple(a_plus_b_plus_c_times_2),              // Output 4
+        ],
+        predicate: None,
+    }];
 
-//     let circuit = Circuit {
-//         current_witness_index: 8,
-//         opcodes,
-//         private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
-//         ..Circuit::default()
-//     };
-//     let program =
-//         Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
+    let circuit = Circuit {
+        current_witness_index: 8,
+        opcodes,
+        private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3)]),
+        ..Circuit::default()
+    };
+    let program =
+        Program { functions: vec![circuit], unconstrained_functions: vec![brillig_bytecode] };
 
-//     let bytes = Program::serialize_program(&program);
+    let bytes = Program::serialize_program(&program);
 
-//     insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 205, 14, 130, 48, 12, 238, 54, 20, 136, 222, 124, 1, 19, 125, 128, 161, 241, 238, 187, 24, 111, 26, 61, 250, 248, 178, 216, 198, 89, 26, 56, 216, 18, 248, 146, 165, 12, 218, 175, 255, 193, 193, 7, 85, 123, 28, 62, 23, 40, 61, 202, 244, 62, 192, 47, 72, 247, 140, 50, 254, 135, 198, 233, 113, 69, 171, 24, 253, 12, 98, 12, 6, 49, 66, 214, 255, 9, 246, 91, 179, 47, 170, 245, 11, 194, 254, 164, 221, 90, 180, 103, 137, 247, 18, 101, 197, 11, 157, 140, 60, 116, 23, 47, 7, 13, 207, 10, 101, 45, 124, 87, 76, 232, 88, 51, 191, 202, 252, 145, 138, 177, 133, 254, 124, 109, 243, 60, 68, 226, 15, 38, 252, 177, 33, 254, 194, 168, 79, 37, 171, 87, 158, 75, 238, 119, 13, 223, 1, 188, 60, 238, 207, 219, 245, 21, 4, 83, 110, 158, 176, 99, 247, 189, 80, 178, 33, 14, 66, 254, 159, 233, 211, 119, 130, 254, 144, 205, 88, 163, 98, 180, 18, 167, 13, 116, 65, 190, 222, 250, 76, 4, 233, 188, 7, 0, 0]");
+    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 213, 85, 205, 14, 130, 48, 12, 238, 54, 20, 136, 222, 124, 1, 19, 125, 128, 161, 241, 238, 187, 24, 111, 26, 61, 250, 248, 178, 216, 198, 89, 26, 56, 216, 18, 248, 146, 165, 12, 218, 175, 255, 193, 193, 7, 85, 123, 28, 62, 23, 40, 61, 202, 244, 62, 192, 47, 72, 247, 140, 50, 254, 135, 198, 233, 113, 69, 171, 24, 253, 12, 98, 12, 6, 49, 66, 214, 255, 9, 246, 91, 179, 47, 170, 245, 11, 194, 254, 164, 221, 90, 180, 103, 137, 247, 18, 101, 197, 11, 157, 140, 60, 116, 23, 47, 7, 13, 207, 10, 101, 45, 124, 87, 76, 232, 88, 51, 191, 202, 252, 145, 138, 177, 133, 254, 124, 109, 243, 60, 68, 226, 15, 38, 252, 177, 33, 254, 194, 168, 79, 37, 171, 87, 158, 75, 238, 119, 13, 223, 1, 188, 60, 238, 207, 219, 245, 21, 4, 83, 110, 158, 176, 99, 247, 189, 80, 178, 33, 14, 66, 254, 159, 233, 211, 119, 130, 254, 144, 205, 88, 163, 98, 180, 18, 167, 13, 116, 65, 190, 222, 250, 76, 4, 233, 188, 7, 0, 0]");
 
-//     let program_de = Program::deserialize_program(&bytes).unwrap();
-//     assert_eq!(program_de, program);
-// }
+    let program_de = Program::deserialize_program(&bytes).unwrap();
+    assert_eq!(program_de, program);
+}
+
 #[test]
 fn memory_op_circuit() {
     let init = vec![Witness(1), Witness(2)];

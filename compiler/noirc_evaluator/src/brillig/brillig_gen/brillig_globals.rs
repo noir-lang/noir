@@ -291,6 +291,7 @@ mod tests {
         FieldElement,
         acir::brillig::{BitSize, IntegerBitSize, Opcode},
     };
+    use num_bigint::BigInt;
 
     use crate::brillig::{
         BrilligOptions, GlobalSpace, LabelType, Ssa, brillig_ir::registers::RegisterAllocator,
@@ -298,284 +299,284 @@ mod tests {
 
     use super::ConstantAllocation;
 
-    // #[test]
-    // fn entry_points_different_globals() {
-    //     let src = "
-    //     g0 = Field 2
+    #[test]
+    fn entry_points_different_globals() {
+        let src = "
+        g0 = Field 2
 
-    //     acir(inline) fn main f0 {
-    //     b0(v1: Field, v2: Field):
-    //         v4 = call f1(v1) -> Field
-    //         constrain v4 == Field 2
-    //         v6 = call f2(v1) -> Field
-    //         constrain v6 == Field 2
-    //         return
-    //     }
-    //     brillig(inline) fn entry_point_no_globals f1 {
-    //     b0(v1: Field):
-    //         v3 = add v1, Field 1
-    //         v4 = add v3, Field 1
-    //         return v4
-    //     }
-    //     brillig(inline) fn entry_point_globals f2 {
-    //     b0(v1: Field):
-    //         v2 = add v1, Field 2
-    //         return v2
-    //     }
-    //     ";
+        acir(inline) fn main f0 {
+        b0(v1: Field, v2: Field):
+            v4 = call f1(v1) -> Field
+            constrain v4 == Field 2
+            v6 = call f2(v1) -> Field
+            constrain v6 == Field 2
+            return
+        }
+        brillig(inline) fn entry_point_no_globals f1 {
+        b0(v1: Field):
+            v3 = add v1, Field 1
+            v4 = add v3, Field 1
+            return v4
+        }
+        brillig(inline) fn entry_point_globals f2 {
+        b0(v1: Field):
+            v2 = add v1, Field 2
+            return v2
+        }
+        ";
 
-    //     let ssa = Ssa::from_str(src).unwrap();
-    //     let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let ssa = Ssa::from_str(src).unwrap();
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    //     assert_eq!(
-    //         brillig.globals.len(),
-    //         2,
-    //         "Should have a globals artifact associated with each entry point"
-    //     );
-    //     for (func_id, mut artifact) in brillig.globals {
-    //         let labels = artifact.take_labels();
-    //         // When entering a context two labels are created.
-    //         // One is a context label and another is a section label.
-    //         assert_eq!(labels.len(), 2);
-    //         for (label, position) in labels {
-    //             assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
-    //             assert_eq!(position, 0);
-    //         }
-    //         if func_id.to_u32() == 1 {
-    //             assert_eq!(
-    //                 artifact.byte_code.len(),
-    //                 1,
-    //                 "Expected just a `Return`, but got more than a single opcode"
-    //             );
-    //             assert!(matches!(&artifact.byte_code[0], Opcode::Return));
-    //         } else if func_id.to_u32() == 2 {
-    //             assert_eq!(
-    //                 artifact.byte_code.len(),
-    //                 2,
-    //                 "Expected enough opcodes to initialize the globals"
-    //             );
-    //             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-    //                 panic!("First opcode is expected to be `Const`");
-    //             };
-    //             assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-    //             assert!(matches!(bit_size, BitSize::Field));
-    //             assert_eq!(*value, FieldElement::from(2u128));
+        assert_eq!(
+            brillig.globals.len(),
+            2,
+            "Should have a globals artifact associated with each entry point"
+        );
+        for (func_id, mut artifact) in brillig.globals {
+            let labels = artifact.take_labels();
+            // When entering a context two labels are created.
+            // One is a context label and another is a section label.
+            assert_eq!(labels.len(), 2);
+            for (label, position) in labels {
+                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+                assert_eq!(position, 0);
+            }
+            if func_id.to_u32() == 1 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    1,
+                    "Expected just a `Return`, but got more than a single opcode"
+                );
+                assert!(matches!(&artifact.byte_code[0], Opcode::Return));
+            } else if func_id.to_u32() == 2 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    2,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                    panic!("First opcode is expected to be `Const`");
+                };
+                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert!(matches!(bit_size, BitSize::Field));
+                assert_eq!(*value, BigInt::from(2u128));
 
-    //             assert!(matches!(&artifact.byte_code[1], Opcode::Return));
-    //         } else {
-    //             panic!("Unexpected function id: {func_id}");
-    //         }
-    //     }
-    // }
+                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+            } else {
+                panic!("Unexpected function id: {func_id}");
+            }
+        }
+    }
 
-    // #[test]
-    // fn entry_point_nested_globals() {
-    //     let src = "
-    //     g0 = Field 1
-    //     g1 = make_array [Field 1, Field 1] : [Field; 2]
-    //     g2 = Field 0
-    //     g3 = make_array [Field 0, Field 0] : [Field; 2]
-    //     g4 = make_array [g1, g3] : [[Field; 2]; 2]
+    #[test]
+    fn entry_point_nested_globals() {
+        let src = "
+        g0 = Field 1
+        g1 = make_array [Field 1, Field 1] : [Field; 2]
+        g2 = Field 0
+        g3 = make_array [Field 0, Field 0] : [Field; 2]
+        g4 = make_array [g1, g3] : [[Field; 2]; 2]
 
-    //     acir(inline) fn main f0 {
-    //       b0(v5: Field, v6: Field):
-    //           v8 = call f1(v5) -> Field
-    //           constrain v8 == Field 2
-    //           call f2(v5, v6)
-    //           v12 = call f1(v5) -> Field
-    //           constrain v12 == Field 2
-    //           call f3(v5, v6)
-    //           v15 = call f1(v5) -> Field
-    //           constrain v15 == Field 2
-    //           return
-    //     }
-    //     brillig(inline) fn entry_point_no_globals f1 {
-    //       b0(v5: Field):
-    //           v6 = add v5, Field 1
-    //           v7 = add v6, Field 1
-    //           return v7
-    //     }
-    //     brillig(inline) fn check_acc_entry_point f2 {
-    //       b0(v5: Field, v6: Field):
-    //           v8 = allocate -> &mut Field
-    //           store Field 0 at v8
-    //           jmp b1(u32 0)
-    //       b1(v7: u32):
-    //           v11 = lt v7, u32 2
-    //           jmpif v11 then: b3, else: b2
-    //       b2():
-    //           v12 = load v8 -> Field
-    //           v13 = eq v12, Field 0
-    //           constrain v13 == u1 0
-    //           v15 = eq v5, v6
-    //           constrain v15 == u1 0
-    //           v16 = add v5, Field 1
-    //           v17 = add v16, Field 1
-    //           constrain v17 == Field 2
-    //           return
-    //       b3():
-    //           v19 = array_get g4, index v7 -> [Field; 2]
-    //           v20 = load v8 -> Field
-    //           v21 = array_get v19, index u32 0 -> Field
-    //           v22 = add v20, v21
-    //           v24 = array_get v19, index u32 1 -> Field
-    //           v25 = add v22, v24
-    //           store v25 at v8
-    //           v26 = unchecked_add v7, u32 1
-    //           jmp b1(v26)
-    //     }
-    //     brillig(inline) fn entry_point_inner_func_globals f3 {
-    //       b0(v5: Field, v6: Field):
-    //           call f4(v5, v6)
-    //           return
-    //     }
-    //     brillig(inline) fn non_entry_point_wrapper f4 {
-    //       b0(v5: Field, v6: Field):
-    //           call f2(v5, v6)
-    //           call f2(v5, v6)
-    //           return
-    //     }
-    //     ";
+        acir(inline) fn main f0 {
+          b0(v5: Field, v6: Field):
+              v8 = call f1(v5) -> Field
+              constrain v8 == Field 2
+              call f2(v5, v6)
+              v12 = call f1(v5) -> Field
+              constrain v12 == Field 2
+              call f3(v5, v6)
+              v15 = call f1(v5) -> Field
+              constrain v15 == Field 2
+              return
+        }
+        brillig(inline) fn entry_point_no_globals f1 {
+          b0(v5: Field):
+              v6 = add v5, Field 1
+              v7 = add v6, Field 1
+              return v7
+        }
+        brillig(inline) fn check_acc_entry_point f2 {
+          b0(v5: Field, v6: Field):
+              v8 = allocate -> &mut Field
+              store Field 0 at v8
+              jmp b1(u32 0)
+          b1(v7: u32):
+              v11 = lt v7, u32 2
+              jmpif v11 then: b3, else: b2
+          b2():
+              v12 = load v8 -> Field
+              v13 = eq v12, Field 0
+              constrain v13 == u1 0
+              v15 = eq v5, v6
+              constrain v15 == u1 0
+              v16 = add v5, Field 1
+              v17 = add v16, Field 1
+              constrain v17 == Field 2
+              return
+          b3():
+              v19 = array_get g4, index v7 -> [Field; 2]
+              v20 = load v8 -> Field
+              v21 = array_get v19, index u32 0 -> Field
+              v22 = add v20, v21
+              v24 = array_get v19, index u32 1 -> Field
+              v25 = add v22, v24
+              store v25 at v8
+              v26 = unchecked_add v7, u32 1
+              jmp b1(v26)
+        }
+        brillig(inline) fn entry_point_inner_func_globals f3 {
+          b0(v5: Field, v6: Field):
+              call f4(v5, v6)
+              return
+        }
+        brillig(inline) fn non_entry_point_wrapper f4 {
+          b0(v5: Field, v6: Field):
+              call f2(v5, v6)
+              call f2(v5, v6)
+              return
+        }
+        ";
 
-    //     let ssa = Ssa::from_str(src).unwrap();
-    //     // Need to run SSA pass that sets up Brillig array gets
-    //     let ssa = ssa.brillig_array_get_and_set();
+        let ssa = Ssa::from_str(src).unwrap();
+        // Need to run SSA pass that sets up Brillig array gets
+        let ssa = ssa.brillig_array_get_and_set();
 
-    //     let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    //     assert_eq!(
-    //         brillig.globals.len(),
-    //         3,
-    //         "Should have a globals artifact associated with each entry point"
-    //     );
-    //     for (func_id, mut artifact) in brillig.globals {
-    //         let labels = artifact.take_labels();
-    //         // When entering a context two labels are created.
-    //         // One is a context label and another is a section label.
-    //         assert_eq!(labels.len(), 2);
-    //         for (label, position) in labels {
-    //             assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
-    //             assert_eq!(position, 0);
-    //         }
-    //         if func_id.to_u32() == 1 {
-    //             assert_eq!(
-    //                 artifact.byte_code.len(),
-    //                 2,
-    //                 "Expected enough opcodes to initialize the globals"
-    //             );
-    //             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-    //                 panic!("First opcode is expected to be `Const`");
-    //             };
-    //             assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-    //             assert!(matches!(bit_size, BitSize::Field));
-    //             assert_eq!(*value, FieldElement::from(1u128));
-    //             assert!(matches!(&artifact.byte_code[1], Opcode::Return));
-    //         } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
-    //             // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
-    //             // to have the same globals initialized.
-    //             assert_eq!(
-    //                 artifact.byte_code.len(),
-    //                 30,
-    //                 "Expected enough opcodes to initialize the globals"
-    //             );
-    //             let globals_max_memory = brillig
-    //                 .globals_memory_size
-    //                 .get(&func_id)
-    //                 .copied()
-    //                 .expect("Should have globals memory size");
-    //             assert_eq!(globals_max_memory, 7);
-    //         } else {
-    //             panic!("Unexpected function id: {func_id}");
-    //         }
-    //     }
-    // }
+        assert_eq!(
+            brillig.globals.len(),
+            3,
+            "Should have a globals artifact associated with each entry point"
+        );
+        for (func_id, mut artifact) in brillig.globals {
+            let labels = artifact.take_labels();
+            // When entering a context two labels are created.
+            // One is a context label and another is a section label.
+            assert_eq!(labels.len(), 2);
+            for (label, position) in labels {
+                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+                assert_eq!(position, 0);
+            }
+            if func_id.to_u32() == 1 {
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    2,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                    panic!("First opcode is expected to be `Const`");
+                };
+                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+                assert!(matches!(bit_size, BitSize::Field));
+                assert_eq!(*value, BigInt::from(1u128));
+                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+            } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
+                // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
+                // to have the same globals initialized.
+                assert_eq!(
+                    artifact.byte_code.len(),
+                    30,
+                    "Expected enough opcodes to initialize the globals"
+                );
+                let globals_max_memory = brillig
+                    .globals_memory_size
+                    .get(&func_id)
+                    .copied()
+                    .expect("Should have globals memory size");
+                assert_eq!(globals_max_memory, 7);
+            } else {
+                panic!("Unexpected function id: {func_id}");
+            }
+        }
+    }
 
-    // #[test]
-    // fn hoist_shared_constants() {
-    //     let src = "
-    //     acir(inline) predicate_pure fn main f0 {
-    //       b0(v0: Field, v1: Field):
-    //         call f1(v0, v1)
-    //         return
-    //     }
-    //     brillig(inline) predicate_pure fn entry_point f1 {
-    //       b0(v0: Field, v1: Field):
-    //         v2 = add v0, v1
-    //         v4 = add v2, Field 1
-    //         v6 = eq v4, Field 5
-    //         constrain v6 == u1 0
-    //         call f2(v0, v1)
-    //         return
-    //     }
-    //     brillig(inline) predicate_pure fn inner_func f2 {
-    //       b0(v0: Field, v1: Field):
-    //         v3 = eq v0, Field 20
-    //         constrain v3 == u1 0
-    //         v5 = add v0, v1
-    //         v7 = add v5, Field 10
-    //         v9 = add v7, Field 1
-    //         v11 = eq v9, Field 20
-    //         constrain v11 == u1 0
-    //         return
-    //     }
-    //     ";
+    #[test]
+    fn hoist_shared_constants() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: Field, v1: Field):
+            call f1(v0, v1)
+            return
+        }
+        brillig(inline) predicate_pure fn entry_point f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            v4 = add v2, Field 1
+            v6 = eq v4, Field 5
+            constrain v6 == u1 0
+            call f2(v0, v1)
+            return
+        }
+        brillig(inline) predicate_pure fn inner_func f2 {
+          b0(v0: Field, v1: Field):
+            v3 = eq v0, Field 20
+            constrain v3 == u1 0
+            v5 = add v0, v1
+            v7 = add v5, Field 10
+            v9 = add v7, Field 1
+            v11 = eq v9, Field 20
+            constrain v11 == u1 0
+            return
+        }
+        ";
 
-    //     let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap();
 
-    //     // Show that the constants in each function have different SSA value IDs
-    //     // for (func_id, function) in &ssa.functions {
-    //     //     let constant_allocation = ConstantAllocation::from_function(function);
-    //     //     let mut constants = constant_allocation.get_constants().into_iter().collect::<Vec<_>>();
-    //     //     // We want to order the constants by ID
-    //     //     constants.sort();
-    //     //     if func_id.to_u32() == 1 {
-    //     //         assert_eq!(constants.len(), 3);
-    //     //         let one = function.dfg.get_numeric_constant(constants[0]).unwrap();
-    //     //         assert_eq!(one, FieldElement::from(1u128));
-    //     //         let five = function.dfg.get_numeric_constant(constants[1]).unwrap();
-    //     //         assert_eq!(five, FieldElement::from(5u128));
-    //     //         let zero = function.dfg.get_numeric_constant(constants[2]).unwrap();
-    //     //         assert_eq!(zero, FieldElement::from(0u128));
-    //     //     } else if func_id.to_u32() == 2 {
-    //     //         assert_eq!(constants.len(), 4);
-    //     //         let twenty = function.dfg.get_numeric_constant(constants[0]).unwrap();
-    //     //         assert_eq!(twenty, FieldElement::from(20u128));
-    //     //         let zero = function.dfg.get_numeric_constant(constants[1]).unwrap();
-    //     //         assert_eq!(zero, FieldElement::from(0u128));
-    //     //         let ten = function.dfg.get_numeric_constant(constants[2]).unwrap();
-    //     //         assert_eq!(ten, FieldElement::from(10u128));
-    //     //         let one = function.dfg.get_numeric_constant(constants[3]).unwrap();
-    //     //         assert_eq!(one, FieldElement::from(1u128));
-    //     //     }
-    //     // }
+        // Show that the constants in each function have different SSA value IDs
+        for (func_id, function) in &ssa.functions {
+            let constant_allocation = ConstantAllocation::from_function(function);
+            let mut constants = constant_allocation.get_constants().into_iter().collect::<Vec<_>>();
+            // We want to order the constants by ID
+            constants.sort();
+            if func_id.to_u32() == 1 {
+                assert_eq!(constants.len(), 3);
+                let one = function.dfg.get_numeric_constant(constants[0]).unwrap();
+                assert_eq!(one, BigInt::from(1u128));
+                let five = function.dfg.get_numeric_constant(constants[1]).unwrap();
+                assert_eq!(five, BigInt::from(5u128));
+                let zero = function.dfg.get_numeric_constant(constants[2]).unwrap();
+                assert_eq!(zero, BigInt::from(0u128));
+            } else if func_id.to_u32() == 2 {
+                assert_eq!(constants.len(), 4);
+                let twenty = function.dfg.get_numeric_constant(constants[0]).unwrap();
+                assert_eq!(twenty, BigInt::from(20u128));
+                let zero = function.dfg.get_numeric_constant(constants[1]).unwrap();
+                assert_eq!(zero, BigInt::from(0u128));
+                let ten = function.dfg.get_numeric_constant(constants[2]).unwrap();
+                assert_eq!(ten, BigInt::from(10u128));
+                let one = function.dfg.get_numeric_constant(constants[3]).unwrap();
+                assert_eq!(one, BigInt::from(1u128));
+            }
+        }
 
-    //     let brillig = ssa.to_brillig(&BrilligOptions::default());
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    //     assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
-    //     for (func_id, artifact) in brillig.globals {
-    //         assert_eq!(func_id.to_u32(), 1);
-    //         assert_eq!(
-    //             artifact.byte_code.len(),
-    //             3,
-    //             "Expected enough opcodes to initialize the hoisted constants"
-    //         );
-    //         let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-    //             panic!("First opcode is expected to be `Const`");
-    //         };
-    //         assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-    //         assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
-    //         assert_eq!(*value, FieldElement::from(0u128));
+        assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
+        for (func_id, artifact) in brillig.globals {
+            assert_eq!(func_id.to_u32(), 1);
+            assert_eq!(
+                artifact.byte_code.len(),
+                3,
+                "Expected enough opcodes to initialize the hoisted constants"
+            );
+            let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+                panic!("First opcode is expected to be `Const`");
+            };
+            assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+            assert!(matches!(bit_size, BitSize::Integer(IntegerBitSize::U1)));
+            assert_eq!(*value, BigInt::from(0u128));
 
-    //         let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[1] else {
-    //             panic!("First opcode is expected to be `Const`");
-    //         };
-    //         assert_eq!(destination.unwrap_direct(), GlobalSpace::start() + 1);
-    //         assert!(matches!(bit_size, BitSize::Field));
-    //         assert_eq!(*value, FieldElement::from(1u128));
+            let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[1] else {
+                panic!("First opcode is expected to be `Const`");
+            };
+            assert_eq!(destination.unwrap_direct(), GlobalSpace::start() + 1);
+            assert!(matches!(bit_size, BitSize::Field));
+            assert_eq!(*value, BigInt::from(1u128));
 
-    //         assert!(matches!(&artifact.byte_code[2], Opcode::Return));
-    //     }
-    // }
+            assert!(matches!(&artifact.byte_code[2], Opcode::Return));
+        }
+    }
 
     #[test]
     fn do_not_hoist_shared_constants_different_entry_points() {

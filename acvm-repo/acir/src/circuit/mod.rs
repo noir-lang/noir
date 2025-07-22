@@ -609,7 +609,7 @@ mod tests {
             result.unwrap();
         }
 
-        #[test]
+        // #[test]
         // fn prop_program_proto_roundtrip() {
         //     run_with_max_size_range(100, |program: Program<TestField>| {
         //         let bz = proto_serialize(&program);
@@ -648,6 +648,7 @@ mod tests {
         //         Ok(())
         //     });
         // }
+
         #[test]
         fn prop_witness_stack_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {

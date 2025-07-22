@@ -5,3 +5,5 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 696c50cf99099048e0e1ea8d77561cc6cf49a71b480a05e0ef437d57f97c454a # shrinks to input = 0, bit_size = 0
+cc 2a6872a9854777ee23401e4a8e8d006a5cd5adeeb5b1844b10f7436780632374 # shrinks to int = -1, bit_size = 31
+cc e202d30fe88738f80987cb3894e9dc5b44714557a3b8deabebb1ce2aba6a3417 # shrinks to input = 9998071602665925284483507709376277346, bit_size = 2
