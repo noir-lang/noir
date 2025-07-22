@@ -180,11 +180,17 @@ pub(super) fn simplify_msm(
                 var_points.push(result_is_infinity);
             }
             // Construct the simplified MSM expression
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_scalars.len() as u32);
+            let typ = Type::Array(
+                Arc::new(vec![Type::field(), Type::field()]),
+                var_scalars.len() as u32 / 2,
+            );
             let scalars = Instruction::MakeArray { elements: var_scalars.into(), typ };
             let scalars =
                 dfg.insert_instruction_and_results(scalars, block, None, call_stack).first();
-            let typ = Type::Array(Arc::new(vec![Type::field()]), var_points.len() as u32);
+            let typ = Type::Array(
+                Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+                var_points.len() as u32 / 3,
+            );
             let points = Instruction::MakeArray { elements: var_points.into(), typ };
             let points =
                 dfg.insert_instruction_and_results(points, block, None, call_stack).first();
@@ -363,8 +369,8 @@ mod multi_scalar_mul {
         let src = r#"
             acir(inline) fn main f0 {
               b0():
-                v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
-                v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
+                v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
+                v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 2]
                 v2 = call multi_scalar_mul (v1, v0) -> [(Field, Field, u1); 1]
                 return v2
             }"#;
@@ -373,10 +379,10 @@ mod multi_scalar_mul {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [Field; 4]
-            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 6]
-            v11 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
-            return v11
+            v3 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
+            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 2]
+            v10 = make_array [Field 1478523918288173385110236399861791147958001875200066088686689589556927843200, Field 700144278551281040379388961242974992655630750193306467120985766322057145630, u1 0] : [(Field, Field, u1); 1]
+            return v10
         }
         ");
     }
@@ -387,10 +393,10 @@ mod multi_scalar_mul {
         let src = r#"
             acir(inline) fn main f0 {
               b0(v0: Field, v1: Field):
-                v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
+                v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
-                Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
-                v4 = call multi_scalar_mul (v3, v2) -> [Field; 3]
+                Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
+                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
 
                 return v4
             
@@ -400,12 +406,12 @@ mod multi_scalar_mul {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
-            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [Field; 6]
-            v5 = make_array [Field 0, Field 0, Field 1, v0, v1, Field 0, Field 1, v0, Field 0] : [Field; 9]
-            v6 = make_array [v0, Field 0] : [Field; 2]
-            v7 = make_array [Field 1, v0, Field 0] : [Field; 3]
-            v9 = call multi_scalar_mul(v7, v6) -> [Field; 3]
-            return v9
+            v3 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
+            v7 = make_array [Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
+            v8 = make_array [v0, Field 0] : [(Field, Field); 1]
+            v9 = make_array [Field 1, v0, u1 0] : [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v9, v8) -> [(Field, Field, u1); 1]
+            return v11
         }
         ");
     }
@@ -416,10 +422,10 @@ mod multi_scalar_mul {
         let src = r#"
             acir(inline) fn main f0 {
               b0(v0: Field, v1: Field):
-                v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
+                v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
-                Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
-                v4 = call multi_scalar_mul (v3, v2) -> [Field; 3]
+                Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
+                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
                 return v4
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -427,11 +433,11 @@ mod multi_scalar_mul {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
-            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [Field; 6]
-            v7 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0, v0, v1, Field 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, Field 0] : [Field; 9]
-            v8 = make_array [v0, Field 0, Field 1, Field 0] : [Field; 4]
-            v12 = make_array [v0, v1, Field 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [Field; 6]
-            v14 = call multi_scalar_mul(v12, v8) -> [Field; 3]
+            v5 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
+            v8 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
+            v9 = make_array [v0, Field 0, Field 1, Field 0] : [(Field, Field); 2]
+            v12 = make_array [v0, v1, u1 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [(Field, Field, u1); 2]
+            v14 = call multi_scalar_mul(v12, v9) -> [(Field, Field, u1); 1]
             return v14
         }
         ");
