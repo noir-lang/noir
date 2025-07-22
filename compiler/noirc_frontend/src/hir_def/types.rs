@@ -986,7 +986,7 @@ impl TypeVariable {
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId, Kind),
@@ -1099,7 +1099,7 @@ impl std::fmt::Display for Type {
             }
             Type::Quoted(quoted) => write!(f, "{quoted}"),
             Type::InfixExpr(lhs, op, rhs, _) => {
-                let this = self.canonicalize_checked();
+                let this = self.canonicalize_checked(&TypeBindings::default());
 
                 // Prevent infinite recursion
                 if this != *self { write!(f, "{this}") } else { write!(f, "({lhs} {op} {rhs})") }
@@ -1127,6 +1127,15 @@ impl std::fmt::Display for TypeVariableId {
 }
 
 impl std::fmt::Display for TypeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeBinding::Bound(typ) => typ.fmt(f),
+            TypeBinding::Unbound(id, _) => id.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Debug for TypeBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
@@ -1841,11 +1850,13 @@ impl Type {
     /// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
-        self.evaluate_to_field_element(&Kind::u32(), location).map(|field_element| {
-            field_element
-                .try_to_u32()
-                .expect("ICE: size should have already been checked by evaluate_to_field_element")
-        })
+        self.evaluate_to_field_element(&Kind::u32(), &TypeBindings::default(), location).map(
+            |field_element| {
+                field_element.try_to_u32().expect(
+                    "ICE: size should have already been checked by evaluate_to_field_element",
+                )
+            },
+        )
     }
 
     // TODO(https://github.com/noir-lang/noir/issues/6260): remove
@@ -1853,10 +1864,11 @@ impl Type {
     pub(crate) fn evaluate_to_field_element(
         &self,
         kind: &Kind,
+        bindings: &TypeBindings,
         location: Location,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         let run_simplifications = true;
-        self.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        self.evaluate_to_field_element_helper(kind, location, bindings, run_simplifications)
     }
 
     /// evaluate_to_field_element with optional generic arithmetic simplifications
@@ -1864,21 +1876,37 @@ impl Type {
         &self,
         kind: &Kind,
         location: Location,
+        bindings: &TypeBindings,
         run_simplifications: bool,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
-            if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element_helper(
-                        &binding_kind,
-                        location,
-                        run_simplifications,
-                    );
+            match &*binding.borrow() {
+                TypeBinding::Bound(binding) => {
+                    if kind.unifies(&binding_kind) {
+                        return binding.evaluate_to_field_element_helper(
+                            &binding_kind,
+                            location,
+                            bindings,
+                            run_simplifications,
+                        );
+                    }
+                }
+                TypeBinding::Unbound(type_variable_id, kind) => {
+                    if kind.unifies(&binding_kind) {
+                        if let Some((_, _, typ)) = bindings.get(type_variable_id) {
+                            return typ.evaluate_to_field_element_helper(
+                                &binding_kind,
+                                location,
+                                bindings,
+                                run_simplifications,
+                            );
+                        }
+                    }
                 }
             }
         }
 
-        match self.canonicalize_with_simplifications(run_simplifications) {
+        match self.canonicalize_with_simplifications(bindings, run_simplifications) {
             Type::Constant(x, constant_kind) => {
                 if kind.unifies(&constant_kind) {
                     kind.ensure_value_fits(x, location)
@@ -1896,11 +1924,13 @@ impl Type {
                     let lhs_value = lhs.evaluate_to_field_element_helper(
                         &infix_kind,
                         location,
+                        bindings,
                         run_simplifications,
                     )?;
                     let rhs_value = rhs.evaluate_to_field_element_helper(
                         &infix_kind,
                         location,
+                        bindings,
                         run_simplifications,
                     )?;
                     op.function(lhs_value, rhs_value, &infix_kind, location)
@@ -1913,14 +1943,17 @@ impl Type {
                 }
             }
             Type::CheckedCast { from, to } => {
-                let to_value = to.evaluate_to_field_element(kind, location)?;
+                let to_value = to.evaluate_to_field_element(kind, bindings, location)?;
 
                 // if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 let skip_simplifications = false;
-                if let Ok(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
-                {
+                if let Ok(from_value) = from.evaluate_to_field_element_helper(
+                    kind,
+                    location,
+                    bindings,
+                    skip_simplifications,
+                ) {
                     if to_value == from_value {
                         Ok(to_value)
                     } else {
@@ -2779,7 +2812,7 @@ impl std::fmt::Debug for Type {
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{}", binding.borrow())
+                    write!(f, "{:?}", binding.borrow())
                 }
             }
             Type::DataType(s, args) => {

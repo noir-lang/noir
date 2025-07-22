@@ -20,8 +20,8 @@
         fn deserialize(_: [Field; Self::N]) {}
     }
 
-    pub fn foo<let X: u32, let Y: u32>() {
+    pub fn foo<let X: u32>() {
         let f = <[Field; X] as Deserialize>::deserialize;
-        let _ = f([0; X * Y]);
+        let _ = f([0; X]);
     }
     

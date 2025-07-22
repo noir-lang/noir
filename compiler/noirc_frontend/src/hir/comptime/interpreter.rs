@@ -640,10 +640,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     unreachable!("Expected associated type to be numeric");
                 };
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                {
+                match associated_type.typ.evaluate_to_field_element(
+                    &associated_type.typ.kind(),
+                    &TypeBindings::default(),
+                    location,
+                ) {
                     Ok(value) => self.evaluate_integer(value.into(), id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
@@ -660,7 +661,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_field_element(
+                &Kind::Numeric(Box::new(expected.clone())),
+                &TypeBindings::default(),
+                location,
+            )
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
