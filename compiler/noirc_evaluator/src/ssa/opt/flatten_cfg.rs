@@ -201,7 +201,7 @@ fn flatten_cfg_pre_check(function: &Function) {
                 // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
                 // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
                 //
-                // We could add handling for this inside of the pass itself but it's simpler to just run `simplfy_cfg`
+                // We could add handling for this inside of the pass itself but it's simpler to just run `simpilfy_cfg`
                 // immmediately before flattening.
                 panic!(
                     "Function {} has a jmpif with a constant condition {condition}",
