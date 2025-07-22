@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753190889989,
+  "lastUpdate": 1753190892002,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -28318,6 +28318,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/eb0982ee8859640b18a1874b1d92b29d0e2c0499"
         },
         "date": 1753175767012,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3c18e331de7b0bdec60b94f625158e453de622cb",
+          "message": "fix: Use `u32` in `RepeatedValue` example in generics docs (#9273)",
+          "timestamp": "2025-07-22T14:22:48+01:00",
+          "tree_id": "87c5995062efc83749a3d31da4a29e8b44d2d54e",
+          "url": "https://github.com/noir-lang/noir/commit/3c18e331de7b0bdec60b94f625158e453de622cb"
+        },
+        "date": 1753190872562,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
