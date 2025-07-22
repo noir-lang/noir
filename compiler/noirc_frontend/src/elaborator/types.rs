@@ -646,7 +646,7 @@ impl Elaborator<'_> {
                     (lhs, rhs) => {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
-                            .canonicalize()
+                            .canonicalize(&TypeBindings::default())
                     }
                 }
             }
