@@ -292,17 +292,7 @@
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
 <a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a>
-<a href="#295" id="295">295</a>
-<a href="#296" id="296">296</a>
-<a href="#297" id="297">297</a>
-<a href="#298" id="298">298</a>
-<a href="#299" id="299">299</a>
-<a href="#300" id="300">300</a>
-<a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a>
-<a href="#303" id="303">303</a>
-<a href="#304" id="304">304</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#294" id="294">294</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -479,7 +469,6 @@
     </span><span class="kw">let </span>error_to_warn_cases = [
         <span class="string">"cast_256_to_u8_size_checks"</span>,
         <span class="string">"enums_errors_on_unspecified_unstable_enum"</span>,
-        <span class="string">"imports_warns_on_use_of_private_exported_item"</span>,
         <span class="string">"metaprogramming_does_not_fail_to_parse_macro_on_parser_warning"</span>,
         <span class="string">"resolve_unused_var"</span>,
         <span class="string">"struct_array_len"</span>,
@@ -489,17 +478,8 @@
         <span class="string">"unused_items_errors_on_unused_trait"</span>,
         <span class="string">"unused_items_errors_on_unused_type_alias"</span>,
         <span class="string">"unused_items_warns_on_unused_global"</span>,
-        <span class="string">"visibility_warns_if_calling_private_struct_method"</span>,
         <span class="string">"warns_on_nested_unsafe"</span>,
         <span class="string">"warns_on_unneeded_unsafe"</span>,
-        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/6932): these will be hard errors
-        </span><span class="string">"visibility_error_when_accessing_private_struct_field"</span>,
-        <span class="string">"visibility_error_when_using_private_struct_field_in_constructor"</span>,
-        <span class="string">"visibility_error_when_using_private_struct_field_in_struct_pattern"</span>,
-        <span class="string">"visibility_errors_if_accessing_private_struct_member_inside_comptime_context"</span>,
-        <span class="string">"visibility_errors_if_accessing_private_struct_member_inside_function_generated_at_comptime"</span>,
-        <span class="string">"visibility_errors_if_trying_to_access_public_function_inside_private_module"</span>,
-        <span class="string">"visibility_errors_once_on_unused_import_that_is_not_accessible"</span>,
         <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/7795): these will be hard errors
         </span><span class="string">"indexing_array_with_non_u32_on_lvalue_produces_a_warning"</span>,
         <span class="string">"indexing_array_with_non_u32_produces_a_warning"</span>,
