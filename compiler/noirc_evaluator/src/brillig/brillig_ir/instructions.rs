@@ -8,6 +8,7 @@ use acvm::{
         },
     },
 };
+use num_bigint::BigInt;
 
 use crate::ssa::ir::function::FunctionId;
 
@@ -372,8 +373,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Stores the value of `constant` in the `result` register
-    pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: F) {
-        self.debug_show.const_instruction(result.address, constant);
+    pub(crate) fn const_instruction(&mut self, result: SingleAddrVariable, constant: BigInt) {
+        self.debug_show.const_instruction(result.address, constant.clone());
         self.constant(result.address, result.bit_size, constant, false);
     }
 
@@ -382,15 +383,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         &mut self,
         result_pointer: MemoryAddress,
         bit_size: u32,
-        constant: F,
+        constant: BigInt,
     ) {
-        self.debug_show.indirect_const_instruction(result_pointer, constant);
+        self.debug_show.indirect_const_instruction(result_pointer, constant.clone());
         self.constant(result_pointer, bit_size, constant, true);
     }
 
-    fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
+    fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: BigInt, indirect: bool) {
         assert!(
-            bit_size >= constant.num_bits(),
+            bit_size >= constant.bits() as u32,
             "Constant {} does not fit in bit size {}",
             constant,
             bit_size
@@ -410,14 +411,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         }
     }
 
-    pub(crate) fn usize_const_instruction(&mut self, result: MemoryAddress, constant: F) {
+    pub(crate) fn usize_const_instruction(&mut self, result: MemoryAddress, constant: BigInt) {
         self.const_instruction(SingleAddrVariable::new_usize(result), constant);
     }
 
     /// Returns a register which holds the value of a constant
     pub(crate) fn make_constant_instruction(
         &mut self,
-        constant: F,
+        constant: BigInt,
         bit_size: u32,
     ) -> SingleAddrVariable {
         let var = SingleAddrVariable::new(self.allocate_register(), bit_size);
@@ -426,7 +427,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Returns a register which holds the value of an usize constant
-    pub(crate) fn make_usize_constant_instruction(&mut self, constant: F) -> SingleAddrVariable {
+    pub(crate) fn make_usize_constant_instruction(
+        &mut self,
+        constant: BigInt,
+    ) -> SingleAddrVariable {
         let register = self.allocate_register();
         self.usize_const_instruction(register, constant);
         SingleAddrVariable::new_usize(register)

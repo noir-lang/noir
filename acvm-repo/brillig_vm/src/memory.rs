@@ -3,6 +3,8 @@ use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize, MemoryAddress},
 };
+use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 /// The bit size used for addressing memory within the Brillig VM.
 ///
@@ -84,6 +86,16 @@ impl<F: AcirField> MemoryValue<F> {
             MemoryValue::new_integer(value.to_u128(), bit_size)
         } else {
             MemoryValue::new_field(value)
+        }
+    }
+
+    /// Builds a memory value from a bigint.
+    pub fn new_from_bigint(value: BigInt, bit_size: BitSize) -> Self {
+        if let BitSize::Integer(bit_size) = bit_size {
+            MemoryValue::new_integer(value.to_u128().expect("value is not an integer"), bit_size)
+        } else {
+            let (_sign, bytes) = value.to_bytes_be();
+            MemoryValue::new_field(F::from_be_bytes_reduce(&bytes))
         }
     }
 

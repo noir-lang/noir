@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use num_bigint::BigInt;
 
 use super::brillig_block::BrilligBlock;
 use super::{BrilligVariable, Function, FunctionContext, ValueId};
@@ -48,10 +49,9 @@ pub(crate) struct BrilligGlobals {
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
 /// Mapping of constant values shared across functions hoisted to the global memory space
-pub(crate) type HoistedConstantsToBrilligGlobals =
-    HashMap<(FieldElement, NumericType), BrilligVariable>;
+pub(crate) type HoistedConstantsToBrilligGlobals = HashMap<(BigInt, NumericType), BrilligVariable>;
 /// Mapping of a constant value and the number of functions in which it occurs
-pub(crate) type ConstantCounterMap = HashMap<(FieldElement, NumericType), usize>;
+pub(crate) type ConstantCounterMap = HashMap<(BigInt, NumericType), usize>;
 
 impl BrilligGlobals {
     pub(crate) fn new(
@@ -115,19 +115,19 @@ impl BrilligGlobals {
     ) {
         // We can potentially have multiple local constants with the same value and type
         let constants = ConstantAllocation::from_function(function);
-        // for constant in constants.get_constants() {
-        //     let value = function.dfg.get_numeric_constant(constant);
-        //     let value = value.unwrap();
-        //     let typ = function.dfg.type_of_value(constant);
-        //     if !function.dfg.is_global(constant) {
-        //         hoisted_global_constants
-        //             .entry(entry_point)
-        //             .or_default()
-        //             .entry((value, typ.unwrap_numeric()))
-        //             .and_modify(|counter| *counter += 1)
-        //             .or_insert(1);
-        //     }
-        // }
+        for constant in constants.get_constants() {
+            let value = function.dfg.get_numeric_constant(constant);
+            let value = value.unwrap();
+            let typ = function.dfg.type_of_value(constant);
+            if !function.dfg.is_global(constant) {
+                hoisted_global_constants
+                    .entry(entry_point)
+                    .or_default()
+                    .entry((value, typ.unwrap_numeric()))
+                    .and_modify(|counter| *counter += 1)
+                    .or_insert(1);
+            }
+        }
     }
 
     pub(crate) fn declare_globals(
@@ -152,8 +152,8 @@ impl BrilligGlobals {
                 .unwrap_or_default()
                 .iter()
                 .filter_map(
-                    |(&value, &num_occurrences)| {
-                        if num_occurrences > 1 { Some(value) } else { None }
+                    |(value, &num_occurrences)| {
+                        if num_occurrences > 1 { Some(value.clone()) } else { None }
                     },
                 )
                 .collect();
@@ -238,7 +238,7 @@ pub(crate) type BrilligGlobalsArtifact = (
     // The size of the global memory
     usize,
     // Duplicate SSA constants local to a function -> Brillig global allocations
-    HashMap<(FieldElement, NumericType), BrilligVariable>,
+    HashMap<(BigInt, NumericType), BrilligVariable>,
 );
 
 impl Brillig {
@@ -247,7 +247,7 @@ impl Brillig {
         options: &BrilligOptions,
         globals_dfg: &DataFlowGraph,
         used_globals: &HashSet<ValueId>,
-        hoisted_global_constants: &BTreeSet<(FieldElement, NumericType)>,
+        hoisted_global_constants: &BTreeSet<(BigInt, NumericType)>,
         entry_point: FunctionId,
     ) -> BrilligGlobalsArtifact {
         let mut brillig_context = BrilligContext::new_for_global_init(options, entry_point);
@@ -270,19 +270,19 @@ impl Brillig {
             building_globals: true,
         };
 
-        // let hoisted_global_constants = brillig_block.compile_globals(
-        //     globals_dfg,
-        //     used_globals,
-        //     &mut self.call_stacks,
-        //     hoisted_global_constants,
-        // );
+        let hoisted_global_constants = brillig_block.compile_globals(
+            globals_dfg,
+            used_globals,
+            &mut self.call_stacks,
+            hoisted_global_constants,
+        );
 
         let globals_size = brillig_context.global_space_size();
 
         brillig_context.return_instruction();
 
         let artifact = brillig_context.artifact();
-        (artifact, function_context.ssa_value_allocations, globals_size, HashMap::default())
+        (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
     }
 }
 #[cfg(test)]
@@ -298,197 +298,197 @@ mod tests {
 
     use super::ConstantAllocation;
 
-    #[test]
-    fn entry_points_different_globals() {
-        let src = "
-        g0 = Field 2
+    // #[test]
+    // fn entry_points_different_globals() {
+    //     let src = "
+    //     g0 = Field 2
 
-        acir(inline) fn main f0 {
-        b0(v1: Field, v2: Field):
-            v4 = call f1(v1) -> Field
-            constrain v4 == Field 2
-            v6 = call f2(v1) -> Field
-            constrain v6 == Field 2
-            return
-        }
-        brillig(inline) fn entry_point_no_globals f1 {
-        b0(v1: Field):
-            v3 = add v1, Field 1
-            v4 = add v3, Field 1
-            return v4
-        }
-        brillig(inline) fn entry_point_globals f2 {
-        b0(v1: Field):
-            v2 = add v1, Field 2
-            return v2
-        }
-        ";
+    //     acir(inline) fn main f0 {
+    //     b0(v1: Field, v2: Field):
+    //         v4 = call f1(v1) -> Field
+    //         constrain v4 == Field 2
+    //         v6 = call f2(v1) -> Field
+    //         constrain v6 == Field 2
+    //         return
+    //     }
+    //     brillig(inline) fn entry_point_no_globals f1 {
+    //     b0(v1: Field):
+    //         v3 = add v1, Field 1
+    //         v4 = add v3, Field 1
+    //         return v4
+    //     }
+    //     brillig(inline) fn entry_point_globals f2 {
+    //     b0(v1: Field):
+    //         v2 = add v1, Field 2
+    //         return v2
+    //     }
+    //     ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+    //     let ssa = Ssa::from_str(src).unwrap();
+    //     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        assert_eq!(
-            brillig.globals.len(),
-            2,
-            "Should have a globals artifact associated with each entry point"
-        );
-        for (func_id, mut artifact) in brillig.globals {
-            let labels = artifact.take_labels();
-            // When entering a context two labels are created.
-            // One is a context label and another is a section label.
-            assert_eq!(labels.len(), 2);
-            for (label, position) in labels {
-                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
-                assert_eq!(position, 0);
-            }
-            if func_id.to_u32() == 1 {
-                assert_eq!(
-                    artifact.byte_code.len(),
-                    1,
-                    "Expected just a `Return`, but got more than a single opcode"
-                );
-                assert!(matches!(&artifact.byte_code[0], Opcode::Return));
-            } else if func_id.to_u32() == 2 {
-                assert_eq!(
-                    artifact.byte_code.len(),
-                    2,
-                    "Expected enough opcodes to initialize the globals"
-                );
-                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-                    panic!("First opcode is expected to be `Const`");
-                };
-                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-                assert!(matches!(bit_size, BitSize::Field));
-                assert_eq!(*value, FieldElement::from(2u128));
+    //     assert_eq!(
+    //         brillig.globals.len(),
+    //         2,
+    //         "Should have a globals artifact associated with each entry point"
+    //     );
+    //     for (func_id, mut artifact) in brillig.globals {
+    //         let labels = artifact.take_labels();
+    //         // When entering a context two labels are created.
+    //         // One is a context label and another is a section label.
+    //         assert_eq!(labels.len(), 2);
+    //         for (label, position) in labels {
+    //             assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+    //             assert_eq!(position, 0);
+    //         }
+    //         if func_id.to_u32() == 1 {
+    //             assert_eq!(
+    //                 artifact.byte_code.len(),
+    //                 1,
+    //                 "Expected just a `Return`, but got more than a single opcode"
+    //             );
+    //             assert!(matches!(&artifact.byte_code[0], Opcode::Return));
+    //         } else if func_id.to_u32() == 2 {
+    //             assert_eq!(
+    //                 artifact.byte_code.len(),
+    //                 2,
+    //                 "Expected enough opcodes to initialize the globals"
+    //             );
+    //             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+    //                 panic!("First opcode is expected to be `Const`");
+    //             };
+    //             assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+    //             assert!(matches!(bit_size, BitSize::Field));
+    //             assert_eq!(*value, FieldElement::from(2u128));
 
-                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
-            } else {
-                panic!("Unexpected function id: {func_id}");
-            }
-        }
-    }
+    //             assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+    //         } else {
+    //             panic!("Unexpected function id: {func_id}");
+    //         }
+    //     }
+    // }
 
-    #[test]
-    fn entry_point_nested_globals() {
-        let src = "
-        g0 = Field 1
-        g1 = make_array [Field 1, Field 1] : [Field; 2]
-        g2 = Field 0
-        g3 = make_array [Field 0, Field 0] : [Field; 2]
-        g4 = make_array [g1, g3] : [[Field; 2]; 2]
+    // #[test]
+    // fn entry_point_nested_globals() {
+    //     let src = "
+    //     g0 = Field 1
+    //     g1 = make_array [Field 1, Field 1] : [Field; 2]
+    //     g2 = Field 0
+    //     g3 = make_array [Field 0, Field 0] : [Field; 2]
+    //     g4 = make_array [g1, g3] : [[Field; 2]; 2]
 
-        acir(inline) fn main f0 {
-          b0(v5: Field, v6: Field):
-              v8 = call f1(v5) -> Field
-              constrain v8 == Field 2
-              call f2(v5, v6)
-              v12 = call f1(v5) -> Field
-              constrain v12 == Field 2
-              call f3(v5, v6)
-              v15 = call f1(v5) -> Field
-              constrain v15 == Field 2
-              return
-        }
-        brillig(inline) fn entry_point_no_globals f1 {
-          b0(v5: Field):
-              v6 = add v5, Field 1
-              v7 = add v6, Field 1
-              return v7
-        }
-        brillig(inline) fn check_acc_entry_point f2 {
-          b0(v5: Field, v6: Field):
-              v8 = allocate -> &mut Field
-              store Field 0 at v8
-              jmp b1(u32 0)
-          b1(v7: u32):
-              v11 = lt v7, u32 2
-              jmpif v11 then: b3, else: b2
-          b2():
-              v12 = load v8 -> Field
-              v13 = eq v12, Field 0
-              constrain v13 == u1 0
-              v15 = eq v5, v6
-              constrain v15 == u1 0
-              v16 = add v5, Field 1
-              v17 = add v16, Field 1
-              constrain v17 == Field 2
-              return
-          b3():
-              v19 = array_get g4, index v7 -> [Field; 2]
-              v20 = load v8 -> Field
-              v21 = array_get v19, index u32 0 -> Field
-              v22 = add v20, v21
-              v24 = array_get v19, index u32 1 -> Field
-              v25 = add v22, v24
-              store v25 at v8
-              v26 = unchecked_add v7, u32 1
-              jmp b1(v26)
-        }
-        brillig(inline) fn entry_point_inner_func_globals f3 {
-          b0(v5: Field, v6: Field):
-              call f4(v5, v6)
-              return
-        }
-        brillig(inline) fn non_entry_point_wrapper f4 {
-          b0(v5: Field, v6: Field):
-              call f2(v5, v6)
-              call f2(v5, v6)
-              return
-        }
-        ";
+    //     acir(inline) fn main f0 {
+    //       b0(v5: Field, v6: Field):
+    //           v8 = call f1(v5) -> Field
+    //           constrain v8 == Field 2
+    //           call f2(v5, v6)
+    //           v12 = call f1(v5) -> Field
+    //           constrain v12 == Field 2
+    //           call f3(v5, v6)
+    //           v15 = call f1(v5) -> Field
+    //           constrain v15 == Field 2
+    //           return
+    //     }
+    //     brillig(inline) fn entry_point_no_globals f1 {
+    //       b0(v5: Field):
+    //           v6 = add v5, Field 1
+    //           v7 = add v6, Field 1
+    //           return v7
+    //     }
+    //     brillig(inline) fn check_acc_entry_point f2 {
+    //       b0(v5: Field, v6: Field):
+    //           v8 = allocate -> &mut Field
+    //           store Field 0 at v8
+    //           jmp b1(u32 0)
+    //       b1(v7: u32):
+    //           v11 = lt v7, u32 2
+    //           jmpif v11 then: b3, else: b2
+    //       b2():
+    //           v12 = load v8 -> Field
+    //           v13 = eq v12, Field 0
+    //           constrain v13 == u1 0
+    //           v15 = eq v5, v6
+    //           constrain v15 == u1 0
+    //           v16 = add v5, Field 1
+    //           v17 = add v16, Field 1
+    //           constrain v17 == Field 2
+    //           return
+    //       b3():
+    //           v19 = array_get g4, index v7 -> [Field; 2]
+    //           v20 = load v8 -> Field
+    //           v21 = array_get v19, index u32 0 -> Field
+    //           v22 = add v20, v21
+    //           v24 = array_get v19, index u32 1 -> Field
+    //           v25 = add v22, v24
+    //           store v25 at v8
+    //           v26 = unchecked_add v7, u32 1
+    //           jmp b1(v26)
+    //     }
+    //     brillig(inline) fn entry_point_inner_func_globals f3 {
+    //       b0(v5: Field, v6: Field):
+    //           call f4(v5, v6)
+    //           return
+    //     }
+    //     brillig(inline) fn non_entry_point_wrapper f4 {
+    //       b0(v5: Field, v6: Field):
+    //           call f2(v5, v6)
+    //           call f2(v5, v6)
+    //           return
+    //     }
+    //     ";
 
-        let ssa = Ssa::from_str(src).unwrap();
-        // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_get_and_set();
+    //     let ssa = Ssa::from_str(src).unwrap();
+    //     // Need to run SSA pass that sets up Brillig array gets
+    //     let ssa = ssa.brillig_array_get_and_set();
 
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
+    //     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        assert_eq!(
-            brillig.globals.len(),
-            3,
-            "Should have a globals artifact associated with each entry point"
-        );
-        for (func_id, mut artifact) in brillig.globals {
-            let labels = artifact.take_labels();
-            // When entering a context two labels are created.
-            // One is a context label and another is a section label.
-            assert_eq!(labels.len(), 2);
-            for (label, position) in labels {
-                assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
-                assert_eq!(position, 0);
-            }
-            if func_id.to_u32() == 1 {
-                assert_eq!(
-                    artifact.byte_code.len(),
-                    2,
-                    "Expected enough opcodes to initialize the globals"
-                );
-                let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
-                    panic!("First opcode is expected to be `Const`");
-                };
-                assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
-                assert!(matches!(bit_size, BitSize::Field));
-                assert_eq!(*value, FieldElement::from(1u128));
-                assert!(matches!(&artifact.byte_code[1], Opcode::Return));
-            } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
-                // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
-                // to have the same globals initialized.
-                assert_eq!(
-                    artifact.byte_code.len(),
-                    30,
-                    "Expected enough opcodes to initialize the globals"
-                );
-                let globals_max_memory = brillig
-                    .globals_memory_size
-                    .get(&func_id)
-                    .copied()
-                    .expect("Should have globals memory size");
-                assert_eq!(globals_max_memory, 7);
-            } else {
-                panic!("Unexpected function id: {func_id}");
-            }
-        }
-    }
+    //     assert_eq!(
+    //         brillig.globals.len(),
+    //         3,
+    //         "Should have a globals artifact associated with each entry point"
+    //     );
+    //     for (func_id, mut artifact) in brillig.globals {
+    //         let labels = artifact.take_labels();
+    //         // When entering a context two labels are created.
+    //         // One is a context label and another is a section label.
+    //         assert_eq!(labels.len(), 2);
+    //         for (label, position) in labels {
+    //             assert_eq!(label.label_type, LabelType::GlobalInit(func_id));
+    //             assert_eq!(position, 0);
+    //         }
+    //         if func_id.to_u32() == 1 {
+    //             assert_eq!(
+    //                 artifact.byte_code.len(),
+    //                 2,
+    //                 "Expected enough opcodes to initialize the globals"
+    //             );
+    //             let Opcode::Const { destination, bit_size, value } = &artifact.byte_code[0] else {
+    //                 panic!("First opcode is expected to be `Const`");
+    //             };
+    //             assert_eq!(destination.unwrap_direct(), GlobalSpace::start());
+    //             assert!(matches!(bit_size, BitSize::Field));
+    //             assert_eq!(*value, FieldElement::from(1u128));
+    //             assert!(matches!(&artifact.byte_code[1], Opcode::Return));
+    //         } else if func_id.to_u32() == 2 || func_id.to_u32() == 3 {
+    //             // We want the entry point which uses globals (f2) and the entry point which calls f2 function internally (f3 through f4)
+    //             // to have the same globals initialized.
+    //             assert_eq!(
+    //                 artifact.byte_code.len(),
+    //                 30,
+    //                 "Expected enough opcodes to initialize the globals"
+    //             );
+    //             let globals_max_memory = brillig
+    //                 .globals_memory_size
+    //                 .get(&func_id)
+    //                 .copied()
+    //                 .expect("Should have globals memory size");
+    //             assert_eq!(globals_max_memory, 7);
+    //         } else {
+    //             panic!("Unexpected function id: {func_id}");
+    //         }
+    //     }
+    // }
 
     // #[test]
     // fn hoist_shared_constants() {

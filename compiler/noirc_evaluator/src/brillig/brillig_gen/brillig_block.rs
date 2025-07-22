@@ -25,7 +25,7 @@ use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
-use num_bigint::{BigInt, BigUint};
+use num_bigint::{BigInt, BigUint, Sign};
 use num_traits::{One, Zero};
 
 use std::collections::BTreeSet;
@@ -78,16 +78,16 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let live_in = function_context.liveness.get_live_in(&block_id);
 
         let mut live_in_no_globals = HashSet::default();
-        // for value in live_in {
-        //     if let Value::NumericConstant { constant, typ } = &dfg[*value] {
-        //         if hoisted_global_constants.contains_key(&(constant.clone(), typ.clone())) {
-        //             continue;
-        //         }
-        //     }
-        //     if !dfg.is_global(*value) {
-        //         live_in_no_globals.insert(*value);
-        //     }
-        // }
+        for value in live_in {
+            if let Value::NumericConstant { constant, typ } = &dfg[*value] {
+                if hoisted_global_constants.contains_key(&(constant.clone(), typ.clone())) {
+                    continue;
+                }
+            }
+            if !dfg.is_global(*value) {
+                live_in_no_globals.insert(*value);
+            }
+        }
 
         let variables = BlockVariables::new(live_in_no_globals);
 
@@ -139,7 +139,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         used_globals: &HashSet<ValueId>,
         call_stacks: &mut CallStackHelper,
         hoisted_global_constants: &BTreeSet<(BigInt, NumericType)>,
-    ) -> HashMap<(FieldElement, NumericType), BrilligVariable> {
+    ) -> HashMap<(BigInt, NumericType), BrilligVariable> {
         // Using the end of the global memory space adds more complexity as we
         // have to account for possible register de-allocations as part of regular global compilation.
         // Thus, we want to allocate any reserved global slots first.
@@ -148,7 +148,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         if self.brillig_context.count_array_copies() {
             let new_variable = allocate_value_with_type(self.brillig_context, Type::unsigned(32));
             self.brillig_context
-                .const_instruction(new_variable.extract_single_addr(), FieldElement::zero());
+                .const_instruction(new_variable.extract_single_addr(), BigInt::zero());
         }
 
         for (id, value) in globals.values_iter() {
@@ -171,13 +171,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
 
         let mut new_hoisted_constants = HashMap::default();
-        // for (constant, typ) in hoisted_global_constants.iter().copied() {
-        //     let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
-        //     self.brillig_context.const_instruction(new_variable.extract_single_addr(), constant);
-        //     if new_hoisted_constants.insert((constant, typ), new_variable).is_some() {
-        //         unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
-        //     }
-        // }
+        for (constant, typ) in hoisted_global_constants.iter().cloned() {
+            let new_variable = allocate_value_with_type(self.brillig_context, Type::Numeric(typ));
+            self.brillig_context
+                .const_instruction(new_variable.extract_single_addr(), constant.clone());
+            if new_hoisted_constants.insert((constant.clone(), typ), new_variable).is_some() {
+                unreachable!("ICE: ({constant:?}, {typ:?}) was already in cache");
+            }
+        }
 
         new_hoisted_constants
     }
@@ -899,7 +900,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     // Create a field constant with the max
                     let max = BigUint::from(2_u128).pow(*max_bit_size) - BigUint::from(1_u128);
                     let right = self.brillig_context.make_constant_instruction(
-                        FieldElement::from_be_bytes_reduce(&max.to_bytes_be()),
+                        BigInt::from_bytes_be(Sign::Plus, &max.to_bytes_be()),
                         FieldElement::max_num_bits(),
                     );
 
@@ -1094,7 +1095,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
         let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
 
-        self.brillig_context.const_instruction(zero, FieldElement::zero());
+        self.brillig_context.const_instruction(zero, BigInt::zero());
 
         let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
 
@@ -1897,10 +1898,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         dfg,
                     );
 
-                    self.brillig_context.const_instruction(
-                        new_variable.extract_single_addr(),
-                        NumericValue::from_bigint_to_field(constant.clone()),
-                    );
+                    self.brillig_context
+                        .const_instruction(new_variable.extract_single_addr(), constant.clone());
                     new_variable
                 }
             }
@@ -2278,9 +2277,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         value_id: ValueId,
     ) -> Option<BrilligVariable> {
         if let Value::NumericConstant { constant, typ } = &dfg[value_id] {
-            if let Some(variable) = self
-                .hoisted_global_constants
-                .get(&(NumericValue::from_bigint_to_field(constant.clone()), typ.clone()))
+            if let Some(variable) =
+                self.hoisted_global_constants.get(&(constant.clone(), typ.clone()))
             {
                 return Some(*variable);
             }

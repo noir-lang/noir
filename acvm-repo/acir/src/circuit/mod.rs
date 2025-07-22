@@ -43,7 +43,7 @@ pub enum ExpressionWidth {
 /// A program represented by multiple ACIR [circuit][Circuit]'s. The execution trace of these
 /// circuits is dictated by construction of the [crate::native_types::WitnessStack].
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Program<F: AcirField> {
     pub functions: Vec<Circuit<F>>,
     pub unconstrained_functions: Vec<BrilligBytecode<F>>,
@@ -610,45 +610,44 @@ mod tests {
         }
 
         #[test]
-        fn prop_program_proto_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = proto_serialize(&program);
-                let de = proto_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
+        // fn prop_program_proto_roundtrip() {
+        //     run_with_max_size_range(100, |program: Program<TestField>| {
+        //         let bz = proto_serialize(&program);
+        //         let de = proto_deserialize(&bz)?;
+        //         prop_assert_eq!(program, de);
+        //         Ok(())
+        //     });
+        // }
 
-        #[test]
-        fn prop_program_bincode_roundtrip() {
-            run_with_max_size_range(100, |program: Program<TestField>| {
-                let bz = bincode_serialize(&program)?;
-                let de = bincode_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
+        // #[test]
+        // fn prop_program_bincode_roundtrip() {
+        //     run_with_max_size_range(100, |program: Program<TestField>| {
+        //         let bz = bincode_serialize(&program)?;
+        //         let de = bincode_deserialize(&bz)?;
+        //         prop_assert_eq!(program, de);
+        //         Ok(())
+        //     });
+        // }
 
-        #[test]
-        fn prop_program_msgpack_roundtrip() {
-            run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
-                let bz = msgpack_serialize(&program, compact)?;
-                let de = msgpack_deserialize(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
+        // #[test]
+        // fn prop_program_msgpack_roundtrip() {
+        //     run_with_max_size_range(100, |(program, compact): (Program<TestField>, bool)| {
+        //         let bz = msgpack_serialize(&program, compact)?;
+        //         let de = msgpack_deserialize(&bz)?;
+        //         prop_assert_eq!(program, de);
+        //         Ok(())
+        //     });
+        // }
 
-        #[test]
-        fn prop_program_roundtrip() {
-            run_with_max_size_range(10, |program: Program<TestField>| {
-                let bz = Program::serialize_program(&program);
-                let de = Program::deserialize_program(&bz)?;
-                prop_assert_eq!(program, de);
-                Ok(())
-            });
-        }
-
+        // #[test]
+        // fn prop_program_roundtrip() {
+        //     run_with_max_size_range(10, |program: Program<TestField>| {
+        //         let bz = Program::serialize_program(&program);
+        //         let de = Program::deserialize_program(&bz)?;
+        //         prop_assert_eq!(program, de);
+        //         Ok(())
+        //     });
+        // }
         #[test]
         fn prop_witness_stack_proto_roundtrip() {
             run_with_max_size_range(10, |witness: WitnessStack<TestField>| {

@@ -6,6 +6,8 @@ use acvm::acir::{
     },
     circuit::brillig::BrilligFunctionId,
 };
+use num_bigint::BigInt;
+use num_traits::Zero;
 
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 
@@ -72,12 +74,12 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             BrilligOpcode::Const {
                 destination: one_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: F::from(1_usize),
+                value: BigInt::from(1_usize),
             },
             BrilligOpcode::Const {
                 destination: zero_usize,
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: F::from(0_usize),
+                value: BigInt::from(0_usize),
             },
             BrilligOpcode::CalldataCopy {
                 destination_address: input,
@@ -87,7 +89,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             // Put value zero in register (2)
             BrilligOpcode::Const {
                 destination: zero_const,
-                value: F::from(0_usize),
+                value: BigInt::from(0_usize),
                 bit_size: BitSize::Field,
             },
             BrilligOpcode::BinaryFieldOp {
@@ -101,7 +103,7 @@ pub(crate) fn directive_invert<F: AcirField>() -> GeneratedBrillig<F> {
             // Put value one in register (1)
             BrilligOpcode::Const {
                 destination: one_const,
-                value: F::one(),
+                value: BigInt::from(1_usize),
                 bit_size: BitSize::Field,
             },
             // Divide 1 by the input, and set the result of the division into register (0)
@@ -138,12 +140,12 @@ pub(crate) fn directive_quotient<F: AcirField>() -> GeneratedBrillig<F> {
             BrilligOpcode::Const {
                 destination: MemoryAddress::direct(10),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: F::from(2_usize),
+                value: BigInt::from(2_usize),
             },
             BrilligOpcode::Const {
                 destination: MemoryAddress::direct(11),
                 bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: F::from(0_usize),
+                value: BigInt::from(0_usize),
             },
             BrilligOpcode::CalldataCopy {
                 destination_address: MemoryAddress::direct(0),
@@ -220,18 +222,22 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
         // Initialize registers
         // Constants
         // Zero
-        BrilligOpcode::Const { destination: zero, bit_size: memory_adr_size, value: F::zero() },
+        BrilligOpcode::Const {
+            destination: zero,
+            bit_size: memory_adr_size,
+            value: BigInt::zero(),
+        },
         // One
         BrilligOpcode::Const {
             destination: one,
             bit_size: memory_adr_size,
-            value: F::from(1_usize),
+            value: BigInt::from(1_usize),
         },
         // Three
         BrilligOpcode::Const {
             destination: three,
             bit_size: memory_adr_size,
-            value: F::from(3_usize),
+            value: BigInt::from(3_usize),
         },
         // Brillig Inputs
         BrilligOpcode::CalldataCopy {
@@ -245,7 +251,7 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
         BrilligOpcode::Const {
             destination: result_pointer,
             bit_size: memory_adr_size,
-            value: F::from(result_base_adr),
+            value: BigInt::from(result_base_adr),
         },
         // Loop bound
         BrilligOpcode::BinaryIntOp {
@@ -308,7 +314,7 @@ pub(crate) fn directive_to_radix<F: AcirField>() -> GeneratedBrillig<F> {
         BrilligOpcode::Const {
             destination: result_pointer,
             bit_size: memory_adr_size,
-            value: F::from(result_base_adr),
+            value: BigInt::from(result_base_adr),
         },
         BrilligOpcode::Stop { return_data: result_vector },
     ];

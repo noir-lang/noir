@@ -6,6 +6,7 @@ use acvm::{
     FieldElement,
     acir::brillig::{BlackBoxOp, HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
+use num_bigint::BigInt;
 
 /// Trait for converting values into debug-friendly strings.
 pub(crate) trait DebugToString {
@@ -91,6 +92,12 @@ impl DebugToString for ValueOrArray {
 impl<T: DebugToString> DebugToString for [T] {
     fn debug_to_string(&self) -> String {
         self.iter().map(|x| x.debug_to_string()).collect::<Vec<String>>().join(", ")
+    }
+}
+
+impl DebugToString for BigInt {
+    fn debug_to_string(&self) -> String {
+        self.to_string()
     }
 }
 

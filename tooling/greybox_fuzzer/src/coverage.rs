@@ -733,6 +733,7 @@ pub fn analyze_brillig_program_before_fuzzing(
             | BrilligOpcode::BlackBox(..)
             | BrilligOpcode::Trap { .. }
             | BrilligOpcode::Stop { .. } => (),
+            _ => todo!(),
         }
     }
     (feature_to_index_map, coverage_items)

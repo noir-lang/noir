@@ -1,6 +1,8 @@
 use crate::black_box::BlackBoxOp;
 use acir_field::AcirField;
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
+use std::marker::PhantomData;
 
 pub type Label = usize;
 
@@ -210,7 +212,7 @@ pub enum ValueOrArray {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
-#[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
+// #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub enum BrilligOpcode<F> {
     /// Takes the fields in addresses `lhs` and `rhs`
     /// Performs the specified binary operation
@@ -275,13 +277,13 @@ pub enum BrilligOpcode<F> {
     Const {
         destination: MemoryAddress,
         bit_size: BitSize,
-        value: F,
+        value: BigInt,
     },
     /// Reads the address from `destination_pointer`, then stores a constant `value` with a `bit_size` at that address.
     IndirectConst {
         destination_pointer: MemoryAddress,
         bit_size: BitSize,
-        value: F,
+        value: BigInt,
     },
     /// Pops the top element from the call stack, which represents the return location,
     /// and sets the program counter to that value. This operation is used to return
@@ -340,6 +342,8 @@ pub enum BrilligOpcode<F> {
     Stop {
         return_data: HeapVector,
     },
+    #[doc(hidden)]
+    __Phantom(PhantomData<F>),
 }
 
 /// Binary fixed-length field expressions

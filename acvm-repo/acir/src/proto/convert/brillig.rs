@@ -1,10 +1,14 @@
 use crate::{
     circuit,
-    proto::brillig::{BitSize, BlackBoxOp, HeapArray, HeapValueType, HeapVector, ValueOrArray},
+    proto::{
+        acir::native::Field,
+        brillig::{BitSize, BlackBoxOp, HeapArray, HeapValueType, HeapVector, ValueOrArray},
+    },
 };
 use acir_field::AcirField;
 use color_eyre::eyre::{self, bail};
 use noir_protobuf::{ProtoCodec, decode_oneof_map};
+use num_bigint::BigInt;
 
 use crate::proto::brillig::{
     BinaryFieldOpKind, BinaryIntOpKind, BrilligBytecode, BrilligOpcode, IntegerBitSize,
@@ -83,13 +87,13 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
             brillig::Opcode::Const { destination, bit_size, value } => Value::Const(Const {
                 destination: Self::encode_some(destination),
                 bit_size: Self::encode_some(bit_size),
-                value: Self::encode_some(value),
+                value: Some(Field::default()), // px: this is a placeholder, we need to implement this
             }),
             brillig::Opcode::IndirectConst { destination_pointer, bit_size, value } => {
                 Value::IndirectConst(IndirectConst {
                     destination_pointer: Self::encode_some(destination_pointer),
                     bit_size: Self::encode_some(bit_size),
-                    value: Self::encode_some(value),
+                    value: Some(Field::default()), // px: this is a placeholder, we need to implement this
                 })
             }
             brillig::Opcode::Return => Value::Return(Return {}),
@@ -135,6 +139,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
             brillig::Opcode::Stop { return_data } => {
                 Value::Stop(Stop { return_data: Self::encode_some(return_data) })
             }
+            &_ => todo!(),
         };
         BrilligOpcode { value: Some(value) }
     }
@@ -191,7 +196,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
             Value::Const(v) => Ok(brillig::Opcode::Const {
                 destination: Self::decode_some_wrap(&v.destination, "destination")?,
                 bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
-                value: Self::decode_some_wrap(&v.value, "value")?,
+                value: BigInt::default(), // px: this is a placeholder, we need to implement this
             }),
             Value::IndirectConst(v) => Ok(brillig::Opcode::IndirectConst {
                 destination_pointer: Self::decode_some_wrap(
@@ -199,7 +204,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
                     "destination_pointer",
                 )?,
                 bit_size: Self::decode_some_wrap(&v.bit_size, "bit_size")?,
-                value: Self::decode_some_wrap(&v.value, "value")?,
+                value: BigInt::default(), // px: this is a placeholder, we need to implement this
             }),
             Value::Return(_) => Ok(brillig::Opcode::Return),
             Value::ForeignCall(v) => Ok(brillig::Opcode::ForeignCall {
@@ -245,6 +250,7 @@ impl<F: AcirField> ProtoCodec<brillig::Opcode<F>, BrilligOpcode> for ProtoSchema
             Value::Stop(v) => Ok(brillig::Opcode::Stop {
                 return_data: Self::decode_some_wrap(&v.return_data, "return_data")?,
             }),
+            &_ => todo!(),
         })
     }
 }

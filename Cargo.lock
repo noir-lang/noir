@@ -844,6 +844,7 @@ name = "brillig"
 version = "1.0.0-beta.7"
 dependencies = [
  "acir_field",
+ "num-bigint",
  "proptest",
  "proptest-derive",
  "serde",

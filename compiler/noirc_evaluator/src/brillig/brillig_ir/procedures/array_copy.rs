@@ -4,6 +4,7 @@ use acvm::{
     AcirField,
     acir::brillig::{BitSize, HeapValueType, IntegerBitSize, MemoryAddress, ValueOrArray},
 };
+use num_bigint::BigInt;
 
 use super::ProcedureId;
 use crate::brillig::{
@@ -126,9 +127,9 @@ fn initialize_constant_string<F: AcirField + DebugToString, Registers: RegisterA
     brillig_context.mov_instruction(write_pointer_register, pointer);
 
     for (element_idx, byte) in data.bytes().enumerate() {
-        let byte_field = AcirField::from_le_bytes_reduce(&[byte]);
+        let byte = BigInt::from(byte);
         // Store the item in memory
-        brillig_context.indirect_const_instruction(write_pointer_register, 32, byte_field);
+        brillig_context.indirect_const_instruction(write_pointer_register, 32, byte);
 
         if element_idx != data.len() - 1 {
             // Increment the write_pointer_register

@@ -163,6 +163,7 @@ mod tests {
     use acvm::FieldElement;
     use fxhash::FxHashMap as HashMap;
     use noirc_frontend::monomorphization::ast::InlineType;
+    use num_bigint::BigInt;
 
     use crate::brillig::ValueId;
     use crate::brillig::brillig_gen::brillig_block::BrilligBlock;
@@ -199,7 +200,7 @@ mod tests {
         function_context: &'a mut FunctionContext,
         brillig_context: &'a mut BrilligContext<FieldElement, Stack>,
         globals: &'a HashMap<ValueId, BrilligVariable>,
-        hoisted_global_constants: &'a HashMap<(FieldElement, NumericType), BrilligVariable>,
+        hoisted_global_constants: &'a HashMap<(BigInt, NumericType), BrilligVariable>,
     ) -> BrilligBlock<'a, Stack> {
         let variables = BlockVariables::default();
         BrilligBlock {

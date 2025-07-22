@@ -31,6 +31,7 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
+use num_bigint::BigInt;
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -61,7 +62,7 @@ impl Brillig {
         func: &Function,
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
-        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+        hoisted_global_constants: &HashMap<(BigInt, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) {
         let obj = self.convert_ssa_function(
@@ -99,7 +100,7 @@ impl Brillig {
         func: &Function,
         options: &BrilligOptions,
         globals: &HashMap<ValueId, BrilligVariable>,
-        hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
+        hoisted_global_constants: &HashMap<(BigInt, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) -> BrilligArtifact<FieldElement> {
         let mut brillig_context = BrilligContext::new(options);

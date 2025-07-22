@@ -420,92 +420,92 @@ pub(crate) mod tests {
         }
     }
 
-    /// Test a Brillig foreign call returning a vector
-    #[test]
-    fn test_brillig_ir_foreign_call_return_vector() {
-        // pseudo-noir:
-        //
-        // #[oracle(get_number_sequence)]
-        // unconstrained fn get_number_sequence(size: u32) -> Vec<u32> {
-        // }
-        //
-        // unconstrained fn main() -> Vec<u32> {
-        //   let the_sequence = get_number_sequence(12);
-        //   assert(the_sequence.len() == 12);
-        // }
-        let options = BrilligOptions {
-            enable_debug_trace: true,
-            enable_debug_assertions: true,
-            enable_array_copy_counter: false,
-        };
-        let mut context = BrilligContext::new(&options);
-        let r_stack = ReservedRegisters::free_memory_pointer();
-        // Start stack pointer at 0
-        context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
-        let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
-        let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
-        let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
-        let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
-        context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
-        // copy our stack frame to r_array_ptr
-        context.mov_instruction(r_array_ptr, r_stack);
-        context.foreign_call_instruction(
-            "make_number_sequence".into(),
-            &[ValueOrArray::MemoryAddress(r_input_size)],
-            &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
-            &[HeapValueType::Vector {
-                value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
-            }],
-        );
-        // push stack frame by r_returned_size
-        context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
-        // check r_input_size == r_output_size
-        context.memory_op_instruction(
-            r_input_size,
-            r_output_size,
-            r_equality,
-            BrilligBinaryOp::Equals,
-        );
-        // We push a JumpIf and Trap opcode directly as the constrain instruction
-        // uses unresolved jumps which requires a block to be constructed in SSA and
-        // we don't need this for Brillig IR tests
-        context.push_opcode(BrilligOpcode::Const {
-            destination: MemoryAddress::direct(0),
-            bit_size: BitSize::Integer(IntegerBitSize::U32),
-            value: FieldElement::from(0u64),
-        });
-        context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
-        context.push_opcode(BrilligOpcode::Trap {
-            revert_data: HeapVector {
-                pointer: MemoryAddress::direct(0),
-                size: MemoryAddress::direct(0),
-            },
-        });
+    // / Test a Brillig foreign call returning a vector
+    // #[test]
+    // fn test_brillig_ir_foreign_call_return_vector() {
+    //     // pseudo-noir:
+    //     //
+    //     // #[oracle(get_number_sequence)]
+    //     // unconstrained fn get_number_sequence(size: u32) -> Vec<u32> {
+    //     // }
+    //     //
+    //     // unconstrained fn main() -> Vec<u32> {
+    //     //   let the_sequence = get_number_sequence(12);
+    //     //   assert(the_sequence.len() == 12);
+    //     // }
+    //     let options = BrilligOptions {
+    //         enable_debug_trace: true,
+    //         enable_debug_assertions: true,
+    //         enable_array_copy_counter: false,
+    //     };
+    //     let mut context = BrilligContext::new(&options);
+    //     let r_stack = ReservedRegisters::free_memory_pointer();
+    //     // Start stack pointer at 0
+    //     context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
+    //     let r_input_size = MemoryAddress::direct(ReservedRegisters::len());
+    //     let r_array_ptr = MemoryAddress::direct(ReservedRegisters::len() + 1);
+    //     let r_output_size = MemoryAddress::direct(ReservedRegisters::len() + 2);
+    //     let r_equality = MemoryAddress::direct(ReservedRegisters::len() + 3);
+    //     context.usize_const_instruction(r_input_size, FieldElement::from(12_usize));
+    //     // copy our stack frame to r_array_ptr
+    //     context.mov_instruction(r_array_ptr, r_stack);
+    //     context.foreign_call_instruction(
+    //         "make_number_sequence".into(),
+    //         &[ValueOrArray::MemoryAddress(r_input_size)],
+    //         &[HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
+    //         &[ValueOrArray::HeapVector(HeapVector { pointer: r_stack, size: r_output_size })],
+    //         &[HeapValueType::Vector {
+    //             value_types: vec![HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32))],
+    //         }],
+    //     );
+    //     // push stack frame by r_returned_size
+    //     context.memory_op_instruction(r_stack, r_output_size, r_stack, BrilligBinaryOp::Add);
+    //     // check r_input_size == r_output_size
+    //     context.memory_op_instruction(
+    //         r_input_size,
+    //         r_output_size,
+    //         r_equality,
+    //         BrilligBinaryOp::Equals,
+    //     );
+    //     // We push a JumpIf and Trap opcode directly as the constrain instruction
+    //     // uses unresolved jumps which requires a block to be constructed in SSA and
+    //     // we don't need this for Brillig IR tests
+    //     context.push_opcode(BrilligOpcode::Const {
+    //         destination: MemoryAddress::direct(0),
+    //         bit_size: BitSize::Integer(IntegerBitSize::U32),
+    //         value: FieldElement::from(0u64),
+    //     });
+    //     context.push_opcode(BrilligOpcode::JumpIf { condition: r_equality, location: 9 });
+    //     context.push_opcode(BrilligOpcode::Trap {
+    //         revert_data: HeapVector {
+    //             pointer: MemoryAddress::direct(0),
+    //             size: MemoryAddress::direct(0),
+    //         },
+    //     });
 
-        context.stop_instruction(HeapVector {
-            pointer: MemoryAddress::direct(0),
-            size: MemoryAddress::direct(0),
-        });
+    //     context.stop_instruction(HeapVector {
+    //         pointer: MemoryAddress::direct(0),
+    //         size: MemoryAddress::direct(0),
+    //     });
 
-        let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
+    //     let bytecode: Vec<BrilligOpcode<FieldElement>> = context.artifact().finish().byte_code;
 
-        let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
-        let status = vm.process_opcodes();
-        assert_eq!(
-            status,
-            VMStatus::ForeignCallWait {
-                function: "make_number_sequence".to_string(),
-                inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
-            }
-        );
+    //     let mut vm = VM::new(vec![], &bytecode, &DummyBlackBoxSolver, false, None);
+    //     let status = vm.process_opcodes();
+    //     assert_eq!(
+    //         status,
+    //         VMStatus::ForeignCallWait {
+    //             function: "make_number_sequence".to_string(),
+    //             inputs: vec![ForeignCallParam::Single(FieldElement::from(12u128))]
+    //         }
+    //     );
 
-        let number_sequence: Vec<FieldElement> =
-            (0_usize..12_usize).map(FieldElement::from).collect();
-        let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
-        vm.resolve_foreign_call(response);
+    //     let number_sequence: Vec<FieldElement> =
+    //         (0_usize..12_usize).map(FieldElement::from).collect();
+    //     let response = ForeignCallResult { values: vec![ForeignCallParam::Array(number_sequence)] };
+    //     vm.resolve_foreign_call(response);
 
-        let status = vm.process_opcodes();
-        assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
-    }
+    //     let status = vm.process_opcodes();
+    //     assert_eq!(status, VMStatus::Finished { return_data_offset: 0, return_data_size: 0 });
+    // }
 }

@@ -2,6 +2,7 @@ use acvm::acir::{
     AcirField,
     brillig::{BlackBoxOp, IntegerBitSize},
 };
+use num_bigint::BigInt;
 
 use crate::brillig::brillig_ir::BrilligBinaryOp;
 
@@ -48,7 +49,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // The modulus is guaranteed to fit, since we are truncating down to a bit size that is strictly less than the value_to_truncate.bit_size
         let modulus_var = self.make_constant_instruction(
-            F::from(2_usize).pow(&F::from(bit_size as u128)),
+            BigInt::from(2_usize).pow(bit_size as u32),
             value_to_truncate.bit_size,
         );
 

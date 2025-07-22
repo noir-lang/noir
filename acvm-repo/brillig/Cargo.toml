@@ -20,6 +20,7 @@ acir_field.workspace = true
 serde.workspace = true
 proptest = { workspace = true, optional = true }
 proptest-derive = { workspace = true, optional = true }
+num-bigint.workspace = true
 
 [features]
 default = []

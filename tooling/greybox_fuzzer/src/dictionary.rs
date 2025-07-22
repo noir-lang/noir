@@ -126,7 +126,8 @@ fn build_dictionary_from_unconstrained_function<F: AcirField>(
             BrilligOpcode::Const { bit_size, value, .. } => {
                 let bit_size = bit_size.to_u32::<F>();
 
-                constants.insert(*value);
+                let (_, bytes) = value.to_bytes_be();
+                constants.insert(F::from_be_bytes_reduce(&bytes));
 
                 let field = 1u128.wrapping_shl(bit_size);
                 constants.insert(F::from(field));
