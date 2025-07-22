@@ -155,7 +155,12 @@ export default {
         };
       },
     }),
-    './plugins/docusaurus-plugin-experimental-disclaimer',
+    [
+      './plugins/docusaurus-plugin-experimental-disclaimer',
+      {
+        targets: ['processed-docs/reference/NoirJS/noir_wasm']
+      }
+    ],
     [
       'docusaurus-plugin-typedoc',
       {

@@ -1,27 +1,30 @@
 /**
- * Docusaurus plugin that injects experimental disclaimers into noir_wasm documentation
- * This runs after TypeDoc generation to add disclaimers to all noir_wasm pages
+ * Configurable Docusaurus plugin that injects experimental disclaimers into specified documentation
+ * Can be used with any generated documentation by specifying target directories
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const experimentalDisclaimer = `import Experimental from '@site/src/components/Notes/_experimental.mdx';
+/**
+ * Default disclaimer content
+ */
+const defaultDisclaimer = `import Experimental from '@site/src/components/Notes/_experimental.mdx';
 
 <Experimental />
 
 `;
 
 /**
- * Add experimental disclaimer to a single file
+ * Add disclaimer to a single file
  */
-function addExperimentalDisclaimerToFile(filePath) {
+function addDisclaimerToFile(filePath, disclaimer, skipCheckPattern) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
 
-    // Check if experimental disclaimer already exists
-    if (content.includes("import Experimental from '@site/src/components/Notes/_experimental.mdx';")) {
-      console.log('Experimental disclaimer already exists in:', path.relative(process.cwd(), filePath));
+    // Check if disclaimer already exists
+    if (content.includes(skipCheckPattern)) {
+      console.log(`Disclaimer already exists in: ${path.relative(process.cwd(), filePath)}`);
       return;
     }
 
@@ -32,7 +35,7 @@ function addExperimentalDisclaimerToFile(filePath) {
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].startsWith('# ') && !injected) {
         // Insert disclaimer after the heading
-        lines.splice(i + 1, 0, '', experimentalDisclaimer);
+        lines.splice(i + 1, 0, '', disclaimer);
         injected = true;
         break;
       }
@@ -40,21 +43,21 @@ function addExperimentalDisclaimerToFile(filePath) {
 
     // If no heading found, add at the beginning
     if (!injected) {
-      lines.unshift(experimentalDisclaimer, '');
+      lines.unshift(disclaimer, '');
     }
 
     // Write the updated content back
     fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
-    console.log('Added experimental disclaimer to:', path.relative(process.cwd(), filePath));
+    console.log(`Added disclaimer to: ${path.relative(process.cwd(), filePath)}`);
   } catch (error) {
-    console.error('Error processing file:', filePath, error.message);
+    console.error(`Error processing file: ${filePath}`, error.message);
   }
 }
 
 /**
  * Find all MDX files in a directory recursively
  */
-function findMarkdownFiles(dir, files = []) {
+function findMarkdownFiles(dir, extensions = ['.mdx'], files = []) {
   if (!fs.existsSync(dir)) {
     return files;
   }
@@ -66,8 +69,8 @@ function findMarkdownFiles(dir, files = []) {
     const stat = fs.statSync(fullPath);
 
     if (stat.isDirectory()) {
-      findMarkdownFiles(fullPath, files);
-    } else if (item.endsWith('.mdx')) {
+      findMarkdownFiles(fullPath, extensions, files);
+    } else if (extensions.some(ext => item.endsWith(ext))) {
       files.push(fullPath);
     }
   }
@@ -76,39 +79,57 @@ function findMarkdownFiles(dir, files = []) {
 }
 
 /**
- * Process TypeDoc-generated noir_wasm files to add experimental disclaimers
+ * Process specified directories to add disclaimers
  */
-function processNoirWasmFiles(siteDir) {
-  const noirWasmDir = path.join(siteDir, 'processed-docs', 'reference', 'NoirJS', 'noir_wasm');
+function processDirectories(siteDir, targets, disclaimer, skipCheckPattern) {
+  let totalFilesProcessed = 0;
 
-  if (!fs.existsSync(noirWasmDir)) {
-    console.log('No noir_wasm directory found - TypeDoc may not have generated files yet');
-    return;
+  targets.forEach(target => {
+    const targetDir = path.resolve(siteDir, target);
+    
+    if (!fs.existsSync(targetDir)) {
+      console.log(`Directory not found: ${target} - may not have been generated yet`);
+      return;
+    }
+
+    const files = findMarkdownFiles(targetDir);
+
+    if (files.length === 0) {
+      console.log(`No MDX files found in: ${target}`);
+      return;
+    }
+
+    console.log(`Processing ${files.length} files in: ${target}`);
+    files.forEach(file => addDisclaimerToFile(file, disclaimer, skipCheckPattern));
+    totalFilesProcessed += files.length;
+  });
+
+  if (totalFilesProcessed > 0) {
+    console.log(`Disclaimer processing complete! Processed ${totalFilesProcessed} files.`);
   }
-
-  const files = findMarkdownFiles(noirWasmDir);
-
-  if (files.length === 0) {
-    console.log('No noir_wasm MDX files found to process');
-    return;
-  }
-
-  console.log(`Adding experimental disclaimers to ${files.length} noir_wasm files...`);
-  files.forEach(addExperimentalDisclaimerToFile);
-  console.log('Experimental disclaimer processing complete!');
 }
 
 /**
  * Docusaurus plugin definition
  */
-function pluginExperimentalDisclaimer(context, options) {
+function pluginExperimentalDisclaimer(context, options = {}) {
+  const {
+    targets = [],
+    disclaimer = defaultDisclaimer,
+    skipCheckPattern = "import Experimental from '@site/src/components/Notes/_experimental.mdx';"
+  } = options;
+
   return {
     name: 'docusaurus-plugin-experimental-disclaimer',
 
     async loadContent() {
-      // This runs early in the process, inject disclaimers before content processing  
-      console.log('Running experimental disclaimer plugin during content loading...');
-      processNoirWasmFiles(context.siteDir);
+      if (targets.length === 0) {
+        console.log('No target directories specified for experimental disclaimer plugin');
+        return {};
+      }
+
+      console.log('Running experimental disclaimer plugin...');
+      processDirectories(context.siteDir, targets, disclaimer, skipCheckPattern);
       return {};
     }
   };
