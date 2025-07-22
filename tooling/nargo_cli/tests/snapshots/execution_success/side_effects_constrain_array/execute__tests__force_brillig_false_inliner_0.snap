@@ -34,7 +34,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "jZDRCoMwDEX/Jc99cOqG+CtjSK1RCqUtsR0M8d8Xi930YbCXpMnt6aV3gQH7OHXajm6G9r5AT9oYPXXGKRm0s7xdVgF57AIh8goOOlNeEtoArY3GCHhKE9Ol2UubepDEaiEA7cCdHxy1we20ii9d/EbLJsNlc/vg17/5qqh3virP/IMnqTSdfgwXaC8CylSrVGu2XjcD0rI3uOcyRqsOMYWXz0oO0pNTOETCzSBpbPkG",
+  "debug_symbols": "nZFNCsMgEIXvMmsX+WsacpVSgjGTIIiK0UIJuXsnEttkUSjdzDjz/HzwXGDAPkyd1KOZob0t0DuplJw6ZQT30mjaLiuDNHbeIdIKDjpRljvUHlodlGLw4CrES7PlOnbPHakZA9QDdXpwlAq308o+dPYdzet8h/P6+sYvP/NFk8yLpv6DL7Nq58vizN9p4kK6U2KQkxGDItYy1orQdTNwkvcK91zHoMUhZv+0SUkfYZ0ROASHm0HUyPIF",
   "file_map": {
     "50": {
       "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nfn main(y: pub u32) {\n    let bar = Bar { inner: [100, 101, 102] };\n\n    // The assert inside the if should be hit\n    if y < 10 {\n        assert(bar.inner == [100, 101, 102]);\n    }\n\n    // The assert inside the if should not be hit\n    if y > 10 {\n        assert(bar.inner == [0, 1, 2]);\n    }\n}\n",

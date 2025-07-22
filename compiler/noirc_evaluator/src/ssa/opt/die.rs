@@ -93,8 +93,7 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params =
-                    func.dead_instruction_elimination(true, flattened, skip_brillig);
+                let unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -143,7 +142,6 @@ impl Function {
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
     fn dead_instruction_elimination(
         &mut self,
-        insert_out_of_bounds_checks: bool,
         flattened: bool,
         skip_brillig: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
@@ -162,7 +160,7 @@ impl Function {
         let blocks = PostOrder::with_function(self);
         let mut unused_params_per_block = HashMap::default();
         for block in blocks.as_slice() {
-            context.remove_unused_instructions_in_block(self, *block, insert_out_of_bounds_checks);
+            context.remove_unused_instructions_in_block(self, *block);
 
             let parameters = self.dfg[*block].parameters();
             let mut keep_list = Vec::with_capacity(parameters.len());
@@ -233,17 +231,10 @@ impl Context {
     /// values set. This allows DIE to identify whole chains of unused instructions. (If the
     /// values referenced by an unused instruction were considered to be used, only the head of
     /// such chains would be removed.)
-    ///
-    /// If `insert_out_of_bounds_checks` is true and there are unused ArrayGet/ArraySet that
-    /// might be out of bounds, this method will insert out of bounds checks instead of
-    /// removing unused instructions and return `true`. The idea then is to later call this
-    /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
-    /// unused instructions but leave the out of bounds checks.
     fn remove_unused_instructions_in_block(
         &mut self,
         function: &mut Function,
         block_id: BasicBlockId,
-        insert_out_of_bounds_checks: bool,
     ) -> bool {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
@@ -264,8 +255,14 @@ impl Context {
             if self.is_unused(*instruction_id, function) {
                 self.instructions_to_remove.insert(*instruction_id);
 
+                // Array get/set has explicit out of bounds (OOB) checks laid down in the Brillig runtime.
+                // These checks are not laid down in the ACIR runtime as that runtime maps the SSA
+                // to a memory model where OOB accesses will be prevented. Essentially all array ops
+                // in ACIR will have a side effect where they check for the index being OOB.
+                // However, in order to maintain parity between the Brillig and ACIR runtimes,
+                // if we have an unused array operation we need insert an OOB check so that the
+                // side effects ordering remains correct.
                 if function.runtime().is_acir()
-                    && insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
@@ -588,6 +585,10 @@ fn can_be_eliminated_if_unused(
         | Allocate
         | Load { .. }
         | IfElse { .. }
+        // Arrays are not side-effectual in Brillig where OOB checks are laid down explicitly in SSA.
+        // However, arrays are side-effectual in ACIR (array OOB checks). 
+        // We mark them available for deletion, but it is expected that this pass will insert
+        // back the relevant side effects for array access in ACIR that can possible fail (e.g., index OOB or dynamic index).
         | ArrayGet { .. }
         | ArraySet { .. }
         | Noop
@@ -786,6 +787,7 @@ fn instruction_might_result_in_out_of_bounds(
     use Instruction::*;
     match instruction {
         ArrayGet { array, index, .. } | ArraySet { array, index, .. } => {
+            // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)
         }
@@ -1535,7 +1537,6 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
-        // assert_normalized_ssa_equals(ssa, src);
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
@@ -1557,7 +1558,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination_pre_flattening();
-        println!("{}", ssa.print_with(None))
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]

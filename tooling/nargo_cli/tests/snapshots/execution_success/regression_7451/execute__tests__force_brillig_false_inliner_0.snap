@@ -28,7 +28,7 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (1, _0) -1 ]"
   ],
-  "debug_symbols": "dY/dCoMwDIXfJde9cBf7wVcZQ2qNEghpie1giO++KIruYldpcvKd5kzQYVuGhqSPI9TPCVolZhoajsFnimLTaXawt01WRBvBSTcqeUXJUEthdvD2XNalMXlZa/ZqauUApbNqhj0xLq/ZHXT1H73cbxt8eRz41fiXdT6Q/lwMlS3Oi52Sbxm3FH2RcAqVP2lX9thJY8CuKC52q2YffAE=",
+  "debug_symbols": "jZDdCoMwDIXfJde9qGM/4quMIbVGKYS2xHYwxHdfFN30YrCrNDn9TsgZocUm97XzXRiguo/QsCNyfU3BmuSCl+k4KdjaOjGijGCnCxUNo09Q+Uyk4GkoL5+GaPxSk2FRtQL0rVQx7Bzh/JrUl9a/0VuxsuX5A1/+povbdcWLUh/4h3TGOj7cCxqq0zTbsTMN4ZpBl73dRZJecVO20CIHi21mnO0WTRa8AQ==",
   "file_map": {
     "50": {
       "source": "fn main(x: u8) {\n    // Safety: test code\n    let predicate = unsafe { return_true() };\n    let tmp: u8 = if predicate { 0xff } else { 0 };\n\n    let y = tmp & x;\n    assert_eq(y, 1);\n}\n\nunconstrained fn return_true() -> bool {\n    true\n}\n",
