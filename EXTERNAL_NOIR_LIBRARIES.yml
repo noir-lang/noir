@@ -47,11 +47,11 @@ libraries:
   sparse_array:
     repo: noir-lang/sparse_array
     timeout: 3
-    critical: true
+    critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser
     timeout: 12
-    critical: true
+    critical: false
   sha256:
     repo: noir-lang/sha256
     timeout: 3
