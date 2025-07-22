@@ -1916,3 +1916,102 @@ fn regression_9245_small_code() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_2() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X + 1]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_3() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M - 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_mul_of_other_constants() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N * M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32, let Y: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X * Y]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
