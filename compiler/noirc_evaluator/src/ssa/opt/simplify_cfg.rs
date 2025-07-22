@@ -95,7 +95,7 @@ impl Function {
                 // optimizations performed after this point on the same block should check if
                 // the inlining here was successful before continuing.
                 if try_inline_into_predecessor(self, &mut cfg, block, predecessor) {
-                    stack.push(block);
+                    stack.push(predecessor);
                 };
             } else {
                 drop(predecessors);
