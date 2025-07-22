@@ -56,7 +56,7 @@ pub struct Program<F: AcirField> {
 pub struct Circuit<F: AcirField> {
     /// Name of the function represented by this circuit.
     #[serde(default)] // For backwards compatibility
-    pub name: String,
+    pub function_name: String,
     /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     /// will take on this value. (The value is cached here as an optimization.)
     pub current_witness_index: u32,
@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn serialization_roundtrip() {
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 5,
             opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
             private_parameters: BTreeSet::new(),
@@ -468,7 +468,7 @@ mod tests {
     #[test]
     fn test_serialize() {
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 0,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
@@ -514,7 +514,7 @@ mod tests {
     #[test]
     fn circuit_display_snapshot() {
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 3,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {

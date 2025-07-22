@@ -89,7 +89,7 @@ pub(super) fn codegen_acir(
     let brillig_bytecode = shared_context
         .generated_brillig
         .into_iter()
-        .map(|brillig| BrilligBytecode { name: brillig.name, bytecode: brillig.byte_code })
+        .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
         .collect();
 
     Ok((acirs, brillig_bytecode, ssa.error_selector_to_type))

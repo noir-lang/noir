@@ -252,7 +252,7 @@ mod tests {
             .collect();
 
         Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 1,
             opcodes,
             private_parameters: BTreeSet::new(),

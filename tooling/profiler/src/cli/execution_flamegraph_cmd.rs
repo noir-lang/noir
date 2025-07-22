@@ -234,7 +234,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit { name: "main".to_string(), ..Circuit::default() }],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 unconstrained_functions: vec![
                     BrilligBytecode::default(),
                     BrilligBytecode::default(),

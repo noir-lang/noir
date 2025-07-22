@@ -9,7 +9,7 @@ pub fn check_program(compiled_program: &CompiledProgram) -> Result<(), ErrorsAnd
         let mut simulator = CircuitSimulator::default();
         if !simulator.check_circuit(circuit) {
             let diag = CustomDiagnostic::from_message(
-                &format!("Circuit \"{}\" is not solvable", circuit.name),
+                &format!("Circuit \"{}\" is not solvable", circuit.function_name),
                 fm::FileId::dummy(),
             );
             return Err(vec![diag]);

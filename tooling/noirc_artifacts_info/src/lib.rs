@@ -66,7 +66,7 @@ pub fn count_opcodes_and_gates_in_program(
         .functions
         .into_par_iter()
         .map(|function| FunctionInfo {
-            name: function.name.clone(),
+            name: function.function_name.clone(),
             opcodes: function.opcodes.len(),
         })
         .collect();
@@ -76,7 +76,7 @@ pub fn count_opcodes_and_gates_in_program(
         .unconstrained_functions
         .iter()
         .map(|function| FunctionInfo {
-            name: function.name.clone(),
+            name: function.function_name.clone(),
             opcodes: function.bytecode.len(),
         })
         .collect();

@@ -53,9 +53,9 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name = if bytecode.functions.len() > 1 {
-            format!("{}_{}", circuit.name.as_str(), func_idx)
+            format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.name.to_owned()
+            circuit.function_name.to_owned()
         };
 
         println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
@@ -97,7 +97,8 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
 
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
-        let function_name = format!("{}_{}", brillig_bytecode.name.as_str(), brillig_fn_index);
+        let function_name =
+            format!("{}_{}", brillig_bytecode.function_name.as_str(), brillig_fn_index);
 
         println!("Opcode count for {}_brillig: {}", function_name, brillig_bytecode.bytecode.len());
 
@@ -196,7 +197,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit { name: "main".to_string(), ..Circuit::default() }],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 ..Program::default()
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },
@@ -251,14 +255,17 @@ mod tests {
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
                 functions: vec![Circuit {
-                    name: "main".to_string(),
+                    function_name: "main".to_string(),
                     opcodes: acir,
                     ..Circuit::default()
                 }],
                 unconstrained_functions: vec![
-                    BrilligBytecode { name: "main".to_string(), bytecode: Vec::default() },
-                    BrilligBytecode { name: "main".to_string(), bytecode: Vec::default() },
-                    BrilligBytecode { name: "main_1".to_string(), bytecode: Vec::default() },
+                    BrilligBytecode { function_name: "main".to_string(), bytecode: Vec::default() },
+                    BrilligBytecode { function_name: "main".to_string(), bytecode: Vec::default() },
+                    BrilligBytecode {
+                        function_name: "main_1".to_string(),
+                        bytecode: Vec::default(),
+                    },
                 ],
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },

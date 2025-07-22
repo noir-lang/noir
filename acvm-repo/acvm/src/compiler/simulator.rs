@@ -207,7 +207,7 @@ mod tests {
         public_parameters: PublicInputs,
     ) -> Circuit<FieldElement> {
         Circuit {
-            name: "test_circuit".to_string(),
+            function_name: "test_circuit".to_string(),
             current_witness_index: 1,
             opcodes,
             private_parameters,

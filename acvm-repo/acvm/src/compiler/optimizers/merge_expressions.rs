@@ -335,7 +335,7 @@ mod tests {
         private_parameters.insert(Witness(0));
 
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 1,
             opcodes,
             private_parameters,
@@ -373,7 +373,7 @@ mod tests {
         return_values.insert(Witness(2));
 
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 2,
             opcodes,
             private_parameters,
@@ -432,7 +432,7 @@ mod tests {
         private_parameters.insert(Witness(0));
         private_parameters.insert(Witness(1));
         let circuit = Circuit {
-            name: "test".to_string(),
+            function_name: "test".to_string(),
             current_witness_index: 5,
             opcodes,
             private_parameters,

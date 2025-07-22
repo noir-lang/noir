@@ -479,7 +479,7 @@ pub fn convert_generated_acir_into_circuit(
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
-        name: name.clone(),
+        function_name: name.clone(),
         current_witness_index,
         opcodes,
         private_parameters,

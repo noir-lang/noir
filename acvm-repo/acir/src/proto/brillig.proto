@@ -4,7 +4,7 @@ package acvm.brillig;
 
 import "acir/native.proto";
 
-message BrilligBytecode { repeated BrilligOpcode bytecode = 1; string name = 2; }
+message BrilligBytecode { repeated BrilligOpcode bytecode = 1; string function_name = 2; }
 
 message BrilligOpcode {
   oneof value {

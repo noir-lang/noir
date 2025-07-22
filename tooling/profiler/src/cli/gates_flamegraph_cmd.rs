@@ -76,9 +76,9 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
         // We can have repeated names if there are functions with the same name in different
         // modules or functions that use generics. Thus, add the unique function index as a suffix.
         let function_name = if num_functions > 1 {
-            format!("{}_{}", circuit.name.as_str(), func_idx)
+            format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.name.to_owned()
+            circuit.function_name.to_owned()
         };
 
         println!(
@@ -183,7 +183,10 @@ mod tests {
             hash: 27,
             abi: noirc_abi::Abi::default(),
             bytecode: Program {
-                functions: vec![Circuit { name: "main".to_string(), ..Circuit::default() }],
+                functions: vec![Circuit {
+                    function_name: "main".to_string(),
+                    ..Circuit::default()
+                }],
                 ..Program::default()
             },
             debug_symbols: ProgramDebugInfo { debug_infos: vec![DebugInfo::default()] },

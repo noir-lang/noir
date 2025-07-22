@@ -31,7 +31,7 @@ fn sample_program(num_opcodes: usize) -> Program<FieldElement> {
 
     Program {
         functions: vec![Circuit {
-            name: "main".to_string(),
+            function_name: "main".to_string(),
             current_witness_index: 4000,
             opcodes: assert_zero_opcodes.to_vec(),
             private_parameters: BTreeSet::from([Witness(1), Witness(2), Witness(3), Witness(4)]),
