@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753175774385,
+  "lastUpdate": 1753175784172,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -28491,6 +28491,40 @@ window.BENCHMARK_DATA = {
             "value": 3136,
             "unit": "opcodes"
           },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "eb0982ee8859640b18a1874b1d92b29d0e2c0499",
+          "message": "chore!: enforce visibility warnings as errors (#7657)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-07-22T08:48:22Z",
+          "tree_id": "0e741edd7eb25297160d9740ef9498bc2962f0f5",
+          "url": "https://github.com/noir-lang/noir/commit/eb0982ee8859640b18a1874b1d92b29d0e2c0499"
+        },
+        "date": 1753175767012,
+        "tool": "customSmallerIsBetter",
+        "benches": [
           {
             "name": "semaphore-depth-10",
             "value": 5763,
