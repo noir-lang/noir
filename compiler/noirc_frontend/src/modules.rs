@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
-
 use crate::{
     ast::{Ident, ItemVisibility},
     graph::{CrateId, Dependency},
     hir::{
-        def_map::{CrateDefMap, ModuleDefId, ModuleId},
+        def_map::{DefMaps, ModuleDefId, ModuleId},
         resolution::visibility::item_in_module_is_visible,
     },
     node_interner::{NodeInterner, Reexport, ReferenceId},
@@ -14,7 +12,7 @@ use crate::{
 pub fn get_parent_module(
     module_def_id: ModuleDefId,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> Option<ModuleId> {
     match module_def_id {
         ModuleDefId::ModuleId(id) => id.parent(def_maps),
@@ -56,7 +54,7 @@ pub fn relative_module_full_path(
     current_module_id: ModuleId,
     current_module_parent_id: Option<ModuleId>,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> Option<String> {
     let full_path;
     if let ModuleDefId::ModuleId(module_id) = module_def_id {
@@ -208,7 +206,7 @@ pub fn module_def_id_relative_path(
     defining_module: Option<ModuleId>,
     intermediate_name: &Option<Ident>,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> Option<String> {
     let module_path = if let Some(defining_module) = defining_module {
         relative_module_id_path(
@@ -251,7 +249,7 @@ pub fn module_def_id_is_visible(
     mut visibility: ItemVisibility,
     mut defining_module: Option<ModuleId>,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     dependencies: &[Dependency],
 ) -> bool {
     // First find out which module we need to check.
@@ -299,7 +297,7 @@ pub fn get_ancestor_module_reexport(
     visibility: ItemVisibility,
     current_module_id: ModuleId,
     interner: &NodeInterner,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     dependencies: &[Dependency],
 ) -> Option<Reexport> {
     let parent_module = get_parent_module(module_def_id, interner, def_maps)?;
