@@ -54,29 +54,16 @@ impl Function {
                 continue;
             }
 
-            if visited.insert(block) {
-                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
-            }
-
             if !values_to_replace.is_empty() {
                 self.dfg.replace_values_in_block_instructions(block, &values_to_replace);
             }
 
-            // These functions return `true` if they successfully simplified the CFG for the current block.
-            // We then push this block back onto the stack to re-evaluate it after the changes.
+            // First perform any simplifications on the current block, this ensures that we add the proper successors
+            // to the stack.
+            simplify_current_block(self, block, &mut cfg);
 
-            if check_for_negated_jmpif_condition(self, block, &mut cfg) {
-                stack.push(block);
-            }
-
-            // This call is before try_inline_into_predecessor so that if it succeeds in changing a
-            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-            if check_for_constant_jmpif(self, block, &mut cfg) {
-                stack.push(block);
-            }
-
-            if check_for_converging_jmpif(self, block, &mut cfg) {
-                stack.push(block);
+            if visited.insert(block) {
+                stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
             let mut predecessors = cfg.predecessors(block);
@@ -94,9 +81,7 @@ impl Function {
                 // If successful, `block` will be empty and unreachable after this call, so any
                 // optimizations performed after this point on the same block should check if
                 // the inlining here was successful before continuing.
-                if try_inline_into_predecessor(self, &mut cfg, block, predecessor) {
-                    stack.push(predecessor);
-                };
+                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
             } else {
                 drop(predecessors);
 
@@ -115,6 +100,26 @@ impl Function {
             }
             self.dfg.data_bus.replace_values(&values_to_replace);
         }
+    }
+}
+
+/// A helper function to simplify the current block based on information on its successors.
+///
+/// This function will recursively simplify the current block until no further simplifications can be made.
+fn simplify_current_block(
+    function: &mut Function,
+    block: BasicBlockId,
+    cfg: &mut ControlFlowGraph,
+) {
+    // These functions return `true` if they successfully simplified the CFG for the current block.
+    let mut simplified = false;
+
+    simplified |= check_for_negated_jmpif_condition(function, block, cfg);
+    simplified |= check_for_constant_jmpif(function, block, cfg);
+    simplified |= check_for_converging_jmpif(function, block, cfg);
+
+    if simplified {
+        simplify_current_block(function, block, cfg);
     }
 }
 
