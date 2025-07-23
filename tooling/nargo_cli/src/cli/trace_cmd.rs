@@ -24,8 +24,11 @@ use super::NargoConfig;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum TraceFormat {
-    /// Binary format
+    /// Binary format version 1 (latest)
     Binary,
+
+    /// Binary format version 0
+    BinaryV0,
 
     /// JSON text format
     Json
@@ -37,6 +40,7 @@ impl FromStr for TraceFormat {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "binary" => Ok(Self::Binary),
+            "binaryv0" => Ok(Self::BinaryV0),
             "json" => Ok(Self::Json),
             other => Err(format!("Unknown trace format '{other}'")),
         }
@@ -73,6 +77,7 @@ pub(crate) fn run(args: TraceCommand, config: NargoConfig) -> Result<(), CliErro
 
     let trace_format = match args.trace_format {
         TraceFormat::Binary => TraceEventsFileFormat::Binary,
+        TraceFormat::BinaryV0 => TraceEventsFileFormat::BinaryV0,
         TraceFormat::Json => TraceEventsFileFormat::Json,
     };
 
