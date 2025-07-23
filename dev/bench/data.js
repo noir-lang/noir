@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753311262452,
+  "lastUpdate": 1753311396237,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26537,6 +26537,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ee66c987f6392c05e6b46cdd9560d38251b0fb24"
         },
         "date": 1753298945853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6a2a28fe2b426570bedad9916129f0147e8604dd",
+          "message": "chore: add regression tests for #6383 (#9302)",
+          "timestamp": "2025-07-23T22:28:37Z",
+          "tree_id": "af7b5bdefd7028f0801195094d66f3e64069a7ca",
+          "url": "https://github.com/noir-lang/noir/commit/6a2a28fe2b426570bedad9916129f0147e8604dd"
+        },
+        "date": 1753311380769,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
