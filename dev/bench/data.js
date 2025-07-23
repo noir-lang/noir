@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753297519636,
+  "lastUpdate": 1753298569942,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17960,48 +17960,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a",
-          "message": "feat(fuzz): Generate Match expressions and statements (#9108)",
-          "timestamp": "2025-07-14T21:53:02Z",
-          "tree_id": "a50c705b44243969ea228784a2219051b9ca8a69",
-          "url": "https://github.com/noir-lang/noir/commit/49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a"
-        },
-        "date": 1752531556962,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264782,
-            "range": "± 434",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235201,
-            "range": "± 2466",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785541,
-            "range": "± 1964",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "232e96ba102c4429dca46196c314cafc7f8e8850",
           "message": "chore(fuzz): Print AST with numeric type suffixes (#9061)",
@@ -20044,6 +20002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787684,
             "range": "± 6939",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6cb434770ddc3bf601cb0803af01c71c1e5476c3",
+          "message": "fix: check associated types after validating where clause when looking up trait impls, plus some unification fixes (#9265)",
+          "timestamp": "2025-07-23T18:56:22Z",
+          "tree_id": "c6bc4ef5fc5d15cb2a2fd18334b9ac424db0684a",
+          "url": "https://github.com/noir-lang/noir/commit/6cb434770ddc3bf601cb0803af01c71c1e5476c3"
+        },
+        "date": 1753298553926,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248901,
+            "range": "± 835",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219285,
+            "range": "± 2712",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776862,
+            "range": "± 1498",
             "unit": "ns/iter"
           }
         ]
