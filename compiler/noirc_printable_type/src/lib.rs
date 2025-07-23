@@ -315,7 +315,11 @@ pub fn decode_printable_value_inner<F: AcirField>(
                 .next()
                 .expect("expected length prefixed array to have at least 1 element for the capacity")
                 .to_u128() as usize;
-                assert_eq!(length, capacity, "array capacity should match the type length");
+                assert_eq!(
+                    capacity % length,
+                    0,
+                    "array capacity should be a multiple of its length"
+                );
             }
 
             for _ in 0..length {
