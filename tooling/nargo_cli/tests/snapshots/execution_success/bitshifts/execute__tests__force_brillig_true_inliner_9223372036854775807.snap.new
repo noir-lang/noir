@@ -1,0 +1,83 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 511
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "u8",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "positive_i8",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "negative_i8",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 8
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "seven",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 8
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "17843811134343075018": {
+        "error_kind": "string",
+        "string": "Stack too deep"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _3",
+    "private parameters indices : [_0, _1, _2, _3]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(3))], q_c: 0 })], outputs: []",
+    "unconstrained func 0",
+    "[Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32840 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 4 }, Const { destination: Relative(6), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(5), offset_address: Relative(6) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U8) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U8) }, Cast { destination: Direct(32838), source: Direct(32838), bit_size: Integer(U8) }, Cast { destination: Direct(32839), source: Direct(32839), bit_size: Integer(U8) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Mov { destination: Relative(3), source: Direct(32838) }, Mov { destination: Relative(4), source: Direct(32839) }, Call { location: 19 }, Call { location: 20 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32840 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, Return, Call { location: 166 }, BinaryIntOp { destination: Relative(5), op: Shr, bit_size: U8, lhs: Relative(1), rhs: Relative(4) }, Const { destination: Relative(6), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(7), op: Equals, bit_size: U8, lhs: Relative(5), rhs: Relative(6) }, JumpIf { condition: Relative(7), location: 27 }, Const { destination: Relative(8), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(8) } }, BinaryIntOp { destination: Relative(5), op: Shl, bit_size: U8, lhs: Relative(1), rhs: Relative(4) }, Const { destination: Relative(1), bit_size: Integer(U8), value: 8 }, BinaryIntOp { destination: Relative(7), op: LessThan, bit_size: U8, lhs: Relative(4), rhs: Relative(1) }, Const { destination: Relative(1), bit_size: Integer(U1), value: 1 }, JumpIf { condition: Relative(7), location: 33 }, Call { location: 172 }, BinaryIntOp { destination: Relative(1), op: Equals, bit_size: U8, lhs: Relative(5), rhs: Relative(6) }, JumpIf { condition: Relative(1), location: 37 }, Const { destination: Relative(7), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(7) } }, Const { destination: Relative(6), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(5), op: LessThan, bit_size: U8, lhs: Relative(6), rhs: Relative(2) }, JumpIf { condition: Relative(5), location: 41 }, Jump { location: 88 }, Const { destination: Relative(8), bit_size: Integer(U8), value: 8 }, BinaryIntOp { destination: Relative(7), op: LessThan, bit_size: U8, lhs: Relative(4), rhs: Relative(8) }, JumpIf { condition: Relative(7), location: 45 }, Jump { location: 85 }, Const { destination: Relative(9), bit_size: Integer(U8), value: 1 }, Const { destination: Relative(10), bit_size: Integer(U8), value: 2 }, Const { destination: Relative(11), bit_size: Integer(U8), value: 1 }, Cast { destination: Relative(12), source: Relative(4), bit_size: Integer(U32) }, Const { destination: Relative(13), bit_size: Integer(U32), value: 0 }, BinaryIntOp { destination: Relative(14), op: LessThan, bit_size: U32, lhs: Relative(13), rhs: Relative(12) }, Not { destination: Relative(14), source: Relative(14), bit_size: U1 }, JumpIf { condition: Relative(14), location: 56 }, BinaryIntOp { destination: Relative(11), op: Mul, bit_size: U8, lhs: Relative(11), rhs: Relative(10) }, BinaryIntOp { destination: Relative(13), op: Add, bit_size: U32, lhs: Relative(13), rhs: Direct(2) }, Jump { location: 50 }, BinaryIntOp { destination: Relative(1), op: Add, bit_size: U8, lhs: Relative(2), rhs: Relative(9) }, Const { destination: Relative(18), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(13), op: LessThan, bit_size: U8, lhs: Relative(18), rhs: Relative(1) }, Const { destination: Relative(19), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(20), op: Sub, bit_size: U8, lhs: Relative(19), rhs: Relative(1) }, JumpIf { condition: Relative(13), location: 63 }, Jump { location: 65 }, Mov { destination: Relative(14), source: Relative(20) }, Jump { location: 67 }, Mov { destination: Relative(14), source: Relative(1) }, Jump { location: 67 }, Const { destination: Relative(18), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(15), op: LessThan, bit_size: U8, lhs: Relative(18), rhs: Relative(11) }, Const { destination: Relative(19), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(20), op: Sub, bit_size: U8, lhs: Relative(19), rhs: Relative(11) }, JumpIf { condition: Relative(15), location: 73 }, Jump { location: 75 }, Mov { destination: Relative(16), source: Relative(20) }, Jump { location: 77 }, Mov { destination: Relative(16), source: Relative(11) }, Jump { location: 77 }, BinaryIntOp { destination: Relative(1), op: Div, bit_size: U8, lhs: Relative(14), rhs: Relative(16) }, BinaryIntOp { destination: Relative(17), op: Xor, bit_size: U1, lhs: Relative(13), rhs: Relative(15) }, JumpIf { condition: Relative(17), location: 81 }, Jump { location: 83 }, Const { destination: Relative(18), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(1), op: Sub, bit_size: U8, lhs: Relative(18), rhs: Relative(1) }, BinaryIntOp { destination: Relative(1), op: Sub, bit_size: U8, lhs: Relative(1), rhs: Relative(9) }, Jump { location: 87 }, Const { destination: Relative(1), bit_size: Integer(U8), value: 255 }, Jump { location: 87 }, Jump { location: 90 }, BinaryIntOp { destination: Relative(1), op: Shr, bit_size: U8, lhs: Relative(2), rhs: Relative(4) }, Jump { location: 90 }, Const { destination: Relative(5), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(7), op: Equals, bit_size: U8, lhs: Relative(1), rhs: Relative(5) }, JumpIf { condition: Relative(7), location: 95 }, Const { destination: Relative(9), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(9) } }, BinaryIntOp { destination: Relative(1), op: Shl, bit_size: U8, lhs: Relative(2), rhs: Relative(4) }, Mov { destination: Relative(2), source: Relative(1) }, BinaryIntOp { destination: Relative(1), op: Equals, bit_size: U8, lhs: Relative(2), rhs: Relative(5) }, JumpIf { condition: Relative(1), location: 101 }, Const { destination: Relative(7), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(7) } }, Const { destination: Relative(7), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(2), op: LessThan, bit_size: U8, lhs: Relative(7), rhs: Relative(3) }, JumpIf { condition: Relative(2), location: 105 }, Jump { location: 152 }, Const { destination: Relative(10), bit_size: Integer(U8), value: 8 }, BinaryIntOp { destination: Relative(9), op: LessThan, bit_size: U8, lhs: Relative(4), rhs: Relative(10) }, JumpIf { condition: Relative(9), location: 109 }, Jump { location: 149 }, Const { destination: Relative(11), bit_size: Integer(U8), value: 1 }, Const { destination: Relative(12), bit_size: Integer(U8), value: 2 }, Const { destination: Relative(13), bit_size: Integer(U8), value: 1 }, Cast { destination: Relative(14), source: Relative(4), bit_size: Integer(U32) }, Const { destination: Relative(15), bit_size: Integer(U32), value: 0 }, BinaryIntOp { destination: Relative(16), op: LessThan, bit_size: U32, lhs: Relative(15), rhs: Relative(14) }, Not { destination: Relative(16), source: Relative(16), bit_size: U1 }, JumpIf { condition: Relative(16), location: 120 }, BinaryIntOp { destination: Relative(13), op: Mul, bit_size: U8, lhs: Relative(13), rhs: Relative(12) }, BinaryIntOp { destination: Relative(15), op: Add, bit_size: U32, lhs: Relative(15), rhs: Direct(2) }, Jump { location: 114 }, BinaryIntOp { destination: Relative(1), op: Add, bit_size: U8, lhs: Relative(3), rhs: Relative(11) }, Const { destination: Relative(20), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(15), op: LessThan, bit_size: U8, lhs: Relative(20), rhs: Relative(1) }, Const { destination: Relative(21), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(22), op: Sub, bit_size: U8, lhs: Relative(21), rhs: Relative(1) }, JumpIf { condition: Relative(15), location: 127 }, Jump { location: 129 }, Mov { destination: Relative(16), source: Relative(22) }, Jump { location: 131 }, Mov { destination: Relative(16), source: Relative(1) }, Jump { location: 131 }, Const { destination: Relative(20), bit_size: Integer(U8), value: 127 }, BinaryIntOp { destination: Relative(17), op: LessThan, bit_size: U8, lhs: Relative(20), rhs: Relative(13) }, Const { destination: Relative(21), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(22), op: Sub, bit_size: U8, lhs: Relative(21), rhs: Relative(13) }, JumpIf { condition: Relative(17), location: 137 }, Jump { location: 139 }, Mov { destination: Relative(18), source: Relative(22) }, Jump { location: 141 }, Mov { destination: Relative(18), source: Relative(13) }, Jump { location: 141 }, BinaryIntOp { destination: Relative(1), op: Div, bit_size: U8, lhs: Relative(16), rhs: Relative(18) }, BinaryIntOp { destination: Relative(19), op: Xor, bit_size: U1, lhs: Relative(15), rhs: Relative(17) }, JumpIf { condition: Relative(19), location: 145 }, Jump { location: 147 }, Const { destination: Relative(20), bit_size: Integer(U8), value: 0 }, BinaryIntOp { destination: Relative(1), op: Sub, bit_size: U8, lhs: Relative(20), rhs: Relative(1) }, BinaryIntOp { destination: Relative(1), op: Sub, bit_size: U8, lhs: Relative(1), rhs: Relative(11) }, Jump { location: 151 }, Const { destination: Relative(1), bit_size: Integer(U8), value: 255 }, Jump { location: 151 }, Jump { location: 154 }, BinaryIntOp { destination: Relative(1), op: Shr, bit_size: U8, lhs: Relative(3), rhs: Relative(4) }, Jump { location: 154 }, Const { destination: Relative(2), bit_size: Integer(U8), value: 255 }, BinaryIntOp { destination: Relative(9), op: Equals, bit_size: U8, lhs: Relative(1), rhs: Relative(2) }, JumpIf { condition: Relative(9), location: 159 }, Const { destination: Relative(11), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(11) } }, BinaryIntOp { destination: Relative(1), op: Shl, bit_size: U8, lhs: Relative(3), rhs: Relative(4) }, Mov { destination: Relative(2), source: Relative(1) }, BinaryIntOp { destination: Relative(1), op: Equals, bit_size: U8, lhs: Relative(2), rhs: Relative(5) }, JumpIf { condition: Relative(1), location: 165 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(3) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 171 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 17843811134343075018 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 14514982005979867414 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]"
+  ],
+  "debug_symbols": "pdbBbvIwEATgd8mZg3dtrx1epapQgFBFigJK4Zd+Id69NsO05dALuTBjwn4GpFi5Nvt+e/nYDNPh+Nms367Ndh7GcfjYjMdddx6OU3n32rj6otKsddWoNmtfwiMCIiIMkZp1KJER7T28QwhCEUWJJQIiIgxRFCuREe09gkMIQhEeERARYQgoAUqAEqFEKBFKhBKhRCgRSoQSoUQoBsWgGBSDYlAMikExKAbFoCQoCUqCkqAkKAlKgpKgJCgJSoaSoWQoGUqGkqFkKBlKhpKhtEVJJQShCI8IiKLkEoYoSlsiI9p7iHOPLI64WpTFswSWyGIsiSWztI8ijoWyUBbKQlkoC2WhLJSFslJWykpZKStlpayUlbJSVsqesqfsKXvKnrKn7Cl7yp6ypxwoB8qBcqAcKAfKgXKgHCgHypFypBwpR8r1PhGpJbIYS2LJLFUuh4fUewalyr4WZfEsVfa326rhIbQ5z31fz6Bfp1I5q07d3E/nZj1dxnHV/OvGy/1Dn6duuue5m8vV8mX7aV+ygIdh7Gu7rX6m3d+j5Wc/htWF7/H4PC9/z5txc0uycP6l/Vt5zCenC+fjC/NJ+f+loAvnX9rfvuezLpx/Zf/sOJ9VF87bK/PBc978wvnn/d/LqtsN89Nzwq1K89Btx/6xPFym3a+r5/8nXuFzxmk+7vr9Ze6r9POwUU/6NzFbSZL3elDXZdKyDO+3uv0X",
+  "file_map": {
+    "50": {
+      "source": "// Prover.toml:\n// u8 = 100\n// positive_i8 = 100\n// negative_i8 = -100\n// seven = 7\n\nfn main(u8: u8, positive_i8: i8, negative_i8: i8, seven: u8) {\n    check_bitshifts(u8, positive_i8, negative_i8, seven);\n\n    // Safety: test program\n    unsafe { check_bitshifts_unconstrained_wrapper(u8, positive_i8, negative_i8, seven) };\n\n    comptime { check_bitshifts(100, 100, -100, 7) };\n}\n\nunconstrained fn check_bitshifts_unconstrained_wrapper(\n    u8: u8,\n    positive_i8: i8,\n    negative_i8: i8,\n    seven: u8,\n) {\n    check_bitshifts(u8, positive_i8, negative_i8, seven)\n}\n\nfn check_bitshifts(u8: u8, positive_i8: i8, negative_i8: i8, seven: u8) {\n    assert_eq(u8 >> seven, 0);\n    assert_eq(u8 << seven, 0);\n    assert_eq(positive_i8 >> seven, 0);\n    assert_eq(positive_i8 << seven, 0);\n    assert_eq(negative_i8 >> seven, -1);\n    assert_eq(negative_i8 << seven, 0);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "main"
+  ]
+}
