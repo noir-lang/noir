@@ -1,6 +1,6 @@
 pub struct Square {
-    x: Field,
-    y: Field
+    pub x: Field,
+    pub y: Field
 }
 
 fn is_valid_step(prev: Square, curr: Square) -> bool {

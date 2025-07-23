@@ -1511,7 +1511,7 @@ mod test {
             }
 
             brillig(inline) fn one f1 {
-              b0(v0: Field, v1: i32, v2: i32, v3: Field):
+              b0(v0: Field, v1: i32, v2: Field, v3: i32):
                 v4 = make_array [v0, v1, v2, v3] : [(Field, i32); 2]
                 return v4
             }

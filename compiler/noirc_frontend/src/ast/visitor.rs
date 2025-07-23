@@ -1,5 +1,5 @@
 use acvm::FieldElement;
-use noirc_errors::Span;
+use noirc_errors::{Location, Span};
 
 use crate::{
     BinaryTypeOperator, ParsedModule,
@@ -338,7 +338,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_ident(&mut self, _: &Ident) {}
+    fn visit_lvalue_path(&mut self, _: &Path) {}
 
     fn visit_lvalue_member_access(
         &mut self,
@@ -431,7 +431,7 @@ pub trait Visitor {
 
     fn visit_unit_type(&mut self, _: Span) {}
 
-    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Span) {}
+    fn visit_resolved_type(&mut self, _: QuotedTypeId, _: Location) {}
 
     fn visit_interned_type(&mut self, _: InternedUnresolvedTypeData, _: Span) {}
 
@@ -1312,7 +1312,7 @@ impl LValue {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
+            LValue::Path(path) => visitor.visit_lvalue_path(path),
             LValue::MemberAccess { object, field_name, location } => {
                 if visitor.visit_lvalue_member_access(object, field_name, location.span) {
                     object.accept(visitor);
@@ -1463,7 +1463,7 @@ impl UnresolvedType {
             UnresolvedTypeData::Unspecified => visitor.visit_unspecified_type(self.location.span),
             UnresolvedTypeData::Unit => visitor.visit_unit_type(self.location.span),
             UnresolvedTypeData::Resolved(id) => {
-                visitor.visit_resolved_type(*id, self.location.span);
+                visitor.visit_resolved_type(*id, self.location);
             }
             UnresolvedTypeData::Interned(id) => {
                 visitor.visit_interned_type(*id, self.location.span);
@@ -1628,7 +1628,6 @@ impl UnresolvedGeneric {
             UnresolvedGeneric::Numeric { ident: _, typ } => {
                 typ.accept(visitor);
             }
-            UnresolvedGeneric::Resolved(_quoted_type_id, _location) => (),
         }
     }
 }

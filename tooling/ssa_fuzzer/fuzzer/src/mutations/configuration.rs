@@ -2,6 +2,8 @@
 use rand::{Rng, rngs::StdRng};
 
 pub(crate) const MAX_NUMBER_OF_MUTATIONS: usize = 25;
+pub(crate) const SIZE_OF_SMALL_ARBITRARY_BUFFER: usize = 25;
+pub(crate) const SIZE_OF_LARGE_ARBITRARY_BUFFER: usize = 1024;
 
 pub(crate) struct WeightedSelectionConfig<T, const N: usize> {
     pub(crate) options_with_weights: [(T, usize); N],
@@ -32,19 +34,34 @@ impl<T: Copy, const N: usize> WeightedSelectionConfig<T, N> {
     }
 }
 
-/// Mutations config for single mutation
+/// Mutations config for single FuzzerData mutations
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum MutationOptions {
+pub(crate) enum FuzzerDataMutationOptions {
+    Functions,
     InstructionBlocks,
-    FuzzerCommands,
     Witnesses,
 }
+pub(crate) type FuzzerDataMutationConfig = WeightedSelectionConfig<FuzzerDataMutationOptions, 3>;
+pub(crate) const BASIC_FUZZER_DATA_MUTATION_CONFIGURATION: FuzzerDataMutationConfig =
+    FuzzerDataMutationConfig::new([
+        (FuzzerDataMutationOptions::Functions, 1),
+        (FuzzerDataMutationOptions::InstructionBlocks, 1),
+        (FuzzerDataMutationOptions::Witnesses, 4),
+    ]);
 
-pub(crate) type MutationConfig = WeightedSelectionConfig<MutationOptions, 3>;
-pub(crate) const BASIC_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
-    (MutationOptions::InstructionBlocks, 1),
-    (MutationOptions::FuzzerCommands, 1),
-    (MutationOptions::Witnesses, 1),
+/// Mutations config for function mutations
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FunctionMutationOptions {
+    ReturnBlockIdx,
+    FunctionFuzzerCommands,
+    ReturnType,
+}
+
+pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 3>;
+pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
+    (FunctionMutationOptions::ReturnBlockIdx, 0), // TODO(sn): change when implemented
+    (FunctionMutationOptions::FunctionFuzzerCommands, 1),
+    (FunctionMutationOptions::ReturnType, 0), // TODO(sn): change when implemented
 ]);
 
 /// Mutations of witness values
@@ -153,7 +170,9 @@ pub(crate) type InstructionArgumentMutationConfig =
     WeightedSelectionConfig<InstructionArgumentMutationOptions, 2>;
 pub(crate) const BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION:
     InstructionArgumentMutationConfig = InstructionArgumentMutationConfig::new([
-    (InstructionArgumentMutationOptions::Left, 1),
+    // Fuzzer uses type of the left variable for binary ops,
+    // so mutating the right variables makes less sense
+    (InstructionArgumentMutationOptions::Left, 5),
     (InstructionArgumentMutationOptions::Right, 1),
 ]);
 
@@ -184,3 +203,22 @@ pub(crate) enum ValueTypeMutationOptions {
 pub(crate) type ValueTypeMutationConfig = WeightedSelectionConfig<ValueTypeMutationOptions, 1>;
 pub(crate) const BASIC_VALUE_TYPE_MUTATION_CONFIGURATION: ValueTypeMutationConfig =
     ValueTypeMutationConfig::new([(ValueTypeMutationOptions::Random, 1)]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum FunctionVecMutationOptions {
+    CopyFunction,
+    Insertion,
+    Remove,
+    InsertEmpty,
+    MutateFunction,
+}
+pub(crate) type FunctionVecMutationConfig = WeightedSelectionConfig<FunctionVecMutationOptions, 5>;
+
+pub(crate) const BASIC_FUNCTION_VEC_MUTATION_CONFIGURATION: FunctionVecMutationConfig =
+    FunctionVecMutationConfig::new([
+        (FunctionVecMutationOptions::CopyFunction, 5),
+        (FunctionVecMutationOptions::Insertion, 6),
+        (FunctionVecMutationOptions::Remove, 10),
+        (FunctionVecMutationOptions::InsertEmpty, 15),
+        (FunctionVecMutationOptions::MutateFunction, 40),
+    ]);

@@ -6,11 +6,11 @@ use std::{
 
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{ItemVisibility, UnresolvedType},
+    ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::ResolvedTraitBound,
-    node_interner::GlobalValue,
+    node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
 };
@@ -126,6 +126,8 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+
+    required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
 
     unsafe_block_status: UnsafeBlockStatus,
     current_loop: Option<Loop>,
@@ -244,6 +246,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         crate_id: CrateId,
         interpreter_call_stack: im::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -257,6 +260,7 @@ impl<'context> Elaborator<'context> {
             usage_tracker,
             crate_graph,
             interpreter_output,
+            required_unstable_features,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             current_loop: None,
             generics: Vec::new(),
@@ -290,6 +294,7 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             &context.interpreter_output,
+            &context.required_unstable_features,
             crate_id,
             im::Vector::new(),
             options,
@@ -646,18 +651,15 @@ impl<'context> Elaborator<'context> {
         generic: &UnresolvedGeneric,
     ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
         // Map the generic to a fresh type variable
-        match generic {
-            UnresolvedGeneric::Variable(..) | UnresolvedGeneric::Numeric { .. } => {
+        match generic.ident() {
+            IdentOrQuotedType::Ident(ident) => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
-                let ident = generic.ident();
                 let name = Rc::new(ident.to_string());
                 Ok((typevar, name))
             }
-            // An already-resolved generic is only possible if it is the result of a
-            // previous macro call being inserted into a generics list.
-            UnresolvedGeneric::Resolved(id, location) => {
+            IdentOrQuotedType::Quoted(id, location) => {
                 match self.interner.get_quoted_type(*id).follow_bindings() {
                     Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
                         Ok((type_var.clone(), name))
@@ -688,9 +690,11 @@ impl<'context> Elaborator<'context> {
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
                     ResolverError::UnsupportedNumericGenericType(UnsupportedNumericGenericType {
-                        ident: ident.clone(),
-                        typ: unresolved_typ.typ.clone(),
+                        name: ident.ident().map(|name| name.to_string()),
+                        typ: typ.to_string(),
+                        location: unresolved_typ.location,
                     });
+
                 self.push_err(unsupported_typ_err);
             }
             Kind::numeric(typ)
@@ -1017,7 +1021,9 @@ impl<'context> Elaborator<'context> {
 
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
-            .filter_map(|generic| self.find_generic(generic.ident().as_str()).cloned())
+            .filter_map(|generic| {
+                generic.ident().ident().and_then(|name| self.find_generic(name.as_str())).cloned()
+            })
             .collect();
 
         let statements = std::mem::take(&mut func.def.body.statements);
@@ -1918,7 +1924,7 @@ impl<'context> Elaborator<'context> {
                 for (field_index, field) in fields.iter().enumerate() {
                     let location = field.name.location();
                     let reference_id = ReferenceId::StructMember(*type_id, field_index);
-                    self.interner.add_definition_location(reference_id, location, None);
+                    self.interner.add_definition_location(reference_id, location);
                 }
             }
 
@@ -1993,7 +1999,6 @@ impl<'context> Elaborator<'context> {
                 UnresolvedType { typ: UnresolvedTypeData::Resolved(self_type_id), location };
 
             datatype.borrow_mut().init_variants();
-            let module_id = ModuleId { krate: self.crate_id, local_id: typ.module_id };
             self.resolving_ids.insert(*type_id);
 
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
@@ -2019,7 +2024,7 @@ impl<'context> Elaborator<'context> {
 
                 let reference_id = ReferenceId::EnumVariant(*type_id, i);
                 let location = variant.item.name.location();
-                self.interner.add_definition_location(reference_id, location, Some(module_id));
+                self.interner.add_definition_location(reference_id, location);
             }
 
             self.resolving_ids.remove(type_id);
@@ -2066,13 +2071,7 @@ impl<'context> Elaborator<'context> {
         self.elaborate_comptime_global(global_id);
 
         if let Some(name) = name {
-            self.interner.register_global(
-                global_id,
-                name,
-                location,
-                global.visibility,
-                self.module_id(),
-            );
+            self.interner.register_global(global_id, name, location, global.visibility);
         }
 
         self.local_module = old_module;
@@ -2353,25 +2352,23 @@ impl<'context> Elaborator<'context> {
         // Turn each generic into an Ident
         let mut idents = HashSet::new();
         for generic in generics {
-            match generic {
-                UnresolvedGeneric::Variable(ident, _) => {
+            match generic.ident() {
+                IdentOrQuotedType::Ident(ident) => {
                     idents.insert(ident.clone());
                 }
-                UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                    idents.insert(ident.clone());
-                }
-                UnresolvedGeneric::Resolved(quoted_type_id, span) => {
+                IdentOrQuotedType::Quoted(quoted_type_id, location) => {
                     if let Type::NamedGeneric(NamedGeneric { name, .. }) =
                         self.interner.get_quoted_type(*quoted_type_id).follow_bindings()
                     {
-                        idents.insert(Ident::new(name.to_string(), *span));
+                        idents.insert(Ident::new(name.to_string(), *location));
                     }
                 }
             }
         }
 
         // Remove the ones that show up in `self_type`
-        let mut visitor = RemoveGenericsAppearingInTypeVisitor { idents: &mut idents };
+        let mut visitor =
+            RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
         self_type.accept(&mut visitor);
 
         // The ones that remain are not mentioned in the impl: it's an error.
@@ -2383,10 +2380,27 @@ impl<'context> Elaborator<'context> {
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
-        if !self.options.enabled_unstable_features.contains(&feature) {
-            let reason = ParserErrorReason::ExperimentalFeature(feature);
-            self.push_err(ParserError::with_reason(reason, location));
+        // Is the feature globally enabled via CLI options?
+        if self.options.enabled_unstable_features.contains(&feature) {
+            return;
         }
+
+        // Can crates require unstable features in their manifest?
+        let enable_required_unstable_features = self.options.enabled_unstable_features.is_empty()
+            && !self.options.disable_required_unstable_features;
+
+        // Is it required by the current crate?
+        if enable_required_unstable_features
+            && self
+                .required_unstable_features
+                .get(&self.crate_id)
+                .is_some_and(|fs| fs.contains(&feature))
+        {
+            return;
+        }
+
+        let reason = ParserErrorReason::ExperimentalFeature(feature);
+        self.push_err(ParserError::with_reason(reason, location));
     }
 
     /// Run the given function using the resolver and return true if any errors (not warnings)
@@ -2400,6 +2414,7 @@ impl<'context> Elaborator<'context> {
 }
 
 struct RemoveGenericsAppearingInTypeVisitor<'a> {
+    interner: &'a NodeInterner,
     idents: &'a mut HashSet<Ident>,
 }
 
@@ -2407,6 +2422,14 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_> {
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
             self.idents.remove(ident);
+        }
+    }
+
+    fn visit_resolved_type(&mut self, id: QuotedTypeId, location: Location) {
+        if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+            self.interner.get_quoted_type(id).follow_bindings()
+        {
+            self.idents.remove(&Ident::new(name.as_ref().clone(), location));
         }
     }
 }

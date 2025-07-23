@@ -365,6 +365,7 @@ jobs:
       - name: Download noir-inspector binary
         uses: ./.github/actions/download-noir-inspector
 
+
       - name: Generate compilation report
         id: compilation_report
         run: |

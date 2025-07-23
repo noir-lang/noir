@@ -21,11 +21,12 @@ use noirc_frontend::{
     DataType, NamedGeneric, ParsedModule, Type, TypeBinding,
     ast::{
         AsTraitPath, AttributeTarget, BlockExpression, CallExpression, ConstructorExpression,
-        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IfExpression,
-        ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path, PathKind, Pattern,
-        Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath, UnresolvedGeneric,
-        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree, UseTreeKind, Visitor,
+        Expression, ExpressionKind, ForLoopStatement, GenericTypeArgs, Ident, IdentOrQuotedType,
+        IfExpression, ItemVisibility, LValue, Lambda, LetStatement, MemberAccessExpression,
+        MethodCallExpression, ModuleDeclaration, NoirFunction, NoirStruct, NoirTraitImpl, Path,
+        PathKind, Pattern, Statement, TraitBound, TraitImplItemKind, TypeImpl, TypePath,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UseTree,
+        UseTreeKind, Visitor,
     },
     elaborator::PrimitiveType,
     graph::{CrateId, Dependency},
@@ -583,15 +584,9 @@ impl<'a> NodeFinder<'a> {
     }
 
     fn collect_type_parameters_in_generic(&mut self, generic: &UnresolvedGeneric) {
-        match generic {
-            UnresolvedGeneric::Variable(ident, _) => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Numeric { ident, typ: _ } => {
-                self.type_parameters.insert(ident.to_string());
-            }
-            UnresolvedGeneric::Resolved(..) => (),
-        };
+        if let IdentOrQuotedType::Ident(ident) = generic.ident() {
+            self.type_parameters.insert(ident.to_string());
+        }
     }
 
     fn complete_type_fields_and_methods(
@@ -1142,7 +1137,7 @@ impl<'a> NodeFinder<'a> {
 
     fn get_lvalue_type(&self, lvalue: &LValue) -> Option<Type> {
         match lvalue {
-            LValue::Ident(ident) => {
+            LValue::Path(ident) => {
                 let location = Location::new(ident.span(), self.file);
                 if let Some(ReferenceId::Local(definition_id)) =
                     self.interner.find_referenced(location)
@@ -1598,10 +1593,10 @@ impl Visitor for NodeFinder<'_> {
         false
     }
 
-    fn visit_lvalue_ident(&mut self, ident: &Ident) {
+    fn visit_lvalue_path(&mut self, path: &Path) {
         // If we have `foo.>|<` we suggest `foo`'s type fields and methods
-        if self.byte == Some(b'.') && ident.span().end() as usize == self.byte_index - 1 {
-            let location = Location::new(ident.span(), self.file);
+        if self.byte == Some(b'.') && path.span().end() as usize == self.byte_index - 1 {
+            let location = Location::new(path.span(), self.file);
             if let Some(ReferenceId::Local(definition_id)) = self.interner.find_referenced(location)
             {
                 let typ = self.interner.definition_type(definition_id);
