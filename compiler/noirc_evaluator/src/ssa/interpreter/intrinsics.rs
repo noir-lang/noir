@@ -787,18 +787,20 @@ fn new_embedded_curve_point(
 ///
 /// It prefixes both arrays and slices with their length to aid decoding slices from the flattened data.
 fn value_to_fields(value: &Value) -> Vec<FieldElement> {
-    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
+    fn go(value: &Value, fields: &mut Vec<FieldElement>, with_length_prefix: bool) {
         match value {
             Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
             Value::Reference(reference_value) => {
                 if let Some(value) = reference_value.element.borrow().as_ref() {
-                    go(value, fields);
+                    go(value, fields, with_length_prefix);
                 }
             }
             Value::ArrayOrSlice(array_value) => {
-                fields.push(FieldElement::from(array_value.elements.borrow().len()));
+                if with_length_prefix {
+                    fields.push(FieldElement::from(array_value.elements.borrow().len()));
+                }
                 for value in array_value.elements.borrow().iter() {
-                    go(value, fields);
+                    go(value, fields, false);
                 }
             }
             Value::Function(id) => {
@@ -816,7 +818,7 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
     }
 
     let mut fields = Vec::new();
-    go(value, &mut fields);
+    go(value, &mut fields, true);
     fields
 }
 
