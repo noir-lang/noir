@@ -2,7 +2,7 @@ pub mod data_bus;
 
 use std::{borrow::Cow, collections::BTreeMap, sync::Arc};
 
-use acvm::{FieldElement, acir::circuit::ErrorSelector};
+use acvm::acir::circuit::ErrorSelector;
 use noirc_errors::{
     Location,
     call_stack::{CallStack, CallStackId},

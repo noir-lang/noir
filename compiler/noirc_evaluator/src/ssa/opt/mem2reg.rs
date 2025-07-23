@@ -79,8 +79,6 @@ mod block;
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use num_traits::One;
-use num_traits::Zero;
 use vec_collections::VecSet;
 
 use crate::ssa::{

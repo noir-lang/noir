@@ -16,7 +16,6 @@ mod visitor;
 
 use noirc_errors::Location;
 use num_bigint::BigUint;
-use serde::Serialize;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
 

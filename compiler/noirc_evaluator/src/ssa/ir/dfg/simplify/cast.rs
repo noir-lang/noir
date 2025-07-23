@@ -1,5 +1,4 @@
-use acvm::{FieldElement, acir::AcirField};
-use num_bigint::{BigInt, BigUint, Sign};
+use num_bigint::BigInt;
 
 use crate::ssa::ir::{
     dfg::{DataFlowGraph, simplify::SimplifyResult},

@@ -6,7 +6,6 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
-use acvm::FieldElement;
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;

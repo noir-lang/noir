@@ -4,7 +4,6 @@ use acvm::{AcirField, FieldElement};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 use num_bigint::{BigInt, Sign};
-use num_traits::Signed;
 use num_traits::ToPrimitive;
 use num_traits::{One, Zero};
 
@@ -319,49 +318,90 @@ impl NumericValue {
                 }
             }
             NumericType::Unsigned { bit_size: 8 } => {
-                constant.to_u128().and_then(|x| x.try_into().ok()).map(Self::U8).ok_or(does_not_fit)
+                // Always cast to u8
+                constant.to_i128().map(|x| Self::U8(x as u8)).ok_or(does_not_fit)
             }
-            NumericType::Unsigned { bit_size: 16 } => constant
-                .to_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U16)
-                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: 16 } => {
+                constant
+                    .to_i128()
+                    .map(|x| {
+                        // If it fits in i8, cast to u8 first, then to u16
+                        if x >= i8::MIN as i128 && x <= i8::MAX as i128 {
+                            let as_u8 = x as u8;
+                            Self::U16(as_u8 as u16)
+                        } else {
+                            // Otherwise, cast directly to u16
+                            Self::U16(x as u16)
+                        }
+                    })
+                    .ok_or(does_not_fit)
+            }
             NumericType::Unsigned { bit_size: 32 } => constant
-                .to_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U32)
+                .to_i128()
+                .map(|x| {
+                    if x >= i8::MIN as i128 && x <= i8::MAX as i128 {
+                        let as_u8 = x as u8;
+                        Self::U32(as_u8 as u32)
+                    } else if x >= i16::MIN as i128 && x <= i16::MAX as i128 {
+                        let as_u16 = x as u16;
+                        Self::U32(as_u16 as u32)
+                    } else {
+                        Self::U32(x as u32)
+                    }
+                })
                 .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: 64 } => constant
-                .to_u128()
-                .and_then(|x| x.try_into().ok())
-                .map(Self::U64)
+                .to_i128()
+                .map(|x| {
+                    if x >= i8::MIN as i128 && x <= i8::MAX as i128 {
+                        let as_u8 = x as u8;
+                        Self::U64(as_u8 as u64)
+                    } else if x >= i16::MIN as i128 && x <= i16::MAX as i128 {
+                        let as_u16 = x as u16;
+                        Self::U64(as_u16 as u64)
+                    } else if x >= i32::MIN as i128 && x <= i32::MAX as i128 {
+                        let as_u32 = x as u32;
+                        Self::U64(as_u32 as u64)
+                    } else {
+                        Self::U64(x as u64)
+                    }
+                })
                 .ok_or(does_not_fit),
-            NumericType::Unsigned { bit_size: 128 } => {
-                constant.to_u128().map(Self::U128).ok_or(does_not_fit)
-            }
+            NumericType::Unsigned { bit_size: 128 } => constant
+                .to_i128()
+                .map(|x| {
+                    if x >= i8::MIN as i128 && x <= i8::MAX as i128 {
+                        let as_u8 = x as u8;
+                        Self::U128(as_u8 as u128)
+                    } else if x >= i16::MIN as i128 && x <= i16::MAX as i128 {
+                        let as_u16 = x as u16;
+                        Self::U128(as_u16 as u128)
+                    } else if x >= i32::MIN as i128 && x <= i32::MAX as i128 {
+                        let as_u32 = x as u32;
+                        Self::U128(as_u32 as u128)
+                    } else if x >= i64::MIN as i128 && x <= i64::MAX as i128 {
+                        let as_u64 = x as u64;
+                        Self::U128(as_u64 as u128)
+                    } else {
+                        Self::U128(x as u128)
+                    }
+                })
+                .ok_or(does_not_fit),
             // Signed cases are a bit weird. We want to allow all values in the corresponding
             // unsigned range so we have to cast to the unsigned type first to see if it fits.
             // If it does, any values `>= 2^N / 2` for `iN` are interpreted as negative.
-            NumericType::Signed { bit_size: 8 } => constant
-                .to_u128()
-                .and_then(|x| u8::try_from(x).ok())
-                .map(|x| Self::I8(x as i8))
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 16 } => constant
-                .to_u128()
-                .and_then(|x| u16::try_from(x).ok())
-                .map(|x| Self::I16(x as i16))
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 32 } => constant
-                .to_u128()
-                .and_then(|x| u32::try_from(x).ok())
-                .map(|x| Self::I32(x as i32))
-                .ok_or(does_not_fit),
-            NumericType::Signed { bit_size: 64 } => constant
-                .to_u128()
-                .and_then(|x| u64::try_from(x).ok())
-                .map(|x| Self::I64(x as i64))
-                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: 8 } => {
+                constant.to_i128().map(|x| Self::I8(x as i8)).ok_or(does_not_fit)
+            }
+            NumericType::Signed { bit_size: 16 } => {
+                constant.to_i128().map(|x| Self::I16(x as i16)).ok_or(does_not_fit)
+            }
+            NumericType::Signed { bit_size: 32 } => {
+                constant.to_i128().map(|x| Self::I32(x as i32)).ok_or(does_not_fit)
+            }
+            NumericType::Signed { bit_size: 64 } => {
+                constant.to_i128().map(|x| Self::I64(x as i64)).ok_or(does_not_fit)
+            }
             typ => Err(Internal(UnsupportedNumericType { typ })),
         }
     }

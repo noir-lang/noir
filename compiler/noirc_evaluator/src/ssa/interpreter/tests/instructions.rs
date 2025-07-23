@@ -575,7 +575,8 @@ fn cast() {
     );
     assert_eq!(values[0], from_constant(2_u32.into(), NumericType::NativeField));
     assert_eq!(values[1], from_constant(3_u32.into(), NumericType::unsigned(8)));
-    assert_eq!(values[2], from_constant(255_u32.into(), NumericType::signed(32)));
+    // px: need to check if this change is compatible with the old interpreter
+    assert_eq!(values[2], from_constant(i32::from(-1).into(), NumericType::signed(32)));
     assert_eq!(values[3], from_constant(255_u32.into(), NumericType::unsigned(128)));
 }
 

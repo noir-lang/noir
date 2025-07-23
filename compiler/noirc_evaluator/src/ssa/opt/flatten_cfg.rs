@@ -133,13 +133,14 @@
 //!   store v12 at v5         (new store)
 use std::sync::Arc;
 
+#[cfg(feature = "bn254")]
+use acvm::FieldElement;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
-use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
+use acvm::{acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 use num_bigint::BigInt;
-use num_traits::ToPrimitive;
 use num_traits::{One, Zero};
 
 use crate::ssa::{

@@ -5,7 +5,7 @@ use acvm::{
         native_types::{WitnessMap, WitnessStack},
     },
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use m31_blackbox_solver::M31BlackBoxSolver;
 use nargo::errors::NargoError;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use nargo::ops::execute_program;
@@ -46,7 +46,7 @@ pub fn execute_single(
     initial_witness: WitnessMap<FieldElement>,
 ) -> Result<WitnessMap<FieldElement>, SsaExecutionError> {
     let result =
-        std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
+        std::panic::catch_unwind(|| execute::<M31BlackBoxSolver>(program, initial_witness));
 
     match result {
         Ok(result) => match result {

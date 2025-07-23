@@ -1,4 +1,3 @@
-use acvm::AcirField as _;
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::{

@@ -3,7 +3,7 @@ use noirc_errors::call_stack::CallStackId;
 use num_bigint::Sign;
 use std::{collections::VecDeque, sync::Arc};
 
-use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField as _, acir::BlackBoxFunc};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::vecmap;
 use num_bigint::{BigInt, BigUint};

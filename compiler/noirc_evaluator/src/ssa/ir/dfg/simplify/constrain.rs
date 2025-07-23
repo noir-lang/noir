@@ -1,4 +1,4 @@
-use acvm::{FieldElement, acir::AcirField};
+use acvm::acir::AcirField;
 use num_bigint::BigInt;
 use num_traits::{One, Zero};
 

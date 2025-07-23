@@ -3,7 +3,7 @@ use acvm::{
     acir::BlackBoxFunc,
     blackbox_solver::{BigIntSolverWithId, BlackBoxFunctionSolver},
 };
-use bn254_blackbox_solver::Bn254BlackBoxSolver; // Currently locked to only bn254!
+ // Currently locked to only bn254!
 use im::{Vector, vector};
 use iter_extended::vecmap;
 use noirc_errors::Location;

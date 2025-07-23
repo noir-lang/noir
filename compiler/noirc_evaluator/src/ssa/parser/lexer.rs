@@ -1,6 +1,6 @@
 use std::str::{CharIndices, FromStr};
 
-use acvm::{AcirField, FieldElement};
+use acvm::AcirField;
 use noirc_errors::{Position, Span};
 use noirc_frontend::token::IntType;
 use num_bigint::{BigInt, BigUint};

@@ -3,7 +3,7 @@
 //!
 //! DIE also tracks which block parameters are unused.
 //! Unused parameters are then pruned by the [prune_dead_parameters] pass.
-use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use acvm::{AcirField, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use num_bigint::BigInt;
 use num_traits::Zero;

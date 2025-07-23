@@ -634,7 +634,7 @@ impl DependencyContext {
         element_results: &[ValueId],
         function: &Function,
     ) {
-        use acvm::acir::AcirField;
+        
 
         // Only allow numeric constant indices
         if let Some(value) = function.dfg.get_numeric_constant(index) {

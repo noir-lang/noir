@@ -1,6 +1,5 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
 use noirc_errors::{Position, Span, Spanned};
 use noirc_frontend::token::IntType;
 use num_bigint::BigInt;

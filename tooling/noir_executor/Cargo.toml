@@ -1,0 +1,15 @@
+[package]
+name = "noir_executor"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+noir_ssa_executor.workspace = true
+noirc_evaluator.workspace = true
+
+[lints]
+workspace = true

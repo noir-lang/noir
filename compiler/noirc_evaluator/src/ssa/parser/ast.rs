@@ -1,6 +1,5 @@
 use std::fmt::{self, Display, Formatter};
 
-use acvm::FieldElement;
 use noirc_errors::Span;
 use num_bigint::BigInt;
 

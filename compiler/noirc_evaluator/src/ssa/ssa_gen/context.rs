@@ -41,7 +41,7 @@ use fxhash::FxHashMap as HashMap;
 /// can communicate via the SharedContext field which as its name suggests
 /// is the only part of the context that needs to be shared between threads.
 pub(super) struct FunctionContext<'a> {
-    definitions: HashMap<LocalId, Values>,
+    pub definitions: HashMap<LocalId, Values>,
 
     pub(super) builder: FunctionBuilder,
     shared_context: &'a SharedContext,

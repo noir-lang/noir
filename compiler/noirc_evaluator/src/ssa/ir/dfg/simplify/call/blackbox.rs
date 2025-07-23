@@ -1,8 +1,6 @@
-use std::sync::Arc;
 
-use acvm::acir::BlackBoxFunc;
 use acvm::blackbox_solver::sha256_compression;
-use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
+use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use noirc_errors::call_stack::CallStackId;
 use num_bigint::BigInt;
 use num_traits::ToPrimitive;
@@ -11,8 +9,6 @@ use crate::ssa::ir::types::NumericType;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     dfg::DataFlowGraph,
-    instruction::{Instruction, Intrinsic},
-    types::Type,
     value::ValueId,
 };
 

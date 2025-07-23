@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use num_bigint::BigInt;
 
 use crate::{

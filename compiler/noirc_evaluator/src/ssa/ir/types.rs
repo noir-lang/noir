@@ -32,12 +32,12 @@ impl NumericType {
     }
 
     /// Creates a NumericType::Signed type
-    pub(crate) fn signed(bit_size: u32) -> NumericType {
+    pub fn signed(bit_size: u32) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
     /// Creates a NumericType::Unsigned type
-    pub(crate) fn unsigned(bit_size: u32) -> NumericType {
+    pub fn unsigned(bit_size: u32) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
 

@@ -22,7 +22,7 @@ use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
 mod intrinsics;
-pub(crate) mod tests;
+pub mod tests;
 pub mod value;
 
 use value::Value;

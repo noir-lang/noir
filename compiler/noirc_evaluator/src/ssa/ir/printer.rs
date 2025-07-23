@@ -1,7 +1,6 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::fmt::{Display, Formatter, Result};
 
-use acvm::acir::AcirField;
 use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;

@@ -2,7 +2,6 @@ use fxhash::FxHashMap as HashMap;
 use num_bigint::BigInt;
 use std::borrow::Cow;
 
-use acvm::FieldElement;
 use serde::{Deserialize, Serialize};
 
 use crate::ssa::ir::basic_block::BasicBlockId;
