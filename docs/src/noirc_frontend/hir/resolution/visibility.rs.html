@@ -178,14 +178,8 @@
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
-<span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
+<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::Type;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
-
-<span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::ItemVisibility;
 <span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
@@ -200,7 +194,7 @@
 /// }
 /// ```
 </span><span class="kw">pub fn </span>item_in_module_is_visible(
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
     current_module: ModuleId,
     target_module: ModuleId,
     visibility: ItemVisibility,
@@ -261,7 +255,7 @@
     struct_id: TypeId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
 ) -&gt; bool {
     type_member_is_visible(struct_id.module_id(), visibility, current_module_id, def_maps)
 }
@@ -270,7 +264,7 @@
     trait_id: TraitId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
 ) -&gt; bool {
     type_member_is_visible(trait_id.<span class="number">0</span>, visibility, current_module_id, def_maps)
 }
@@ -279,7 +273,7 @@
     type_module_id: ModuleId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
 ) -&gt; bool {
     <span class="kw">match </span>visibility {
         ItemVisibility::Public =&gt; <span class="bool-val">true</span>,

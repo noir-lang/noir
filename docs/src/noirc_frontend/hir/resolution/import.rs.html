@@ -428,7 +428,9 @@
 <a href="#427" id="427">427</a>
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
-<a href="#430" id="430">430</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -442,7 +444,9 @@
 <span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
-<span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
+<span class="kw">use </span><span class="kw">crate</span>::hir::def_map::{
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+};
 
 <span class="kw">use </span><span class="kw">super</span>::errors::ResolverError;
 <span class="kw">use </span><span class="kw">super</span>::visibility::item_in_module_is_visible;
@@ -591,7 +595,7 @@
 </span><span class="kw">pub fn </span>resolve_import(
     path: Path,
     importing_module: ModuleId,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
     usage_tracker: <span class="kw-2">&amp;mut </span>UsageTracker,
     references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&gt;,
 ) -&gt; ImportResolutionResult {
@@ -624,7 +628,7 @@
 </span><span class="kw">pub fn </span>resolve_path_kind&lt;<span class="lifetime">'r</span>&gt;(
     path: TypedPath,
     importing_module: ModuleId,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
     references_tracker: <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'r</span>&gt;&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(TypedPath, ModuleId, <span class="prelude-ty">Option</span>&lt;ReferencesTracker&lt;<span class="lifetime">'r</span>&gt;&gt;), PathResolutionError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>solver =
@@ -854,7 +858,7 @@
     }
 }
 
-<span class="kw">fn </span>get_module(def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
+<span class="kw">fn </span>get_module(def_maps: <span class="kw-2">&amp;</span>DefMaps, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
     <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
     <span class="kw-2">&amp;</span>def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
 }

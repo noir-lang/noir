@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["FunctionNameMatch"],"mod":["comptime","def_collector","def_map","resolution","scope","type_check"],"struct":["Context"],"type":["ParsedFiles"]};
+window.SIDEBAR_ITEMS = {"enum":["FunctionNameMatch"],"fn":["fully_qualified_function_name","get_all_test_functions_in_crate_matching"],"mod":["comptime","def_collector","def_map","resolution","scope","type_check"],"struct":["Context"],"type":["ParsedFiles"]};

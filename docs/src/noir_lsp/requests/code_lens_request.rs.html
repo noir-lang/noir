@@ -239,16 +239,30 @@
 <a href="#238" id="238">238</a>
 <a href="#239" id="239">239</a>
 <a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#241" id="241">241</a>
+<a href="#242" id="242">242</a>
+<a href="#243" id="243">243</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
-<span class="kw">use </span>async_lsp::{ErrorCode, ResponseError};
+<span class="kw">use </span>async_lsp::{
+    ResponseError,
+    lsp_types::{Position, TextDocumentPositionParams},
+};
 
+<span class="kw">use </span>fm::{FileId, FileMap, PathString};
 <span class="kw">use </span>nargo::{package::Package, workspace::Workspace};
-<span class="kw">use </span>noirc_driver::check_crate;
-<span class="kw">use </span>noirc_frontend::hir::{FunctionNameMatch, def_map::ModuleId};
+<span class="kw">use </span>noirc_driver::CrateId;
+<span class="kw">use </span>noirc_frontend::{
+    hir::{
+        FunctionNameMatch,
+        def_map::{DefMaps, ModuleId},
+        get_all_test_functions_in_crate_matching,
+    },
+    node_interner::NodeInterner,
+};
 
 <span class="kw">use crate</span>::{
-    LspState, byte_span_to_range, prepare_source, resolve_workspace_for_source_path,
+    LspState, byte_span_to_range,
+    requests::process_request,
     types::{CodeLens, CodeLensParams, CodeLensResult, Command},
 };
 
@@ -291,193 +305,183 @@
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: CodeLensParams,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;CodeLensResult, ResponseError&gt; {
-    <span class="kw">let </span>file_path = params.text_document.uri.to_file_path().map_err(|<span class="kw">_</span>| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"URI is not a valid file path"</span>)
-    })<span class="question-mark">?</span>;
+    <span class="kw">let </span><span class="prelude-val">Ok</span>(file_path) = params.text_document.uri.to_file_path() <span class="kw">else </span>{
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>);
+    };
 
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(collected_lenses) = state.cached_lenses.get(<span class="kw-2">&amp;</span>params.text_document.uri.to_string()) {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(collected_lenses.clone()));
-    }
-
-    <span class="kw">let </span>source_string = std::fs::read_to_string(<span class="kw-2">&amp;</span>file_path).map_err(|<span class="kw">_</span>| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"Could not read file from disk"</span>)
-    })<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
-
-    <span class="kw">let </span>package = <span class="kw">crate</span>::workspace_package_for_file(<span class="kw-2">&amp;</span>workspace, <span class="kw-2">&amp;</span>file_path).ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"Could not find package for file"</span>)
-    })<span class="question-mark">?</span>;
-
-    <span class="kw">let </span>(<span class="kw-2">mut </span>context, crate_id) = prepare_source(source_string, state);
-    <span class="comment">// We ignore the warnings and errors produced by compilation for producing code lenses
-    // because we can still get the test functions even if compilation fails
-    </span><span class="kw">let _ </span>= check_crate(<span class="kw-2">&amp;mut </span>context, crate_id, <span class="kw-2">&amp;</span>Default::default());
-
-    <span class="kw">let </span>collected_lenses =
-        collect_lenses_for_package(<span class="kw-2">&amp;</span>context, crate_id, <span class="kw-2">&amp;</span>workspace, package, <span class="prelude-val">None</span>);
-
-    <span class="kw">if </span>collected_lenses.is_empty() {
-        state.cached_lenses.remove(<span class="kw-2">&amp;</span>params.text_document.uri.to_string());
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-    } <span class="kw">else </span>{
-        state
-            .cached_lenses
-            .insert(params.text_document.uri.to_string().clone(), collected_lenses.clone());
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(collected_lenses))
-    }
+    <span class="kw">let </span>text_document_position_params = TextDocumentPositionParams {
+        text_document: params.text_document,
+        position: Position::new(<span class="number">0</span>, <span class="number">0</span>),
+    };
+    process_request(state, text_document_position_params, |args| {
+        <span class="kw">let </span>file_id = args.files.get_file_id(<span class="kw-2">&amp;</span>PathString::from_path(file_path))<span class="question-mark">?</span>;
+        <span class="kw">let </span>collected_lenses = collect_lenses_for_file(
+            file_id,
+            args.workspace,
+            args.package,
+            args.crate_id,
+            args.interner,
+            args.def_maps,
+            args.files,
+        );
+        <span class="kw">if </span>collected_lenses.is_empty() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(collected_lenses) }
+    })
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>collect_lenses_for_package(
-    context: <span class="kw-2">&amp;</span>noirc_frontend::hir::Context,
-    crate_id: noirc_frontend::graph::CrateId,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>collect_lenses_for_file(
+    current_file: FileId,
     workspace: <span class="kw-2">&amp;</span>Workspace,
     package: <span class="kw-2">&amp;</span>Package,
-    file_path: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>std::path::PathBuf&gt;,
+    crate_id: CrateId,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
+    files: <span class="kw-2">&amp;</span>FileMap,
 ) -&gt; Vec&lt;CodeLens&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>lenses: Vec&lt;CodeLens&gt; = <span class="macro">vec!</span>[];
-    <span class="kw">let </span>fm = <span class="kw-2">&amp;</span>context.file_manager;
-    <span class="kw">let </span>files = fm.as_file_map();
-    <span class="kw">let </span>tests =
-        context.get_all_test_functions_in_crate_matching(<span class="kw-2">&amp;</span>crate_id, <span class="kw-2">&amp;</span>FunctionNameMatch::Anything);
-    <span class="kw">for </span>(func_name, test_function) <span class="kw">in </span>tests {
-        <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>test_function.id).name.location;
-        <span class="kw">let </span>file_id = location.file;
 
-        <span class="comment">// Ignore diagnostics for any file that wasn't the file we saved
-        // TODO: In the future, we could create "related" diagnostics for these files
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(file_path) = file_path {
-            <span class="kw">if </span>fm.path(file_id).expect(<span class="string">"file must exist to contain tests"</span>) != <span class="kw-2">*</span>file_path {
-                <span class="kw">continue</span>;
-            }
+    <span class="kw">let </span>tests = get_all_test_functions_in_crate_matching(
+        crate_id,
+        <span class="kw-2">&amp;</span>FunctionNameMatch::Anything,
+        interner,
+        def_maps,
+    );
+    <span class="kw">for </span>(func_name, test_function) <span class="kw">in </span>tests {
+        <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>test_function.id).name.location;
+        <span class="kw">let </span>file_id = location.file;
+        <span class="kw">if </span>file_id != current_file {
+            <span class="kw">continue</span>;
         }
 
         <span class="kw">let </span>range = byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-        <span class="kw">let </span>test_command = Command {
-            title: with_arrow(TEST_CODELENS_TITLE),
-            command: TEST_COMMAND.into(),
-            arguments: <span class="prelude-val">Some</span>(
-                [
-                    package_selection_args(workspace, package),
-                    <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), <span class="string">"--show-output"</span>.into(), func_name.clone().into()],
-                ]
-                .concat(),
-            ),
-        };
-
-        <span class="kw">let </span>test_lens = CodeLens { range, command: <span class="prelude-val">Some</span>(test_command), data: <span class="prelude-val">None </span>};
-
-        lenses.push(test_lens);
-
-        <span class="kw">let </span>debug_test_command = Command {
-            title: <span class="macro">format!</span>(<span class="string">"{GEAR} {DEBUG_TEST_CODELENS_TITLE}"</span>),
-            command: DEBUG_TEST_COMMAND.into(),
-            arguments: <span class="prelude-val">Some</span>(
-                [
-                    package_selection_args(workspace, package),
-                    <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), func_name.into()],
-                ]
-                .concat(),
-            ),
-        };
-
-        <span class="kw">let </span>debug_test_lens = CodeLens { range, command: <span class="prelude-val">Some</span>(debug_test_command), data: <span class="prelude-val">None </span>};
-
-        lenses.push(debug_test_lens);
+        lenses.push(test_lens(workspace, package, <span class="kw-2">&amp;</span>func_name, range));
+        lenses.push(debug_test_lens(workspace, package, func_name, range));
     }
 
     <span class="kw">if </span>package.is_binary() {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(main_func_id) = context.get_main_function(<span class="kw-2">&amp;</span>crate_id) {
-            <span class="kw">let </span>location = context.function_meta(<span class="kw-2">&amp;</span>main_func_id).name.location;
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(main_func_id) = def_maps[<span class="kw-2">&amp;</span>crate_id].main_function() {
+            <span class="kw">let </span>location = interner.function_meta(<span class="kw-2">&amp;</span>main_func_id).name.location;
             <span class="kw">let </span>file_id = location.file;
-
-            <span class="comment">// Ignore diagnostics for any file that wasn't the file we saved
-            // TODO: In the future, we could create "related" diagnostics for these files
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(file_path) = file_path {
-                <span class="kw">if </span>fm.path(file_id).expect(<span class="string">"file must exist to contain `main` function"</span>)
-                    != <span class="kw-2">*</span>file_path
-                {
-                    <span class="kw">return </span>lenses;
-                }
+            <span class="kw">if </span>file_id == current_file {
+                <span class="kw">let </span>range =
+                    byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
+                lenses.push(compile_lens(workspace, package, range));
+                lenses.push(info_lens(workspace, package, range));
+                lenses.push(execute_lens(workspace, package, range));
+                lenses.push(debug_lens(workspace, package, range));
             }
-
-            <span class="kw">let </span>range =
-                byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-            <span class="kw">let </span>compile_command = Command {
-                title: with_arrow(COMPILE_CODELENS_TITLE),
-                command: COMPILE_COMMAND.into(),
-                arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
-            };
-
-            <span class="kw">let </span>compile_lens = CodeLens { range, command: <span class="prelude-val">Some</span>(compile_command), data: <span class="prelude-val">None </span>};
-
-            lenses.push(compile_lens);
-
-            <span class="kw">let </span>internal_command_lenses = [
-                (INFO_CODELENS_TITLE, INFO_COMMAND),
-                (EXECUTE_CODELENS_TITLE, EXECUTE_COMMAND),
-                (DEBUG_CODELENS_TITLE, DEBUG_COMMAND),
-            ]
-            .map(|(title, command)| {
-                <span class="kw">let </span>command = Command {
-                    title: title.to_string(),
-                    command: command.into(),
-                    arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
-                };
-                CodeLens { range, command: <span class="prelude-val">Some</span>(command), data: <span class="prelude-val">None </span>}
-            });
-
-            lenses.append(<span class="kw-2">&amp;mut </span>Vec::from(internal_command_lenses));
         }
     }
 
     <span class="kw">if </span>package.is_contract() {
         <span class="comment">// Currently not looking to deduplicate this since we don't have a clear decision on if the Contract stuff is staying
-        </span><span class="kw">let </span>def_map =
-            context.def_map(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
+        </span><span class="kw">let </span>def_map = def_maps.get(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
 
         <span class="kw">for </span>contract <span class="kw">in </span>def_map
             .get_all_contracts()
-            .map(|(local_id, <span class="kw">_</span>)| context.module(ModuleId { krate: crate_id, local_id }))
+            .map(|(local_id, <span class="kw">_</span>)| ModuleId { krate: crate_id, local_id }.module(def_maps))
         {
             <span class="kw">let </span>location = contract.location;
             <span class="kw">let </span>file_id = location.file;
-
-            <span class="comment">// Ignore diagnostics for any file that wasn't the file we saved
-            // TODO: In the future, we could create "related" diagnostics for these files
-            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(file_path) = file_path {
-                <span class="kw">if </span>fm.path(file_id).expect(<span class="string">"file must exist to contain a contract"</span>) != <span class="kw-2">*</span>file_path {
-                    <span class="kw">continue</span>;
-                }
+            <span class="kw">if </span>file_id != current_file {
+                <span class="kw">continue</span>;
             }
 
             <span class="kw">let </span>range =
                 byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-
-            <span class="kw">let </span>compile_command = Command {
-                title: with_arrow(COMPILE_CODELENS_TITLE),
-                command: COMPILE_COMMAND.into(),
-                arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
-            };
-
-            <span class="kw">let </span>compile_lens = CodeLens { range, command: <span class="prelude-val">Some</span>(compile_command), data: <span class="prelude-val">None </span>};
-
-            lenses.push(compile_lens);
-
-            <span class="kw">let </span>info_command = Command {
-                title: INFO_CODELENS_TITLE.to_string(),
-                command: INFO_COMMAND.into(),
-                arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
-            };
-
-            <span class="kw">let </span>info_lens = CodeLens { range, command: <span class="prelude-val">Some</span>(info_command), data: <span class="prelude-val">None </span>};
-
-            lenses.push(info_lens);
+            lenses.push(compile_lens(workspace, package, range));
+            lenses.push(info_lens(workspace, package, range));
         }
     }
 
     lenses
+}
+
+<span class="kw">fn </span>info_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>info_command = Command {
+        title: INFO_CODELENS_TITLE.to_string(),
+        command: INFO_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(info_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="kw">fn </span>execute_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>info_command = Command {
+        title: EXECUTE_CODELENS_TITLE.to_string(),
+        command: EXECUTE_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(info_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="kw">fn </span>debug_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>info_command = Command {
+        title: DEBUG_CODELENS_TITLE.to_string(),
+        command: DEBUG_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(info_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="kw">fn </span>compile_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>compile_command = Command {
+        title: with_arrow(COMPILE_CODELENS_TITLE),
+        command: COMPILE_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(compile_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="kw">fn </span>test_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    func_name: <span class="kw-2">&amp;</span>str,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>test_command = Command {
+        title: with_arrow(TEST_CODELENS_TITLE),
+        command: TEST_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(
+            [
+                package_selection_args(workspace, package),
+                <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), <span class="string">"--show-output"</span>.into(), func_name.into()],
+            ]
+            .concat(),
+        ),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(test_command), data: <span class="prelude-val">None </span>}
+}
+
+<span class="kw">fn </span>debug_test_lens(
+    workspace: <span class="kw-2">&amp;</span>Workspace,
+    package: <span class="kw-2">&amp;</span>Package,
+    func_name: String,
+    range: async_lsp::lsp_types::Range,
+) -&gt; CodeLens {
+    <span class="kw">let </span>debug_test_command = Command {
+        title: <span class="macro">format!</span>(<span class="string">"{GEAR} {DEBUG_TEST_CODELENS_TITLE}"</span>),
+        command: DEBUG_TEST_COMMAND.into(),
+        arguments: <span class="prelude-val">Some</span>(
+            [package_selection_args(workspace, package), <span class="macro">vec!</span>[<span class="string">"--exact"</span>.into(), func_name.into()]]
+                .concat(),
+        ),
+    };
+    CodeLens { range, command: <span class="prelude-val">Some</span>(debug_test_command), data: <span class="prelude-val">None </span>}
 }
 </code></pre></div></section></main></body></html>

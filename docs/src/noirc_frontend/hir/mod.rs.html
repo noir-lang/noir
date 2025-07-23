@@ -303,7 +303,29 @@
 <a href="#302" id="302">302</a>
 <a href="#303" id="303">303</a>
 <a href="#304" id="304">304</a>
-<a href="#305" id="305">305</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a>
+<a href="#310" id="310">310</a>
+<a href="#311" id="311">311</a>
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a>
+<a href="#315" id="315">315</a>
+<a href="#316" id="316">316</a>
+<a href="#317" id="317">317</a>
+<a href="#318" id="318">318</a>
+<a href="#319" id="319">319</a>
+<a href="#320" id="320">320</a>
+<a href="#321" id="321">321</a>
+<a href="#322" id="322">322</a>
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a></pre></div><pre class="rust"><code><span class="kw">pub mod </span>comptime;
 <span class="kw">pub mod </span>def_collector;
 <span class="kw">pub mod </span>def_map;
 <span class="kw">pub mod </span>resolution;
@@ -314,6 +336,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::debug::DebugInstrumenter;
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::UnstableFeature;
 <span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
+<span class="kw">use </span><span class="kw">crate</span>::hir::def_map::DefMaps;
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::function::FuncMeta;
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{FuncId, NodeInterner, TypeId};
 <span class="kw">use </span><span class="kw">crate</span>::parser::ParserError;
@@ -446,17 +469,7 @@
     }
 
     <span class="kw">pub fn </span>fully_qualified_function_name(<span class="kw-2">&amp;</span><span class="self">self</span>, crate_id: <span class="kw-2">&amp;</span>CrateId, id: <span class="kw-2">&amp;</span>FuncId) -&gt; String {
-        <span class="kw">let </span>def_map = <span class="self">self</span>.def_map(crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
-
-        <span class="kw">let </span>name = <span class="self">self</span>.def_interner.function_name(id);
-
-        <span class="kw">let </span>module_id = <span class="self">self</span>.def_interner.function_module(<span class="kw-2">*</span>id);
-        <span class="kw">let </span>module = <span class="self">self</span>.module(module_id);
-
-        <span class="kw">let </span>parent =
-            def_map.get_module_path_with_separator(module_id.local_id, module.parent, <span class="string">"::"</span>);
-
-        <span class="kw">if </span>parent.is_empty() { name.into() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{parent}::{name}"</span>) }
+        fully_qualified_function_name(<span class="kw-2">*</span>crate_id, <span class="kw-2">*</span>id, <span class="kw-2">&amp;</span><span class="self">self</span>.def_interner, <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps)
     }
 
     <span class="doccomment">/// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
@@ -490,27 +503,12 @@
         crate_id: <span class="kw-2">&amp;</span>CrateId,
         pattern: <span class="kw-2">&amp;</span>FunctionNameMatch,
     ) -&gt; Vec&lt;(String, TestFunction)&gt; {
-        <span class="kw">let </span>interner = <span class="kw-2">&amp;</span><span class="self">self</span>.def_interner;
-        <span class="kw">let </span>def_map = <span class="self">self</span>.def_map(crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
-
-        def_map
-            .get_all_test_functions(interner)
-            .filter_map(|test_function| {
-                <span class="kw">let </span>fully_qualified_name =
-                    <span class="self">self</span>.fully_qualified_function_name(crate_id, <span class="kw-2">&amp;</span>test_function.id);
-                <span class="kw">match </span><span class="kw-2">&amp;</span>pattern {
-                    FunctionNameMatch::Anything =&gt; <span class="prelude-val">Some</span>((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Exact(patterns) =&gt; patterns
-                        .iter()
-                        .any(|pattern| <span class="kw-2">&amp;</span>fully_qualified_name == pattern)
-                        .then_some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Contains(patterns) =&gt; patterns
-                        .iter()
-                        .any(|pattern| fully_qualified_name.contains(pattern))
-                        .then_some((fully_qualified_name, test_function)),
-                }
-            })
-            .collect()
+        get_all_test_functions_in_crate_matching(
+            <span class="kw-2">*</span>crate_id,
+            pattern,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.def_interner,
+            <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps,
+        )
     }
 
     <span class="doccomment">/// Returns a list of all functions in the current crate marked with `#[fuzz]`
@@ -607,5 +605,51 @@
     <span class="kw">pub fn </span>set_comptime_printing(<span class="kw-2">&amp;mut </span><span class="self">self</span>, output: Rc&lt;RefCell&lt;<span class="kw">dyn </span>std::io::Write&gt;&gt;) {
         <span class="self">self</span>.interpreter_output = <span class="prelude-val">Some</span>(output);
     }
+}
+
+<span class="kw">pub fn </span>get_all_test_functions_in_crate_matching(
+    crate_id: CrateId,
+    pattern: <span class="kw-2">&amp;</span>FunctionNameMatch,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
+) -&gt; Vec&lt;(String, TestFunction)&gt; {
+    <span class="kw">let </span>def_map = def_maps.get(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
+
+    def_map
+        .get_all_test_functions(interner)
+        .filter_map(|test_function| {
+            <span class="kw">let </span>fully_qualified_name =
+                fully_qualified_function_name(crate_id, test_function.id, interner, def_maps);
+            <span class="kw">match </span><span class="kw-2">&amp;</span>pattern {
+                FunctionNameMatch::Anything =&gt; <span class="prelude-val">Some</span>((fully_qualified_name, test_function)),
+                FunctionNameMatch::Exact(patterns) =&gt; patterns
+                    .iter()
+                    .any(|pattern| <span class="kw-2">&amp;</span>fully_qualified_name == pattern)
+                    .then_some((fully_qualified_name, test_function)),
+                FunctionNameMatch::Contains(patterns) =&gt; patterns
+                    .iter()
+                    .any(|pattern| fully_qualified_name.contains(pattern))
+                    .then_some((fully_qualified_name, test_function)),
+            }
+        })
+        .collect()
+}
+
+<span class="kw">fn </span>fully_qualified_function_name(
+    crate_id: CrateId,
+    id: FuncId,
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
+) -&gt; String {
+    <span class="kw">let </span>def_map = def_maps.get(<span class="kw-2">&amp;</span>crate_id).expect(<span class="string">"The local crate should be analyzed already"</span>);
+
+    <span class="kw">let </span>name = interner.function_name(<span class="kw-2">&amp;</span>id);
+
+    <span class="kw">let </span>module_id = interner.function_module(id);
+    <span class="kw">let </span>module = module_id.module(def_maps);
+
+    <span class="kw">let </span>parent = def_map.get_module_path_with_separator(module_id.local_id, module.parent, <span class="string">"::"</span>);
+
+    <span class="kw">if </span>parent.is_empty() { name.into() } <span class="kw">else </span>{ <span class="macro">format!</span>(<span class="string">"{parent}::{name}"</span>) }
 }
 </code></pre></div></section></main></body></html>

@@ -394,16 +394,7 @@
 <a href="#393" id="393">393</a>
 <a href="#394" id="394">394</a>
 <a href="#395" id="395">395</a>
-<a href="#396" id="396">396</a>
-<a href="#397" id="397">397</a>
-<a href="#398" id="398">398</a>
-<a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a>
-<a href="#401" id="401">401</a>
-<a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a>
-<a href="#404" id="404">404</a>
-<a href="#405" id="405">405</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#396" id="396">396</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::ops::ControlFlow;
 <span class="kw">use </span>std::path::PathBuf;
 
@@ -484,7 +475,6 @@
     params: DidCloseTextDocumentParams,
 ) -&gt; ControlFlow&lt;<span class="prelude-ty">Result</span>&lt;(), async_lsp::Error&gt;&gt; {
     state.input_files.remove(<span class="kw-2">&amp;</span>params.text_document.uri.to_string());
-    state.cached_lenses.remove(<span class="kw-2">&amp;</span>params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(<span class="kw-2">&amp;</span>params.text_document.uri);
 
     state.open_documents_count -= <span class="number">1</span>;
@@ -559,14 +549,6 @@
             });
         }
 
-        <span class="kw">let </span>collected_lenses = <span class="kw">crate</span>::requests::collect_lenses_for_package(
-            <span class="kw-2">&amp;</span>context,
-            crate_id,
-            <span class="kw-2">&amp;</span>workspace,
-            package,
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_path),
-        );
-        state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
         state.package_cache.insert(
             package.root_dir.clone(),
             PackageCacheData {

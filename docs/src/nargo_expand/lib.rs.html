@@ -44,15 +44,11 @@
 <a href="#43" id="43">43</a>
 <a href="#44" id="44">44</a>
 <a href="#45" id="45">45</a>
-<a href="#46" id="46">46</a>
-<a href="#47" id="47">47</a>
-<a href="#48" id="48">48</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
-
-<span class="kw">use </span>nargo_fmt::ImportsGranularity;
+<a href="#46" id="46">46</a></pre></div><pre class="rust"><code><span class="kw">use </span>nargo_fmt::ImportsGranularity;
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
     graph::CrateGraph,
-    hir::def_map::{CrateDefMap, ModuleId},
+    hir::def_map::{DefMaps, ModuleId},
     node_interner::NodeInterner,
     parse_program_with_dummy_file,
 };
@@ -66,7 +62,7 @@
 </span><span class="kw">pub fn </span>get_expanded_crate(
     crate_id: CrateId,
     crate_graph: <span class="kw-2">&amp;</span>CrateGraph,
-    def_maps: <span class="kw-2">&amp;</span>BTreeMap&lt;CrateId, CrateDefMap&gt;,
+    def_maps: <span class="kw-2">&amp;</span>DefMaps,
     interner: <span class="kw-2">&amp;</span>NodeInterner,
 ) -&gt; String {
     <span class="kw">let </span>root_module_id = def_maps[<span class="kw-2">&amp;</span>crate_id].root();
