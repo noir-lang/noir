@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753311746916,
+  "lastUpdate": 1753313628894,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17461,48 +17461,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "05f63aaea51e2514d4b99d499da57d6626ca36ac",
-          "message": "chore: document `verify_proof_with_type` and deprecate `verify_proof` (#9199)",
-          "timestamp": "2025-07-15T10:24:40+01:00",
-          "tree_id": "004dd6f615dbe5bd70c296179ad720c0b0f065b4",
-          "url": "https://github.com/noir-lang/noir/commit/05f63aaea51e2514d4b99d499da57d6626ca36ac"
-        },
-        "date": 1752571659316,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 272345,
-            "range": "± 2480",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 245194,
-            "range": "± 3471",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2874030,
-            "range": "± 18144",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6b2efe05967610d2bc7547046019d24c12831439",
           "message": "feat: optimize \"out of bounds\" checks on arrays with lengths which are powers of two (#9182)",
           "timestamp": "2025-07-15T10:25:09+01:00",
@@ -19544,6 +19502,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780351,
             "range": "± 2139",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f0731641b20bea7ed4bd52194b235b034022439a",
+          "message": "chore(LSP): simplify code lens request handling (#9279)",
+          "timestamp": "2025-07-23T23:08:48Z",
+          "tree_id": "8360c228499b266eca69e78500dd2233d3475191",
+          "url": "https://github.com/noir-lang/noir/commit/f0731641b20bea7ed4bd52194b235b034022439a"
+        },
+        "date": 1753313612590,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262674,
+            "range": "± 2420",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232113,
+            "range": "± 4473",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2886012,
+            "range": "± 35097",
             "unit": "ns/iter"
           }
         ]
