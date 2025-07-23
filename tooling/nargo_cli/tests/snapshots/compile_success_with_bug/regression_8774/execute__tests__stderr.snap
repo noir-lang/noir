@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-bug: Assertion is always false: Index out of bounds, array has size 0
+bug: Assertion is always false: Index out of bounds
   ┌─ src/main.nr:3:6
   │
 3 │     *d[0]

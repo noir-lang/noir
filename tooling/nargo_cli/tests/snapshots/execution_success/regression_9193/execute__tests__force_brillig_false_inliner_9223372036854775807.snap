@@ -17,9 +17,9 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "12639702852095440652": {
+      "14225679739041873922": {
         "error_kind": "string",
-        "string": "Index out of bounds, array has size 0"
+        "string": "Index out of bounds"
       }
     }
   },
@@ -29,9 +29,9 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "EXPR [ (1, _0) 0 ]"
+    "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "jZDdCoMwDIXfJde9cH8X81XGkFqjFEJaYjsY4rsvyrrpxWBXaXL6nZAzQYdtHhrPfRihvk3QiifyQ0PB2eQD63SaDZS2SYKoI9joSkUryAlqzkQGHpby+mmMltearKhaGUDutKph7wmX12y+dPUbPRX2dPjAl//pc6GvO/qunXVedtdCBfVxXszE25bwnUCf2W0CSc9YlBJZlOCwy4KL3arpghc=",
+  "debug_symbols": "dY/BDoIwDIbfpecdMOpBXsUYMkYhTZpuKZuJIby7hYDiwVPX/vv+9p+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuayfxuRlrdmrqZUDlM6qGfbEuLxm96Wr/+j5srHn2we+Gv2wzgfSn3uhgvo0L2ZKvmXcMvRFwiFSfqVd2UMnjQG7orjYrZoteAM=",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",
