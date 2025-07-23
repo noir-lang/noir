@@ -22,6 +22,8 @@ pub enum BlackBoxFunc {
     RANGE,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2s]
     Blake2s,
+    /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake2b]
+    Blake2b,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::Blake3]
     Blake3,
     /// More details can be found at [crate::circuit::opcodes::BlackBoxFuncCall::EcdsaSecp256k1]
@@ -65,6 +67,7 @@ impl BlackBoxFunc {
         match self {
             BlackBoxFunc::AES128Encrypt => "aes128_encrypt",
             BlackBoxFunc::Blake2s => "blake2s",
+            BlackBoxFunc::Blake2b => "blake2b",
             BlackBoxFunc::Blake3 => "blake3",
             BlackBoxFunc::EcdsaSecp256k1 => "ecdsa_secp256k1",
             BlackBoxFunc::MultiScalarMul => "multi_scalar_mul",
@@ -90,6 +93,7 @@ impl BlackBoxFunc {
         match op_name {
             "aes128_encrypt" => Some(BlackBoxFunc::AES128Encrypt),
             "blake2s" => Some(BlackBoxFunc::Blake2s),
+            "blake2b" => Some(BlackBoxFunc::Blake2b),
             "blake3" => Some(BlackBoxFunc::Blake3),
             "ecdsa_secp256k1" => Some(BlackBoxFunc::EcdsaSecp256k1),
             "ecdsa_secp256r1" => Some(BlackBoxFunc::EcdsaSecp256r1),
@@ -122,6 +126,7 @@ impl BlackBoxFunc {
             | BlackBoxFunc::XOR
             | BlackBoxFunc::RANGE
             | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake2b
             | BlackBoxFunc::Blake3
             | BlackBoxFunc::EcdsaSecp256k1
             | BlackBoxFunc::EcdsaSecp256r1

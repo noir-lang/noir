@@ -1,6 +1,7 @@
 import { expect } from '@esm-bundle/chai';
 import initACVM, {
   and,
+  blake2b256,
   blake2s256,
   ecdsa_secp256k1_verify,
   ecdsa_secp256r1_verify,
@@ -46,6 +47,16 @@ it('successfully calculates the blake2s256 hash', async () => {
   for (const testCase of blake2s256_test_cases) {
     const [preimage, expectedResult] = testCase;
     const hash = blake2s256(preimage);
+    hash.forEach((value, index) => expect(value).to.be.eq(expectedResult.at(index)));
+  }
+});
+
+it('successfully calculates the blake2b256 hash', async () => {
+  const { blake2b256_test_cases } = await import('../shared/black_box_solvers');
+
+  for (const testCase of blake2b256_test_cases) {
+    const [preimage, expectedResult] = testCase;
+    const hash = blake2b256(preimage);
     hash.forEach((value, index) => expect(value).to.be.eq(expectedResult.at(index)));
   }
 });

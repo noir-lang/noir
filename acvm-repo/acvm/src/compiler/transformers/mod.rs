@@ -402,6 +402,10 @@ where
                 self.fold_function_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
             }
+            BlackBoxFuncCall::Blake2b { inputs, outputs } => {
+                self.fold_function_inputs(inputs.as_slice());
+                self.fold_many(outputs.iter());
+            }
             BlackBoxFuncCall::Blake3 { inputs, outputs } => {
                 self.fold_function_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());
