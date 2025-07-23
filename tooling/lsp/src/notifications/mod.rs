@@ -79,7 +79,6 @@ pub(super) fn on_did_close_text_document(
     params: DidCloseTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
-    state.cached_lenses.remove(&params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     state.open_documents_count -= 1;
@@ -154,14 +153,6 @@ pub(crate) fn process_workspace_for_noir_document(
             });
         }
 
-        let collected_lenses = crate::requests::collect_lenses_for_package(
-            &context,
-            crate_id,
-            &workspace,
-            package,
-            Some(&file_path),
-        );
-        state.cached_lenses.insert(document_uri.to_string(), collected_lenses);
         state.package_cache.insert(
             package.root_dir.clone(),
             PackageCacheData {
