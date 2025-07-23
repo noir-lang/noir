@@ -93,14 +93,16 @@ expression: artifact
     "BLACKBOX::RANGE [(_21, 31)] []",
     "BLACKBOX::RANGE [(_22, 1)] []",
     "EXPR [ (2, _1) (-2, _21) (-1, _22) 0 ]",
-    "EXPR [ (1, _0, _22) (-1, _23) 0 ]",
+    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(22))], q_c: 4294967294 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(23)), Simple(Witness(24))]",
     "BLACKBOX::RANGE [(_23, 1)] []",
-    "EXPR [ (-1, _0, _22) (1, _22) (-1, _24) 0 ]",
-    "BLACKBOX::RANGE [(_24, 1)] []",
+    "BLACKBOX::RANGE [(_24, 32)] []",
+    "EXPR [ (1, _22) (-4294967296, _23) (-1, _24) 4294967294 ]",
+    "EXPR [ (-1, _0, _23) 0 ]",
+    "EXPR [ (1, _0, _23) (-1, _23) 0 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZJBDoMgEEXvMmsWSkVbr9I0BnVsSAgaCk0a4907irR10Q2rB3weTGBm6LH190aZYXxAfZ2htUprdW/02EmnRkOr88IgThtnEWkJfnKyJmnROKiN15rBU2q/bXpM0mx00lKaMUDTE+nAQWlcRwv72tl/NT9Vu5wX+UcXSf4lyS+jX1ZJvoh+JZL8IvrnLMHn2WX3uTjef6OZ7JQ9/DjwnFIGnAecAooAEVAGVFDT2/AzYVkLsEq2Gve+GbzpftrIvaaYxEab7Nhh7y2uBWwZlfQG",
+  "debug_symbols": "nZLNroMgEEbfZdYsEEWrr3JzY1DHhoSgodCkMX33jlL6s+iG1QE+DgxkNphwCOde23m5QPe3weC0Mfrcm2VUXi+WVrc7gzTtvUOkJfjIyVqVQ+uhs8EYBldlwrHpsip70CtHKWeAdiLSgbM2uI/u7G3z32pRNk+5qIqXLrP8Nsuvk183Wb5MfiOz/Cr5J57ji/bliwxf8HS/kN/v/6eZGrX76hgQBaUMhIgoI6oICR39pqgjmohTRHug5NDt11yV02ow+OzCOdjxoyn9bU1JatvVLSNOweFezpFRgQ8=",
   "file_map": {
     "50": {
       "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",
