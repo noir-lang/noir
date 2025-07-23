@@ -122,20 +122,9 @@ pub(crate) fn collect_lenses_for_file(
                 let range =
                     byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
                 lenses.push(compile_lens(workspace, package, range));
-
-                let internal_command_lenses = [
-                    (INFO_CODELENS_TITLE, INFO_COMMAND),
-                    (EXECUTE_CODELENS_TITLE, EXECUTE_COMMAND),
-                    (DEBUG_CODELENS_TITLE, DEBUG_COMMAND),
-                ];
-                for (title, command) in internal_command_lenses {
-                    let command = Command {
-                        title: title.to_string(),
-                        command: command.into(),
-                        arguments: Some(package_selection_args(workspace, package)),
-                    };
-                    lenses.push(CodeLens { range, command: Some(command), data: None });
-                }
+                lenses.push(info_lens(workspace, package, range));
+                lenses.push(execute_lens(workspace, package, range));
+                lenses.push(debug_lens(workspace, package, range));
             }
         }
     }
@@ -172,6 +161,32 @@ fn info_lens(
     let info_command = Command {
         title: INFO_CODELENS_TITLE.to_string(),
         command: INFO_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(info_command), data: None }
+}
+
+fn execute_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let info_command = Command {
+        title: EXECUTE_CODELENS_TITLE.to_string(),
+        command: EXECUTE_COMMAND.into(),
+        arguments: Some(package_selection_args(workspace, package)),
+    };
+    CodeLens { range, command: Some(info_command), data: None }
+}
+
+fn debug_lens(
+    workspace: &Workspace,
+    package: &Package,
+    range: async_lsp::lsp_types::Range,
+) -> CodeLens {
+    let info_command = Command {
+        title: DEBUG_CODELENS_TITLE.to_string(),
+        command: DEBUG_COMMAND.into(),
         arguments: Some(package_selection_args(workspace, package)),
     };
     CodeLens { range, command: Some(info_command), data: None }
