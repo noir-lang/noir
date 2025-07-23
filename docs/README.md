@@ -48,6 +48,8 @@ yarn workspace docs dev
 This command starts a local development server and opens up a browser window. Most changes are
 reflected live without having to restart the server.
 
+**Note:** Auto-generated docs (e.g. Nargo and NoirJS reference docs) do not generate in dev mode. Go through the build process below instead to preview changes in such sections.
+
 ### Build
 
 From the _noir_ root directory:
