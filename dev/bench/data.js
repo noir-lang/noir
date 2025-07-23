@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753298701893,
+  "lastUpdate": 1753298703694,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3687,85 +3687,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a",
-          "message": "feat(fuzz): Generate Match expressions and statements (#9108)",
-          "timestamp": "2025-07-14T21:53:02Z",
-          "tree_id": "a50c705b44243969ea228784a2219051b9ca8a69",
-          "url": "https://github.com/noir-lang/noir/commit/49c49ce89ff8a5fbd76df25686ffe60d3ff77c4a"
-        },
-        "date": 1752531921308,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.842,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.24,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.386,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.28,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.436,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.776,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "232e96ba102c4429dca46196c314cafc7f8e8850",
           "message": "chore(fuzz): Print AST with numeric type suffixes (#9061)",
@@ -7341,6 +7262,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.553,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6cb434770ddc3bf601cb0803af01c71c1e5476c3",
+          "message": "fix: check associated types after validating where clause when looking up trait impls, plus some unification fixes (#9265)",
+          "timestamp": "2025-07-23T18:56:22Z",
+          "tree_id": "c6bc4ef5fc5d15cb2a2fd18334b9ac424db0684a",
+          "url": "https://github.com/noir-lang/noir/commit/6cb434770ddc3bf601cb0803af01c71c1e5476c3"
+        },
+        "date": 1753298684555,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.758,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.264,
             "unit": "s"
           }
         ]
