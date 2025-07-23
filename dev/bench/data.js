@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753274277884,
+  "lastUpdate": 1753274287418,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11552,75 +11552,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "fc79564ffe76da545e0db681b440524ecdeb9c39",
-          "message": "fix: handle MakeArray values in DIE for finding mutated array types (#9176)",
-          "timestamp": "2025-07-11T16:19:03Z",
-          "tree_id": "4d161a651bfe96f37dd10bf8776b09f1d37f1010",
-          "url": "https://github.com/noir-lang/noir/commit/fc79564ffe76da545e0db681b440524ecdeb9c39"
-        },
-        "date": 1752254276868,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 189.55,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 225.34,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 178.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.02,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 326.7,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.18,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "71f57a2e3ce850ce65d88a16598d665f99e311b0",
           "message": "fix: disallow trait associated constants to have a default value (#9172)",
           "timestamp": "2025-07-11T16:20:08Z",
@@ -15075,6 +15006,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3c18e331de7b0bdec60b94f625158e453de622cb"
         },
         "date": 1753190903226,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.3,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.56,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aac99e244010bfeda30d5789d11c7f9c081cae03",
+          "message": "chore: Mark `sparse_array` and `noir_json_parser` as non-critical (#9282)",
+          "timestamp": "2025-07-23T13:20:00+01:00",
+          "tree_id": "9068e1f26bbe68ab36217bfb28f3ea7b3bab9eb0",
+          "url": "https://github.com/noir-lang/noir/commit/aac99e244010bfeda30d5789d11c7f9c081cae03"
+        },
+        "date": 1753274270942,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
