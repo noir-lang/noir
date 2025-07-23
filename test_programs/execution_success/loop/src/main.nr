@@ -9,7 +9,7 @@ fn main(six_as_u32: u32) {
 
     // Safety: testing context
     unsafe {
-        assert(basic_break() == true)
+        assert(basic_break())
     }
 }
 
