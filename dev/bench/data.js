@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753289935166,
+  "lastUpdate": 1753289937274,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7575,75 +7575,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9efc476d14414b55412ad187c0960871a5f33997",
-          "message": "fix(fuzz): Avoid suffixing slice length modulo blocks with an index access (#9177)",
-          "timestamp": "2025-07-14T17:09:08Z",
-          "tree_id": "d5d7e3bb0a67a7e4abfc36d50b99cb603b8325b0",
-          "url": "https://github.com/noir-lang/noir/commit/9efc476d14414b55412ad187c0960871a5f33997"
-        },
-        "date": 1752514929436,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.292,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.188,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -10943,6 +10874,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.101,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "72b6ec49244a657b080b4804ed899ded59857e00",
+          "message": "chore(docs): Copy Type Coercions docs into v1.0.0-beta.8 versioned docs (#9298)",
+          "timestamp": "2025-07-23T16:29:49Z",
+          "tree_id": "d8650649ba6eaa8573ccad955c4099091839c720",
+          "url": "https://github.com/noir-lang/noir/commit/72b6ec49244a657b080b4804ed899ded59857e00"
+        },
+        "date": 1753289914252,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.099,
             "unit": "s"
           }
         ]
