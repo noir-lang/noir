@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 497
 expression: artifact
 ---
 {
@@ -23,7 +24,7 @@ expression: artifact
     "return value indices : [_0]",
     "EXPR [ (1, _0) -1 ]"
   ],
-  "debug_symbols": "ndLRCoMgFAbgd/G6i7KtslcZI8xOIYiKaTCid5+Fbm0wGF7pOb/fQdAVDdC7qeNyVDNqbyvqDReCT51QjFqupO+uW4Zi2VkD4FvolHulqQFpUSudEBlaqHDHoVlTeayWGp/mGQI5+NUPHLmAfbdlb53/plW0VfPC1791UTSBF2Wd4kkZPUnx+EKCx9c8xVfx/rjGKZ7g4Mv80999RRk33++9UMNpLyCUo5PslNqHjkn8L9ooBoMzsE86Mj/7CQ==",
+  "debug_symbols": "pdLdCoMgFAfwd/G6i7Kv2auMEWanEETFNBjRu88iWxvsxl3p8e/vqOCCeujc2HI5qAk19wV1hgvBx1YoRi1X0q8ua4JC2VoD4JfQJfdKUwPSokY6IRI0U+H2TZOmch8tNT5NEwSy96NvOHAB22xN3jr9TbPsduAMFycvY3xex3iSB09iPC7I4XGZxvgq3B9X5D9f4xhPcPBx7z99nn6e//AVZdx8/7iZGk47AUc5OMkuqX3qkIQfq41i0DsDW6c9871f",
   "file_map": {},
   "names": [
     "main"
