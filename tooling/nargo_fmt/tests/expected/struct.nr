@@ -58,8 +58,8 @@ fn main(x: Field, y: Field) {
 
     // Nested structs
     let (struct_from_tuple, a_bool) = test_struct_in_tuple(true, x, y);
-    assert(struct_from_tuple.my_bool == true);
-    assert(a_bool == true);
+    assert(struct_from_tuple.my_bool);
+    assert(a_bool);
     assert(struct_from_tuple.my_int == 5);
     assert(struct_from_tuple.my_nest.a == 0);
 
