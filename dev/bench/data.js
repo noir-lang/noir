@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753298736077,
+  "lastUpdate": 1753298830865,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17761,48 +17761,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "232e96ba102c4429dca46196c314cafc7f8e8850",
-          "message": "chore(fuzz): Print AST with numeric type suffixes (#9061)",
-          "timestamp": "2025-07-15T08:18:29Z",
-          "tree_id": "929bcd41ac18a070fdc44d790c400372a7b2326e",
-          "url": "https://github.com/noir-lang/noir/commit/232e96ba102c4429dca46196c314cafc7f8e8850"
-        },
-        "date": 1752569068059,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 264213,
-            "range": "± 1549",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235910,
-            "range": "± 1130",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785993,
-            "range": "± 2094",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -19854,6 +19812,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776862,
             "range": "± 1498",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ee66c987f6392c05e6b46cdd9560d38251b0fb24",
+          "message": "fix: disallow `_` in signatures and struct members (#9301)",
+          "timestamp": "2025-07-23T19:00:39Z",
+          "tree_id": "9c8bf2cc249556381101bfaecbd7d0613af6a6c1",
+          "url": "https://github.com/noir-lang/noir/commit/ee66c987f6392c05e6b46cdd9560d38251b0fb24"
+        },
+        "date": 1753298814879,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250152,
+            "range": "± 385",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219955,
+            "range": "± 7612",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779156,
+            "range": "± 5137",
             "unit": "ns/iter"
           }
         ]
