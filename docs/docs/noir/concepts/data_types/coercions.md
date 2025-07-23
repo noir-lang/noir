@@ -32,7 +32,7 @@ Note that:
 - `&T` requires the experimental `-Zownership` flag to be enabled.
 
 Examples:
-```noir
+```rust
 fn requires_slice(_slice: [Field]) {}
 comptime fn requires_ct_string(_s: CtString) {}
 
