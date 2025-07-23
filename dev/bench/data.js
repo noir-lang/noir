@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753291626147,
+  "lastUpdate": 1753291766273,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -27236,6 +27236,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/72b6ec49244a657b080b4804ed899ded59857e00"
         },
         "date": 1753289914932,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68",
+          "message": "chore: Add a helper function `fmtstr::as_quoted_str` (#9293)",
+          "timestamp": "2025-07-23T17:00:54Z",
+          "tree_id": "d9807b07914d003b0895a3c934e9642c285d676a",
+          "url": "https://github.com/noir-lang/noir/commit/4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68"
+        },
+        "date": 1753291750844,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
