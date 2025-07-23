@@ -863,6 +863,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             &mut flatten_values_idx,
                             return_type,
                         )?;
+                        debug_assert_eq!(
+                            flatten_values_idx,
+                            output_fields.len(),
+                            "Not all values were written to memory"
+                        );
                     }
                 }
                 (
