@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_for_constant_jmpif","check_for_converging_jmpif","check_for_double_jmp","check_for_negated_jmpif_condition","remove_block_parameters","resolve_jmp_chain","try_inline_into_predecessor"]};
+window.SIDEBAR_ITEMS = {"fn":["check_for_constant_jmpif","check_for_converging_jmpif","check_for_double_jmp","check_for_negated_jmpif_condition","remove_block_parameters","resolve_jmp_chain","simplify_current_block","try_inline_into_predecessor"]};

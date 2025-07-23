@@ -772,7 +772,106 @@
 <a href="#771" id="771">771</a>
 <a href="#772" id="772">772</a>
 <a href="#773" id="773">773</a>
-<a href="#774" id="774">774</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
 //!
 //! This is a rather simple pass that is expected to be cheap to perform. It:
 //! 1. Removes blocks with no predecessors
@@ -822,21 +921,23 @@
         <span class="kw">let </span><span class="kw-2">mut </span>visited = HashSet::new();
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = stack.pop() {
-            <span class="kw">if </span>visited.insert(block) {
-                stack.extend(<span class="self">self</span>.dfg[block].successors().filter(|block| !visited.contains(block)));
+            <span class="kw">if </span>cfg.predecessors(block).len() == <span class="number">0 </span>&amp;&amp; block != <span class="self">self</span>.entry_block() {
+                <span class="comment">// If the block has no predecessors, it's no longer reachable and can be ignored.
+                </span>cfg.invalidate_block_successors(block);
+                <span class="kw">continue</span>;
             }
 
             <span class="kw">if </span>!values_to_replace.is_empty() {
                 <span class="self">self</span>.dfg.replace_values_in_block_instructions(block, <span class="kw-2">&amp;</span>values_to_replace);
             }
 
-            check_for_negated_jmpif_condition(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg);
+            <span class="comment">// First perform any simplifications on the current block, this ensures that we add the proper successors
+            // to the stack.
+            </span>simplify_current_block(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg);
 
-            <span class="comment">// This call is before try_inline_into_predecessor so that if it succeeds in changing a
-            // jmpif into a jmp, the block may then be inlined entirely into its predecessor in try_inline_into_predecessor.
-            </span>check_for_constant_jmpif(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg);
-
-            check_for_converging_jmpif(<span class="self">self</span>, block, <span class="kw-2">&amp;mut </span>cfg);
+            <span class="kw">if </span>visited.insert(block) {
+                stack.extend(<span class="self">self</span>.dfg[block].successors().filter(|block| !visited.contains(block)));
+            }
 
             <span class="kw">let </span><span class="kw-2">mut </span>predecessors = cfg.predecessors(block);
             <span class="kw">if </span>predecessors.len() == <span class="number">1 </span>{
@@ -875,12 +976,32 @@
     }
 }
 
+<span class="doccomment">/// A helper function to simplify the current block based on information on its successors.
+///
+/// This function will recursively simplify the current block until no further simplifications can be made.
+</span><span class="kw">fn </span>simplify_current_block(
+    function: <span class="kw-2">&amp;mut </span>Function,
+    block: BasicBlockId,
+    cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
+) {
+    <span class="comment">// These functions return `true` if they successfully simplified the CFG for the current block.
+    </span><span class="kw">let </span><span class="kw-2">mut </span>simplified = <span class="bool-val">false</span>;
+
+    simplified |= check_for_negated_jmpif_condition(function, block, cfg);
+    simplified |= check_for_constant_jmpif(function, block, cfg);
+    simplified |= check_for_converging_jmpif(function, block, cfg);
+
+    <span class="kw">if </span>simplified {
+        simplify_current_block(function, block, cfg);
+    }
+}
+
 <span class="doccomment">/// Optimize a jmpif into a jmp if the condition is known
 </span><span class="kw">fn </span>check_for_constant_jmpif(
     function: <span class="kw-2">&amp;mut </span>Function,
     block: BasicBlockId,
     cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
-) {
+) -&gt; bool {
     <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
         condition,
         then_destination,
@@ -906,9 +1027,12 @@
             </span><span class="kw">if </span>cfg.predecessors(unchosen_destination).len() == <span class="number">0 </span>{
                 cfg.invalidate_block_successors(unchosen_destination);
             }
+
+            <span class="kw">return </span><span class="bool-val">true</span>;
         }
     }
-}
+    <span class="bool-val">false
+</span>}
 
 <span class="doccomment">/// Optimize a jmp to a block which immediately jmps elsewhere to just jmp to the second block.
 </span><span class="kw">fn </span>check_for_double_jmp(function: <span class="kw-2">&amp;mut </span>Function, block: BasicBlockId, cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph) {
@@ -917,13 +1041,15 @@
         </span><span class="kw">return</span>;
     }
 
-    <span class="kw">if </span>!function.dfg[block].instructions().is_empty()
+    <span class="comment">// We only want to remove double jumps if the block has no instructions or parameters.
+    </span><span class="kw">if </span>!function.dfg[block].instructions().is_empty()
         || !function.dfg[block].parameters().is_empty()
     {
         <span class="kw">return</span>;
     }
 
-    <span class="kw">let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
+    <span class="comment">// We expect the block to have a simple jmp terminator with no arguments.
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination: final_destination, arguments, .. }) =
         function.dfg[block].terminator()
     <span class="kw">else </span>{
         <span class="kw">return</span>;
@@ -935,7 +1061,9 @@
 
     <span class="kw">let </span>final_destination = <span class="kw-2">*</span>final_destination;
 
-    <span class="kw">let </span>predecessors: Vec&lt;<span class="kw">_</span>&gt; = cfg.predecessors(block).collect();
+    <span class="comment">// At this point we know that `block` is a simple jmp block with no instructions or parameters.
+    // We can then update all of its predecessors to jump directly to the final destination.
+    </span><span class="kw">let </span>predecessors: Vec&lt;<span class="kw">_</span>&gt; = cfg.predecessors(block).collect();
     <span class="kw">for </span>predecessor_block <span class="kw">in </span>predecessors {
         <span class="kw">let </span>terminator_instruction = function.dfg[predecessor_block].take_terminator();
         <span class="kw">let </span>redirected_terminator_instruction = <span class="kw">match </span>terminator_instruction {
@@ -985,7 +1113,7 @@
     function: <span class="kw-2">&amp;mut </span>Function,
     block: BasicBlockId,
     cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
-) {
+) -&gt; bool {
     <span class="kw">if </span><span class="macro">matches!</span>(function.runtime(), RuntimeType::Acir(<span class="kw">_</span>)) {
         <span class="comment">// Swapping the `then` and `else` branches of a `JmpIf` within an ACIR function
         // can result in the situation where the branches merge together again in the `then` block, e.g.
@@ -1003,7 +1131,7 @@
         // the `else` block or a 3rd block.
         //
         // See: https://github.com/noir-lang/noir/pull/5891#issuecomment-2500219428
-        </span><span class="kw">return</span>;
+        </span><span class="kw">return </span><span class="bool-val">false</span>;
     }
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
@@ -1024,10 +1152,12 @@
                 };
                 function.dfg[block].set_terminator(jmpif);
                 cfg.recompute_block(function, block);
+                <span class="kw">return </span><span class="bool-val">true</span>;
             }
         }
     }
-}
+    <span class="bool-val">false
+</span>}
 
 <span class="doccomment">/// Attempts to simplify a `jmpif` terminator if both branches converge.
 ///
@@ -1038,19 +1168,19 @@
     function: <span class="kw-2">&amp;mut </span>Function,
     block: BasicBlockId,
     cfg: <span class="kw-2">&amp;mut </span>ControlFlowGraph,
-) {
+) -&gt; bool {
     <span class="kw">if </span><span class="macro">matches!</span>(function.runtime(), RuntimeType::Acir(<span class="kw">_</span>)) {
         <span class="comment">// The `flatten_cfg` pass expects two blocks to join to the same block.
         // If we have a nested if the inner if statement could potentially be a converging jmpif.
         // This may change the final block we converge into.
-        </span><span class="kw">return</span>;
+        </span><span class="kw">return </span><span class="bool-val">false</span>;
     }
 
     <span class="kw">let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf {
         then_destination, else_destination, call_stack, ..
     }) = function.dfg[block].terminator()
     <span class="kw">else </span>{
-        <span class="kw">return</span>;
+        <span class="kw">return </span><span class="bool-val">false</span>;
     };
 
     <span class="kw">let </span>then_final = resolve_jmp_chain(function, <span class="kw-2">*</span>then_destination);
@@ -1066,7 +1196,10 @@
         };
         function.dfg[block].set_terminator(jmp);
         cfg.recompute_block(function, block);
-    }
+        <span class="bool-val">true
+    </span>} <span class="kw">else </span>{
+        <span class="bool-val">false
+    </span>}
 }
 
 <span class="doccomment">/// Follow a chain of empty blocks to find the real destination.
@@ -1542,6 +1675,71 @@
             jmpif v2 then: b1, else: b1
           b1():
             jmp b1()
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>completely_removes_noop_jmpif() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0():
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.simplify_cfg();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>handles_cascading_simplifications() {
+        <span class="comment">// Simplifying the CFG from a block can result the block being updated to a form which can be simplified further.
+        // We want to ensure that we handle any followup simplifications correctly.
+        //
+        // In this case we have a jmpif which is simplified to a jmp, which then can be inlined into its predecessor.
+        // The new terminator instruction of the block is then a jmpif which can be simplified to a jmp.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u1 1)
+          b2():
+            jmp b3(u1 0)
+          b3(v0: u1):
+            jmpif v0 then: b4, else: b5
+          b4():
+            jmp b6()
+          b5():
+            jmp b6()
+          b6():
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.simplify_cfg();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            return
         }
         "</span>);
     }
