@@ -656,8 +656,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
     /// Get input data from memory to pass to foreign calls.
     ///
-    /// We might consider prefixing `HeapVector` with its capacity here, which can be different from the length
-    /// that is passed along in a separate variable.
+    /// It returns `HeapVectors`, which represent slices, prefixed by their capacity.
     fn get_memory_values(
         &self,
         input: ValueOrArray,
@@ -684,11 +683,16 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             ) => {
                 let start = self.memory.read_ref(pointer_index);
                 let size = self.memory.read(size_index).to_usize();
-                self.read_slice_of_values_from_memory(start, size, value_types)
-                    .into_iter()
-                    .map(|mem_value| mem_value.to_field())
-                    .collect::<Vec<_>>()
-                    .into()
+                // Prefix slices with their capacity, which could be higher than their semantic length,
+                // which is passed as a separate foreign call parameter; both are needed for accurate
+                // decoding once the data has been flattened, which is how printable types consume it.
+                let mut values = vec![F::from(size)];
+                values.extend(
+                    self.read_slice_of_values_from_memory(start, size, value_types)
+                        .into_iter()
+                        .map(|mem_value| mem_value.to_field()),
+                );
+                values.into()
             }
             _ => {
                 unreachable!("Unexpected value type {value_type:?} for input {input:?}");
