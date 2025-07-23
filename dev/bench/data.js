@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753298961501,
+  "lastUpdate": 1753298963382,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26623,6 +26623,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6cb434770ddc3bf601cb0803af01c71c1e5476c3"
         },
         "date": 1753298684680,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ee66c987f6392c05e6b46cdd9560d38251b0fb24",
+          "message": "fix: disallow `_` in signatures and struct members (#9301)",
+          "timestamp": "2025-07-23T19:00:39Z",
+          "tree_id": "9c8bf2cc249556381101bfaecbd7d0613af6a6c1",
+          "url": "https://github.com/noir-lang/noir/commit/ee66c987f6392c05e6b46cdd9560d38251b0fb24"
+        },
+        "date": 1753298945853,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
