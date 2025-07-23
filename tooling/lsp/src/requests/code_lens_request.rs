@@ -121,7 +121,7 @@ pub(crate) fn collect_lenses_for_file(
             if file_id == current_file {
                 let range =
                     byte_span_to_range(files, file_id, location.span.into()).unwrap_or_default();
-                lenses.push(compile_code_lens(workspace, package, range));
+                lenses.push(compile_lens(workspace, package, range));
 
                 let internal_command_lenses = [
                     (INFO_CODELENS_TITLE, INFO_COMMAND),
@@ -178,19 +178,6 @@ fn info_lens(
 }
 
 fn compile_lens(
-    workspace: &Workspace,
-    package: &Package,
-    range: async_lsp::lsp_types::Range,
-) -> CodeLens {
-    let compile_command = Command {
-        title: with_arrow(COMPILE_CODELENS_TITLE),
-        command: COMPILE_COMMAND.into(),
-        arguments: Some(package_selection_args(workspace, package)),
-    };
-    CodeLens { range, command: Some(compile_command), data: None }
-}
-
-fn compile_code_lens(
     workspace: &Workspace,
     package: &Package,
     range: async_lsp::lsp_types::Range,
