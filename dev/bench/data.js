@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753297108785,
+  "lastUpdate": 1753297111057,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26945,6 +26945,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68"
         },
         "date": 1753291750844,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7408cbe9abf0d329def8f56cc21d5941436ceedb",
+          "message": "chore: Add fmtstr to coercions list (#9300)",
+          "timestamp": "2025-07-23T18:30:02Z",
+          "tree_id": "19bf402513c8032ae66248b70aa5d14ff6c42ac2",
+          "url": "https://github.com/noir-lang/noir/commit/7408cbe9abf0d329def8f56cc21d5941436ceedb"
+        },
+        "date": 1753297093662,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
