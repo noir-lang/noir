@@ -308,7 +308,7 @@ pub fn get_all_test_functions_in_crate_matching(
         .collect()
 }
 
-pub fn fully_qualified_function_name(
+fn fully_qualified_function_name(
     crate_id: CrateId,
     id: FuncId,
     interner: &NodeInterner,
