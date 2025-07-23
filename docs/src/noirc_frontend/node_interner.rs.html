@@ -2700,9 +2700,7 @@
 <a href="#2699" id="2699">2699</a>
 <a href="#2700" id="2700">2700</a>
 <a href="#2701" id="2701">2701</a>
-<a href="#2702" id="2702">2702</a>
-<a href="#2703" id="2703">2703</a>
-<a href="#2704" id="2704">2704</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2702" id="2702">2702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -4352,29 +4350,11 @@
 
             <span class="kw">let </span><span class="kw-2">mut </span>fresh_bindings = type_bindings.clone();
 
-            <span class="kw">let </span><span class="kw-2">mut </span>check_trait_generics =
-                |impl_generics: <span class="kw-2">&amp;</span>[Type], impl_associated_types: <span class="kw-2">&amp;</span>[NamedType]| {
-                    <span class="kw">let </span>generics_unify = trait_generics.iter().zip(impl_generics).all(
-                        |(trait_generic, impl_generic)| {
-                            <span class="kw">let </span>impl_generic =
-                                impl_generic.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
-                            trait_generic.try_unify(<span class="kw-2">&amp;</span>impl_generic, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
-                        },
-                    );
+            <span class="kw">if </span>object_type.try_unify(<span class="kw-2">&amp;</span>existing_object_type, <span class="kw-2">&amp;mut </span>fresh_bindings).is_err() {
+                <span class="kw">continue</span>;
+            }
 
-                    <span class="kw">let </span>associated_types_unify = trait_associated_types
-                        .iter()
-                        .zip(impl_associated_types)
-                        .all(|(trait_generic, impl_generic)| {
-                            <span class="kw">let </span>impl_generic2 =
-                                impl_generic.typ.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
-                            trait_generic.typ.try_unify(<span class="kw-2">&amp;</span>impl_generic2, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
-                        });
-
-                    generics_unify &amp;&amp; associated_types_unify
-                };
-
-            <span class="kw">let </span>trait_generics = <span class="kw">match </span>impl_kind {
+            <span class="kw">let </span>impl_trait_generics = <span class="kw">match </span>impl_kind {
                 TraitImplKind::Normal(id) =&gt; {
                     <span class="kw">let </span>shared_impl = <span class="self">self</span>.get_trait_implementation(<span class="kw-2">*</span>id);
                     <span class="kw">let </span>shared_impl = shared_impl.borrow();
@@ -4385,44 +4365,60 @@
                 TraitImplKind::Assumed { trait_generics, .. } =&gt; trait_generics.clone(),
             };
 
-            <span class="kw">if </span>!check_trait_generics(<span class="kw-2">&amp;</span>trait_generics.ordered, <span class="kw-2">&amp;</span>trait_generics.named) {
+            <span class="kw">let </span>generics_unify = trait_generics.iter().zip(<span class="kw-2">&amp;</span>impl_trait_generics.ordered).all(
+                |(trait_generic, impl_generic)| {
+                    <span class="kw">let </span>impl_generic = impl_generic.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
+                    trait_generic.try_unify(<span class="kw-2">&amp;</span>impl_generic, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
+                },
+            );
+
+            <span class="kw">if </span>!generics_unify {
                 <span class="kw">continue</span>;
             }
 
-            <span class="kw">if </span>object_type.try_unify(<span class="kw-2">&amp;</span>existing_object_type, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok() {
-                <span class="kw">if let </span>TraitImplKind::Normal(impl_id) = impl_kind {
-                    <span class="kw">let </span>trait_impl = <span class="self">self</span>.get_trait_implementation(<span class="kw-2">*</span>impl_id);
-                    <span class="kw">let </span>trait_impl = trait_impl.borrow();
+            <span class="kw">if let </span>TraitImplKind::Normal(impl_id) = impl_kind {
+                <span class="kw">let </span>trait_impl = <span class="self">self</span>.get_trait_implementation(<span class="kw-2">*</span>impl_id);
+                <span class="kw">let </span>trait_impl = trait_impl.borrow();
 
-                    <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.validate_where_clause(
-                        <span class="kw-2">&amp;</span>trait_impl.where_clause,
-                        <span class="kw-2">&amp;mut </span>fresh_bindings,
-                        <span class="kw-2">&amp;</span>instantiation_bindings,
-                        recursion_limit,
-                    ) {
-                        <span class="comment">// Only keep the first errors we get from a failing where clause
-                        </span><span class="kw">if </span>where_clause_error.is_none() {
-                            where_clause_error = <span class="prelude-val">Some</span>(error);
-                        }
-                        <span class="kw">continue</span>;
+                <span class="kw">if let </span><span class="prelude-val">Err</span>(error) = <span class="self">self</span>.validate_where_clause(
+                    <span class="kw-2">&amp;</span>trait_impl.where_clause,
+                    <span class="kw-2">&amp;mut </span>fresh_bindings,
+                    <span class="kw-2">&amp;</span>instantiation_bindings,
+                    recursion_limit,
+                ) {
+                    <span class="comment">// Only keep the first errors we get from a failing where clause
+                    </span><span class="kw">if </span>where_clause_error.is_none() {
+                        where_clause_error = <span class="prelude-val">Some</span>(error);
                     }
+                    <span class="kw">continue</span>;
                 }
-
-                <span class="kw">let </span>constraint = TraitConstraint {
-                    typ: existing_object_type,
-                    trait_bound: ResolvedTraitBound {
-                        trait_id,
-                        trait_generics,
-                        location: Location::dummy(),
-                    },
-                };
-                matching_impls.push((
-                    impl_kind.clone(),
-                    fresh_bindings,
-                    instantiation_bindings,
-                    constraint,
-                ));
             }
+
+            <span class="kw">let </span>associated_types_unify = trait_associated_types
+                .iter()
+                .zip(<span class="kw-2">&amp;</span>impl_trait_generics.named)
+                .all(|(trait_generic, impl_generic)| {
+                    <span class="kw">let </span>impl_generic2 = impl_generic.typ.force_substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
+                    trait_generic.typ.try_unify(<span class="kw-2">&amp;</span>impl_generic2, <span class="kw-2">&amp;mut </span>fresh_bindings).is_ok()
+                });
+            <span class="kw">if </span>!associated_types_unify {
+                <span class="kw">continue</span>;
+            }
+
+            <span class="kw">let </span>constraint = TraitConstraint {
+                typ: existing_object_type,
+                trait_bound: ResolvedTraitBound {
+                    trait_id,
+                    trait_generics: impl_trait_generics,
+                    location: Location::dummy(),
+                },
+            };
+            matching_impls.push((
+                impl_kind.clone(),
+                fresh_bindings,
+                instantiation_bindings,
+                constraint,
+            ));
         }
 
         <span class="kw">if </span>matching_impls.len() == <span class="number">1 </span>{

@@ -1742,7 +1742,12 @@
 <a href="#1741" id="1741">1741</a>
 <a href="#1742" id="1742">1742</a>
 <a href="#1743" id="1743">1743</a>
-<a href="#1744" id="1744">1744</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -2389,10 +2394,11 @@
                     <span class="macro">unreachable!</span>(<span class="string">"Expected associated type to be numeric"</span>);
                 };
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-                <span class="kw">match </span>associated_type
-                    .typ
-                    .evaluate_to_field_element(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
-                {
+                <span class="kw">match </span>associated_type.typ.evaluate_to_field_element(
+                    <span class="kw-2">&amp;</span>associated_type.typ.kind(),
+                    <span class="kw-2">&amp;</span>TypeBindings::default(),
+                    location,
+                ) {
                     <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.evaluate_integer(value.into(), id),
                     <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
@@ -2409,7 +2415,11 @@
     </span><span class="kw">fn </span>evaluate_numeric_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, value: Type, expected: <span class="kw-2">&amp;</span>Type, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.id_location(id);
         <span class="kw">let </span>value = value
-            .evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_field_element(
+                <span class="kw-2">&amp;</span>Kind::Numeric(Box::new(expected.clone())),
+                <span class="kw-2">&amp;</span>TypeBindings::default(),
+                location,
+            )
             .map_err(|err| {
                 <span class="kw">let </span>typ = value;
                 <span class="kw">let </span>err = <span class="prelude-val">Some</span>(Box::new(err));

@@ -3065,7 +3065,7 @@
                     (lhs, rhs) =&gt; {
                         <span class="kw">let </span>infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
-                            .canonicalize()
+                            .canonicalize(<span class="kw-2">&amp;</span>TypeBindings::default())
                     }
                 }
             }
