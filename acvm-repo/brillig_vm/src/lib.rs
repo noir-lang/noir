@@ -831,7 +831,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                         &mut flatten_values_idx,
                                         value_type,
                                     )?;
-                                    // Should be caught at beginning of for-loop but we want to be explicit.
+                                    // Should be caught earlier but we want to be explicit.
                                     debug_assert_eq!(
                                         flatten_values_idx,
                                         output_fields.len(),
