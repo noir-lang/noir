@@ -654,6 +654,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Get input data from memory to pass to foreign calls.
+    ///
+    /// We might consider prefixing `HeapVector` with its capacity here, which can be different from the length
+    /// that is passed along in a separate variable.
     fn get_memory_values(
         &self,
         input: ValueOrArray,

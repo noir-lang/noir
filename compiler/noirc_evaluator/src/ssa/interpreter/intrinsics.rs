@@ -3,7 +3,7 @@ use std::io::Write;
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
+use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value_inner};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -688,7 +688,8 @@ impl<W: Write> Interpreter<'_, W> {
             let mut fragments = Vec::new();
             for i in 0..num_values {
                 let printable_type = value_to_printable_type(&args[meta_idx + i])?;
-                let printable_value = decode_printable_value(field_iterator, &printable_type);
+                let printable_value =
+                    decode_printable_value_inner(field_iterator, &printable_type, true);
                 fragments.push((printable_value, printable_type));
             }
             PrintableValueDisplay::FmtString(message, fragments)
@@ -697,8 +698,11 @@ impl<W: Write> Interpreter<'_, W> {
             let input_as_fields =
                 (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
             let printable_type = value_to_printable_type(&args[meta_idx])?;
-            let printable_value =
-                decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
+            let printable_value = decode_printable_value_inner(
+                &mut input_as_fields.into_iter(),
+                &printable_type,
+                true,
+            );
             PrintableValueDisplay::Plain(printable_value, printable_type)
         };
 
@@ -777,6 +781,8 @@ fn new_embedded_curve_point(
 }
 
 /// Convert a [Value] to a vector of [FieldElement] for printing.
+///
+/// It prefixes both arrays and slices with their length to aid decoding slices from the flattened data.
 fn value_to_fields(value: &Value) -> Vec<FieldElement> {
     fn go(value: &Value, fields: &mut Vec<FieldElement>) {
         match value {
@@ -787,6 +793,7 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
                 }
             }
             Value::ArrayOrSlice(array_value) => {
+                fields.push(FieldElement::from(array_value.elements.borrow().len()));
                 for value in array_value.elements.borrow().iter() {
                     go(value, fields);
                 }
