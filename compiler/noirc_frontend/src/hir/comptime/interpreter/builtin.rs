@@ -896,9 +896,10 @@ fn quoted_as_type(
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let wildcard_allowed = false;
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ)
+            elaborator.use_type(typ, wildcard_allowed)
         });
     Ok(Value::Type(typ))
 }

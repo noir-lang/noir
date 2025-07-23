@@ -679,13 +679,15 @@ impl<'context> Elaborator<'context> {
     pub(super) fn resolve_generic_kind(&mut self, generic: &UnresolvedGeneric) -> Kind {
         if let UnresolvedGeneric::Numeric { ident, typ } = generic {
             let unresolved_typ = typ.clone();
+            let wildcard_allowed = false;
             let typ = if unresolved_typ.is_type_expression() {
                 self.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     &Kind::numeric(Type::default_int_type()),
+                    wildcard_allowed,
                 )
             } else {
-                self.resolve_type(unresolved_typ.clone())
+                self.resolve_type(unresolved_typ.clone(), wildcard_allowed)
             };
             if !matches!(typ, Type::FieldElement | Type::Integer(_, _)) {
                 let unsupported_typ_err =
@@ -859,7 +861,8 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let typ = self.resolve_type(constraint.typ.clone());
+        let wildcard_allowed = true;
+        let typ = self.resolve_type(constraint.typ.clone(), wildcard_allowed);
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
 
@@ -885,9 +888,15 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
+        let wildcard_allowed = true;
 
-        let (ordered, named) =
-            self.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
+        let (ordered, named) = self.resolve_type_args_inner(
+            bound.trait_generics.clone(),
+            trait_id,
+            location,
+            mode,
+            wildcard_allowed,
+        );
 
         let trait_generics = TraitGenerics { ordered, named };
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
@@ -966,6 +975,7 @@ impl<'context> Elaborator<'context> {
         let mut parameters = Vec::new();
         let mut parameter_types = Vec::new();
         let mut parameter_idents = Vec::new();
+        let wildcard_allowed = false;
 
         for Param { visibility, pattern, typ, location: _ } in func.parameters().iter().cloned() {
             self.run_lint(|_| {
@@ -978,7 +988,7 @@ impl<'context> Elaborator<'context> {
                     self.desugar_impl_trait_arg(path, args, &mut generics, &mut trait_constraints)
                 }
                 // Function parameters have Kind::Normal
-                _ => self.resolve_type_with_kind(typ, &Kind::Normal),
+                _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
             self.check_if_type_is_valid_for_program_input(
@@ -1004,7 +1014,7 @@ impl<'context> Elaborator<'context> {
             parameter_types.push(typ);
         }
 
-        let return_type = Box::new(self.use_type(func.return_type()));
+        let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
         let mut typ = Type::Function(
             parameter_types,
@@ -1538,8 +1548,12 @@ impl<'context> Elaborator<'context> {
                         // This can't be done in code, but it could happen with unquoted types.
                         continue;
                     };
-                    let resolved_type =
-                        self.resolve_type_with_kind(unresolved_type, &associated_type.typ.kind());
+                    let wildcard_allowed = false;
+                    let resolved_type = self.resolve_type_with_kind(
+                        unresolved_type,
+                        &associated_type.typ.kind(),
+                        wildcard_allowed,
+                    );
                     named_generic.type_var.bind(resolved_type);
                 }
             }
@@ -1756,7 +1770,8 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
-        let typ = self.use_type(alias.type_alias_def.typ);
+        let wildcard_allowed = false;
+        let typ = self.use_type(alias.type_alias_def.typ, wildcard_allowed);
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
@@ -1966,11 +1981,16 @@ impl<'context> Elaborator<'context> {
             let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
+            let wildcard_allowed = false;
             let fields = vecmap(&unresolved.fields, |field| {
                 let ident = &field.item.name;
                 let typ = &field.item.typ;
                 let visibility = field.item.visibility;
-                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
+                StructField {
+                    visibility,
+                    name: ident.clone(),
+                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
+                }
             });
 
             this.resolving_ids.remove(&struct_id);
@@ -2001,10 +2021,12 @@ impl<'context> Elaborator<'context> {
             datatype.borrow_mut().init_variants();
             self.resolving_ids.insert(*type_id);
 
+            let wildcard_allowed = false;
             for (i, variant) in typ.enum_def.variants.iter().enumerate() {
                 let parameters = variant.item.parameters.as_ref();
-                let types =
-                    parameters.map(|params| vecmap(params, |typ| self.resolve_type(typ.clone())));
+                let types = parameters.map(|params| {
+                    vecmap(params, |typ| self.resolve_type(typ.clone(), wildcard_allowed))
+                });
                 let name = variant.item.name.clone();
 
                 let is_function = types.is_some();
@@ -2128,7 +2150,8 @@ impl<'context> Elaborator<'context> {
 
             for (generics, _, function_set) in function_sets {
                 self.add_generics(generics);
-                let self_type = self.resolve_type(self_type.clone());
+                let wildcard_allowed = false;
+                let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
 
                 function_set.self_type = Some(self_type.clone());
                 self.self_type = Some(self_type);
@@ -2287,7 +2310,8 @@ impl<'context> Elaborator<'context> {
                     .chain(new_generics_trait_constraints.iter().map(|(constraint, _)| constraint)),
             );
 
-            let self_type = self.resolve_type(unresolved_type);
+            let wildcard_allowed = false;
+            let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
             self.self_type = Some(self_type.clone());
             trait_impl.methods.self_type = Some(self_type);
 
