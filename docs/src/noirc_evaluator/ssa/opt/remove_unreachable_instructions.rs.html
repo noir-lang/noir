@@ -795,7 +795,109 @@
 <a href="#794" id="794">794</a>
 <a href="#795" id="795">795</a>
 <a href="#796" id="796">796</a>
-<a href="#797" id="797">797</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a>
+<a href="#873" id="873">873</a>
+<a href="#874" id="874">874</a>
+<a href="#875" id="875">875</a>
+<a href="#876" id="876">876</a>
+<a href="#877" id="877">877</a>
+<a href="#878" id="878">878</a>
+<a href="#879" id="879">879</a>
+<a href="#880" id="880">880</a>
+<a href="#881" id="881">881</a>
+<a href="#882" id="882">882</a>
+<a href="#883" id="883">883</a>
+<a href="#884" id="884">884</a>
+<a href="#885" id="885">885</a>
+<a href="#886" id="886">886</a>
+<a href="#887" id="887">887</a>
+<a href="#888" id="888">888</a>
+<a href="#889" id="889">889</a>
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines an SSA pass to remove instructions that are unreachable.
 //! For example, if an instruction in a block is `constrain u1 0 == u1 1`,
 //! any subsequent instructions in that block will never be executed. This pass
 //! then removes those subsequent instructions and replaces the block's terminator
@@ -970,7 +1072,76 @@
                         }
                     }
                 }
-                <span class="kw">_ </span>=&gt; {}
+                Instruction::ArrayGet { array, index, offset }
+                | Instruction::ArraySet { array, index, offset, .. } =&gt; {
+                    <span class="kw">let </span>array_or_slice_type = context.dfg.type_of_value(<span class="kw-2">*</span>array);
+                    <span class="kw">let </span>array_op_always_fails = <span class="kw">match </span><span class="kw-2">&amp;</span>array_or_slice_type {
+                        Type::Slice(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+                        array_type @ Type::Array(<span class="kw">_</span>, len) =&gt; {
+                            <span class="kw-2">*</span>len == <span class="number">0
+                                </span>|| context.dfg.get_numeric_constant(<span class="kw-2">*</span>index).is_some_and(|index| {
+                                    (index.try_to_u32().unwrap() - offset.to_u32())
+                                        &gt;= (array_type.element_size() <span class="kw">as </span>u32 * len)
+                                })
+                        }
+
+                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
+                            <span class="string">"Encountered non-array type during array read/write operation"
+                        </span>),
+                    };
+
+                    <span class="kw">if </span>array_op_always_fails {
+                        <span class="kw">let </span>is_predicate_constant_one =
+                            <span class="kw">match </span>context.dfg.get_numeric_constant(side_effects_condition) {
+                                <span class="prelude-val">Some</span>(predicate) =&gt; predicate.is_one(),
+                                <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>, <span class="comment">// The predicate is a variable
+                            </span>};
+                        current_block_reachability = <span class="kw">if </span>is_predicate_constant_one {
+                            <span class="comment">// If we have an array that contains references we no longer need to bother with resolution of those references.
+                            // However, we want a trap to still be triggered by an OOB array access.
+                            // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
+                            // making there way further down the compilation pipeline (e.g. ACIR where references are not supported).
+                            </span><span class="kw">let </span>(old_instruction, old_array, trap_array) = <span class="kw">match </span>array_or_slice_type
+                            {
+                                Type::Array(<span class="kw">_</span>, len) =&gt; {
+                                    <span class="kw">let </span>dummy_array_typ = Type::Array(
+                                        Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::unsigned(<span class="number">1</span>))]),
+                                        len,
+                                    );
+                                    (
+                                        instruction.clone(),
+                                        <span class="kw-2">*</span>array,
+                                        zeroed_value(
+                                            context.dfg,
+                                            func_id,
+                                            block_id,
+                                            <span class="kw-2">&amp;</span>dummy_array_typ,
+                                        ),
+                                    )
+                                }
+                                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an array type"</span>),
+                            };
+                            <span class="kw">let </span>new_instruction = old_instruction.map_values(|value| {
+                                <span class="kw">if </span>value == old_array { trap_array } <span class="kw">else </span>{ value }
+                            });
+                            <span class="kw">let </span>stack =
+                                context.dfg.get_instruction_call_stack_id(context.instruction_id);
+                            context.dfg.insert_instruction_and_results(
+                                new_instruction,
+                                block_id,
+                                <span class="prelude-val">Some</span>(<span class="macro">vec!</span>[Type::Numeric(NumericType::unsigned(<span class="number">1</span>))]),
+                                stack,
+                            );
+                            <span class="comment">// Remove the old failing array access in favor of the dummy one
+                            </span>context.remove_current_instruction();
+
+                            Reachability::Unreachable
+                        } <span class="kw">else </span>{
+                            Reachability::UnreachableUnderPredicate
+                        };
+                    }
+                }
+                <span class="kw">_ </span>=&gt; (),
             };
 
             <span class="kw">if </span>current_block_reachability == Reachability::Unreachable {
@@ -1590,6 +1761,39 @@
             unreachable
         }
         "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>transforms_failing_array_access_to_work_on_dummy_array() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut u8                      
+            store u8 0 at v0                               
+            v2 = make_array [u8 0, v0] : [(u8, &amp;mut u8); 1]
+            v4 = array_get v2, index u32 2 -&gt; u8         
+            v6 = array_get v2, index u32 3 -&gt; &amp;mut u8      
+            return v4
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.remove_unreachable_instructions();
+
+        <span class="comment">// We expect the array containing references to no longer be in use,
+        // for the failing array get to now be over a dummy array.
+        // We expect the new assertion to also use the correct dummy type (u1) as to have a well formed SSA.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut u8
+            store u8 0 at v0
+            v2 = make_array [u8 0, v0] : [(u8, &amp;mut u8); 1]
+            v4 = make_array [u1 0] : [u1; 1]
+            v6 = array_get v4, index u32 2 -&gt; u1
+            unreachable
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

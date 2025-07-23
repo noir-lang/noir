@@ -1218,7 +1218,16 @@
 <a href="#1217" id="1217">1217</a>
 <a href="#1218" id="1218">1218</a>
 <a href="#1219" id="1219">1219</a>
-<a href="#1220" id="1220">1220</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1220" id="1220">1220</a>
+<a href="#1221" id="1221">1221</a>
+<a href="#1222" id="1222">1222</a>
+<a href="#1223" id="1223">1223</a>
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1682,16 +1691,25 @@
 
         <span class="comment">// Checks for index Out-of-bounds
         </span><span class="kw">match </span>array_type {
+            Type::Array(<span class="kw">_</span>, len) =&gt; {
+                <span class="comment">// Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+                // We then only need to inject it for brillig functions.
+                </span><span class="kw">let </span>runtime = <span class="self">self</span>.builder.current_function.runtime();
+                <span class="kw">if </span>runtime.is_brillig() {
+                    <span class="kw">let </span>len =
+                        <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>len <span class="kw">as </span>u128, NumericType::length_type());
+                    <span class="self">self</span>.codegen_access_check(index, len);
+                }
+            }
             Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="self">self</span>.codegen_access_check(
+                <span class="comment">// The slice length is dynamic however so we can't rely on it being equal to the underlying memory
+                // block as we can do for array types. We then inject a access check for both ACIR and brillig.
+                </span><span class="self">self</span>.codegen_access_check(
                     index,
                     length.expect(<span class="string">"ICE: a length must be supplied for checking index"</span>),
                 );
             }
-            Type::Array(<span class="kw">_</span>, len) =&gt; {
-                <span class="kw">let </span>len = <span class="self">self</span>.builder.numeric_constant(<span class="kw-2">*</span>len <span class="kw">as </span>u128, NumericType::length_type());
-                <span class="self">self</span>.codegen_access_check(index, len);
-            }
+
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"must have array or slice but got {array_type}"</span>),
         }
 

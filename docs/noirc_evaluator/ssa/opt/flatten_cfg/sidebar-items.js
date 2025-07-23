@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["flatten_function_cfg"],"mod":["branch_analysis","value_merger"],"struct":["ConditionalBranch","ConditionalContext","Context"]};
+window.SIDEBAR_ITEMS = {"fn":["flatten_cfg_post_check","flatten_cfg_pre_check","flatten_function_cfg"],"mod":["branch_analysis","value_merger"],"struct":["ConditionalBranch","ConditionalContext","Context"]};

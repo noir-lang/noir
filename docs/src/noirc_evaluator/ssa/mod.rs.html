@@ -558,7 +558,8 @@
 <a href="#557" id="557">557</a>
 <a href="#558" id="558">558</a>
 <a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -701,6 +702,7 @@
         ),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::flatten_cfg, <span class="string">"Flattening"</span>),
         SsaPass::new(Ssa::remove_bit_shifts, <span class="string">"Removing Bit Shifts"</span>),
         <span class="comment">// Run mem2reg once more with the flattened CFG to catch any remaining loads/stores

@@ -1180,13 +1180,484 @@
 <a href="#1179" id="1179">1179</a>
 <a href="#1180" id="1180">1180</a>
 <a href="#1181" id="1181">1181</a>
-<a href="#1182" id="1182">1182</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1182" id="1182">1182</a>
+<a href="#1183" id="1183">1183</a>
+<a href="#1184" id="1184">1184</a>
+<a href="#1185" id="1185">1185</a>
+<a href="#1186" id="1186">1186</a>
+<a href="#1187" id="1187">1187</a>
+<a href="#1188" id="1188">1188</a>
+<a href="#1189" id="1189">1189</a>
+<a href="#1190" id="1190">1190</a>
+<a href="#1191" id="1191">1191</a>
+<a href="#1192" id="1192">1192</a>
+<a href="#1193" id="1193">1193</a>
+<a href="#1194" id="1194">1194</a>
+<a href="#1195" id="1195">1195</a>
+<a href="#1196" id="1196">1196</a>
+<a href="#1197" id="1197">1197</a>
+<a href="#1198" id="1198">1198</a>
+<a href="#1199" id="1199">1199</a>
+<a href="#1200" id="1200">1200</a>
+<a href="#1201" id="1201">1201</a>
+<a href="#1202" id="1202">1202</a>
+<a href="#1203" id="1203">1203</a>
+<a href="#1204" id="1204">1204</a>
+<a href="#1205" id="1205">1205</a>
+<a href="#1206" id="1206">1206</a>
+<a href="#1207" id="1207">1207</a>
+<a href="#1208" id="1208">1208</a>
+<a href="#1209" id="1209">1209</a>
+<a href="#1210" id="1210">1210</a>
+<a href="#1211" id="1211">1211</a>
+<a href="#1212" id="1212">1212</a>
+<a href="#1213" id="1213">1213</a>
+<a href="#1214" id="1214">1214</a>
+<a href="#1215" id="1215">1215</a>
+<a href="#1216" id="1216">1216</a>
+<a href="#1217" id="1217">1217</a>
+<a href="#1218" id="1218">1218</a>
+<a href="#1219" id="1219">1219</a>
+<a href="#1220" id="1220">1220</a>
+<a href="#1221" id="1221">1221</a>
+<a href="#1222" id="1222">1222</a>
+<a href="#1223" id="1223">1223</a>
+<a href="#1224" id="1224">1224</a>
+<a href="#1225" id="1225">1225</a>
+<a href="#1226" id="1226">1226</a>
+<a href="#1227" id="1227">1227</a>
+<a href="#1228" id="1228">1228</a>
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a>
+<a href="#1239" id="1239">1239</a>
+<a href="#1240" id="1240">1240</a>
+<a href="#1241" id="1241">1241</a>
+<a href="#1242" id="1242">1242</a>
+<a href="#1243" id="1243">1243</a>
+<a href="#1244" id="1244">1244</a>
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a>
+<a href="#1248" id="1248">1248</a>
+<a href="#1249" id="1249">1249</a>
+<a href="#1250" id="1250">1250</a>
+<a href="#1251" id="1251">1251</a>
+<a href="#1252" id="1252">1252</a>
+<a href="#1253" id="1253">1253</a>
+<a href="#1254" id="1254">1254</a>
+<a href="#1255" id="1255">1255</a>
+<a href="#1256" id="1256">1256</a>
+<a href="#1257" id="1257">1257</a>
+<a href="#1258" id="1258">1258</a>
+<a href="#1259" id="1259">1259</a>
+<a href="#1260" id="1260">1260</a>
+<a href="#1261" id="1261">1261</a>
+<a href="#1262" id="1262">1262</a>
+<a href="#1263" id="1263">1263</a>
+<a href="#1264" id="1264">1264</a>
+<a href="#1265" id="1265">1265</a>
+<a href="#1266" id="1266">1266</a>
+<a href="#1267" id="1267">1267</a>
+<a href="#1268" id="1268">1268</a>
+<a href="#1269" id="1269">1269</a>
+<a href="#1270" id="1270">1270</a>
+<a href="#1271" id="1271">1271</a>
+<a href="#1272" id="1272">1272</a>
+<a href="#1273" id="1273">1273</a>
+<a href="#1274" id="1274">1274</a>
+<a href="#1275" id="1275">1275</a>
+<a href="#1276" id="1276">1276</a>
+<a href="#1277" id="1277">1277</a>
+<a href="#1278" id="1278">1278</a>
+<a href="#1279" id="1279">1279</a>
+<a href="#1280" id="1280">1280</a>
+<a href="#1281" id="1281">1281</a>
+<a href="#1282" id="1282">1282</a>
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a>
+<a href="#1294" id="1294">1294</a>
+<a href="#1295" id="1295">1295</a>
+<a href="#1296" id="1296">1296</a>
+<a href="#1297" id="1297">1297</a>
+<a href="#1298" id="1298">1298</a>
+<a href="#1299" id="1299">1299</a>
+<a href="#1300" id="1300">1300</a>
+<a href="#1301" id="1301">1301</a>
+<a href="#1302" id="1302">1302</a>
+<a href="#1303" id="1303">1303</a>
+<a href="#1304" id="1304">1304</a>
+<a href="#1305" id="1305">1305</a>
+<a href="#1306" id="1306">1306</a>
+<a href="#1307" id="1307">1307</a>
+<a href="#1308" id="1308">1308</a>
+<a href="#1309" id="1309">1309</a>
+<a href="#1310" id="1310">1310</a>
+<a href="#1311" id="1311">1311</a>
+<a href="#1312" id="1312">1312</a>
+<a href="#1313" id="1313">1313</a>
+<a href="#1314" id="1314">1314</a>
+<a href="#1315" id="1315">1315</a>
+<a href="#1316" id="1316">1316</a>
+<a href="#1317" id="1317">1317</a>
+<a href="#1318" id="1318">1318</a>
+<a href="#1319" id="1319">1319</a>
+<a href="#1320" id="1320">1320</a>
+<a href="#1321" id="1321">1321</a>
+<a href="#1322" id="1322">1322</a>
+<a href="#1323" id="1323">1323</a>
+<a href="#1324" id="1324">1324</a>
+<a href="#1325" id="1325">1325</a>
+<a href="#1326" id="1326">1326</a>
+<a href="#1327" id="1327">1327</a>
+<a href="#1328" id="1328">1328</a>
+<a href="#1329" id="1329">1329</a>
+<a href="#1330" id="1330">1330</a>
+<a href="#1331" id="1331">1331</a>
+<a href="#1332" id="1332">1332</a>
+<a href="#1333" id="1333">1333</a>
+<a href="#1334" id="1334">1334</a>
+<a href="#1335" id="1335">1335</a>
+<a href="#1336" id="1336">1336</a>
+<a href="#1337" id="1337">1337</a>
+<a href="#1338" id="1338">1338</a>
+<a href="#1339" id="1339">1339</a>
+<a href="#1340" id="1340">1340</a>
+<a href="#1341" id="1341">1341</a>
+<a href="#1342" id="1342">1342</a>
+<a href="#1343" id="1343">1343</a>
+<a href="#1344" id="1344">1344</a>
+<a href="#1345" id="1345">1345</a>
+<a href="#1346" id="1346">1346</a>
+<a href="#1347" id="1347">1347</a>
+<a href="#1348" id="1348">1348</a>
+<a href="#1349" id="1349">1349</a>
+<a href="#1350" id="1350">1350</a>
+<a href="#1351" id="1351">1351</a>
+<a href="#1352" id="1352">1352</a>
+<a href="#1353" id="1353">1353</a>
+<a href="#1354" id="1354">1354</a>
+<a href="#1355" id="1355">1355</a>
+<a href="#1356" id="1356">1356</a>
+<a href="#1357" id="1357">1357</a>
+<a href="#1358" id="1358">1358</a>
+<a href="#1359" id="1359">1359</a>
+<a href="#1360" id="1360">1360</a>
+<a href="#1361" id="1361">1361</a>
+<a href="#1362" id="1362">1362</a>
+<a href="#1363" id="1363">1363</a>
+<a href="#1364" id="1364">1364</a>
+<a href="#1365" id="1365">1365</a>
+<a href="#1366" id="1366">1366</a>
+<a href="#1367" id="1367">1367</a>
+<a href="#1368" id="1368">1368</a>
+<a href="#1369" id="1369">1369</a>
+<a href="#1370" id="1370">1370</a>
+<a href="#1371" id="1371">1371</a>
+<a href="#1372" id="1372">1372</a>
+<a href="#1373" id="1373">1373</a>
+<a href="#1374" id="1374">1374</a>
+<a href="#1375" id="1375">1375</a>
+<a href="#1376" id="1376">1376</a>
+<a href="#1377" id="1377">1377</a>
+<a href="#1378" id="1378">1378</a>
+<a href="#1379" id="1379">1379</a>
+<a href="#1380" id="1380">1380</a>
+<a href="#1381" id="1381">1381</a>
+<a href="#1382" id="1382">1382</a>
+<a href="#1383" id="1383">1383</a>
+<a href="#1384" id="1384">1384</a>
+<a href="#1385" id="1385">1385</a>
+<a href="#1386" id="1386">1386</a>
+<a href="#1387" id="1387">1387</a>
+<a href="#1388" id="1388">1388</a>
+<a href="#1389" id="1389">1389</a>
+<a href="#1390" id="1390">1390</a>
+<a href="#1391" id="1391">1391</a>
+<a href="#1392" id="1392">1392</a>
+<a href="#1393" id="1393">1393</a>
+<a href="#1394" id="1394">1394</a>
+<a href="#1395" id="1395">1395</a>
+<a href="#1396" id="1396">1396</a>
+<a href="#1397" id="1397">1397</a>
+<a href="#1398" id="1398">1398</a>
+<a href="#1399" id="1399">1399</a>
+<a href="#1400" id="1400">1400</a>
+<a href="#1401" id="1401">1401</a>
+<a href="#1402" id="1402">1402</a>
+<a href="#1403" id="1403">1403</a>
+<a href="#1404" id="1404">1404</a>
+<a href="#1405" id="1405">1405</a>
+<a href="#1406" id="1406">1406</a>
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a>
+<a href="#1409" id="1409">1409</a>
+<a href="#1410" id="1410">1410</a>
+<a href="#1411" id="1411">1411</a>
+<a href="#1412" id="1412">1412</a>
+<a href="#1413" id="1413">1413</a>
+<a href="#1414" id="1414">1414</a>
+<a href="#1415" id="1415">1415</a>
+<a href="#1416" id="1416">1416</a>
+<a href="#1417" id="1417">1417</a>
+<a href="#1418" id="1418">1418</a>
+<a href="#1419" id="1419">1419</a>
+<a href="#1420" id="1420">1420</a>
+<a href="#1421" id="1421">1421</a>
+<a href="#1422" id="1422">1422</a>
+<a href="#1423" id="1423">1423</a>
+<a href="#1424" id="1424">1424</a>
+<a href="#1425" id="1425">1425</a>
+<a href="#1426" id="1426">1426</a>
+<a href="#1427" id="1427">1427</a>
+<a href="#1428" id="1428">1428</a>
+<a href="#1429" id="1429">1429</a>
+<a href="#1430" id="1430">1430</a>
+<a href="#1431" id="1431">1431</a>
+<a href="#1432" id="1432">1432</a>
+<a href="#1433" id="1433">1433</a>
+<a href="#1434" id="1434">1434</a>
+<a href="#1435" id="1435">1435</a>
+<a href="#1436" id="1436">1436</a>
+<a href="#1437" id="1437">1437</a>
+<a href="#1438" id="1438">1438</a>
+<a href="#1439" id="1439">1439</a>
+<a href="#1440" id="1440">1440</a>
+<a href="#1441" id="1441">1441</a>
+<a href="#1442" id="1442">1442</a>
+<a href="#1443" id="1443">1443</a>
+<a href="#1444" id="1444">1444</a>
+<a href="#1445" id="1445">1445</a>
+<a href="#1446" id="1446">1446</a>
+<a href="#1447" id="1447">1447</a>
+<a href="#1448" id="1448">1448</a>
+<a href="#1449" id="1449">1449</a>
+<a href="#1450" id="1450">1450</a>
+<a href="#1451" id="1451">1451</a>
+<a href="#1452" id="1452">1452</a>
+<a href="#1453" id="1453">1453</a>
+<a href="#1454" id="1454">1454</a>
+<a href="#1455" id="1455">1455</a>
+<a href="#1456" id="1456">1456</a>
+<a href="#1457" id="1457">1457</a>
+<a href="#1458" id="1458">1458</a>
+<a href="#1459" id="1459">1459</a>
+<a href="#1460" id="1460">1460</a>
+<a href="#1461" id="1461">1461</a>
+<a href="#1462" id="1462">1462</a>
+<a href="#1463" id="1463">1463</a>
+<a href="#1464" id="1464">1464</a>
+<a href="#1465" id="1465">1465</a>
+<a href="#1466" id="1466">1466</a>
+<a href="#1467" id="1467">1467</a>
+<a href="#1468" id="1468">1468</a>
+<a href="#1469" id="1469">1469</a>
+<a href="#1470" id="1470">1470</a>
+<a href="#1471" id="1471">1471</a>
+<a href="#1472" id="1472">1472</a>
+<a href="#1473" id="1473">1473</a>
+<a href="#1474" id="1474">1474</a>
+<a href="#1475" id="1475">1475</a>
+<a href="#1476" id="1476">1476</a>
+<a href="#1477" id="1477">1477</a>
+<a href="#1478" id="1478">1478</a>
+<a href="#1479" id="1479">1479</a>
+<a href="#1480" id="1480">1480</a>
+<a href="#1481" id="1481">1481</a>
+<a href="#1482" id="1482">1482</a>
+<a href="#1483" id="1483">1483</a>
+<a href="#1484" id="1484">1484</a>
+<a href="#1485" id="1485">1485</a>
+<a href="#1486" id="1486">1486</a>
+<a href="#1487" id="1487">1487</a>
+<a href="#1488" id="1488">1488</a>
+<a href="#1489" id="1489">1489</a>
+<a href="#1490" id="1490">1490</a>
+<a href="#1491" id="1491">1491</a>
+<a href="#1492" id="1492">1492</a>
+<a href="#1493" id="1493">1493</a>
+<a href="#1494" id="1494">1494</a>
+<a href="#1495" id="1495">1495</a>
+<a href="#1496" id="1496">1496</a>
+<a href="#1497" id="1497">1497</a>
+<a href="#1498" id="1498">1498</a>
+<a href="#1499" id="1499">1499</a>
+<a href="#1500" id="1500">1500</a>
+<a href="#1501" id="1501">1501</a>
+<a href="#1502" id="1502">1502</a>
+<a href="#1503" id="1503">1503</a>
+<a href="#1504" id="1504">1504</a>
+<a href="#1505" id="1505">1505</a>
+<a href="#1506" id="1506">1506</a>
+<a href="#1507" id="1507">1507</a>
+<a href="#1508" id="1508">1508</a>
+<a href="#1509" id="1509">1509</a>
+<a href="#1510" id="1510">1510</a>
+<a href="#1511" id="1511">1511</a>
+<a href="#1512" id="1512">1512</a>
+<a href="#1513" id="1513">1513</a>
+<a href="#1514" id="1514">1514</a>
+<a href="#1515" id="1515">1515</a>
+<a href="#1516" id="1516">1516</a>
+<a href="#1517" id="1517">1517</a>
+<a href="#1518" id="1518">1518</a>
+<a href="#1519" id="1519">1519</a>
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
 //! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 </span><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -1196,7 +1667,7 @@
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
     opt::pure::Purity,
@@ -1274,7 +1745,8 @@
             </span>.functions
             .par_iter_mut()
             .map(|(id, func)| {
-                <span class="kw">let </span>unused_params = func.dead_instruction_elimination(flattened, skip_brillig);
+                <span class="kw">let </span>unused_params =
+                    func.dead_instruction_elimination(<span class="bool-val">true</span>, flattened, skip_brillig);
                 <span class="kw">let </span><span class="kw-2">mut </span>result = DIEResult::default();
 
                 result.unused_parameters.insert(<span class="kw-2">*</span>id, unused_params);
@@ -1323,6 +1795,7 @@
     ///   This can be used by follow-up passes to prune unused parameters from blocks.
     </span><span class="kw">fn </span>dead_instruction_elimination(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        insert_out_of_bounds_checks: bool,
         flattened: bool,
         skip_brillig: bool,
     ) -&gt; HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt; {
@@ -1338,10 +1811,16 @@
             context.mark_used_instruction_results(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg, call_data.array_id);
         }
 
+        <span class="kw">let </span><span class="kw-2">mut </span>inserted_out_of_bounds_checks = <span class="bool-val">false</span>;
+
         <span class="kw">let </span>blocks = PostOrder::with_function(<span class="self">self</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>unused_params_per_block = HashMap::default();
         <span class="kw">for </span>block <span class="kw">in </span>blocks.as_slice() {
-            context.remove_unused_instructions_in_block(<span class="self">self</span>, <span class="kw-2">*</span>block);
+            inserted_out_of_bounds_checks |= context.remove_unused_instructions_in_block(
+                <span class="self">self</span>,
+                <span class="kw-2">*</span>block,
+                insert_out_of_bounds_checks,
+            );
 
             <span class="kw">let </span>parameters = <span class="self">self</span>.dfg[<span class="kw-2">*</span>block].parameters();
             <span class="kw">let </span><span class="kw-2">mut </span>keep_list = Vec::with_capacity(parameters.len());
@@ -1357,6 +1836,13 @@
 
             unused_params_per_block.insert(<span class="kw-2">*</span>block, unused_params);
             context.parameter_keep_list.insert(<span class="kw-2">*</span>block, keep_list);
+        }
+
+        <span class="comment">// If we inserted out of bounds check, let's run the pass again with those new
+        // instructions (we don't want to remove those checks, or instructions that are
+        // dependencies of those checks)
+        </span><span class="kw">if </span>inserted_out_of_bounds_checks {
+            <span class="kw">return </span><span class="self">self</span>.dead_instruction_elimination(<span class="bool-val">false</span>, flattened, skip_brillig);
         }
 
         context.remove_rc_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg);
@@ -1412,23 +1898,58 @@
     /// values set. This allows DIE to identify whole chains of unused instructions. (If the
     /// values referenced by an unused instruction were considered to be used, only the head of
     /// such chains would be removed.)
+    ///
+    /// If `insert_out_of_bounds_checks` is true and there are unused ArrayGet/ArraySet that
+    /// might be out of bounds, this method will insert out of bounds checks instead of
+    /// removing unused instructions and return `true`. The idea then is to later call this
+    /// function again with `insert_out_of_bounds_checks` set to false to effectively remove
+    /// unused instructions but leave the out of bounds checks.
     </span><span class="kw">fn </span>remove_unused_instructions_in_block(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: <span class="kw-2">&amp;mut </span>Function,
         block_id: BasicBlockId,
-    ) {
+        insert_out_of_bounds_checks: bool,
+    ) -&gt; bool {
         <span class="kw">let </span>block = <span class="kw-2">&amp;</span>function.dfg[block_id];
         <span class="self">self</span>.mark_terminator_values_as_used(function, block);
 
         <span class="self">self</span>.rc_tracker.new_block();
         <span class="self">self</span>.rc_tracker.mark_terminator_arrays_as_used(function, block);
 
+        <span class="kw">let </span>instructions_len = block.instructions().len();
+
+        <span class="comment">// Indexes of instructions that might be out of bounds.
+        // We'll remove those, but before that we'll insert bounds checks for them.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>possible_index_out_of_bounds_indexes = Vec::new();
+
         <span class="comment">// Going in reverse so we know if a result of an instruction was used.
-        </span><span class="kw">for </span>instruction_id <span class="kw">in </span>block.instructions().iter().rev() {
+        </span><span class="kw">for </span>(instruction_index, instruction_id) <span class="kw">in </span>block.instructions().iter().rev().enumerate() {
             <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction_id];
 
             <span class="kw">if </span><span class="self">self</span>.is_unused(<span class="kw-2">*</span>instruction_id, function) {
                 <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction_id);
+
+                <span class="comment">// Array get/set has explicit out of bounds (OOB) checks laid down in the Brillig runtime.
+                // These checks are not laid down in the ACIR runtime as that runtime maps the SSA
+                // to a memory model where OOB accesses will be prevented. Essentially all array ops
+                // in ACIR will have a side effect where they check for the index being OOB.
+                // However, in order to maintain parity between the Brillig and ACIR runtimes,
+                // if we have an unused array operation we need insert an OOB check so that the
+                // side effects ordering remains correct.
+                </span><span class="kw">if </span>function.runtime().is_acir()
+                    &amp;&amp; insert_out_of_bounds_checks
+                    &amp;&amp; instruction_might_result_in_out_of_bounds(function, instruction)
+                {
+                    possible_index_out_of_bounds_indexes
+                        .push(instructions_len - instruction_index - <span class="number">1</span>);
+                    <span class="comment">// We need to still mark the array index as used as we refer to it in the inserted bounds check.
+                    </span><span class="kw">let </span>(Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. }) =
+                        instruction
+                    <span class="kw">else </span>{
+                        <span class="macro">unreachable!</span>(<span class="string">"Only enter this branch on array gets/sets"</span>)
+                    };
+                    <span class="self">self</span>.mark_used_instruction_results(<span class="kw-2">&amp;</span>function.dfg, <span class="kw-2">*</span>index);
+                }
             } <span class="kw">else </span>{
                 <span class="comment">// We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
@@ -1447,10 +1968,27 @@
         <span class="self">self</span>.instructions_to_remove.extend(<span class="self">self</span>.rc_tracker.get_non_mutated_arrays(<span class="kw-2">&amp;</span>function.dfg));
         <span class="self">self</span>.instructions_to_remove.extend(<span class="self">self</span>.rc_tracker.rc_pairs_to_remove.drain());
 
+        <span class="comment">// If there are some instructions that might trigger an out of bounds error,
+        // first add constrain checks. Then run the DIE pass again, which will remove those
+        // but leave the constrains (any any value needed by those constrains)
+        </span><span class="kw">if </span>!possible_index_out_of_bounds_indexes.is_empty() {
+            <span class="kw">let </span>inserted_check = <span class="self">self</span>.replace_array_instructions_with_out_of_bounds_checks(
+                function,
+                block_id,
+                <span class="kw-2">&amp;mut </span>possible_index_out_of_bounds_indexes,
+            );
+            <span class="comment">// There's a slight chance we didn't insert any checks, so we could proceed with DIE.
+            </span><span class="kw">if </span>inserted_check {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
+        }
+
         function.dfg[block_id]
             .instructions_mut()
             .retain(|instruction| !<span class="self">self</span>.instructions_to_remove.contains(instruction));
-    }
+
+        <span class="bool-val">false
+    </span>}
 
     <span class="doccomment">/// Returns true if an instruction can be removed.
     ///
@@ -1566,6 +2104,134 @@
         }
         <span class="bool-val">false
     </span>}
+
+    <span class="doccomment">/// Replaces unused ArrayGet/ArraySet instructions with out of bounds checks.
+    /// Returns `true` if at least one check was inserted.
+    /// Because some ArrayGet might happen in groups (for composite types), if just
+    /// some of the instructions in a group are used but not all of them, no check
+    /// is inserted, so this method might return `false`.
+    </span><span class="kw">fn </span>replace_array_instructions_with_out_of_bounds_checks(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function: <span class="kw-2">&amp;mut </span>Function,
+        block_id: BasicBlockId,
+        possible_index_out_of_bounds_indexes: <span class="kw-2">&amp;mut </span>Vec&lt;usize&gt;,
+    ) -&gt; bool {
+        <span class="kw">let </span><span class="kw-2">mut </span>inserted_check = <span class="bool-val">false</span>;
+
+        <span class="comment">// Keep track of the current side effects condition
+        </span><span class="kw">let </span><span class="kw-2">mut </span>side_effects_condition = <span class="prelude-val">None</span>;
+
+        <span class="comment">// Keep track of the next index we need to handle
+        </span><span class="kw">let </span><span class="kw-2">mut </span>next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
+
+        <span class="kw">let </span>instructions = function.dfg[block_id].take_instructions();
+        <span class="kw">for </span>(index, instruction_id) <span class="kw">in </span>instructions.iter().enumerate() {
+            <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
+            <span class="kw">let </span>instruction = <span class="kw-2">&amp;</span>function.dfg[instruction_id];
+
+            <span class="kw">if let </span>Instruction::EnableSideEffectsIf { condition } = instruction {
+                side_effects_condition = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>condition);
+
+                <span class="comment">// We still need to keep the EnableSideEffects instruction
+                </span>function.dfg[block_id].instructions_mut().push(instruction_id);
+                <span class="kw">continue</span>;
+            };
+
+            <span class="comment">// If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
+            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
+            </span><span class="kw">if let </span>Instruction::ArrayGet { array, .. } = instruction {
+                handle_array_get_group(
+                    function,
+                    array,
+                    index,
+                    <span class="kw-2">&amp;mut </span>next_out_of_bounds_index,
+                    possible_index_out_of_bounds_indexes,
+                );
+            }
+
+            <span class="kw">let </span><span class="prelude-val">Some</span>(out_of_bounds_index) = next_out_of_bounds_index <span class="kw">else </span>{
+                <span class="comment">// No more out of bounds instructions to insert, just push the current instruction
+                </span>function.dfg[block_id].instructions_mut().push(instruction_id);
+                <span class="kw">continue</span>;
+            };
+
+            <span class="kw">if </span>index != out_of_bounds_index {
+                <span class="comment">// This instruction is not out of bounds: let's just push it
+                </span>function.dfg[block_id].instructions_mut().push(instruction_id);
+                <span class="kw">continue</span>;
+            }
+
+            <span class="comment">// This is an instruction that might be out of bounds: let's add a constrain.
+            </span><span class="kw">let </span>(array, index) = <span class="kw">match </span>instruction {
+                Instruction::ArrayGet { array, index, .. }
+                | Instruction::ArraySet { array, index, .. } =&gt; (array, index),
+                <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected an ArrayGet or ArraySet instruction here"</span>),
+            };
+
+            <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack_id(instruction_id);
+
+            <span class="kw">let </span>(lhs, rhs) = <span class="kw">if </span>function.dfg.get_numeric_constant(<span class="kw-2">*</span>index).is_some() {
+                <span class="comment">// If we are here it means the index is known but out of bounds. That's always an error!
+                </span><span class="kw">let </span>false_const = function.dfg.make_constant(<span class="bool-val">false</span>.into(), NumericType::bool());
+                <span class="kw">let </span>true_const = function.dfg.make_constant(<span class="bool-val">true</span>.into(), NumericType::bool());
+                (false_const, true_const)
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>array_typ = function.dfg.type_of_value(<span class="kw-2">*</span>array);
+                <span class="kw">let </span>element_size = array_typ.element_size() <span class="kw">as </span>u32;
+                <span class="kw">let </span>len = <span class="kw">match </span>array_typ {
+                    Type::Array(<span class="kw">_</span>, len) =&gt; len,
+                    <span class="kw">_ </span>=&gt; <span class="macro">panic!</span>(<span class="string">"Expected an array"</span>),
+                };
+                <span class="comment">// `index` will be relative to the flattened array length, so we need to take that into account
+                </span><span class="kw">let </span>array_length = element_size * len;
+                <span class="comment">// let array_length = function.dfg.type_of_value(*array).flattened_size();
+
+                // If we are here it means the index is dynamic, so let's add a check that it's less than length
+                </span><span class="kw">let </span>length_type = NumericType::length_type();
+                <span class="kw">let </span>index = function.dfg.insert_instruction_and_results(
+                    Instruction::Cast(<span class="kw-2">*</span>index, length_type),
+                    block_id,
+                    <span class="prelude-val">None</span>,
+                    call_stack,
+                );
+                <span class="kw">let </span>index = index.first();
+                <span class="kw">let </span>array_length =
+                    function.dfg.make_constant((array_length <span class="kw">as </span>u128).into(), length_type);
+
+                <span class="kw">let </span>is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
+                    Instruction::binary(BinaryOp::Lt, index, array_length),
+                    block_id,
+                    <span class="prelude-val">None</span>,
+                    call_stack,
+                );
+                <span class="kw">let </span>is_index_out_of_bounds = is_index_out_of_bounds.first();
+                <span class="kw">let </span>true_const = function.dfg.make_constant(<span class="bool-val">true</span>.into(), NumericType::bool());
+                (is_index_out_of_bounds, true_const)
+            };
+
+            <span class="kw">let </span>(lhs, rhs) = apply_side_effects(
+                side_effects_condition,
+                lhs,
+                rhs,
+                function,
+                block_id,
+                call_stack,
+            );
+
+            <span class="kw">let </span>message = <span class="prelude-val">Some</span>(<span class="string">"Index out of bounds"</span>.to_owned().into());
+            function.dfg.insert_instruction_and_results(
+                Instruction::Constrain(lhs, rhs, message),
+                block_id,
+                <span class="prelude-val">None</span>,
+                call_stack,
+            );
+            inserted_check = <span class="bool-val">true</span>;
+
+            next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
+        }
+
+        inserted_check
+    }
 }
 
 <span class="kw">fn </span>can_be_eliminated_if_unused(
@@ -1593,8 +2259,12 @@
         | Truncate { .. }
         | Allocate
         | Load { .. }
-        | ArrayGet { .. }
         | IfElse { .. }
+        <span class="comment">// Arrays are not side-effectual in Brillig where OOB checks are laid down explicitly in SSA.
+        // However, arrays are side-effectual in ACIR (array OOB checks). 
+        // We mark them available for deletion, but it is expected that this pass will insert
+        // back the relevant side effects for array access in ACIR that can possible fail (e.g., index OOB or dynamic index).
+        </span>| ArrayGet { .. }
         | ArraySet { .. }
         | Noop
         | MakeArray { .. } =&gt; <span class="bool-val">true</span>,
@@ -1783,6 +2453,152 @@
             .copied()
             .collect()
     }
+}
+
+<span class="kw">fn </span>instruction_might_result_in_out_of_bounds(
+    function: <span class="kw-2">&amp;</span>Function,
+    instruction: <span class="kw-2">&amp;</span>Instruction,
+) -&gt; bool {
+    <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
+    <span class="kw">match </span>instruction {
+        ArrayGet { array, index, .. } | ArraySet { array, index, .. } =&gt; {
+            <span class="comment">// We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
+            </span>function.dfg.try_get_array_length(<span class="kw-2">*</span>array).is_some()
+                &amp;&amp; !function.dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
+        }
+        <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+    }
+}
+
+<span class="kw">fn </span>handle_array_get_group(
+    function: <span class="kw-2">&amp;</span>Function,
+    array: <span class="kw-2">&amp;</span>ValueId,
+    index: usize,
+    next_out_of_bounds_index: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;usize&gt;,
+    possible_index_out_of_bounds_indexes: <span class="kw-2">&amp;mut </span>Vec&lt;usize&gt;,
+) {
+    <span class="kw">if </span>function.dfg.try_get_array_length(<span class="kw-2">*</span>array).is_none() {
+        <span class="comment">// Nothing to do for slices
+        </span><span class="kw">return</span>;
+    };
+
+    <span class="kw">let </span>element_size = function.dfg.type_of_value(<span class="kw-2">*</span>array).element_size();
+    <span class="kw">if </span>element_size &lt;= <span class="number">1 </span>{
+        <span class="comment">// Not a composite type
+        </span><span class="kw">return</span>;
+    };
+
+    <span class="comment">// It's a composite type.
+    // When doing ArrayGet on a composite type, this **always** results in instructions like these
+    // (assuming element_size == 3):
+    //
+    // 1.    v27 = array_get v1, index v26
+    // 2.    v28 = add v26, u32 1
+    // 3.    v29 = array_get v1, index v28
+    // 4.    v30 = add v26, u32 2
+    // 5.    v31 = array_get v1, index v30
+    //
+    // That means that after this instructions, (element_size - 1) instructions will be
+    // part of this composite array get, and they'll be two instructions apart.
+    //
+    // Now three things can happen:
+    // a) none of the array_get instructions are unused: in this case they won't be in
+    //    `possible_index_out_of_bounds_indexes` and they won't be removed, nothing to do here
+    // b) all of the array_get instructions are unused: in this case we can replace **all**
+    //    of them with just one constrain: no need to do one per array_get
+    // c) some of the array_get instructions are unused, but not all: in this case
+    //    we don't need to insert any constrain, because on a later stage array bound checks
+    //    will be performed anyway. We'll let DIE remove the unused ones, without replacing
+    //    them with bounds checks, and leave the used ones.
+    //
+    // To check in which scenario we are we can get from `possible_index_out_of_bounds_indexes`
+    // (starting from `next_out_of_bounds_index`) while we are in the group ranges
+    // (1..=5 in the example above)
+
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(out_of_bounds_index) = <span class="kw-2">*</span>next_out_of_bounds_index <span class="kw">else </span>{
+        <span class="comment">// No next unused instruction, so this is case a) and nothing needs to be done here
+        </span><span class="kw">return</span>;
+    };
+
+    <span class="kw">if </span>index != out_of_bounds_index {
+        <span class="comment">// The next index is not the one for the current instructions,
+        // so we are in case a), and nothing needs to be done here
+        </span><span class="kw">return</span>;
+    }
+
+    <span class="comment">// What's the last instruction that's part of the group? (5 in the example above)
+    </span><span class="kw">let </span>last_instruction_index = index + <span class="number">2 </span>* (element_size - <span class="number">1</span>);
+    <span class="comment">// How many unused instructions are in this group?
+    </span><span class="kw">let </span><span class="kw-2">mut </span>unused_count = <span class="number">1</span>;
+    <span class="kw">loop </span>{
+        <span class="kw-2">*</span>next_out_of_bounds_index = possible_index_out_of_bounds_indexes.pop();
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(out_of_bounds_index) = <span class="kw-2">*</span>next_out_of_bounds_index {
+            <span class="kw">if </span>out_of_bounds_index &lt;= last_instruction_index {
+                unused_count += <span class="number">1</span>;
+                <span class="kw">if </span>unused_count == element_size {
+                    <span class="comment">// We are in case b): we need to insert just one constrain.
+                    // Since we popped all of the group indexes, and given that we
+                    // are analyzing the first instruction in the group, we can
+                    // set `next_out_of_bounds_index` to the current index:
+                    // then a check will be inserted, and no other check will be
+                    // inserted for the rest of the group.
+                    </span><span class="kw-2">*</span>next_out_of_bounds_index = <span class="prelude-val">Some</span>(index);
+                    <span class="kw">break</span>;
+                } <span class="kw">else </span>{
+                    <span class="kw">continue</span>;
+                }
+            }
+        }
+
+        <span class="comment">// We are in case c): some of the instructions are unused.
+        // We don't need to insert any checks, and given that we already popped
+        // all of the indexes in the group, there's nothing else to do here.
+        </span><span class="kw">break</span>;
+    }
+}
+
+<span class="comment">// Given `lhs` and `rhs` values, if there's a side effects condition this will
+// return (`lhs * condition`, `rhs * condition`), otherwise just (`lhs`, `rhs`)
+</span><span class="kw">fn </span>apply_side_effects(
+    side_effects_condition: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
+    lhs: ValueId,
+    rhs: ValueId,
+    function: <span class="kw-2">&amp;mut </span>Function,
+    block_id: BasicBlockId,
+    call_stack: CallStackId,
+) -&gt; (ValueId, ValueId) {
+    <span class="comment">// See if there's an active "enable side effects" condition
+    </span><span class="kw">let </span><span class="prelude-val">Some</span>(condition) = side_effects_condition <span class="kw">else </span>{
+        <span class="kw">return </span>(lhs, rhs);
+    };
+
+    <span class="kw">let </span>dfg = <span class="kw-2">&amp;mut </span>function.dfg;
+
+    <span class="comment">// Condition needs to be cast to argument type in order to multiply them together.
+    // In our case, lhs is always a boolean.
+    </span><span class="kw">let </span>cast = Instruction::Cast(condition, NumericType::bool());
+    <span class="kw">let </span>casted_condition = dfg.insert_instruction_and_results(cast, block_id, <span class="prelude-val">None</span>, call_stack);
+    <span class="kw">let </span>casted_condition = casted_condition.first();
+
+    <span class="comment">// Unchecked mul because the side effects var is always 0 or 1
+    </span><span class="kw">let </span>lhs = dfg.insert_instruction_and_results(
+        Instruction::binary(BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs, casted_condition),
+        block_id,
+        <span class="prelude-val">None</span>,
+        call_stack,
+    );
+    <span class="kw">let </span>lhs = lhs.first();
+
+    <span class="comment">// Unchecked mul because the side effects var is always 0 or 1
+    </span><span class="kw">let </span>rhs = dfg.insert_instruction_and_results(
+        Instruction::binary(BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, rhs, casted_condition),
+        block_id,
+        <span class="prelude-val">None</span>,
+        call_stack,
+    );
+    <span class="kw">let </span>rhs = rhs.first();
+
+    (lhs, rhs)
 }
 
 <span class="doccomment">/// Store instructions must be removed by DIE in acir code, any load
@@ -2360,6 +3176,130 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>replace_out_of_bounds_array_get_with_failing_constrain() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_get v0, index u32 2 -&gt; Field
+            return v0
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            constrain u1 0 == u1 1, "Index out of bounds"
+            return v0
+        }
+        "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>replace_out_of_bounds_array_set_with_failing_constrain() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            v1 = array_set v0, index u32 2, value Field 0
+            return v0
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [Field; 1]):
+            constrain u1 0 == u1 1, "Index out of bounds"
+            return v0
+        }
+        "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_replace_valid_array_set() {
+        <span class="kw">let </span>src = <span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: [u8; 32]):                 	
+            v3 = array_set v0, index u32 0, value u8 5    	                     	
+            return v3
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination_pre_flattening();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>removes_an_array_get_which_is_in_bounds_due_to_offset() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v3 = array_get v0, index u32 1 minus 1 -&gt; Field
+            return v0
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>correctly_handles_chains_of_array_gets() {
+        <span class="doccomment">//! This test checks that if there's a chain of `array_get` instructions which use the result of the previous
+        //! read as the index of the next `array_get`, we only replace the final `array_get` and do not propagate
+        //! up the chain. Otherwise we remove instructions for which the instructions are still used.
+        </span><span class="comment">// SSA generated from `compile_success_empty/regression_7785` (slightly modified)
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            v3 = array_get v2, index v0 -&gt; u32
+            v4 = array_get v2, index v3 -&gt; u32
+            return
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
+
+        <span class="comment">// Previously this would produce the SSA:
+        //
+        // acir(inline) predicate_pure fn main f0 {
+        //   b0():
+        //     v1 = call f1() -&gt; u32
+        //     v3 = lt v1, u32 2
+        //     constrain v3 == u1 1, "Index out of bounds"
+        //     v5 = lt v4, u32 2  &lt;-- Notice that `v4` has now been orphaned
+        //     constrain v5 == u1 1, "Index out of bounds"
+        //     return
+        //   }
+        // brillig(inline) predicate_pure fn inject_value f1 {
+        //   b0():
+        //     return u32 0
+        // }
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            v3 = array_get v2, index v0 -&gt; u32
+            v5 = lt v3, u32 2
+            constrain v5 == u1 1, "Index out of bounds"
+            return
+        }
+        "#</span>);
     }
 }
 </code></pre></div></section></main></body></html>

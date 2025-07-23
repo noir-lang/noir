@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["can_be_eliminated_if_unused","die_post_check","should_remove_store"],"mod":["prune_dead_parameters"],"struct":["Context","DIEResult","RcTracker"]};
+window.SIDEBAR_ITEMS = {"fn":["apply_side_effects","can_be_eliminated_if_unused","die_post_check","handle_array_get_group","instruction_might_result_in_out_of_bounds","should_remove_store"],"mod":["prune_dead_parameters"],"struct":["Context","DIEResult","RcTracker"]};
