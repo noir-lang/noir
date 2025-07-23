@@ -797,10 +797,18 @@ fn value_to_fields(value: &Value) -> Vec<FieldElement> {
             }
             Value::ArrayOrSlice(array_value) => {
                 if with_length_prefix {
-                    fields.push(FieldElement::from(array_value.elements.borrow().len()));
-                }
-                for value in array_value.elements.borrow().iter() {
-                    go(value, fields, false);
+                    // Mimic what happens in the print module, where in this version we prefix
+                    // with the number of fields in the vector, not the capacity.
+                    let mut array_fields = Vec::new();
+                    for value in array_value.elements.borrow().iter() {
+                        go(value, &mut array_fields, false);
+                    }
+                    fields.push(FieldElement::from(array_fields.len()));
+                    fields.extend(array_fields);
+                } else {
+                    for value in array_value.elements.borrow().iter() {
+                        go(value, fields, false);
+                    }
                 }
             }
             Value::Function(id) => {
