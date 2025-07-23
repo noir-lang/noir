@@ -771,7 +771,17 @@
 <a href="#770" id="770">770</a>
 <a href="#771" id="771">771</a>
 <a href="#772" id="772">772</a>
-<a href="#773" id="773">773</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
@@ -955,6 +965,8 @@
     </span>AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     <span class="attr">#[error(<span class="string">"Ambiguous associated type"</span>)]
     </span>AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    <span class="attr">#[error(<span class="string">"The placeholder `_` is not allowed within types on item signatures for functions"</span>)]
+    </span>WildcardTypeDisallowed { location: Location },
 }
 
 <span class="kw">impl </span>ResolverError {
@@ -1016,7 +1028,8 @@
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
-            | ResolverError::AmbiguousAssociatedType { location, .. } =&gt; <span class="kw-2">*</span>location,
+            | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::WildcardTypeDisallowed { location } =&gt; <span class="kw-2">*</span>location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -1538,6 +1551,13 @@
                 Diagnostic::simple_error(
                     <span class="string">"Ambiguous associated type"</span>.to_string(),
                     <span class="macro">format!</span>(<span class="string">"If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `&lt;Example as {trait_name}&gt;::{associated_type_name}`"</span>),
+                    <span class="kw-2">*</span>location,
+                )
+            }
+            ResolverError::WildcardTypeDisallowed { location } =&gt; {
+                Diagnostic::simple_error(
+                    <span class="string">"The placeholder `_` is not allowed within types on item signatures for functions"</span>.to_string(),
+                    String::new(),
                     <span class="kw-2">*</span>location,
                 )
             }

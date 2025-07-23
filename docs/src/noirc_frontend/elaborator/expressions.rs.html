@@ -1518,7 +1518,14 @@
 <a href="#1517" id="1517">1517</a>
 <a href="#1518" id="1518">1518</a>
 <a href="#1519" id="1519">1519</a>
-<a href="#1520" id="1520">1520</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1520" id="1520">1520</a>
+<a href="#1521" id="1521">1521</a>
+<a href="#1522" id="1522">1522</a>
+<a href="#1523" id="1523">1523</a>
+<a href="#1524" id="1524">1524</a>
+<a href="#1525" id="1525">1525</a>
+<a href="#1526" id="1526">1526</a>
+<a href="#1527" id="1527">1527</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1859,7 +1866,9 @@
                     },
                 );
 
-                <span class="kw">let </span>length = <span class="self">self</span>.convert_expression_type(length, <span class="kw-2">&amp;</span>Kind::u32(), location);
+                <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                <span class="kw">let </span>length =
+                    <span class="self">self</span>.convert_expression_type(length, <span class="kw-2">&amp;</span>Kind::u32(), location, wildcard_allowed);
                 <span class="kw">let </span>(repeated_element, elem_type) = <span class="self">self</span>.elaborate_expression(<span class="kw-2">*</span>repeated_element);
 
                 <span class="kw">let </span>length_clone = length.clone();
@@ -2136,7 +2145,9 @@
                     <span class="kw">let </span>generics = generics.map(|generics| {
                         vecmap(generics, |generic| {
                             <span class="kw">let </span>location = generic.location;
-                            <span class="kw">let </span>typ = <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any);
+                            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                            <span class="kw">let </span>typ =
+                                <span class="self">self</span>.use_type_with_kind(generic, <span class="kw-2">&amp;</span>Kind::Any, wildcard_allowed);
                             Located::from(location, typ)
                         })
                     });
@@ -2562,7 +2573,8 @@
         location: Location,
     ) -&gt; (HirExpression, Type) {
         <span class="kw">let </span>(lhs, lhs_type) = <span class="self">self</span>.elaborate_expression(cast.lhs);
-        <span class="kw">let </span>r#type = <span class="self">self</span>.resolve_type(cast.r#type);
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>r#type = <span class="self">self</span>.resolve_type(cast.r#type, wildcard_allowed);
         <span class="kw">let </span>result = <span class="self">self</span>.check_cast(<span class="kw-2">&amp;</span>lhs, <span class="kw-2">&amp;</span>lhs_type, <span class="kw-2">&amp;</span>r#type, location);
         <span class="kw">let </span>expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
@@ -2798,7 +2810,8 @@
                         <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } <span class="kw">else </span>{
-                    <span class="self">self</span>.resolve_type(typ)
+                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+                    <span class="self">self</span>.resolve_type(typ, wildcard_allowed)
                 };
 
                 arg_types.push(typ.clone());
@@ -2983,7 +2996,8 @@
             },
         };
 
-        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(constraint.typ.clone());
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(constraint.typ.clone(), wildcard_allowed);
         <span class="kw">let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.use_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound) <span class="kw">else </span>{
             <span class="comment">// resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.

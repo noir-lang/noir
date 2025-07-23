@@ -2417,7 +2417,124 @@
 <a href="#2416" id="2416">2416</a>
 <a href="#2417" id="2417">2417</a>
 <a href="#2418" id="2418">2418</a>
-<a href="#2419" id="2419">2419</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2419" id="2419">2419</a>
+<a href="#2420" id="2420">2420</a>
+<a href="#2421" id="2421">2421</a>
+<a href="#2422" id="2422">2422</a>
+<a href="#2423" id="2423">2423</a>
+<a href="#2424" id="2424">2424</a>
+<a href="#2425" id="2425">2425</a>
+<a href="#2426" id="2426">2426</a>
+<a href="#2427" id="2427">2427</a>
+<a href="#2428" id="2428">2428</a>
+<a href="#2429" id="2429">2429</a>
+<a href="#2430" id="2430">2430</a>
+<a href="#2431" id="2431">2431</a>
+<a href="#2432" id="2432">2432</a>
+<a href="#2433" id="2433">2433</a>
+<a href="#2434" id="2434">2434</a>
+<a href="#2435" id="2435">2435</a>
+<a href="#2436" id="2436">2436</a>
+<a href="#2437" id="2437">2437</a>
+<a href="#2438" id="2438">2438</a>
+<a href="#2439" id="2439">2439</a>
+<a href="#2440" id="2440">2440</a>
+<a href="#2441" id="2441">2441</a>
+<a href="#2442" id="2442">2442</a>
+<a href="#2443" id="2443">2443</a>
+<a href="#2444" id="2444">2444</a>
+<a href="#2445" id="2445">2445</a>
+<a href="#2446" id="2446">2446</a>
+<a href="#2447" id="2447">2447</a>
+<a href="#2448" id="2448">2448</a>
+<a href="#2449" id="2449">2449</a>
+<a href="#2450" id="2450">2450</a>
+<a href="#2451" id="2451">2451</a>
+<a href="#2452" id="2452">2452</a>
+<a href="#2453" id="2453">2453</a>
+<a href="#2454" id="2454">2454</a>
+<a href="#2455" id="2455">2455</a>
+<a href="#2456" id="2456">2456</a>
+<a href="#2457" id="2457">2457</a>
+<a href="#2458" id="2458">2458</a>
+<a href="#2459" id="2459">2459</a>
+<a href="#2460" id="2460">2460</a>
+<a href="#2461" id="2461">2461</a>
+<a href="#2462" id="2462">2462</a>
+<a href="#2463" id="2463">2463</a>
+<a href="#2464" id="2464">2464</a>
+<a href="#2465" id="2465">2465</a>
+<a href="#2466" id="2466">2466</a>
+<a href="#2467" id="2467">2467</a>
+<a href="#2468" id="2468">2468</a>
+<a href="#2469" id="2469">2469</a>
+<a href="#2470" id="2470">2470</a>
+<a href="#2471" id="2471">2471</a>
+<a href="#2472" id="2472">2472</a>
+<a href="#2473" id="2473">2473</a>
+<a href="#2474" id="2474">2474</a>
+<a href="#2475" id="2475">2475</a>
+<a href="#2476" id="2476">2476</a>
+<a href="#2477" id="2477">2477</a>
+<a href="#2478" id="2478">2478</a>
+<a href="#2479" id="2479">2479</a>
+<a href="#2480" id="2480">2480</a>
+<a href="#2481" id="2481">2481</a>
+<a href="#2482" id="2482">2482</a>
+<a href="#2483" id="2483">2483</a>
+<a href="#2484" id="2484">2484</a>
+<a href="#2485" id="2485">2485</a>
+<a href="#2486" id="2486">2486</a>
+<a href="#2487" id="2487">2487</a>
+<a href="#2488" id="2488">2488</a>
+<a href="#2489" id="2489">2489</a>
+<a href="#2490" id="2490">2490</a>
+<a href="#2491" id="2491">2491</a>
+<a href="#2492" id="2492">2492</a>
+<a href="#2493" id="2493">2493</a>
+<a href="#2494" id="2494">2494</a>
+<a href="#2495" id="2495">2495</a>
+<a href="#2496" id="2496">2496</a>
+<a href="#2497" id="2497">2497</a>
+<a href="#2498" id="2498">2498</a>
+<a href="#2499" id="2499">2499</a>
+<a href="#2500" id="2500">2500</a>
+<a href="#2501" id="2501">2501</a>
+<a href="#2502" id="2502">2502</a>
+<a href="#2503" id="2503">2503</a>
+<a href="#2504" id="2504">2504</a>
+<a href="#2505" id="2505">2505</a>
+<a href="#2506" id="2506">2506</a>
+<a href="#2507" id="2507">2507</a>
+<a href="#2508" id="2508">2508</a>
+<a href="#2509" id="2509">2509</a>
+<a href="#2510" id="2510">2510</a>
+<a href="#2511" id="2511">2511</a>
+<a href="#2512" id="2512">2512</a>
+<a href="#2513" id="2513">2513</a>
+<a href="#2514" id="2514">2514</a>
+<a href="#2515" id="2515">2515</a>
+<a href="#2516" id="2516">2516</a>
+<a href="#2517" id="2517">2517</a>
+<a href="#2518" id="2518">2518</a>
+<a href="#2519" id="2519">2519</a>
+<a href="#2520" id="2520">2520</a>
+<a href="#2521" id="2521">2521</a>
+<a href="#2522" id="2522">2522</a>
+<a href="#2523" id="2523">2523</a>
+<a href="#2524" id="2524">2524</a>
+<a href="#2525" id="2525">2525</a>
+<a href="#2526" id="2526">2526</a>
+<a href="#2527" id="2527">2527</a>
+<a href="#2528" id="2528">2528</a>
+<a href="#2529" id="2529">2529</a>
+<a href="#2530" id="2530">2530</a>
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a>
+<a href="#2536" id="2536">2536</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2479,16 +2596,26 @@
 }
 
 <span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
-        <span class="self">self</span>.resolve_type_inner(typ, <span class="kw-2">&amp;</span>Kind::Normal, PathResolutionMode::MarkAsReferenced)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
+        <span class="self">self</span>.resolve_type_inner(
+            typ,
+            <span class="kw-2">&amp;</span>Kind::Normal,
+            PathResolutionMode::MarkAsReferenced,
+            wildcard_allowed,
+        )
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType) -&gt; Type {
-        <span class="self">self</span>.use_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, wildcard_allowed: bool) -&gt; Type {
+        <span class="self">self</span>.use_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
-        <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_type_with_kind(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: UnresolvedType,
+        kind: <span class="kw-2">&amp;</span>Kind,
+        wildcard_allowed: bool,
+    ) -&gt; Type {
+        <span class="self">self</span>.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
 
     <span class="doccomment">/// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -2497,17 +2624,28 @@
         typ: UnresolvedType,
         kind: <span class="kw-2">&amp;</span>Kind,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; Type {
         <span class="kw">let </span>location = typ.location;
-        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode);
+        <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
         <span class="kw">if </span>resolved_type.is_nested_slice() {
             <span class="self">self</span>.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: UnresolvedType, kind: <span class="kw-2">&amp;</span>Kind) -&gt; Type {
-        <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_type_with_kind(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        typ: UnresolvedType,
+        kind: <span class="kw-2">&amp;</span>Kind,
+        wildcard_allowed: bool,
+    ) -&gt; Type {
+        <span class="self">self</span>.resolve_type_with_kind_inner(
+            typ,
+            kind,
+            PathResolutionMode::MarkAsReferenced,
+            wildcard_allowed,
+        )
     }
 
     <span class="doccomment">/// Translates an UnresolvedType into a Type and appends any
@@ -2517,6 +2655,7 @@
         typ: UnresolvedType,
         kind: <span class="kw-2">&amp;</span>Kind,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; Type {
         <span class="kw">use </span><span class="kw">crate</span>::ast::UnresolvedTypeData::<span class="kw-2">*</span>;
 
@@ -2534,15 +2673,28 @@
 
         <span class="kw">let </span>resolved_type = <span class="kw">match </span>typ.typ {
             Array(size, elem) =&gt; {
-                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>elem, kind, mode));
-                <span class="kw">let </span>size = <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location);
+                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(
+                    <span class="kw-2">*</span>elem,
+                    kind,
+                    mode,
+                    wildcard_allowed,
+                ));
+                <span class="kw">let </span>size =
+                    <span class="self">self</span>.convert_expression_type(size, <span class="kw-2">&amp;</span>Kind::u32(), location, wildcard_allowed);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) =&gt; {
-                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>elem, kind, mode));
+                <span class="kw">let </span>elem = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(
+                    <span class="kw-2">*</span>elem,
+                    kind,
+                    mode,
+                    wildcard_allowed,
+                ));
                 Type::Slice(elem)
             }
-            Expression(expr) =&gt; <span class="self">self</span>.convert_expression_type(expr, kind, location),
+            Expression(expr) =&gt; {
+                <span class="self">self</span>.convert_expression_type(expr, kind, location, wildcard_allowed)
+            }
             Unit =&gt; Type::Unit,
             Unspecified =&gt; {
                 <span class="kw">let </span>location = typ.location;
@@ -2552,7 +2704,7 @@
             Error =&gt; Type::Error,
             Named(path, args, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
-                <span class="self">self</span>.resolve_named_type(path, args, mode)
+                <span class="self">self</span>.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) =&gt; {
                 <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
@@ -2560,14 +2712,18 @@
             }
 
             Tuple(fields) =&gt; Type::Tuple(vecmap(fields, |field| {
-                <span class="self">self</span>.resolve_type_with_kind_inner(field, kind, mode)
+                <span class="self">self</span>.resolve_type_with_kind_inner(field, kind, mode, wildcard_allowed)
             })),
             Function(args, ret, env, unconstrained) =&gt; {
-                <span class="kw">let </span>args = vecmap(args, |arg| <span class="self">self</span>.resolve_type_with_kind_inner(arg, kind, mode));
-                <span class="kw">let </span>ret = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>ret, kind, mode));
+                <span class="kw">let </span>args = vecmap(args, |arg| {
+                    <span class="self">self</span>.resolve_type_with_kind_inner(arg, kind, mode, wildcard_allowed)
+                });
+                <span class="kw">let </span>ret =
+                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>ret, kind, mode, wildcard_allowed));
                 <span class="kw">let </span>env_location = env.location;
 
-                <span class="kw">let </span>env = Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>env, kind, mode));
+                <span class="kw">let </span>env =
+                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>env, kind, mode, wildcard_allowed));
 
                 <span class="kw">match </span><span class="kw-2">*</span>env {
                     Type::Unit | Type::Tuple(<span class="kw">_</span>) | Type::NamedGeneric(<span class="kw">_</span>) =&gt; {
@@ -2587,19 +2743,27 @@
                     <span class="self">self</span>.use_unstable_feature(UnstableFeature::Ownership, location);
                 }
                 Type::Reference(
-                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>element, kind, mode)),
+                    Box::new(<span class="self">self</span>.resolve_type_with_kind_inner(
+                        <span class="kw-2">*</span>element,
+                        kind,
+                        mode,
+                        wildcard_allowed,
+                    )),
                     mutable,
                 )
             }
-            Parenthesized(typ) =&gt; <span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>typ, kind, mode),
+            Parenthesized(typ) =&gt; {
+                <span class="self">self</span>.resolve_type_with_kind_inner(<span class="kw-2">*</span>typ, kind, mode, wildcard_allowed)
+            }
             Resolved(id) =&gt; <span class="self">self</span>.interner.get_quoted_type(id).clone(),
-            AsTraitPath(path) =&gt; <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path),
+            AsTraitPath(path) =&gt; <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, wildcard_allowed),
             Interned(id) =&gt; {
                 <span class="kw">let </span>typ = <span class="self">self</span>.interner.get_unresolved_type_data(id).clone();
                 <span class="kw">return </span><span class="self">self</span>.resolve_type_with_kind_inner(
                     UnresolvedType { typ, location },
                     kind,
                     mode,
+                    wildcard_allowed,
                 );
             }
         };
@@ -2655,6 +2819,7 @@
         path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; Type {
         <span class="kw">if </span>args.is_empty() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_generic_or_global_type(<span class="kw-2">&amp;</span>path, mode) {
@@ -2664,7 +2829,7 @@
 
         <span class="comment">// Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_type_variable(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>args) {
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(typ) = <span class="self">self</span>.lookup_type_variable(<span class="kw-2">&amp;</span>path, <span class="kw-2">&amp;</span>args, wildcard_allowed) {
             <span class="kw">return </span>typ;
         }
 
@@ -2672,7 +2837,8 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(type_alias) = <span class="self">self</span>.lookup_type_alias(path.clone(), mode) {
             <span class="kw">let </span>id = type_alias.borrow().id;
-            <span class="kw">let </span>(args, <span class="kw">_</span>) = <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode);
+            <span class="kw">let </span>(args, <span class="kw">_</span>) =
+                <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
 
             <span class="kw">if let </span><span class="prelude-val">Some</span>(item) = <span class="self">self</span>.current_item {
                 <span class="self">self</span>.interner.add_type_alias_dependency(item, id);
@@ -2715,8 +2881,13 @@
                     });
                 }
 
-                <span class="kw">let </span>(args, <span class="kw">_</span>) =
-                    <span class="self">self</span>.resolve_type_args_inner(args, data_type.borrow(), location, mode);
+                <span class="kw">let </span>(args, <span class="kw">_</span>) = <span class="self">self</span>.resolve_type_args_inner(
+                    args,
+                    data_type.borrow(),
+                    location,
+                    mode,
+                    wildcard_allowed,
+                );
 
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(current_item) = <span class="self">self</span>.current_item {
                     <span class="kw">let </span>dependency_id = data_type.borrow().id;
@@ -2726,7 +2897,12 @@
                 Type::DataType(data_type, args)
             }
             <span class="prelude-val">Ok</span>(PathResolutionItem::PrimitiveType(primitive_type)) =&gt; {
-                <span class="kw">let </span>typ = <span class="self">self</span>.instantiate_primitive_type(primitive_type, args, location);
+                <span class="kw">let </span>typ = <span class="self">self</span>.instantiate_primitive_type(
+                    primitive_type,
+                    args,
+                    location,
+                    wildcard_allowed,
+                );
                 <span class="kw">if let </span>Type::Quoted(quoted) = typ {
                     <span class="kw">let </span>in_function = <span class="macro">matches!</span>(<span class="self">self</span>.current_item, <span class="prelude-val">Some</span>(DependencyId::Function(<span class="kw">_</span>)));
                     <span class="kw">if </span>in_function &amp;&amp; !<span class="self">self</span>.in_comptime_context() {
@@ -2765,7 +2941,12 @@
         }
     }
 
-    <span class="kw">fn </span>lookup_type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>TypedPath, args: <span class="kw-2">&amp;</span>GenericTypeArgs) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+    <span class="kw">fn </span>lookup_type_variable(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        path: <span class="kw-2">&amp;</span>TypedPath,
+        args: <span class="kw-2">&amp;</span>GenericTypeArgs,
+        wildcard_allowed: bool,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
         <span class="kw">if </span>path.segments.len() != <span class="number">1 </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
@@ -2779,7 +2960,15 @@
                 }
                 <span class="prelude-val">Some</span>(self_type)
             }
-            WILDCARD_TYPE =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)),
+            WILDCARD_TYPE =&gt; {
+                <span class="kw">if </span>!wildcard_allowed {
+                    <span class="self">self</span>.push_err(ResolverError::WildcardTypeDisallowed {
+                        location: path.location,
+                    });
+                }
+
+                <span class="prelude-val">Some</span>(<span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any))
+            }
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         }
     }
@@ -2796,7 +2985,9 @@
         <span class="kw">let </span>trait_as_type_info = <span class="self">self</span>.lookup_trait_or_error(path).map(|t| t.id);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = trait_as_type_info {
-            <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode);
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>(ordered, named) =
+                <span class="self">self</span>.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
             <span class="kw">let </span>name = <span class="self">self</span>.interner.get_trait(id).name.to_string();
             <span class="kw">let </span>generics = TraitGenerics { ordered, named };
             Type::TraitAsType(id, Rc::new(name), generics)
@@ -2814,7 +3005,16 @@
         location: Location,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
         <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
-        <span class="self">self</span>.resolve_type_or_trait_args_inner(args, item, location, <span class="bool-val">false</span>, mode)
+        <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">false</span>;
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="self">self</span>.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>use_type_args(
@@ -2824,7 +3024,8 @@
         location: Location,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
         <span class="kw">let </span>mode = PathResolutionMode::MarkAsUsed;
-        <span class="self">self</span>.resolve_type_args_inner(args, item, location, mode)
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="self">self</span>.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_args_inner(
@@ -2833,8 +3034,17 @@
         item: <span class="kw">impl </span>Generic,
         location: Location,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
-        <span class="self">self</span>.resolve_type_or_trait_args_inner(args, item, location, <span class="bool-val">true</span>, mode)
+        <span class="kw">let </span>allow_implicit_named_args = <span class="bool-val">true</span>;
+        <span class="self">self</span>.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_type_or_trait_args_inner(
@@ -2844,6 +3054,7 @@
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; (Vec&lt;Type&gt;, Vec&lt;NamedType&gt;) {
         <span class="kw">let </span>expected_kinds = item.generic_kinds(<span class="self">self</span>.interner);
 
@@ -2859,8 +3070,9 @@
         }
 
         <span class="kw">let </span>ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        <span class="kw">let </span>ordered =
-            vecmap(ordered_args, |(kind, typ)| <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode));
+        <span class="kw">let </span>ordered = vecmap(ordered_args, |(kind, typ)| {
+            <span class="self">self</span>.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed)
+        });
 
         <span class="kw">let </span><span class="kw-2">mut </span>associated = Vec::new();
 
@@ -2871,6 +3083,7 @@
                 location,
                 allow_implicit_named_args,
                 mode,
+                wildcard_allowed,
             );
         } <span class="kw">else if </span>!args.named_args.is_empty() {
             <span class="kw">let </span>item_kind = item.item_kind();
@@ -2887,6 +3100,7 @@
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -&gt; Vec&lt;NamedType&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>seen_args = HashMap::default();
         <span class="kw">let </span><span class="kw-2">mut </span>required_args = item.named_generics(<span class="self">self</span>.interner);
@@ -2911,7 +3125,8 @@
             </span><span class="kw">let </span>expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
-            <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>expected.kind(), mode);
+            <span class="kw">let </span>typ =
+                <span class="self">self</span>.resolve_type_with_kind_inner(typ, <span class="kw-2">&amp;</span>expected.kind(), mode, wildcard_allowed);
             resolved.push(NamedType { name, typ });
         }
 
@@ -3022,12 +3237,18 @@
         length: UnresolvedTypeExpression,
         expected_kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
+        wildcard_allowed: bool,
     ) -&gt; Type {
         <span class="kw">match </span>length {
             UnresolvedTypeExpression::Variable(path) =&gt; {
                 <span class="kw">let </span>path = <span class="self">self</span>.validate_path(path);
                 <span class="kw">let </span>mode = PathResolutionMode::MarkAsReferenced;
-                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(path, GenericTypeArgs::default(), mode);
+                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_named_type(
+                    path,
+                    GenericTypeArgs::default(),
+                    mode,
+                    wildcard_allowed,
+                );
                 <span class="self">self</span>.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) =&gt; {
@@ -3038,8 +3259,18 @@
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {
                 <span class="kw">let </span>(lhs_location, rhs_location) = (lhs.location(), rhs.location());
-                <span class="kw">let </span>lhs = <span class="self">self</span>.convert_expression_type(<span class="kw-2">*</span>lhs, expected_kind, lhs_location);
-                <span class="kw">let </span>rhs = <span class="self">self</span>.convert_expression_type(<span class="kw-2">*</span>rhs, expected_kind, rhs_location);
+                <span class="kw">let </span>lhs = <span class="self">self</span>.convert_expression_type(
+                    <span class="kw-2">*</span>lhs,
+                    expected_kind,
+                    lhs_location,
+                    wildcard_allowed,
+                );
+                <span class="kw">let </span>rhs = <span class="self">self</span>.convert_expression_type(
+                    <span class="kw-2">*</span>rhs,
+                    expected_kind,
+                    rhs_location,
+                    wildcard_allowed,
+                );
 
                 <span class="kw">match </span>(lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) =&gt; {
@@ -3070,7 +3301,7 @@
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) =&gt; {
-                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path);
+                <span class="kw">let </span>typ = <span class="self">self</span>.resolve_as_trait_path(<span class="kw-2">*</span>path, wildcard_allowed);
                 <span class="self">self</span>.check_kind(typ, expected_kind, location)
             }
         }
@@ -3093,7 +3324,7 @@
         typ
     }
 
-    <span class="kw">fn </span>resolve_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath) -&gt; Type {
+    <span class="kw">fn </span>resolve_as_trait_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: AsTraitPath, wildcard_allowed: bool) -&gt; Type {
         <span class="kw">let </span>location = path.trait_path.location;
         <span class="kw">let </span>trait_path = <span class="self">self</span>.validate_path(path.trait_path.clone());
         <span class="kw">let </span><span class="prelude-val">Some</span>(trait_id) = <span class="self">self</span>.resolve_trait_by_path(trait_path) <span class="kw">else </span>{
@@ -3102,7 +3333,7 @@
         };
 
         <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.use_type_args(path.trait_generics.clone(), trait_id, location);
-        <span class="kw">let </span>object_type = <span class="self">self</span>.use_type(path.typ.clone());
+        <span class="kw">let </span>object_type = <span class="self">self</span>.use_type(path.typ.clone(), wildcard_allowed);
 
         <span class="kw">match </span><span class="self">self</span>.interner.lookup_trait_implementation(<span class="kw-2">&amp;</span>object_type, trait_id, <span class="kw-2">&amp;</span>ordered, <span class="kw-2">&amp;</span>named) {
             <span class="prelude-val">Ok</span>((impl_kind, instantiation_bindings)) =&gt; {
@@ -3408,7 +3639,10 @@
             UnresolvedTypeData::Unspecified =&gt; {
                 <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
             }
-            <span class="kw">_ </span>=&gt; <span class="self">self</span>.use_type(typ),
+            <span class="kw">_ </span>=&gt; {
+                <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+                <span class="self">self</span>.use_type(typ, wildcard_allowed)
+            }
         }
     }
 

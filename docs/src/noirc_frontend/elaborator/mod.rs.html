@@ -2549,7 +2549,31 @@
 <a href="#2548" id="2548">2548</a>
 <a href="#2549" id="2549">2549</a>
 <a href="#2550" id="2550">2550</a>
-<a href="#2551" id="2551">2551</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2551" id="2551">2551</a>
+<a href="#2552" id="2552">2552</a>
+<a href="#2553" id="2553">2553</a>
+<a href="#2554" id="2554">2554</a>
+<a href="#2555" id="2555">2555</a>
+<a href="#2556" id="2556">2556</a>
+<a href="#2557" id="2557">2557</a>
+<a href="#2558" id="2558">2558</a>
+<a href="#2559" id="2559">2559</a>
+<a href="#2560" id="2560">2560</a>
+<a href="#2561" id="2561">2561</a>
+<a href="#2562" id="2562">2562</a>
+<a href="#2563" id="2563">2563</a>
+<a href="#2564" id="2564">2564</a>
+<a href="#2565" id="2565">2565</a>
+<a href="#2566" id="2566">2566</a>
+<a href="#2567" id="2567">2567</a>
+<a href="#2568" id="2568">2568</a>
+<a href="#2569" id="2569">2569</a>
+<a href="#2570" id="2570">2570</a>
+<a href="#2571" id="2571">2571</a>
+<a href="#2572" id="2572">2572</a>
+<a href="#2573" id="2573">2573</a>
+<a href="#2574" id="2574">2574</a>
+<a href="#2575" id="2575">2575</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -3230,13 +3254,15 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_generic_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>UnresolvedGeneric) -&gt; Kind {
         <span class="kw">if let </span>UnresolvedGeneric::Numeric { ident, typ } = generic {
             <span class="kw">let </span>unresolved_typ = typ.clone();
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
             <span class="kw">let </span>typ = <span class="kw">if </span>unresolved_typ.is_type_expression() {
                 <span class="self">self</span>.resolve_type_with_kind(
                     unresolved_typ.clone(),
                     <span class="kw-2">&amp;</span>Kind::numeric(Type::default_int_type()),
+                    wildcard_allowed,
                 )
             } <span class="kw">else </span>{
-                <span class="self">self</span>.resolve_type(unresolved_typ.clone())
+                <span class="self">self</span>.resolve_type(unresolved_typ.clone(), wildcard_allowed)
             };
             <span class="kw">if </span>!<span class="macro">matches!</span>(typ, Type::FieldElement | Type::Integer(<span class="kw">_</span>, <span class="kw">_</span>)) {
                 <span class="kw">let </span>unsupported_typ_err =
@@ -3410,7 +3436,8 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constraint: <span class="kw-2">&amp;</span>UnresolvedTraitConstraint,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;TraitConstraint&gt; {
-        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constraint.typ.clone());
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constraint.typ.clone(), wildcard_allowed);
         <span class="kw">let </span>trait_bound = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>constraint.trait_bound)<span class="question-mark">?</span>;
         <span class="kw">let </span>location = constraint.trait_bound.trait_path.location;
 
@@ -3436,9 +3463,15 @@
         <span class="kw">let </span>the_trait = <span class="self">self</span>.lookup_trait_or_error(trait_path)<span class="question-mark">?</span>;
         <span class="kw">let </span>trait_id = the_trait.id;
         <span class="kw">let </span>location = bound.trait_path.location;
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
 
-        <span class="kw">let </span>(ordered, named) =
-            <span class="self">self</span>.resolve_type_args_inner(bound.trait_generics.clone(), trait_id, location, mode);
+        <span class="kw">let </span>(ordered, named) = <span class="self">self</span>.resolve_type_args_inner(
+            bound.trait_generics.clone(),
+            trait_id,
+            location,
+            mode,
+            wildcard_allowed,
+        );
 
         <span class="kw">let </span>trait_generics = TraitGenerics { ordered, named };
         <span class="prelude-val">Some</span>(ResolvedTraitBound { trait_id, trait_generics, location })
@@ -3517,6 +3550,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_types = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>parameter_idents = Vec::new();
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
 
         <span class="kw">for </span>Param { visibility, pattern, typ, location: <span class="kw">_ </span>} <span class="kw">in </span>func.parameters().iter().cloned() {
             <span class="self">self</span>.run_lint(|<span class="kw">_</span>| {
@@ -3529,7 +3563,7 @@
                     <span class="self">self</span>.desugar_impl_trait_arg(path, args, <span class="kw-2">&amp;mut </span>generics, <span class="kw-2">&amp;mut </span>trait_constraints)
                 }
                 <span class="comment">// Function parameters have Kind::Normal
-                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal),
+                </span><span class="kw">_ </span>=&gt; <span class="self">self</span>.resolve_type_with_kind(typ, <span class="kw-2">&amp;</span>Kind::Normal, wildcard_allowed),
             };
 
             <span class="self">self</span>.check_if_type_is_valid_for_program_input(
@@ -3555,7 +3589,7 @@
             parameter_types.push(typ);
         }
 
-        <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type()));
+        <span class="kw">let </span>return_type = Box::new(<span class="self">self</span>.use_type(func.return_type(), wildcard_allowed));
 
         <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::Function(
             parameter_types,
@@ -4089,8 +4123,12 @@
                         // This can't be done in code, but it could happen with unquoted types.
                         </span><span class="kw">continue</span>;
                     };
-                    <span class="kw">let </span>resolved_type =
-                        <span class="self">self</span>.resolve_type_with_kind(unresolved_type, <span class="kw-2">&amp;</span>associated_type.typ.kind());
+                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+                    <span class="kw">let </span>resolved_type = <span class="self">self</span>.resolve_type_with_kind(
+                        unresolved_type,
+                        <span class="kw-2">&amp;</span>associated_type.typ.kind(),
+                        wildcard_allowed,
+                    );
                     named_generic.type_var.bind(resolved_type);
                 }
             }
@@ -4307,7 +4345,8 @@
 
         <span class="kw">let </span>generics = <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>alias.type_alias_def.generics);
         <span class="self">self</span>.current_item = <span class="prelude-val">Some</span>(DependencyId::Alias(alias_id));
-        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(alias.type_alias_def.typ);
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(alias.type_alias_def.typ, wildcard_allowed);
 
         <span class="kw">if </span>visibility != ItemVisibility::Private {
             <span class="self">self</span>.check_type_is_not_more_private_then_item(name, visibility, <span class="kw-2">&amp;</span>typ, location);
@@ -4517,11 +4556,16 @@
             <span class="kw">let </span>struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(<span class="kw-2">&amp;</span>unresolved.generics, <span class="kw-2">&amp;</span>struct_def.borrow().generics);
 
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
             <span class="kw">let </span>fields = vecmap(<span class="kw-2">&amp;</span>unresolved.fields, |field| {
                 <span class="kw">let </span>ident = <span class="kw-2">&amp;</span>field.item.name;
                 <span class="kw">let </span>typ = <span class="kw-2">&amp;</span>field.item.typ;
                 <span class="kw">let </span>visibility = field.item.visibility;
-                StructField { visibility, name: ident.clone(), typ: this.resolve_type(typ.clone()) }
+                StructField {
+                    visibility,
+                    name: ident.clone(),
+                    typ: this.resolve_type(typ.clone(), wildcard_allowed),
+                }
             });
 
             this.resolving_ids.remove(<span class="kw-2">&amp;</span>struct_id);
@@ -4552,10 +4596,12 @@
             datatype.borrow_mut().init_variants();
             <span class="self">self</span>.resolving_ids.insert(<span class="kw-2">*</span>type_id);
 
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
             <span class="kw">for </span>(i, variant) <span class="kw">in </span>typ.enum_def.variants.iter().enumerate() {
                 <span class="kw">let </span>parameters = variant.item.parameters.as_ref();
-                <span class="kw">let </span>types =
-                    parameters.map(|params| vecmap(params, |typ| <span class="self">self</span>.resolve_type(typ.clone())));
+                <span class="kw">let </span>types = parameters.map(|params| {
+                    vecmap(params, |typ| <span class="self">self</span>.resolve_type(typ.clone(), wildcard_allowed))
+                });
                 <span class="kw">let </span>name = variant.item.name.clone();
 
                 <span class="kw">let </span>is_function = types.is_some();
@@ -4679,7 +4725,8 @@
 
             <span class="kw">for </span>(generics, <span class="kw">_</span>, function_set) <span class="kw">in </span>function_sets {
                 <span class="self">self</span>.add_generics(generics);
-                <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(self_type.clone());
+                <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+                <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(self_type.clone(), wildcard_allowed);
 
                 function_set.self_type = <span class="prelude-val">Some</span>(self_type.clone());
                 <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(self_type);
@@ -4838,7 +4885,8 @@
                     .chain(new_generics_trait_constraints.iter().map(|(constraint, <span class="kw">_</span>)| constraint)),
             );
 
-            <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(unresolved_type);
+            <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+            <span class="kw">let </span>self_type = <span class="self">self</span>.resolve_type(unresolved_type, wildcard_allowed);
             <span class="self">self</span>.self_type = <span class="prelude-val">Some</span>(self_type.clone());
             trait_impl.methods.self_type = <span class="prelude-val">Some</span>(self_type);
 

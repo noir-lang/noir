@@ -1405,7 +1405,8 @@
 <a href="#1404" id="1404">1404</a>
 <a href="#1405" id="1405">1405</a>
 <a href="#1406" id="1406">1406</a>
-<a href="#1407" id="1407">1407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1407" id="1407">1407</a>
+<a href="#1408" id="1408">1408</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1960,7 +1961,8 @@
         variables_defined: <span class="kw-2">&amp;mut </span>Vec&lt;Ident&gt;,
     ) -&gt; Pattern {
         <span class="kw">let </span>location = constructor.typ.location;
-        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constructor.typ);
+        <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
+        <span class="kw">let </span>typ = <span class="self">self</span>.resolve_type(constructor.typ, wildcard_allowed);
 
         <span class="kw">let </span><span class="prelude-val">Some</span>((struct_name, <span class="kw-2">mut </span>expected_field_types)) =
             <span class="self">self</span>.struct_name_and_field_types(<span class="kw-2">&amp;</span>typ, location)

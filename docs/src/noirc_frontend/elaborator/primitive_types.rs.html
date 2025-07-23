@@ -342,7 +342,10 @@
 <a href="#341" id="341">341</a>
 <a href="#342" id="342">342</a>
 <a href="#343" id="343">343</a>
-<a href="#344" id="344">344</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#344" id="344">344</a>
+<a href="#345" id="345">345</a>
+<a href="#346" id="346">346</a>
+<a href="#347" id="347">347</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     QuotedType, Type,
@@ -529,6 +532,7 @@
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
+        wildcard_allowed: bool,
     ) -&gt; Type {
         <span class="kw">match </span>primitive_type {
             PrimitiveType::Bool
@@ -575,6 +579,7 @@
                     item,
                     location,
                     PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
                 );
                 <span class="macro">assert_eq!</span>(args.len(), <span class="number">1</span>);
                 <span class="kw">let </span>length = args.pop().unwrap();
@@ -587,6 +592,7 @@
                     item,
                     location,
                     PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
                 );
                 <span class="macro">assert_eq!</span>(args.len(), <span class="number">2</span>);
                 <span class="kw">let </span>element = args.pop().unwrap();

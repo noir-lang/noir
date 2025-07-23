@@ -3144,7 +3144,8 @@
 <a href="#3143" id="3143">3143</a>
 <a href="#3144" id="3144">3144</a>
 <a href="#3145" id="3145">3145</a>
-<a href="#3146" id="3146">3146</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3146" id="3146">3146</a>
+<a href="#3147" id="3147">3147</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -4042,9 +4043,10 @@
     <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
     <span class="kw">let </span>typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, <span class="string">"a type"</span>)<span class="question-mark">?</span>;
     <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Quoted::as_type"</span>, location));
+    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
     <span class="kw">let </span>typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ)
+            elaborator.use_type(typ, wildcard_allowed)
         });
     <span class="prelude-val">Ok</span>(Value::Type(typ))
 }
