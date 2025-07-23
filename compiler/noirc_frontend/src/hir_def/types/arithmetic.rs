@@ -98,28 +98,28 @@ impl Type {
                     }
                 }
 
+                let lhs =
+                    lhs.canonicalize_helper(bindings, found_checked_cast, run_simplifications);
+                let rhs =
+                    rhs.canonicalize_helper(bindings, found_checked_cast, run_simplifications);
+
                 // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
-                    if let Ok(rhs_value) = evaluate(rhs) {
+                    if let Ok(rhs_value) = evaluate(&rhs) {
                         if rhs_value.is_one() {
-                            return *lhs.clone();
+                            return lhs;
                         }
                     }
                 }
 
                 // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
                 if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
-                    if let Ok(rhs_value) = evaluate(rhs) {
+                    if let Ok(rhs_value) = evaluate(&rhs) {
                         if rhs_value.is_zero() {
-                            return *lhs.clone();
+                            return lhs;
                         }
                     }
                 }
-
-                let lhs =
-                    lhs.canonicalize_helper(bindings, found_checked_cast, run_simplifications);
-                let rhs =
-                    rhs.canonicalize_helper(bindings, found_checked_cast, run_simplifications);
 
                 if !run_simplifications {
                     return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
