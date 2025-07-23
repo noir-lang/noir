@@ -312,14 +312,18 @@ pub fn decode_printable_value_inner<F: AcirField>(
 
             if with_length_prefix {
                 let capacity = field_iterator
-                .next()
-                .expect("expected length prefixed array to have at least 1 element for the capacity")
-                .to_u128() as usize;
-                assert_eq!(
-                    capacity % length,
-                    0,
-                    "array capacity should be a multiple of its length"
-                );
+                    .next()
+                    .expect("expected length prefixed array to have at least 1 element for the capacity")
+                    .to_u128() as usize;
+                if length == 0 {
+                    assert_eq!(capacity, 0, "0 length array should have a capacity of 0");
+                } else {
+                    assert_eq!(
+                        capacity % length,
+                        0,
+                        "array capacity should be a multiple of its length"
+                    );
+                }
             }
 
             for _ in 0..length {
@@ -364,9 +368,9 @@ pub fn decode_printable_value_inner<F: AcirField>(
         PrintableType::String { length } => {
             if with_length_prefix {
                 let capacity = field_iterator
-                .next()
-                .expect("expected length prefixed string to have at least 1 element for the capacity")
-                .to_u128() as usize;
+                    .next()
+                    .expect("expected length prefixed string to have at least 1 element for the capacity")
+                    .to_u128() as usize;
 
                 assert_eq!(
                     *length as usize, capacity,
