@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753291766273,
+  "lastUpdate": 1753291768852,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20363,85 +20363,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3172cf818efee46e21f905127c7f7fc55088e5c9",
-          "message": "chore: Add expected bigcurve failure (#9194)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-14T18:26:30Z",
-          "tree_id": "ad49daabe49d09cdc04e11ec2e009fb153c12485",
-          "url": "https://github.com/noir-lang/noir/commit/3172cf818efee46e21f905127c7f7fc55088e5c9"
-        },
-        "date": 1752519456157,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 743.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2071,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 577.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4946.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3983.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32754.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32775,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 185,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 401.5,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 636.8,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -24106,6 +24027,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/72b6ec49244a657b080b4804ed899ded59857e00"
         },
         "date": 1753289914363,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68",
+          "message": "chore: Add a helper function `fmtstr::as_quoted_str` (#9293)",
+          "timestamp": "2025-07-23T17:00:54Z",
+          "tree_id": "d9807b07914d003b0895a3c934e9642c285d676a",
+          "url": "https://github.com/noir-lang/noir/commit/4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68"
+        },
+        "date": 1753291751804,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
