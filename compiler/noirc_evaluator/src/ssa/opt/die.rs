@@ -1613,16 +1613,11 @@ mod test {
         // SSA generated from `compile_success_empty/regression_7785` (slightly modified)
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            v1 = call f1() -> u32
+          b0(v1: u32):
             v3 = make_array [u32 0, u32 0] : [u32; 2]
             v4 = array_get v3, index v1 -> u32
             v5 = array_get v3, index v4 -> u32
             return
-        }
-        brillig(inline) predicate_pure fn inject_value f1 {
-          b0():
-            return u32 0
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
