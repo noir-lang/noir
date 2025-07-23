@@ -316,14 +316,10 @@ pub fn decode_printable_value<F: AcirField>(
                 .expect("expected slice to have at least 1 field for capacity")
                 .to_u128() as usize;
 
-            // Capacity is in terms of flattened members.
-            // For example a `[(u128, bool, [u32; 2])]` slice with 2 items is represented
-            // as an Array with 8 fields, but it has a capacity of 6, because the array
-            // only takes 1 slot. It's the tuple that has 3 members, and we have 2 tuples.
-            // To know how many items we need to consume, we need to know the number of
-            // members in the type that is contained in the slice.
-            let capacity = match printable_type_length(typ) {
-                0 => flattened_capacity,
+            // Capacity is in terms of flattened members. To figure out how many items are
+            // in the slice, we have to divide that with how wide the type is.
+            let capacity = match printable_type_width(typ) {
+                0 => length,
                 n => flattened_capacity / n,
             };
 
@@ -386,22 +382,29 @@ pub fn decode_printable_value<F: AcirField>(
     }
 }
 
-/// Return the number of "members" a type has.
-fn printable_type_length(typ: &PrintableType) -> usize {
+/// Return the number of "members" a type has, or how "wide" it is when it's stored in a slice.
+///
+/// For example a `[(u128, str<3>, [(u32, bool); 2])]` slice with 2 items is represented by
+/// an array of 16 fields, while the capacity of the slice is 6. That's because the tuple in
+/// the slice has 3 fields, and we have 2 tuples, which needs 6 "slots" in memory.
+fn printable_type_width(typ: &PrintableType) -> usize {
     match typ {
+        // Primitive types take 1 space
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean => 1,
-        PrintableType::Array { typ, .. } => printable_type_length(typ),
-        PrintableType::Slice { typ } => printable_type_length(typ),
-        PrintableType::Tuple { types } => types.iter().map(printable_type_length).sum(),
-        PrintableType::String { length } => *length as usize,
+        // Vector types also take 1 space, because they are represented by pointers in memory
+        PrintableType::Array { .. }
+        | PrintableType::Slice { .. }
+        | PrintableType::String { .. } => 1,
+        // Tuples and structs are flattened.
+        PrintableType::Tuple { types } => types.iter().map(printable_type_width).sum(),
         PrintableType::Struct { fields, .. } => {
-            fields.iter().map(|(_, typ)| printable_type_length(typ)).sum()
+            fields.iter().map(|(_, typ)| printable_type_width(typ)).sum()
         }
-        PrintableType::Function { env, .. } => printable_type_length(env),
-        PrintableType::Reference { typ, .. } => printable_type_length(typ),
+        PrintableType::Function { env, .. } => printable_type_width(env),
+        PrintableType::Reference { typ, .. } => printable_type_width(typ),
         PrintableType::Unit => 0,
         PrintableType::Enum { .. } => {
             panic!("don't know how to calculate a static type length for an enum")
@@ -536,7 +539,7 @@ mod tests {
 
     use proptest::prelude::*;
 
-    use crate::to_string;
+    use crate::{printable_type_width, to_string};
 
     use super::{PrintableType, PrintableValue, PrintableValueDisplay};
 
@@ -594,6 +597,26 @@ mod tests {
         let typ = PrintableType::Tuple { types: vec![PrintableType::Field, PrintableType::Field] };
         let string = to_string(&value, &typ);
         assert_eq!(string.unwrap(), "(0x01, 0x02)");
+    }
+
+    #[test]
+    fn printable_type_width_example() {
+        let typ = PrintableType::Tuple {
+            types: vec![
+                PrintableType::Field,
+                PrintableType::String { length: 3 },
+                PrintableType::Array {
+                    length: 2,
+                    typ: Box::new(PrintableType::Tuple {
+                        types: vec![
+                            PrintableType::UnsignedInteger { width: 32 },
+                            PrintableType::Boolean,
+                        ],
+                    }),
+                },
+            ],
+        };
+        assert_eq!(printable_type_width(&typ), 3);
     }
 
     proptest! {
