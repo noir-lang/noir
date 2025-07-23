@@ -286,57 +286,6 @@ pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
 ) -> PrintableValue<F> {
-    decode_printable_value_inner(&mut FieldIterator::new(field_iterator), typ)
-}
-
-/// Iterator over fields that tracks how many items have been consumed.
-struct FieldIterator<'a, F, I: Iterator<Item = F>> {
-    iter: &'a mut I,
-    consumed: usize,
-}
-
-impl<'a, F, I> FieldIterator<'a, F, I>
-where
-    I: Iterator<Item = F>,
-{
-    fn new(iter: &'a mut I) -> Self {
-        Self { iter, consumed: 0 }
-    }
-
-    /// Number of fields consumed so far.
-    fn consumed(&self) -> usize {
-        self.consumed
-    }
-
-    /// Consume the next field.
-    fn next(&mut self) -> Option<F> {
-        self.consumed += 1;
-        self.iter.next()
-    }
-
-    /// Consume the next `n` fields.
-    fn take(&mut self, n: usize) -> Vec<F> {
-        self.consumed += n;
-        let fields = self.iter.take(n).collect::<Vec<_>>();
-        assert_eq!(fields.len(), n, "expected to have at least {n} fields");
-        fields
-    }
-
-    /// Drop the next `n` fields.
-    fn drop(&mut self, n: usize) {
-        for _ in 0..n {
-            let _ = self.next().expect("ran out of fields to drop");
-        }
-    }
-}
-
-fn decode_printable_value_inner<F: AcirField, I>(
-    field_iterator: &mut FieldIterator<'_, F, I>,
-    typ: &PrintableType,
-) -> PrintableValue<F>
-where
-    I: Iterator<Item = F>,
-{
     match typ {
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
@@ -351,7 +300,7 @@ where
             let mut array_elements = Vec::with_capacity(length);
 
             for _ in 0..length {
-                array_elements.push(decode_printable_value_inner(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
             PrintableValue::Vec { array_elements, is_slice: false }
@@ -361,31 +310,42 @@ where
                 .next()
                 .expect("not enough data to decode variable array length")
                 .to_u128() as usize;
-            let mut array_elements = Vec::with_capacity(length);
 
-            let end = {
-                let capacity = field_iterator
-                    .next()
-                    .expect("expected slice to have at least 1 field for capacity")
-                    .to_u128() as usize;
-                field_iterator.consumed() + capacity
+            let flattened_capacity = field_iterator
+                .next()
+                .expect("expected slice to have at least 1 field for capacity")
+                .to_u128() as usize;
+
+            // Capacity is in terms of flattened members.
+            // For example a `[(u128, bool, [u32; 2])]` slice with 2 items is represented
+            // as an Array with 8 fields, but it has a capacity of 6, because the array
+            // only takes 1 slot. It's the tuple that has 3 members, and we have 2 tuples.
+            // To know how many items we need to consume, we need to know the number of
+            // members in the type that is contained in the slice.
+            let capacity = match printable_type_length(typ) {
+                0 => flattened_capacity,
+                n => flattened_capacity / n,
             };
 
+            let mut array_elements = Vec::with_capacity(length);
+
             for _ in 0..length {
-                array_elements.push(decode_printable_value_inner(field_iterator, typ));
+                array_elements.push(decode_printable_value(field_iterator, typ));
             }
 
             // Consume padding.
-            field_iterator.drop(end - field_iterator.consumed());
+            for _ in length..capacity {
+                let _ = decode_printable_value(field_iterator, typ);
+            }
 
             PrintableValue::Vec { array_elements, is_slice: true }
         }
         PrintableType::Tuple { types } => PrintableValue::Vec {
-            array_elements: vecmap(types, |typ| decode_printable_value_inner(field_iterator, typ)),
+            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
             is_slice: false,
         },
         PrintableType::String { length } => {
-            let field_elements: Vec<F> = field_iterator.take(*length as usize);
+            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
 
             PrintableValue::String(decode_string_value(&field_elements))
         }
@@ -393,7 +353,7 @@ where
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_printable_value_inner(field_iterator, param_type);
+                let field_value = decode_printable_value(field_iterator, param_type);
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -402,13 +362,13 @@ where
         }
         PrintableType::Function { env, .. } => {
             // we want to consume the fields from the environment, but for now they are not actually printed
-            let _env = decode_printable_value_inner(field_iterator, env);
+            let _env = decode_printable_value(field_iterator, env);
             let func_id = field_iterator.next().unwrap();
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing
-            decode_printable_value_inner(field_iterator, typ)
+            decode_printable_value(field_iterator, typ)
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
@@ -418,10 +378,33 @@ where
             let (_name, variant_types) = &variants[tag_value];
             PrintableValue::Vec {
                 array_elements: vecmap(variant_types, |typ| {
-                    decode_printable_value_inner(field_iterator, typ)
+                    decode_printable_value(field_iterator, typ)
                 }),
                 is_slice: false,
             }
+        }
+    }
+}
+
+/// Return the number of "members" a type has.
+fn printable_type_length(typ: &PrintableType) -> usize {
+    match typ {
+        PrintableType::Field
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::Boolean => 1,
+        PrintableType::Array { typ, .. } => printable_type_length(typ),
+        PrintableType::Slice { typ } => printable_type_length(typ),
+        PrintableType::Tuple { types } => types.iter().map(printable_type_length).sum(),
+        PrintableType::String { length } => *length as usize,
+        PrintableType::Struct { fields, .. } => {
+            fields.iter().map(|(_, typ)| printable_type_length(typ)).sum()
+        }
+        PrintableType::Function { env, .. } => printable_type_length(env),
+        PrintableType::Reference { typ, .. } => printable_type_length(typ),
+        PrintableType::Unit => 0,
+        PrintableType::Enum { .. } => {
+            panic!("don't know how to calculate a static type length for an enum")
         }
     }
 }

@@ -655,8 +655,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
     }
 
     /// Get input data from memory to pass to foreign calls.
-    ///
-    /// It returns `HeapVectors`, which represent slices, prefixed by their capacity.
     fn get_memory_values(
         &self,
         input: ValueOrArray,
@@ -683,9 +681,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             ) => {
                 let start = self.memory.read_ref(pointer_index);
                 let size = self.memory.read(size_index).to_usize();
-                // Prefix slices with their capacity, which could be higher than their semantic length,
-                // which is passed as a separate foreign call parameter; both are needed for accurate
-                // decoding once the data has been flattened, which is how printable types consume it.
+                // Prefix slices with their capacity, which could be higher than their semantic length.
                 let mut values = vec![F::from(size)];
                 values.extend(
                     self.read_slice_of_values_from_memory(start, size, value_types)
@@ -741,11 +737,14 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 MemoryAddress::direct(vector_address.unwrap_direct() + 1);
                             let items_start = vector_address.offset(2);
                             let vector_size = self.memory.read(size_address).to_usize();
-                            self.read_slice_of_values_from_memory(
+                            // Prefix slices with the capacity.
+                            let mut values = vec![MemoryValue::Field(F::from(vector_size))];
+                            values.extend(self.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
                                 value_types,
-                            )
+                            ));
+                            values
                         }
                     }
                 })
