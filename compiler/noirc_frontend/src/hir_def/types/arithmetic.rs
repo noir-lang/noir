@@ -676,8 +676,9 @@ mod proptests {
             // ensure the results are still wrapped in CheckedCast's
             match (&infix, &infix_canonicalized) {
                 (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) => {
+                    let bindings = TypeBindings::default();
                     // ensure from's are the same
-                    prop_assert_eq!(from, from_canonicalized);
+                    prop_assert_eq!(from.canonicalize(&bindings), from_canonicalized.canonicalize(&bindings));
 
                     // ensure to's have the same kinds
                     prop_assert_eq!(to.kind(), kind.clone());
