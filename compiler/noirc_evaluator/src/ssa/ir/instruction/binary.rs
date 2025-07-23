@@ -124,7 +124,8 @@ pub(crate) fn eval_constant_binary_op(
             };
             let lhs = NumericValue::from_bigint_to_field(lhs);
             let rhs = NumericValue::from_bigint_to_field(rhs);
-            function(lhs, rhs)
+            let result = function(lhs, rhs);
+            NumericValue::from_field_to_bigint(result)
         }
         NumericType::Unsigned { bit_size } => {
             let function = operator.get_u128_function();
@@ -236,7 +237,7 @@ pub(crate) fn eval_constant_binary_op(
                     result
                 }
             };
-            convert_signed_integer_to_field_element(result, bit_size)
+            result.into()
         }
     };
 
@@ -244,7 +245,7 @@ pub(crate) fn eval_constant_binary_op(
         operand_type = NumericType::bool();
     }
 
-    Success(NumericValue::from_field_to_bigint(value), operand_type)
+    Success(value, operand_type)
 }
 
 fn binary_op_function_name(op: BinaryOp) -> &'static str {
