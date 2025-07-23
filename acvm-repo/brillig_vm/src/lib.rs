@@ -2151,7 +2151,12 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "string_double".into(),
-                inputs: vec![input_string.clone().into()]
+                inputs: vec![{
+                    let mut data = input_string.clone();
+                    // Because the string is represented as a `HeapVector`, it will be prefixed with its capacity.
+                    data.insert(0, input_string.len().into());
+                    data.into()
+                }]
             }
         );
 
@@ -2520,12 +2525,14 @@ mod tests {
                 function: "flat_sum".into(),
                 inputs: vec![ForeignCallParam::Array(vec![
                     (1u128).into(),
-                    (2u128).into(), // size of following vector
+                    (2u128).into(), // length of following vector
+                    (2u128).into(), // flattened capacity of following vector
                     (2u128).into(),
                     (3u128).into(),
                     (4u128).into(),
                     (5u128).into(),
-                    (3u128).into(), // size of following vector
+                    (3u128).into(), // length of following vector
+                    (3u128).into(), // flattened capacity of following vector
                     (6u128).into(),
                     (7u128).into(),
                     (8u128).into(),
