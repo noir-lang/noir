@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: TraceEventsFileFormat) {
     let trace_path = Path::new(trace_dir).join(match trace_format {
         TraceEventsFileFormat::Json => "trace.json",
+        TraceEventsFileFormat::BinaryV0 |
         TraceEventsFileFormat::Binary => "trace.bin",
     });
     match tracer.begin_writing_trace_events(&trace_path) {
