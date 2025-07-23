@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753283183430,
+  "lastUpdate": 1753283185397,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3858,85 +3858,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fe44a1e273ee55ae9cd713cc5baf43e5b51601d7",
-          "message": "fix(ssa): Do not unroll loops with a constant back-edge value (#9173)",
-          "timestamp": "2025-07-14T08:54:56Z",
-          "tree_id": "cc425196bcea0fa89de137971baa5d0b4d51ffe4",
-          "url": "https://github.com/noir-lang/noir/commit/fe44a1e273ee55ae9cd713cc5baf43e5b51601d7"
-        },
-        "date": 1752485418795,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.708,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.046,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.454,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 202,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.352,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.46,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.772,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -7746,6 +7667,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.861,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b28776c8a68dbc319e2ffcee350b8e2a71b20096",
+          "message": "chore: Document type coercions (#9292)",
+          "timestamp": "2025-07-23T14:36:07Z",
+          "tree_id": "734ef96b4f7dbaac0301f910e2a9264c27925492",
+          "url": "https://github.com/noir-lang/noir/commit/b28776c8a68dbc319e2ffcee350b8e2a71b20096"
+        },
+        "date": 1753283164312,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.792,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.898,
             "unit": "s"
           }
         ]
