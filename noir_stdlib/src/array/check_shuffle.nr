@@ -21,7 +21,7 @@ where
                 continue;
             }
         }
-        assert(found == true, "check_shuffle, lhs and rhs arrays do not contain equivalent values");
+        assert(found, "check_shuffle, lhs and rhs arrays do not contain equivalent values");
     }
 
     shuffle_indices
