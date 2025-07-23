@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(b: bool) -> pub bool {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        func_5(
+            (
+                if b {
+                    &[0_u1, 0_u1]
+                } else {
+                    &[0_u1, 0_u1, 0_u1, 0_u1]
+                }, true, &[100_u32],
+            ),
+        )
+    }
+}
+
+fn func_5(a: ([u1], bool, [u32])) -> bool {
+    println(a);
+    a.1
+}
