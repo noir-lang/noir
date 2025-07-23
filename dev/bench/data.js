@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753274221338,
+  "lastUpdate": 1753274230318,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -28162,6 +28162,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3c18e331de7b0bdec60b94f625158e453de622cb"
         },
         "date": 1753190872562,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 22169,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "aac99e244010bfeda30d5789d11c7f9c081cae03",
+          "message": "chore: Mark `sparse_array` and `noir_json_parser` as non-critical (#9282)",
+          "timestamp": "2025-07-23T13:20:00+01:00",
+          "tree_id": "9068e1f26bbe68ab36217bfb28f3ea7b3bab9eb0",
+          "url": "https://github.com/noir-lang/noir/commit/aac99e244010bfeda30d5789d11c7f9c081cae03"
+        },
+        "date": 1753274214420,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
