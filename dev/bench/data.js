@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753290278998,
+  "lastUpdate": 1753291626147,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18261,48 +18261,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3172cf818efee46e21f905127c7f7fc55088e5c9",
-          "message": "chore: Add expected bigcurve failure (#9194)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-14T18:26:30Z",
-          "tree_id": "ad49daabe49d09cdc04e11ec2e009fb153c12485",
-          "url": "https://github.com/noir-lang/noir/commit/3172cf818efee46e21f905127c7f7fc55088e5c9"
-        },
-        "date": 1752519052625,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267574,
-            "range": "± 1437",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 244191,
-            "range": "± 2675",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797892,
-            "range": "± 1937",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -20354,6 +20312,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777780,
             "range": "± 4972",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68",
+          "message": "chore: Add a helper function `fmtstr::as_quoted_str` (#9293)",
+          "timestamp": "2025-07-23T17:00:54Z",
+          "tree_id": "d9807b07914d003b0895a3c934e9642c285d676a",
+          "url": "https://github.com/noir-lang/noir/commit/4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68"
+        },
+        "date": 1753291609865,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248544,
+            "range": "± 437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218725,
+            "range": "± 3861",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778615,
+            "range": "± 1079",
             "unit": "ns/iter"
           }
         ]
