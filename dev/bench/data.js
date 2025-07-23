@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753313739150,
+  "lastUpdate": 1753313774774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10177,75 +10177,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "05f63aaea51e2514d4b99d499da57d6626ca36ac",
-          "message": "chore: document `verify_proof_with_type` and deprecate `verify_proof` (#9199)",
-          "timestamp": "2025-07-15T10:24:40+01:00",
-          "tree_id": "004dd6f615dbe5bd70c296179ad720c0b0f065b4",
-          "url": "https://github.com/noir-lang/noir/commit/05f63aaea51e2514d4b99d499da57d6626ca36ac"
-        },
-        "date": 1752573697311,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.95,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 238.66,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.25,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.18,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "6b2efe05967610d2bc7547046019d24c12831439",
           "message": "feat: optimize \"out of bounds\" checks on arrays with lengths which are powers of two (#9182)",
           "timestamp": "2025-07-15T10:25:09+01:00",
@@ -13315,6 +13246,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6a2a28fe2b426570bedad9916129f0147e8604dd"
         },
         "date": 1753311424170,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.31,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.83,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f0731641b20bea7ed4bd52194b235b034022439a",
+          "message": "chore(LSP): simplify code lens request handling (#9279)",
+          "timestamp": "2025-07-23T23:08:48Z",
+          "tree_id": "8360c228499b266eca69e78500dd2233d3475191",
+          "url": "https://github.com/noir-lang/noir/commit/f0731641b20bea7ed4bd52194b235b034022439a"
+        },
+        "date": 1753313758539,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
