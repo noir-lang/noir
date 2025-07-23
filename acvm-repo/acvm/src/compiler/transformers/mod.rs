@@ -454,11 +454,13 @@ where
                 public_inputs,
                 key_hash,
                 proof_type: _,
+                predicate,
             } => {
                 self.fold_inputs(verification_key.as_slice());
                 self.fold_inputs(proof.as_slice());
                 self.fold_inputs(public_inputs.as_slice());
                 self.fold_input(key_hash);
+                self.fold_input(predicate);
             }
             BlackBoxFuncCall::BigIntAdd { .. }
             | BlackBoxFuncCall::BigIntSub { .. }

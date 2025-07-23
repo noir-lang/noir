@@ -7,7 +7,7 @@ use num_bigint::BigUint;
 
 use crate::errors::{InternalError, RuntimeError};
 
-use super::{AcirContext, AcirValue, AcirVar};
+use super::{AcirContext, AcirType, AcirValue, AcirVar};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
@@ -18,6 +18,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         mut inputs: Vec<AcirValue>,
         num_bits: Option<u32>,
         mut output_count: usize,
+        predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         // Separate out any arguments that should be constants
         let (constant_inputs, constant_outputs) = match name {
@@ -143,7 +144,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                         }));
                     }
                 };
-
+                inputs.push(AcirValue::Var(predicate.unwrap(), AcirType::unsigned(1)));
                 (vec![proof_type_constant], Vec::new())
             }
             _ => (vec![], vec![]),

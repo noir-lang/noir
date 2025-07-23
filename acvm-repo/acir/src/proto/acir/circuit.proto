@@ -168,6 +168,7 @@ message BlackBoxFuncCall {
     repeated FunctionInput public_inputs = 3;
     FunctionInput key_hash = 4;
     uint32 proof_type = 5;
+    FunctionInput predicate = 6;
   }
   message BigIntAdd {
     uint32 lhs = 1;

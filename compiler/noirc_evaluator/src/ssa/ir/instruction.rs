@@ -393,7 +393,13 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => {
                     // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                     // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    // RecursiveAggregation includes the side effects predicate as input.
+                    matches!(
+                        intrinsic,
+                        Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
+                    )
                 }
                 _ => false,
             },

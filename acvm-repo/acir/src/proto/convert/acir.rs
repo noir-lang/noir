@@ -358,12 +358,14 @@ where
                 public_inputs,
                 key_hash,
                 proof_type,
+                predicate,
             } => Value::RecursiveAggregation(RecursiveAggregation {
                 verification_key: Self::encode_vec(verification_key),
                 proof: Self::encode_vec(proof),
                 public_inputs: Self::encode_vec(public_inputs),
                 key_hash: Self::encode_some(key_hash),
                 proof_type: *proof_type,
+                predicate: Self::encode_some(predicate),
             }),
             opcodes::BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } => {
                 Value::BigIntAdd(BigIntAdd { lhs: *lhs, rhs: *rhs, output: *output })
@@ -492,6 +494,7 @@ where
                             )?,
                             key_hash: Self::decode_some_wrap(&v.key_hash, "key_hash")?,
                             proof_type: v.proof_type,
+                            predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         })
                     }
                     Value::BigIntAdd(v) => Ok(opcodes::BlackBoxFuncCall::BigIntAdd {

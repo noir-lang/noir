@@ -232,6 +232,8 @@ pub enum BlackBoxFuncCall<F> {
         /// In order for a backend to construct the correct recursive verifier
         /// it expects the user to specify a proof type.
         proof_type: u32,
+        /// A predicate (true or false) to disable the recursive verification
+        predicate: FunctionInput<F>,
     },
     /// BigInt addition
     BigIntAdd { lhs: u32, rhs: u32, output: u32 },
@@ -419,12 +421,14 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 public_inputs,
                 key_hash,
                 proof_type: _,
+                predicate,
             } => {
                 let mut inputs = Vec::new();
                 inputs.extend(key.iter().copied());
                 inputs.extend(proof.iter().copied());
                 inputs.extend(public_inputs.iter().copied());
                 inputs.push(*key_hash);
+                inputs.push(*predicate);
                 inputs
             }
         }
@@ -674,15 +678,17 @@ mod arb {
                 input_vec.clone(),
                 input.clone(),
                 any::<u32>(),
+                input.clone(),
             )
                 .prop_map(
-                    |(verification_key, proof, public_inputs, key_hash, proof_type)| {
+                    |(verification_key, proof, public_inputs, key_hash, proof_type, predicate)| {
                         BlackBoxFuncCall::RecursiveAggregation {
                             verification_key,
                             proof,
                             public_inputs,
                             key_hash,
                             proof_type,
+                            predicate,
                         }
                     },
                 );
