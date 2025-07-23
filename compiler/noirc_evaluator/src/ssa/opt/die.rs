@@ -1613,15 +1613,14 @@ mod test {
         // SSA generated from `compile_success_empty/regression_7785` (slightly modified)
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v1: u32):
-            v3 = make_array [u32 0, u32 0] : [u32; 2]
-            v4 = array_get v3, index v1 -> u32
-            v5 = array_get v3, index v4 -> u32
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            v3 = array_get v2, index v0 -> u32
+            v4 = array_get v2, index v3 -> u32
             return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.dead_instruction_elimination();
 
         // Previously this would produce the SSA:
@@ -1641,17 +1640,12 @@ mod test {
         // }
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            v1 = call f1() -> u32
-            v3 = make_array [u32 0, u32 0] : [u32; 2]
-            v4 = array_get v3, index v1 -> u32
-            v6 = lt v4, u32 2
-            constrain v6 == u1 1, "Index out of bounds"
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            v3 = array_get v2, index v0 -> u32
+            v5 = lt v3, u32 2
+            constrain v5 == u1 1, "Index out of bounds"
             return
-        }
-        brillig(inline) predicate_pure fn inject_value f1 {
-          b0():
-            return u32 0
         }
         "#);
     }
