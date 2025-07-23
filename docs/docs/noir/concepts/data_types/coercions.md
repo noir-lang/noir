@@ -18,12 +18,13 @@ type coercion. These are typically limited to a few type pairs where converting 
 will not sacrifice performance or correctness. Currently, Noir will will try to perform the following
 type coercions:
 
-| Actual Type   | Expected Type               |
-| ------------- | --------------------------- |
-| `[T; N]`      | `[T]`                       |
-| `fn(..) -> R` | `unconstrained fn(..) -> R` |
-| `str<N>`      | `CtString`                  |
-| `&mut T`      | `&T`                        |
+| Actual Type    | Expected Type               |
+| -------------- | --------------------------- |
+| `[T; N]`       | `[T]`                       |
+| `fn(..) -> R`  | `unconstrained fn(..) -> R` |
+| `str<N>`       | `CtString`                  |
+| `fmtstr<N, T>` | `CtString`                  |
+| `&mut T`       | `&T`                        |
 
 Note that:
 - Conversions are only from the actual type to the expected type, never the other way around.
