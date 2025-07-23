@@ -782,17 +782,17 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         for ((destination, value_type), output) in
             destinations.iter().zip(destination_value_types).zip(&values)
         {
-            let output_fields = output.fields();
-            if output_fields.len() != value_type.flattened_size() {
-                return Err(format!(
-                    "Foreign call return value does not match expected size. Expected {} but got {}",
-                    value_type.flattened_size(),
-                    output_fields.len(),
-                ));
-            }
-
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
+                    let output_fields = output.fields();
+                    if output_fields.len() != value_type.flattened_size() {
+                        return Err(format!(
+                            "Foreign call return value does not match expected size. Expected {} but got {}",
+                            value_type.flattened_size(),
+                            output_fields.len(),
+                        ));
+                    }
+
                     match output {
                         ForeignCallParam::Single(value) => {
                             self.write_value_to_memory(*value_index, value, *bit_size)?;
@@ -808,6 +808,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) if size == type_size => {
+                    let output_fields = output.fields();
+                    if output_fields.len() != value_type.flattened_size() {
+                        return Err(format!(
+                            "Foreign call return value does not match expected size. Expected {} but got {}",
+                            value_type.flattened_size(),
+                            output_fields.len(),
+                        ));
+                    }
+
                     if HeapValueType::all_simple(value_types) {
                         match output {
                             ForeignCallParam::Array(values) => {
@@ -922,10 +931,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         values: &[F],
         value_types: &[HeapValueType],
     ) -> Result<(), String> {
-        debug_assert_eq!(
-            values.len(),
-            value_types.iter().map(|typ| typ.flattened_size()).sum::<usize>()
-        );
         let bit_sizes_iterator = value_types
             .iter()
             .map(|typ| match typ {
