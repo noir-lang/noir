@@ -335,8 +335,8 @@ where
 /// This assumes that slices cannot be nested, and to distinguish their capacity it's enough to prefix the top level.
 ///
 /// The length prefix is expressed in field size, not the number of items.
-pub fn decode_printable_value_inner<'a, F: AcirField, I>(
-    field_iterator: &mut FieldIterator<'a, F, I>,
+pub fn decode_printable_value_inner<F: AcirField, I>(
+    field_iterator: &mut FieldIterator<'_, F, I>,
     typ: &PrintableType,
     with_length_prefix: bool,
 ) -> PrintableValue<F>
