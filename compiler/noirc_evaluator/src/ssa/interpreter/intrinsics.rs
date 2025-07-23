@@ -3,7 +3,9 @@ use std::io::Write;
 use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
-use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value_inner};
+use noirc_printable_type::{
+    FieldIterator, PrintableType, PrintableValueDisplay, decode_printable_value_inner,
+};
 use num_bigint::BigUint;
 
 use crate::ssa::{
@@ -683,13 +685,14 @@ impl<W: Write> Interpreter<'_, W> {
             let meta_idx = args.len() - 1 - num_values;
             let input_as_fields =
                 (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
-            let field_iterator = &mut input_as_fields.into_iter();
+            let mut field_iterator = &mut input_as_fields.into_iter();
+            let mut field_iterator = FieldIterator::new(&mut field_iterator);
 
             let mut fragments = Vec::new();
             for i in 0..num_values {
                 let printable_type = value_to_printable_type(&args[meta_idx + i])?;
                 let printable_value =
-                    decode_printable_value_inner(field_iterator, &printable_type, true);
+                    decode_printable_value_inner(&mut field_iterator, &printable_type, true);
                 fragments.push((printable_value, printable_type));
             }
             PrintableValueDisplay::FmtString(message, fragments)
@@ -699,7 +702,7 @@ impl<W: Write> Interpreter<'_, W> {
                 (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
             let printable_type = value_to_printable_type(&args[meta_idx])?;
             let printable_value = decode_printable_value_inner(
-                &mut input_as_fields.into_iter(),
+                &mut FieldIterator::new(&mut input_as_fields.into_iter()),
                 &printable_type,
                 true,
             );

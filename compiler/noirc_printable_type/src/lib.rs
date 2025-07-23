@@ -283,20 +283,66 @@ pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
 ) -> PrintableValue<F> {
-    decode_printable_value_inner(field_iterator, typ, false)
+    decode_printable_value_inner(&mut FieldIterator::new(field_iterator), typ, false)
+}
+
+/// Iterator over fields that tracks how many items have been consumed.
+pub struct FieldIterator<'a, F, I: Iterator<Item = F>> {
+    iter: &'a mut I,
+    consumed: usize,
+}
+
+impl<'a, F, I> FieldIterator<'a, F, I>
+where
+    I: Iterator<Item = F>,
+{
+    pub fn new(iter: &'a mut I) -> Self {
+        Self { iter, consumed: 0 }
+    }
+
+    /// Number of fields consumed so far.
+    fn consumed(&self) -> usize {
+        self.consumed
+    }
+
+    /// Consume the next field.
+    fn next(&mut self) -> Option<F> {
+        self.consumed += 1;
+        self.iter.next()
+    }
+
+    /// Consume the next `n` fields.
+    fn take(&mut self, n: usize) -> Vec<F> {
+        self.consumed += n;
+        let fields = self.iter.take(n).collect::<Vec<_>>();
+        assert_eq!(fields.len(), n, "expected to have at least {n} fields");
+        fields
+    }
+
+    /// Drop the next `n` fields.
+    fn drop(&mut self, n: usize) {
+        for _ in 0..n {
+            let _ = self.next().expect("ran out of fields to drop");
+        }
+    }
 }
 
 /// Special version of `decode_printable_value` which can be told to expect length prefixed data, which is only produced
-/// in this module, and only for top level item. That is, each `ForeignCallParam` can have a length prefix if it was an array,
+/// in this module, and only for top level items. That is, each `ForeignCallParam` can have a length prefix if it was an array,
 /// but only at the top level, not for any nested data. We expect that Tuples, Structs and Enums appear as separate fields,
 /// so those can have the prefix, but as soon as we encounter an Array or Slice, the next level down will no longer be prefixed.
 ///
 /// This assumes that slices cannot be nested, and to distinguish their capacity it's enough to prefix the top level.
-pub fn decode_printable_value_inner<F: AcirField>(
-    field_iterator: &mut impl Iterator<Item = F>,
+///
+/// The length prefix is expressed in field size, not the number of items.
+pub fn decode_printable_value_inner<'a, F: AcirField, I>(
+    field_iterator: &mut FieldIterator<'a, F, I>,
     typ: &PrintableType,
     with_length_prefix: bool,
-) -> PrintableValue<F> {
+) -> PrintableValue<F>
+where
+    I: Iterator<Item = F>,
+{
     match typ {
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
@@ -311,19 +357,10 @@ pub fn decode_printable_value_inner<F: AcirField>(
             let mut array_elements = Vec::with_capacity(length);
 
             if with_length_prefix {
-                let capacity = field_iterator
+                let _capacity = field_iterator
                     .next()
                     .expect("expected length prefixed array to have at least 1 element for the capacity")
                     .to_u128() as usize;
-                if length == 0 {
-                    assert_eq!(capacity, 0, "0 length array should have a capacity of 0");
-                } else {
-                    assert_eq!(
-                        capacity % length,
-                        0,
-                        "array capacity should be a multiple of its length"
-                    );
-                }
             }
 
             for _ in 0..length {
@@ -339,13 +376,15 @@ pub fn decode_printable_value_inner<F: AcirField>(
                 .to_u128() as usize;
             let mut array_elements = Vec::with_capacity(length);
 
-            let capacity = if with_length_prefix {
-                field_iterator
-                .next()
-                .expect("expected length prefixed array to have at least 1 element for the capacity")
-                .to_u128() as usize
+            // Number of fields in the slice. Items consume varying number of fields.
+            let end = if with_length_prefix {
+                let capacity = field_iterator
+                    .next()
+                    .expect("expected length prefixed slice to have at least 1 element for the capacity")
+                    .to_u128() as usize;
+                Some(field_iterator.consumed() + capacity)
             } else {
-                length
+                None
             };
 
             for _ in 0..length {
@@ -353,8 +392,8 @@ pub fn decode_printable_value_inner<F: AcirField>(
             }
 
             // Consume padding.
-            for _ in length..capacity {
-                let _ = decode_printable_value_inner(field_iterator, typ, false);
+            if let Some(end) = end {
+                field_iterator.drop(end - field_iterator.consumed());
             }
 
             PrintableValue::Vec { array_elements, is_slice: true }
@@ -378,7 +417,7 @@ pub fn decode_printable_value_inner<F: AcirField>(
                 );
             }
 
-            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
+            let field_elements: Vec<F> = field_iterator.take(*length as usize);
 
             PrintableValue::String(decode_string_value(&field_elements))
         }
@@ -498,7 +537,11 @@ fn convert_string_inputs<F: AcirField>(
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields = flatten_with_length_prefix(input_values);
 
-    let value = decode_printable_value_inner(&mut input_values_as_fields, &printable_type, true);
+    let value = decode_printable_value_inner(
+        &mut FieldIterator::new(&mut input_values_as_fields),
+        &printable_type,
+        true,
+    );
 
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
@@ -530,7 +573,11 @@ fn convert_fmt_string_inputs<F: AcirField>(
 
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
-        let value = decode_printable_value_inner(&mut input_iter, &printable_type, true);
+        let value = decode_printable_value_inner(
+            &mut FieldIterator::new(&mut input_iter),
+            &printable_type,
+            true,
+        );
 
         output.push((value, printable_type));
     }
