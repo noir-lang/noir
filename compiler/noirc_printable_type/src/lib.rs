@@ -377,6 +377,16 @@ pub enum TryFromParamsError {
 }
 
 impl<F: AcirField> PrintableValueDisplay<F> {
+    /// Decode the print parameters after the first _newline_ flag has already been split.
+    ///
+    /// The last parameter is expected to be the flag indicating whether we are dealing
+    /// with a format string.
+    ///
+    /// We expect at least 3 arguments (tuples are passed as multiple values):
+    /// * normal: value.0, ..., value.i, meta, false
+    /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+    ///
+    /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
     pub fn try_from_params(
         foreign_call_inputs: &[ForeignCallParam<F>],
     ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -391,6 +401,11 @@ impl<F: AcirField> PrintableValueDisplay<F> {
     }
 }
 
+/// Decode parameters for a normal call, without format string.
+///
+/// It will have a single meta descriptor:
+///
+/// value.0, ..., value.i, meta
 fn convert_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -398,6 +413,7 @@ fn convert_string_inputs<F: AcirField>(
     // The remaining input values should hold what is to be printed
     let (printable_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+
     let printable_type = fetch_printable_type(printable_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
@@ -408,6 +424,11 @@ fn convert_string_inputs<F: AcirField>(
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
 
+/// Decode parameters for a call with format string.
+///
+/// It will have the format message, followed by the number of arguments, and their values:
+///
+/// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
 fn convert_fmt_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -428,6 +449,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
 
     let mut input_iter =
         input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
+
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
         let value = decode_printable_value(&mut input_iter, &printable_type);
@@ -438,6 +460,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
     Ok(PrintableValueDisplay::FmtString(message_as_string, output))
 }
 
+/// Decode the JSON type descriptor of the arguments passed to the print.
 fn fetch_printable_type<F: AcirField>(
     printable_type: &ForeignCallParam<F>,
 ) -> Result<PrintableType, TryFromParamsError> {
