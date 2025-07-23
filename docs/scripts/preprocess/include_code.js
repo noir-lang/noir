@@ -153,7 +153,7 @@ function doExtractCodeSnippet(filePath, identifier, useCurrent) {
             }
           }
         } else {
-          if (matchFound === true) {
+          if (matchFound) {
             throw new Error(`Duplicate for regex ${regex} and identifier ${identifier}`);
           }
           matchFound = true;
