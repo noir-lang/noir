@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753298699908,
+  "lastUpdate": 1753298701893,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26859,6 +26859,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7408cbe9abf0d329def8f56cc21d5941436ceedb"
         },
         "date": 1753297093662,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6cb434770ddc3bf601cb0803af01c71c1e5476c3",
+          "message": "fix: check associated types after validating where clause when looking up trait impls, plus some unification fixes (#9265)",
+          "timestamp": "2025-07-23T18:56:22Z",
+          "tree_id": "c6bc4ef5fc5d15cb2a2fd18334b9ac424db0684a",
+          "url": "https://github.com/noir-lang/noir/commit/6cb434770ddc3bf601cb0803af01c71c1e5476c3"
+        },
+        "date": 1753298684680,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
