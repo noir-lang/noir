@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753386934876,
+  "lastUpdate": 1753387177613,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21790,90 +21790,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e294e66d7d8c6f18a92f708742c6fabbe7f6828f",
-          "message": "feat(ssa): Following an always failing binary, replace instructions with defaults until the next predicate (#9211)",
-          "timestamp": "2025-07-15T18:35:24Z",
-          "tree_id": "e4f7eef5c8e349506f28d067b8f120efe7bc2ce4",
-          "url": "https://github.com/noir-lang/noir/commit/e294e66d7d8c6f18a92f708742c6fabbe7f6828f"
-        },
-        "date": 1752606391498,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 15080,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68865,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11347,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 261916,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 201205,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 70748,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1079444,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1080739,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1419,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3136,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 22169,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -25023,6 +24939,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/637e0601aa5dc0baa29934783e6ff7fdf8e24133"
         },
         "date": 1753379135255,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5be4e927df0249c66fa5e6c1686f0b30cea5c25f",
+          "message": "feat: Initial ACIR parser (arithmetic exprs and black box functions) (#9316)",
+          "timestamp": "2025-07-24T19:29:35Z",
+          "tree_id": "e6ee0fb3762b4404273f16961873ee03a4135511",
+          "url": "https://github.com/noir-lang/noir/commit/5be4e927df0249c66fa5e6c1686f0b30cea5c25f"
+        },
+        "date": 1753387160789,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
