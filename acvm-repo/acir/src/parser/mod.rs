@@ -97,11 +97,10 @@ impl<'a> Parser<'a> {
         let mut circuit = Circuit::default();
 
         circuit.current_witness_index = self.parse_current_witness_index()?;
-        // dbg!(circuit.current_witness_index);
         circuit.private_parameters = self.parse_private_parameters()?;
         circuit.public_parameters = PublicInputs(self.parse_public_parameters()?);
         circuit.return_values = PublicInputs(self.parse_return_values()?);
-        // dbg!(self.token.token().clone());
+        
         circuit.opcodes = self.parse_opcodes()?;
 
         Ok(circuit)
