@@ -720,16 +720,17 @@ impl Value {
         }
     }
 
-    /// Copies an argument ensuring any references to struct/tuple fields are replaced with fresh ones.
-    pub(crate) fn copy(self) -> Value {
+    /// Structs and tuples store references to their fields internally which need to be manually
+    /// changed when moving them.
+    pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => {
-                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().copy())))
+                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().move_struct())))
             }
             Value::Struct(fields, typ) => {
                 let fields = fields
                     .into_iter()
-                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().copy())));
+                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().move_struct())));
                 Value::Struct(fields.collect(), typ)
             }
             other => other,

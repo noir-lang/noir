@@ -532,8 +532,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.evaluate_no_dereference(id)? {
-            Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
-            other => Ok(other),
+            Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
+            other => Ok(other.move_struct()),
         }
     }
 
@@ -1006,8 +1006,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            let value = self.evaluate(arg)?.copy();
-            Ok((value, self.elaborator.interner.expr_location(&arg)))
+            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
