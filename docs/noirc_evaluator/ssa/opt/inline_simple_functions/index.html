@@ -5,7 +5,7 @@ Functions are still restricted to not be inlined if they are recursive or marked
 <ul>
 <li>Contains no more than <a href="constant.MAX_INSTRUCTIONS.html" title="constant noirc_evaluator::ssa::opt::inline_simple_functions::MAX_INSTRUCTIONS">MAX_INSTRUCTIONS</a> instructions</li>
 <li>The function only has a single block (e.g. no control flow or conditional branches)</li>
-<li>It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]</li>
+<li>It is not marked with the <a href="../../../../noirc_frontend/monomorphization/ast/enum.InlineType.html#variant.NoPredicates" title="variant noirc_frontend::monomorphization::ast::InlineType::NoPredicates">no predicates inline type</a></li>
 </ul>
 </div></details><h2 id="constants" class="section-header">Constants<a href="#constants" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="constant" href="constant.MAX_INSTRUCTIONS.html" title="constant noirc_evaluator::ssa::opt::inline_simple_functions::MAX_INSTRUCTIONS">MAX_<wbr>INSTRUCTIONS</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">The maximum number of instructions chosen below is an expert estimation of a “small” function
 in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations

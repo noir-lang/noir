@@ -1390,7 +1390,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
         <span class="kw">let </span>element_types = slice.element_types.clone();
 
-        <span class="kw">if </span>slice_elements.is_empty() {
+        <span class="kw">if </span>slice_elements.is_empty() || length == <span class="number">0 </span>{
             <span class="kw">let </span>instruction = <span class="string">"slice_pop_back"</span>;
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptySlice { slice: args[<span class="number">1</span>], instruction });
         }
@@ -1414,7 +1414,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>slice_elements = slice.elements.borrow().to_vec();
         <span class="kw">let </span>element_types = slice.element_types.clone();
 
-        <span class="kw">if </span>slice_elements.is_empty() {
+        <span class="kw">if </span>slice_elements.is_empty() || length == <span class="number">0 </span>{
             <span class="kw">let </span>instruction = <span class="string">"slice_pop_front"</span>;
             <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::PoppedFromEmptySlice { slice: args[<span class="number">1</span>], instruction });
         }
