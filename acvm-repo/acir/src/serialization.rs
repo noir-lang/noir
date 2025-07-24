@@ -48,13 +48,13 @@ impl Format {
 ///
 /// This format is compact, but provides no backwards compatibility.
 pub(crate) fn bincode_serialize<T: Serialize>(value: &T) -> std::io::Result<Vec<u8>> {
-    let config = bincode::config::standard().with_limit::<{ u32::MAX as usize }>();
+    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
     bincode::serde::encode_to_vec(value, config).map_err(std::io::Error::other)
 }
 
 /// Deserialize a value using `bincode`, based on `serde`.
 pub(crate) fn bincode_deserialize<T: for<'a> Deserialize<'a>>(buf: &[u8]) -> std::io::Result<T> {
-    let config = bincode::config::standard().with_limit::<{ u32::MAX as usize }>();
+    let config = bincode::config::legacy().with_limit::<{ u32::MAX as usize }>();
     bincode::serde::borrow_decode_from_slice(buf, config)
         .map(|(result, _)| result)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
