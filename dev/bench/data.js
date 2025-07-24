@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753387654873,
+  "lastUpdate": 1753388227767,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16256,48 +16256,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d867e35628c265daf18bd8ceaa4e777dac51d67e",
-          "message": "fix: Allow unquote in numeric generic intro (#9213)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-16T10:34:25Z",
-          "tree_id": "7d3d0c49f2d3fb834e1f09300f940f31a80a292e",
-          "url": "https://github.com/noir-lang/noir/commit/d867e35628c265daf18bd8ceaa4e777dac51d67e"
-        },
-        "date": 1752663585475,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248202,
-            "range": "± 968",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218735,
-            "range": "± 1502",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2776574,
-            "range": "± 2185",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -18349,6 +18307,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783632,
             "range": "± 2381",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42429ab17ac240f924754340b2d55d97b056d00e",
+          "message": "fix: allow nested fmtstr (#9309)",
+          "timestamp": "2025-07-24T19:50:38Z",
+          "tree_id": "eef2ee8f328460e75cddc2360aa22de358609603",
+          "url": "https://github.com/noir-lang/noir/commit/42429ab17ac240f924754340b2d55d97b056d00e"
+        },
+        "date": 1753388211573,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 267786,
+            "range": "± 1095",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237810,
+            "range": "± 2099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2816447,
+            "range": "± 854",
             "unit": "ns/iter"
           }
         ]
