@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753370636939,
+  "lastUpdate": 1753370639292,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "435012ddc9a4a48c69db474e539f6c2dc25f438f",
-          "message": "chore: enforce `clippy::uninlined_format_args` (#9186)",
-          "timestamp": "2025-07-15T10:26:01+01:00",
-          "tree_id": "8853643ada5f9bbd7f8c0184de1bac1f0b3cf265",
-          "url": "https://github.com/noir-lang/noir/commit/435012ddc9a4a48c69db474e539f6c2dc25f438f"
-        },
-        "date": 1752573872378,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 208.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.08,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3444,6 +3365,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.53,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8d8dba46e2bd3788b67dcd785c94c17631de1b9c",
+          "message": "fix(ssa-interpreter): Return error if slice length is 0 during popping (#9308)",
+          "timestamp": "2025-07-24T14:52:48Z",
+          "tree_id": "78551bfe55f8a3977d8bc13a161cfbf0198b6851",
+          "url": "https://github.com/noir-lang/noir/commit/8d8dba46e2bd3788b67dcd785c94c17631de1b9c"
+        },
+        "date": 1753370619078,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.56,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.59,
             "unit": "MB"
           }
         ]
