@@ -597,6 +597,19 @@ impl<'f> PerFunctionContext<'f> {
                     self.add_array_aliases(elements, aliases);
                 }
             }
+            Instruction::IfElse { then_value, else_value, .. } => {
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let result_type = self.inserter.function.dfg.type_of_value(result);
+
+                if Self::contains_references(&result_type) {
+                    let expr = Expression::Other(result);
+                    references.expressions.insert(result, expr.clone());
+                    references.aliases.insert(
+                        expr,
+                        AliasSet::known_multiple(vec![*then_value, *else_value].into()),
+                    );
+                }
+            }
             _ => (),
         }
     }
