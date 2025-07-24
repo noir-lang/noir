@@ -116,6 +116,7 @@ fn format_brillig_opcode_kind<F>(opcode: &BrilligOpcode<F>) -> String {
         BrilligOpcode::Stop { .. } => "stop".to_string(),
         BrilligOpcode::Store { .. } => "store".to_string(),
         BrilligOpcode::Trap { .. } => "trap".to_string(),
+        BrilligOpcode::__Phantom(_) => "phantom".to_string(),
     }
 }
 

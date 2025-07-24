@@ -298,7 +298,7 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_field_to_bigint(field: FieldElement) -> BigInt {
+    pub fn from_field_to_bigint(field: FieldElement) -> BigInt {
         BigInt::from_bytes_be(Sign::Plus, &field.to_be_bytes())
     }
 
@@ -450,6 +450,25 @@ impl NumericValue {
             _ => false,
         }
     }
+}
+
+fn split_into_field_elements(mut value: u128) -> Vec<FieldElement> {
+    let field_bits = FieldElement::modulus().bits() as usize;
+    let mut felts = Vec::new();
+    if field_bits >= 128 {
+        // The whole value fits in one field element
+        felts.push(FieldElement::from(value));
+    } else {
+        let mask = (1u128 << field_bits) - 1;
+        while value > 0 {
+            felts.push(FieldElement::from(value & mask));
+            value >>= field_bits;
+        }
+        if felts.is_empty() {
+            felts.push(FieldElement::from(0u128));
+        }
+    }
+    felts
 }
 
 impl std::fmt::Display for Value {

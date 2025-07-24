@@ -11,6 +11,7 @@ use noir_ssa_fuzzer::{
     typed_value::{TypedValue, ValueType},
 };
 use noirc_driver::CompiledProgram;
+use noirc_evaluator::ssa::interpreter::value::NumericValue;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -153,15 +154,15 @@ impl FuzzerContext {
         let mut brillig_ids = HashMap::new();
 
         for (value, type_) in values.into_iter().zip(&types) {
-            let field_element = value.into();
+            let element = NumericValue::from_field_to_bigint(value.into());
             acir_ids
                 .entry(*type_)
                 .or_insert(Vec::new())
-                .push(acir_builder.insert_constant(field_element, *type_));
+                .push(acir_builder.insert_constant(element.clone(), *type_));
             brillig_ids
                 .entry(*type_)
                 .or_insert(Vec::new())
-                .push(brillig_builder.insert_constant(field_element, *type_));
+                .push(brillig_builder.insert_constant(element, *type_));
             assert_eq!(brillig_ids, acir_ids);
         }
 
@@ -205,8 +206,9 @@ impl FuzzerContext {
         value: impl Into<FieldElement> + Clone,
         type_: ValueType,
     ) -> TypedValue {
-        let typed_value = self.acir_builder.insert_constant(value.clone(), type_);
-        assert_eq!(typed_value, self.brillig_builder.insert_constant(value, type_));
+        let element = NumericValue::from_field_to_bigint(value.clone().into());
+        let typed_value = self.acir_builder.insert_constant(element.clone(), type_);
+        assert_eq!(typed_value, self.brillig_builder.insert_constant(element, type_));
         typed_value
     }
 

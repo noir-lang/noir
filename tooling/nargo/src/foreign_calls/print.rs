@@ -1,5 +1,6 @@
 use acvm::{AcirField, acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
 use noirc_printable_type::PrintableValueDisplay;
+use num_bigint::BigInt;
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
@@ -47,8 +48,24 @@ impl<F: AcirField, W: std::io::Write> ForeignCallExecutor<F> for PrintForeignCal
                     .ok_or(ForeignCallError::MissingForeignCallInputs)?
                     .1;
 
+                let foreign_call_inputs_bigint: Vec<_> = foreign_call_inputs
+                    .iter()
+                    .map(|param| match param {
+                        acvm::acir::brillig::ForeignCallParam::Single(value) => {
+                            acvm::acir::brillig::ForeignCallParam::Single(BigInt::from(
+                                value.to_u128(),
+                            ))
+                        }
+                        acvm::acir::brillig::ForeignCallParam::Array(values) => {
+                            acvm::acir::brillig::ForeignCallParam::Array(
+                                values.iter().map(|v| BigInt::from(v.to_u128())).collect(),
+                            )
+                        }
+                    })
+                    .collect();
+
                 let display_values =
-                    PrintableValueDisplay::<F>::try_from_params(foreign_call_inputs)?;
+                    PrintableValueDisplay::try_from_params(&foreign_call_inputs_bigint)?;
 
                 if skip_newline {
                     write!(self.output, "{display_values}").expect("write should succeed");

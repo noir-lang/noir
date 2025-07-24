@@ -4,6 +4,7 @@ use acvm::{
     pwg::ForeignCallWaitInfo,
 };
 use noirc_printable_type::decode_string_value;
+use num_bigint::BigInt;
 
 use super::{ForeignCall, ForeignCallError, ForeignCallExecutor};
 
@@ -75,7 +76,8 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
     }
 
     fn parse_string(param: &ForeignCallParam<F>) -> String {
-        let fields: Vec<_> = param.fields().to_vec();
+        let fields: Vec<BigInt> =
+            param.fields().into_iter().map(|f| BigInt::from(f.to_u128())).collect();
         decode_string_value(&fields)
     }
 }

@@ -15,6 +15,7 @@ use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
 };
+use num_bigint::BigInt;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -389,7 +390,10 @@ pub fn decode_value(
         AbiType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
 
-            InputValue::String(decode_string_value(&field_elements))
+            let field_elements_as_bigints =
+                field_elements.iter().map(|f| BigInt::from(f.to_u128())).collect::<Vec<BigInt>>();
+
+            InputValue::String(decode_string_value(&field_elements_as_bigints))
         }
         AbiType::Struct { fields, .. } => {
             let mut struct_map = BTreeMap::new();
@@ -457,10 +461,11 @@ pub enum AbiErrorType {
 pub fn display_abi_error<F: AcirField>(
     fields: &[F],
     error_type: AbiErrorType,
-) -> PrintableValueDisplay<F> {
+) -> PrintableValueDisplay {
     match error_type {
         AbiErrorType::FmtString { length, item_types } => {
-            let mut fields_iter = fields.iter().copied();
+            let bigints: Vec<BigInt> = fields.iter().map(|f| BigInt::from(f.to_u128())).collect();
+            let mut fields_iter = bigints.into_iter();
             let PrintableValue::String(string) =
                 decode_printable_value(&mut fields_iter, &PrintableType::String { length })
             else {
@@ -476,7 +481,9 @@ pub fn display_abi_error<F: AcirField>(
         }
         AbiErrorType::Custom(abi_typ) => {
             let printable_type = (&abi_typ).into();
-            let decoded = decode_printable_value(&mut fields.iter().copied(), &printable_type);
+            let bigints: Vec<BigInt> = fields.iter().map(|f| BigInt::from(f.to_u128())).collect();
+            let mut fields_iter = bigints.into_iter();
+            let decoded = decode_printable_value(&mut fields_iter, &printable_type);
             PrintableValueDisplay::Plain(decoded, printable_type)
         }
         AbiErrorType::String { string } => {

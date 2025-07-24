@@ -10,6 +10,7 @@ use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
+use num_bigint::BigInt;
 use std::panic::AssertUnwindSafe;
 use thiserror::Error;
 
@@ -257,11 +258,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    pub fn insert_constant(
-        &mut self,
-        value: impl Into<FieldElement>,
-        type_: ValueType,
-    ) -> TypedValue {
+    pub fn insert_constant(&mut self, value: impl Into<BigInt>, type_: ValueType) -> TypedValue {
         let id = self.builder.numeric_constant(value.into(), type_.to_numeric_type());
         TypedValue::new(id, type_.to_ssa_type())
     }

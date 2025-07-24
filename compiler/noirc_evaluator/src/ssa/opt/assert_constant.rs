@@ -3,6 +3,7 @@ use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
 use num_bigint::BigInt;
+use num_traits::ToPrimitive;
 
 use crate::{
     errors::RuntimeError,
@@ -177,23 +178,22 @@ fn evaluate_static_assert(
     }
 
     // Convert ForeignCallParam<BigInt> to ForeignCallParam<FieldElement>
-    let foreign_call_params: Vec<ForeignCallParam<FieldElement>> = foreign_call_params
+    let foreign_call_params_bigint: Vec<ForeignCallParam<BigInt>> = foreign_call_params
         .iter()
         .map(|param| match param {
-            ForeignCallParam::Single(value) => {
-                ForeignCallParam::Single(NumericValue::from_bigint_to_field(value.clone()))
-            }
+            ForeignCallParam::Single(value) => ForeignCallParam::Single(BigInt::from(
+                value.to_u128().expect("ICE: value is too large"),
+            )),
             ForeignCallParam::Array(values) => ForeignCallParam::Array(
                 values
                     .iter()
-                    .map(|value| NumericValue::from_bigint_to_field(value.clone()))
+                    .map(|v| BigInt::from(v.to_u128().expect("ICE: value is too large")))
                     .collect(),
             ),
         })
         .collect();
 
-    let message = match PrintableValueDisplay::<FieldElement>::try_from_params(&foreign_call_params)
-    {
+    let message = match PrintableValueDisplay::try_from_params(&foreign_call_params_bigint) {
         Ok(display_values) => display_values.to_string(),
         Err(err) => match err {
             TryFromParamsError::MissingForeignCallInputs => {

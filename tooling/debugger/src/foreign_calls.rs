@@ -40,14 +40,14 @@ impl DebugForeignCall {
 }
 
 pub trait DebugForeignCallExecutor: ForeignCallExecutor<FieldElement> {
-    fn get_variables(&self) -> Vec<StackFrame<FieldElement>>;
-    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>>;
+    fn get_variables(&self) -> Vec<StackFrame>;
+    fn current_stack_frame(&self) -> Option<StackFrame>;
     fn restart(&mut self, artifact: &DebugArtifact);
 }
 
 #[derive(Default)]
 pub struct DefaultDebugForeignCallExecutor {
-    pub debug_vars: DebugVars<FieldElement>,
+    pub debug_vars: DebugVars,
 }
 
 impl DefaultDebugForeignCallExecutor {
@@ -102,11 +102,11 @@ impl DefaultDebugForeignCallExecutor {
 }
 
 impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
-    fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    fn get_variables(&self) -> Vec<StackFrame> {
         self.debug_vars.get_variables()
     }
 
-    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+    fn current_stack_frame(&self) -> Option<StackFrame> {
         self.debug_vars.current_stack_frame()
     }
 
@@ -173,7 +173,9 @@ impl ForeignCallExecutor<FieldElement> for DefaultDebugForeignCallExecutor {
                                 .unwrap_or_default()
                         })
                         .collect();
-                    self.debug_vars.assign_field(var_id, indexes, &values);
+                    let values_bigint: Vec<BigInt> =
+                        values.iter().map(|f| BigInt::from(f.to_u128())).collect();
+                    self.debug_vars.assign_field(var_id, indexes, &values_bigint);
                 }
                 Ok(ForeignCallResult::default())
             }
@@ -209,11 +211,11 @@ where
     H: DebugForeignCallExecutor,
     I: ForeignCallExecutor<FieldElement>,
 {
-    fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    fn get_variables(&self) -> Vec<StackFrame> {
         self.handler().get_variables()
     }
 
-    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+    fn current_stack_frame(&self) -> Option<StackFrame> {
         self.handler().current_stack_frame()
     }
     fn restart(&mut self, artifact: &DebugArtifact) {

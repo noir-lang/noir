@@ -21,6 +21,7 @@ noirc_errors.workspace = true
 noirc_printable_type.workspace = true
 serde.workspace = true
 codespan-reporting.workspace = true
+num-bigint.workspace = true
 
 
 [dev-dependencies]

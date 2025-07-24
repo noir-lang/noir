@@ -30,6 +30,7 @@ serde.workspace = true
 serde_json.workspace = true
 walkdir = "2.5.0"
 noir_greybox_fuzzer = { workspace = true }
+num-bigint.workspace = true
 
 # Some dependencies are optional so we can compile to Wasm.
 tokio = { workspace = true, optional = true }

@@ -71,7 +71,7 @@ impl<F: AcirField> NargoError<F> {
                     ResolvedAssertionPayload::String(message) => Some(message.to_string()),
                     ResolvedAssertionPayload::Raw(raw) => {
                         let abi_type = error_types.get(&raw.selector)?;
-                        let decoded = display_abi_error(&raw.data, abi_type.clone());
+                        let decoded = display_abi_error(raw.data.as_slice(), abi_type.clone());
                         Some(decoded.to_string())
                     }
                 },
@@ -211,7 +211,10 @@ fn extract_message_from_error(
             ..,
         )) => {
             if let Some(error_type) = error_types.get(selector) {
-                format!("Assertion failed: {}", display_abi_error(data, error_type.clone()))
+                format!(
+                    "Assertion failed: {}",
+                    display_abi_error(data.as_slice(), error_type.clone())
+                )
             } else {
                 "Assertion failed".to_string()
             }

@@ -241,23 +241,21 @@ pub(super) enum DebugCommandResult {
 }
 
 #[derive(Debug)]
-pub struct DebugStackFrame<F> {
+pub struct DebugStackFrame {
     pub function_name: String,
     pub function_params: Vec<String>,
-    pub variables: Vec<(String, PrintableValue<F>, PrintableType)>,
+    pub variables: Vec<(String, PrintableValue, PrintableType)>,
 }
 
-impl<F: Clone> From<&StackFrame<'_, F>> for DebugStackFrame<F> {
-    fn from(value: &StackFrame<F>) -> Self {
+impl<'a> From<&'a StackFrame<'a>> for DebugStackFrame {
+    fn from(value: &'a StackFrame<'a>) -> Self {
         DebugStackFrame {
             function_name: value.function_name.to_string(),
             function_params: value.function_params.iter().map(|param| param.to_string()).collect(),
             variables: value
                 .variables
                 .iter()
-                .map(|(name, value, var_type)| {
-                    (name.to_string(), (**value).clone(), (*var_type).clone())
-                })
+                .map(|(name, value, var_type)| (name.to_string(), value.clone(), var_type.clone()))
                 .collect(),
         }
     }
@@ -898,11 +896,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    pub(super) fn get_variables(&self) -> Vec<StackFrame> {
         self.foreign_call_executor.get_variables()
     }
 
-    pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+    pub(super) fn current_stack_frame(&self) -> Option<StackFrame> {
         self.foreign_call_executor.current_stack_frame()
     }
 
@@ -1098,6 +1096,7 @@ mod tests {
             BinaryFieldOp, HeapValueType, MemoryAddress, Opcode as BrilligOpcode, ValueOrArray,
         },
     };
+    use num_bigint::BigInt;
 
     #[test]
     fn test_resolve_foreign_calls_stepping_into_brillig() {
@@ -1110,12 +1109,12 @@ mod tests {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(1),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
-                    value: FieldElement::from(1u64),
+                    value: BigInt::from(1u64),
                 },
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(2),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
-                    value: FieldElement::from(0u64),
+                    value: BigInt::from(0u64),
                 },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress::direct(0),
@@ -1267,17 +1266,17 @@ mod tests {
                 BrilligOpcode::Const {
                     destination: MemoryAddress::direct(0),
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
-                    value: FieldElement::from(2u64),
+                    value: BigInt::from(2u64),
                 },
                 BrilligOpcode::Const {
                     destination: zero_usize,
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
-                    value: FieldElement::from(0u64),
+                    value: BigInt::from(0u64),
                 },
                 BrilligOpcode::Const {
                     destination: one_usize,
                     bit_size: BitSize::Integer(IntegerBitSize::U32),
-                    value: FieldElement::from(1u64),
+                    value: BigInt::from(1u64),
                 },
                 BrilligOpcode::CalldataCopy {
                     destination_address: MemoryAddress::direct(0),

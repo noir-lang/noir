@@ -1,6 +1,10 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+use num_bigint::BigInt;
+use num_traits::One;
+use num_traits::ToPrimitive;
+use num_traits::identities::Zero;
 use std::{collections::BTreeMap, str};
 
 use acvm::{AcirField, acir::brillig::ForeignCallParam};
@@ -59,21 +63,21 @@ pub enum PrintableType {
 /// For example, a toml file will parse into TomlTypes
 /// and those TomlTypes will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum PrintableValue<F> {
-    Field(F),
+pub enum PrintableValue {
+    Numeric(BigInt),
     String(String),
-    Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
-    Struct(BTreeMap<String, PrintableValue<F>>),
+    Vec { array_elements: Vec<PrintableValue>, is_slice: bool },
+    Struct(BTreeMap<String, PrintableValue>),
     Other,
 }
 
 /// In order to display a `PrintableValue` we need a `PrintableType` to accurately
 /// convert the value into a human-readable format.
-pub enum PrintableValueDisplay<F> {
-    Plain(PrintableValue<F>, PrintableType),
-    FmtString(String, Vec<(PrintableValue<F>, PrintableType)>),
+pub enum PrintableValueDisplay {
+    Plain(PrintableValue, PrintableType),
+    FmtString(String, Vec<(PrintableValue, PrintableType)>),
 }
-impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
+impl std::fmt::Display for PrintableValueDisplay {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Plain(value, typ) => {
@@ -90,27 +94,27 @@ impl<F: AcirField> std::fmt::Display for PrintableValueDisplay<F> {
     }
 }
 
-fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Option<String> {
+fn to_string(value: &PrintableValue, typ: &PrintableType) -> Option<String> {
     let mut output = String::new();
     match (value, typ) {
-        (PrintableValue::Field(f), PrintableType::Field) => {
-            output.push_str(&format_field_string(*f));
+        (PrintableValue::Numeric(f), PrintableType::Field) => {
+            output.push_str(&format_field_string(f.clone()));
         }
-        (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
+        (PrintableValue::Numeric(f), PrintableType::UnsignedInteger { width }) => {
             // Retain the lower 'width' bits
             debug_assert!(
                 *width <= 128,
                 "We don't currently support unsigned integers larger than u128"
             );
-            let mut uint_cast = f.to_u128();
+            let mut uint_cast = f.to_u128().expect("uint is too large");
             if *width != 128 {
                 uint_cast &= (1 << width) - 1;
             };
 
             output.push_str(&uint_cast.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::SignedInteger { width }) => {
-            let mut uint = f.to_u128(); // Interpret as uint
+        (PrintableValue::Numeric(f), PrintableType::SignedInteger { width }) => {
+            let mut uint = f.to_u128().expect("uint is too large"); // Interpret as uint
 
             // Extract sign relative to width of input
             if (uint >> (width - 1)) == 1 {
@@ -120,14 +124,14 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
             output.push_str(&uint.to_string());
         }
-        (PrintableValue::Field(f), PrintableType::Boolean) => {
+        (PrintableValue::Numeric(f), PrintableType::Boolean) => {
             if f.is_one() {
                 output.push_str("true");
             } else {
                 output.push_str("false");
             }
         }
-        (PrintableValue::Field(_), PrintableType::Function { arguments, return_type, .. }) => {
+        (PrintableValue::Numeric(_), PrintableType::Function { arguments, return_type, .. }) => {
             output.push_str(&format!("<<fn({:?}) -> {:?}>>", arguments, return_type,));
         }
         (_, PrintableType::Reference { mutable: false, .. }) => {
@@ -267,11 +271,11 @@ fn write_template_replacing_interpolations(
 /// A singular '0' will be prepended as well if the trimmed string has an odd length.
 /// A hex string's length needs to be even to decode into bytes, as two digits correspond to
 /// one byte.
-pub fn format_field_string<F: AcirField>(field: F) -> String {
+pub fn format_field_string(field: BigInt) -> String {
     if field.is_zero() {
         return "0x00".to_owned();
     }
-    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
+    let mut trimmed_field = field.to_str_radix(16).trim_start_matches('0').to_owned();
     if trimmed_field.len() % 2 != 0 {
         trimmed_field = "0".to_owned() + &trimmed_field;
     }
@@ -279,54 +283,55 @@ pub fn format_field_string<F: AcirField>(field: F) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
-pub fn decode_printable_value<F: AcirField>(
-    field_iterator: &mut impl Iterator<Item = F>,
+pub fn decode_printable_value(
+    iterator: &mut impl Iterator<Item = BigInt>,
     typ: &PrintableType,
-) -> PrintableValue<F> {
+) -> PrintableValue {
     match typ {
         PrintableType::Field
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean => {
-            let field_element = field_iterator.next().unwrap();
+            let element = iterator.next().unwrap();
 
-            PrintableValue::Field(field_element)
+            PrintableValue::Numeric(element)
         }
         PrintableType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
-                array_elements.push(decode_printable_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(iterator, typ));
             }
 
             PrintableValue::Vec { array_elements, is_slice: false }
         }
         PrintableType::Slice { typ } => {
-            let length = field_iterator
+            let length = iterator
                 .next()
                 .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
+                .to_u128()
+                .expect("length is too large") as usize;
             let mut array_elements = Vec::with_capacity(length);
             for _ in 0..length {
-                array_elements.push(decode_printable_value(field_iterator, typ));
+                array_elements.push(decode_printable_value(iterator, typ));
             }
 
             PrintableValue::Vec { array_elements, is_slice: true }
         }
         PrintableType::Tuple { types } => PrintableValue::Vec {
-            array_elements: vecmap(types, |typ| decode_printable_value(field_iterator, typ)),
+            array_elements: vecmap(types, |typ| decode_printable_value(iterator, typ)),
             is_slice: false,
         },
         PrintableType::String { length } => {
-            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
+            let elements: Vec<BigInt> = iterator.take(*length as usize).collect();
 
-            PrintableValue::String(decode_string_value(&field_elements))
+            PrintableValue::String(decode_string_value(&elements))
         }
         PrintableType::Struct { fields, .. } => {
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_printable_value(field_iterator, param_type);
+                let field_value = decode_printable_value(iterator, param_type);
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -335,35 +340,33 @@ pub fn decode_printable_value<F: AcirField>(
         }
         PrintableType::Function { env, .. } => {
             // we want to consume the fields from the environment, but for now they are not actually printed
-            let _env = decode_printable_value(field_iterator, env);
-            let func_id = field_iterator.next().unwrap();
-            PrintableValue::Field(func_id)
+            let _env = decode_printable_value(iterator, env);
+            let func_id = iterator.next().unwrap();
+            PrintableValue::Numeric(func_id)
         }
         PrintableType::Reference { typ, .. } => {
             // we decode the reference, but it's not really used for printing
-            decode_printable_value(field_iterator, typ)
+            decode_printable_value(iterator, typ)
         }
-        PrintableType::Unit => PrintableValue::Field(F::zero()),
+        PrintableType::Unit => PrintableValue::Numeric(BigInt::zero()),
         PrintableType::Enum { name: _, variants } => {
-            let tag = field_iterator.next().unwrap();
-            let tag_value = tag.to_u128() as usize;
+            let tag = iterator.next().unwrap();
+            let tag_value = tag.to_u128().expect("tag value is too large") as usize;
 
             let (_name, variant_types) = &variants[tag_value];
             PrintableValue::Vec {
-                array_elements: vecmap(variant_types, |typ| {
-                    decode_printable_value(field_iterator, typ)
-                }),
+                array_elements: vecmap(variant_types, |typ| decode_printable_value(iterator, typ)),
                 is_slice: false,
             }
         }
     }
 }
 
-pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
-    let string_as_slice = vecmap(field_elements, |e| {
-        let mut field_as_bytes = e.to_be_bytes();
-        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
+pub fn decode_string_value(elements: &[BigInt]) -> String {
+    let string_as_slice = vecmap(elements, |e| {
+        let (_, mut element_as_bytes) = e.to_bytes_be();
+        let char_byte = element_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
+        assert!(element_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
         char_byte
     });
 
@@ -376,10 +379,10 @@ pub enum TryFromParamsError {
     ParsingError(serde_json::Error),
 }
 
-impl<F: AcirField> PrintableValueDisplay<F> {
+impl PrintableValueDisplay {
     pub fn try_from_params(
-        foreign_call_inputs: &[ForeignCallParam<F>],
-    ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+        foreign_call_inputs: &[ForeignCallParam<BigInt>],
+    ) -> Result<PrintableValueDisplay, TryFromParamsError> {
         let (is_fmt_str, foreign_call_inputs) =
             foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
 
@@ -391,9 +394,9 @@ impl<F: AcirField> PrintableValueDisplay<F> {
     }
 }
 
-fn convert_string_inputs<F: AcirField>(
-    foreign_call_inputs: &[ForeignCallParam<F>],
-) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+fn convert_string_inputs(
+    foreign_call_inputs: &[ForeignCallParam<BigInt>],
+) -> Result<PrintableValueDisplay, TryFromParamsError> {
     // Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
     let (printable_type_as_values, input_values) =
@@ -408,9 +411,9 @@ fn convert_string_inputs<F: AcirField>(
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
 
-fn convert_fmt_string_inputs<F: AcirField>(
-    foreign_call_inputs: &[ForeignCallParam<F>],
-) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
+fn convert_fmt_string_inputs(
+    foreign_call_inputs: &[ForeignCallParam<BigInt>],
+) -> Result<PrintableValueDisplay, TryFromParamsError> {
     let (message, input_and_printable_types) =
         foreign_call_inputs.split_first().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
 
@@ -422,7 +425,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
         .ok_or(TryFromParamsError::MissingForeignCallInputs)?;
 
     let mut output = Vec::new();
-    let num_values = num_values.unwrap_field().to_u128() as usize;
+    let num_values = num_values.unwrap_field().to_u128().expect("num values is too large") as usize;
 
     let types_start_at = input_and_printable_types.len() - num_values;
 
@@ -438,8 +441,8 @@ fn convert_fmt_string_inputs<F: AcirField>(
     Ok(PrintableValueDisplay::FmtString(message_as_string, output))
 }
 
-fn fetch_printable_type<F: AcirField>(
-    printable_type: &ForeignCallParam<F>,
+fn fetch_printable_type(
+    printable_type: &ForeignCallParam<BigInt>,
 ) -> Result<PrintableType, TryFromParamsError> {
     let printable_type_as_fields = printable_type.fields();
     let printable_type_as_string = decode_string_value(&printable_type_as_fields);
@@ -453,8 +456,7 @@ fn fetch_printable_type<F: AcirField>(
 
 #[cfg(test)]
 mod tests {
-    use acvm::FieldElement;
-
+    use num_bigint::BigInt;
     use proptest::prelude::*;
 
     use crate::to_string;
@@ -464,8 +466,7 @@ mod tests {
     #[test]
     fn printable_value_display_to_string_without_interpolations() {
         let template = "hello";
-        let display =
-            PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), vec![]);
+        let display = PrintableValueDisplay::FmtString(template.to_string(), vec![]);
         assert_eq!(display.to_string(), template);
     }
 
@@ -473,8 +474,7 @@ mod tests {
     fn printable_value_display_to_string_with_curly_escapes() {
         let template = "hello {{world}} {{{{double_escape}}}}";
         let expected = "hello {world} {{double_escape}}";
-        let display =
-            PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), vec![]);
+        let display = PrintableValueDisplay::FmtString(template.to_string(), vec![]);
         assert_eq!(display.to_string(), expected);
     }
 
@@ -487,15 +487,14 @@ mod tests {
             (PrintableValue::String("THREE".to_string()), PrintableType::String { length: 5 }),
         ];
         let expected = "hello ONE {no} TWO {not_again} THREE world";
-        let display =
-            PrintableValueDisplay::<FieldElement>::FmtString(template.to_string(), values);
+        let display = PrintableValueDisplay::FmtString(template.to_string(), values);
         assert_eq!(display.to_string(), expected);
     }
 
     #[test]
     fn one_element_tuple_to_string() {
-        let value = PrintableValue::<FieldElement>::Vec {
-            array_elements: vec![PrintableValue::Field(1_u128.into())],
+        let value = PrintableValue::Vec {
+            array_elements: vec![PrintableValue::Numeric(BigInt::from(1_u128))],
             is_slice: false,
         };
         let typ = PrintableType::Tuple { types: vec![PrintableType::Field] };
@@ -505,10 +504,10 @@ mod tests {
 
     #[test]
     fn two_elements_tuple_to_string() {
-        let value = PrintableValue::<FieldElement>::Vec {
+        let value = PrintableValue::Vec {
             array_elements: vec![
-                PrintableValue::Field(1_u128.into()),
-                PrintableValue::Field(2_u128.into()),
+                PrintableValue::Numeric(BigInt::from(1_u128)),
+                PrintableValue::Numeric(BigInt::from(2_u128)),
             ],
             is_slice: false,
         };
@@ -520,7 +519,7 @@ mod tests {
     proptest! {
         #[test]
         fn handles_decoding_u128_values(uint_value: u128) {
-            let value = PrintableValue::Field(FieldElement::from(uint_value));
+            let value = PrintableValue::Numeric(BigInt::from(uint_value));
             let typ = PrintableType::UnsignedInteger { width: 128 };
 
             let value_as_string = to_string(&value, &typ).unwrap();
