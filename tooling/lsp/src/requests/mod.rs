@@ -15,6 +15,8 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
+use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
@@ -62,12 +64,11 @@ mod tests;
 mod workspace_symbol;
 
 pub(crate) use {
-    code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
-    code_lens_request::on_code_lens_request, completion::on_completion_request,
-    document_symbol::on_document_symbol_request, expand::on_expand_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    inlay_hint::on_inlay_hint_request, references::on_references_request,
+    code_action::on_code_action_request, code_lens_request::on_code_lens_request,
+    completion::on_completion_request, document_symbol::on_document_symbol_request,
+    expand::on_expand_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, test_run::on_test_run_request,
     tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
@@ -455,6 +456,8 @@ pub(crate) fn on_shutdown(
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
+    workspace: &'a Workspace,
+    package: &'a Package,
     files: &'a FileMap,
     interner: &'a NodeInterner,
     package_cache: &'a HashMap<PathBuf, PackageCacheData>,
@@ -519,6 +522,8 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,
@@ -584,6 +589,8 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,

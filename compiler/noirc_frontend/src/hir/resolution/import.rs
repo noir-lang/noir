@@ -12,7 +12,9 @@ use crate::usage_tracker::UsageTracker;
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+};
 
 use super::errors::ResolverError;
 use super::visibility::item_in_module_is_visible;
@@ -100,8 +102,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
-            // This will be upgraded to an error in future versions
-            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_error(
                 error.to_string(),
                 format!("{ident} is private"),
                 ident.location(),
@@ -162,7 +163,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     path: Path,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     usage_tracker: &mut UsageTracker,
     references_tracker: Option<ReferencesTracker>,
 ) -> ImportResolutionResult {
@@ -195,7 +196,7 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
 pub fn resolve_path_kind<'r>(
     path: TypedPath,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     references_tracker: Option<ReferencesTracker<'r>>,
 ) -> Result<(TypedPath, ModuleId, Option<ReferencesTracker<'r>>), PathResolutionError> {
     let mut solver =
@@ -425,7 +426,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     }
 }
 
-fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
+fn get_module(def_maps: &DefMaps, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
     &def_maps.get(&module.krate).expect(message)[module.local_id]
 }

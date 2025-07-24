@@ -5,63 +5,27 @@ expression: expanded_code
 trait Serialize {
     let Size: u32;
 
-    fn serialize(self) -> [Field; Size];
-}
-
-impl<A, B> Serialize for (A, B) where A: Serialize, B: Serialize {
-    type Size = <A as Serialize>::Size + <B as Serialize>::Size;
-
-    fn serialize(self) -> [Field; <A as Serialize>::Size + <B as Serialize>::Size] where A: Serialize, B: Serialize {
-        let mut array: [Field; <A as Serialize>::Size + <B as Serialize>::Size] = std::mem::zeroed();
-        let a: [Field; <A as Serialize>::Size] = Serialize::serialize(self.0);
-        let b: [Field; <B as Serialize>::Size] = Serialize::serialize(self.1);
-        for i in 0..a.len() {
-            array[i] = a[i];
-        };
-        for i in 0..b.len() {
-            {
-                let i_3793: u32 = i + a.len();
-                array[i_3793] = b[i];
-            }
-        };
-        array
-    }
-}
-
-impl<let N: u32, T> Serialize for [T; N] where T: Serialize {
-    type Size = N * <T as Serialize>::Size;
-
-    fn serialize(self) -> [Field; N * <T as Serialize>::Size] where T: Serialize {
-        let mut array: [Field; N * <T as Serialize>::Size] = std::mem::zeroed();
-        let mut array_i: Field = 0;
-        {
-            let ___i0: Self = self;
-            for ___i1 in 0..___i0.len() {
-                let elem: T = ___i0[___i1];
-                {
-                    let elem_fields: [Field; <T as Serialize>::Size] = Serialize::serialize(elem);
-                    for i in 0..elem_fields.len() {
-                        array[array_i] = elem_fields[i];
-                        array_i = array_i + 1;
-                    }
-                }
-            }
-        };
-        array
-    }
+    fn serialize(self);
 }
 
 impl Serialize for Field {
     let Size: u32 = 1;
 
-    fn serialize(self) -> [Self; 1] {
-        [self]
+    fn serialize(self) {}
+}
+
+impl<A> Serialize for (A,)
+where
+    A: Serialize,
+{
+    let Size: u32 = <A as Serialize>::Size;
+
+    fn serialize(self) {
+        self.0.serialize();
     }
 }
 
 fn main() {
-    let x: (((Field, [Field; 3]), [Field; 4]), Field) = (((1, [2, 3, 4]), [5, 6, 7, 8]), 9);
-    assert(x.serialize().len() == 9);
+    let x: ((Field,),) = ((1_Field,),);
+    x.serialize();
 }
-
-// Warning: the generated code has syntax errors

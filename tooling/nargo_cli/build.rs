@@ -178,7 +178,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -188,14 +188,6 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
     // this one works, but copying its `Nargo.toml` file to somewhere else doesn't work
     // because it references another project by a relative path
     "reexports",
-    // bug
-    "serialize_1",
-    // bug
-    "serialize_2",
-    // bug
-    "serialize_3",
-    // bug
-    "serialize_4",
     // bug
     "trait_function_calls",
     // bug
@@ -208,11 +200,18 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 14] = [
     "type_trait_method_call_multiple_candidates",
     // bug
     "alias_trait_method_call_multiple_candidates",
+    // bug
+    "trait_call_in_global",
+    // bug
+    "comptime_traits",
+    // bug
+    "trait_multi_module_test",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 10] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 12] = [
+    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -225,6 +224,8 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 10] = [
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_1",
     // "noirc_frontend_tests_traits_as_trait_path_called_multiple_times_for_different_t_2",
+    // This creates a struct at comptime which, expanded, gives a visibility error
+    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
