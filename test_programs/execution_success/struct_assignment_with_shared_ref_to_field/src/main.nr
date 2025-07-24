@@ -4,9 +4,7 @@ fn main() {
     assert(a);
     assert(b);
     assert(c);
-
-    // Bug! https://github.com/noir-lang/noir/issues/9251
-    assert(!d);
+    assert(d);
 }
 
 fn plain_store() -> bool {
