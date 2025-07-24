@@ -339,7 +339,9 @@ impl Elaborator<'_> {
                     },
                 );
 
-                let length = self.convert_expression_type(length, &Kind::u32(), location);
+                let wildcard_allowed = true;
+                let length =
+                    self.convert_expression_type(length, &Kind::u32(), location, wildcard_allowed);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
@@ -616,7 +618,9 @@ impl Elaborator<'_> {
                     let generics = generics.map(|generics| {
                         vecmap(generics, |generic| {
                             let location = generic.location;
-                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            let wildcard_allowed = true;
+                            let typ =
+                                self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                             Located::from(location, typ)
                         })
                     });
@@ -1042,7 +1046,8 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let r#type = self.resolve_type(cast.r#type);
+        let wildcard_allowed = false;
+        let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
@@ -1278,7 +1283,8 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    self.resolve_type(typ)
+                    let wildcard_allowed = false;
+                    self.resolve_type(typ, wildcard_allowed)
                 };
 
                 arg_types.push(typ.clone());
@@ -1463,7 +1469,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.use_type(constraint.typ.clone());
+        let wildcard_allowed = true;
+        let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.

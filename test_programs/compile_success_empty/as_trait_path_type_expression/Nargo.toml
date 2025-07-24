@@ -1,0 +1,6 @@
+[package]
+name = "as_trait_path_type_expression"
+type = "bin"
+authors = [""]
+
+[dependencies]

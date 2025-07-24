@@ -182,6 +182,8 @@ pub enum ResolverError {
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
+    WildcardTypeDisallowed { location: Location },
 }
 
 impl ResolverError {
@@ -243,7 +245,8 @@ impl ResolverError {
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
-            | ResolverError::AmbiguousAssociatedType { location, .. } => *location,
+            | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::WildcardTypeDisallowed { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -765,6 +768,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Ambiguous associated type".to_string(),
                     format!("If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `<Example as {trait_name}>::{associated_type_name}`"),
+                    *location,
+                )
+            }
+            ResolverError::WildcardTypeDisallowed { location } => {
+                Diagnostic::simple_error(
+                    "The placeholder `_` is not allowed within types on item signatures for functions".to_string(),
+                    String::new(),
                     *location,
                 )
             }

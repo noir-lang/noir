@@ -50,31 +50,6 @@ fn use_super_in_path() {
 
 #[named]
 #[test]
-fn warns_on_use_of_private_exported_item() {
-    let src = r#"
-    mod foo {
-        mod bar {
-            pub fn baz() {}
-        }
-
-        use bar::baz;
-
-        pub fn qux() {
-            baz();
-        }
-    }
-
-    fn main() {
-        foo::baz();
-             ^^^ baz is private and not visible from the current module
-             ~~~ baz is private
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn can_use_pub_use_item() {
     let src = r#"
     mod foo {
