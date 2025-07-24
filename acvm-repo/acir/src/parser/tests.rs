@@ -243,7 +243,7 @@ fn blake3() {
 
 #[test]
 fn ecdsa_secp256k1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{}, 8)", i)).collect();
+    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{i}, 8)")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -261,7 +261,7 @@ fn ecdsa_secp256k1() {
 #[test]
 #[should_panic]
 fn ecdsa_secp256k1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{}, 8)", i)).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{i}, 8)")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -278,7 +278,7 @@ fn ecdsa_secp256k1_missing_inputs() {
 
 #[test]
 fn ecdsa_secp256r1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{}, 8)", i)).collect();
+    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{i}, 8)")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -296,7 +296,7 @@ fn ecdsa_secp256r1() {
 #[test]
 #[should_panic]
 fn ecdsa_secp256r1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{}, 8)", i)).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{i}, 8)")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -313,26 +313,22 @@ fn ecdsa_secp256r1_missing_inputs() {
 
 #[test]
 fn keccakf1600() {
-    let src = "
+    let input_witnesses: Vec<String> = (0..25).map(|i| format!("(_{i}, 64)")).collect();
+    let inputs_str = input_witnesses.join(", ");
+
+    let output_witnesses: Vec<String> = (25..50).map(|i| format!("_{i}")).collect();
+    let outputs_str = output_witnesses.join(", ");
+
+    let src = format!(
+        "
     current witness index : _50
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::KECCAKF1600 [
-        (_0, 64), (_1, 64), (_2, 64), (_3, 64), (_4, 64), 
-        (_5, 64), (_6, 64), (_7, 64), (_8, 64), (_9, 64),
-        (_10, 64), (_11, 64), (_12, 64), (_13, 64), (_14, 64),
-        (_15, 64), (_16, 64), (_17, 64), (_18, 64), (_19, 64),
-        (_20, 64), (_21, 64), (_22, 64), (_23, 64), (_24, 64)
-    ] [
-        _25, _26, _27, _28, _29,
-        _30, _31, _32, _33, _34,
-        _35, _36, _37, _38, _39,
-        _40, _41, _42, _43, _44,
-        _45, _46, _47, _48, _49
-    ]
-    ";
-    assert_circuit_roundtrip(src);
+    BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
+    "
+    );
+    assert_circuit_roundtrip(&src);
 }
 
 #[test]
@@ -361,10 +357,10 @@ fn poseidon2_permutation() {
 
 #[test]
 fn sha256_compression() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{}, 8)", i)).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 8)")).collect();
     let inputs_str = input_witnesses.join(", ");
 
-    let output_witnesses: Vec<String> = (24..32).map(|i| format!("_{}", i)).collect();
+    let output_witnesses: Vec<String> = (24..32).map(|i| format!("_{i}")).collect();
     let outputs_str = output_witnesses.join(", ");
 
     let src = format!(

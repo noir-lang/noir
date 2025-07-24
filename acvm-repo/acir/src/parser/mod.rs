@@ -69,6 +69,8 @@ impl FromStr for Circuit<FieldElement> {
 }
 
 impl Circuit<FieldElement> {
+    /// Creates a [Circuit] object from the given string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(src: &str) -> Result<Self, AcirParserErrorWithSource> {
         FromStr::from_str(src)
     }
@@ -94,16 +96,21 @@ impl<'a> Parser<'a> {
     }
 
     pub(crate) fn parse_acir(&mut self) -> ParseResult<Circuit<FieldElement>> {
-        let mut circuit = Circuit::default();
+        let current_witness_index = self.parse_current_witness_index()?;
+        let private_parameters = self.parse_private_parameters()?;
+        let public_parameters = PublicInputs(self.parse_public_parameters()?);
+        let return_values = PublicInputs(self.parse_return_values()?);
 
-        circuit.current_witness_index = self.parse_current_witness_index()?;
-        circuit.private_parameters = self.parse_private_parameters()?;
-        circuit.public_parameters = PublicInputs(self.parse_public_parameters()?);
-        circuit.return_values = PublicInputs(self.parse_return_values()?);
-        
-        circuit.opcodes = self.parse_opcodes()?;
+        let opcodes = self.parse_opcodes()?;
 
-        Ok(circuit)
+        Ok(Circuit {
+            current_witness_index,
+            opcodes,
+            private_parameters,
+            public_parameters,
+            return_values,
+            ..Default::default()
+        })
     }
 
     fn parse_current_witness_index(&mut self) -> ParseResult<u32> {
