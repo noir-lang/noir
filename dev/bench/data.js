@@ -1,87 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753365400421,
+  "lastUpdate": 1753365405035,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6b2efe05967610d2bc7547046019d24c12831439",
-          "message": "feat: optimize \"out of bounds\" checks on arrays with lengths which are powers of two (#9182)",
-          "timestamp": "2025-07-15T10:25:09+01:00",
-          "tree_id": "5583cb639f6202f7397eed1642835469fcb70b54",
-          "url": "https://github.com/noir-lang/noir/commit/6b2efe05967610d2bc7547046019d24c12831439"
-        },
-        "date": 1752573734779,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.22,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 208.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.08,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.47,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3489,6 +3410,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.59,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6abff2f16e1c1314ba30708d1cf032a536de3d19",
+          "message": "chore: Release Noir(1.0.0-beta.9) (#9184)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-07-24T13:22:16Z",
+          "tree_id": "9ac37df612afaa0133dfc8c8b551679aabf25f3d",
+          "url": "https://github.com/noir-lang/noir/commit/6abff2f16e1c1314ba30708d1cf032a536de3d19"
+        },
+        "date": 1753365387568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.56,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.53,
             "unit": "MB"
           }
         ]
