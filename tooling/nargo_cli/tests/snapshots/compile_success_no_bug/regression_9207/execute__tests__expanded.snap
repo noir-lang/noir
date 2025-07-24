@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: [[bool; 2]; 3], mut b: [[bool; 2]; 3]) -> pub bool {
+    for _ in 0_u32..2_u32 {
+        let idx_e: u32 = if 0_Field != (a[2_u32][0_u32] as Field) {
+            0_u32
+        } else {
+            1_u32
+        };
+        b[2_u32][idx_e] = !a[0_u32][1_u32];
+        for idx_g in 65_u8..70_u8 {
+            let idx_j: u32 = (idx_g as u32) % 2_u32;
+            let idx_k: u32 = (idx_g as u32) % 3_u32;
+            b[1_u32][idx_j] = a[idx_k][1_u32];
+        }
+    }
+    b[0_u32][0_u32]
+}

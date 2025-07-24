@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub bool {
+    func_2([(true, "", "")]) != func_2([(true, "", "")])
+}
+
+unconstrained fn func_2(b: [(bool, str<0>, str<0>); 1]) -> (str<0>, str<0>) {
+    println(b);
+    (b[0_u32].1, b[0_u32].2)
+}

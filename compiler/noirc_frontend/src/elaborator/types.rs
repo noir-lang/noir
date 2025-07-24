@@ -60,16 +60,26 @@ pub(super) enum TraitPathResolutionMethod {
 }
 
 impl Elaborator<'_> {
-    pub(crate) fn resolve_type(&mut self, typ: UnresolvedType) -> Type {
-        self.resolve_type_inner(typ, &Kind::Normal, PathResolutionMode::MarkAsReferenced)
+    pub(crate) fn resolve_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
+        self.resolve_type_inner(
+            typ,
+            &Kind::Normal,
+            PathResolutionMode::MarkAsReferenced,
+            wildcard_allowed,
+        )
     }
 
-    pub(crate) fn use_type(&mut self, typ: UnresolvedType) -> Type {
-        self.use_type_with_kind(typ, &Kind::Normal)
+    pub(crate) fn use_type(&mut self, typ: UnresolvedType, wildcard_allowed: bool) -> Type {
+        self.use_type_with_kind(typ, &Kind::Normal, wildcard_allowed)
     }
 
-    pub(crate) fn use_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed)
+    pub(crate) fn use_type_with_kind(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        wildcard_allowed: bool,
+    ) -> Type {
+        self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsUsed, wildcard_allowed)
     }
 
     /// Translates an UnresolvedType to a Type with a `TypeKind::Normal`
@@ -78,17 +88,28 @@ impl Elaborator<'_> {
         typ: UnresolvedType,
         kind: &Kind,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> Type {
         let location = typ.location;
-        let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode);
+        let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
         if resolved_type.is_nested_slice() {
             self.push_err(ResolverError::NestedSlices { location });
         }
         resolved_type
     }
 
-    pub(crate) fn resolve_type_with_kind(&mut self, typ: UnresolvedType, kind: &Kind) -> Type {
-        self.resolve_type_with_kind_inner(typ, kind, PathResolutionMode::MarkAsReferenced)
+    pub(crate) fn resolve_type_with_kind(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        wildcard_allowed: bool,
+    ) -> Type {
+        self.resolve_type_with_kind_inner(
+            typ,
+            kind,
+            PathResolutionMode::MarkAsReferenced,
+            wildcard_allowed,
+        )
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -98,6 +119,7 @@ impl Elaborator<'_> {
         typ: UnresolvedType,
         kind: &Kind,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
@@ -115,15 +137,28 @@ impl Elaborator<'_> {
 
         let resolved_type = match typ.typ {
             Array(size, elem) => {
-                let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
-                let size = self.convert_expression_type(size, &Kind::u32(), location);
+                let elem = Box::new(self.resolve_type_with_kind_inner(
+                    *elem,
+                    kind,
+                    mode,
+                    wildcard_allowed,
+                ));
+                let size =
+                    self.convert_expression_type(size, &Kind::u32(), location, wildcard_allowed);
                 Type::Array(Box::new(size), elem)
             }
             Slice(elem) => {
-                let elem = Box::new(self.resolve_type_with_kind_inner(*elem, kind, mode));
+                let elem = Box::new(self.resolve_type_with_kind_inner(
+                    *elem,
+                    kind,
+                    mode,
+                    wildcard_allowed,
+                ));
                 Type::Slice(elem)
             }
-            Expression(expr) => self.convert_expression_type(expr, kind, location),
+            Expression(expr) => {
+                self.convert_expression_type(expr, kind, location, wildcard_allowed)
+            }
             Unit => Type::Unit,
             Unspecified => {
                 let location = typ.location;
@@ -133,7 +168,7 @@ impl Elaborator<'_> {
             Error => Type::Error,
             Named(path, args, _) => {
                 let path = self.validate_path(path);
-                self.resolve_named_type(path, args, mode)
+                self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
                 let path = self.validate_path(path);
@@ -141,14 +176,18 @@ impl Elaborator<'_> {
             }
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
-                self.resolve_type_with_kind_inner(field, kind, mode)
+                self.resolve_type_with_kind_inner(field, kind, mode, wildcard_allowed)
             })),
             Function(args, ret, env, unconstrained) => {
-                let args = vecmap(args, |arg| self.resolve_type_with_kind_inner(arg, kind, mode));
-                let ret = Box::new(self.resolve_type_with_kind_inner(*ret, kind, mode));
+                let args = vecmap(args, |arg| {
+                    self.resolve_type_with_kind_inner(arg, kind, mode, wildcard_allowed)
+                });
+                let ret =
+                    Box::new(self.resolve_type_with_kind_inner(*ret, kind, mode, wildcard_allowed));
                 let env_location = env.location;
 
-                let env = Box::new(self.resolve_type_with_kind_inner(*env, kind, mode));
+                let env =
+                    Box::new(self.resolve_type_with_kind_inner(*env, kind, mode, wildcard_allowed));
 
                 match *env {
                     Type::Unit | Type::Tuple(_) | Type::NamedGeneric(_) => {
@@ -168,19 +207,27 @@ impl Elaborator<'_> {
                     self.use_unstable_feature(UnstableFeature::Ownership, location);
                 }
                 Type::Reference(
-                    Box::new(self.resolve_type_with_kind_inner(*element, kind, mode)),
+                    Box::new(self.resolve_type_with_kind_inner(
+                        *element,
+                        kind,
+                        mode,
+                        wildcard_allowed,
+                    )),
                     mutable,
                 )
             }
-            Parenthesized(typ) => self.resolve_type_with_kind_inner(*typ, kind, mode),
+            Parenthesized(typ) => {
+                self.resolve_type_with_kind_inner(*typ, kind, mode, wildcard_allowed)
+            }
             Resolved(id) => self.interner.get_quoted_type(id).clone(),
-            AsTraitPath(path) => self.resolve_as_trait_path(*path),
+            AsTraitPath(path) => self.resolve_as_trait_path(*path, wildcard_allowed),
             Interned(id) => {
                 let typ = self.interner.get_unresolved_type_data(id).clone();
                 return self.resolve_type_with_kind_inner(
                     UnresolvedType { typ, location },
                     kind,
                     mode,
+                    wildcard_allowed,
                 );
             }
         };
@@ -236,6 +283,7 @@ impl Elaborator<'_> {
         path: TypedPath,
         args: GenericTypeArgs,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> Type {
         if args.is_empty() {
             if let Some(typ) = self.lookup_generic_or_global_type(&path, mode) {
@@ -245,7 +293,7 @@ impl Elaborator<'_> {
 
         // Check if the path is a type variable first. We currently disallow generics on type
         // variables since we do not support higher-kinded types.
-        if let Some(typ) = self.lookup_type_variable(&path, &args) {
+        if let Some(typ) = self.lookup_type_variable(&path, &args, wildcard_allowed) {
             return typ;
         }
 
@@ -253,7 +301,8 @@ impl Elaborator<'_> {
 
         if let Some(type_alias) = self.lookup_type_alias(path.clone(), mode) {
             let id = type_alias.borrow().id;
-            let (args, _) = self.resolve_type_args_inner(args, id, location, mode);
+            let (args, _) =
+                self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
 
             if let Some(item) = self.current_item {
                 self.interner.add_type_alias_dependency(item, id);
@@ -296,8 +345,13 @@ impl Elaborator<'_> {
                     });
                 }
 
-                let (args, _) =
-                    self.resolve_type_args_inner(args, data_type.borrow(), location, mode);
+                let (args, _) = self.resolve_type_args_inner(
+                    args,
+                    data_type.borrow(),
+                    location,
+                    mode,
+                    wildcard_allowed,
+                );
 
                 if let Some(current_item) = self.current_item {
                     let dependency_id = data_type.borrow().id;
@@ -307,7 +361,12 @@ impl Elaborator<'_> {
                 Type::DataType(data_type, args)
             }
             Ok(PathResolutionItem::PrimitiveType(primitive_type)) => {
-                let typ = self.instantiate_primitive_type(primitive_type, args, location);
+                let typ = self.instantiate_primitive_type(
+                    primitive_type,
+                    args,
+                    location,
+                    wildcard_allowed,
+                );
                 if let Type::Quoted(quoted) = typ {
                     let in_function = matches!(self.current_item, Some(DependencyId::Function(_)));
                     if in_function && !self.in_comptime_context() {
@@ -346,7 +405,12 @@ impl Elaborator<'_> {
         }
     }
 
-    fn lookup_type_variable(&mut self, path: &TypedPath, args: &GenericTypeArgs) -> Option<Type> {
+    fn lookup_type_variable(
+        &mut self,
+        path: &TypedPath,
+        args: &GenericTypeArgs,
+        wildcard_allowed: bool,
+    ) -> Option<Type> {
         if path.segments.len() != 1 {
             return None;
         }
@@ -360,7 +424,15 @@ impl Elaborator<'_> {
                 }
                 Some(self_type)
             }
-            WILDCARD_TYPE => Some(self.interner.next_type_variable_with_kind(Kind::Any)),
+            WILDCARD_TYPE => {
+                if !wildcard_allowed {
+                    self.push_err(ResolverError::WildcardTypeDisallowed {
+                        location: path.location,
+                    });
+                }
+
+                Some(self.interner.next_type_variable_with_kind(Kind::Any))
+            }
             _ => None,
         }
     }
@@ -377,7 +449,9 @@ impl Elaborator<'_> {
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|t| t.id);
 
         if let Some(id) = trait_as_type_info {
-            let (ordered, named) = self.resolve_type_args_inner(args, id, location, mode);
+            let wildcard_allowed = false;
+            let (ordered, named) =
+                self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
             let name = self.interner.get_trait(id).name.to_string();
             let generics = TraitGenerics { ordered, named };
             Type::TraitAsType(id, Rc::new(name), generics)
@@ -395,7 +469,16 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let mode = PathResolutionMode::MarkAsReferenced;
-        self.resolve_type_or_trait_args_inner(args, item, location, false, mode)
+        let allow_implicit_named_args = false;
+        let wildcard_allowed = true;
+        self.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 
     pub(super) fn use_type_args(
@@ -405,7 +488,8 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let mode = PathResolutionMode::MarkAsUsed;
-        self.resolve_type_args_inner(args, item, location, mode)
+        let wildcard_allowed = true;
+        self.resolve_type_args_inner(args, item, location, mode, wildcard_allowed)
     }
 
     pub(super) fn resolve_type_args_inner(
@@ -414,8 +498,17 @@ impl Elaborator<'_> {
         item: impl Generic,
         location: Location,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
-        self.resolve_type_or_trait_args_inner(args, item, location, true, mode)
+        let allow_implicit_named_args = true;
+        self.resolve_type_or_trait_args_inner(
+            args,
+            item,
+            location,
+            allow_implicit_named_args,
+            mode,
+            wildcard_allowed,
+        )
     }
 
     pub(super) fn resolve_type_or_trait_args_inner(
@@ -425,6 +518,7 @@ impl Elaborator<'_> {
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> (Vec<Type>, Vec<NamedType>) {
         let expected_kinds = item.generic_kinds(self.interner);
 
@@ -440,8 +534,9 @@ impl Elaborator<'_> {
         }
 
         let ordered_args = expected_kinds.iter().zip(args.ordered_args);
-        let ordered =
-            vecmap(ordered_args, |(kind, typ)| self.resolve_type_with_kind_inner(typ, kind, mode));
+        let ordered = vecmap(ordered_args, |(kind, typ)| {
+            self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed)
+        });
 
         let mut associated = Vec::new();
 
@@ -452,6 +547,7 @@ impl Elaborator<'_> {
                 location,
                 allow_implicit_named_args,
                 mode,
+                wildcard_allowed,
             );
         } else if !args.named_args.is_empty() {
             let item_kind = item.item_kind();
@@ -468,6 +564,7 @@ impl Elaborator<'_> {
         location: Location,
         allow_implicit_named_args: bool,
         mode: PathResolutionMode,
+        wildcard_allowed: bool,
     ) -> Vec<NamedType> {
         let mut seen_args = HashMap::default();
         let mut required_args = item.named_generics(self.interner);
@@ -492,7 +589,8 @@ impl Elaborator<'_> {
             let expected = required_args.remove(index);
             seen_args.insert(name.to_string(), name.location());
 
-            let typ = self.resolve_type_with_kind_inner(typ, &expected.kind(), mode);
+            let typ =
+                self.resolve_type_with_kind_inner(typ, &expected.kind(), mode, wildcard_allowed);
             resolved.push(NamedType { name, typ });
         }
 
@@ -603,12 +701,18 @@ impl Elaborator<'_> {
         length: UnresolvedTypeExpression,
         expected_kind: &Kind,
         location: Location,
+        wildcard_allowed: bool,
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
-                let typ = self.resolve_named_type(path, GenericTypeArgs::default(), mode);
+                let typ = self.resolve_named_type(
+                    path,
+                    GenericTypeArgs::default(),
+                    mode,
+                    wildcard_allowed,
+                );
                 self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
@@ -619,8 +723,18 @@ impl Elaborator<'_> {
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 let (lhs_location, rhs_location) = (lhs.location(), rhs.location());
-                let lhs = self.convert_expression_type(*lhs, expected_kind, lhs_location);
-                let rhs = self.convert_expression_type(*rhs, expected_kind, rhs_location);
+                let lhs = self.convert_expression_type(
+                    *lhs,
+                    expected_kind,
+                    lhs_location,
+                    wildcard_allowed,
+                );
+                let rhs = self.convert_expression_type(
+                    *rhs,
+                    expected_kind,
+                    rhs_location,
+                    wildcard_allowed,
+                );
 
                 match (lhs, rhs) {
                     (Type::Constant(lhs, lhs_kind), Type::Constant(rhs, rhs_kind)) => {
@@ -646,12 +760,12 @@ impl Elaborator<'_> {
                     (lhs, rhs) => {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
-                            .canonicalize()
+                            .canonicalize(&TypeBindings::default())
                     }
                 }
             }
             UnresolvedTypeExpression::AsTraitPath(path) => {
-                let typ = self.resolve_as_trait_path(*path);
+                let typ = self.resolve_as_trait_path(*path, wildcard_allowed);
                 self.check_kind(typ, expected_kind, location)
             }
         }
@@ -677,7 +791,7 @@ impl Elaborator<'_> {
         typ
     }
 
-    fn resolve_as_trait_path(&mut self, path: AsTraitPath) -> Type {
+    fn resolve_as_trait_path(&mut self, path: AsTraitPath, wildcard_allowed: bool) -> Type {
         let location = path.trait_path.location;
         let trait_path = self.validate_path(path.trait_path.clone());
         let Some(trait_id) = self.resolve_trait_by_path(trait_path) else {
@@ -686,7 +800,7 @@ impl Elaborator<'_> {
         };
 
         let (ordered, named) = self.use_type_args(path.trait_generics.clone(), trait_id, location);
-        let object_type = self.use_type(path.typ.clone());
+        let object_type = self.use_type(path.typ.clone(), wildcard_allowed);
 
         match self.interner.lookup_trait_implementation(&object_type, trait_id, &ordered, &named) {
             Ok((impl_kind, instantiation_bindings)) => {
@@ -992,7 +1106,10 @@ impl Elaborator<'_> {
             UnresolvedTypeData::Unspecified => {
                 self.interner.next_type_variable_with_kind(Kind::Any)
             }
-            _ => self.use_type(typ),
+            _ => {
+                let wildcard_allowed = true;
+                self.use_type(typ, wildcard_allowed)
+            }
         }
     }
 

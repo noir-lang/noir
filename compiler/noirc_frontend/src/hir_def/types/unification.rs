@@ -110,12 +110,12 @@ impl Type {
         let rhs = other.follow_bindings_shallow();
 
         let lhs = match lhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(self.canonicalize()),
+            Type::InfixExpr(..) => Cow::Owned(self.canonicalize(bindings)),
             other => Cow::Borrowed(other),
         };
 
         let rhs = match rhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(other.canonicalize()),
+            Type::InfixExpr(..) => Cow::Owned(other.canonicalize(bindings)),
             other => Cow::Borrowed(other),
         };
 
@@ -272,7 +272,9 @@ impl Type {
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
-                if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_location) {
+                if let Ok(other_value) =
+                    other.evaluate_to_field_element(kind, bindings, dummy_location)
+                {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
                     } else {
@@ -472,7 +474,9 @@ impl Type {
             if let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
                 let kind = lhs_lhs.infix_kind(lhs_rhs);
                 let dummy_location = Location::dummy();
-                if let Ok(value) = lhs_rhs.evaluate_to_field_element(&kind, dummy_location) {
+                if let Ok(value) =
+                    lhs_rhs.evaluate_to_field_element(&kind, bindings, dummy_location)
+                {
                     let lhs_rhs = Box::new(Type::Constant(value, kind));
                     let new_rhs =
                         Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
