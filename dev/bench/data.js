@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753370672919,
+  "lastUpdate": 1753370696136,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3358,90 +3358,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b33131574388d836341cea9b6380f3b1a8493eb8",
-          "message": "chore: track number of opcodes in benchmarks (#9196)",
-          "timestamp": "2025-07-15T10:27:45+01:00",
-          "tree_id": "ef9cc2940d8fe33804043aac18ad8f63ff007de7",
-          "url": "https://github.com/noir-lang/noir/commit/b33131574388d836341cea9b6380f3b1a8493eb8"
-        },
-        "date": 1752573775545,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.928,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.036,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.608,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.86,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.708,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.798,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.767,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.971,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -6751,6 +6667,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.752,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4609eb2930ea9af40de494f38035c15fb48dd66b",
+          "message": "fix: top-level item in dependency isn't always visible (#9295)",
+          "timestamp": "2025-07-24T14:55:16Z",
+          "tree_id": "edd620b1fa7567c8e4adcf89d64ae471e9241de4",
+          "url": "https://github.com/noir-lang/noir/commit/4609eb2930ea9af40de494f38035c15fb48dd66b"
+        },
+        "date": 1753370680656,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.8,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.767,
             "unit": "s"
           }
         ]
