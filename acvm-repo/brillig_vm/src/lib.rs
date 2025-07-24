@@ -535,20 +535,22 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             match input_type {
                                 HeapValueType::Vector { .. } => {
                                     if let Some(ForeignCallParam::Single(value)) = previous_input {
-                                        // Cut off slices with their semantic length, 
+                                        // Cut off slices with their semantic length,
                                         // They may have a capacity which could be higher than their semantic length.
                                         let flattened_size = input_type.flattened_size();
                                         let fields = input.fields();
                                         let value_as_usize = value.to_u128() as usize;
-                                        input = ForeignCallParam::Array(fields[0..(value_as_usize * flattened_size)].to_vec());
+                                        input = ForeignCallParam::Array(
+                                            fields[0..(value_as_usize * flattened_size)].to_vec(),
+                                        );
                                     }
 
                                     previous_input = None;
                                 }
                                 HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
                                     // If we have a single u32 we may have a slice representation, so store this input.
-                                    // On the next iteration, if we have a vector then we know we have the dynamic length 
-                                    // for that slice. 
+                                    // On the next iteration, if we have a vector then we know we have the dynamic length
+                                    // for that slice.
                                     previous_input = Some(input.clone());
                                 }
                                 _ => {
@@ -711,8 +713,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 let start = self.memory.read_ref(pointer_index);
                 let size = self.memory.read(size_index).to_usize();
                 self.read_slice_of_values_from_memory(start, size, value_types)
-                        .into_iter()
-                        .map(|mem_value| mem_value.to_field()).collect::<Vec<_>>().into()
+                    .into_iter()
+                    .map(|mem_value| mem_value.to_field())
+                    .collect::<Vec<_>>()
+                    .into()
             }
             _ => {
                 unreachable!("Unexpected value type {value_type:?} for input {input:?}");

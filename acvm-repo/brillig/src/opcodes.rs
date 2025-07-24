@@ -92,20 +92,14 @@ impl HeapValueType {
 
             HeapValueType::Array { value_types, size } => {
                 // Recursively compute the flattened size of all value types
-                let element_size: usize = value_types
-                    .iter()
-                    .map(|ty| ty.flattened_size())
-                    .sum();
+                let element_size: usize = value_types.iter().map(|ty| ty.flattened_size()).sum();
 
                 element_size * size
             }
 
             // The size of a vector is stored separately and should be handled by the caller of this method
             HeapValueType::Vector { value_types } => {
-                value_types
-                    .iter()
-                    .map(|ty| ty.flattened_size())
-                    .sum()
+                value_types.iter().map(|ty| ty.flattened_size()).sum()
             }
         }
     }
