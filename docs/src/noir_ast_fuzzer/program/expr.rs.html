@@ -499,7 +499,8 @@
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
 <a href="#500" id="500">500</a>
-<a href="#501" id="501">501</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>nargo::errors::Location;
@@ -865,6 +866,7 @@
         rhs: Box::new(rhs),
         result_type: tgt_type,
         location: Location::dummy(),
+        skip: <span class="bool-val">false</span>,
     })
 }
 

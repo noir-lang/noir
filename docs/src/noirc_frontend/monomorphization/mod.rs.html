@@ -2676,7 +2676,15 @@
 <a href="#2675" id="2675">2675</a>
 <a href="#2676" id="2676">2676</a>
 <a href="#2677" id="2677">2677</a>
-<a href="#2678" id="2678">2678</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2678" id="2678">2678</a>
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a>
+<a href="#2684" id="2684">2684</a>
+<a href="#2685" id="2685">2685</a>
+<a href="#2686" id="2686">2686</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3221,7 +3229,13 @@
                     <span class="kw">let </span>operator = prefix.operator;
                     <span class="kw">let </span>rhs = Box::new(rhs);
                     <span class="kw">let </span>result_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span><span class="self">self</span>.interner.id_type(expr), location)<span class="question-mark">?</span>;
-                    ast::Expression::Unary(ast::Unary { operator, rhs, result_type, location })
+                    ast::Expression::Unary(ast::Unary {
+                        operator,
+                        rhs,
+                        result_type,
+                        location,
+                        skip: prefix.skip,
+                    })
                 }
             }
 
@@ -4957,6 +4971,7 @@
                     result_type,
                     operator: Reference { mutable: <span class="kw-2">*</span>mutable },
                     location,
+                    skip: <span class="bool-val">false</span>,
                 })
             }
         }
@@ -5046,6 +5061,7 @@
                     rhs: Box::new(result),
                     result_type: ast::Type::Bool,
                     location,
+                    skip: <span class="bool-val">false</span>,
                 });
             }
             <span class="comment">// All the comparison operators require special handling since their `cmp` method

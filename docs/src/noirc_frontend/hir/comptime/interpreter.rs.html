@@ -1747,7 +1747,22 @@
 <a href="#1746" id="1746">1746</a>
 <a href="#1747" id="1747">1747</a>
 <a href="#1748" id="1748">1748</a>
-<a href="#1749" id="1749">1749</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -1792,7 +1807,7 @@
 };
 
 <span class="kw">use </span><span class="kw">super</span>::errors::{IResult, InterpreterError};
-<span class="kw">use </span><span class="kw">super</span>::value::{Closure, Value, unwrap_rc};
+<span class="kw">use </span><span class="kw">super</span>::value::{Closure, StructFields, Value, unwrap_rc};
 
 <span class="kw">mod </span>builtin;
 <span class="kw">mod </span>cast;
@@ -2580,6 +2595,10 @@
             <span class="kw">_ </span>=&gt; <span class="self">self</span>.evaluate(prefix.rhs)<span class="question-mark">?</span>,
         };
 
+        <span class="kw">if </span>prefix.skip {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(rhs);
+        }
+
         <span class="kw">if </span><span class="self">self</span>.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             <span class="self">self</span>.evaluate_overloaded_prefix(prefix, rhs, id)
         } <span class="kw">else </span>{
@@ -2716,11 +2735,11 @@
         <span class="prelude-val">Ok</span>(Value::Enum(constructor.variant_index, fields, typ))
     }
 
-    <span class="kw">fn </span>evaluate_access(<span class="kw-2">&amp;mut </span><span class="self">self</span>, access: HirMemberAccess, id: ExprId) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>(fields, struct_type) = <span class="kw">match </span><span class="self">self</span>.evaluate(access.lhs)<span class="question-mark">? </span>{
-            Value::Struct(fields, typ) =&gt; (fields, typ),
+    <span class="kw">fn </span>get_fields(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: Value, id: ExprId) -&gt; IResult&lt;(StructFields, Type)&gt; {
+        <span class="kw">match </span>value {
+            Value::Struct(fields, typ) =&gt; <span class="prelude-val">Ok</span>((fields, typ)),
             Value::Tuple(fields) =&gt; {
-                <span class="kw">let </span>(fields, field_types): (HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;, Vec&lt;Type&gt;) = fields
+                <span class="kw">let </span>(fields, field_types) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
@@ -2729,14 +2748,21 @@
                         (key_val_pair, field_type)
                     })
                     .unzip();
-                (fields, Type::Tuple(field_types))
+                <span class="prelude-val">Ok</span>((fields, Type::Tuple(field_types)))
             }
+            Value::Pointer(element, ..) =&gt; <span class="self">self</span>.get_fields(element.unwrap_or_clone(), id),
             value =&gt; {
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
                 <span class="kw">let </span>typ = value.get_type().into_owned();
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
+                <span class="prelude-val">Err</span>(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
             }
-        };
+        }
+    }
+
+    <span class="kw">fn </span>evaluate_access(<span class="kw-2">&amp;mut </span><span class="self">self</span>, access: HirMemberAccess, id: ExprId) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>lhs = <span class="self">self</span>.evaluate(access.lhs)<span class="question-mark">?</span>;
+        <span class="kw">let </span>is_offset = access.is_offset &amp;&amp; lhs.get_type().is_ref();
+        <span class="kw">let </span>(fields, struct_type) = <span class="self">self</span>.get_fields(lhs, id)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
@@ -2748,8 +2774,12 @@
 
         <span class="comment">// Return a reference to the field so that `&amp;mut foo.bar.baz` can use this reference.
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
-        // automatically.
-        </span><span class="prelude-val">Ok</span>(Value::Pointer(field, <span class="bool-val">true</span>, <span class="bool-val">false</span>))
+        // automatically. In some cases in the frontend the leading `&amp;mut` will cancel out
+        // with a field access which is expected to only offset into the struct and thus return
+        // a reference already. In this case we set auto_deref to false because the outer `&amp;mut`
+        // will also be removed in that case so the pointer should be explicit.
+        </span><span class="kw">let </span>auto_deref = !is_offset;
+        <span class="prelude-val">Ok</span>(Value::Pointer(field, auto_deref, <span class="bool-val">false</span>))
     }
 
     <span class="kw">fn </span>evaluate_call(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call: HirCallExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {

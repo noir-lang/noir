@@ -1227,7 +1227,12 @@
 <a href="#1226" id="1226">1226</a>
 <a href="#1227" id="1227">1227</a>
 <a href="#1228" id="1228">1228</a>
-<a href="#1229" id="1229">1229</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1229" id="1229">1229</a>
+<a href="#1230" id="1230">1230</a>
+<a href="#1231" id="1231">1231</a>
+<a href="#1232" id="1232">1232</a>
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1601,7 +1606,12 @@
                 ))
             }
             UnaryOp::Reference { mutable: <span class="kw">_ </span>} =&gt; {
-                <span class="prelude-val">Ok</span>(<span class="self">self</span>.codegen_reference(<span class="kw-2">&amp;</span>unary.rhs)<span class="question-mark">?</span>.map(|rhs| {
+                <span class="kw">let </span>rhs = <span class="self">self</span>.codegen_reference(<span class="kw-2">&amp;</span>unary.rhs)<span class="question-mark">?</span>;
+                <span class="comment">// If skip is set then `rhs` is a member access expression which is already a reference
+                </span><span class="kw">if </span>unary.skip {
+                    <span class="kw">return </span><span class="prelude-val">Ok</span>(rhs);
+                }
+                <span class="prelude-val">Ok</span>(rhs.map(|rhs| {
                     <span class="kw">match </span>rhs {
                         value::Value::Normal(value) =&gt; {
                             <span class="kw">let </span>rhs_type = <span class="self">self</span>.builder.current_function.dfg.type_of_value(value);

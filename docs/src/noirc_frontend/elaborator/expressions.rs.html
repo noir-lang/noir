@@ -1525,7 +1525,58 @@
 <a href="#1524" id="1524">1524</a>
 <a href="#1525" id="1525">1525</a>
 <a href="#1526" id="1526">1526</a>
-<a href="#1527" id="1527">1527</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#1527" id="1527">1527</a>
+<a href="#1528" id="1528">1528</a>
+<a href="#1529" id="1529">1529</a>
+<a href="#1530" id="1530">1530</a>
+<a href="#1531" id="1531">1531</a>
+<a href="#1532" id="1532">1532</a>
+<a href="#1533" id="1533">1533</a>
+<a href="#1534" id="1534">1534</a>
+<a href="#1535" id="1535">1535</a>
+<a href="#1536" id="1536">1536</a>
+<a href="#1537" id="1537">1537</a>
+<a href="#1538" id="1538">1538</a>
+<a href="#1539" id="1539">1539</a>
+<a href="#1540" id="1540">1540</a>
+<a href="#1541" id="1541">1541</a>
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
@@ -1594,7 +1645,8 @@
             ExpressionKind::Constrain(constrain) =&gt; <span class="self">self</span>.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) =&gt; <span class="self">self</span>.elaborate_constructor(<span class="kw-2">*</span>constructor),
             ExpressionKind::MemberAccess(access) =&gt; {
-                <span class="kw">return </span><span class="self">self</span>.elaborate_member_access(<span class="kw-2">*</span>access, expr.location);
+                <span class="kw">let </span>(expr_id, typ, <span class="kw">_</span>) = <span class="self">self</span>.elaborate_member_access(<span class="kw-2">*</span>access, expr.location, <span class="bool-val">false</span>);
+                <span class="kw">return </span>(expr_id, typ);
             }
             ExpressionKind::Cast(cast) =&gt; <span class="self">self</span>.elaborate_cast(<span class="kw-2">*</span>cast, expr.location),
             ExpressionKind::Infix(infix) =&gt; <span class="kw">return </span><span class="self">self</span>.elaborate_infix(<span class="kw-2">*</span>infix, expr.location),
@@ -1643,6 +1695,23 @@
         }
 
         (id, typ)
+    }
+
+    <span class="doccomment">/// Elaborate a member access expression without adding the automatic dereferencing operations
+    /// to it, treating it as an offset instead. This also returns a boolean indicating whether the
+    /// result skipped any required auto-derefs (and thus needs dereferencing to be used as a value
+    /// instead of a reference). This flag is used when `&amp;mut foo.bar.baz` is used to cancel out
+    /// the `&amp;mut`.
+    </span><span class="kw">fn </span>elaborate_reference_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expression) -&gt; (ExprId, Type, bool) {
+        <span class="kw">match </span>expr.kind {
+            ExpressionKind::MemberAccess(access) =&gt; {
+                <span class="self">self</span>.elaborate_member_access(<span class="kw-2">*</span>access, expr.location, <span class="bool-val">true</span>)
+            }
+            <span class="kw">_ </span>=&gt; {
+                <span class="kw">let </span>(expr_id, typ) = <span class="self">self</span>.elaborate_expression(expr);
+                (expr_id, typ, <span class="bool-val">false</span>)
+            }
+        }
     }
 
     <span class="kw">fn </span>elaborate_interned_statement_as_expr(
@@ -1932,40 +2001,60 @@
 
     <span class="kw">fn </span>elaborate_prefix(<span class="kw-2">&amp;mut </span><span class="self">self</span>, prefix: PrefixExpression, location: Location) -&gt; (ExprId, Type) {
         <span class="kw">let </span>rhs_location = prefix.rhs.location;
-
-        <span class="kw">let </span>(rhs, rhs_type) = <span class="self">self</span>.elaborate_expression(prefix.rhs);
-        <span class="kw">let </span>trait_method_id = <span class="self">self</span>.interner.get_prefix_operator_trait_method(<span class="kw-2">&amp;</span>prefix.operator);
-
         <span class="kw">let </span>operator = prefix.operator;
+
+        <span class="kw">let </span>(rhs, rhs_type, skip_op) = <span class="kw">if </span><span class="macro">matches!</span>(operator, UnaryOp::Reference { .. }) {
+            <span class="kw">let </span>(rhs, rhs_type, needs_deref) = <span class="self">self</span>.elaborate_reference_expression(prefix.rhs);
+
+            <span class="comment">// If the reference expression delayed a needed deref, we can skip the `&amp;mut _`
+            // operation since the expression is already a reference.
+            </span>(rhs, rhs_type, needs_deref)
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>(rhs, rhs_type) = <span class="self">self</span>.elaborate_expression(prefix.rhs);
+            (rhs, rhs_type, <span class="bool-val">false</span>)
+        };
+
+        <span class="kw">let </span>trait_method_id = <span class="self">self</span>.interner.get_prefix_operator_trait_method(<span class="kw-2">&amp;</span>operator);
 
         <span class="kw">if let </span>UnaryOp::Reference { mutable } = operator {
             <span class="kw">if </span>mutable {
-                <span class="self">self</span>.check_can_mutate(rhs, rhs_location);
+                <span class="comment">// If skip_op is set we already know we have a mutable reference
+                </span><span class="kw">if </span>!skip_op {
+                    <span class="self">self</span>.check_can_mutate(rhs, rhs_location);
+                }
             } <span class="kw">else </span>{
                 <span class="self">self</span>.use_unstable_feature(UnstableFeature::Ownership, location);
             }
         }
 
-        <span class="kw">let </span>expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
+        <span class="kw">let </span>expr = HirExpression::Prefix(HirPrefixExpression {
+            operator,
+            rhs,
+            trait_method_id,
+            skip: skip_op,
+        });
         <span class="kw">let </span>expr_id = <span class="self">self</span>.interner.push_expr(expr);
         <span class="self">self</span>.interner.push_expr_location(expr_id, location);
 
-        <span class="kw">let </span>result = <span class="self">self</span>.prefix_operand_type_rules(<span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
-        <span class="kw">let </span>typ = <span class="self">self</span>.handle_operand_type_rules_result(
-            result,
-            <span class="kw-2">&amp;</span>rhs_type,
-            trait_method_id,
-            expr_id,
-            location,
-        );
+        <span class="kw">let </span>typ = <span class="kw">if </span>skip_op {
+            rhs_type
+        } <span class="kw">else </span>{
+            <span class="kw">let </span>result = <span class="self">self</span>.prefix_operand_type_rules(<span class="kw-2">&amp;</span>operator, <span class="kw-2">&amp;</span>rhs_type, location);
+            <span class="self">self</span>.handle_operand_type_rules_result(
+                result,
+                <span class="kw-2">&amp;</span>rhs_type,
+                trait_method_id,
+                expr_id,
+                location,
+            )
+        };
 
         <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>check_can_mutate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr_id: ExprId, location: Location) {
-        <span class="kw">let </span>expr = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id);
-        <span class="kw">match </span>expr {
+        <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr_id) {
             HirExpression::Ident(hir_ident, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(definition) = <span class="self">self</span>.interner.try_definition(hir_ident.id) {
                     <span class="kw">let </span>name = definition.name.clone();
@@ -2545,20 +2634,33 @@
         ret
     }
 
-    <span class="kw">fn </span>elaborate_member_access(
+    <span class="doccomment">/// This method also returns whether or not its lhs still needs to be dereferenced depending on
+    /// `is_offset`:
+    /// - `is_offset = false`: Auto-dereferencing will occur, and this will always return false
+    /// - `is_offset = true`: Auto-dereferencing is disabled, and this will return true if the lhs
+    ///   is a reference.
+    </span><span class="kw">fn </span>elaborate_member_access(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         access: MemberAccessExpression,
         location: Location,
-    ) -&gt; (ExprId, Type) {
-        <span class="kw">let </span>(lhs, lhs_type) = <span class="self">self</span>.elaborate_expression(access.lhs);
+        is_offset: bool,
+    ) -&gt; (ExprId, Type, bool) {
+        <span class="comment">// We don't need the boolean 'skipped auto-derefs' from elaborate_reference_expression
+        // since if we have skipped any then `lhs_type` will be a reference and we will need to
+        // skip the deref (if is_offset is true) here anyway to extract the field out of the reference.
+        // This is more reliable than using the boolean return value here since the return value
+        // doesn't account for reference variables which we need to account for.
+        </span><span class="kw">let </span>(lhs, lhs_type, <span class="kw">_</span>) = <span class="self">self</span>.elaborate_reference_expression(access.lhs);
+        <span class="kw">let </span>is_reference = lhs_type.is_ref();
+
         <span class="kw">let </span>rhs = access.rhs;
         <span class="kw">let </span>rhs_location = rhs.location();
         <span class="comment">// `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
-        </span><span class="kw">let </span>access = HirMemberAccess { lhs, rhs, is_offset: <span class="bool-val">false </span>};
+        </span><span class="kw">let </span>access = HirMemberAccess { lhs, rhs, is_offset };
         <span class="kw">let </span>expr_id = <span class="self">self</span>.intern_expr(HirExpression::MemberAccess(access.clone()), location);
         <span class="kw">let </span>typ = <span class="self">self</span>.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         <span class="self">self</span>.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        (expr_id, typ, is_offset &amp;&amp; is_reference)
     }
 
     <span class="kw">pub fn </span>intern_expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: HirExpression, location: Location) -&gt; ExprId {

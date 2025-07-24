@@ -3075,7 +3075,11 @@
 <a href="#3074" id="3074">3074</a>
 <a href="#3075" id="3075">3075</a>
 <a href="#3076" id="3076">3076</a>
-<a href="#3077" id="3077">3077</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3077" id="3077">3077</a>
+<a href="#3078" id="3078">3078</a>
+<a href="#3079" id="3079">3079</a>
+<a href="#3080" id="3080">3080</a>
+<a href="#3081" id="3081">3081</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -4383,6 +4387,10 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_mutable_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="macro">matches!</span>(<span class="self">self</span>.follow_bindings_shallow().as_ref(), Type::Reference(<span class="kw">_</span>, <span class="bool-val">true</span>))
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="macro">matches!</span>(<span class="self">self</span>.follow_bindings_shallow().as_ref(), Type::Reference(<span class="kw">_</span>, <span class="kw">_</span>))
     }
 
     <span class="doccomment">/// True if this type can be used as a parameter to `main` or a contract function.
