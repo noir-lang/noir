@@ -1299,6 +1299,10 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, true))
     }
 
+    pub(crate) fn is_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
+    }
+
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.
