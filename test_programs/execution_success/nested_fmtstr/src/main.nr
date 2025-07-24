@@ -5,9 +5,9 @@ fn main() {
 
     let two = f"pre one ({one}) post one";
     println(two);
-    let three = f"pre two ({two}) post two";
+    let three = f"pre two ({two}) ({two}) post two";
 
     println(three);
 
-    println(f"pre three ({three}) post three");
+    println(f"pre three ({three} {three} {three}) post three");
 }

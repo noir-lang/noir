@@ -8,8 +8,8 @@ fn main() {
     println(one);
     let two: fmtstr<24, (fmtstr<30, ([Field; 3],)>,)> = f"pre one ({one}) post one";
     println(two);
-    let three: fmtstr<24, (fmtstr<24, (fmtstr<30, ([Field; 3],)>,)>,)> =
-        f"pre two ({two}) post two";
+    let three: fmtstr<32, (fmtstr<24, (fmtstr<30, ([Field; 3],)>,)>, fmtstr<24, (fmtstr<30, ([Field; 3],)>,)>)> =
+        f"pre two ({two}) ({two}) post two";
     println(three);
-    println(f"pre three ({three}) post three");
+    println(f"pre three ({three} {three} {three}) post three");
 }
