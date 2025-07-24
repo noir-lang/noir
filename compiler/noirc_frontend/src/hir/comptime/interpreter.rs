@@ -43,7 +43,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{Closure, Value, unwrap_rc};
+use super::value::{Closure, StructFields, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
@@ -831,6 +831,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => self.evaluate(prefix.rhs)?,
         };
 
+        if prefix.skip {
+            return Ok(rhs);
+        }
+
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
@@ -967,11 +971,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
-    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
-        let (fields, struct_type) = match self.evaluate(access.lhs)? {
-            Value::Struct(fields, typ) => (fields, typ),
+    fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
+        match value {
+            Value::Struct(fields, typ) => Ok((fields, typ)),
             Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Shared<Value>>, Vec<Type>) = fields
+                let (fields, field_types) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
@@ -980,14 +984,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         (key_val_pair, field_type)
                     })
                     .unzip();
-                (fields, Type::Tuple(field_types))
+                Ok((fields, Type::Tuple(field_types)))
             }
+            Value::Pointer(element, ..) => self.get_fields(element.unwrap_or_clone(), id),
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
+                Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
             }
-        };
+        }
+    }
+
+    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
+        let lhs = self.evaluate(access.lhs)?;
+        let is_offset = access.is_offset && lhs.get_type().is_ref();
+        let (fields, struct_type) = self.get_fields(lhs, id)?;
 
         let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
@@ -999,8 +1010,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
-        // automatically.
-        Ok(Value::Pointer(field, true, false))
+        // automatically. In some cases in the frontend the leading `&mut` will cancel out
+        // with a field access which is expected to only offset into the struct and thus return
+        // a reference already. In this case we set auto_deref to false because the outer `&mut`
+        // will also be removed in that case so the pointer should be explicit.
+        let auto_deref = !is_offset;
+        Ok(Value::Pointer(field, auto_deref, false))
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {

@@ -372,7 +372,12 @@ impl FunctionContext<'_> {
                 ))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);

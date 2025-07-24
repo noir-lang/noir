@@ -283,6 +283,11 @@ pub struct Unary {
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,
+
+    /// Carried over from `HirPrefixExpression::skip`. This also flags whether we should directly
+    /// return `rhs` and skip performing this operation. Compared to replacing this node with rhs
+    /// directly, keeping this flag keeps `--show-monomorphized` output the same.
+    pub skip: bool,
 }
 
 pub type BinaryOp = BinaryOpKind;
