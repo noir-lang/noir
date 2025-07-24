@@ -510,9 +510,13 @@ impl<W: Write> Interpreter<'_, W> {
         let mut new_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
+        // The slice might contain more elements than its length.
+        // Insert the new values before the extras.
+        let mut padding = new_elements.split_off(element_types.len() * length as usize);
         for arg in args.iter().skip(2) {
             new_elements.push(self.lookup(*arg)?);
         }
+        new_elements.append(&mut padding);
 
         let new_length = Value::Numeric(NumericValue::U32(length + 1));
         let new_slice = Value::slice(new_elements, element_types);
@@ -548,8 +552,12 @@ impl<W: Write> Interpreter<'_, W> {
         }
         check_slice_can_pop_all_element_types(args[1], &slice)?;
 
+        // The slice might contain more elements than its length.
+        // We want the last valid element, then we can put the extras back.
+        let mut padding = slice_elements.split_off(element_types.len() * length as usize);
         let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
         popped_elements.reverse();
+        slice_elements.append(&mut padding);
 
         let new_length = Value::Numeric(NumericValue::U32(length - 1));
         let new_slice = Value::slice(slice_elements, element_types);
