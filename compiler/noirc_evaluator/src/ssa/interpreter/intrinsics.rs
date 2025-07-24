@@ -539,7 +539,7 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_back";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }
@@ -563,7 +563,7 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_front";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }

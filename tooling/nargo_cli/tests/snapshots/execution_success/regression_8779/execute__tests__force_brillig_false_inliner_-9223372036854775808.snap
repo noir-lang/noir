@@ -39,8 +39,13 @@ expression: artifact
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) -1 ]"
   ],
-  "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
-  "file_map": {},
+  "debug_symbols": "dY/dCoMwDIXfJde9cBf7wVcZQ2qNEghpie1giO++KIruYldpcvqd5EzQYVuGhqSPI9TPCVolZhoajsFnimLTaXawt01WRBvBSTcqeUXJUEthdvD2XNZPY/Ky1uzV1MoBSmfVDHtiXF6zO+jqP3q/bezjgK9Gv6zzgfTnXqigvsyLmZJvGbcMfZFwipQ/aVf20EljwK4oLnarZgu+",
+  "file_map": {
+    "50": {
+      "source": "fn main(x: u32) -> pub bool {\n    let d: [&mut bool; 1] = [&mut true];\n    *d[x]\n}\n",
+      "path": ""
+    }
+  },
   "expression_width": {
     "Bounded": {
       "width": 4

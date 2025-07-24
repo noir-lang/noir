@@ -52,10 +52,6 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
-      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
@@ -68,12 +64,12 @@ expression: artifact
     "private parameters indices : [_0, _1, _2, _3, _4, _5]",
     "public parameters indices : []",
     "return value indices : []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
     "BLACKBOX::RANGE [_1]:32 bits []",
     "BLACKBOX::RANGE [_2]:32 bits []",
     "BLACKBOX::RANGE [_3]:32 bits []",
     "BLACKBOX::RANGE [_4]:32 bits []",
     "BLACKBOX::RANGE [_5]:32 bits []",
-    "BLACKBOX::RANGE [_0]:2 bits []",
     "INIT CALLDATA 0 (id: 1, len: 5, witnesses: [_1, _2, _3, _4, _5])",
     "EXPR [ (1, _0) (-1, _7) 1 ]",
     "MEM (id: 1, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _8) 0 ]) ",

@@ -55,10 +55,6 @@ expression: artifact
       "5019202896831570965": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
-      },
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
       }
     }
   },
@@ -74,7 +70,6 @@ expression: artifact
     "BLACKBOX::RANGE [_4]:32 bits []",
     "BLACKBOX::RANGE [_5]:32 bits []",
     "BLACKBOX::RANGE [_6]:32 bits []",
-    "BLACKBOX::RANGE [_0]:1 bits []",
     "INIT CALLDATA 0 (id: 2, len: 2, witnesses: [_1, _2])",
     "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _8) 0 ]) ",
     "INIT CALLDATA 1 (id: 4, len: 4, witnesses: [_3, _4, _5, _6])",
@@ -84,7 +79,7 @@ expression: artifact
     "EXPR [ (1, _7) (-1, _10) 0 ]",
     "INIT RETURNDATA (id: 3, len: 1, witnesses: [_7])"
   ],
-  "debug_symbols": "nZHBCoMwDIbfJecerDqcvsoYUjVKodRS28EQ332xs04Pg7FL/yZ/vqYkM3TY+KGWuh8nqG4zNFYqJYdaja1wctSUnRcGMaydRaQUHHyijLCoHVTaK8XgIZQPRZMROqgTltyEAeqOlB7spcL1trAPnXxHeVJsMOfZjl9+59Odz/7iszLyeX7i7xSJVtrTxKCgQgbXcJZQpQx48hYOVUaSkixrPytFo3Abc+91e5i6e5roxL0YO7bYeYtrv+DRD14=",
+  "debug_symbols": "nZHBCoMwDIbfJecerLo5fZUxpGqUQqmltoMhvvtisU4Pg7FL/iZ/vqakM3TY+KGWuh8nqO4zNFYqJYdaja1wctRUnRcGMa2dRaQSHHyijLCoHVTaK8XgKZQPTZMROqgTltyEAeqOlC7spcL1tLAPnXxHeVJsMOfZjl9+59Odz/7iszLyeX7iH5SJVtrTxuBKjQyKEG9QpQzKEHkCVUbCSZZ1nJWiUbhtufe6PSzdvUx04rcYO7bYeYvruODRA94=",
   "file_map": {
     "50": {
       "source": "fn main(mut idx: u32, y: call_data(0) [u32; 2], z: call_data(1) [u32; 4]) -> return_data u32 {\n    let a = y[idx];\n    let b = z[idx];\n    a + b\n}\n",

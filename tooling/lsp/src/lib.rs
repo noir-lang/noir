@@ -12,12 +12,9 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
-use async_lsp::lsp_types::{
-    CodeLens,
-    request::{
-        CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-        PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
-    },
+use async_lsp::lsp_types::request::{
+    CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
+    PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -31,7 +28,7 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
-use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, file_manager_with_stdlib, prepare_crate};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -95,7 +92,6 @@ pub struct LspState {
     solver: WrapperSolver,
     open_documents_count: usize,
     input_files: HashMap<String, String>,
-    cached_lenses: HashMap<String, Vec<CodeLens>>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
@@ -128,7 +124,6 @@ impl LspState {
             root_path: None,
             solver: WrapperSolver(Box::new(solver)),
             input_files: HashMap::new(),
-            cached_lenses: HashMap::new(),
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
@@ -345,30 +340,6 @@ pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
     (context, crate_id)
 }
 
-/// Prepares a package from a source string
-/// This is useful for situations when we don't need dependencies
-/// and just need to operate on single file.
-///
-/// Use case for this is the LSP server and code lenses
-/// which operate on single file and need to understand this file
-/// in order to offer code lenses to the user
-fn prepare_source(source: String, state: &mut LspState) -> (Context<'static, 'static>, CrateId) {
-    let root = Path::new("");
-    let file_name = Path::new("main.nr");
-    let mut file_manager = file_manager_with_stdlib(root);
-    file_manager.add_file_with_source(file_name, source).expect(
-        "Adding source buffer to file manager should never fail when file manager is empty",
-    );
-    let parsed_files = parse_diff(&file_manager, state);
-
-    let mut context = Context::new(file_manager, parsed_files);
-    context.activate_lsp_mode();
-
-    let root_crate_id = prepare_crate(&mut context, file_name);
-
-    (context, root_crate_id)
-}
-
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
     if state.options.enable_parsing_cache {
         let noir_file_hashes: Vec<_> = file_manager
@@ -451,23 +422,4 @@ pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<P
         overrides.insert(PathBuf::from_str(path).unwrap(), source);
     }
     overrides
-}
-
-#[test]
-fn prepare_package_from_source_string() {
-    let source = r#"
-    fn main() {
-        let x = 1;
-        let y = 2;
-        let z = x + y;
-    }
-    "#;
-
-    let client = ClientSocket::new_closed();
-    let mut state = LspState::new(&client, acvm::blackbox_solver::StubbedBlackBoxSolver::default());
-
-    let (mut context, crate_id) = prepare_source(source.to_string(), &mut state);
-    let _check_result = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
-    let main_func_id = context.get_main_function(&crate_id);
-    assert!(main_func_id.is_some());
 }
