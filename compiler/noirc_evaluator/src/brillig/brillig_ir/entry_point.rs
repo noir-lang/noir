@@ -180,6 +180,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         }
 
         for (i, bit_size) in arguments.iter().flat_map(flat_bit_sizes).enumerate() {
+            // cSpell:disable-next-line
             // Calldatacopy tags everything with field type, so when downcast when necessary
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(

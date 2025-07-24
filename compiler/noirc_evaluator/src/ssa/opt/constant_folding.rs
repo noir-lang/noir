@@ -493,6 +493,7 @@ impl<'brillig> Context<'brillig> {
             let array_get =
                 Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
+            // If we encounter an array_get for this address, we know what the result will be.
             self.cached_instruction_results
                 .entry(array_get)
                 .or_default()
@@ -516,6 +517,7 @@ impl<'brillig> Context<'brillig> {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
+            // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
@@ -627,8 +629,13 @@ impl<'brillig> Context<'brillig> {
             brillig_arguments.push(parameter);
         }
 
+        // Check that the function returns (doesn't always fail)
+        let Some(returns) = func.returns() else {
+            return EvaluationResult::CannotEvaluate;
+        };
+
         // Check that return value types are supported by brillig
-        for return_id in func.returns().iter() {
+        for return_id in returns {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
                 return EvaluationResult::CannotEvaluate;
@@ -724,33 +731,52 @@ impl<'brillig> Context<'brillig> {
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
-        let mut remove_if_array = |value: &ValueId| {
+        /// Recursively remove from the cache any array values.
+        fn go(
+            function: &Function,
+            cached_instruction_results: &mut InstructionResultCache,
+            value: &ValueId,
+        ) {
+            // We expect globals to be immutable, so we can cache those results indefinitely.
             if function.dfg.is_global(*value) {
-                // Early return as we expect globals to be immutable.
                 return;
             };
 
+            // We only care about arrays and slices. (`Store` can act on non-array values as well)
             if !function.dfg.type_of_value(*value).is_array() {
-                // Early return as we only care about arrays and slices. (`Store` can act on non-array values as well)
                 return;
             };
 
+            // Look up the original instruction that created the value, which is the cache key.
             let instruction = match &function.dfg[*value] {
                 Value::Instruction { instruction, .. } => &function.dfg[*instruction],
                 _ => return,
             };
 
+            // Remove the creator instruction from the cache.
             if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                self.cached_instruction_results.remove(instruction);
+                cached_instruction_results.remove(instruction);
             }
-        };
+
+            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
+            // can be passed around, and through them their sub-arrays might be modified.
+            if let MakeArray { elements, .. } = instruction {
+                for elem in elements {
+                    go(function, cached_instruction_results, elem);
+                }
+            }
+        }
+
+        let mut remove_if_array = |value| go(function, &mut self.cached_instruction_results, value);
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         match instruction {
             Store { value, .. } | ArraySet { array: value, .. } => {
+                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
                 remove_if_array(value);
             }
             Call { arguments, func } if function.runtime().is_brillig() => {
+                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
                 let Value::Function(func_id) = &function.dfg[*func] else { return };
                 if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
@@ -1428,7 +1454,7 @@ mod test {
 
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
-                v2 = add v0, v1
+                v2 = unchecked_add v0, v1
                 v3 = truncate v2 to 32 bits, max_bit_size: 33
                 return v3
             }
@@ -1485,7 +1511,7 @@ mod test {
             }
 
             brillig(inline) fn one f1 {
-              b0(v0: Field, v1: i32, v2: i32, v3: Field):
+              b0(v0: Field, v1: i32, v2: Field, v3: i32):
                 v4 = make_array [v0, v1, v2, v3] : [(Field, i32); 2]
                 return v4
             }

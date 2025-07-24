@@ -150,13 +150,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(InterpreterError::Internal(
-                    InternalError::ValueTypeDoesNotMatchReturnType {
-                        value_id: id,
-                        expected_type: expected_type.to_string(),
-                        actual_type: actual_type.to_string(),
-                    },
-                ));
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
             }
         }
 
@@ -236,7 +234,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = self.lookup_all(jump_args)?;
                 }
@@ -252,7 +250,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         *else_destination
                     };
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = Vec::new();
                 }
@@ -511,9 +509,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -534,9 +532,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,
@@ -714,17 +712,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_bits = bit_count;
             let max_bits = max_bit_size;
 
-            if let Some(message) = error_message {
-                Err(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } else {
-                Err(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            Err(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } else {
             Ok(())
         }
@@ -879,14 +873,39 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if side_effects_enabled {
-            let array = self.lookup_array_or_slice(array, "array get")?;
-            let index = self.lookup_u32(index, "array get index")?;
-            let index = index - offset.to_u32();
-            array.elements.borrow()[index as usize].clone()
+        let array = self.lookup_array_or_slice(array, "array get")?;
+        let index = self.lookup_u32(index, "array get index")?;
+        let mut index = index - offset.to_u32();
+
+        let element = if array.elements.borrow().is_empty() {
+            // Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            if side_effects_enabled {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+            } else {
+                let typ = self.dfg().type_of_value(result);
+                Value::uninitialized(&typ, result)
+            }
         } else {
-            let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
+            // An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
+                }
+            }
+            let elements = array.elements.borrow();
+            let element = elements.get(index as usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
+            })?;
+            element.clone()
         };
         self.define(result, element)?;
         Ok(())
@@ -912,6 +931,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            let len = array.elements.borrow().len();
+            if index as usize >= len {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            }
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
@@ -1007,10 +1031,43 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
         let is_slice = matches!(&result_type, Type::Slice(..));
 
+        // The number of elements in the array must be a multiple of the number of element types
+        let element_types = result_type.clone().element_types();
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
+            return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                result,
+                elements_count: elements.len(),
+                types_count: element_types.len(),
+            }));
+        }
+
+        // Make sure each element's type matches the one in element_types
+        for (index, (element, expected_type)) in
+            elements.iter().zip(element_types.iter().cycle()).enumerate()
+        {
+            let actual_type = element.get_type();
+            if &actual_type != expected_type {
+                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                    result,
+                    index,
+                    actual_type: actual_type.to_string(),
+                    expected_type: expected_type.to_string(),
+                }));
+            }
+        }
+
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.clone().element_types(),
+            element_types,
             is_slice,
         });
         self.define(result, array)
@@ -1091,7 +1148,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1100,7 +1157,7 @@ macro_rules! apply_int_binop_opt {
             } else {
                 let instruction =
                     format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1181,7 +1238,7 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         }
 
-        // Disable this instruction if it is side-effectful and side effects are disabled.
+        // Disable this instruction if it is side-effectual and side effects are disabled.
         if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
@@ -1198,32 +1255,20 @@ impl<W: Write> Interpreter<'_, W> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
                 // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1359,7 +1404,8 @@ impl<W: Write> Interpreter<'_, W> {
     fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
         let overflow = || {
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
+            let operator = binary.operator;
+            InterpreterError::Overflow { operator, instruction }
         };
 
         let lhs_id = binary.lhs;

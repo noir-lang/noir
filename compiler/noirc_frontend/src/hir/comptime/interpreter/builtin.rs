@@ -38,11 +38,11 @@ use crate::{
     },
     hir_def::{
         self,
-        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
         function::FunctionBody,
         traits::{ResolvedTraitBound, TraitConstraint},
     },
-    node_interner::{DefinitionKind, NodeInterner, TraitImplKind, TraitMethodId},
+    node_interner::{DefinitionKind, NodeInterner, TraitImplKind},
     parser::{Parser, StatementOrExpressionOrLValue},
     shared::{Signedness, Visibility},
     signed_field::SignedField,
@@ -346,11 +346,7 @@ fn static_assert(
     if predicate {
         Ok(Value::Unit)
     } else {
-        failing_constraint(
-            format!("static_assert failed: {}", message).clone(),
-            location,
-            call_stack,
-        )
+        failing_constraint(format!("static_assert failed: {message}").clone(), location, call_stack)
     }
 }
 
@@ -387,7 +383,7 @@ fn type_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((Attribute::Secondary(attribute), _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -513,8 +509,8 @@ fn type_def_generics(
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };
-            let numeric_type = option(option_typ.clone(), numeric_type, location);
-            Value::Tuple(vec![Value::Type(generic_as_named), numeric_type])
+            let numeric_type = Shared::new(option(option_typ.clone(), numeric_type, location));
+            Value::Tuple(vec![Shared::new(Value::Type(generic_as_named)), numeric_type])
         })
         .collect();
 
@@ -580,9 +576,10 @@ fn type_def_fields(
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type, visibility) in struct_fields {
             let token = LocatedToken::new(Token::Ident(field_name), location);
-            let name = Value::Quoted(Rc::new(vec![token]));
-            let visibility = visibility_to_quoted(visibility, location);
-            fields.push_back(Value::Tuple(vec![name, Value::Type(field_type), visibility]));
+            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
+            let field_type = Shared::new(Value::Type(field_type));
+            let visibility = Shared::new(visibility_to_quoted(visibility, location));
+            fields.push_back(Value::Tuple(vec![name, field_type, visibility]));
         }
     }
 
@@ -613,9 +610,10 @@ fn type_def_fields_as_written(
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
             let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
-            let name = Value::Quoted(Rc::new(vec![token]));
-            let typ = Value::Type(field.typ);
-            let visibility = visibility_to_quoted(field.visibility, location);
+            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
+
+            let typ = Shared::new(Value::Type(field.typ));
+            let visibility = Shared::new(visibility_to_quoted(field.visibility, location));
             fields.push_back(Value::Tuple(vec![name, typ, visibility]));
         }
     }
@@ -680,9 +678,9 @@ fn type_def_set_fields(
 
     for (index, mut field_pair) in fields {
         if field_pair.len() == 3 {
-            let visibility = field_pair.pop().unwrap();
-            let typ = field_pair.pop().unwrap();
-            let name_value = field_pair.pop().unwrap();
+            let visibility = field_pair.pop().unwrap().unwrap_or_clone();
+            let typ = field_pair.pop().unwrap().unwrap_or_clone();
+            let name_value = field_pair.pop().unwrap().unwrap_or_clone();
 
             let name_tokens = get_quoted((name_value.clone(), field_location))?;
             let typ = get_type((typ, field_location))?;
@@ -713,7 +711,8 @@ fn type_def_set_fields(
             let type_var = elaborator.interner.next_type_variable();
             let expected = Type::Tuple(vec![type_var.clone(), type_var]);
 
-            let actual = Type::Tuple(vecmap(&field_pair, |value| value.get_type().into_owned()));
+            let actual =
+                Type::Tuple(vecmap(&field_pair, |value| value.borrow().get_type().into_owned()));
 
             return Err(InterpreterError::TypeMismatch { expected, actual, location });
         }
@@ -746,8 +745,8 @@ fn slice_remove(
         return failing_constraint(message, location, call_stack);
     }
 
-    let element = values.remove(index);
-    Ok(Value::Tuple(vec![Value::Slice(values, typ), element]))
+    let element = Shared::new(values.remove(index));
+    Ok(Value::Tuple(vec![Shared::new(Value::Slice(values, typ)), element]))
 }
 
 fn slice_push_front(
@@ -772,7 +771,9 @@ fn slice_pop_front(
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_front() {
-        Some(element) => Ok(Value::Tuple(vec![element, Value::Slice(values, typ)])),
+        Some(element) => {
+            Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Slice(values, typ))]))
+        }
         None => failing_constraint("slice_pop_front called on empty slice", location, call_stack),
     }
 }
@@ -787,7 +788,9 @@ fn slice_pop_back(
 
     let (mut values, typ) = get_slice(interner, argument)?;
     match values.pop_back() {
-        Some(element) => Ok(Value::Tuple(vec![Value::Slice(values, typ), element])),
+        Some(element) => {
+            Ok(Value::Tuple(vec![Shared::new(Value::Slice(values, typ)), Shared::new(element)]))
+        }
         None => failing_constraint("slice_pop_back called on empty slice", location, call_stack),
     }
 }
@@ -893,9 +896,10 @@ fn quoted_as_type(
     let argument = check_one_argument(arguments, location)?;
     let typ = parse(interpreter.elaborator, argument, Parser::parse_type_or_error, "a type")?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
+    let wildcard_allowed = false;
     let typ =
         interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_type(typ)
+            elaborator.use_type(typ, wildcard_allowed)
         });
     Ok(Value::Type(typ))
 }
@@ -1009,7 +1013,9 @@ fn type_as_array(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Array(length, array_type) = typ {
-            Some(Value::Tuple(vec![Value::Type(*array_type), Value::Type(*length)]))
+            let array_type = Shared::new(Value::Type(*array_type));
+            let length_type = Shared::new(Value::Type(*length));
+            Some(Value::Tuple(vec![array_type, length_type]))
         } else {
             None
         }
@@ -1049,7 +1055,9 @@ fn type_as_integer(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
-            Some(Value::Tuple(vec![Value::Bool(sign.is_signed()), Value::U8(bits.bit_size())]))
+            let sign = Shared::new(Value::Bool(sign.is_signed()));
+            let bit_size = Shared::new(Value::U8(bits.bit_size()));
+            Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
         }
@@ -1098,11 +1106,11 @@ fn type_as_data_type(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Value::TypeDefinition(struct_type.borrow().id),
-                Value::Slice(
+                Shared::new(Value::TypeDefinition(struct_type.borrow().id)),
+                Shared::new(Value::Slice(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Slice(Box::new(Type::Quoted(QuotedType::Type))),
-                ),
+                )),
             ]))
         } else {
             None
@@ -1497,7 +1505,9 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             }
         }
         Type::Unit => Value::Unit,
-        Type::Tuple(fields) => Value::Tuple(vecmap(fields, |field| zeroed(field, location))),
+        Type::Tuple(fields) => {
+            Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location))))
+        }
         Type::DataType(data_type, generics) => {
             let typ = data_type.borrow();
 
@@ -1505,7 +1515,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
                 let mut values = HashMap::default();
 
                 for (field_name, field_type, _) in fields {
-                    let field_value = zeroed(field_type, location);
+                    let field_value = Shared::new(zeroed(field_type, location));
                     values.insert(Rc::new(field_name), field_value);
                 }
 
@@ -1590,7 +1600,7 @@ fn expr_as_assert(
                 } else {
                     (Some(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
                 };
-                let predicate = Value::expression(predicate.kind);
+                let predicate = Shared::new(Value::expression(predicate.kind));
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1600,7 +1610,7 @@ fn expr_as_assert(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|msg| Value::expression(msg.kind));
-                let message = option(option_type, message, location);
+                let message = Shared::new(option(option_type, message, location));
 
                 Some(Value::Tuple(vec![predicate, message]))
             } else {
@@ -1635,8 +1645,8 @@ fn expr_as_assert_eq(
                     )
                 };
 
-                let lhs = Value::expression(lhs.kind);
-                let rhs = Value::expression(rhs.kind);
+                let lhs = Shared::new(Value::expression(lhs.kind));
+                let rhs = Shared::new(Value::expression(rhs.kind));
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1646,7 +1656,7 @@ fn expr_as_assert_eq(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|message| Value::expression(message.kind));
-                let message = option(option_type, message, location);
+                let message = Shared::new(option(option_type, message, location));
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
             } else {
@@ -1667,8 +1677,8 @@ fn expr_as_assign(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
-            let lhs = Value::lvalue(assign.lvalue);
-            let rhs = Value::expression(assign.expression.kind);
+            let lhs = Shared::new(Value::lvalue(assign.lvalue));
+            let rhs = Shared::new(Value::expression(assign.expression.kind));
             Some(Value::Tuple(vec![lhs, rhs]))
         } else {
             None
@@ -1693,9 +1703,9 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = new_binary_op(infix_expr.operator, binary_op_type);
-            let lhs = Value::expression(infix_expr.lhs.kind);
-            let rhs = Value::expression(infix_expr.rhs.kind);
+            let binary_op = Shared::new(new_binary_op(infix_expr.operator, binary_op_type));
+            let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
+            let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
         } else {
             None
@@ -1744,8 +1754,8 @@ fn expr_as_cast(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
-            let lhs = Value::expression(cast.lhs.kind);
-            let typ = Value::UnresolvedType(cast.r#type.typ);
+            let lhs = Shared::new(Value::expression(cast.lhs.kind));
+            let typ = Shared::new(Value::UnresolvedType(cast.r#type.typ));
             Some(Value::Tuple(vec![lhs, typ]))
         } else {
             None
@@ -1799,17 +1809,19 @@ fn expr_as_constructor(
 
     let option_value =
         if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
-            let typ = Value::UnresolvedType(constructor.typ.typ);
+            let typ = Shared::new(Value::UnresolvedType(constructor.typ.typ));
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
-                Value::Tuple(vec![quote_ident(&name, location), Value::expression(value.kind)])
+                let ident = Shared::new(quote_ident(&name, location));
+                let expr = Shared::new(Value::expression(value.kind));
+                Value::Tuple(vec![ident, expr])
             });
             let fields = fields.collect();
             let fields_type = Type::Slice(Box::new(Type::Tuple(vec![
                 Type::Quoted(QuotedType::Quoted),
                 Type::Quoted(QuotedType::Expr),
             ])));
-            let fields = Value::Slice(fields, fields_type);
+            let fields = Shared::new(Value::Slice(fields, fields_type));
             Some(Value::Tuple(vec![typ, fields]))
         } else {
             None
@@ -1830,9 +1842,9 @@ fn expr_as_for(
             if let ForRange::Array(array) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Value::Quoted(Rc::new(vec![token]));
-                let array = Value::expression(array.kind);
-                let body = Value::expression(for_statement.block.kind);
+                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
+                let array = Shared::new(Value::expression(array.kind));
+                let body = Shared::new(Value::expression(for_statement.block.kind));
                 Some(Value::Tuple(vec![identifier, array, body]))
             } else {
                 None
@@ -1856,10 +1868,10 @@ fn expr_as_for_range(
                 let (from, to) = bounds.into_half_open();
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Value::Quoted(Rc::new(vec![token]));
-                let from = Value::expression(from.kind);
-                let to = Value::expression(to.kind);
-                let body = Value::expression(for_statement.block.kind);
+                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
+                let from = Shared::new(Value::expression(from.kind));
+                let to = Shared::new(Value::expression(to.kind));
+                let body = Shared::new(Value::expression(for_statement.block.kind));
                 Some(Value::Tuple(vec![identifier, from, to, body]))
             } else {
                 None
@@ -1879,11 +1891,13 @@ fn expr_as_function_call(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Call(call_expression)) = expr {
-            let function = Value::expression(call_expression.func.kind);
+            let function = Shared::new(Value::expression(call_expression.func.kind));
             let arguments = call_expression.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments =
-                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+            let arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
             Some(Value::Tuple(vec![function, arguments]))
         } else {
             None
@@ -1915,9 +1929,9 @@ fn expr_as_if(
             );
 
             Some(Value::Tuple(vec![
-                Value::expression(if_expr.condition.kind),
-                Value::expression(if_expr.consequence.kind),
-                alternative,
+                Shared::new(Value::expression(if_expr.condition.kind)),
+                Shared::new(Value::expression(if_expr.consequence.kind)),
+                Shared::new(alternative),
             ]))
         } else {
             None
@@ -1935,8 +1949,8 @@ fn expr_as_index(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
             Some(Value::Tuple(vec![
-                Value::expression(index_expr.collection.kind),
-                Value::expression(index_expr.index.kind),
+                Shared::new(Value::expression(index_expr.collection.kind)),
+                Shared::new(Value::expression(index_expr.index.kind)),
             ]))
         } else {
             None
@@ -1954,15 +1968,15 @@ fn expr_as_integer(
     expr_as(interner, arguments, return_type.clone(), location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::Literal(Literal::Integer(field, _suffix))) => {
             Some(Value::Tuple(vec![
-                Value::Field(SignedField::positive(field.absolute_value())),
-                Value::Bool(field.is_negative()),
+                Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                Shared::new(Value::Bool(field.is_negative())),
             ]))
         }
         ExprValue::Expression(ExpressionKind::Resolved(id)) => {
             if let HirExpression::Literal(HirLiteral::Integer(field)) = interner.expression(&id) {
                 Some(Value::Tuple(vec![
-                    Value::Field(SignedField::positive(field.absolute_value())),
-                    Value::Bool(field.is_negative()),
+                    Shared::new(Value::Field(SignedField::positive(field.absolute_value()))),
+                    Shared::new(Value::Bool(field.is_negative())),
                 ]))
             } else {
                 None
@@ -1998,23 +2012,23 @@ fn expr_as_lambda(
                 .parameters
                 .into_iter()
                 .map(|(pattern, typ)| {
-                    let pattern = Value::pattern(pattern);
+                    let pattern = Shared::new(Value::pattern(pattern));
                     let typ = if let UnresolvedTypeData::Unspecified = typ.typ {
                         None
                     } else {
                         Some(Value::UnresolvedType(typ.typ))
                     };
-                    let typ = option(option_unresolved_type.clone(), typ, location);
+                    let typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
                     Value::Tuple(vec![pattern, typ])
                 })
                 .collect();
-            let parameters = Value::Slice(
+            let parameters = Shared::new(Value::Slice(
                 parameters,
                 Type::Slice(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
                     Type::Quoted(QuotedType::UnresolvedType),
                 ]))),
-            );
+            ));
 
             let return_type = lambda.return_type.typ;
             let return_type = if let UnresolvedTypeData::Unspecified = return_type {
@@ -2023,9 +2037,9 @@ fn expr_as_lambda(
                 Some(return_type)
             };
             let return_type = return_type.map(Value::UnresolvedType);
-            let return_type = option(option_unresolved_type, return_type, location);
+            let return_type = Shared::new(option(option_unresolved_type, return_type, location));
 
-            let body = Value::expression(lambda.body.kind);
+            let body = Shared::new(Value::expression(lambda.body.kind));
 
             Some(Value::Tuple(vec![parameters, return_type, body]))
         } else {
@@ -2060,9 +2074,9 @@ fn expr_as_let(
             let typ = option(option_type, typ, location);
 
             Some(Value::Tuple(vec![
-                Value::pattern(let_statement.pattern),
-                typ,
-                Value::expression(let_statement.expression.kind),
+                Shared::new(Value::pattern(let_statement.pattern)),
+                Shared::new(typ),
+                Shared::new(Value::expression(let_statement.expression.kind)),
             ]))
         }
         _ => None,
@@ -2079,12 +2093,15 @@ fn expr_as_member_access(
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             Some(Value::Tuple(vec![
-                Value::expression(member_access.lhs.kind),
-                quote_ident(&member_access.rhs, location),
+                Shared::new(Value::expression(member_access.lhs.kind)),
+                Shared::new(quote_ident(&member_access.rhs, location)),
             ]))
         }
         ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, location: _ }) => {
-            Some(Value::Tuple(vec![Value::lvalue(*object), quote_ident(&field_name, location)]))
+            Some(Value::Tuple(vec![
+                Shared::new(Value::lvalue(*object)),
+                Shared::new(quote_ident(&field_name, location)),
+            ]))
         }
         _ => None,
     })
@@ -2099,21 +2116,23 @@ fn expr_as_method_call(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
-            let object = Value::expression(method_call.object.kind);
+            let object = Shared::new(Value::expression(method_call.object.kind));
 
-            let name = quote_ident(&method_call.method_name, location);
+            let name = Shared::new(quote_ident(&method_call.method_name, location));
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
-            let generics = Value::Slice(
+            let generics = Shared::new(Value::Slice(
                 generics,
                 Type::Slice(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
-            );
+            ));
 
             let arguments = method_call.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments =
-                Value::Slice(arguments, Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))));
+            let arguments = Shared::new(Value::Slice(
+                arguments,
+                Type::Slice(Box::new(Type::Quoted(QuotedType::Expr))),
+            ));
 
             Some(Value::Tuple(vec![object, name, generics, arguments]))
         } else {
@@ -2135,8 +2154,8 @@ fn expr_as_repeated_element_array(
         ))) = expr
         {
             Some(Value::Tuple(vec![
-                Value::expression(repeated_element.kind),
-                Value::expression(length.kind),
+                Shared::new(Value::expression(repeated_element.kind)),
+                Shared::new(Value::expression(length.kind)),
             ]))
         } else {
             None
@@ -2157,8 +2176,8 @@ fn expr_as_repeated_element_slice(
         ))) = expr
         {
             Some(Value::Tuple(vec![
-                Value::expression(repeated_element.kind),
-                Value::expression(length.kind),
+                Shared::new(Value::expression(repeated_element.kind)),
+                Shared::new(Value::expression(length.kind)),
             ]))
         } else {
             None
@@ -2223,8 +2242,8 @@ fn expr_as_unary_op(
 
             tuple_types.pop().unwrap();
             let unary_op_type = tuple_types.pop().unwrap();
-            let unary_op = new_unary_op(prefix_expr.operator, unary_op_type)?;
-            let rhs = Value::expression(prefix_expr.rhs.kind);
+            let unary_op = Shared::new(new_unary_op(prefix_expr.operator, unary_op_type)?);
+            let rhs = Shared::new(Value::expression(prefix_expr.rhs.kind));
             Some(Value::Tuple(vec![unary_op, rhs]))
         } else {
             None
@@ -2317,16 +2336,16 @@ fn expr_resolve(
     };
 
     let is_some = fields.get(&Rc::new("_is_some".to_string())).unwrap();
-    let Value::Bool(is_some) = is_some else {
+    let Value::Bool(is_some) = is_some.borrow().clone() else {
         panic!("Expected is_some to be a boolean");
     };
 
-    let function_to_resolve_in = if *is_some {
+    let function_to_resolve_in = if is_some {
         let value = fields.get(&Rc::new("_value".to_string())).unwrap();
-        let Value::FunctionDefinition(func_id) = value else {
+        let Value::FunctionDefinition(func_id) = value.borrow().clone() else {
             panic!("Expected option value to be a FunctionDefinition");
         };
-        Some(*func_id)
+        Some(func_id)
     } else {
         interpreter.current_function
     };
@@ -2427,7 +2446,7 @@ fn function_def_add_attribute(
     let (self_argument, attribute) = check_two_arguments(arguments, location)?;
     let attribute_location = attribute.1;
     let attribute = get_str(interpreter.elaborator.interner, attribute)?;
-    let attribute = format!("#[{}]", attribute);
+    let attribute = format!("#[{attribute}]");
     let mut parser = Parser::for_str(&attribute, attribute_location.file);
     let Some((attribute, _span)) = parser.parse_attribute() else {
         return Err(InterpreterError::InvalidAttribute {
@@ -2473,12 +2492,9 @@ fn function_def_as_typed_expr(
         let trait_bound =
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
-        let method_index = trait_impl.methods.iter().position(|id| *id == func_id);
-        let method_index = method_index.expect("Expected to find the method");
-        let method_id = TraitMethodId { trait_id: trait_impl.trait_id, method_index };
-        let trait_method = TraitMethod { method_id, constraint, assumed: true };
-        let id = interpreter.elaborator.interner.trait_method_id(trait_method.method_id);
-        HirIdent { location, id, impl_kind: ImplKind::TraitMethod(trait_method) }
+        let id = interpreter.elaborator.interner.get_trait_item_id(func_id).unwrap().item_id;
+        let trait_method = TraitItem { definition: id, constraint, assumed: true };
+        HirIdent { location, id, impl_kind: ImplKind::TraitItem(trait_method) }
     } else {
         HirIdent::non_trait_method(definition_id, location)
     };
@@ -2606,8 +2622,8 @@ fn function_def_parameters(
         .map(|(hir_pattern, typ, _visibility)| {
             let tokens = hir_pattern_to_tokens(interner, hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-            let name = Value::Quoted(Rc::new(tokens));
-            let typ = Value::Type(typ.clone());
+            let name = Shared::new(Value::Quoted(Rc::new(tokens)));
+            let typ = Shared::new(Value::Type(typ.clone()));
             Value::Tuple(vec![name, typ])
         })
         .collect();
@@ -2699,10 +2715,11 @@ fn function_def_set_parameters(
             interpreter.elaborator.interner,
             (input_parameter, parameters_argument_location),
         )?;
-        let parameter_type = get_type((tuple.pop().unwrap(), parameters_argument_location))?;
+        let parameter = tuple.pop().unwrap().unwrap_or_clone();
+        let parameter_type = get_type((parameter, parameters_argument_location))?;
         let parameter_pattern = parse(
             interpreter.elaborator,
-            (tuple.pop().unwrap(), parameters_argument_location),
+            (tuple.pop().unwrap().unwrap_or_clone(), parameters_argument_location),
             Parser::parse_pattern_or_error,
             "a pattern",
         )?;
@@ -2939,7 +2956,7 @@ fn module_name(
 ) -> IResult<Value> {
     let self_argument = check_one_argument(arguments, location)?;
     let module_id = get_module(self_argument)?;
-    let name = &interner.module_attributes(&module_id).name;
+    let name = &interner.module_attributes(module_id).name;
     let token = Token::Ident(name.clone());
     let token = LocatedToken::new(token, location);
     let tokens = Rc::new(vec![token]);
@@ -3037,8 +3054,8 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("_is_some".to_string()), is_some);
-    fields.insert(Rc::new("_value".to_string()), value);
+    fields.insert(Rc::new("_is_some".to_string()), Shared::new(is_some));
+    fields.insert(Rc::new("_value".to_string()), Shared::new(value));
     Value::Struct(fields, option_type)
 }
 
@@ -3105,12 +3122,12 @@ fn derive_generators(
         let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
         let mut embedded_curve_point_fields = HashMap::default();
         embedded_curve_point_fields
-            .insert(x_field_name.clone(), Value::Field(SignedField::positive(x)));
+            .insert(x_field_name.clone(), Shared::new(Value::Field(SignedField::positive(x))));
         embedded_curve_point_fields
-            .insert(y_field_name.clone(), Value::Field(SignedField::positive(y)));
+            .insert(y_field_name.clone(), Shared::new(Value::Field(SignedField::positive(y))));
         embedded_curve_point_fields.insert(
             is_infinite_field_name.clone(),
-            Value::Field(SignedField::positive(is_infinite)),
+            Shared::new(Value::Field(SignedField::positive(is_infinite))),
         );
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());

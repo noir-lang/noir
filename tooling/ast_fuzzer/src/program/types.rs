@@ -19,7 +19,7 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) => 1 + type_depth(typ),
+        Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
@@ -50,6 +50,11 @@ pub fn can_be_main(typ: &Type) -> bool {
         Type::Bool | Type::Field | Type::Integer(_, _) => true,
         _ => false,
     }
+}
+
+/// Check if a variable with a given type can be used in a match.
+pub fn can_be_matched(typ: &Type) -> bool {
+    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
 }
 
 /// Collect all the sub-types produced by a type.
@@ -163,7 +168,8 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
             *unconstrained,
         ),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::FmtString(_, _) | Type::Slice(_) => {
+        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::FmtString(_, _) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
@@ -222,6 +228,22 @@ pub fn contains_reference(typ: &Type) -> bool {
         | Type::Function(_, _, _, _) => false,
         Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
         Type::Tuple(types) => types.iter().any(contains_reference),
+    }
+}
+
+/// Check if the type contains any references.
+pub fn contains_slice(typ: &Type) -> bool {
+    match typ {
+        Type::Slice(_) => true,
+        Type::Field
+        | Type::Integer(_, _)
+        | Type::Bool
+        | Type::String(_)
+        | Type::Unit
+        | Type::FmtString(_, _)
+        | Type::Function(_, _, _, _) => false,
+        Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
+        Type::Tuple(types) => types.iter().any(contains_slice),
     }
 }
 

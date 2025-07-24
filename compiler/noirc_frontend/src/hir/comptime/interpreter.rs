@@ -14,8 +14,9 @@ use crate::elaborator::{ElaborateReason, Elaborator};
 use crate::graph::CrateId;
 use crate::hir::def_map::ModuleId;
 use crate::hir::type_check::TypeCheckError;
+use crate::hir_def::expr::TraitItem;
 use crate::monomorphization::{
-    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_method,
+    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
     undo_instantiation_bindings,
 };
 use crate::node_interner::GlobalValue;
@@ -23,7 +24,7 @@ use crate::shared::Signedness;
 use crate::signed_field::SignedField;
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Shared, Type, TypeBinding, TypeBindings,
+    Shared, Type, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -42,7 +43,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{Closure, Value, unwrap_rc};
+use super::value::{Closure, StructFields, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
@@ -97,25 +98,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         mut instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
-        let trait_method = self.elaborator.interner.get_trait_method_id(function);
+        let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
         // To match the monomorphizer, we need to call follow_bindings on each of
         // the instantiation bindings before we unbind the generics from the previous function.
         // This is because the instantiation bindings refer to variables from the call site.
-        for (_, kind, binding) in instantiation_bindings.values_mut() {
+        for (_type_var, kind, binding) in instantiation_bindings.values_mut() {
             *kind = kind.follow_bindings();
             *binding = binding.follow_bindings();
         }
 
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
-        let mut impl_bindings =
-            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
-        for (_, kind, binding) in impl_bindings.values_mut() {
-            *kind = kind.follow_bindings();
-            *binding = binding.follow_bindings();
-        }
+        let impl_bindings =
+            perform_impl_bindings(self.elaborator.interner, trait_method, function, location)?;
 
         self.remember_bindings(&instantiation_bindings, &impl_bindings);
         self.elaborator.interpreter_call_stack.push_back(location);
@@ -249,7 +246,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         let attributes = self.elaborator.interner.function_attributes(&function);
         let func_attrs = &attributes.function()
-            .expect("all builtin functions must contain a function  attribute which contains the opcode which it links to").kind;
+            .expect("all builtin functions must contain a function attribute which contains the opcode which it links to").kind;
 
         if let Some(builtin) = func_attrs.builtin() {
             self.call_builtin(builtin.clone().as_str(), arguments, return_type, location)
@@ -267,7 +264,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         } else {
             let name = self.elaborator.interner.function_name(&function);
-            unreachable!("Non-builtin, lowlevel or oracle builtin fn '{name}'")
+            unreachable!("Non-builtin, low-level or oracle builtin fn '{name}'")
         }
     }
 
@@ -425,6 +422,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         for ((pattern, typ), argument) in
                             pattern_fields.iter().zip(type_fields).zip(fields)
                         {
+                            let argument = argument.borrow().clone();
                             self.define_pattern(pattern, typ, argument, location)?;
                         }
                         Ok(())
@@ -453,6 +451,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                                 }
                             })?;
 
+                            let field = field.borrow();
                             let field_type = field.get_type().into_owned();
                             let result = self.define_pattern(
                                 field_pattern,
@@ -495,7 +494,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if let Entry::Occupied(mut entry) = scope.entry(id) {
                 match entry.get() {
                     Value::Pointer(reference, true, _) => {
-                        *reference.borrow_mut() = argument;
+                        // We can't store to the reference directly, we need to check if the value
+                        // is a struct or tuple to store to each field instead. This is so any
+                        // references to these fields are also updated.
+                        Self::store_flattened(reference.clone(), argument);
                     }
                     _ => {
                         entry.insert(argument);
@@ -579,11 +581,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             InterpreterError::VariableNotInScope { location }
         })?;
 
-        if let ImplKind::TraitMethod(method) = ident.impl_kind {
-            let method_id = resolve_trait_method(self.elaborator.interner, method.method_id, id)?;
-            let typ = self.elaborator.interner.id_type(id).follow_bindings();
-            let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
-            return Ok(Value::Function(method_id, typ, Rc::new(bindings)));
+        if let ImplKind::TraitItem(item) = ident.impl_kind {
+            return self.evaluate_trait_item(item, id);
         }
 
         match &definition.kind {
@@ -632,29 +631,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
-                let value = match &*type_variable.borrow() {
-                    TypeBinding::Unbound(_, _) => {
-                        let typ = self.elaborator.interner.id_type(id);
-                        let location = self.elaborator.interner.expr_location(&id);
-                        Err(InterpreterError::NonIntegerArrayLength { typ, err: None, location })
-                    }
-                    TypeBinding::Bound(binding) => {
-                        let location = self.elaborator.interner.id_location(id);
-                        binding
-                            .evaluate_to_field_element(
-                                &Kind::Numeric(numeric_typ.clone()),
-                                location,
-                            )
-                            .map_err(|err| {
-                                let typ = Type::TypeVariable(type_variable.clone());
-                                let err = Some(Box::new(err));
-                                let location = self.elaborator.interner.expr_location(&id);
-                                InterpreterError::NonIntegerArrayLength { typ, err, location }
-                            })
-                    }
-                }?;
-
-                self.evaluate_integer(value.into(), id)
+                let value = Type::TypeVariable(type_variable.clone());
+                self.evaluate_numeric_generic(value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let associated_types =
@@ -667,10 +645,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     unreachable!("Expected associated type to be numeric");
                 };
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type
-                    .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
-                {
+                match associated_type.typ.evaluate_to_field_element(
+                    &associated_type.typ.kind(),
+                    &TypeBindings::default(),
+                    location,
+                ) {
                     Ok(value) => self.evaluate_integer(value.into(), id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
@@ -678,6 +657,39 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         location,
                     }),
                 }
+            }
+        }
+    }
+
+    /// Evaluates a numeric generic with the value `value` (expected to be `Type::Constant`)
+    /// and an expected integer type `expected`.
+    fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
+        let location = self.elaborator.interner.id_location(id);
+        let value = value
+            .evaluate_to_field_element(
+                &Kind::Numeric(Box::new(expected.clone())),
+                &TypeBindings::default(),
+                location,
+            )
+            .map_err(|err| {
+                let typ = value;
+                let err = Some(Box::new(err));
+                let location = self.elaborator.interner.expr_location(&id);
+                InterpreterError::NonIntegerArrayLength { typ, err, location }
+            })?;
+
+        self.evaluate_integer(value.into(), id)
+    }
+
+    fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
+        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        match resolve_trait_item(self.elaborator.interner, item.id(), id)? {
+            crate::monomorphization::TraitItem::Method(func_id) => {
+                let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+                Ok(Value::Function(func_id, typ, Rc::new(bindings)))
+            }
+            crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
+                self.evaluate_numeric_generic(value, &expected_type, id)
             }
         }
     }
@@ -819,6 +831,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => self.evaluate(prefix.rhs)?,
         };
 
+        if prefix.skip {
+            return Ok(rhs);
+        }
+
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
@@ -850,7 +866,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let method = infix.trait_method_id;
         let operator = infix.operator.kind;
 
-        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
         let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
         let lhs = (lhs, self.elaborator.interner.expr_location(&infix.lhs));
@@ -880,7 +896,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
         let operator = prefix.operator;
 
-        let method_id = resolve_trait_method(self.elaborator.interner, method, id)?;
+        let method_id = resolve_trait_item(self.elaborator.interner, method, id)?.unwrap_method();
         let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
 
         let rhs = (rhs, self.elaborator.interner.expr_location(&prefix.rhs));
@@ -896,8 +912,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// - `<=`: `ordering != Ordering::Less`
     fn evaluate_ordering(&self, ordering: Value, operator: BinaryOpKind) -> IResult<Value> {
         let ordering = match ordering {
-            Value::Struct(fields, _) => match fields.into_iter().next().unwrap().1 {
-                Value::Field(ordering) => ordering,
+            Value::Struct(fields, _) => match &*fields.into_iter().next().unwrap().1.borrow() {
+                Value::Field(ordering) => *ordering,
                 _ => unreachable!("`cmp` should always return an Ordering value"),
             },
             _ => unreachable!("`cmp` should always return an Ordering value"),
@@ -936,7 +952,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .fields
             .into_iter()
             .map(|(name, expr)| {
-                let field_value = self.evaluate(expr)?;
+                let field_value = Shared::new(self.evaluate(expr)?);
                 Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
@@ -955,41 +971,58 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
-    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
-        let (fields, struct_type) = match self.evaluate(access.lhs)? {
-            Value::Struct(fields, typ) => (fields, typ),
+    fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
+        match value {
+            Value::Struct(fields, typ) => Ok((fields, typ)),
             Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Value>, Vec<Type>) = fields
+                let (fields, field_types) = fields
                     .into_iter()
                     .enumerate()
                     .map(|(i, field)| {
-                        let field_type = field.get_type().into_owned();
+                        let field_type = field.borrow().get_type().into_owned();
                         let key_val_pair = (Rc::new(i.to_string()), field);
                         (key_val_pair, field_type)
                     })
                     .unzip();
-                (fields, Type::Tuple(field_types))
+                Ok((fields, Type::Tuple(field_types)))
             }
+            Value::Pointer(element, ..) => self.get_fields(element.unwrap_or_clone(), id),
             value => {
                 let location = self.elaborator.interner.expr_location(&id);
                 let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
+                Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
             }
-        };
+        }
+    }
 
-        fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
+    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
+        let lhs = self.evaluate(access.lhs)?;
+        let is_offset = access.is_offset && lhs.get_type().is_ref();
+        let (fields, struct_type) = self.get_fields(lhs, id)?;
+
+        let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
             let value = Value::Struct(fields, struct_type);
             let field_name = access.rhs.into_string();
             let typ = value.get_type().into_owned();
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })
+        })?;
+
+        // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
+        // We set auto_deref to true so that when it is used elsewhere it is dereferenced
+        // automatically. In some cases in the frontend the leading `&mut` will cancel out
+        // with a field access which is expected to only offset into the struct and thus return
+        // a reference already. In this case we set auto_deref to false because the outer `&mut`
+        // will also be removed in that case so the pointer should be explicit.
+        let auto_deref = !is_offset;
+        Ok(Value::Pointer(field, auto_deref, false))
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
+            let value = self.evaluate(arg)?.copy();
+            Ok((value, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -1082,7 +1115,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
-        let fields = try_vecmap(tuple, |field| self.evaluate(field))?;
+        let fields = try_vecmap(tuple, |field| Ok(Shared::new(self.evaluate(field)?)))?;
         Ok(Value::Tuple(fields))
     }
 
@@ -1163,7 +1196,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        *value.borrow_mut() = rhs;
+                        Self::store_flattened(value, rhs);
                         Ok(())
                     }
                     value => {
@@ -1184,11 +1217,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut fields) => {
-                        fields[index] = rhs;
+                        fields[index] = Shared::new(rhs);
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.into_string()), rhs);
+                        fields.insert(Rc::new(field_name.into_string()), Shared::new(rhs));
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1211,6 +1244,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 let new_array = constructor(elements.update(index, rhs), typ);
                 self.store_lvalue(*array, new_array)
+            }
+        }
+    }
+
+    /// When we store to a struct such as in
+    /// ```noir
+    /// let mut a = (false,);
+    /// let b = &mut a.0;
+    /// a = (true,);
+    /// ```
+    /// we must flatten the store to store to each individual field so that any existing
+    /// references, such as `b` above, will also reflect the mutation.
+    fn store_flattened(lvalue: Shared<Value>, rvalue: Value) {
+        let lvalue_ref = lvalue.borrow();
+        match (&*lvalue_ref, rvalue) {
+            (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
+                for (name, lvalue) in lvalue_fields.iter() {
+                    let Some(rvalue) = rvalue_fields.remove(name) else { continue };
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (Value::Tuple(lvalue_fields), Value::Tuple(rvalue_fields)) => {
+                for (lvalue, rvalue) in lvalue_fields.iter().zip(rvalue_fields) {
+                    Self::store_flattened(lvalue.clone(), rvalue.unwrap_or_clone());
+                }
+            }
+            (_, rvalue) => {
+                drop(lvalue_ref);
+                *lvalue.borrow_mut() = rvalue;
             }
         }
     }
@@ -1242,8 +1304,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 })?;
 
                 match object_value {
-                    Value::Tuple(mut values) => Ok(values.swap_remove(index)),
-                    Value::Struct(fields, _) => Ok(fields[field_name.as_string()].clone()),
+                    Value::Tuple(mut values) => Ok(values.swap_remove(index).unwrap_or_clone()),
+                    Value::Struct(fields, _) => {
+                        Ok(fields[field_name.as_string()].clone().unwrap_or_clone())
+                    }
                     value => Err(InterpreterError::NonTupleOrStructInMemberAccess {
                         typ: value.get_type().into_owned(),
                         location: *location,
@@ -1451,14 +1515,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // the connection. If we use `eprintln!` not only it doesn't crash, but the output
             // appears in the "Noir Language Server" output window in case you want to see it.
             if print_newline {
-                eprintln!("{}", contents);
+                eprintln!("{contents}");
             } else {
-                eprint!("{}", contents);
+                eprint!("{contents}");
             }
         } else if print_newline {
-            writeln!(output, "{}", contents).expect("write should succeed");
+            writeln!(output, "{contents}").expect("write should succeed");
         } else {
-            write!(output, "{}", contents).expect("write should succeed");
+            write!(output, "{contents}").expect("write should succeed");
         }
 
         Ok(Value::Unit)

@@ -59,7 +59,7 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(Vec::new())
                 } else {
                     // Static assert can either have 2 arguments, in which case the second one is a string,
-                    // or it can have more arguments in case fmtstring or some other non-string value is passed.
+                    // or it can have more arguments in case fmtstr or some other non-string value is passed.
                     // For simplicity, we won't build the dynamic message here.
                     let message = if args.len() == 2 {
                         self.lookup_string(args[1], "static_assert")?
@@ -466,8 +466,11 @@ impl<W: Write> Interpreter<'_, W> {
     }
 
     fn convert_error(err: BlackBoxResolutionError) -> InterpreterError {
-        let BlackBoxResolutionError::Failed(name, reason) = err;
-        InterpreterError::BlackBoxError { name: name.to_string(), reason }
+        let (name, reason) = match err {
+            BlackBoxResolutionError::Failed(name, reason) => (name.to_string(), reason),
+            BlackBoxResolutionError::AssertFailed(err) => ("Assertion failed".to_string(), err),
+        };
+        InterpreterError::BlackBoxError { name, reason }
     }
 
     fn to_radix(
@@ -539,7 +542,7 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_back";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }
@@ -563,7 +566,7 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_front";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }

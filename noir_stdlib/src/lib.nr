@@ -48,6 +48,7 @@ pub fn print<T>(input: T) {
     }
 }
 
+#[deprecated("This functions is deprecated in favour of external verification libraries. To verify Barretenberg proofs, it's recommended to use the library https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification")]
 pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],
@@ -57,6 +58,34 @@ pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
     verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
 }
 
+/// Asserts the validity of the provided proof and public inputs against the provided verification key and hash.
+///
+/// The ACVM cannot determine whether the provided proof is valid during execution as this requires knowledge of
+/// the backend against which the program is being proven. However if an invalid proof if submitted, the program may
+/// fail to prove or the backend may generate a proof which will subsequently fail to verify.
+///
+/// # Important Note
+///
+/// If you are not developing your own backend such as [Barretenberg](https://github.com/AztecProtocol/barretenberg)
+/// you probably shouldn't need to interact with this function directly. It's easier and safer to use a verification
+/// library which is published by the developers of the backend which will document or enforce any safety requirements.
+///
+/// If you use this directly, you're liable to introduce underconstrainedness bugs and *your circuit will be insecure*.
+///
+/// # Arguments
+/// - verification_key: The verification key of the circuit to be verified.
+/// - proof: The proof to be verified.
+/// - public_inputs: The public inputs associated with `proof`
+/// - key_hash: The hash of `verification_key` of the form expected by the backend.
+/// - proof_type: An identifier for the proving scheme used to generate the proof to be verified. This allows
+///               for a single backend to support verifying multiple proving schemes.
+///
+/// # Constraining `key_hash`
+///
+/// The Noir compiler does not by itself constrain that `key_hash` is a valid hash of `verification_key`.
+/// This is because different backends may differ in how they hash their verification keys.
+/// It is then the responsibility of either the noir developer (by explicitly hashing the verification key
+/// in the correct manner) or by the proving system itself internally asserting the correctness of `key_hash`.
 pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],

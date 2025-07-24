@@ -386,7 +386,8 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.display(self.interner).to_string());
+                let fields =
+                    vecmap(fields, |field| field.borrow().display(self.interner).to_string());
                 if fields.len() == 1 {
                     write!(f, "({},)", fields[0])
                 } else {
@@ -399,7 +400,7 @@ impl Display for ValuePrinter<'_, '_> {
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.display(self.interner))
+                    format!("{}: {}", name, value.borrow().display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
@@ -457,7 +458,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let generic_string = if generic_string.is_empty() {
                     generic_string
                 } else {
-                    format!("<{}>", generic_string)
+                    format!("<{generic_string}>")
                 };
 
                 let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
@@ -467,7 +468,7 @@ impl Display for ValuePrinter<'_, '_> {
                 let where_clause = if where_clause.is_empty() {
                     where_clause
                 } else {
-                    format!(" where {}", where_clause)
+                    format!(" where {where_clause}")
                 };
 
                 write!(
@@ -480,18 +481,18 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
             Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
                     write!(f, "{}", &attributes.name)
                 } else {
                     write!(f, "(crate root)")
                 }
             }
             Value::Zeroed(typ) => write!(f, "(zeroed {typ})"),
-            Value::Type(typ) => write!(f, "{}", typ),
+            Value::Type(typ) => write!(f, "{typ}"),
             Value::Expr(expr) => match expr.as_ref() {
                 ExprValue::Expression(expr) => {
                     let expr = remove_interned_in_expression_kind(self.interner, expr.clone());
-                    write!(f, "{}", expr)
+                    write!(f, "{expr}")
                 }
                 ExprValue::Statement(statement) => {
                     write!(
@@ -837,7 +838,7 @@ fn remove_interned_in_statement_kind(
 // Returns a new LValue where all Interned LValues have been turned into LValue.
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
-        LValue::Ident(_) => lvalue,
+        LValue::Path(_) => lvalue,
         LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,

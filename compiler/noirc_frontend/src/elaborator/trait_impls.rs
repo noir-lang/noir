@@ -94,7 +94,7 @@ impl Elaborator<'_> {
 
                 if overrides.len() > 1 {
                     self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedFunction,
+                        typ: DuplicateType::TraitAssociatedItem,
                         first_def: overrides[0].2.name_ident().clone(),
                         second_def: overrides[1].2.name_ident().clone(),
                     });
@@ -152,6 +152,7 @@ impl Elaborator<'_> {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
         let self_type = self.self_type.as_ref().unwrap().clone();
+
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
 
@@ -247,7 +248,8 @@ impl Elaborator<'_> {
     ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
-            let resolved_type = self.resolve_type(typ);
+            let wildcard_allowed = false;
+            let resolved_type = self.resolve_type(typ, wildcard_allowed);
             let kind = Kind::Numeric(Box::new(resolved_type));
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {

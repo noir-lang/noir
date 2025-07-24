@@ -102,7 +102,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLBjoMgEIbfZc4cEEWrr7LZGNSxISFoKGyyMb77jiLb9tALpw/m54NJmA0mHMK913ZeHtB9bTA4bYy+92YZldeLpeq2M0jb3jtEKsFLTtaqHFoPnQ3GMPhRJpyHHquyJ71ylHIGaCciXThrg8dqZ0+bf1aLsrnkoir+dZnlt1l+nfy6yfJl8huZ5VfJv/EMX/D28oV8f/+bdmrU7u3HQRSUMhAiooyoImREHdFE3CLaEyWHrt6PdpxWg8FriuZgx5eh8r9rStLYrW4ZcQoOj3bOjBr8Aw==",
+  "debug_symbols": "nZLNroMgEEbfZdYsEEWrr3JzY1DHhoSgodCkMX33jlL6s+iG1QE+DgxkNphwCOde23m5QPe3weC0Mfrcm2VUXi+WVrc7gzTtvUOkJfjIyVqVQ+uhs8EYBldlwrHpsip70CtHKWeAdiLSgbM2uI/u7G3z32pRNk+5qIqXLrP8Nsuvk183Wb5MfiOz/Cr5J57ji/bliwxf8HS/kN/v/6eZGrX76hgQBaUMhIgoI6oICR39pqgjmohTRHug5NDt11yV02ow+OzCOdjxoyn9bU1JatvVLSNOweFezpFRgQ8=",
   "file_map": {
     "50": {
       "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",

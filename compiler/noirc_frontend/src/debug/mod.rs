@@ -314,15 +314,18 @@ impl DebugInstrumenter {
         );
         let expression_location = assign_stmt.expression.location;
         let new_assign_stmt = match &assign_stmt.lvalue {
-            ast::LValue::Ident(id) => {
+            ast::LValue::Path(id) => {
+                let Some(id) = id.as_ident() else {
+                    panic!("var lookup failed for var_name={id}");
+                };
                 let var_id = self
                     .lookup_var(id.as_str())
-                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", id.as_str()));
+                    .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.location())))
             }
             ast::LValue::Dereference(_lv, location) => {
                 // TODO: this is a dummy statement for now, but we should
-                // somehow track the derefence and update the pointed to
+                // somehow track the dereference and update the pointed to
                 // variable
                 ast::Statement {
                     kind: ast::StatementKind::Expression(uint_expr(0, *location)),
@@ -335,10 +338,14 @@ impl DebugInstrumenter {
                 let var_id;
                 loop {
                     match cursor {
-                        ast::LValue::Ident(id) => {
-                            var_id = self.lookup_var(id.as_str()).unwrap_or_else(|| {
-                                panic!("var lookup failed for var_name={}", id.as_str())
-                            });
+                        ast::LValue::Path(id) => {
+                            let Some(id) = id.as_ident() else {
+                                panic!("var lookup failed for var_name={id}");
+                            };
+
+                            var_id = self
+                                .lookup_var(id.as_str())
+                                .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                             break;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } => {
@@ -728,9 +735,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
             ast::Pattern::Tuple(patterns, _) => {
                 stack.extend(patterns.iter().map(|pattern| (pattern, false)));
             }
-            ast::Pattern::Struct(_, pids, _) => {
-                stack.extend(pids.iter().map(|(_, pattern)| (pattern, is_mut)));
-                vars.extend(pids.iter().map(|(id, _)| (id.clone(), false)));
+            ast::Pattern::Struct(_, fields, _) => {
+                stack.extend(fields.iter().map(|(_, pattern)| (pattern, is_mut)));
+                vars.extend(fields.iter().map(|(id, _)| (id.clone(), false)));
             }
             ast::Pattern::Parenthesized(pattern, _) => {
                 stack.push_back((pattern, false));
@@ -744,7 +751,9 @@ fn pattern_vars(pattern: &ast::Pattern) -> Vec<(ast::Ident, bool)> {
 fn pattern_to_string(pattern: &ast::Pattern) -> String {
     match pattern {
         ast::Pattern::Identifier(id) => id.to_string(),
-        ast::Pattern::Mutable(mpat, _, _) => format!("mut {}", pattern_to_string(mpat.as_ref())),
+        ast::Pattern::Mutable(pattern, _, _) => {
+            format!("mut {}", pattern_to_string(pattern.as_ref()))
+        }
         ast::Pattern::Tuple(elements, _) => format!(
             "({})",
             elements.iter().map(pattern_to_string).collect::<Vec<String>>().join(", ")

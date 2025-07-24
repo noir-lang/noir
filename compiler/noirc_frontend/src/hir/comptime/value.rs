@@ -59,8 +59,14 @@ pub enum Value {
     // in case they use functions such as `Quoted::as_type` which require them.
     Closure(Box<Closure>),
 
-    Tuple(Vec<Value>),
-    Struct(HashMap<Rc<String>, Value>, Type),
+    /// Tuple elements are automatically shared to support projection into a tuple:
+    /// `let elem = &mut tuple.0` should mutate the original element.
+    Tuple(Vec<Shared<Value>>),
+
+    /// Struct elements are automatically shared to support projection:
+    /// `let elem = &mut my_struct.field` should mutate the original element.
+    Struct(StructFields, Type),
+
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
@@ -78,6 +84,8 @@ pub enum Value {
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
+
+pub type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -112,8 +120,8 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
-    pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
+    pub(crate) fn lvalue(lvalue: LValue) -> Self {
+        Value::Expr(Box::new(ExprValue::LValue(lvalue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
@@ -145,7 +153,7 @@ impl Value {
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+                Type::Tuple(vecmap(fields, |field| field.borrow().get_type().into_owned()))
             }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
@@ -244,13 +252,14 @@ impl Value {
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_expression(elaborator, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_expression(elaborator, location)
+                })?;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_expression(elaborator, location)?;
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -412,13 +421,14 @@ impl Value {
                 return Ok(expr_id);
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_hir_expression(interner, location)?;
+                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -615,9 +625,11 @@ impl Value {
             Value::Slice(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Tuple(values) => values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Tuple(values) => {
+                values.iter().any(|value| value.borrow().contains_function_or_closure())
+            }
             Value::Struct(fields, _) => {
-                fields.values().any(|value| value.contains_function_or_closure())
+                fields.values().any(|value| value.borrow().contains_function_or_closure())
             }
             Value::Enum(_, values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
@@ -705,6 +717,22 @@ impl Value {
             Value::I32(x) => *x < 0,
             Value::I64(x) => *x < 0,
             _ => false, // Unsigned or Field types are never negative
+        }
+    }
+
+    /// Copies an argument ensuring any references to struct/tuple fields are replaced with fresh ones.
+    pub(crate) fn copy(self) -> Value {
+        match self {
+            Value::Tuple(fields) => {
+                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().copy())))
+            }
+            Value::Struct(fields, typ) => {
+                let fields = fields
+                    .into_iter()
+                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().copy())));
+                Value::Struct(fields.collect(), typ)
+            }
+            other => other,
         }
     }
 }

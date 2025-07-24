@@ -15,6 +15,8 @@ use lsp_types::{
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
+use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
@@ -62,12 +64,11 @@ mod tests;
 mod workspace_symbol;
 
 pub(crate) use {
-    code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
-    code_lens_request::on_code_lens_request, completion::on_completion_request,
-    document_symbol::on_document_symbol_request, expand::on_expand_request,
-    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
-    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
-    inlay_hint::on_inlay_hint_request, references::on_references_request,
+    code_action::on_code_action_request, code_lens_request::on_code_lens_request,
+    completion::on_completion_request, document_symbol::on_document_symbol_request,
+    expand::on_expand_request, goto_declaration::on_goto_declaration_request,
+    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
+    hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, test_run::on_test_run_request,
     tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
@@ -355,7 +356,7 @@ fn read_format_config(file_path: Option<&Path>) -> Config {
         Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("{err}");
                 Config::default()
             }
         },
@@ -393,12 +394,12 @@ fn position_to_location(
 ) -> Result<noirc_errors::Location, ResponseError> {
     let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
-        format!("Could not find file in file manager. File path: {:?}", file_path),
+        format!("Could not find file in file manager. File path: {file_path:?}"),
     ))?;
     let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {:?}", err),
+            format!("Could not convert position to byte index. Error: {err:?}"),
         )
     })?;
 
@@ -455,6 +456,8 @@ pub(crate) fn on_shutdown(
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
+    workspace: &'a Workspace,
+    package: &'a Package,
     files: &'a FileMap,
     interner: &'a NodeInterner,
     package_cache: &'a HashMap<PathBuf, PackageCacheData>,
@@ -519,6 +522,8 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,
@@ -584,6 +589,8 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,
@@ -678,7 +685,7 @@ pub(crate) fn find_all_references(
 fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option<String> {
     match reference {
         ReferenceId::Module(module_id) => {
-            Some(interner.try_module_attributes(&module_id)?.name.clone())
+            Some(interner.try_module_attributes(module_id)?.name.clone())
         }
         ReferenceId::Type(type_id) => Some(interner.get_type(type_id).borrow().name.to_string()),
         ReferenceId::StructMember(type_id, index) => {
@@ -688,6 +695,9 @@ fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option
             Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
         }
         ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::TraitAssociatedType(id) => {
+            Some(interner.get_trait_associated_type(id).name.to_string())
+        }
         ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
         ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
         ReferenceId::Alias(type_alias_id) => {

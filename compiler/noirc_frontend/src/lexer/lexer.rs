@@ -54,7 +54,7 @@ impl<'a> Lexer<'a> {
             done: false,
             skip_comments: true,
             skip_whitespaces: true,
-            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus())
+            max_integer: BigInt::from_biguint(num_bigint::Sign::Plus, FieldElement::modulus()) // cSpell:disable-line
                 - BigInt::one(),
         }
     }
@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             Some('r') => self.eat_raw_string_or_alpha_numeric(),
             Some('q') => self.eat_quote_or_alpha_numeric(),
             Some('#') => self.eat_attribute_start(),
+            // cSpell:disable
             Some(ch)
                 if ch.is_whitespace()
                     // These aren't unicode whitespace but look like '' so they are also misleading
@@ -186,6 +187,7 @@ impl<'a> Lexer<'a> {
                     || ch == '\u{2060}'
                     || ch == '\u{FEFF}' =>
             {
+                // cSpell:enable
                 let span = Span::from(self.position..self.position + 1);
                 let location = Location::new(span, self.file_id);
                 self.next_char();
@@ -1457,7 +1459,7 @@ mod tests {
     //   (expected_token_discriminator, strings_to_lex)
     // expected_token_discriminator matches a given token when
     // std::mem::discriminant returns the same discriminant for both.
-    fn blns_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
+    fn big_list_base64_to_statements(base64_str: String) -> Vec<(Option<Token>, Vec<String>)> {
         use base64::engine::general_purpose;
         use std::borrow::Cow;
         use std::io::Cursor;
@@ -1515,15 +1517,15 @@ mod tests {
     fn test_big_list_of_naughty_strings() {
         use std::mem::discriminant;
 
-        let blns_contents = include_str!("./blns/blns.base64.json");
-        let blns_base64: Vec<String> =
-            serde_json::from_str(blns_contents).expect("BLNS json invalid");
-        for blns_base64_str in blns_base64 {
-            let statements = blns_base64_to_statements(blns_base64_str);
-            for (token_discriminator_opt, blns_program_strs) in statements {
-                for blns_program_str in blns_program_strs {
+        let big_list_contents = include_str!("./blns/blns.base64.json"); // cSpell:disable-line
+        let big_list_base64: Vec<String> =
+            serde_json::from_str(big_list_contents).expect("BLNS json invalid"); // cSpell:disable-line
+        for big_list_base64_str in big_list_base64 {
+            let statements = big_list_base64_to_statements(big_list_base64_str);
+            for (token_discriminator_opt, big_list_program_strings) in statements {
+                for big_list_program_str in big_list_program_strings {
                     let mut expected_token_found = false;
-                    let mut lexer = Lexer::new_with_dummy_file(&blns_program_str);
+                    let mut lexer = Lexer::new_with_dummy_file(&big_list_program_str);
                     let mut result_tokens = Vec::new();
                     loop {
                         match lexer.next_token() {
@@ -1553,8 +1555,7 @@ mod tests {
                             }
                             Err(err) => {
                                 panic!(
-                                    "Unexpected lexer error found {:?} for input string {:?}",
-                                    err, blns_program_str
+                                    "Unexpected lexer error found {err:?} for input string {big_list_program_str:?}"
                                 )
                             }
                         }
@@ -1615,6 +1616,7 @@ mod tests {
 
     #[test]
     fn test_non_ascii_comments() {
+        // cSpell:disable-next-line
         let cases = vec!["// 🙂", "// schön", "/* in the middle 🙂 of a comment */"];
 
         for source in cases {

@@ -76,7 +76,7 @@ impl<F: AcirField> FunctionInput<F> {
             Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } else {
             let value_num_bits = value.num_bits();
-            let value = format!("{}", value);
+            let value = format!("{value}");
             Err(InvalidInputBitSize { value, value_num_bits, max_bits })
         }
     }
@@ -551,9 +551,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
+        use crate::serialization::{bincode_deserialize, bincode_serialize};
+
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode::serialize(&opcode).unwrap();
-        let recovered_opcode = bincode::deserialize(&buf).unwrap();
+        let buf = bincode_serialize(&opcode).unwrap();
+        let recovered_opcode = bincode_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }

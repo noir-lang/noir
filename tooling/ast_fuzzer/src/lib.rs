@@ -45,6 +45,8 @@ pub struct Config {
     pub vary_loop_size: bool,
     /// Maximum number of recursive calls to make at runtime.
     pub max_recursive_calls: usize,
+    /// Maximum number of match cases.
+    pub max_match_cases: usize,
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
@@ -70,6 +72,10 @@ pub struct Config {
     pub avoid_print: bool,
     /// Avoid using constrain statements.
     pub avoid_constrain: bool,
+    /// Avoid match statements and expressions.
+    pub avoid_match: bool,
+    /// Avoid using the slice type.
+    pub avoid_slices: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -80,6 +86,7 @@ impl Default for Config {
             ("unary", 10),
             ("binary", 20),
             ("if", 15),
+            ("match", 30),
             ("block", 30),
             ("vars", 25),
             ("literal", 5),
@@ -88,19 +95,21 @@ impl Default for Config {
         let stmt_freqs_acir = Freqs::new(&[
             ("assign", 30),
             ("if", 10),
-            ("for", 22),
+            ("match", 10),
+            ("for", 25),
             ("let", 25),
             ("call", 5),
             ("constrain", 4),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("break", 20),
-            ("continue", 20),
+            ("break", 30),
+            ("continue", 25),
             ("assign", 30),
             ("if", 10),
-            ("for", 15),
-            ("loop", 15),
-            ("while", 15),
+            ("match", 15),
+            ("for", 30),
+            ("loop", 30),
+            ("while", 30),
             ("let", 20),
             ("call", 5),
             ("print", 15),
@@ -119,6 +128,7 @@ impl Default for Config {
             max_loop_size: 10,
             vary_loop_size: true,
             max_recursive_calls: 25,
+            max_match_cases: 3,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,
@@ -131,6 +141,8 @@ impl Default for Config {
             avoid_lambdas: false,
             avoid_print: false,
             avoid_constrain: false,
+            avoid_match: false,
+            avoid_slices: false,
             comptime_friendly: false,
         }
     }

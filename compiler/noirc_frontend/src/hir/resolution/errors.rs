@@ -180,6 +180,10 @@ pub enum ResolverError {
     UnreachableStatement { location: Location, break_or_continue_location: Location },
     #[error("Associated item constraints are not allowed here")]
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
+    #[error("Ambiguous associated type")]
+    AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
+    #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
+    WildcardTypeDisallowed { location: Location },
 }
 
 impl ResolverError {
@@ -240,9 +244,9 @@ impl ResolverError {
             | ResolverError::OracleMarkedAsConstrained { location, .. }
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
-            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location } => {
-                *location
-            }
+            | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
+            | ResolverError::AmbiguousAssociatedType { location, .. }
+            | ResolverError::WildcardTypeDisallowed { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -256,7 +260,7 @@ impl ResolverError {
             ResolverError::NoSuchNumericTypeVariable { path } => path.location,
             ResolverError::ParserError(parser_error) => parser_error.location(),
             ResolverError::UnsupportedNumericGenericType(unsupported_numeric_generic_type) => {
-                unsupported_numeric_generic_type.ident.location()
+                unsupported_numeric_generic_type.location
             }
         }
     }
@@ -757,6 +761,20 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Associated item constraints are not allowed here".to_string(),
                     "Consider removing this associated item binding".to_string(),
+                    *location,
+                )
+            }
+            ResolverError::AmbiguousAssociatedType { trait_name, associated_type_name, location } => {
+                Diagnostic::simple_error(
+                    "Ambiguous associated type".to_string(),
+                    format!("If there were a type named `Example` that implemented `{trait_name}`, you could use the fully-qualified path: `<Example as {trait_name}>::{associated_type_name}`"),
+                    *location,
+                )
+            }
+            ResolverError::WildcardTypeDisallowed { location } => {
+                Diagnostic::simple_error(
+                    "The placeholder `_` is not allowed within types on item signatures for functions".to_string(),
+                    String::new(),
                     *location,
                 )
             }

@@ -172,10 +172,73 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
+            // Disabled due to failures
+            // #[cfg(debug_assertions)]
+            // flatten_cfg_pre_check(function);
+
             flatten_function_cfg(function, &no_predicates);
+
+            // Disabled as we're getting failures, I would expect this to pass however.
+            // #[cfg(debug_assertions)]
+            // flatten_cfg_post_check(function);
         }
         self
     }
+}
+
+/// Pre-check condition for [Ssa::flatten_cfg].
+///
+/// Succeeds if:
+///   - no block contains a jmpif with a constant condition.
+///
+/// Otherwise panics.
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_pre_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        if let TerminatorInstruction::JmpIf { condition, .. } =
+            function.dfg[*block].unwrap_terminator()
+        {
+            if function
+                .dfg
+                .get_numeric_constant(*condition)
+                .is_some_and(|c| c.is_zero() || c.is_one())
+            {
+                // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
+                // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
+                //
+                // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
+                // immediately before flattening.
+                panic!(
+                    "Function {} has a jmpif with a constant condition {condition}",
+                    function.id()
+                );
+            }
+        }
+    });
+}
+
+/// Post-check condition for [Ssa::flatten_cfg].
+///
+/// Panics if:
+///   - Any `enable_side_effects u1 0` instructions exist.
+///
+/// Otherwise succeeds.
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_post_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        function.dfg[*block].instructions().iter().for_each(|instruction| {
+            if let Instruction::EnableSideEffectsIf { condition } = function.dfg[*instruction] {
+                if function.dfg.get_numeric_constant(condition).is_some_and(|c| c.is_zero()) {
+                    panic!(
+                        "Function {} has an enable_side_effects u1 0 instruction",
+                        function.id()
+                    );
+                }
+            }
+        });
+    });
 }
 
 pub(crate) struct Context<'f> {
@@ -1073,7 +1136,8 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> (ValueId, ValueId) {
         let index = !abscissa as usize;
-        if inputs[3 + index] == inputs[index] {
+        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
+            // Point doubling
             let predicated_value =
                 self.var_or(inputs[index], condition, generators[index], call_stack);
             (predicated_value, predicated_value)

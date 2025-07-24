@@ -4,7 +4,7 @@
 //! 2. Max value
 //! 3. Min value
 
-use crate::fuzz_lib::fuzz_target_lib::{FieldRepresentation, WitnessValue};
+use crate::fuzz_lib::function_context::{FieldRepresentation, WitnessValue};
 use crate::mutations::configuration::{
     BASIC_WITNESS_MUTATION_CONFIGURATION, WitnessMutationOptions,
 };
@@ -141,16 +141,16 @@ impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
     }
 }
 
-pub(crate) fn witness_mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
+pub(crate) fn mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
     match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
         WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),
         WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(rng, witness_value),
         WitnessMutationOptions::MinValue => MinValueMutation::mutate(rng, witness_value),
         WitnessMutationOptions::SmallAddSub => {
-            WitnessSmallAddSubMutation::mutate(rng, witness_value)
+            WitnessSmallAddSubMutation::mutate(rng, witness_value);
         }
         WitnessMutationOptions::PowerOfTwoAddSub => {
-            WitnessAddSubPowerOfTwoMutation::mutate(rng, witness_value)
+            WitnessAddSubPowerOfTwoMutation::mutate(rng, witness_value);
         }
     }
 }
