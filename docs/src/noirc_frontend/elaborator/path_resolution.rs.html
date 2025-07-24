@@ -900,7 +900,11 @@
 <a href="#899" id="899">899</a>
 <a href="#900" id="900">900</a>
 <a href="#901" id="901">901</a>
-<a href="#902" id="902">902</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{Ident, PathKind};
@@ -1370,7 +1374,11 @@
             });
         }
 
-        <span class="kw">let </span>plain_or_crate = <span class="macro">matches!</span>(path.kind, PathKind::Plain | PathKind::Crate);
+        <span class="kw">let </span>first_segment_is_always_visible = <span class="kw">match </span>path.kind {
+            PathKind::Crate =&gt; <span class="bool-val">true</span>,
+            PathKind::Plain =&gt; importing_module == starting_module,
+            PathKind::Dep | PathKind::Super | PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        };
 
         <span class="comment">// The current module and module ID as we resolve path segments
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
@@ -1453,7 +1461,7 @@
 
             <span class="comment">// If the path is plain or crate, the first segment will always refer to
             // something that's visible from the current module.
-            </span><span class="kw">if </span>!((plain_or_crate &amp;&amp; index == <span class="number">0</span>)
+            </span><span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
                 || item_in_module_is_visible(
                     <span class="self">self</span>.def_maps,
                     importing_module,

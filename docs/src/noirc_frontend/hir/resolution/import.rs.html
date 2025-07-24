@@ -430,7 +430,9 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -757,7 +759,11 @@
             });
         }
 
-        <span class="kw">let </span>plain_or_crate = <span class="macro">matches!</span>(path.kind, PathKind::Plain | PathKind::Crate);
+        <span class="kw">let </span>first_segment_is_always_visible = <span class="kw">match </span>path.kind {
+            PathKind::Crate =&gt; <span class="bool-val">true</span>,
+            PathKind::Plain =&gt; <span class="self">self</span>.importing_module == starting_module,
+            PathKind::Dep | PathKind::Super | PathKind::Resolved(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        };
 
         <span class="comment">// The current module and module ID as we resolve path segments
         </span><span class="kw">let </span><span class="kw-2">mut </span>current_module_id = starting_module;
@@ -809,9 +815,7 @@
                 ModuleDefId::GlobalId(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"globals cannot be in the type namespace"</span>),
             };
 
-            <span class="comment">// If the path is plain or crate, the first segment will always refer to
-            // something that's visible from the current module.
-            </span><span class="kw">if </span>!((plain_or_crate &amp;&amp; index == <span class="number">0</span>)
+            <span class="kw">if </span>!((first_segment_is_always_visible &amp;&amp; index == <span class="number">0</span>)
                 || <span class="self">self</span>.item_in_module_is_visible(current_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
