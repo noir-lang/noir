@@ -25,10 +25,10 @@ impl SpannedToken {
 /// Token types used in the ACIR text format.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Token {
-    /// Identifier such as `current`, `EXPR`, etc.
+    /// Identifier such as `RANGE`, `AND`, etc.
     Ident(String),
     /// Reserved identifiers such as `EXPR`.
-    /// All words in ACIR's human readable are expected to be keywords
+    /// Most words in ACIR's human readable are expected to be keywords
     Keyword(Keyword),
     /// Witness index, like `_42`
     Witness(u32),
