@@ -11,7 +11,7 @@ fn main() {
 
 fn store_through_outer_pointer() -> bool {
     let a: &mut ((bool,),) = &mut ((false,),);
-    let b: &mut bool = a.0.0;
+    let b: &mut bool = &mut a.0.0;
     *(a) = ((true,),);
     println(*b);
     *b
@@ -19,7 +19,7 @@ fn store_through_outer_pointer() -> bool {
 
 fn store_through_middle_pointer() -> bool {
     let a: &mut ((bool,),) = &mut ((false,),);
-    let b: &mut bool = a.0.0;
+    let b: &mut bool = &mut a.0.0;
     a.0 = (true,);
     println(*b);
     *b
