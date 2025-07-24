@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753371850606,
+  "lastUpdate": 1753371859342,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9592,80 +9592,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f8aa7c1c04a943b4f5a94325881c2cbb300a487e",
-          "message": "chore: Switch to `protoc_bin_vendored` (#9209)",
-          "timestamp": "2025-07-15T12:59:41Z",
-          "tree_id": "854aaf2230a2545921084bdb210e8f770bf1220e",
-          "url": "https://github.com/noir-lang/noir/commit/f8aa7c1c04a943b4f5a94325881c2cbb300a487e"
-        },
-        "date": 1752587201210,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 237.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.15,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.24,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.15,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -12605,6 +12531,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 54.83,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "edd42f89acbfe5682123acecc490ea5e4d7ac226",
+          "message": "fix: Make Ssa-gen use existing reference when compiling `&mut foo.bar.baz` (#9307)",
+          "timestamp": "2025-07-24T15:14:44Z",
+          "tree_id": "165e1e1c667f2cbd4c3b680535ce661e9a11556b",
+          "url": "https://github.com/noir-lang/noir/commit/edd42f89acbfe5682123acecc490ea5e4d7ac226"
+        },
+        "date": 1753371842302,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.31,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.8,
             "unit": "MB"
           }
         ]
