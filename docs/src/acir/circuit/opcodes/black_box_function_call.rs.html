@@ -763,7 +763,12 @@
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a></pre></div><pre class="rust"><code><span class="doccomment">//! Black box functions are ACIR opcodes which rely on backends implementing
 //! support for specialized constraints.
 //! This makes certain zk-snark unfriendly computations cheaper than if they were
 //! implemented in more basic constraints.
@@ -1142,14 +1147,19 @@
 <span class="kw">impl</span>&lt;F: Copy&gt; BlackBoxFuncCall&lt;F&gt; {
     <span class="kw">pub fn </span>get_inputs_vec(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;FunctionInput&lt;F&gt;&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            BlackBoxFuncCall::AES128Encrypt { inputs, .. }
-            | BlackBoxFuncCall::Blake2s { inputs, .. }
+            BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } =&gt; inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } =&gt; inputs.to_vec(),
-
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>all_inputs: Vec&lt;FunctionInput&lt;F&gt;&gt; =
+                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
+                all_inputs.extend(<span class="kw-2">**</span>iv);
+                all_inputs.extend(<span class="kw-2">**</span>key);
+                all_inputs
+            }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } =&gt; {
                 inputs.iter().chain(hash_values.as_ref()).copied().collect()
             }
