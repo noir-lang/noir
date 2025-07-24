@@ -311,27 +311,10 @@ pub fn decode_printable_value<F: AcirField>(
                 .expect("not enough data to decode variable array length")
                 .to_u128() as usize;
 
-            let flattened_capacity = field_iterator
-                .next()
-                .expect("expected slice to have at least 1 field for capacity")
-                .to_u128() as usize;
-
-            // Capacity is in terms of flattened members. To figure out how many items are
-            // in the slice, we have to divide that with how wide the type is.
-            let capacity = match printable_type_width(typ) {
-                0 => length,
-                n => flattened_capacity / n,
-            };
-
             let mut array_elements = Vec::with_capacity(length);
 
             for _ in 0..length {
                 array_elements.push(decode_printable_value(field_iterator, typ));
-            }
-
-            // Consume padding.
-            for _ in length..capacity {
-                let _ = decode_printable_value(field_iterator, typ);
             }
 
             PrintableValue::Vec { array_elements, is_slice: true }
@@ -378,36 +361,6 @@ pub fn decode_printable_value<F: AcirField>(
                 }),
                 is_slice: false,
             }
-        }
-    }
-}
-
-/// Return the number of "members" a type has, or how "wide" it is when it's stored in a slice.
-///
-/// For example a `[(u128, str<3>, [(u32, bool); 2])]` slice with 2 items is represented by
-/// an array of 16 fields, while the capacity of the slice is 6. That's because the tuple in
-/// the slice has 3 fields, and we have 2 tuples, which needs 6 "slots" in memory.
-fn printable_type_width(typ: &PrintableType) -> usize {
-    match typ {
-        // Primitive types take 1 space
-        PrintableType::Field
-        | PrintableType::SignedInteger { .. }
-        | PrintableType::UnsignedInteger { .. }
-        | PrintableType::Boolean => 1,
-        // Vector types also take 1 space, because they are represented by pointers in memory
-        PrintableType::Array { .. }
-        | PrintableType::Slice { .. }
-        | PrintableType::String { .. } => 1,
-        // Tuples and structs are flattened.
-        PrintableType::Tuple { types } => types.iter().map(printable_type_width).sum(),
-        PrintableType::Struct { fields, .. } => {
-            fields.iter().map(|(_, typ)| printable_type_width(typ)).sum()
-        }
-        PrintableType::Function { env, .. } => printable_type_width(env),
-        PrintableType::Reference { typ, .. } => printable_type_width(typ),
-        PrintableType::Unit => 0,
-        PrintableType::Enum { .. } => {
-            panic!("don't know how to calculate a static type length for an enum")
         }
     }
 }
