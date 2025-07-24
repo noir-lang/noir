@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753365701599,
+  "lastUpdate": 1753370364477,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17146,48 +17146,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "435012ddc9a4a48c69db474e539f6c2dc25f438f",
-          "message": "chore: enforce `clippy::uninlined_format_args` (#9186)",
-          "timestamp": "2025-07-15T10:26:01+01:00",
-          "tree_id": "8853643ada5f9bbd7f8c0184de1bac1f0b3cf265",
-          "url": "https://github.com/noir-lang/noir/commit/435012ddc9a4a48c69db474e539f6c2dc25f438f"
-        },
-        "date": 1752571789522,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252063,
-            "range": "± 342",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223604,
-            "range": "± 2162",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783460,
-            "range": "± 5863",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b33131574388d836341cea9b6380f3b1a8493eb8",
           "message": "chore: track number of opcodes in benchmarks (#9196)",
           "timestamp": "2025-07-15T10:27:45+01:00",
@@ -19229,6 +19187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787378,
             "range": "± 1879",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8d8dba46e2bd3788b67dcd785c94c17631de1b9c",
+          "message": "fix(ssa-interpreter): Return error if slice length is 0 during popping (#9308)",
+          "timestamp": "2025-07-24T14:52:48Z",
+          "tree_id": "78551bfe55f8a3977d8bc13a161cfbf0198b6851",
+          "url": "https://github.com/noir-lang/noir/commit/8d8dba46e2bd3788b67dcd785c94c17631de1b9c"
+        },
+        "date": 1753370348426,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253768,
+            "range": "± 1076",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221861,
+            "range": "± 3530",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2797229,
+            "range": "± 8083",
             "unit": "ns/iter"
           }
         ]
