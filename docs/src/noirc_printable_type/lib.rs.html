@@ -529,7 +529,42 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#531" id="531">531</a>
+<a href="#532" id="532">532</a>
+<a href="#533" id="533">533</a>
+<a href="#534" id="534">534</a>
+<a href="#535" id="535">535</a>
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a>
+<a href="#542" id="542">542</a>
+<a href="#543" id="543">543</a>
+<a href="#544" id="544">544</a>
+<a href="#545" id="545">545</a>
+<a href="#546" id="546">546</a>
+<a href="#547" id="547">547</a>
+<a href="#548" id="548">548</a>
+<a href="#549" id="549">549</a>
+<a href="#550" id="550">550</a>
+<a href="#551" id="551">551</a>
+<a href="#552" id="552">552</a>
+<a href="#553" id="553">553</a>
+<a href="#554" id="554">554</a>
+<a href="#555" id="555">555</a>
+<a href="#556" id="556">556</a>
+<a href="#557" id="557">557</a>
+<a href="#558" id="558">558</a>
+<a href="#559" id="559">559</a>
+<a href="#560" id="560">560</a>
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -573,6 +608,10 @@
     String {
         length: u32,
     },
+    FmtString {
+        length: u32,
+        typ: Box&lt;PrintableType&gt;,
+    },
     Function {
         arguments: Vec&lt;PrintableType&gt;,
         return_type: Box&lt;PrintableType&gt;,
@@ -593,6 +632,7 @@
 </span><span class="kw">pub enum </span>PrintableValue&lt;F&gt; {
     Field(F),
     String(String),
+    FmtString(String, Vec&lt;PrintableValue&lt;F&gt;&gt;),
     Vec { array_elements: Vec&lt;PrintableValue&lt;F&gt;&gt;, is_slice: bool },
     Struct(BTreeMap&lt;String, PrintableValue&lt;F&gt;&gt;),
     Other,
@@ -688,6 +728,15 @@
 
         (PrintableValue::String(s), PrintableType::String { .. }) =&gt; {
             output.push_str(s);
+        }
+
+        (PrintableValue::FmtString(template, values), PrintableType::FmtString { typ, .. }) =&gt; {
+            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
+                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
+            };
+            <span class="kw">let </span>template = template.to_string();
+            <span class="kw">let </span>args = values.iter().cloned().zip(types.iter().cloned()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            output.push_str(<span class="kw-2">&amp;</span>PrintableValueDisplay::FmtString(template, args).to_string());
         }
 
         (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) =&gt; {
@@ -850,8 +899,29 @@
         },
         PrintableType::String { length } =&gt; {
             <span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
+            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
+            PrintableValue::String(string)
+        }
+        PrintableType::FmtString { length, typ } =&gt; {
+            <span class="comment">// First comes the template string, for which we know its length
+            </span><span class="kw">let </span>field_elements: Vec&lt;F&gt; = field_iterator.take(<span class="kw-2">*</span>length <span class="kw">as </span>usize).collect();
+            <span class="kw">let </span>string = decode_string_value(<span class="kw-2">&amp;</span>field_elements);
 
-            PrintableValue::String(decode_string_value(<span class="kw-2">&amp;</span>field_elements))
+            <span class="comment">// Next comes the number of interpolated values
+            </span><span class="kw">let </span>tuple_length =
+                field_iterator.next().expect(<span class="string">"Expected tuple length"</span>).to_u128() <span class="kw">as </span>usize;
+            <span class="kw">let </span>PrintableType::Tuple { types } = typ.as_ref() <span class="kw">else </span>{
+                <span class="macro">panic!</span>(<span class="string">"Expected type to be a Tuple for FmtString"</span>);
+            };
+            <span class="macro">assert_eq!</span>(tuple_length, types.len());
+
+            <span class="comment">// Next come the interpolated values
+            </span><span class="kw">let </span>values = types
+                .iter()
+                .map(|typ| decode_printable_value(field_iterator, typ))
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+
+            PrintableValue::FmtString(string, values)
         }
         PrintableType::Struct { fields, .. } =&gt; {
             <span class="kw">let </span><span class="kw-2">mut </span>struct_map = BTreeMap::new();
