@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753388367378,
+  "lastUpdate": 1753388406763,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9222,80 +9222,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d867e35628c265daf18bd8ceaa4e777dac51d67e",
-          "message": "fix: Allow unquote in numeric generic intro (#9213)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-16T10:34:25Z",
-          "tree_id": "7d3d0c49f2d3fb834e1f09300f940f31a80a292e",
-          "url": "https://github.com/noir-lang/noir/commit/d867e35628c265daf18bd8ceaa4e777dac51d67e"
-        },
-        "date": 1752664401738,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 237.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.13,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.24,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.15,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.5,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -12105,6 +12031,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/5be4e927df0249c66fa5e6c1686f0b30cea5c25f"
         },
         "date": 1753387194567,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.31,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.8,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "42429ab17ac240f924754340b2d55d97b056d00e",
+          "message": "fix: allow nested fmtstr (#9309)",
+          "timestamp": "2025-07-24T19:50:38Z",
+          "tree_id": "eef2ee8f328460e75cddc2360aa22de358609603",
+          "url": "https://github.com/noir-lang/noir/commit/42429ab17ac240f924754340b2d55d97b056d00e"
+        },
+        "date": 1753388390372,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
