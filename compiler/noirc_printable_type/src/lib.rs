@@ -492,7 +492,7 @@ mod tests {
 
     use proptest::prelude::*;
 
-    use crate::{printable_type_width, to_string};
+    use crate::to_string;
 
     use super::{PrintableType, PrintableValue, PrintableValueDisplay};
 
@@ -550,26 +550,6 @@ mod tests {
         let typ = PrintableType::Tuple { types: vec![PrintableType::Field, PrintableType::Field] };
         let string = to_string(&value, &typ);
         assert_eq!(string.unwrap(), "(0x01, 0x02)");
-    }
-
-    #[test]
-    fn printable_type_width_example() {
-        let typ = PrintableType::Tuple {
-            types: vec![
-                PrintableType::Field,
-                PrintableType::String { length: 3 },
-                PrintableType::Array {
-                    length: 2,
-                    typ: Box::new(PrintableType::Tuple {
-                        types: vec![
-                            PrintableType::UnsignedInteger { width: 32 },
-                            PrintableType::Boolean,
-                        ],
-                    }),
-                },
-            ],
-        };
-        assert_eq!(printable_type_width(&typ), 3);
     }
 
     proptest! {
