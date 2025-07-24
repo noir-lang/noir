@@ -32,7 +32,7 @@ impl From<u8> for u16 {
     fn from(value: u8) -> u16 {
         value as u16
     }
-} 
+}
 
 impl From<u8> for u32 {
     fn from(value: u8) -> u32 {
@@ -44,7 +44,7 @@ impl From<u16> for u32 {
     fn from(value: u16) -> u32 {
         value as u32
     }
-} 
+}
 
 impl From<u8> for u64 {
     fn from(value: u8) -> u64 {
