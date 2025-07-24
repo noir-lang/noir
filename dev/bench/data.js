@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753370364477,
+  "lastUpdate": 1753370448415,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17136,48 +17136,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b33131574388d836341cea9b6380f3b1a8493eb8",
-          "message": "chore: track number of opcodes in benchmarks (#9196)",
-          "timestamp": "2025-07-15T10:27:45+01:00",
-          "tree_id": "ef9cc2940d8fe33804043aac18ad8f63ff007de7",
-          "url": "https://github.com/noir-lang/noir/commit/b33131574388d836341cea9b6380f3b1a8493eb8"
-        },
-        "date": 1752572433701,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263407,
-            "range": "± 1536",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 235756,
-            "range": "± 8768",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786129,
-            "range": "± 2978",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -19229,6 +19187,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2797229,
             "range": "± 8083",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4609eb2930ea9af40de494f38035c15fb48dd66b",
+          "message": "fix: top-level item in dependency isn't always visible (#9295)",
+          "timestamp": "2025-07-24T14:55:16Z",
+          "tree_id": "edd620b1fa7567c8e4adcf89d64ae471e9241de4",
+          "url": "https://github.com/noir-lang/noir/commit/4609eb2930ea9af40de494f38035c15fb48dd66b"
+        },
+        "date": 1753370431600,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248618,
+            "range": "± 956",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219426,
+            "range": "± 5116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785391,
+            "range": "± 12671",
             "unit": "ns/iter"
           }
         ]
