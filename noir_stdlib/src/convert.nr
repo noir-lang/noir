@@ -53,7 +53,7 @@ impl From<u8> for u64 {
 }
 
 impl From<u16> for u64 {
-    fn from(value: u8) -> u64 {
+    fn from(value: u16) -> u64 {
         value as u64
     }
 }
