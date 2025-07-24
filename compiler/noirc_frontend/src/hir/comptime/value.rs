@@ -724,13 +724,13 @@ impl Value {
     /// changed when moving them.
     pub(crate) fn move_struct(self) -> Value {
         match self {
-            Value::Tuple(fields) => {
-                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().move_struct())))
-            }
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
+                Shared::new(field.unwrap_or_clone().move_struct())
+            })),
             Value::Struct(fields, typ) => {
-                let fields = fields
-                    .into_iter()
-                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().move_struct())));
+                let fields = fields.into_iter().map(|(name, field)| {
+                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                });
                 Value::Struct(fields.collect(), typ)
             }
             other => other,
