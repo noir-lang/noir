@@ -9,7 +9,7 @@ use pprof::criterion::{Output, PProfProfiler};
 fn bench_poseidon2(c: &mut Criterion) {
     let inputs = [FieldElement::zero(); 4];
 
-    c.bench_function("poseidon2", |b| b.iter(|| poseidon2_permutation(black_box(&inputs), 4)));
+    c.bench_function("poseidon2", |b| b.iter(|| poseidon2_permutation(black_box(&inputs))));
 }
 
 criterion_group!(

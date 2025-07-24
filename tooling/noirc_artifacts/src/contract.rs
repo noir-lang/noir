@@ -1,4 +1,7 @@
-use acvm::{FieldElement, acir::circuit::Program};
+use acvm::{
+    FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
+};
 use noirc_abi::{Abi, AbiType, AbiValue};
 use noirc_driver::{CompiledContract, CompiledContractOutputs, CompiledProgram, ContractFunction};
 use serde::{Deserialize, Serialize};
@@ -87,9 +90,8 @@ pub struct ContractFunctionArtifact {
         deserialize_with = "ProgramDebugInfo::deserialize_compressed_base64_json"
     )]
     pub debug_symbols: ProgramDebugInfo,
-    #[serde(default)] // For backwards compatibility (it was missing).
-    pub names: Vec<String>,
-    pub brillig_names: Vec<String>,
+    /// Maximum width of the expressions which will be constrained
+    pub expression_width: ExpressionWidth,
 }
 
 impl ContractFunctionArtifact {
@@ -106,8 +108,7 @@ impl ContractFunctionArtifact {
             debug: self.debug_symbols.debug_infos,
             file_map,
             warnings: Vec::new(),
-            names: self.names,
-            brillig_names: self.brillig_names,
+            expression_width: self.expression_width,
         }
     }
 }
@@ -121,9 +122,8 @@ impl From<ContractFunction> for ContractFunctionArtifact {
             custom_attributes: func.custom_attributes,
             abi: func.abi,
             bytecode: func.bytecode,
-            names: func.names,
-            brillig_names: func.brillig_names,
             debug_symbols: ProgramDebugInfo { debug_infos: func.debug },
+            expression_width: func.expression_width,
         }
     }
 }

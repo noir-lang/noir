@@ -56,7 +56,7 @@ pub enum BlackBoxOp {
     BigIntToLeBytes { input: MemoryAddress, output: HeapVector },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
-    Poseidon2Permutation { message: HeapVector, output: HeapArray, len: MemoryAddress },
+    Poseidon2Permutation { message: HeapVector, output: HeapArray },
     /// Applies the SHA-256 compression function to the input message
     Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     /// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.

@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use acvm::{FieldElement, acir::circuit::Program};
+use acvm::{
+    FieldElement,
+    acir::circuit::{ExpressionWidth, Program},
+};
 use fm::FileId;
 
 use noirc_errors::debug_info::DebugInfo;
@@ -27,8 +30,6 @@ pub struct CompiledProgram {
     pub debug: Vec<DebugInfo>,
     pub file_map: BTreeMap<FileId, DebugFile>,
     pub warnings: Vec<SsaReport>,
-    /// Names of the functions in the program. These are used for more informative debugging and benchmarking.
-    pub names: Vec<String>,
-    /// Names of the unconstrained functions in the program.
-    pub brillig_names: Vec<String>,
+    /// Maximum width of the expressions which will be constrained
+    pub expression_width: ExpressionWidth,
 }

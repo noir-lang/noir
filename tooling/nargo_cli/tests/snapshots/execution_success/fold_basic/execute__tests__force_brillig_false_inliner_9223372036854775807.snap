@@ -51,11 +51,9 @@ expression: artifact
       "path": ""
     }
   },
-  "names": [
-    "main",
-    "foo"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }
