@@ -800,7 +800,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                         }
                         _ => array_value.elements.borrow().len(),
                     };
-                    go(array_value.elements.borrow().iter().take(length), fields)
+                    go(array_value.elements.borrow().iter().take(length), fields);
                 }
                 Value::Function(id) => {
                     // Based on `decode_printable_value` it will expect consume the environment as well,
