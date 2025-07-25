@@ -36,7 +36,7 @@ pub(super) fn display_quoted(
         writeln!(f, "quote {{")?;
         let indent = indent + 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
-        TokensPrettyPrinter { tokens, interner, indent }.fmt(f)?;
+        TokensPrettyPrinter { tokens, interner, indent, preserve_unquote_markers: false }.fmt(f)?;
         writeln!(f)?;
         let indent = indent - 1;
         write!(f, "{}", " ".repeat(indent * 4))?;
@@ -48,11 +48,13 @@ struct TokensPrettyPrinter<'tokens, 'interner> {
     tokens: &'tokens [LocatedToken],
     interner: &'interner NodeInterner,
     indent: usize,
+    preserve_unquote_markers: bool,
 }
 
 impl Display for TokensPrettyPrinter<'_, '_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut token_printer = TokenPrettyPrinter::new(self.interner, self.indent);
+        let mut token_printer =
+            TokenPrettyPrinter::new(self.interner, self.indent, self.preserve_unquote_markers);
         for token in self.tokens {
             token_printer.print(token.token(), f)?;
         }
@@ -65,15 +67,16 @@ impl Display for TokensPrettyPrinter<'_, '_> {
 }
 
 pub fn tokens_to_string(tokens: &[LocatedToken], interner: &NodeInterner) -> String {
-    tokens_to_string_with_indent(tokens, 0, interner)
+    tokens_to_string_with_indent(tokens, 0, false, interner)
 }
 
 pub fn tokens_to_string_with_indent(
     tokens: &[LocatedToken],
     indent: usize,
+    preserve_unquote_markers: bool,
     interner: &NodeInterner,
 ) -> String {
-    TokensPrettyPrinter { tokens, interner, indent }.to_string()
+    TokensPrettyPrinter { tokens, interner, indent, preserve_unquote_markers }.to_string()
 }
 
 /// Tries to print tokens in a way that it'll be easier for the user to understand a
@@ -95,6 +98,7 @@ pub fn tokens_to_string_with_indent(
 struct TokenPrettyPrinter<'interner> {
     interner: &'interner NodeInterner,
     indent: usize,
+    preserve_unquote_markers: bool,
     /// Determines whether the last outputted byte was alphanumeric.
     /// This is used to add a space after the last token and before another token
     /// that starts with an alphanumeric byte.
@@ -105,10 +109,15 @@ struct TokenPrettyPrinter<'interner> {
 }
 
 impl<'interner> TokenPrettyPrinter<'interner> {
-    fn new(interner: &'interner NodeInterner, indent: usize) -> Self {
+    fn new(
+        interner: &'interner NodeInterner,
+        indent: usize,
+        preserve_unquote_markers: bool,
+    ) -> Self {
         Self {
             interner,
             indent,
+            preserve_unquote_markers,
             last_was_alphanumeric: false,
             last_was_right_brace: false,
             last_was_semicolon: false,
@@ -207,6 +216,9 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             }
             Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
+                if self.preserve_unquote_markers {
+                    write!(f, "$")?;
+                }
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
                 self.print_value(&value, last_was_alphanumeric, f)
             }

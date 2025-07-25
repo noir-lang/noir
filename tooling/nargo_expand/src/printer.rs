@@ -1145,7 +1145,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
     fn show_quoted(&mut self, tokens: &[LocatedToken]) {
         self.push_str("quote {");
-        let string = tokens_to_string_with_indent(tokens, self.indent + 1, self.interner);
+        let preserve_unquote_markers = true;
+        let string = tokens_to_string_with_indent(
+            tokens,
+            self.indent + 1,
+            preserve_unquote_markers,
+            self.interner,
+        );
         if string.contains('\n') {
             self.push('\n');
             self.increase_indent();
