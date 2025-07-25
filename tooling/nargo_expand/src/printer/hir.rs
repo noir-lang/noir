@@ -5,11 +5,11 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
+            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind, TraitItem,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     token::FmtStrFragment,
 };
 
@@ -387,8 +387,8 @@ impl ItemPrinter<'_, '_> {
         };
 
         // Special case: assumed trait method
-        if let ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
-            if trait_method.assumed {
+        if let ImplKind::TraitItem(trait_method) = &hir_ident.impl_kind {
+            let show_as_trait_as_path = if trait_method.assumed {
                 // Is this `self.foo()` where `self` is currently a trait?
                 // If so, show it as `self.foo()` instead of `Self::foo(self)`.
                 let method_on_trait_self =
@@ -399,33 +399,21 @@ impl ItemPrinter<'_, '_> {
                     } else {
                         false
                     };
-
-                if !method_on_trait_self {
-                    let trait_id = trait_method.constraint.trait_bound.trait_id;
-                    let module_data =
-                        &self.def_maps[&self.module_id.krate][self.module_id.local_id];
-                    if module_data.find_trait_in_scope(trait_id).is_none() {
-                        // It can happen that the trait is not in scope, for example if this call
-                        // was generated via macros using `get_trait_impl -> methods`.
-                        self.push('<');
-                        self.show_type(&trait_method.constraint.typ);
-                        self.push_str(" as ");
-                        self.show_trait_bound(&trait_method.constraint.trait_bound);
-                        self.push('>');
-                    } else {
-                        self.show_type(&trait_method.constraint.typ);
-                    }
-                    self.push_str("::");
-                    self.push_str(self.interner.function_name(&func_id));
-                    if let Some(generics) = generics {
-                        let use_colons = true;
-                        self.show_generic_types(&generics, use_colons);
-                    }
-                    self.push('(');
-                    self.show_hir_expression_ids_separated_by_comma(arguments);
-                    self.push(')');
-                    return true;
-                }
+                !method_on_trait_self
+            } else {
+                let trait_id = trait_method.constraint.trait_bound.trait_id;
+                let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                module_data.find_trait_in_scope(trait_id).is_none()
+            };
+            if show_as_trait_as_path {
+                self.show_hir_call_as_trait_as_path(
+                    hir_call_expression,
+                    arguments,
+                    generics,
+                    func_id,
+                    trait_method,
+                );
+                return true;
             }
         }
 
@@ -471,6 +459,43 @@ impl ItemPrinter<'_, '_> {
         self.push(')');
 
         true
+    }
+
+    fn show_hir_call_as_trait_as_path(
+        &mut self,
+        hir_call_expression: &HirCallExpression,
+        arguments: &[ExprId],
+        generics: Option<Vec<Type>>,
+        func_id: FuncId,
+        trait_method: &TraitItem,
+    ) {
+        let instantiation_bindings =
+            self.interner.get_instantiation_bindings(hir_call_expression.func);
+        let mut constraint = trait_method.constraint.clone();
+        constraint.apply_bindings(instantiation_bindings);
+
+        let trait_id = trait_method.constraint.trait_bound.trait_id;
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+        if module_data.find_trait_in_scope(trait_id).is_none() {
+            // It can happen that the trait is not in scope, for example if this call
+            // was generated via macros using `get_trait_impl -> methods`.
+            self.push('<');
+            self.show_type(&constraint.typ);
+            self.push_str(" as ");
+            self.show_trait_bound(&constraint.trait_bound);
+            self.push('>');
+        } else {
+            self.show_type(&constraint.typ);
+        }
+        self.push_str("::");
+        self.push_str(self.interner.function_name(&func_id));
+        if let Some(generics) = generics {
+            let use_colons = true;
+            self.show_generic_types(&generics, use_colons);
+        }
+        self.push('(');
+        self.show_hir_expression_ids_separated_by_comma(arguments);
+        self.push(')');
     }
 
     fn show_hir_block_expression(&mut self, block: HirBlockExpression) {
