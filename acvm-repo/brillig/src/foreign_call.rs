@@ -1,7 +1,7 @@
 use acir_field::AcirField;
 use serde::{Deserialize, Serialize};
 
-/// Single output of a [foreign call][crate::Opcode::ForeignCall].
+/// Single input or output of a [foreign call][crate::Opcode::ForeignCall].
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum ForeignCallParam<F> {
@@ -22,6 +22,7 @@ impl<F> From<Vec<F>> for ForeignCallParam<F> {
 }
 
 impl<F: AcirField> ForeignCallParam<F> {
+    /// Convert the fields in the parameter into a vector, used to flatten data.
     pub fn fields(&self) -> Vec<F> {
         match self {
             ForeignCallParam::Single(value) => vec![*value],

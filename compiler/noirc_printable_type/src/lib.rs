@@ -292,7 +292,7 @@ pub fn format_field_string<F: AcirField>(field: F) -> String {
     "0x".to_owned() + &trimmed_field
 }
 
-/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
+/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
 pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
@@ -302,13 +302,14 @@ pub fn decode_printable_value<F: AcirField>(
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean => {
-            let field_element = field_iterator.next().unwrap();
+            let field_element = field_iterator.next().expect("not enough data: expected bool");
 
             PrintableValue::Field(field_element)
         }
         PrintableType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
+
             for _ in 0..length {
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
@@ -316,11 +317,12 @@ pub fn decode_printable_value<F: AcirField>(
             PrintableValue::Vec { array_elements, is_slice: false }
         }
         PrintableType::Slice { typ } => {
-            let length = field_iterator
-                .next()
-                .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
+            let length =
+                field_iterator.next().expect("not enough data: expected slice length").to_u128()
+                    as usize;
+
             let mut array_elements = Vec::with_capacity(length);
+
             for _ in 0..length {
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
@@ -371,7 +373,7 @@ pub fn decode_printable_value<F: AcirField>(
         PrintableType::Function { env, .. } => {
             // we want to consume the fields from the environment, but for now they are not actually printed
             let _env = decode_printable_value(field_iterator, env);
-            let func_id = field_iterator.next().unwrap();
+            let func_id = field_iterator.next().expect("not enough data: expected function ID");
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
@@ -380,7 +382,7 @@ pub fn decode_printable_value<F: AcirField>(
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
-            let tag = field_iterator.next().unwrap();
+            let tag = field_iterator.next().expect("not enough data: expected enum tag");
             let tag_value = tag.to_u128() as usize;
 
             let (_name, variant_types) = &variants[tag_value];
@@ -412,6 +414,16 @@ pub enum TryFromParamsError {
 }
 
 impl<F: AcirField> PrintableValueDisplay<F> {
+    /// Decode the print parameters after the first _newline_ flag has already been split.
+    ///
+    /// The last parameter is expected to be the flag indicating whether we are dealing
+    /// with a format string.
+    ///
+    /// We expect at least 3 arguments (tuples are passed as multiple values):
+    /// * normal: value.0, ..., value.i, meta, false
+    /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+    ///
+    /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
     pub fn try_from_params(
         foreign_call_inputs: &[ForeignCallParam<F>],
     ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -426,6 +438,19 @@ impl<F: AcirField> PrintableValueDisplay<F> {
     }
 }
 
+/// Flatten input parameters into a field vector.
+///
+/// Slices are expected to have exactly as many elements as indicated by their corresponding length,
+/// with any extra elements pruned by the caller already.
+fn flatten_inputs<F: AcirField>(input_values: &[ForeignCallParam<F>]) -> impl Iterator<Item = F> {
+    input_values.iter().flat_map(|param| param.fields())
+}
+
+/// Decode parameters for a normal call, without format string.
+///
+/// It will have a single meta descriptor:
+///
+/// value.0, ..., value.i, meta
 fn convert_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -433,16 +458,22 @@ fn convert_string_inputs<F: AcirField>(
     // The remaining input values should hold what is to be printed
     let (printable_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)?;
+
     let printable_type = fetch_printable_type(printable_type_as_values)?;
 
     // We must use a flat map here as each value in a struct will be in a separate input value
-    let mut input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
+    let mut input_values_as_fields = flatten_inputs(input_values);
 
     let value = decode_printable_value(&mut input_values_as_fields, &printable_type);
 
     Ok(PrintableValueDisplay::Plain(value, printable_type))
 }
 
+/// Decode parameters for a call with format string.
+///
+/// It will have the format message, followed by the number of arguments, and their values:
+///
+/// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
 fn convert_fmt_string_inputs<F: AcirField>(
     foreign_call_inputs: &[ForeignCallParam<F>],
 ) -> Result<PrintableValueDisplay<F>, TryFromParamsError> {
@@ -461,8 +492,8 @@ fn convert_fmt_string_inputs<F: AcirField>(
 
     let types_start_at = input_and_printable_types.len() - num_values;
 
-    let mut input_iter =
-        input_and_printable_types[0..types_start_at].iter().flat_map(|param| param.fields());
+    let mut input_iter = flatten_inputs(&input_and_printable_types[0..types_start_at]);
+
     for printable_type in input_and_printable_types.iter().skip(types_start_at) {
         let printable_type = fetch_printable_type(printable_type)?;
         let value = decode_printable_value(&mut input_iter, &printable_type);
@@ -473,6 +504,7 @@ fn convert_fmt_string_inputs<F: AcirField>(
     Ok(PrintableValueDisplay::FmtString(message_as_string, output))
 }
 
+/// Decode the JSON type descriptor of the arguments passed to the print.
 fn fetch_printable_type<F: AcirField>(
     printable_type: &ForeignCallParam<F>,
 ) -> Result<PrintableType, TryFromParamsError> {
