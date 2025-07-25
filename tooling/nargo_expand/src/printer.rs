@@ -752,7 +752,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
     fn show_trait_bound(&mut self, bound: &ResolvedTraitBound) {
         let trait_ = self.interner.get_trait(bound.trait_id);
-        self.push_str(&trait_.name.to_string());
+        self.show_reference_to_module_def_id(
+            ModuleDefId::TraitId(trait_.id),
+            trait_.visibility,
+            true,
+        );
         self.show_trait_generics(&bound.trait_generics);
     }
 

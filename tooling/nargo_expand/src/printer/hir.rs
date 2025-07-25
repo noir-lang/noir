@@ -401,7 +401,20 @@ impl ItemPrinter<'_, '_> {
                     };
 
                 if !method_on_trait_self {
-                    self.show_type(&trait_method.constraint.typ);
+                    let trait_id = trait_method.constraint.trait_bound.trait_id;
+                    let module_data =
+                        &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                    if module_data.find_trait_in_scope(trait_id).is_none() {
+                        // It can happen that the trait is not in scope, for example if this call
+                        // was generated via macros using `get_trait_impl -> methods`.
+                        self.push('<');
+                        self.show_type(&trait_method.constraint.typ);
+                        self.push_str(" as ");
+                        self.show_trait_bound(&trait_method.constraint.trait_bound);
+                        self.push('>');
+                    } else {
+                        self.show_type(&trait_method.constraint.typ);
+                    }
                     self.push_str("::");
                     self.push_str(self.interner.function_name(&func_id));
                     if let Some(generics) = generics {
