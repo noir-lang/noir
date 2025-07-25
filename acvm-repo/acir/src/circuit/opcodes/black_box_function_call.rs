@@ -89,7 +89,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
                 write!(f, "({constant}, {})", self.num_bits)
             }
             ConstantOrWitnessEnum::Witness(witness) => {
-                write!(f, "(_{}, {})", witness.0, self.num_bits)
+                write!(f, "({}, {})", witness, self.num_bits)
             }
         }
     }

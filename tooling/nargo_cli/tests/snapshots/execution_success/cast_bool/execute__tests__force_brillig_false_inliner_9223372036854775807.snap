@@ -32,7 +32,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []",
     "EXPR [ (1, _0) (-1, _1) (-1, _2) 0 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 })], outputs: [Simple(Witness(3))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _2) 0 ]], outputs: [_3]",
     "EXPR [ (1, _2, _3) (1, _4) -1 ]",
     "EXPR [ (1, _2, _4) 0 ]",
     "EXPR [ (1, _4) -1 ]",

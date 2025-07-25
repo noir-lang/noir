@@ -30,7 +30,7 @@ expression: artifact
     "private parameters indices : []",
     "public parameters indices : []",
     "return value indices : [_0]",
-    "BRILLIG CALL func 0: inputs: [], outputs: [Simple(Witness(1))]",
+    "BRILLIG CALL func 0: inputs: [], outputs: [_1]",
     "BLACKBOX::RANGE [(_1, 1)] []",
     "EXPR [ (1, _0) 0 ]",
     "unconstrained func 0",

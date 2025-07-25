@@ -101,7 +101,7 @@ expression: artifact
     "EXPR [ (1, _2) -1 ]",
     "EXPR [ (1, _2) -1 ]",
     "EXPR [ (1, _0) (1, _1) -64 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 32 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 2 })], outputs: [Array([Witness(22), Witness(23), Witness(24), Witness(25), Witness(26), Witness(27), Witness(28), Witness(29), Witness(30), Witness(31), Witness(32), Witness(33), Witness(34), Witness(35), Witness(36), Witness(37), Witness(38), Witness(39), Witness(40), Witness(41), Witness(42), Witness(43), Witness(44), Witness(45), Witness(46), Witness(47), Witness(48), Witness(49), Witness(50), Witness(51), Witness(52), Witness(53)])]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 0 ], EXPR [ 32 ], EXPR [ 2 ]], outputs: [[_22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53]]",
     "BLACKBOX::RANGE [(_22, 1)] []",
     "BLACKBOX::RANGE [(_23, 1)] []",
     "BLACKBOX::RANGE [(_24, 1)] []",

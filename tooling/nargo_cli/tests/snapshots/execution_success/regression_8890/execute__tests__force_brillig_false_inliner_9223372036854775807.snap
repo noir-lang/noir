@@ -36,7 +36,7 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : [_1]",
     "return value indices : [_2]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (-1, Witness(1))], q_c: 0 })], outputs: [Simple(Witness(3))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]",
     "EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]",
     "EXPR [ (-1, _0) (1, _2) -2 ]",
     "unconstrained func 0",
