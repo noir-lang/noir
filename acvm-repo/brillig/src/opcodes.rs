@@ -84,6 +84,18 @@ impl HeapValueType {
     pub fn field() -> HeapValueType {
         HeapValueType::Simple(BitSize::Field)
     }
+
+    pub fn flattened_size(&self) -> usize {
+        match self {
+            HeapValueType::Simple(_) => 1,
+            HeapValueType::Array { value_types, size } => {
+                value_types.iter().map(|t| t.flattened_size()).sum::<usize>() * size
+            }
+            HeapValueType::Vector { value_types } => {
+                value_types.iter().map(|t| t.flattened_size()).sum()
+            }
+        }
+    }
 }
 
 /// A fixed-sized array starting from a Brillig memory location.
