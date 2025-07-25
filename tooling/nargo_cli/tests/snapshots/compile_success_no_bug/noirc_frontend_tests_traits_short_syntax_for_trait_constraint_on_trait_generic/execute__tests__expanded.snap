@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Other {
+    fn other(self) {
+        let _: Self = self;
+    }
+}
+
+pub trait Trait<T>
+where
+    T: Other,
+{
+    fn foo(x: T) {
+        x.other();
+    }
+}
+
+fn main() {}
