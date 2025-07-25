@@ -452,7 +452,34 @@ fn brillig_call() {
 }
 
 #[test]
+fn brillig_call_with_predicate() {
+    let src = "
+    current witness index : _2
+    private parameters indices : [_0, _1, _2]
+    public parameters indices : []
+    return value indices : []
+    BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
+    inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
+    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
+    EXPR [ (-1, _0) (1, _2) 0 ]
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
 fn call() {
+    let src = "
+    current witness index : _2
+    private parameters indices : [_0]
+    public parameters indices : [_1]
+    return value indices : []
+    CALL func 1: inputs: [_0, _1], outputs: [_2]
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
+fn call_with_predicate() {
     let src = "
     current witness index : _2
     private parameters indices : [_0]

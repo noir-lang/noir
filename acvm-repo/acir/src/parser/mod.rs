@@ -504,11 +504,7 @@ impl<'a> Parser<'a> {
     fn parse_memory_op(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryOp)?;
 
-        let mut predicate = None;
-        if self.eat_keyword(Keyword::Predicate)? && self.eat(Token::Colon)? {
-            let expr = self.parse_arithmetic_expression()?;
-            predicate = Some(expr);
-        }
+        let predicate = self.eat_predicate()?;
 
         self.eat_or_error(Token::LeftParen)?;
 
@@ -608,12 +604,7 @@ impl<'a> Parser<'a> {
         let func_id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
 
-        // Optional predicate
-        let mut predicate = None;
-        if self.eat_keyword(Keyword::Predicate)? {
-            self.eat_or_error(Token::Colon)?;
-            predicate = Some(self.parse_arithmetic_expression()?);
-        }
+        let predicate = self.eat_predicate()?;
 
         // Parse inputs
         self.eat_expected_ident("inputs")?;
@@ -706,11 +697,7 @@ impl<'a> Parser<'a> {
         self.eat_expected_ident("func")?;
         let id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
-        let mut predicate = None;
-        if self.eat_keyword(Keyword::Predicate)? {
-            self.eat_or_error(Token::Colon)?;
-            predicate = Some(self.parse_arithmetic_expression()?);
-        }
+        let predicate = self.eat_predicate()?;
 
         self.eat_expected_ident("inputs")?;
         self.eat_or_error(Token::Colon)?;
@@ -722,6 +709,15 @@ impl<'a> Parser<'a> {
         let outputs = self.parse_witness_vector()?;
 
         Ok(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
+    }
+
+    fn eat_predicate(&mut self) -> ParseResult<Option<Expression<FieldElement>>> {
+        let mut predicate = None;
+        if self.eat_keyword(Keyword::Predicate)? && self.eat(Token::Colon)? {
+            let expr = self.parse_arithmetic_expression()?;
+            predicate = Some(expr);
+        }
+        Ok(predicate)
     }
 
     fn eat_ident_or_error(&mut self) -> ParseResult<String> {
