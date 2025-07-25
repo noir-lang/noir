@@ -164,6 +164,15 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
+            Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
+                // Even if a type variable is unbound, its value could be in `bindings`.
+                // Use the underlying type in that case.
+                if let Some((_, _, typ)) = bindings.get(&type_var.id()) {
+                    typ.clone()
+                } else {
+                    self.clone()
+                }
+            }
             other => other.clone(),
         }
     }
