@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753434617743,
+  "lastUpdate": 1753454650059,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15716,48 +15716,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e5c6d5d30869e1c32a69db5d871d56df2a1c1026",
-          "message": "fix(fuzz): `Value::snapshot` needs to be recursive (#9215)",
-          "timestamp": "2025-07-16T11:40:08Z",
-          "tree_id": "82d2a8d86941b4ef6c6f5c58cae87553db2b811d",
-          "url": "https://github.com/noir-lang/noir/commit/e5c6d5d30869e1c32a69db5d871d56df2a1c1026"
-        },
-        "date": 1752667529035,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248642,
-            "range": "± 794",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220381,
-            "range": "± 1547",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779162,
-            "range": "± 1391",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -17809,6 +17767,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2812373,
             "range": "± 1732",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8f21710d7d1494c711e33aceba37391650996b9c",
+          "message": "fix: wildcard type should be allowed in lambda parameter types (#9325)",
+          "timestamp": "2025-07-25T14:18:01Z",
+          "tree_id": "2061667d669fcbfcd9c0023de96752dbad588908",
+          "url": "https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c"
+        },
+        "date": 1753454634074,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253811,
+            "range": "± 955",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229241,
+            "range": "± 3217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2814247,
+            "range": "± 2187",
             "unit": "ns/iter"
           }
         ]
