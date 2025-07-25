@@ -533,8 +533,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // from the shorter. There are ways to deal with this on the receiver side,
                     // but it is cumbersome, and the cleanest solution is not to send the extra empty
                     // items at all. To do this, however, we need infer which input is the vector length.
-                    // Because of how the length is separate from the data, this only works on the top level.
-                    let mut previous_input: Option<ForeignCallParam<F>> = None;
+                    let mut vector_length: Option<usize> = None;
 
                     let resolved_inputs = inputs
                         .iter()
@@ -543,25 +542,27 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             let mut input = self.get_memory_values(*input, input_type);
                             // Truncate slices to their semantic length, which we remember from the preceding field.
                             match input_type {
-                                HeapValueType::Vector { .. } => {
-                                    if let Some(ForeignCallParam::Single(length)) = previous_input {
-                                        let type_size = input_type.flattened_size();
-                                        let length = length.to_u128() as usize;
-                                        let mut fields = input.fields();
-                                        fields.truncate(length * type_size);
-                                        input = ForeignCallParam::Array(fields);
-                                    }
-                                    previous_input = None;
-                                }
                                 HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
                                     // If we have a single u32 we may have a slice representation, so store this input.
                                     // On the next iteration, if we have a vector then we know we have the dynamic length
                                     // for that slice.
-                                    previous_input = Some(input.clone());
+                                    let ForeignCallParam::Single(length) = input else {
+                                        unreachable!("expected u32; got {input:?}");
+                                    };
+                                    vector_length = Some(length.to_u128() as usize);
+                                }
+                                HeapValueType::Vector { .. } => {
+                                    if let Some(length) = vector_length {
+                                        let type_size = input_type.flattened_size();
+                                        let mut fields = input.fields();
+                                        fields.truncate(length * type_size);
+                                        input = ForeignCallParam::Array(fields);
+                                    }
+                                    vector_length = None;
                                 }
                                 _ => {
-                                    // Do nothing otherwise
-                                    previous_input = None;
+                                    // Otherwise we are not dealing with a u32 followed by a vector.
+                                    vector_length = None;
                                 }
                             }
                             input
@@ -749,11 +750,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 0 == size % value_types.len(),
                 "array/vector does not contain a whole number of elements"
             );
+
+            // We want to send vectors to foreign functions truncated to their semantic length.
+            let mut vector_length: Option<usize> = None;
+
             (0..size)
                 .zip(value_types.iter().cycle())
-                .flat_map(|(i, value_type)| {
+                .map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    match value_type {
+                    let values = match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -778,7 +783,27 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 value_types,
                             )
                         }
+                    };
+                    (value_type, values)
+                })
+                .flat_map(|(value_type, mut values)| {
+                    match value_type {
+                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                            vector_length = Some(values[0].to_usize());
+                        }
+                        HeapValueType::Vector { .. } => {
+                            if let Some(length) = vector_length {
+                                let type_size = value_type.flattened_size();
+                                values.truncate(length * type_size);
+                            }
+                            vector_length = None;
+                        }
+                        _ => {
+                            // Otherwise we are not dealing with a u32 followed by a vector.
+                            vector_length = None;
+                        }
                     }
+                    values
                 })
                 .collect::<Vec<_>>()
         }
