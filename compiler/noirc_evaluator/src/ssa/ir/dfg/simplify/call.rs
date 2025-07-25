@@ -472,11 +472,8 @@ fn decrement_slice_length(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    // In ACIR accessing an empty slice has correct memory block size checks,
-    // but in Brillig it doesn't. Here we avoid extra constraints in ACIR,
-    // and try to stay safe in Brillig from reducing the slice length below zero.
-    let unchecked = dfg.runtime().is_acir();
-    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked }, block, call_stack)
+    // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
 fn simplify_slice_push_back(
