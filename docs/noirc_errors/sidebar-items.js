@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["call_stack","debug_info","position","reporter"],"struct":["Located","Location","Span","Spanned"],"type":["Position"]};
+window.SIDEBAR_ITEMS = {"fn":["print_to_stdout"],"macro":["print_to_stdout","println_to_stdout"],"mod":["call_stack","debug_info","position","reporter"],"struct":["Located","Location","Span","Spanned"],"type":["Position"]};

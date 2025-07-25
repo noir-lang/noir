@@ -144,7 +144,11 @@
 <a href="#143" id="143">143</a>
 <a href="#144" id="144">144</a>
 <a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::BlackBoxFunctionSolver;
@@ -230,13 +234,13 @@
     witness_dir: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Path&gt;,
     witness_name: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
-    <span class="macro">println!</span>(<span class="string">"[{circuit_name}] Circuit witness successfully solved"</span>);
+    <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"[{circuit_name}] Circuit witness successfully solved"</span>);
     <span class="comment">// Save first, so that we can potentially look at the output if the expectations fail.
     </span><span class="kw">if let </span><span class="prelude-val">Some</span>(witness_dir) = witness_dir {
         save_witness(<span class="kw-2">&amp;</span>results.witness_stack, circuit_name, witness_dir, witness_name)<span class="question-mark">?</span>;
     }
     <span class="kw">if let </span><span class="prelude-val">Some</span>(<span class="kw-2">ref </span>return_value) = results.return_values.actual_return {
-        <span class="macro">println!</span>(<span class="string">"[{circuit_name}] Circuit output: {return_value:?}"</span>);
+        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"[{circuit_name}] Circuit output: {return_value:?}"</span>);
     }
     check_witness(circuit, results.return_values)
 }
@@ -258,7 +262,11 @@
         }
     }
 
-    <span class="macro">println!</span>(<span class="string">"[{}] Witness saved to {}"</span>, circuit_name, witness_path.display());
+    <span class="macro">noirc_errors::println_to_stdout!</span>(
+        <span class="string">"[{}] Witness saved to {}"</span>,
+        circuit_name,
+        witness_path.display()
+    );
     <span class="prelude-val">Ok</span>(())
 }
 

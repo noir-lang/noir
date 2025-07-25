@@ -1357,8 +1357,8 @@
     }
 
     <span class="kw">if </span>options.print_acir {
-        <span class="macro">println!</span>(<span class="string">"Compiled ACIR for main (unoptimized):"</span>);
-        <span class="macro">println!</span>(<span class="string">"{}"</span>, compiled_program.program);
+        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main (unoptimized):"</span>);
+        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"{}"</span>, compiled_program.program);
     }
 
     <span class="prelude-val">Ok</span>((compiled_program, warnings))
