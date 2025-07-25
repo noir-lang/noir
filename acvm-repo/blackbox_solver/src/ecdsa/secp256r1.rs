@@ -106,7 +106,7 @@ mod secp256r1_tests {
     }
 
     #[test]
-    fn rejects_signature_that_doesnt_have_the_full_y_coordinate() {
+    fn rejects_signature_that_does_not_have_the_full_y_coordinate() {
         let mut pub_key_y_bytes = [0u8; 32];
         pub_key_y_bytes[31] = PUB_KEY_Y[31];
         let valid = verify_signature(&HASHED_MESSAGE, &PUB_KEY_X, &pub_key_y_bytes, &SIGNATURE);
