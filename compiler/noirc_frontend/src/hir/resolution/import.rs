@@ -102,7 +102,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
-            PathResolutionError::Private(ident) => CustomDiagnostic::simple_error(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
                 error.to_string(),
                 format!("{ident} is private"),
                 ident.location(),
