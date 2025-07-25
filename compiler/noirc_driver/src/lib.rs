@@ -24,7 +24,7 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use tracing::info;
 
