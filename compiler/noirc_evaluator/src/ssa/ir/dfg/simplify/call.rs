@@ -562,11 +562,11 @@ fn simplify_slice_pop_back(
         Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
-    flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
 
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
+        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
         let get_last_elem_instr = Instruction::ArrayGet {
             array: arguments[1],
             index: flattened_len,
@@ -578,8 +578,6 @@ fn simplify_slice_pop_back(
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
-
-        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
     }
 
     results.push_front(arguments[1]);
