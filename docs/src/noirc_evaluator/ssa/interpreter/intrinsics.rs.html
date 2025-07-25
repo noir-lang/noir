@@ -846,7 +846,14 @@
 <a href="#845" id="845">845</a>
 <a href="#846" id="846">846</a>
 <a href="#847" id="847">847</a>
-<a href="#848" id="848">848</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -1358,6 +1365,9 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>new_elements = slice.elements.borrow().to_vec();
         <span class="kw">let </span>element_types = slice.element_types.clone();
 
+        <span class="comment">// The slice might contain more elements than its length.
+        // We need to either insert before the extras, overwrite, or remove them.
+        </span>new_elements.truncate(element_types.len() * length <span class="kw">as </span>usize);
         <span class="kw">for </span>arg <span class="kw">in </span>args.iter().skip(<span class="number">2</span>) {
             new_elements.push(<span class="self">self</span>.lookup(<span class="kw-2">*</span>arg)<span class="question-mark">?</span>);
         }
@@ -1396,6 +1406,10 @@
         }
         check_slice_can_pop_all_element_types(args[<span class="number">1</span>], <span class="kw-2">&amp;</span>slice)<span class="question-mark">?</span>;
 
+        <span class="comment">// The slice might contain more elements than its length.
+        // We want the last valid element, ignoring any extras following it.
+        // We don't ever access the extras, so we might as well remove any.
+        </span>slice_elements.truncate(element_types.len() * length <span class="kw">as </span>usize);
         <span class="kw">let </span><span class="kw-2">mut </span>popped_elements = vecmap(<span class="number">0</span>..element_types.len(), |<span class="kw">_</span>| slice_elements.pop().unwrap());
         popped_elements.reverse();
 
