@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753433418866,
+  "lastUpdate": 1753434127622,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15906,48 +15906,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ffb63c30795fc64feebbac2b516f2fed9a6d3495",
-          "message": "fix(acir-gen): Do not use array storage size for 0-length check (#9208)",
-          "timestamp": "2025-07-16T11:25:33Z",
-          "tree_id": "06492ed94a036675c2bf31991c542073359e1f41",
-          "url": "https://github.com/noir-lang/noir/commit/ffb63c30795fc64feebbac2b516f2fed9a6d3495"
-        },
-        "date": 1752666614660,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248526,
-            "range": "± 2868",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218206,
-            "range": "± 3868",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2782465,
-            "range": "± 31483",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "e5c6d5d30869e1c32a69db5d871d56df2a1c1026",
           "message": "fix(fuzz): `Value::snapshot` needs to be recursive (#9215)",
           "timestamp": "2025-07-16T11:40:08Z",
@@ -17989,6 +17947,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784360,
             "range": "± 2176",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d35a7674e3182c0a02f20a9d2d7c78646c9d59fb",
+          "message": "chore: graceful handling of SIGPIPE (#9075)",
+          "timestamp": "2025-07-25T08:36:24Z",
+          "tree_id": "bbab9c97cda4fd3776e318ba343fb7f12f7c6974",
+          "url": "https://github.com/noir-lang/noir/commit/d35a7674e3182c0a02f20a9d2d7c78646c9d59fb"
+        },
+        "date": 1753434111573,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255586,
+            "range": "± 781",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230849,
+            "range": "± 4120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2812373,
+            "range": "± 1732",
             "unit": "ns/iter"
           }
         ]
