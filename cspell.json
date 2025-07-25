@@ -276,6 +276,7 @@
         "signedness",
         "signorecello",
         "signum",
+        "SIGPIPE",
         "smallvec",
         "smol",
         "splitn",
