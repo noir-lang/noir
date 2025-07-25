@@ -291,7 +291,7 @@ pub fn decode_printable_value<F: AcirField>(
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean => {
-            let field_element = field_iterator.next().unwrap();
+            let field_element = field_iterator.next().expect("not enough data: expected bool");
 
             PrintableValue::Field(field_element)
         }
@@ -306,10 +306,9 @@ pub fn decode_printable_value<F: AcirField>(
             PrintableValue::Vec { array_elements, is_slice: false }
         }
         PrintableType::Slice { typ } => {
-            let length = field_iterator
-                .next()
-                .expect("not enough data to decode variable array length")
-                .to_u128() as usize;
+            let length =
+                field_iterator.next().expect("not enough data: expected slice length").to_u128()
+                    as usize;
 
             let mut array_elements = Vec::with_capacity(length);
 
@@ -342,7 +341,7 @@ pub fn decode_printable_value<F: AcirField>(
         PrintableType::Function { env, .. } => {
             // we want to consume the fields from the environment, but for now they are not actually printed
             let _env = decode_printable_value(field_iterator, env);
-            let func_id = field_iterator.next().unwrap();
+            let func_id = field_iterator.next().expect("not enough data: expected function ID");
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
@@ -351,7 +350,7 @@ pub fn decode_printable_value<F: AcirField>(
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
-            let tag = field_iterator.next().unwrap();
+            let tag = field_iterator.next().expect("not enough data: expected enum tag");
             let tag_value = tag.to_u128() as usize;
 
             let (_name, variant_types) = &variants[tag_value];
