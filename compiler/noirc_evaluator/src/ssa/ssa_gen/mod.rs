@@ -372,7 +372,12 @@ impl FunctionContext<'_> {
                 ))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -462,16 +467,25 @@ impl FunctionContext<'_> {
 
         // Checks for index Out-of-bounds
         match array_type {
+            Type::Array(_, len) => {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+                // We then only need to inject it for brillig functions.
+                let runtime = self.builder.current_function.runtime();
+                if runtime.is_brillig() {
+                    let len =
+                        self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                    self.codegen_access_check(index, len);
+                }
+            }
             Type::Slice(_) => {
+                // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
+                // block as we can do for array types. We then inject a access check for both ACIR and brillig.
                 self.codegen_access_check(
                     index,
                     length.expect("ICE: a length must be supplied for checking index"),
                 );
             }
-            Type::Array(_, len) => {
-                let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                self.codegen_access_check(index, len);
-            }
+
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
 

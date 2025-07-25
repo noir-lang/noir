@@ -258,6 +258,7 @@
         "ripemd",
         "RMVD",
         "rngs",
+        "runtimes",
         "rustc",
         "rustfmt",
         "rustup",

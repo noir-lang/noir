@@ -9,6 +9,7 @@ use crate::ast::UnresolvedGenerics;
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
+use crate::hir::def_map::DefMaps;
 use crate::hir_def::function::FuncMeta;
 use crate::node_interner::{FuncId, NodeInterner, TypeId};
 use crate::parser::ParserError;
@@ -141,17 +142,7 @@ impl Context<'_, '_> {
     }
 
     pub fn fully_qualified_function_name(&self, crate_id: &CrateId, id: &FuncId) -> String {
-        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
-
-        let name = self.def_interner.function_name(id);
-
-        let module_id = self.def_interner.function_module(*id);
-        let module = self.module(module_id);
-
-        let parent =
-            def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
-
-        if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
+        fully_qualified_function_name(*crate_id, *id, &self.def_interner, &self.def_maps)
     }
 
     /// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
@@ -185,27 +176,12 @@ impl Context<'_, '_> {
         crate_id: &CrateId,
         pattern: &FunctionNameMatch,
     ) -> Vec<(String, TestFunction)> {
-        let interner = &self.def_interner;
-        let def_map = self.def_map(crate_id).expect("The local crate should be analyzed already");
-
-        def_map
-            .get_all_test_functions(interner)
-            .filter_map(|test_function| {
-                let fully_qualified_name =
-                    self.fully_qualified_function_name(crate_id, &test_function.id);
-                match &pattern {
-                    FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Exact(patterns) => patterns
-                        .iter()
-                        .any(|pattern| &fully_qualified_name == pattern)
-                        .then_some((fully_qualified_name, test_function)),
-                    FunctionNameMatch::Contains(patterns) => patterns
-                        .iter()
-                        .any(|pattern| fully_qualified_name.contains(pattern))
-                        .then_some((fully_qualified_name, test_function)),
-                }
-            })
-            .collect()
+        get_all_test_functions_in_crate_matching(
+            *crate_id,
+            pattern,
+            &self.def_interner,
+            &self.def_maps,
+        )
     }
 
     /// Returns a list of all functions in the current crate marked with `#[fuzz]`
@@ -302,4 +278,50 @@ impl Context<'_, '_> {
     pub fn set_comptime_printing(&mut self, output: Rc<RefCell<dyn std::io::Write>>) {
         self.interpreter_output = Some(output);
     }
+}
+
+pub fn get_all_test_functions_in_crate_matching(
+    crate_id: CrateId,
+    pattern: &FunctionNameMatch,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> Vec<(String, TestFunction)> {
+    let def_map = def_maps.get(&crate_id).expect("The local crate should be analyzed already");
+
+    def_map
+        .get_all_test_functions(interner)
+        .filter_map(|test_function| {
+            let fully_qualified_name =
+                fully_qualified_function_name(crate_id, test_function.id, interner, def_maps);
+            match &pattern {
+                FunctionNameMatch::Anything => Some((fully_qualified_name, test_function)),
+                FunctionNameMatch::Exact(patterns) => patterns
+                    .iter()
+                    .any(|pattern| &fully_qualified_name == pattern)
+                    .then_some((fully_qualified_name, test_function)),
+                FunctionNameMatch::Contains(patterns) => patterns
+                    .iter()
+                    .any(|pattern| fully_qualified_name.contains(pattern))
+                    .then_some((fully_qualified_name, test_function)),
+            }
+        })
+        .collect()
+}
+
+fn fully_qualified_function_name(
+    crate_id: CrateId,
+    id: FuncId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> String {
+    let def_map = def_maps.get(&crate_id).expect("The local crate should be analyzed already");
+
+    let name = interner.function_name(&id);
+
+    let module_id = interner.function_module(id);
+    let module = module_id.module(def_maps);
+
+    let parent = def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
+
+    if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
 }
