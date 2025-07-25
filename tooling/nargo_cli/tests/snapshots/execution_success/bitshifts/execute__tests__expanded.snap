@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(u8: u8, positive_i8: i8, negative_i8: i8, seven: u8) {
+    check_bitshifts(u8, positive_i8, negative_i8, seven);
+    // Safety: comment added by `nargo expand`
+    unsafe { check_bitshifts_unconstrained_wrapper(u8, positive_i8, negative_i8, seven) };
+    ()
+}
+
+unconstrained fn check_bitshifts_unconstrained_wrapper(
+    u8: u8,
+    positive_i8: i8,
+    negative_i8: i8,
+    seven: u8,
+) {
+    check_bitshifts(u8, positive_i8, negative_i8, seven)
+}
+
+fn check_bitshifts(u8: u8, positive_i8: i8, negative_i8: i8, seven: u8) {
+    assert((u8 >> seven) == 0_u8);
+    assert((u8 << seven) == 0_u8);
+    assert((positive_i8 >> seven) == 0_i8);
+    assert((positive_i8 << seven) == 0_i8);
+    assert((negative_i8 >> seven) == -1_i8);
+    assert((negative_i8 << seven) == 0_i8);
+}
