@@ -543,7 +543,13 @@ impl<'interner> Monomorphizer<'interner> {
                     let operator = prefix.operator;
                     let rhs = Box::new(rhs);
                     let result_type = Self::convert_type(&self.interner.id_type(expr), location)?;
-                    ast::Expression::Unary(ast::Unary { operator, rhs, result_type, location })
+                    ast::Expression::Unary(ast::Unary {
+                        operator,
+                        rhs,
+                        result_type,
+                        location,
+                        skip: prefix.skip,
+                    })
                 }
             }
 
@@ -2279,6 +2285,7 @@ impl<'interner> Monomorphizer<'interner> {
                     result_type,
                     operator: Reference { mutable: *mutable },
                     location,
+                    skip: false,
                 })
             }
         }
@@ -2368,6 +2375,7 @@ impl<'interner> Monomorphizer<'interner> {
                     rhs: Box::new(result),
                     result_type: ast::Type::Bool,
                     location,
+                    skip: false,
                 });
             }
             // All the comparison operators require special handling since their `cmp` method

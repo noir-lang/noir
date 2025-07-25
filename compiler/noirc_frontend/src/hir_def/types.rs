@@ -1308,6 +1308,10 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, true))
     }
 
+    pub(crate) fn is_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
+    }
+
     /// True if this type can be used as a parameter to `main` or a contract function.
     /// This is only false for unsized types like slices or slices that do not make sense
     /// as a program input such as named generics or mutable references.
@@ -2746,7 +2750,13 @@ impl From<&Type> for PrintableType {
                     .expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
+            Type::FmtString(size, typ) => {
+                let dummy_location = Location::dummy();
+                let size = size
+                    .evaluate_to_u32(dummy_location)
+                    .expect("Cannot print variable sized strings");
+                PrintableType::FmtString { length: size, typ: Box::new(typ.as_ref().into()) }
+            }
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
