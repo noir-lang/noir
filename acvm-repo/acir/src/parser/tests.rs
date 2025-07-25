@@ -467,6 +467,18 @@ fn brillig_call_with_predicate() {
 }
 
 #[test]
+fn brillig_call_with_memory_array_input() {
+    let src = "
+    current witness index : _2
+    private parameters indices : [_0, _1, _2]
+    public parameters indices : []
+    return value indices : []
+    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], MemoryArray(0)], outputs: []
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
 fn call() {
     let src = "
     current witness index : _2
