@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753388785823,
+  "lastUpdate": 1753432887622,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16076,48 +16076,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e6ccc3ed37408fdab6a6d5e2af11da981409acc1",
-          "message": "fix(ssa_fuzzer): fix panic if compiler removed return value (#9216)",
-          "timestamp": "2025-07-16T11:04:39Z",
-          "tree_id": "6e6d6529696904f9a81fe0fd856ac2d819b38897",
-          "url": "https://github.com/noir-lang/noir/commit/e6ccc3ed37408fdab6a6d5e2af11da981409acc1"
-        },
-        "date": 1752665474977,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248336,
-            "range": "± 1104",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218099,
-            "range": "± 2836",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777496,
-            "range": "± 1201",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -18169,6 +18127,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2816447,
             "range": "± 854",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cb861f822639d790c8afc4de751fa513e810dcfa",
+          "message": "feat: return unsolvable opcode from `CircuitSimulator` (#8943)",
+          "timestamp": "2025-07-25T08:15:05Z",
+          "tree_id": "1b4d81e4f325b33fdae535cc121b071cf9f6b7e4",
+          "url": "https://github.com/noir-lang/noir/commit/cb861f822639d790c8afc4de751fa513e810dcfa"
+        },
+        "date": 1753432870699,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249003,
+            "range": "± 950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220034,
+            "range": "± 5291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784360,
+            "range": "± 2176",
             "unit": "ns/iter"
           }
         ]
