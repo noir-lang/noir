@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753469792295,
+  "lastUpdate": 1753469912622,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2958,90 +2958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "92f56e7128abe06cb92ed4d824ebf950f2e415e9",
-          "message": "chore(ssa_fuzzer): taking witnesses from program (#9221)",
-          "timestamp": "2025-07-16T14:10:41Z",
-          "tree_id": "b0609a27fb1372e7d257061376ef587f471b7b9e",
-          "url": "https://github.com/noir-lang/noir/commit/92f56e7128abe06cb92ed4d824ebf950f2e415e9"
-        },
-        "date": 1752676776237,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.944,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.95,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.642,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 192,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.866,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.872,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.763,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.99,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -5901,6 +5817,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.575,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37e8b2dba771efa742a492b6cafe3cde7de63bc0",
+          "message": "fix: substitute bindings in type before canonicalization (#9328)",
+          "timestamp": "2025-07-25T18:22:41Z",
+          "tree_id": "8cb072e439cb2fd66348642cac8606e21ad872c2",
+          "url": "https://github.com/noir-lang/noir/commit/37e8b2dba771efa742a492b6cafe3cde7de63bc0"
+        },
+        "date": 1753469896660,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.793,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.572,
             "unit": "s"
           }
         ]
