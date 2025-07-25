@@ -253,7 +253,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>rejects_signature_that_doesnt_have_the_full_y_coordinate() {
+    </span><span class="kw">fn </span>rejects_signature_that_does_not_have_the_full_y_coordinate() {
         <span class="kw">let </span><span class="kw-2">mut </span>pub_key_y_bytes = [<span class="number">0u8</span>; <span class="number">32</span>];
         pub_key_y_bytes[<span class="number">31</span>] = PUB_KEY_Y[<span class="number">31</span>];
         <span class="kw">let </span>valid = verify_signature(<span class="kw-2">&amp;</span>HASHED_MESSAGE, <span class="kw-2">&amp;</span>PUB_KEY_X, <span class="kw-2">&amp;</span>pub_key_y_bytes, <span class="kw-2">&amp;</span>SIGNATURE);

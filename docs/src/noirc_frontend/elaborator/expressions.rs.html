@@ -1699,7 +1699,7 @@
 
     <span class="doccomment">/// Elaborate a member access expression without adding the automatic dereferencing operations
     /// to it, treating it as an offset instead. This also returns a boolean indicating whether the
-    /// result skipped any required auto-derefs (and thus needs dereferencing to be used as a value
+    /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
     /// instead of a reference). This flag is used when `&amp;mut foo.bar.baz` is used to cancel out
     /// the `&amp;mut`.
     </span><span class="kw">fn </span>elaborate_reference_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: Expression) -&gt; (ExprId, Type, bool) {
@@ -2645,7 +2645,7 @@
         location: Location,
         is_offset: bool,
     ) -&gt; (ExprId, Type, bool) {
-        <span class="comment">// We don't need the boolean 'skipped auto-derefs' from elaborate_reference_expression
+        <span class="comment">// We don't need the boolean 'skipped auto-dereferences' from elaborate_reference_expression
         // since if we have skipped any then `lhs_type` will be a reference and we will need to
         // skip the deref (if is_offset is true) here anyway to extract the field out of the reference.
         // This is more reliable than using the boolean return value here since the return value
@@ -2912,7 +2912,7 @@
                         <span class="self">self</span>.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } <span class="kw">else </span>{
-                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
+                    <span class="kw">let </span>wildcard_allowed = <span class="bool-val">true</span>;
                     <span class="self">self</span>.resolve_type(typ, wildcard_allowed)
                 };
 

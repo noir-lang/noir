@@ -291,7 +291,7 @@ which is an implementation of <a href="https://julesjacobs.com/notes/patternmatc
     expr: <a class="struct" href="../ast/struct.Expression.html" title="struct noirc_frontend::ast::Expression">Expression</a>,
 ) -&gt; (<a class="struct" href="../node_interner/struct.ExprId.html" title="struct noirc_frontend::node_interner::ExprId">ExprId</a>, <a class="enum" href="../hir_def/types/enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>, <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>)</h4></section></summary><div class="docblock"><p>Elaborate a member access expression without adding the automatic dereferencing operations
 to it, treating it as an offset instead. This also returns a boolean indicating whether the
-result skipped any required auto-derefs (and thus needs dereferencing to be used as a value
+result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
 instead of a reference). This flag is used when <code>&amp;mut foo.bar.baz</code> is used to cancel out
 the <code>&amp;mut</code>.</p>
 </div></details><section id="method.elaborate_interned_statement_as_expr" class="method"><a class="src rightside" href="../../src/noirc_frontend/elaborator/expressions.rs.html#139-163">Source</a><h4 class="code-header">fn <a href="#method.elaborate_interned_statement_as_expr" class="fn">elaborate_interned_statement_as_expr</a>(
