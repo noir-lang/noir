@@ -20,15 +20,15 @@ fn main() {
 comptime fn foo_impl(t: TypeDefinition) -> Quoted {
     let g: [(Type, Option<Type>)] = t.generics();
     let g_names: Quoted =
-        g.map(|(name, _): (Type, Option<Type>)| -> Quoted quote { name }).join(quote { ,  });
+        g.map(|(name, _): (Type, Option<Type>)| -> Quoted quote { $name }).join(quote { ,  });
     let g_intros: Quoted = g
         .map(|(name, typ): (Type, Option<Type>)| -> Quoted {
             let typ: Type = typ.unwrap();
-            quote { let name: typ }
+            quote { let $name: $typ }
         })
         .join(quote { ,  });
     quote {
-        impl < g_intros > Foo < g_names >  {
+        impl < $g_intros > Foo < $g_names >  {
             fn foo(self) {
                 let _ = self;
             }

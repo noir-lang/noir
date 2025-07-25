@@ -5,7 +5,7 @@ expression: expanded_code
 comptime fn foo(_: FunctionDefinition, slice: [u8], _str1: CtString, _str2: CtString) -> Quoted {
     quote {
         fn bar() -> [u8] {
-            slice
+            $slice
         }
     }
 }
