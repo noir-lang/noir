@@ -279,9 +279,6 @@ pub fn format_field_string<F: AcirField>(field: F) -> String {
 }
 
 /// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
-///
-/// Parameters which represent slices are expected to be prefixed by their length as a separate parameter,
-/// then by their capacity as a field inside the slice parameter itself: `[..., length, [capacity, data...], ...]`.
 pub fn decode_printable_value<F: AcirField>(
     field_iterator: &mut impl Iterator<Item = F>,
     typ: &PrintableType,
@@ -408,7 +405,8 @@ impl<F: AcirField> PrintableValueDisplay<F> {
 
 /// Flatten input parameters into a field vector.
 ///
-/// Values which originate from slices are expected to be prefixed by their length.
+/// Slices are expected to have exactly as many elements as indicated by their corresponding length,
+/// with any extra elements pruned by the caller already.
 fn flatten_inputs<F: AcirField>(input_values: &[ForeignCallParam<F>]) -> impl Iterator<Item = F> {
     input_values.iter().flat_map(|param| param.fields())
 }
