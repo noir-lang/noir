@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753434127622,
+  "lastUpdate": 1753434261679,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18008,90 +18008,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ffb63c30795fc64feebbac2b516f2fed9a6d3495",
-          "message": "fix(acir-gen): Do not use array storage size for 0-length check (#9208)",
-          "timestamp": "2025-07-16T11:25:33Z",
-          "tree_id": "06492ed94a036675c2bf31991c542073359e1f41",
-          "url": "https://github.com/noir-lang/noir/commit/ffb63c30795fc64feebbac2b516f2fed9a6d3495"
-        },
-        "date": 1752667002525,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 716.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1972.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 543,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4943,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3958.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32668.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32702.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 187.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 398.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 630.8,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 622.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "e5c6d5d30869e1c32a69db5d871d56df2a1c1026",
           "message": "fix(fuzz): `Value::snapshot` needs to be recursive (#9215)",
           "timestamp": "2025-07-16T11:40:08Z",
@@ -21081,6 +20997,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/cb861f822639d790c8afc4de751fa513e810dcfa"
         },
         "date": 1753432998529,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d35a7674e3182c0a02f20a9d2d7c78646c9d59fb",
+          "message": "chore: graceful handling of SIGPIPE (#9075)",
+          "timestamp": "2025-07-25T08:36:24Z",
+          "tree_id": "bbab9c97cda4fd3776e318ba343fb7f12f7c6974",
+          "url": "https://github.com/noir-lang/noir/commit/d35a7674e3182c0a02f20a9d2d7c78646c9d59fb"
+        },
+        "date": 1753434245767,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
