@@ -11,7 +11,8 @@ use nargo::{
 use nargo_toml::PackageSelection;
 use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_abi::{AbiParameter, AbiType, MAIN_RETURN_NAME};
-use noirc_driver::{CompileOptions, check_crate, compute_function_abi};
+use noirc_driver::{CompileOptions, compute_function_abi, contract_hashes};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{hir::ParsedFiles, monomorphization::monomorphize};
 
 use super::{LockType, PackageOptions, WorkspaceCommand};
@@ -55,13 +56,42 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
         if args.show_program_hash {
             let (mut context, crate_id) =
                 prepare_package(&workspace_file_manager, &parsed_files, package);
-            check_crate(&mut context, crate_id, &args.compile_options).unwrap();
-            let Some(main) = context.get_main_function(&crate_id) else {
-                continue;
-            };
-            let program = monomorphize(main, &mut context.def_interner, false).unwrap();
-            let hash = fxhash::hash64(&program);
-            println!("{}: {:x}", package.name, hash);
+            check_crate_and_report_errors(&mut context, crate_id, &args.compile_options)?;
+
+            if package.is_binary() {
+                let Some(main) = context.get_main_function(&crate_id) else {
+                    continue;
+                };
+                match monomorphize(main, &mut context.def_interner, false) {
+                    Ok(program) => {
+                        let hash = fxhash::hash64(&program);
+                        println!("{}: {:x}", package.name, hash);
+                    }
+                    Err(error) => {
+                        return Err(CliError::Generic(CustomDiagnostic::from(error).to_string()));
+                    }
+                }
+            }
+
+            if package.is_contract() {
+                match contract_hashes(&mut context, crate_id, &args.compile_options) {
+                    Ok(hashes) => {
+                        if !hashes.is_empty() {
+                            println!("{}:", package.name);
+                            for (contract_name, hashes) in hashes {
+                                println!("  {contract_name}:");
+                                for (function_name, hash) in hashes {
+                                    println!("    {function_name}: {hash}");
+                                }
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        return Err(CliError::Generic(CustomDiagnostic::from(error).to_string()));
+                    }
+                }
+            }
+
             continue;
         }
 

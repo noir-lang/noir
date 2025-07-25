@@ -560,6 +560,38 @@ pub fn compile_contract(
     }
 }
 
+pub fn contract_hashes(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+) -> Result<BTreeMap<String, BTreeMap<String, u64>>, MonomorphizationError> {
+    let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
+    let contracts = def_map.get_all_contracts().collect::<Vec<_>>();
+
+    let mut hashes: BTreeMap<String, BTreeMap<String, u64>> = BTreeMap::new();
+    for (local_id, contract_name) in contracts {
+        let module_id = ModuleId { krate: crate_id, local_id };
+        let contract = read_contract(context, module_id, contract_name.clone());
+        for contract_function in &contract.functions {
+            let function_id = contract_function.function_id;
+            let is_entry_point = contract_function.is_entry_point;
+            if !is_entry_point {
+                continue;
+            }
+
+            let name = context.function_name(&function_id).to_owned();
+
+            let force_unconstrained = options.force_brillig;
+            let program =
+                monomorphize(function_id, &mut context.def_interner, force_unconstrained)?;
+            let hash = fxhash::hash64(&program);
+
+            hashes.entry(contract_name.clone()).or_default().insert(name, hash);
+        }
+    }
+    Ok(hashes)
+}
+
 /// Return a Vec of all `contract` declarations in the source code and the functions they contain
 fn read_contract(context: &Context, module_id: ModuleId, name: String) -> Contract {
     let module = context.module(module_id);
