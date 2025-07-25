@@ -1773,7 +1773,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         | BinaryOp::Mul { unchecked: false }
                 )
             {
-                panic!("Checked signed operations should all be removed before brilliggen")
+                panic!("Checked signed operations should all be removed before brillig-gen")
             }
             return;
         }
