@@ -21,9 +21,9 @@ impl DoNothing for MyStruct {
 comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ: Type = s.as_type();
     let generics: Quoted =
-        s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { g }).join(quote { ,  });
+        s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { $g }).join(quote { ,  });
     quote {
-        impl < generics > DoNothing for typ {
+        impl < $generics > DoNothing for $typ {
             fn do_nothing(_self: Self) {
                 // Traits can't tell us what to do
                 println("something");

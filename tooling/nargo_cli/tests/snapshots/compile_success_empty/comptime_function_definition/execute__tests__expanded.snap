@@ -108,7 +108,7 @@ mod test_as_typed_expr_1 {
         let func: TypedExpr = method.as_typed_expr();
         quote {
             pub fn bar() -> i32 {
-                func(1)
+                $func(1)
             }
         }
     }
@@ -136,7 +136,7 @@ mod test_as_typed_expr_2 {
             pub fn bar() -> u32 {
                 // Safety: test program
                 unsafe {
-                    func([1, 2, 3, 0])
+                    $func([1, 2, 3, 0])
                 }
             }
         }
@@ -169,7 +169,7 @@ mod test_as_typed_expr_3 {
             pub fn bar() -> u32 {
                 // Safety: test program
                 comptime {
-                    func(([1, 2, 3, 0], "a"))
+                    $func(([1, 2, 3, 0], "a"))
                 }
             }
         }
@@ -186,7 +186,7 @@ mod test_as_typed_expr_3 {
 
 mod test_as_typed_expr_4 {
     comptime fn foo(f: TypedExpr) -> Quoted {
-        quote { f() }
+        quote { $f() }
     }
 
     fn bar() -> Field {
