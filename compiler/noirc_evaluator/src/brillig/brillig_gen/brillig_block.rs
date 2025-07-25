@@ -1352,11 +1352,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     )
                 });
 
-                let source_value = arguments[0];
-                self.add_slice_length_positive_check(source_value, dfg);
                 self.update_slice_length(
                     target_len.address,
-                    source_value,
+                    arguments[0],
                     dfg,
                     BrilligBinaryOp::Sub,
                 );
@@ -1391,11 +1389,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
                 let target_vector = target_variable.extract_vector();
 
-                let source_value = arguments[0];
-                self.add_slice_length_positive_check(source_value, dfg);
                 self.update_slice_length(
                     target_len.address,
-                    source_value,
+                    arguments[0],
                     dfg,
                     BrilligBinaryOp::Sub,
                 );
@@ -1523,6 +1519,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// and not a flattened length used internally to represent arrays of tuples.
     /// The length inside of `RegisterOrMemory::HeapVector` represents the entire flattened number
     /// of fields in the vector.
+    ///
+    /// Note that when we subtract a value, we expect that there is a constraint in SSA
+    /// to check that the length isn't already 0. We could add a constraint opcode here,
+    /// but if it's in SSA, there is a chance it can be optimized out.
     fn update_slice_length(
         &mut self,
         target_len: MemoryAddress,
@@ -1534,23 +1534,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let source_len = source_len_variable.extract_single_addr();
 
         self.brillig_context.codegen_usize_op(source_len.address, target_len, binary_op, 1);
-    }
-
-    /// Generate a constraint to check that the semantic length of a slice is not zero.
-    fn add_slice_length_positive_check(&mut self, source_value: ValueId, dfg: &DataFlowGraph) {
-        let source_len_variable = self.convert_ssa_value(source_value, dfg);
-        let source_len = source_len_variable.extract_single_addr();
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-        // constrain 1 <= slice_length
-        self.brillig_context.binary_instruction(
-            SingleAddrVariable::new_usize(ReservedRegisters::usize_one()),
-            source_len,
-            condition,
-            BrilligBinaryOp::LessThanEquals,
-        );
-        let msg = "Index out of bounds, slice has length 0".to_string();
-        self.brillig_context.codegen_constrain(condition, Some(msg));
-        self.brillig_context.deallocate_single_addr(condition);
     }
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
