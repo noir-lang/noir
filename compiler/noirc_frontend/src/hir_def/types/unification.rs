@@ -272,6 +272,7 @@ impl Type {
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
+                let other = other.substitute(&bindings);
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
@@ -287,7 +288,7 @@ impl Type {
                             rhs.clone(),
                         );
 
-                        new_type.try_unify(lhs, bindings)?;
+                        new_type.try_unify(&lhs, bindings)?;
                         Ok(())
                     } else {
                         Err(UnificationError)
@@ -472,6 +473,7 @@ impl Type {
             if let Some(lhs_op_inverse) = lhs_op.approx_inverse() {
                 let kind = lhs_lhs.infix_kind(lhs_rhs);
                 let dummy_location = Location::dummy();
+                let lhs_rhs = lhs_rhs.substitute(bindings);
                 if let Ok(value) = lhs_rhs.evaluate_to_field_element(&kind, dummy_location) {
                     let lhs_rhs = Box::new(Type::Constant(value, kind));
                     let new_rhs =
