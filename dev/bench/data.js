@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753454781669,
+  "lastUpdate": 1753454783049,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3058,90 +3058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e5c6d5d30869e1c32a69db5d871d56df2a1c1026",
-          "message": "fix(fuzz): `Value::snapshot` needs to be recursive (#9215)",
-          "timestamp": "2025-07-16T11:40:08Z",
-          "tree_id": "82d2a8d86941b4ef6c6f5c58cae87553db2b811d",
-          "url": "https://github.com/noir-lang/noir/commit/e5c6d5d30869e1c32a69db5d871d56df2a1c1026"
-        },
-        "date": 1752668055003,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.03,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.054,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.718,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.06,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.842,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.775,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.88,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -6101,6 +6017,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.732,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8f21710d7d1494c711e33aceba37391650996b9c",
+          "message": "fix: wildcard type should be allowed in lambda parameter types (#9325)",
+          "timestamp": "2025-07-25T14:18:01Z",
+          "tree_id": "2061667d669fcbfcd9c0023de96752dbad588908",
+          "url": "https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c"
+        },
+        "date": 1753454764078,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.763,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.568,
             "unit": "s"
           }
         ]
