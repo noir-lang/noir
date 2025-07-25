@@ -4,6 +4,7 @@ fn main(b: bool) -> pub bool {
 
     // safety: test
     unsafe {
+        // This should print `(&[1, 0], true, &[100])`, not `(&[1, 0], false, &[1])`
         func_5((if b { &[1, 0] } else { &[0, 0, 0, 0] }, true, &[100]))
     }
 }
