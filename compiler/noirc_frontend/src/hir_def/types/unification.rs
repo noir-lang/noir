@@ -272,7 +272,7 @@ impl Type {
 
             (Constant(value, kind), other) | (other, Constant(value, kind)) => {
                 let dummy_location = Location::dummy();
-                let other = other.substitute(&bindings);
+                let other = other.substitute(bindings);
                 if let Ok(other_value) = other.evaluate_to_field_element(kind, dummy_location) {
                     if *value == other_value && kind.unifies(&other.kind()) {
                         Ok(())
