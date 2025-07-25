@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753477349365,
+  "lastUpdate": 1753477357744,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5760,80 +5760,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2cf083e33acd4e47e50a8a6609b503ecf14eb496",
-          "message": "fix(fuzz): Ignore `-0` vs `0` in parsing roundtrip (#9222)",
-          "timestamp": "2025-07-16T15:11:51Z",
-          "tree_id": "309049611ca1670da6f34b77dd4d80e9674f119f",
-          "url": "https://github.com/noir-lang/noir/commit/2cf083e33acd4e47e50a8a6609b503ecf14eb496"
-        },
-        "date": 1752680919500,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.151,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.294,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.182,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.058,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -8413,6 +8339,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.101,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26174818+jialinli98@users.noreply.github.com",
+            "name": "Jialin Li",
+            "username": "jialinli98"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e7fb7f3bf083de9fc6d430e7c30a571ea94534e4",
+          "message": "chore: impl for u16 conversions (#9314)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-25T20:31:24Z",
+          "tree_id": "4f8eb51f9787accefe90e107a7775cb58872c54d",
+          "url": "https://github.com/noir-lang/noir/commit/e7fb7f3bf083de9fc6d430e7c30a571ea94534e4"
+        },
+        "date": 1753477331222,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.099,
             "unit": "s"
           }
         ]
