@@ -3064,28 +3064,7 @@
 <a href="#3063" id="3063">3063</a>
 <a href="#3064" id="3064">3064</a>
 <a href="#3065" id="3065">3065</a>
-<a href="#3066" id="3066">3066</a>
-<a href="#3067" id="3067">3067</a>
-<a href="#3068" id="3068">3068</a>
-<a href="#3069" id="3069">3069</a>
-<a href="#3070" id="3070">3070</a>
-<a href="#3071" id="3071">3071</a>
-<a href="#3072" id="3072">3072</a>
-<a href="#3073" id="3073">3073</a>
-<a href="#3074" id="3074">3074</a>
-<a href="#3075" id="3075">3075</a>
-<a href="#3076" id="3076">3076</a>
-<a href="#3077" id="3077">3077</a>
-<a href="#3078" id="3078">3078</a>
-<a href="#3079" id="3079">3079</a>
-<a href="#3080" id="3080">3080</a>
-<a href="#3081" id="3081">3081</a>
-<a href="#3082" id="3082">3082</a>
-<a href="#3083" id="3083">3083</a>
-<a href="#3084" id="3084">3084</a>
-<a href="#3085" id="3085">3085</a>
-<a href="#3086" id="3086">3086</a>
-<a href="#3087" id="3087">3087</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3066" id="3066">3066</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -4186,7 +4165,7 @@
             }
             Type::Quoted(quoted) =&gt; <span class="macro">write!</span>(f, <span class="string">"{quoted}"</span>),
             Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
-                <span class="kw">let </span>this = <span class="self">self</span>.canonicalize_checked(<span class="kw-2">&amp;</span>TypeBindings::default());
+                <span class="kw">let </span>this = <span class="self">self</span>.canonicalize_checked();
 
                 <span class="comment">// Prevent infinite recursion
                 </span><span class="kw">if </span>this != <span class="kw-2">*</span><span class="self">self </span>{ <span class="macro">write!</span>(f, <span class="string">"{this}"</span>) } <span class="kw">else </span>{ <span class="macro">write!</span>(f, <span class="string">"({lhs} {op} {rhs})"</span>) }
@@ -4941,13 +4920,11 @@
     <span class="doccomment">/// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     </span><span class="kw">pub fn </span>evaluate_to_u32(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Result</span>&lt;u32, TypeCheckError&gt; {
-        <span class="self">self</span>.evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::u32(), <span class="kw-2">&amp;</span>TypeBindings::default(), location).map(
-            |field_element| {
-                field_element.try_to_u32().expect(
-                    <span class="string">"ICE: size should have already been checked by evaluate_to_field_element"</span>,
-                )
-            },
-        )
+        <span class="self">self</span>.evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::u32(), location).map(|field_element| {
+            field_element
+                .try_to_u32()
+                .expect(<span class="string">"ICE: size should have already been checked by evaluate_to_field_element"</span>)
+        })
     }
 
     <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/6260): remove
@@ -4955,11 +4932,10 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_to_field_element(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         kind: <span class="kw-2">&amp;</span>Kind,
-        bindings: <span class="kw-2">&amp;</span>TypeBindings,
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;acvm::FieldElement, TypeCheckError&gt; {
         <span class="kw">let </span>run_simplifications = <span class="bool-val">true</span>;
-        <span class="self">self</span>.evaluate_to_field_element_helper(kind, location, bindings, run_simplifications)
+        <span class="self">self</span>.evaluate_to_field_element_helper(kind, location, run_simplifications)
     }
 
     <span class="doccomment">/// evaluate_to_field_element with optional generic arithmetic simplifications
@@ -4967,7 +4943,6 @@
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
-        bindings: <span class="kw-2">&amp;</span>TypeBindings,
         run_simplifications: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;acvm::FieldElement, TypeCheckError&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((binding, binding_kind)) = <span class="self">self</span>.get_inner_type_variable() {
@@ -4977,27 +4952,15 @@
                         <span class="kw">return </span>binding.evaluate_to_field_element_helper(
                             <span class="kw-2">&amp;</span>binding_kind,
                             location,
-                            bindings,
                             run_simplifications,
                         );
                     }
                 }
-                TypeBinding::Unbound(type_variable_id, kind) =&gt; {
-                    <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>binding_kind) {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>((<span class="kw">_</span>, <span class="kw">_</span>, typ)) = bindings.get(type_variable_id) {
-                            <span class="kw">return </span>typ.evaluate_to_field_element_helper(
-                                <span class="kw-2">&amp;</span>binding_kind,
-                                location,
-                                bindings,
-                                run_simplifications,
-                            );
-                        }
-                    }
-                }
+                TypeBinding::Unbound(..) =&gt; (),
             }
         }
 
-        <span class="kw">match </span><span class="self">self</span>.canonicalize_with_simplifications(bindings, run_simplifications) {
+        <span class="kw">match </span><span class="self">self</span>.canonicalize_with_simplifications(run_simplifications) {
             Type::Constant(x, constant_kind) =&gt; {
                 <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>constant_kind) {
                     kind.ensure_value_fits(x, location)
@@ -5015,13 +4978,11 @@
                     <span class="kw">let </span>lhs_value = lhs.evaluate_to_field_element_helper(
                         <span class="kw-2">&amp;</span>infix_kind,
                         location,
-                        bindings,
                         run_simplifications,
                     )<span class="question-mark">?</span>;
                     <span class="kw">let </span>rhs_value = rhs.evaluate_to_field_element_helper(
                         <span class="kw-2">&amp;</span>infix_kind,
                         location,
-                        bindings,
                         run_simplifications,
                     )<span class="question-mark">?</span>;
                     op.function(lhs_value, rhs_value, <span class="kw-2">&amp;</span>infix_kind, location)
@@ -5034,17 +4995,14 @@
                 }
             }
             Type::CheckedCast { from, to } =&gt; {
-                <span class="kw">let </span>to_value = to.evaluate_to_field_element(kind, bindings, location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>to_value = to.evaluate_to_field_element(kind, location)<span class="question-mark">?</span>;
 
                 <span class="comment">// if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 </span><span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
-                <span class="kw">if let </span><span class="prelude-val">Ok</span>(from_value) = from.evaluate_to_field_element_helper(
-                    kind,
-                    location,
-                    bindings,
-                    skip_simplifications,
-                ) {
+                <span class="kw">if let </span><span class="prelude-val">Ok</span>(from_value) =
+                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
+                {
                     <span class="kw">if </span>to_value == from_value {
                         <span class="prelude-val">Ok</span>(to_value)
                     } <span class="kw">else </span>{

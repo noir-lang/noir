@@ -2679,12 +2679,7 @@
 <a href="#2678" id="2678">2678</a>
 <a href="#2679" id="2679">2679</a>
 <a href="#2680" id="2680">2680</a>
-<a href="#2681" id="2681">2681</a>
-<a href="#2682" id="2682">2682</a>
-<a href="#2683" id="2683">2683</a>
-<a href="#2684" id="2684">2684</a>
-<a href="#2685" id="2685">2685</a>
-<a href="#2686" id="2686">2686</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2681" id="2681">2681</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3814,11 +3809,10 @@
                 <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() <span class="kw">else </span>{
                     <span class="macro">unreachable!</span>(<span class="string">"Expected associated type to be numeric"</span>);
                 };
-                <span class="kw">match </span>associated_type.typ.evaluate_to_field_element(
-                    <span class="kw-2">&amp;</span>associated_type.typ.kind(),
-                    <span class="kw-2">&amp;</span>TypeBindings::default(),
-                    location,
-                ) {
+                <span class="kw">match </span>associated_type
+                    .typ
+                    .evaluate_to_field_element(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
+                {
                     <span class="prelude-val">Ok</span>(value) =&gt; {
                         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>numeric_type, location)<span class="question-mark">?</span>;
                         <span class="kw">let </span>value = SignedField::positive(value);
@@ -3844,13 +3838,13 @@
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        <span class="kw">let </span>value = value
-            .evaluate_to_field_element(<span class="kw-2">&amp;</span>expected_kind, <span class="kw-2">&amp;</span>TypeBindings::default(), location)
-            .map_err(|err| MonomorphizationError::UnknownArrayLength {
+        <span class="kw">let </span>value = value.evaluate_to_field_element(<span class="kw-2">&amp;</span>expected_kind, location).map_err(|err| {
+            MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
                 location,
-            })<span class="question-mark">?</span>;
+            }
+        })<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
         <span class="kw">if </span>!expected_kind.unifies(<span class="kw-2">&amp;</span>expr_kind) {
@@ -4257,15 +4251,11 @@
                 location,
             });
         }
-        <span class="kw">let </span>to_value = to.evaluate_to_field_element(<span class="kw-2">&amp;</span>to.kind(), <span class="kw-2">&amp;</span>TypeBindings::default(), location);
+        <span class="kw">let </span>to_value = to.evaluate_to_field_element(<span class="kw-2">&amp;</span>to.kind(), location);
         <span class="kw">if </span>to_value.is_ok() {
             <span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
-            <span class="kw">let </span>from_value = from.evaluate_to_field_element_helper(
-                <span class="kw-2">&amp;</span>to.kind(),
-                location,
-                <span class="kw-2">&amp;</span>TypeBindings::default(),
-                skip_simplifications,
-            );
+            <span class="kw">let </span>from_value =
+                from.evaluate_to_field_element_helper(<span class="kw-2">&amp;</span>to.kind(), location, skip_simplifications);
             <span class="kw">if </span>from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
