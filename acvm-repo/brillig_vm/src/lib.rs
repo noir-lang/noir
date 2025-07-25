@@ -525,26 +525,32 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // resolved inputs back to the caller. Once the caller pushes to `foreign_call_results`,
                     // they can then make another call to the VM that starts at this opcode
                     // but has the necessary results to proceed with execution.
+
+                    // With slices we might have more items in the HeapVector than the semantic length
+                    // indicated by the field preceding the pointer to the vector in the inputs.
+                    // This happens when SSA merges slices of different length, which can result in
+                    // a vector that has room for the longer of the two, partially filled with items
+                    // from the shorter. There are ways to deal with this on the receiver side,
+                    // but it is cumbersome, and the cleanest solution is not to send the extra empty
+                    // items at all. To do this, however, we need infer which input is the vector length.
+                    // Because of how the length is separate from the data, this only works on the top level.
                     let mut previous_input: Option<ForeignCallParam<F>> = None;
+
                     let resolved_inputs = inputs
                         .iter()
                         .zip(input_value_types)
                         .map(|(input, input_type)| {
                             let mut input = self.get_memory_values(*input, input_type);
-
+                            // Truncate slices to their semantic length, which we remember from the preceding field.
                             match input_type {
                                 HeapValueType::Vector { .. } => {
-                                    if let Some(ForeignCallParam::Single(value)) = previous_input {
-                                        // Cut off slices with their semantic length,
-                                        // They may have a capacity which could be higher than their semantic length.
-                                        let flattened_size = input_type.flattened_size();
-                                        let fields = input.fields();
-                                        let value_as_usize = value.to_u128() as usize;
-                                        input = ForeignCallParam::Array(
-                                            fields[0..(value_as_usize * flattened_size)].to_vec(),
-                                        );
+                                    if let Some(ForeignCallParam::Single(length)) = previous_input {
+                                        let type_size = input_type.flattened_size();
+                                        let length = length.to_u128() as usize;
+                                        let mut fields = input.fields();
+                                        fields.truncate(length * type_size);
+                                        input = ForeignCallParam::Array(fields);
                                     }
-
                                     previous_input = None;
                                 }
                                 HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
@@ -561,6 +567,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             input
                         })
                         .collect::<Vec<_>>();
+
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
 
@@ -765,14 +772,11 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 MemoryAddress::direct(vector_address.unwrap_direct() + 1);
                             let items_start = vector_address.offset(2);
                             let vector_size = self.memory.read(size_address).to_usize();
-                            // Prefix slices with the capacity.
-                            let mut values = vec![MemoryValue::Field(F::from(vector_size))];
-                            values.extend(self.read_slice_of_values_from_memory(
+                            self.read_slice_of_values_from_memory(
                                 items_start,
                                 vector_size,
                                 value_types,
-                            ));
-                            values
+                            )
                         }
                     }
                 })
@@ -2179,12 +2183,7 @@ mod tests {
             vm.status,
             VMStatus::ForeignCallWait {
                 function: "string_double".into(),
-                inputs: vec![{
-                    let mut data = input_string.clone();
-                    // Because the string is represented as a `HeapVector`, it will be prefixed with its capacity.
-                    data.insert(0, input_string.len().into());
-                    data.into()
-                }]
+                inputs: vec![input_string.clone().into()]
             }
         );
 
@@ -2553,14 +2552,12 @@ mod tests {
                 function: "flat_sum".into(),
                 inputs: vec![ForeignCallParam::Array(vec![
                     (1u128).into(),
-                    (2u128).into(), // length of following vector
-                    (2u128).into(), // flattened capacity of following vector
+                    (2u128).into(), // size of following vector
                     (2u128).into(),
                     (3u128).into(),
                     (4u128).into(),
                     (5u128).into(),
-                    (3u128).into(), // length of following vector
-                    (3u128).into(), // flattened capacity of following vector
+                    (3u128).into(), // size of following vector
                     (6u128).into(),
                     (7u128).into(),
                     (8u128).into(),
