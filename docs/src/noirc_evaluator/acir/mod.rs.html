@@ -1829,7 +1829,9 @@
 <a href="#1828" id="1828">1828</a>
 <a href="#1829" id="1829">1829</a>
 <a href="#1830" id="1830">1830</a>
-<a href="#1831" id="1831">1831</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -3130,7 +3132,9 @@
             }
             Intrinsic::ArrayLen =&gt; {
                 <span class="kw">let </span>len = <span class="kw">match </span><span class="self">self</span>.convert_value(arguments[<span class="number">0</span>], dfg) {
-                    AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Non-array passed to array.len() method"</span>),
+                    AcirValue::Var(<span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+                        <span class="macro">unreachable!</span>(<span class="string">"Non-array passed to array.len() method"</span>)
+                    }
                     AcirValue::Array(values) =&gt; values.len(),
                     AcirValue::DynamicArray(array) =&gt; array.len,
                 };

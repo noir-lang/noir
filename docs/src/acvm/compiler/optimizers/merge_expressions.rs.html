@@ -785,8 +785,8 @@
     };
     <span class="kw">use </span>std::collections::BTreeSet;
 
-    <span class="kw">fn </span>check_circuit(circuit: Circuit&lt;FieldElement&gt;) -&gt; Circuit&lt;FieldElement&gt; {
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit));
+    <span class="kw">fn </span>must_check_circuit(circuit: Circuit&lt;FieldElement&gt;) -&gt; Circuit&lt;FieldElement&gt; {
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_none());
         <span class="kw">let </span><span class="kw-2">mut </span>merge_optimizer = MergeExpressionsOptimizer::new();
         <span class="kw">let </span>acir_opcode_positions = <span class="macro">vec!</span>[<span class="number">0</span>; <span class="number">20</span>];
         <span class="kw">let </span>(opcodes, <span class="kw">_</span>) =
@@ -794,7 +794,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>optimized_circuit = circuit;
         optimized_circuit.opcodes = opcodes;
         <span class="comment">// check that the circuit is still valid after optimization
-        </span><span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>optimized_circuit));
+        </span><span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>optimized_circuit).is_none());
         optimized_circuit
     }
 
@@ -839,7 +839,7 @@
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
         };
-        check_circuit(circuit);
+        must_check_circuit(circuit);
     }
 
     <span class="attr">#[test]
@@ -935,7 +935,7 @@
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
         };
-        check_circuit(circuit);
+        must_check_circuit(circuit);
     }
 
     <span class="attr">#[test]
@@ -980,7 +980,7 @@
             ..Default::default()
         };
 
-        <span class="kw">let </span>new_circuit = check_circuit(circuit.clone());
+        <span class="kw">let </span>new_circuit = must_check_circuit(circuit.clone());
         <span class="macro">assert_eq!</span>(circuit, new_circuit);
     }
 }

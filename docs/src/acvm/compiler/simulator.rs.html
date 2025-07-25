@@ -361,17 +361,17 @@
 
 <span class="kw">impl </span>CircuitSimulator {
     <span class="doccomment">/// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
-    /// Returns false if the circuit cannot be solved
+    /// Returns the index of the opcode that cannot be solved, if any.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-    </span><span class="kw">pub fn </span>check_circuit&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; bool {
+    </span><span class="kw">pub fn </span>check_circuit&lt;F: AcirField&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;usize&gt; {
         <span class="kw">let </span>circuit_inputs = circuit.circuit_arguments();
         <span class="self">self</span>.solvable_witness.extend(circuit_inputs.iter());
-        <span class="kw">for </span>op <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
+        <span class="kw">for </span>(i, op) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
             <span class="kw">if </span>!<span class="self">self</span>.try_solve(op) {
-                <span class="kw">return </span><span class="bool-val">false</span>;
+                <span class="kw">return </span><span class="prelude-val">Some</span>(i);
             }
         }
-        <span class="bool-val">true
+        <span class="prelude-val">None
     </span>}
 
     <span class="doccomment">/// Check if the Opcode can be solved, and if yes, add the solved witness to set of solvable witness
@@ -567,7 +567,7 @@
     </span><span class="kw">fn </span>reports_true_for_empty_circuit() {
         <span class="kw">let </span>empty_circuit = test_circuit(<span class="macro">vec!</span>[], BTreeSet::default(), PublicInputs::default());
 
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>empty_circuit));
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>empty_circuit).is_none());
     }
 
     <span class="attr">#[test]
@@ -585,7 +585,7 @@
             PublicInputs::default(),
         );
 
-        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>connected_circuit));
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>connected_circuit).is_none());
     }
 
     <span class="attr">#[test]
@@ -613,7 +613,7 @@
             PublicInputs::default(),
         );
 
-        <span class="macro">assert!</span>(!CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>disconnected_circuit));
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>disconnected_circuit).is_some());
     }
 
     <span class="attr">#[test]
@@ -653,7 +653,7 @@
             PublicInputs::default(),
         );
 
-        <span class="macro">assert!</span>(!CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit));
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_some());
     }
 
     <span class="attr">#[test]
@@ -675,7 +675,7 @@
             PublicInputs::default(),
         );
 
-        <span class="macro">assert!</span>(!CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit));
+        <span class="macro">assert!</span>(CircuitSimulator::default().check_circuit(<span class="kw-2">&amp;</span>circuit).is_some());
     }
 }
 </code></pre></div></section></main></body></html>
