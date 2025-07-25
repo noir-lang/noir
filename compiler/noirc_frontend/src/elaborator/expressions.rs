@@ -1334,7 +1334,7 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    let wildcard_allowed = false;
+                    let wildcard_allowed = true;
                     self.resolve_type(typ, wildcard_allowed)
                 };
 
