@@ -232,7 +232,7 @@ expression: artifact
     "INIT (id: 7, len: 2, witnesses: [_114, _116])",
     "MEM (id: 7, read at: EXPR [ (1, _35) 0 ], value: EXPR [ (1, _117) 0 ]) ",
     "EXPR [ (1, _104) (-1, _117) 0 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(49))], q_c: 4294967292 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(118)), Simple(Witness(119))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _49) 4294967292 ], EXPR [ 4294967296 ]], outputs: [_118, _119]",
     "BLACKBOX::RANGE [(_119, 32)] []",
     "EXPR [ (1, _49) (-4294967296, _118) (-1, _119) 4294967292 ]",
     "EXPR [ (-1, _118) 0 ]",

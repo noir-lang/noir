@@ -254,6 +254,7 @@
         "replacen",
         "repr",
         "reqwest",
+        "RETURNDATA",
         "rfind",
         "ripemd",
         "RMVD",
