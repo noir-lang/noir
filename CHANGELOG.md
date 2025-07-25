@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0-beta.10](https://github.com/noir-lang/noir/compare/v1.0.0-beta.9...v1.0.0-beta.10) (2025-07-25)
+
+
+### Features
+
+* Initial ACIR parser (arithmetic exprs and black box functions) ([#9316](https://github.com/noir-lang/noir/issues/9316)) ([5be4e92](https://github.com/noir-lang/noir/commit/5be4e927df0249c66fa5e6c1686f0b30cea5c25f))
+* Return unsolvable opcode from `CircuitSimulator` ([#8943](https://github.com/noir-lang/noir/issues/8943)) ([cb861f8](https://github.com/noir-lang/noir/commit/cb861f822639d790c8afc4de751fa513e810dcfa))
+
+
+### Bug Fixes
+
+* Allow nested fmtstr ([#9309](https://github.com/noir-lang/noir/issues/9309)) ([42429ab](https://github.com/noir-lang/noir/commit/42429ab17ac240f924754340b2d55d97b056d00e))
+* Make Ssa-gen use existing reference when compiling `&mut foo.bar.baz` ([#9307](https://github.com/noir-lang/noir/issues/9307)) ([edd42f8](https://github.com/noir-lang/noir/commit/edd42f89acbfe5682123acecc490ea5e4d7ac226))
+* **mem2reg:** Register aliases when the `IfElse` result in a reference ([#9305](https://github.com/noir-lang/noir/issues/9305)) ([637e060](https://github.com/noir-lang/noir/commit/637e0601aa5dc0baa29934783e6ff7fdf8e24133))
+* **ssa_interpreter:** `push_back` and `pop_back` to slices with padding ([#9320](https://github.com/noir-lang/noir/issues/9320)) ([dd0bc23](https://github.com/noir-lang/noir/commit/dd0bc23a84ac756d23bca59d330ac81e3f599c0c))
+* **ssa-interpreter:** Return error if slice length is 0 during popping ([#9308](https://github.com/noir-lang/noir/issues/9308)) ([8d8dba4](https://github.com/noir-lang/noir/commit/8d8dba46e2bd3788b67dcd785c94c17631de1b9c))
+* Substitute bindings in type before canonicalization ([#9328](https://github.com/noir-lang/noir/issues/9328)) ([37e8b2d](https://github.com/noir-lang/noir/commit/37e8b2dba771efa742a492b6cafe3cde7de63bc0))
+* Top-level item in dependency isn't always visible ([#9295](https://github.com/noir-lang/noir/issues/9295)) ([4609eb2](https://github.com/noir-lang/noir/commit/4609eb2930ea9af40de494f38035c15fb48dd66b))
+* Wildcard type should be allowed in lambda parameter types ([#9325](https://github.com/noir-lang/noir/issues/9325)) ([8f21710](https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c))
+
 ## [1.0.0-beta.9](https://github.com/noir-lang/noir/compare/v1.0.0-beta.8...v1.0.0-beta.9) (2025-07-23)
 
 
