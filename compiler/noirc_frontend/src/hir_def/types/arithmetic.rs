@@ -73,9 +73,10 @@ impl Type {
         found_checked_cast: bool,
         run_simplifications: bool,
     ) -> Type {
-        match self {
+        let typ = self.substitute(bindings);
+        match typ {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let kind = lhs.infix_kind(rhs);
+                let kind = lhs.infix_kind(&rhs);
                 let dummy_location = Location::dummy();
 
                 let evaluate = |typ: &Type| {
@@ -89,8 +90,8 @@ impl Type {
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) = evaluate(lhs) {
-                    if let Ok(rhs_value) = evaluate(rhs) {
+                if let Ok(lhs_value) = evaluate(&lhs) {
+                    if let Ok(rhs_value) = evaluate(&rhs) {
                         if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
                         {
                             return Type::Constant(result, kind);
@@ -122,34 +123,33 @@ impl Type {
                 }
 
                 if !run_simplifications {
-                    return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
+                    return Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion);
                 }
 
                 if let Some(result) =
-                    Self::try_simplify_non_constants_in_lhs(&lhs, *op, &rhs, bindings)
+                    Self::try_simplify_non_constants_in_lhs(&lhs, op, &rhs, bindings)
                 {
                     return result.canonicalize_unchecked(bindings);
                 }
 
                 if let Some(result) =
-                    Self::try_simplify_non_constants_in_rhs(&lhs, *op, &rhs, bindings)
+                    Self::try_simplify_non_constants_in_rhs(&lhs, op, &rhs, bindings)
                 {
                     return result.canonicalize_unchecked(bindings);
                 }
 
                 // Try to simplify partially constant expressions in the form `(N op1 C1) op2 C2`
                 // where C1 and C2 are constants that can be combined (e.g. N + 5 - 3 = N + 2)
-                if let Some(result) =
-                    Self::try_simplify_partial_constants(&lhs, *op, &rhs, bindings)
+                if let Some(result) = Self::try_simplify_partial_constants(&lhs, op, &rhs, bindings)
                 {
                     return result.canonicalize_unchecked(bindings);
                 }
 
                 if op.is_commutative() {
-                    return Self::sort_commutative(&lhs, *op, &rhs, bindings);
+                    return Self::sort_commutative(lhs, op, rhs, bindings);
                 }
 
-                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
+                Type::InfixExpr(Box::new(lhs), op, Box::new(rhs), inversion)
             }
             Type::CheckedCast { from, to } => {
                 let inner_found_checked_cast = true;
@@ -164,17 +164,18 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            other => other.clone(),
+            other => other,
         }
     }
 
     fn sort_commutative(
-        lhs: &Type,
+        lhs: Type,
         op: BinaryTypeOperator,
-        rhs: &Type,
+        rhs: Type,
         bindings: &TypeBindings,
     ) -> Type {
-        let mut queue = vec![lhs.clone(), rhs.clone()];
+        let kind = lhs.infix_kind(&rhs);
+        let mut queue = vec![lhs, rhs];
 
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
@@ -225,14 +226,14 @@ impl Type {
             }
 
             if constant != zero_value {
-                let constant = Type::Constant(constant, lhs.infix_kind(rhs));
+                let constant = Type::Constant(constant, kind);
                 typ = Type::infix_expr(Box::new(typ), op, Box::new(constant));
             }
 
             typ
         } else {
             // Every type must have been a constant
-            Type::Constant(constant, lhs.infix_kind(rhs))
+            Type::Constant(constant, kind)
         }
     }
 
