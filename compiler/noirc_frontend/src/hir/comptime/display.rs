@@ -216,10 +216,16 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             }
             Token::InternedCrate(_) => write!(f, "$crate"),
             Token::UnquoteMarker(id) => {
-                if self.preserve_unquote_markers {
-                    write!(f, "$")?;
-                }
                 let value = Value::TypedExpr(TypedExpr::ExprId(*id));
+                let last_was_alphanumeric = if self.preserve_unquote_markers {
+                    if last_was_alphanumeric {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "$")?;
+                    false
+                } else {
+                    last_was_alphanumeric
+                };
                 self.print_value(&value, last_was_alphanumeric, f)
             }
             Token::Keyword(..) | Token::Ident(..) | Token::Int(..) | Token::Bool(..) => {
