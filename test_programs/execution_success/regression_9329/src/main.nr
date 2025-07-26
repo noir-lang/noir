@@ -1,8 +1,6 @@
 fn main(b: [i8; 2]) -> pub i8 {
     let i = foo(b);
-    let c = comptime {
-        foo([10, 20])
-    };
+    let c = comptime { foo([10, 20]) };
     assert_eq(i, c);
     i
 }
