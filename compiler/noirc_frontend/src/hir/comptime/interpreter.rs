@@ -934,13 +934,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
+        let idx = self.evaluate(index.index)?;
         let array = self.evaluate(index.collection)?;
-        let index = self.evaluate(index.index)?;
 
         let location = self.elaborator.interner.expr_location(&id);
-        let (array, index) = bounds_check(array, index, location)?;
+        let (array, idx) = bounds_check(array, idx, location)?;
 
-        Ok(array[index].clone())
+        Ok(array[idx].clone())
     }
 
     fn evaluate_constructor(
