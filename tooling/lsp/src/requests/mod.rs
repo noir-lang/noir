@@ -490,7 +490,8 @@ where
 
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
 
-    if state.work_queue.remove(&workspace.root_dir) {
+    // First type-check the workspace if needed
+    if state.workspaces_to_process.remove(&workspace.root_dir) {
         let _ = process_workspace_for_noir_document(state, &workspace.root_dir, false);
     }
 

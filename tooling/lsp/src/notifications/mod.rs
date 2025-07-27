@@ -101,10 +101,12 @@ pub(super) fn on_did_save_text_document(
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
-    if state.work_queue.remove(&workspace.root_dir) {
+    // Process any pending change
+    if state.workspaces_to_process.remove(&workspace.root_dir) {
         let _ = process_workspace_for_noir_document(state, &workspace.root_dir, false);
     }
 
+    // A package cache should be here but, if it doesn't, we'll just type-check and output diagnostics
     let Some(package_cache) = state.package_cache.get(&workspace.root_dir) else {
         let output_diagnostics = true;
         return match process_workspace_for_noir_document(
@@ -117,6 +119,9 @@ pub(super) fn on_did_save_text_document(
         };
     };
 
+    // If the last thing the user did was to save a file in the workspace, it could be that
+    // the underlying files in the filesystem have changed (for example a `git checkout`),
+    // so here we force a type-check just in case.
     if package_cache.diagnostics_just_published {
         let output_diagnostics = true;
         return match process_workspace_for_noir_document(
@@ -129,6 +134,7 @@ pub(super) fn on_did_save_text_document(
         };
     }
 
+    // Otherwise, we can publish the diagnostics we computed in the last type-check
     let mut workspace_file_manager = workspace.new_file_manager();
 
     insert_all_files_for_workspace_into_file_manager(
@@ -157,7 +163,7 @@ fn handle_text_document_notification(
 ) -> Result<(), async_lsp::Error> {
     let workspace = workspace_from_document_uri(document_uri.clone())?;
 
-    state.work_queue.insert(workspace.root_dir.clone());
+    state.workspaces_to_process.insert(workspace.root_dir.clone());
 
     Ok(())
 }
