@@ -23,7 +23,7 @@ Let's go barebones. Doing the bare minimum is not only simple, but also allows y
 Barebones means we can immediately start with the dependencies even on an empty folder 😈:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-beta.6 @aztec/bb.js@0.84.0
+yarn add @noir-lang/noir_js@1.0.0-beta.8 @aztec/bb.js@0.84.0
 ```
 
 Wait, what are these dependencies?
