@@ -44,7 +44,6 @@ pub(crate) fn on_did_open_text_document(
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
-    state.open_documents_count += 1;
 
     let document_uri = params.text_document.uri;
 
@@ -76,13 +75,6 @@ pub(super) fn on_did_close_text_document(
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
-
-    state.open_documents_count -= 1;
-
-    if state.open_documents_count == 0 {
-        state.package_cache.clear();
-        state.workspace_cache.clear();
-    }
 
     let document_uri = params.text_document.uri;
 
