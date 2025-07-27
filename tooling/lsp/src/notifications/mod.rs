@@ -46,8 +46,9 @@ pub(crate) fn on_did_open_text_document(
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
+    let change = false;
 
-    match handle_text_document_notification(state, document_uri) {
+    match handle_text_document_notification(state, document_uri, change) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -62,8 +63,9 @@ pub(super) fn on_did_change_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
+    let change = true;
 
-    match handle_text_document_notification(state, document_uri) {
+    match handle_text_document_notification(state, document_uri, change) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -77,8 +79,9 @@ pub(super) fn on_did_close_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
+    let change = false;
 
-    match handle_text_document_notification(state, document_uri) {
+    match handle_text_document_notification(state, document_uri, change) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -152,12 +155,22 @@ pub(super) fn on_did_save_text_document(
 fn handle_text_document_notification(
     state: &mut LspState,
     document_uri: Url,
+    change: bool,
 ) -> Result<(), async_lsp::Error> {
     let workspace = workspace_from_document_uri(document_uri.clone())?;
 
-    state.workspaces_to_process.insert(workspace.root_dir.clone());
-
-    Ok(())
+    if state.package_cache.contains_key(&workspace.root_dir) {
+        // If we have cached data but the file didn't change there's nothing to do
+        if change {
+            state.workspaces_to_process.insert(workspace.root_dir.clone());
+        }
+        Ok(())
+    } else {
+        // If it's the first time we see this package, show diagnostics.
+        // This can happen for example when a user opens a Noir file in a package for the first time.
+        let output_diagnostics = true;
+        process_workspace_for_noir_document(state, &workspace.root_dir, output_diagnostics)
+    }
 }
 
 fn workspace_from_document_uri(document_uri: Url) -> Result<Workspace, async_lsp::Error> {
