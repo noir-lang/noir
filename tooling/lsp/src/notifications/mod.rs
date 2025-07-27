@@ -1,6 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::ops::ControlFlow;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
@@ -9,7 +9,7 @@ use async_lsp::lsp_types;
 use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
-use fxhash::FxHashMap as HashMap;
+use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -44,15 +44,12 @@ pub(crate) fn on_did_open_text_document(
     params: DidOpenTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
+    state.open_documents_count += 1;
 
     let document_uri = params.text_document.uri;
-    let output_diagnostics = true;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
-        Ok(_) => {
-            state.open_documents_count += 1;
-            ControlFlow::Continue(())
-        }
+    match handle_text_document_notification(state, document_uri) {
+        Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
 }
@@ -66,9 +63,8 @@ pub(super) fn on_did_change_text_document(
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
-    let output_diagnostics = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match handle_text_document_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -89,9 +85,8 @@ pub(super) fn on_did_close_text_document(
     }
 
     let document_uri = params.text_document.uri;
-    let output_diagnostics = false;
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
+    match handle_text_document_notification(state, document_uri) {
         Ok(_) => ControlFlow::Continue(()),
         Err(err) => ControlFlow::Break(Err(err)),
     }
@@ -101,13 +96,62 @@ pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
 ) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let document_uri = params.text_document.uri;
-    let output_diagnostics = true;
+    let workspace = match workspace_from_document_uri(params.text_document.uri) {
+        Ok(workspace) => workspace,
+        Err(err) => return ControlFlow::Break(Err(err)),
+    };
 
-    match process_workspace_for_noir_document(state, document_uri, output_diagnostics) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    let Some(package_cache) = state.package_cache.get(&workspace.root_dir) else {
+        let output_diagnostics = true;
+        return match process_workspace_for_noir_document(
+            state,
+            &workspace.root_dir,
+            output_diagnostics,
+        ) {
+            Ok(_) => ControlFlow::Continue(()),
+            Err(err) => return ControlFlow::Break(Err(err)),
+        };
+    };
+
+    let mut workspace_file_manager = workspace.new_file_manager();
+
+    insert_all_files_for_workspace_into_file_manager(
+        state,
+        &workspace,
+        &mut workspace_file_manager,
+    );
+
+    publish_diagnostics(
+        state,
+        &workspace.root_dir,
+        &workspace_file_manager,
+        package_cache.diagnostics.clone(),
+    );
+
+    ControlFlow::Continue(())
+}
+
+fn handle_text_document_notification(
+    state: &mut LspState,
+    document_uri: Url,
+) -> Result<(), async_lsp::Error> {
+    let workspace = workspace_from_document_uri(document_uri.clone())?;
+
+    state.work_queue.insert(workspace.root_dir.clone());
+
+    Ok(())
+}
+
+fn workspace_from_document_uri(document_uri: Url) -> Result<Workspace, async_lsp::Error> {
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+    })?;
+
+    Ok(workspace)
 }
 
 // Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
@@ -115,14 +159,10 @@ pub(super) fn on_did_save_text_document(
 // caching code lenses and type definitions, and notifying about compilation errors.
 pub(crate) fn process_workspace_for_noir_document(
     state: &mut LspState,
-    document_uri: Url,
+    file_path: &Path,
     output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
-    let file_path = document_uri.to_file_path().map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-    })?;
-
-    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+    let workspace = resolve_workspace_for_source_path(file_path).map_err(|lsp_error| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
     })?;
 
@@ -161,14 +201,14 @@ pub(crate) fn process_workspace_for_noir_document(
                 node_interner: context.def_interner,
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
+                diagnostics: file_diagnostics.clone(),
             },
         );
 
         let fm = &context.file_manager;
-        let files = fm.as_file_map();
 
         if output_diagnostics {
-            publish_diagnostics(state, &package.root_dir, files, fm, file_diagnostics);
+            publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
         }
     }
 
@@ -183,10 +223,10 @@ pub(crate) fn process_workspace_for_noir_document(
 fn publish_diagnostics(
     state: &mut LspState,
     package_root_dir: &PathBuf,
-    files: &FileMap,
     fm: &FileManager,
     custom_diagnostics: Vec<CustomDiagnostic>,
 ) {
+    let files = fm.as_file_map();
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
     for custom_diagnostic in custom_diagnostics.into_iter() {

@@ -29,6 +29,7 @@ use nargo::{
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -96,6 +97,7 @@ pub struct LspState {
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
+    work_queue: HashSet<PathBuf>,
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -112,6 +114,7 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
+    diagnostics: Vec<CustomDiagnostic>,
 }
 
 impl LspState {
@@ -129,6 +132,7 @@ impl LspState {
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             open_documents_count: 0,
+            work_queue: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }

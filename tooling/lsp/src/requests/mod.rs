@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::{collections::HashMap, future::Future};
 
+use crate::notifications::process_workspace_for_noir_document;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
@@ -488,6 +489,11 @@ where
         })?;
 
     let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+
+    if state.work_queue.remove(&workspace.root_dir) {
+        let _ = process_workspace_for_noir_document(state, &workspace.root_dir, false);
+    }
+
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
