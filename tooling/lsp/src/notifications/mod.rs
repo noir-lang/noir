@@ -96,13 +96,16 @@ pub(super) fn on_did_save_text_document(
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
-    // Process any pending change
+    // Process any pending changes
     if state.workspaces_to_process.remove(&workspace.root_dir) {
         let _ = process_workspace_for_noir_document(state, &workspace.root_dir, false);
     }
 
-    // A package cache should be here but, if it doesn't, we'll just type-check and output diagnostics
-    let Some(package_cache) = state.package_cache.get(&workspace.root_dir) else {
+    // Cached data should be here but, if it doesn't, we'll just type-check and output diagnostics
+    let (Some(workspace_cache), Some(package_cache)) = (
+        state.workspace_cache.get(&workspace.root_dir),
+        state.package_cache.get(&workspace.root_dir),
+    ) else {
         let output_diagnostics = true;
         return match process_workspace_for_noir_document(
             state,
@@ -130,18 +133,10 @@ pub(super) fn on_did_save_text_document(
     }
 
     // Otherwise, we can publish the diagnostics we computed in the last type-check
-    let mut workspace_file_manager = workspace.new_file_manager();
-
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
-
     publish_diagnostics(
         state,
         &workspace.root_dir,
-        &workspace_file_manager,
+        &workspace_cache.file_manager.clone(),
         package_cache.diagnostics.clone(),
     );
 
