@@ -101,6 +101,10 @@ pub(super) fn on_did_save_text_document(
         Err(err) => return ControlFlow::Break(Err(err)),
     };
 
+    if state.work_queue.remove(&workspace.root_dir) {
+        let _ = process_workspace_for_noir_document(state, &workspace.root_dir, false);
+    }
+
     let Some(package_cache) = state.package_cache.get(&workspace.root_dir) else {
         let output_diagnostics = true;
         return match process_workspace_for_noir_document(
@@ -112,6 +116,18 @@ pub(super) fn on_did_save_text_document(
             Err(err) => return ControlFlow::Break(Err(err)),
         };
     };
+
+    if package_cache.diagnostics_just_published {
+        let output_diagnostics = true;
+        return match process_workspace_for_noir_document(
+            state,
+            &workspace.root_dir,
+            output_diagnostics,
+        ) {
+            Ok(_) => ControlFlow::Continue(()),
+            Err(err) => return ControlFlow::Break(Err(err)),
+        };
+    }
 
     let mut workspace_file_manager = workspace.new_file_manager();
 
@@ -127,6 +143,10 @@ pub(super) fn on_did_save_text_document(
         &workspace_file_manager,
         package_cache.diagnostics.clone(),
     );
+
+    if let Some(package_cache) = state.package_cache.get_mut(&workspace.root_dir) {
+        package_cache.diagnostics_just_published = true;
+    }
 
     ControlFlow::Continue(())
 }
@@ -202,6 +222,7 @@ pub(crate) fn process_workspace_for_noir_document(
                 def_maps: context.def_maps,
                 usage_tracker: context.usage_tracker,
                 diagnostics: file_diagnostics.clone(),
+                diagnostics_just_published: output_diagnostics,
             },
         );
 

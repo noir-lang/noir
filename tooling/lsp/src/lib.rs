@@ -115,6 +115,7 @@ struct PackageCacheData {
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
     diagnostics: Vec<CustomDiagnostic>,
+    diagnostics_just_published: bool,
 }
 
 impl LspState {
