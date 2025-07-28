@@ -1013,7 +1013,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
