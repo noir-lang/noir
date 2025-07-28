@@ -545,7 +545,6 @@ impl<'a> Parser<'a> {
                 return self.expected_one_of_tokens(&[
                     Token::Ident("read".into()),
                     Token::Ident("write".into()),
-                    Token::Ident("op".into()),
                 ]);
             }
         };
