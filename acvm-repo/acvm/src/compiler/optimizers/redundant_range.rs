@@ -56,7 +56,7 @@ use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
-        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, FunctionInput, MemOp},
     },
     native_types::Witness,
 };
@@ -162,48 +162,34 @@ impl<F: AcirField> RangeOptimizer<F> {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let (witness, num_bits) = {
-                // If its not the range opcode, add it to the opcode
-                // list and continue;
-                let mut push_non_range_opcode = || {
-                    optimized_opcodes.push(opcode.clone());
-                    new_order_list.push(order_list[idx]);
-                };
-
-                match opcode {
-                    Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                        match input.input() {
-                            ConstantOrWitnessEnum::Witness(witness) => (witness, input.num_bits()),
-                            _ => {
-                                push_non_range_opcode();
-                                continue;
-                            }
-                        }
-                    }
-                    _ => {
-                        push_non_range_opcode();
-                        continue;
+            let Some(witness) = (match opcode {
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
+                    match input.input() {
+                        ConstantOrWitnessEnum::Witness(witness) => Some(witness),
+                        _ => None,
                     }
                 }
+                _ => None,
+            }) else {
+                // If its not the range opcode, add it to the opcode list and continue.
+                optimized_opcodes.push(opcode.clone());
+                new_order_list.push(order_list[idx]);
+                continue;
             };
+
             // If we've already applied the range constraint for this witness then skip this opcode.
-            let already_added = already_seen_witness.contains(&witness);
-            if already_added {
+            if already_seen_witness.contains(&witness) {
                 continue;
             }
 
-            // Check if this is the lowest number of bits in the circuit
+            // Keep the first range opcode, but use the lowest stored bit size for it.
             let stored_num_bits = self.lists.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
-            let is_lowest_bit_size = num_bits <= *stored_num_bits;
-
-            // If the opcode is associated with the lowest bit size
-            // and we have not added a duplicate of this opcode yet,
-            // then we should add retain this range opcode.
-            if is_lowest_bit_size {
-                already_seen_witness.insert(witness);
-                new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode.clone());
-            }
+            let opcode = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::witness(witness, *stored_num_bits),
+            });
+            already_seen_witness.insert(witness);
+            new_order_list.push(order_list[idx]);
+            optimized_opcodes.push(opcode.clone());
         }
 
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
