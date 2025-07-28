@@ -2573,7 +2573,9 @@
 <a href="#2572" id="2572">2572</a>
 <a href="#2573" id="2573">2573</a>
 <a href="#2574" id="2574">2574</a>
-<a href="#2575" id="2575">2575</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2575" id="2575">2575</a>
+<a href="#2576" id="2576">2576</a>
+<a href="#2577" id="2577">2577</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -3504,6 +3506,8 @@
         <span class="kw">let </span>name_ident = HirIdent::non_trait_method(id, location);
 
         <span class="kw">let </span>is_entry_point = <span class="self">self</span>.is_entry_point_function(func, in_contract);
+        <span class="kw">let </span>is_test_or_fuzz =
+            func.attributes().is_test_function() || func.attributes().is_fuzzing_harness();
 
         <span class="comment">// Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
@@ -3568,12 +3572,12 @@
 
             <span class="self">self</span>.check_if_type_is_valid_for_program_input(
                 <span class="kw-2">&amp;</span>typ,
-                is_entry_point,
+                is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
                 type_location,
             );
 
-            <span class="kw">if </span>is_entry_point {
+            <span class="kw">if </span>is_entry_point || is_test_or_fuzz {
                 <span class="self">self</span>.mark_type_as_used(<span class="kw-2">&amp;</span>typ);
             }
 

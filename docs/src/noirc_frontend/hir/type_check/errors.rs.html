@@ -1425,7 +1425,7 @@
             }
             TypeCheckError::InvalidTypeForEntryPoint { location } =&gt; Diagnostic::simple_error(
                 <span class="string">"Only sized types may be used in the entry point to a program"</span>.to_string(),
-                <span class="string">"Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions"</span>.to_string(), <span class="kw-2">*</span>location),
+                <span class="string">"Slices, references, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions"</span>.to_string(), <span class="kw-2">*</span>location),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
