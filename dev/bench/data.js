@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753735295492,
+  "lastUpdate": 1753735317906,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7402,80 +7402,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e",
-          "message": "fix(fuzz): Use scoping for variable dynamism (#9233)",
-          "timestamp": "2025-07-17T14:52:04Z",
-          "tree_id": "d143a8bac339fa1d66af0b2bae54a15254dadb2f",
-          "url": "https://github.com/noir-lang/noir/commit/c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e"
-        },
-        "date": 1752766986541,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.91,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 237.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.25,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.27,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.51,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -9765,6 +9691,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c0b92e68472ec05654cdcc1c1ad18e98ec651c4d"
         },
         "date": 1753734762307,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "18b01b396a854c55fef6c8aec5d617ea7b1cc849",
+          "message": "feat(lsp): allow opening noir stdlib files (#9339)",
+          "timestamp": "2025-07-28T20:14:00Z",
+          "tree_id": "0be3251dcc2d579e73daf901a4fd680d269193f9",
+          "url": "https://github.com/noir-lang/noir/commit/18b01b396a854c55fef6c8aec5d617ea7b1cc849"
+        },
+        "date": 1753735300999,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
