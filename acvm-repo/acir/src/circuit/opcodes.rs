@@ -156,27 +156,24 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::MemoryOp { block_id, op, predicate } => {
                 write!(f, "MEM ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
+                    writeln!(f, "PREDICATE: {pred}")?;
                 }
 
                 let is_read = op.operation.is_zero();
-                let is_write = op.operation == Expression::one();
                 if is_read {
                     write!(f, "(id: {}, read at: {}, value: {}) ", block_id.0, op.index, op.value)
-                } else if is_write {
-                    write!(f, "(id: {}, write {} at: {}) ", block_id.0, op.value, op.index)
                 } else {
-                    write!(f, "(id: {}, op {} at: {}) ", block_id.0, op.operation, op.index)
+                    write!(f, "(id: {}, write {} at: {}) ", block_id.0, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } => {
                 match databus {
                     BlockType::Memory => write!(f, "INIT ")?,
                     BlockType::CallData(id) => write!(f, "INIT CALLDATA {id} ")?,
-                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?, // cSpell:disable-line
+                    BlockType::ReturnData => write!(f, "INIT RETURNDATA ")?,
                 }
                 let witnesses =
-                    init.iter().map(|w| format!("_{}", w.0)).collect::<Vec<String>>().join(", ");
+                    init.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
                 write!(f, "(id: {}, len: {}, witnesses: [{witnesses}])", block_id.0, init.len())
             }
             // We keep the display for a BrilligCall and circuit Call separate as they
@@ -184,18 +181,35 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
             Opcode::BrilligCall { id, inputs, outputs, predicate } => {
                 write!(f, "BRILLIG CALL func {id}: ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
+                    writeln!(f, "PREDICATE: {pred}")?;
                 }
-                write!(f, "inputs: {inputs:?}, ")?;
-                write!(f, "outputs: {outputs:?}")
+
+                let inputs = inputs
+                    .iter()
+                    .map(|input| format!("{input}"))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+                let outputs = outputs
+                    .iter()
+                    .map(|output| format!("{output}"))
+                    .collect::<Vec<String>>()
+                    .join(", ");
+
+                write!(f, "inputs: [{inputs}], ")?;
+                write!(f, "outputs: [{outputs}]")
             }
             Opcode::Call { id, inputs, outputs, predicate } => {
                 write!(f, "CALL func {id}: ")?;
                 if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE = {pred}")?;
+                    writeln!(f, "PREDICATE: {pred}")?;
                 }
-                write!(f, "inputs: {inputs:?}, ")?;
-                write!(f, "outputs: {outputs:?}")
+                let inputs =
+                    inputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
+                let outputs =
+                    outputs.iter().map(|w| format!("{w}")).collect::<Vec<String>>().join(", ");
+
+                write!(f, "inputs: [{inputs}], ")?;
+                write!(f, "outputs: [{outputs}]")
             }
         }
     }

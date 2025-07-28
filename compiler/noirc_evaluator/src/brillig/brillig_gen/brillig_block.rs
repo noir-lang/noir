@@ -1519,6 +1519,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// and not a flattened length used internally to represent arrays of tuples.
     /// The length inside of `RegisterOrMemory::HeapVector` represents the entire flattened number
     /// of fields in the vector.
+    ///
+    /// Note that when we subtract a value, we expect that there is a constraint in SSA
+    /// to check that the length isn't already 0. We could add a constraint opcode here,
+    /// but if it's in SSA, there is a chance it can be optimized out.
     fn update_slice_length(
         &mut self,
         target_len: MemoryAddress,
@@ -1769,7 +1773,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                         | BinaryOp::Mul { unchecked: false }
                 )
             {
-                panic!("Checked signed operations should all be removed before brilliggen")
+                panic!("Checked signed operations should all be removed before brillig-gen")
             }
             return;
         }
