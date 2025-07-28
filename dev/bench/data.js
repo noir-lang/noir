@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753729017547,
+  "lastUpdate": 1753729020090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2718,90 +2718,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "39a504c14ba855ab4eed7adf9b016ef07c48bc66",
-          "message": "chore(fuzz): Increase loop frequency in Brillig (#9228)",
-          "timestamp": "2025-07-17T11:16:28Z",
-          "tree_id": "959b6fdf2f946c4de4f33aaf9f17334bffdd7fb0",
-          "url": "https://github.com/noir-lang/noir/commit/39a504c14ba855ab4eed7adf9b016ef07c48bc66"
-        },
-        "date": 1752753926589,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.026,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.172,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.626,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.88,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.794,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.808,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.77,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.902,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "87aeccf88b8a5f9808e06a3714283160017f43a7",
           "message": "feat: Add `compiler_unstable_features` to `Nargo.toml` (#9219)",
           "timestamp": "2025-07-17T12:29:07Z",
@@ -5401,6 +5317,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.626,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "21faf9648560b0f5943304833c44a2c5687f0d48",
+          "message": "fix: prevent invalid types in test/fuzz functions (#9343)",
+          "timestamp": "2025-07-28T18:28:59Z",
+          "tree_id": "ef7189439234db8ed7db1c85d780cadb13130988",
+          "url": "https://github.com/noir-lang/noir/commit/21faf9648560b0f5943304833c44a2c5687f0d48"
+        },
+        "date": 1753729000913,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.625,
             "unit": "s"
           }
         ]
