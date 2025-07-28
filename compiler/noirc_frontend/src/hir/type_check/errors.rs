@@ -54,7 +54,7 @@ pub enum TypeCheckError {
         location: Location,
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
