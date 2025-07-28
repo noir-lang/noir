@@ -2,7 +2,6 @@ use std::future::{self, Future};
 
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{Hover, HoverParams};
-use fm::PathString;
 use from_reference::hover_from_reference;
 use from_visitor::hover_from_visitor;
 
@@ -17,11 +16,9 @@ pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> + use<> {
-    let uri = params.text_document_position_params.text_document.uri.clone();
     let position = params.text_document_position_params.position;
     let result = process_request(state, params.text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        let file_id = args.files.get_file_id(&path);
+        let file_id = args.location.file;
         hover_from_reference(file_id, position, &args)
             .or_else(|| hover_from_visitor(file_id, position, &args))
     });
@@ -245,13 +242,16 @@ mod hover_tests {
             .expect("Could not resolve root path");
         let workspace_on_src_lib_path = workspace_on_src_lib_path.to_string_lossy();
 
-        assert_hover(
-            "workspace",
-            "two/src/lib.nr",
-            Position { line: 51, character: 8 },
-            &format!("    let x: BoundedVec<SubOneStruct, 3>\n\nGo to [SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"),
-        )
-        .await;
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 51, character: 8 })
+                .await;
+        assert!(hover_text.contains("    let x: BoundedVec<SubOneStruct, 3>"));
+        assert!(hover_text.contains("Go to [BoundedVec](noir-std:"));
+        assert!(
+            hover_text.contains(&format!(
+                "[SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"
+            ))
+        );
     }
 
     #[test]

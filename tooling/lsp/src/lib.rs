@@ -77,7 +77,10 @@ use solver::WrapperSolver;
 use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 use with_file::parsed_module_with_file;
 
-use crate::{requests::on_expand_request, types::request::NargoExpand};
+use crate::{
+    requests::{on_expand_request, on_std_source_code_request},
+    types::request::{NargoExpand, NargoStdSourceCode},
+};
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -173,6 +176,7 @@ impl NargoLspService {
             .request::<CodeActionRequest, _>(on_code_action_request)
             .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
             .request::<NargoExpand, _>(on_expand_request)
+            .request::<NargoStdSourceCode, _>(on_std_source_code_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -424,8 +428,9 @@ pub fn insert_all_files_for_workspace_into_file_manager(
 pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<PathBuf, &str> {
     let mut overrides: HashMap<PathBuf, &str> = HashMap::new();
     for (path, source) in input_files {
-        let path = path.strip_prefix("file://").unwrap();
-        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        if let Some(path) = path.strip_prefix("file://") {
+            overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        }
     }
     overrides
 }
