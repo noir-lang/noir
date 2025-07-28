@@ -1128,11 +1128,10 @@ impl<'interner> Monomorphizer<'interner> {
                 let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
                     unreachable!("Expected associated type to be numeric");
                 };
-                match associated_type.typ.evaluate_to_field_element(
-                    &associated_type.typ.kind(),
-                    &TypeBindings::default(),
-                    location,
-                ) {
+                match associated_type
+                    .typ
+                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
                         let value = SignedField::positive(value);
@@ -1158,13 +1157,13 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        let value = value
-            .evaluate_to_field_element(&expected_kind, &TypeBindings::default(), location)
-            .map_err(|err| MonomorphizationError::UnknownArrayLength {
+        let value = value.evaluate_to_field_element(&expected_kind, location).map_err(|err| {
+            MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
                 location,
-            })?;
+            }
+        })?;
 
         let expr_kind = Kind::Numeric(Box::new(expr_type.clone()));
         if !expected_kind.unifies(&expr_kind) {
@@ -1571,15 +1570,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind(), &TypeBindings::default(), location);
+        let to_value = to.evaluate_to_field_element(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
-            let from_value = from.evaluate_to_field_element_helper(
-                &to.kind(),
-                location,
-                &TypeBindings::default(),
-                skip_simplifications,
-            );
+            let from_value =
+                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),
