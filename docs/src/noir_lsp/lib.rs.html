@@ -423,7 +423,13 @@
 <a href="#422" id="422">422</a>
 <a href="#423" id="423">423</a>
 <a href="#424" id="424">424</a>
-<a href="#425" id="425">425</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -454,6 +460,7 @@
 };
 <span class="kw">use </span>nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 <span class="kw">use </span>noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+<span class="kw">use </span>noirc_errors::CustomDiagnostic;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -515,12 +522,15 @@
     root_path: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
     client: ClientSocket,
     solver: WrapperSolver,
-    open_documents_count: usize,
     input_files: HashMap&lt;String, String&gt;,
     cached_parsed_files: HashMap&lt;PathBuf, (usize, (ParsedModule, Vec&lt;ParserError&gt;))&gt;,
     workspace_cache: HashMap&lt;PathBuf, WorkspaceCacheData&gt;,
     package_cache: HashMap&lt;PathBuf, PackageCacheData&gt;,
     workspace_symbol_cache: WorkspaceSymbolCache,
+
+    <span class="doccomment">/// Whenever a file in a workspace is changed we'll add it to this set.
+    </span>workspaces_to_process: HashSet&lt;PathBuf&gt;,
+
     options: LspInitializationOptions,
 
     <span class="comment">// Tracks files that currently have errors, by package root.
@@ -537,6 +547,8 @@
     node_interner: NodeInterner,
     def_maps: BTreeMap&lt;CrateId, CrateDefMap&gt;,
     usage_tracker: UsageTracker,
+    diagnostics: Vec&lt;CustomDiagnostic&gt;,
+    diagnostics_just_published: bool,
 }
 
 <span class="kw">impl </span>LspState {
@@ -553,7 +565,7 @@
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            open_documents_count: <span class="number">0</span>,
+            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }

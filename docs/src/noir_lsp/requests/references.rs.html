@@ -341,7 +341,7 @@
 
         notifications::process_workspace_for_noir_document(
             <span class="kw-2">&amp;mut </span>state,
-            one_lib.clone(),
+            <span class="kw-2">&amp;</span>one_lib.to_file_path().unwrap(),
             output_diagnostics,
         )
         .unwrap();
