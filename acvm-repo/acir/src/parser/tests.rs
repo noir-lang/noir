@@ -273,7 +273,7 @@ fn ecdsa_secp256k1_missing_inputs() {
     BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_100]
     "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn ecdsa_secp256r1_missing_inputs() {
     BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_100]
     "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
@@ -349,7 +349,7 @@ fn keccakf1600_missing_inputs() {
         BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
         "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
@@ -374,7 +374,7 @@ fn embedded_curve_add_wrong_output_count() {
         return value indices : []
         BLACKBOX::EMBEDDED_CURVE_ADD [(_0, 255), (_1, 255), (_2, 1), (_3, 255), (_4, 255), (_5, 1)] [_6, _7]
     ";
-    assert_circuit_roundtrip(src);
+    let _ = Circuit::from_str(src).unwrap();
 }
 
 #[test]
@@ -427,7 +427,7 @@ fn sha256_compression_missing_outputs() {
         BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
         "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]

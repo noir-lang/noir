@@ -861,7 +861,7 @@ impl<'a> Parser<'a> {
             Ok(())
         }
     }
-    
+
     fn try_extract_tail<const N: usize, T: Clone>(
         &self,
         items: &mut Vec<T>,
