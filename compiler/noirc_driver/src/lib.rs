@@ -41,6 +41,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
+pub use stdlib::stdlib_paths_with_source;
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -336,7 +337,7 @@ fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    let stdlib_paths_with_source = stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
         file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
     }
@@ -358,6 +359,7 @@ fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
 /// in the stdlib, getting LSP stuff for the stdlib, etc.).
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
+
     let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
     let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
