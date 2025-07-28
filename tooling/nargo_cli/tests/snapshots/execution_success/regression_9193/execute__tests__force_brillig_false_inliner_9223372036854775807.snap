@@ -29,9 +29,10 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 0)] []",
     "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "dY/BDoIwDIbfpecdMOpBXsUYMkYhTZpuKZuJIby7hYDiwVPX/vv+9p+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuayfxuRlrdmrqZUDlM6qGfbEuLxm96Wr/+j5srHn2we+Gv2wzgfSn3uhgvo0L2ZKvmXcMvRFwiFSfqVd2UMnjQG7orjYrZoteAM=",
+  "debug_symbols": "dY/BCoMwDIbfJeceFLfDfJUxpNYohZCW2A6G+O6LYjd32ClN/n5/8i8wYJ+nzvMYZmjvC/TiifzUUXA2+cA6XVYDpe2SIOoITrpS0QpygpYzkYGnpbx/mqPlvSYrqlYGkAetajh6wu21mi9d/Ueby8E2tw98VfqhnXVefu6FGtp63czE257wyDBmdqdI6RWLUkJHCQ6HLLjZ7ZoueAM=",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",

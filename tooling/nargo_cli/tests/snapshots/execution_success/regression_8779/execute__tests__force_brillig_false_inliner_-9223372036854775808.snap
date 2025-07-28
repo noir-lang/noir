@@ -36,10 +36,11 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : [_1]",
+    "BLACKBOX::RANGE [(_0, 0)] []",
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) -1 ]"
   ],
-  "debug_symbols": "dY/dCoMwDIXfJde9cBf7wVcZQ2qNEghpie1giO++KIruYldpcvqd5EzQYVuGhqSPI9TPCVolZhoajsFnimLTaXawt01WRBvBSTcqeUXJUEthdvD2XNZPY/Ky1uzV1MoBSmfVDHtiXF6zO+jqP3q/bezjgK9Gv6zzgfTnXqigvsyLmZJvGbcMfZFwipQ/aVf20EljwK4oLnarZgu+",
+  "debug_symbols": "dY/dCoMwDIXfJde9mBf7wVcZQ2qNEghpie1giO++KIruYldpcvqd5EzQYVuGhqSPI9TPCVolZhoajsFnimLTaXawt01WRBvBSTcqeUXJUEthdvD2XNZPY/Ky1uzV1IsDlM6qGfbEuLxmd9CX/+j9trGPA74a/bLOB9Kfe6GCupoXMyXfMm4Z+iLhFCl/0q7soZPGgF1RXOxWzRZ8AQ==",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) -> pub bool {\n    let d: [&mut bool; 1] = [&mut true];\n    *d[x]\n}\n",

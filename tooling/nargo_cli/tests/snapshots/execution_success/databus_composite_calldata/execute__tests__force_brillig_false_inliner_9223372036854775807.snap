@@ -140,6 +140,8 @@ expression: artifact
     "BLACKBOX::RANGE [(_31, 32)] []",
     "BLACKBOX::RANGE [(_32, 32)] []",
     "BLACKBOX::RANGE [(_33, 32)] []",
+    "BLACKBOX::RANGE [(_34, 2)] []",
+    "BLACKBOX::RANGE [(_35, 2)] []",
     "EXPR [ (-1, _37) 0 ]",
     "EXPR [ (-1, _38) 1 ]",
     "EXPR [ (-1, _39) 11 ]",
@@ -233,6 +235,7 @@ expression: artifact
     "MEM (id: 7, read at: EXPR [ (1, _35) 0 ], value: EXPR [ (1, _117) 0 ]) ",
     "EXPR [ (1, _104) (-1, _117) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _49) 4294967292 ], EXPR [ 4294967296 ]], outputs: [_118, _119]",
+    "BLACKBOX::RANGE [(_118, 0)] []",
     "BLACKBOX::RANGE [(_119, 32)] []",
     "EXPR [ (1, _49) (-4294967296, _118) (-1, _119) 4294967292 ]",
     "EXPR [ (-1, _118) 0 ]",
@@ -242,7 +245,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZbLjqMwEEX/hXUWfpbt/pXRKCIJaSEhEtEw0ijKv08Vl+pJt9QbszoXnHsgMSZ+NJfutLwf+/F6+2jefj2a09QPQ/9+HG7ndu5vI599PA+NHh7nqev4VPMyzq17O3Xj3LyNyzAcmj/tsKwf+ri348q5nXjUHJpuvDBZeO2HTtLz8L9tfq7aYreyM/azHqv6qaLvTNG+zfuu70zN9X3Sfkj7+tHt7FNNP2btU9rXTzvvv66fdf591fP32qd9fVtz/94G7bu4r+/tzv7O71/V98FrP/qa/ufz56uen5frf+v/5qP23E9f3riND/zOODQ+AgQkIANlRTCABRzgAbY4RgTYwncREpABtvDURLZEhgUc4IEARICABGSgrCBYCBaChWAhWAgWgoVgIVgIlgRLYgsv2uQAtvAUpABEgIAEZKCsyAawgANgybBkWDIsGZYMS4alwFJgKbAUWIrMEc95kUniX7vQxrQxbyygNUaD1eA0yIQ5CUFD1EAakgYRewllC1bMQYLV4DR4DUFD1EAakgYxRwllC85osBqcBjGThKBBzEmCmLOEpCFrKFvwRv5WJVgJT1k8U9+ehm7bc1yX8fyyBZn/3nVENyn36XbuLsvUyeJZx3g5/QM=",
+  "debug_symbols": "pZbLbqswFEX/xWMGfj/6K1dXEUlIhYRIRKFSFeXfew6b06aVOjGjtcDZGxJj4rs6d8fl9dCPl+ubevl3V8epH4b+9TBcT+3cX0c6e380Sg4P89R1dEo9jVPq1k7dOKuXcRmGRr23w7J+6O3WjivndqJR3ahuPBOp8NIPHduj+U7rv6OmmC1stfmKh6p8qshbXSRv8r7rW11zfZck79O+fLA787EmH7LkY9qXTzvvvy6fZf5d1fP3nI/78qbm/p3xkrdhX96Znfmd378q77yTfHA1+a/nz1U9P0/X/5X/T0ftqZ9+vHGVi/TOaJRLQAbKCq8BA1jAAR4IALVYQgKohe7ClxVBA9RCUxOoJRAc4IEARCABGSgrogYMgJaIloiWiJaIloiWiJaIloSWhJaElkQttGiTB6iFpiBFIAEZKCuyBgxgAQd4AC0ZLRktGS0ZLQUtBS0FLQUtBS0FLYXniOa88CTRr13yxgIarUWMiBVxIl6Ep8yyRJEkkkXKJoabHYsR4WbP4kS8SBCJIkkki5RNLDcHFiNiRZyIF+HmyBJFuDmxcHNmKZs4LWJErIjjf1gWz/LgdTT17XHotu3HZRlPT7uR+eMmI7JfuU3XU3depo7X0TpGK+sT",
   "file_map": {
     "50": {
       "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",

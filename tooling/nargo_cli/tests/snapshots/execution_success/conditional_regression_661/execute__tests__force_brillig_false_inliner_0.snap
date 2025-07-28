@@ -64,13 +64,14 @@ expression: artifact
     "EXPR [ (1, _5, _9) (1, _5, _10) (-1, _11) 0 ]",
     "BLACKBOX::RANGE [(_11, 32)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (-1, _5, _8) (1, _5, _11) (1, _8) 4294947296 ], EXPR [ 4294967296 ]], outputs: [_12, _13]",
+    "BLACKBOX::RANGE [(_12, 0)] []",
     "BLACKBOX::RANGE [(_13, 32)] []",
     "EXPR [ (-1, _5, _8) (1, _5, _11) (1, _8) (-4294967296, _12) (-1, _13) 4294947296 ]",
     "EXPR [ (-1, _12) 0 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "tZTNjoQgDMffpWcPlA91fJXNZsIoTkgIGkY32RjffauiO3Mg2biZS/9A+ZW2ASZozG28X61vuwdUHxPcgnXO3q+uq/VgO0+r05zBPr0OwRhagic/Ub0Oxg9Q+dG5DL60G9dNj177VQcdyMsyML4hpYCtdWYZzdkvzdIoIkYYMT9w9XdeXnY+Vymep3kl8sgryf7JyzP5C3Xkf0nxKs1LsTdfSn7ifI4y8lwk6y/eVz8X/Di/OMMzdvBlikf2xgaqYk+gEC/8J810bcPLkwNF6WSQr7ZYbbnaCyWQAbJNECrqK/JNBFQlidyEItCdx3yTJQbhWEalOEgt5SwqRuWLzksdweqbM/H9t6Ovn76D4bvfPfuH0YeuNs0YzFLH6qPKfgA=",
+  "debug_symbols": "tZTNioQwDMffJWcPTT/U8VWWZehoHQqlSkcXFvHdN2p1Zw6FxWUu+dvGX5qENhM05jber9a33QOqjwluwTpn71fX1Xqwnafdac5gX16HYAxtwZOfqF4H4weo/OhcBl/ajetPj177VQcdyMsyML4hpYCtdWb5mrNfmqVRRIwwYn7g6u+8vOx8rlI8T/NK5JFXkv2Tl2fyF+rI/5LiVZqXYm++lPzE+Rxl5LlI1l+8r34u+HF+cYZn7ODLFI/sjQ1UxZ5AIV74T1rp2oaXJweK0skgX22x2nK1F0ogA2SbIFTUV+SbCKhKErkJRaA7j/kmSwzCsYxKcZBayllUjMqjikXnpZ5g9c2ZOAfa0ddPY2H47nfPPjj60NWmGYNZ6ll9VOEP",
   "file_map": {
     "50": {
       "source": "fn main(a: u32, mut c: [u32; 4]) {\n    // Regression for issue #661:\n    let mut c_661: [u32; 1] = [0];\n    if a > 5 {\n        c_661 = issue_661_foo(issue_661_bar(c), a);\n    } else {\n        c_661 = issue_661_foo(issue_661_bar(c), a + 2);\n    }\n    assert(c_661[0] < 20000);\n}\n\nfn test5(a: u32) {\n    if a > 1 {\n        let q = a / 2;\n        assert(q == 2);\n    }\n}\n\nfn issue_661_foo(array: [u32; 4], b: u32) -> [u32; 1] {\n    [array[0] + b]\n}\n\nfn issue_661_bar(a: [u32; 4]) -> [u32; 4] {\n    let mut b: [u32; 4] = [0; 4];\n    b[0] = a[0] + 1;\n    b\n}\n",

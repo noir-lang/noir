@@ -52,7 +52,9 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : [_11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
     "INIT (id: 0, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])",
+    "BLACKBOX::RANGE [(_10, 4)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _10) 4294967286 ], EXPR [ 4294967296 ]], outputs: [_21, _22]",
+    "BLACKBOX::RANGE [(_21, 0)] []",
     "BLACKBOX::RANGE [(_22, 32)] []",
     "EXPR [ (1, _10) (-4294967296, _21) (-1, _22) 4294967286 ]",
     "EXPR [ (-1, _21) 0 ]",
@@ -90,7 +92,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "jZBNCsMgEIXvMmsX+WkS8CqlBGMmQRAVo4UScvdOJLbJotDNG2een4NvhRGHOPfKTHYBfl9h8EprNffaShGUNTRdNwa57YNHpBGcfKKc8GgCcBO1ZvAUOqZLixMm1SA8uQUDNCNVenBSGvfTxr508Rvt2oPtug/c/E23TabrC/2gTkjlL7+FEnjJoEpaJ70lbYBXDFrSbV/llRg0HvlM0chTXOHlspMDdd5KHKPHfVnyaP0b",
+  "debug_symbols": "jZDBDoMgDIbfpWcOTqcuvMqyGMRqSAgQhCWL8d1XiWx6WLLLX9qfj9IuMGAfp06Z0c7A7wv0Xmmtpk5bKYKyhqrLyiCnXfCIVIKDT5QTHk0AbqLWDJ5Cx3RpdsKkGIQnt2CAZqBID45K43Za2ZcufqNts7Nt+4Hrv+mmznR1oh+UCan8aVoogV8YVEmvSeukTdIWeMngRrpuDb0SvcZ9S2M08rC08HLZyWt13kocosetZfLoE28=",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [Field; 10], index: u32) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",

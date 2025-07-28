@@ -28,13 +28,14 @@ expression: artifact
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 32)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (-1, _0) 4294967297 ], EXPR [ 4294967296 ]], outputs: [_1, _2]",
+    "BLACKBOX::RANGE [(_1, 0)] []",
     "BLACKBOX::RANGE [(_2, 32)] []",
     "EXPR [ (-1, _0) (-4294967296, _1) (-1, _2) 4294967297 ]",
     "EXPR [ (-1, _1) 0 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "dZDdDoMgDIXfpddc6P7nqyyLQayGpAFSYclifPdVopu78OaU9vC1lBFabFJfW9f5AarHCA1bItvX5I2O1jupjpOCNa0jI0oJNr5QQTO6CJVLRApemlK+NATtcoyaxS0UoGslSsPOEs6nSf3oYh+93Bf2evvCZ6Gfkmlj+e+9UEJVKjhkPWY9iU5ze7a6IVy26pIzmyXjO6zO+g2BvcE2Mc4DsicjPw==",
+  "debug_symbols": "dZDdDoMgDIXfpddc6Db346ssi0GshqQBUmHJYnz3VaKbu9jNKe3ho7QTdNimobGu9yPU9wlatkR2aMgbHa13Up1mBVvaREaUEux8oYJmdBFql4gUPDWlfGkM2uUYNYtbKEDXSZQHe0u4nGb1pYv/6Pm2spfrB66EfkimjeWf/0IJdangkPWY9ZS1Ep2XJmx1S7jO1idndqPGV9icbRmBvcEuMS5tsieN3w==",
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32) {\n    assert(x > foo());\n}\n\n#[field(bn254)]\nfn foo() -> u32 {\n    1\n}\n\n#[field(23)]\nfn foo() -> u32 {\n    2\n}\n\n#[field(bls12_381)]\nfn foo() -> u32 {\n    3\n}\n",

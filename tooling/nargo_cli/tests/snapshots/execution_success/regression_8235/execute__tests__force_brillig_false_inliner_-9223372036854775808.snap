@@ -34,10 +34,11 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : [_1]",
+    "BLACKBOX::RANGE [(_0, 0)] []",
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) 0 ]"
   ],
-  "debug_symbols": "dZDdCoMwDIXfJde9sIP94KuMIbVGKYS2xHYwxHdflNXphVdpcvqdkDNBh20eGuf7MEL9nKBlR+SGhoI1yQUv02lWUNomMaKMYKcLFQ2jT1D7TKTgbSivn8Zo/FqTYVErBeg7qWLYO8LlNas/XZ2jt8LeHxt8PdL6nNYbru/6wL+kM9bx4V6ooL7Mix070xL+Muizt7tI0icWpYQWOVjsMuNit2qy4As=",
+  "debug_symbols": "dZDRCoMwDEX/Jc99WAebw18ZQ2qNUghtie1giP++KKvTB5/S5PbckDtBh20eGuf7MEL9nKBlR+SGhoI1yQUv02lWUNomMaKMYKcLFQ2jT1D7TKTgbSivn8Zo/FqTYVEvCtB3UsWwd4TLa1Z/+nKO3gtbPTb4dqT1Oa03XFf6wL+kM9bx4V7QUF/nxY6daQl/GfTZ210k6ROLUkKLHCx2mXGxWzVZ8AU=",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) -> pub bool {\n    if (a) {\n        let b = func_4(1569582039);\n        true\n    } else {\n        false\n    }\n}\nfn func_4(a: u32) -> u32 {\n    (a / (a % a))\n}\n",
