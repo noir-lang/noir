@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753730248678,
+  "lastUpdate": 1753734616320,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14161,48 +14161,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "8797651e4dcfe77cd46353188b0f60c2a1dce8b2",
-          "message": "fix(ssa): Change constraint message to \"multiply\" (#9230)",
-          "timestamp": "2025-07-17T14:05:56Z",
-          "tree_id": "b1161946aac795b821aa6c8ba9f4abaa663fd833",
-          "url": "https://github.com/noir-lang/noir/commit/8797651e4dcfe77cd46353188b0f60c2a1dce8b2"
-        },
-        "date": 1752762836476,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249107,
-            "range": "± 661",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219466,
-            "range": "± 2756",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778635,
-            "range": "± 1776",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e",
           "message": "fix(fuzz): Use scoping for variable dynamism (#9233)",
           "timestamp": "2025-07-17T14:52:04Z",
@@ -16244,6 +16202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784347,
             "range": "± 6401",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c0b92e68472ec05654cdcc1c1ad18e98ec651c4d",
+          "message": "fix: do u128 operations with u128, not i128 (#9345)",
+          "timestamp": "2025-07-28T20:04:11Z",
+          "tree_id": "6ddedec0ced5601d9c0e133ceea96884a1efb9fe",
+          "url": "https://github.com/noir-lang/noir/commit/c0b92e68472ec05654cdcc1c1ad18e98ec651c4d"
+        },
+        "date": 1753734599355,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 254168,
+            "range": "± 903",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227826,
+            "range": "± 3337",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786877,
+            "range": "± 9591",
             "unit": "ns/iter"
           }
         ]
