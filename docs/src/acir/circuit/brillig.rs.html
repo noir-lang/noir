@@ -79,7 +79,33 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
-<a href="#81" id="81">81</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains [Brillig][brillig] structures for integration within an ACIR circuit.
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
+<a href="#94" id="94">94</a>
+<a href="#95" id="95">95</a>
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module contains [Brillig][brillig] structures for integration within an ACIR circuit.
 //!
 //! [Brillig][brillig] is used in ACIR as a hint for the solver when executing the circuit.
 //! Executing Brillig does not generate any constraints and is the result of the compilation of an unconstrained function.
@@ -122,6 +148,19 @@
     MemoryArray(BlockId),
 }
 
+<span class="kw">impl</span>&lt;F: std::fmt::Display&gt; std::fmt::Display <span class="kw">for </span>BrilligInputs&lt;F&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            BrilligInputs::Single(expr) =&gt; <span class="macro">write!</span>(f, <span class="string">"{expr}"</span>),
+            BrilligInputs::Array(exprs) =&gt; {
+                <span class="kw">let </span>joined = exprs.iter().map(|e| <span class="macro">format!</span>(<span class="string">"{e}"</span>)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">", "</span>);
+                <span class="macro">write!</span>(f, <span class="string">"[{joined}]"</span>)
+            }
+            BrilligInputs::MemoryArray(block_id) =&gt; <span class="macro">write!</span>(f, <span class="string">"MemoryArray({})"</span>, block_id.<span class="number">0</span>),
+        }
+    }
+}
+
 <span class="doccomment">/// Outputs for the Brillig VM. Once the VM has completed
 /// execution, this will be the object that is returned.
 </span><span class="attr">#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
@@ -129,6 +168,19 @@
 </span><span class="kw">pub enum </span>BrilligOutputs {
     Simple(Witness),
     Array(Vec&lt;Witness&gt;),
+}
+
+<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>BrilligOutputs {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            BrilligOutputs::Simple(witness) =&gt; <span class="macro">write!</span>(f, <span class="string">"{witness}"</span>),
+            BrilligOutputs::Array(witnesses) =&gt; {
+                <span class="kw">let </span>joined =
+                    witnesses.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().join(<span class="string">", "</span>);
+                <span class="macro">write!</span>(f, <span class="string">"[{joined}]"</span>)
+            }
+        }
+    }
 }
 
 <span class="doccomment">/// This is purely a wrapper struct around a list of Brillig opcode's which represents

@@ -859,7 +859,7 @@
                 <span class="macro">write!</span>(f, <span class="string">"({constant}, {})"</span>, <span class="self">self</span>.num_bits)
             }
             ConstantOrWitnessEnum::Witness(witness) =&gt; {
-                <span class="macro">write!</span>(f, <span class="string">"(_{}, {})"</span>, witness.<span class="number">0</span>, <span class="self">self</span>.num_bits)
+                <span class="macro">write!</span>(f, <span class="string">"({}, {})"</span>, witness, <span class="self">self</span>.num_bits)
             }
         }
     }

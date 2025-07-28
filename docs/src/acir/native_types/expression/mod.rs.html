@@ -467,10 +467,10 @@
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter) -&gt; std::fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">"EXPR [ "</span>)<span class="question-mark">?</span>;
         <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.mul_terms {
-            <span class="macro">write!</span>(f, <span class="string">"({}, _{}, _{}) "</span>, i.<span class="number">0</span>, i.<span class="number">1</span>.witness_index(), i.<span class="number">2</span>.witness_index())<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"({}, {}, {}) "</span>, i.<span class="number">0</span>, i.<span class="number">1</span>, i.<span class="number">2</span>)<span class="question-mark">?</span>;
         }
         <span class="kw">for </span>i <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.linear_combinations {
-            <span class="macro">write!</span>(f, <span class="string">"({}, _{}) "</span>, i.<span class="number">0</span>, i.<span class="number">1</span>.witness_index())<span class="question-mark">?</span>;
+            <span class="macro">write!</span>(f, <span class="string">"({}, {}) "</span>, i.<span class="number">0</span>, i.<span class="number">1</span>)<span class="question-mark">?</span>;
         }
         <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.q_c)<span class="question-mark">?</span>;
 

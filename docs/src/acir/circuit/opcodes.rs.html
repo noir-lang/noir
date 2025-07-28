@@ -258,7 +258,21 @@
 <a href="#257" id="257">257</a>
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a></pre></div><pre class="rust"><code><span class="doccomment">//! ACIR opcodes
 //!
 //! This module defines the core set opcodes used in ACIR.
 </span><span class="kw">use </span><span class="kw">super</span>::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs};
@@ -416,27 +430,24 @@
             Opcode::MemoryOp { block_id, op, predicate } =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"MEM "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE = {pred}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
                 }
 
                 <span class="kw">let </span>is_read = op.operation.is_zero();
-                <span class="kw">let </span>is_write = op.operation == Expression::one();
                 <span class="kw">if </span>is_read {
                     <span class="macro">write!</span>(f, <span class="string">"(id: {}, read at: {}, value: {}) "</span>, block_id.<span class="number">0</span>, op.index, op.value)
-                } <span class="kw">else if </span>is_write {
-                    <span class="macro">write!</span>(f, <span class="string">"(id: {}, write {} at: {}) "</span>, block_id.<span class="number">0</span>, op.value, op.index)
                 } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">"(id: {}, op {} at: {}) "</span>, block_id.<span class="number">0</span>, op.operation, op.index)
+                    <span class="macro">write!</span>(f, <span class="string">"(id: {}, write {} at: {}) "</span>, block_id.<span class="number">0</span>, op.value, op.index)
                 }
             }
             Opcode::MemoryInit { block_id, init, block_type: databus } =&gt; {
                 <span class="kw">match </span>databus {
                     BlockType::Memory =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT "</span>)<span class="question-mark">?</span>,
                     BlockType::CallData(id) =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT CALLDATA {id} "</span>)<span class="question-mark">?</span>,
-                    BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>, <span class="comment">// cSpell:disable-line
-                </span>}
+                    BlockType::ReturnData =&gt; <span class="macro">write!</span>(f, <span class="string">"INIT RETURNDATA "</span>)<span class="question-mark">?</span>,
+                }
                 <span class="kw">let </span>witnesses =
-                    init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"_{}"</span>, w.<span class="number">0</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+                    init.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
                 <span class="macro">write!</span>(f, <span class="string">"(id: {}, len: {}, witnesses: [{witnesses}])"</span>, block_id.<span class="number">0</span>, init.len())
             }
             <span class="comment">// We keep the display for a BrilligCall and circuit Call separate as they
@@ -444,18 +455,35 @@
             </span>Opcode::BrilligCall { id, inputs, outputs, predicate } =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"BRILLIG CALL func {id}: "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE = {pred}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
                 }
-                <span class="macro">write!</span>(f, <span class="string">"inputs: {inputs:?}, "</span>)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: {outputs:?}"</span>)
+
+                <span class="kw">let </span>inputs = inputs
+                    .iter()
+                    .map(|input| <span class="macro">format!</span>(<span class="string">"{input}"</span>))
+                    .collect::&lt;Vec&lt;String&gt;&gt;()
+                    .join(<span class="string">", "</span>);
+                <span class="kw">let </span>outputs = outputs
+                    .iter()
+                    .map(|output| <span class="macro">format!</span>(<span class="string">"{output}"</span>))
+                    .collect::&lt;Vec&lt;String&gt;&gt;()
+                    .join(<span class="string">", "</span>);
+
+                <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
             }
             Opcode::Call { id, inputs, outputs, predicate } =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"CALL func {id}: "</span>)<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(pred) = predicate {
-                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE = {pred}"</span>)<span class="question-mark">?</span>;
+                    <span class="macro">writeln!</span>(f, <span class="string">"PREDICATE: {pred}"</span>)<span class="question-mark">?</span>;
                 }
-                <span class="macro">write!</span>(f, <span class="string">"inputs: {inputs:?}, "</span>)<span class="question-mark">?</span>;
-                <span class="macro">write!</span>(f, <span class="string">"outputs: {outputs:?}"</span>)
+                <span class="kw">let </span>inputs =
+                    inputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+                <span class="kw">let </span>outputs =
+                    outputs.iter().map(|w| <span class="macro">format!</span>(<span class="string">"{w}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+
+                <span class="macro">write!</span>(f, <span class="string">"inputs: [{inputs}], "</span>)<span class="question-mark">?</span>;
+                <span class="macro">write!</span>(f, <span class="string">"outputs: [{outputs}]"</span>)
             }
         }
     }
