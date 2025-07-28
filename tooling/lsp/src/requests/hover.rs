@@ -242,13 +242,16 @@ mod hover_tests {
             .expect("Could not resolve root path");
         let workspace_on_src_lib_path = workspace_on_src_lib_path.to_string_lossy();
 
-        assert_hover(
-            "workspace",
-            "two/src/lib.nr",
-            Position { line: 51, character: 8 },
-            &format!("    let x: BoundedVec<SubOneStruct, 3>\n\nGo to [SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"),
-        )
-        .await;
+        let hover_text =
+            get_hover_text("workspace", "two/src/lib.nr", Position { line: 51, character: 8 })
+                .await;
+        assert!(hover_text.contains("    let x: BoundedVec<SubOneStruct, 3>"));
+        assert!(hover_text.contains("Go to [BoundedVec](noir-std:"));
+        assert!(
+            hover_text.contains(&format!(
+                "[SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"
+            ))
+        );
     }
 
     #[test]
