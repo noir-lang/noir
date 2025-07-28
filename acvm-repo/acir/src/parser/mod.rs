@@ -344,7 +344,7 @@ impl<'a> Parser<'a> {
                 let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
 
                 let outputs = self.parse_witness_vector()?;
-                self.expect_len(&outputs, 0, "EcdsaSecp256k1", true)?;
+                self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
                 let output = outputs[0];
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
