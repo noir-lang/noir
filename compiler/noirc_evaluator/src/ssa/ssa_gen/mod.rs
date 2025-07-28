@@ -506,10 +506,6 @@ impl FunctionContext<'_> {
             // has no effect in ACIR code.
             let offset = ArrayOffset::None;
             let result = self.builder.insert_array_get(array, index, offset, typ);
-            let result_type = &self.builder.type_of_value(result);
-            if result_type.contains_an_array() {
-                self.builder.increment_array_reference_count(result);
-            }
             result.into()
         }))
     }

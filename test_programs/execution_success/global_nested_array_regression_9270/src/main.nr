@@ -1,4 +1,3 @@
-
 global G_B: [[str<2>; 1]; 2] = [["DS"], ["EN"]];
 fn main() -> pub [[str<2>; 1]; 2] {
     unsafe { func_2(G_B) };
