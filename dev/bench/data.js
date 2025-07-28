@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753729957257,
+  "lastUpdate": 1753729958839,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7641,80 +7641,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "87aeccf88b8a5f9808e06a3714283160017f43a7",
-          "message": "feat: Add `compiler_unstable_features` to `Nargo.toml` (#9219)",
-          "timestamp": "2025-07-17T12:29:07Z",
-          "tree_id": "47927c09823de801e5458cea0d1df2c3c4cad303",
-          "url": "https://github.com/noir-lang/noir/commit/87aeccf88b8a5f9808e06a3714283160017f43a7"
-        },
-        "date": 1752757752743,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 201.91,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 237.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.25,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.27,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.51,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "8797651e4dcfe77cd46353188b0f60c2a1dce8b2",
           "message": "fix(ssa): Change constraint message to \"multiply\" (#9230)",
@@ -10075,6 +10001,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/21faf9648560b0f5943304833c44a2c5687f0d48"
         },
         "date": 1753729046535,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f733adf44501d52eea35d03c9761b27e295af0f",
+          "message": "chore(acir): ACIR parser error handling for blackbox inputs/outputs  (#9342)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-28T18:43:05Z",
+          "tree_id": "74c2f5d853c323c41b7dbe6fc266032b64b1b0eb",
+          "url": "https://github.com/noir-lang/noir/commit/4f733adf44501d52eea35d03c9761b27e295af0f"
+        },
+        "date": 1753729941058,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
