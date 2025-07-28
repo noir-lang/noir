@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753477712983,
+  "lastUpdate": 1753707772245,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15021,48 +15021,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3f0aba0f2c4edac6a1558cefad3a60760f9cc165",
-          "message": "feat(ssa_fuzzer): functions (#9088)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-07-16T15:12:53Z",
-          "tree_id": "d4a18547ec3bd3701a487aefffad5ef376568ecf",
-          "url": "https://github.com/noir-lang/noir/commit/3f0aba0f2c4edac6a1558cefad3a60760f9cc165"
-        },
-        "date": 1752680267843,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247845,
-            "range": "± 1080",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217785,
-            "range": "± 3006",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777675,
-            "range": "± 2113",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -17114,6 +17072,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2814781,
             "range": "± 1212",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "46a0d1806cb3600c90abdf56187234b953815d45",
+          "message": "fix(ssa_gen): Add constraint on slice length before popping (#9323)",
+          "timestamp": "2025-07-28T12:36:36Z",
+          "tree_id": "3396e4baefadd03e2c999284444f37ac3b56cecb",
+          "url": "https://github.com/noir-lang/noir/commit/46a0d1806cb3600c90abdf56187234b953815d45"
+        },
+        "date": 1753707755700,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256512,
+            "range": "± 1117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228607,
+            "range": "± 1226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2819505,
+            "range": "± 16724",
             "unit": "ns/iter"
           }
         ]
