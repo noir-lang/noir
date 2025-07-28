@@ -44,10 +44,13 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 2)] []",
     "BLACKBOX::RANGE [(_1, 32)] []",
     "EXPR [ (1, _0, _1) (-1, _2) 0 ]",
     "BLACKBOX::RANGE [(_2, 32)] []",
-    "EXPR [ (1, _0, _2) -12 ]",
+    "EXPR [ (1, _0, _2) (-1, _3) 0 ]",
+    "BLACKBOX::RANGE [(_3, 4)] []",
+    "EXPR [ (1, _3) -12 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) -5 ]], outputs: [_4]",
     "EXPR [ (1, _0, _4) (-5, _4) (1, _5) -1 ]",
     "EXPR [ (1, _0, _5) (-5, _5) 0 ]",
@@ -100,7 +103,7 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZXNbqswEEbfxWsW9nj8l1eJoogktEJCJKJQ6SrKu98ZPKa3C6ord8MJge9ge2D8VLfusryf+/Ht/qEOx6e6TP0w9O/n4X5t5/4+0r9PpfkAdDSNApMR1AEaZUEdLMFmYIbL8BkhI2akFUgyJJgMyLAZZMHXq1FlDOd56joewj+DoqE+2qkbZ3UYl2Fo1Gc7LOtNH492XDm3E13VjerGG5GEb/3Q8a9X85XW+1ED2kvagIFN4P7fYKIpBpOqDOBxG0NwVYbkisFqXWPYJgHa7OXdfh5TmQKmVJF3xkremViTt7Hk0VbMH3Qo87e7FUj7ee9KAbw3FfkASfLB+qq8+1Xex7J+fr9+Pz6/1D/sr/+PebvlY00+bPkQa+qP2/vvd79hE/YFKZUXyGjtK0ZgEURg4/cRnOisvfbT94ZNbZU6F6xHaqpUPuRnN8pl+IzAbalRMSNlGC3kRk8LZ0BouZcQUeiEXhiEUZgy130DZONgglB8ID4QH4gPxAfiA/bRi2S10AhBaIUodEIvDMIoFB+KD8WH4kPxofiQffQhIftoXZF9vLLs48/is5369jJ0XAGu0TJeS0HodP7zKFfKHvuY7tfutkwdF+9ro+UCHDE1Dk+5CkfqHy6cXlztvw==",
+  "debug_symbols": "pZXNbqswEIXfxWsWHnv8l1eJoogktEJCJKJQ6SrKu98ZPKa3C6ord+MvCTmHsQ/MPNWtuyzv5358u3+ow/GpLlM/DP37ebhf27m/j/TrU2leDK3QKAMZQR1Mo6xRB0uwGZjhMnxGyIgZaQWSGRIgw2TYDHLB16tRpYbzPHUdl/BPUVTqo526cVaHcRmGRn22w7L+6ePRjivndqKrulHdeCOS4Vs/dPzp1Xyp9b4UjPaiBgNmM3D/7wARigOkKgfjcashuCqH5IqD1brGYduE0bCnd/t6TGULmFKF3oEVvYNYo7ex6NFW7N/oUPZvdxNI+3rvSgDeQ4U+mCT6YH2V3v1K72M5P7+f34/3L/mH/fP/UW83fazRh00fYk3+uD3/fvcdhrBvkFJ5gEBrX1GBRSMGNn6v4ETf2ms/fW/Y1E+pc9l1pW5Kd3frSh2ZogxcR6NiRsoAbu+0TwChEVohcv8gOqHn1kIMwihMmeu4MDIvmEZohSh0QvEz4mfEz4ifFT8rfjx5APPoWYlCJ/TCIIzClMkTCGQEgcwgkCEEMoVWih+KH4ofsh+9V8h+dMyO/ehwHfvxW/LZTn17GToOhCNbxmvJh77Ofx7lShm5j+l+7W7L1HGWX3OXgzliahyecjpHaicunF4c/l8=",
   "file_map": {
     "50": {
       "source": "// Tests a simple loop where we expect loop invariant instructions\n// to be hoisted to the loop's pre-header block.\nglobal U32_MAX: u32 = 4294967295;\n\nfn main(x: u32, y: u32) {\n    simple_loop(4, x, y);\n    loop_with_predicate(4, x, y);\n    array_read_loop(4, x);\n    //Safety: testing for failing assert under condition\n    unsafe {\n        loop_with_break_under_predicate(4, y, x);\n    }\n}\n\nfn simple_loop(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        let mut z = x * y;\n        z = z * x;\n        assert_eq(z, 12);\n    }\n}\n\nfn loop_with_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 5 {\n            let mut z = U32_MAX * y;\n            assert_eq(((3 * y as i8) * 127), 12);\n            assert_eq(z, 12);\n        }\n    }\n}\n\nfn array_read_loop(upper_bound: u32, x: u32) {\n    let arr = [2; 5];\n    for i in 0..upper_bound {\n        for j in 0..upper_bound {\n            for _ in 0..upper_bound {\n                assert_eq(arr[i], x);\n                assert_eq(arr[j], x);\n            }\n        }\n    }\n}\n\nunconstrained fn loop_with_break_under_predicate(upper_bound: u32, x: u32, y: u32) {\n    for _ in 0..upper_bound {\n        if x == 3 {\n            break;\n        }\n        let mut z = U32_MAX * y;\n        assert_eq(z, 12);\n    }\n}\n",

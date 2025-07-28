@@ -41,9 +41,10 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 1)] []",
     "EXPR [ (1, _0) -1 ]"
   ],
-  "debug_symbols": "zZHBDoMgDIbfpWcOgGPLfJVlMah1ISFoEJYsxndfNbLpwWWHHXahtD9fS/4OUGMZb4VxTdtDfhmg9MZacytsW+lgWkfVYWSQ0iJ4RCrBSieq0x5dgNxFaxnctY3zo77Tbo5Be1I5A3Q1RWrYGIvTbWRvmu+jQqoFFtnphastL/Z5eTguvFRij/80X2Vpvjpv+CtlujJ+4xgIGsRAzmcGeTZOrb3RpcXF0Sa6amVweHRJSSvofFthHT1OrWdt+uyfLkjyBEt+/MIgTk7+yJTr+AQ=",
+  "debug_symbols": "zZHBDoMgDIbfpWcOgmPLfJXFGNRqSAgahCWL8d0HRDY9uOywwy6U9udryd8ZWqxdX0ndDRMUtxlqI5WSfaWGRlg5aF+dFwIpraxB9CXY6J4ahUFtodBOKQJ3oVx8NI1Cx2iF8WpGAHXro2/YSYXhtpA3nR2jlPEVpvnlhfM9T495djqvPOP0iP80n+dpPr/u+NJnopFm5xhQP4gAi2cORb6E1kaKWuHqaOd0szHYPsakpBWMZmiwdQZD66iFz/7pgliWYJadvzOI/siUcnkC",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) {\n    // We want to call a foldable function after a call to a function that is set to be inlined\n    assert(increment(x) == x + 1);\n    foo(x);\n}\n\n#[fold]\nfn foo(x: u32) {\n    assert(x == 1);\n}\n\nfn increment(x: u32) -> u32 {\n    x + 1\n}\n",

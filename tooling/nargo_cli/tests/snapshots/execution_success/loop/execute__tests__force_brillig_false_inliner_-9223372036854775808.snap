@@ -26,9 +26,10 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 3)] []",
     "EXPR [ (-1, _0) 6 ]"
   ],
-  "debug_symbols": "dY/dCoMwDIXfJde90P0w8FXGkFqjFEJaYjsY4rsvit3cxa7S5OQ7zZmhxy6PrechTNDcZ+jEE/mxpeBs8oF1Oi8GStsmQdQRHHSlohXkBA1nIgNPS3lbmqLlrSYrqlYGkHutajh4wvW1mC9d/Ufr03mH68vtg1+Vf2hnnZefi6HSxWW1E287wj3FkNkdQqVXLEqJHSU47LPgardp+sEb",
+  "debug_symbols": "dY/dCoMwDIXfJde90P0w8FXGkFqjFEJaYjsY4rsvit3cxa7S5OQ7zZmhxy6PrechTNDcZ+jEE/mxpeBs8oF1Oi8GStsmQdQRHHSlohXkBA1nIgNPS3lbmqLlrSYrqlYGkHutajh4wvW1mC9d/Ufr03mH68vtg1+Vf2hnnZefi6HWxWW1E287wj3FkNkdQqVXLEqJHSU47LPgardp+sEb",
   "file_map": {
     "50": {
       "source": "// Tests a very simple program.\n//\n// The features being tested is basic looping.\nfn main(six_as_u32: u32) {\n    assert_eq(loop_excl(4), six_as_u32);\n    assert_eq(loop_incl(3), six_as_u32);\n    assert(plain_loop() == six_as_u32);\n    assert(never_loop() == 0);\n\n    // Safety: testing context\n    unsafe {\n        assert(basic_break() == true)\n    }\n}\n\nfn loop_excl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn loop_incl(x: u32) -> u32 {\n    let mut sum = 0;\n    for i in 0..=x {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn plain_loop() -> u32 {\n    let mut sum = 0;\n    for i in 0..4 {\n        sum = sum + i;\n    }\n    sum\n}\n\nfn never_loop() -> u32 {\n    let mut sum = 0;\n    for i in 4..0 {\n        sum = sum + i;\n    }\n    sum\n}\n\nunconstrained fn basic_break() -> bool {\n    for idx_e in 0..5 {\n        if (idx_e < 5) { break; };\n    }\n    true\n}\n",
