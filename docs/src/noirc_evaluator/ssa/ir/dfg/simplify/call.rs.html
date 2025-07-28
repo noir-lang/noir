@@ -785,7 +785,9 @@
 <a href="#784" id="784">784</a>
 <a href="#785" id="785">785</a>
 <a href="#786" id="786">786</a>
-<a href="#787" id="787">787</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>std::{collections::VecDeque, sync::Arc};
 
@@ -925,7 +927,8 @@
                         slice.push_back(<span class="kw-2">*</span>elem);
                     }
 
-                    <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block);
+                    <span class="kw">let </span>new_slice_length =
+                        increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
                     <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
                     <span class="kw">return </span>SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice]);
@@ -943,7 +946,7 @@
                     slice.push_front(<span class="kw-2">*</span>elem);
                 }
 
-                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block);
+                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
                 <span class="kw">let </span>new_slice = make_array(dfg, slice, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
@@ -983,7 +986,7 @@
                     slice.pop_front().expect(<span class="string">"There are no elements in this slice to be removed"</span>)
                 });
 
-                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block);
+                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
                 results.push(new_slice_length);
 
@@ -1016,7 +1019,7 @@
                     index += <span class="number">1</span>;
                 }
 
-                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block);
+                <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
                 <span class="kw">let </span>new_slice = make_array(dfg, slice, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(<span class="macro">vec!</span>[new_slice_length, new_slice])
@@ -1054,7 +1057,7 @@
                 <span class="kw">let </span>new_slice = make_array(dfg, slice, typ, block, call_stack);
                 results.insert(<span class="number">0</span>, new_slice);
 
-                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block);
+                <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
                 results.insert(<span class="number">0</span>, new_slice_length);
 
@@ -1236,10 +1239,10 @@
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -&gt; ValueId {
     <span class="kw">let </span>one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     <span class="kw">let </span>instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
-    <span class="kw">let </span>call_stack = dfg.get_value_call_stack_id(slice_len);
     dfg.insert_instruction_and_results(instruction, block, <span class="prelude-val">None</span>, call_stack).first()
 }
 
@@ -1247,16 +1250,19 @@
     slice_len: ValueId,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -&gt; ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, block)
+    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: <span class="bool-val">false </span>}, block, call_stack)
 }
 
 <span class="kw">fn </span>decrement_slice_length(
     slice_len: ValueId,
     dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -&gt; ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}, block)
+    <span class="comment">// Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    </span>update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: <span class="bool-val">true </span>}, block, call_stack)
 }
 
 <span class="kw">fn </span>simplify_slice_push_back(
@@ -1279,7 +1285,7 @@
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, <span class="prelude-val">None</span>, call_stack)
         .first();
 
-    <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block);
+    <span class="kw">let </span>new_slice_length = increment_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
     <span class="kw">for </span>elem <span class="kw">in </span><span class="kw-2">&amp;</span>arguments[<span class="number">2</span>..] {
         slice.push_back(<span class="kw-2">*</span>elem);
@@ -1332,7 +1338,7 @@
     <span class="kw">let </span>element_count = element_types.len();
     <span class="kw">let </span><span class="kw-2">mut </span>results = VecDeque::with_capacity(element_count + <span class="number">1</span>);
 
-    <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block);
+    <span class="kw">let </span>new_slice_length = decrement_slice_length(arguments[<span class="number">0</span>], dfg, block, call_stack);
 
     <span class="kw">let </span>element_size =
         dfg.make_constant((element_count <span class="kw">as </span>u128).into(), NumericType::length_type());
@@ -1342,11 +1348,11 @@
         Instruction::binary(BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, arguments[<span class="number">0</span>], element_size);
     <span class="kw">let </span><span class="kw-2">mut </span>flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, <span class="prelude-val">None</span>, call_stack).first();
-    flattened_len = decrement_slice_length(flattened_len, dfg, block);
 
     <span class="comment">// We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
     </span><span class="kw">for </span>element_type <span class="kw">in </span>element_types.iter().rev() {
+        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
         <span class="kw">let </span>get_last_elem_instr = Instruction::ArrayGet {
             array: arguments[<span class="number">1</span>],
             index: flattened_len,
@@ -1358,8 +1364,6 @@
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
-
-        flattened_len = decrement_slice_length(flattened_len, dfg, block);
     }
 
     results.push_front(arguments[<span class="number">1</span>]);
