@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753735015864,
+  "lastUpdate": 1753735135084,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13966,48 +13966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e",
-          "message": "fix(fuzz): Use scoping for variable dynamism (#9233)",
-          "timestamp": "2025-07-17T14:52:04Z",
-          "tree_id": "d143a8bac339fa1d66af0b2bae54a15254dadb2f",
-          "url": "https://github.com/noir-lang/noir/commit/c7ce62a51d82b26d1daaadf6bd32fcb6e8711e3e"
-        },
-        "date": 1752765640966,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248461,
-            "range": "± 267",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219075,
-            "range": "± 2982",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777020,
-            "range": "± 7036",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -16059,6 +16017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786877,
             "range": "± 9591",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "18b01b396a854c55fef6c8aec5d617ea7b1cc849",
+          "message": "feat(lsp): allow opening noir stdlib files (#9339)",
+          "timestamp": "2025-07-28T20:14:00Z",
+          "tree_id": "0be3251dcc2d579e73daf901a4fd680d269193f9",
+          "url": "https://github.com/noir-lang/noir/commit/18b01b396a854c55fef6c8aec5d617ea7b1cc849"
+        },
+        "date": 1753735118469,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265943,
+            "range": "± 1127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 239042,
+            "range": "± 2921",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2815168,
+            "range": "± 848",
             "unit": "ns/iter"
           }
         ]
