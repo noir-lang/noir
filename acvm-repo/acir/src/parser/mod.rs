@@ -286,10 +286,8 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::AES128Encrypt => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
-                let key =
-                    inputs.split_off(inputs.len() - 16).try_into().expect("Expected 16 inputs");
-                let iv =
-                    inputs.split_off(inputs.len() - 16).try_into().expect("Expected 16 inputs");
+                let key = self.try_extract_tail::<16, _>(&mut inputs, "key")?;
+                let iv = self.try_extract_tail::<16, _>(&mut inputs, "IV")?;
 
                 let outputs = self.parse_witness_vector()?;
 
@@ -299,38 +297,40 @@ impl<'a> Parser<'a> {
                 let inputs = self.parse_blackbox_inputs()?;
                 let outputs = self.parse_witness_vector()?;
 
-                assert_eq!(inputs.len(), 2);
-                assert_eq!(outputs.len(), 1);
+                self.expect_len(&inputs, 2, "AND", false)?;
+                self.expect_len(&outputs, 1, "AND", true)?;
 
-                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
             }
             BlackBoxFunc::XOR => {
                 let inputs = self.parse_blackbox_inputs()?;
                 let outputs = self.parse_witness_vector()?;
 
-                assert_eq!(inputs.len(), 2);
-                assert_eq!(outputs.len(), 1);
+                self.expect_len(&inputs, 2, "XOR", false)?;
+                self.expect_len(&outputs, 1, "XOR", true)?;
 
                 BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
             }
             BlackBoxFunc::RANGE => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let outputs = self.parse_witness_ordered_set()?;
+                let outputs = self.parse_witness_vector()?;
 
-                assert_eq!(inputs.len(), 1);
-                assert!(outputs.is_empty());
+                self.expect_len(&inputs, 1, "RANGE", false)?;
+                self.expect_len(&outputs, 0, "RANGE", true)?;
 
                 BlackBoxFuncCall::RANGE { input: inputs[0] }
             }
             BlackBoxFunc::Blake2s => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let outputs = self.parse_witness_vector()?.try_into().expect("Expected 32 inputs");
+                let outputs = self.parse_witness_vector()?;
+                let outputs = self.try_vec_to_array::<32, _>(outputs, "Blake2s", true)?;
 
                 BlackBoxFuncCall::Blake2s { inputs, outputs }
             }
             BlackBoxFunc::Blake3 => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let outputs = self.parse_witness_vector()?.try_into().expect("Expected 32 inputs");
+                let outputs = self.parse_witness_vector()?;
+                let outputs = self.try_vec_to_array::<32, _>(outputs, "Blake3", true)?;
 
                 BlackBoxFuncCall::Blake3 { inputs, outputs }
             }
@@ -338,16 +338,13 @@ impl<'a> Parser<'a> {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
                 let hashed_message =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
-                let signature =
-                    inputs.split_off(inputs.len() - 64).try_into().expect("Expected 64 inputs");
-                let public_key_y =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
-                let public_key_x =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
+                    self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
+                let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
+                let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
+                let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
 
                 let outputs = self.parse_witness_vector()?;
-                assert_eq!(outputs.len(), 1);
+                self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
                 let output = outputs[0];
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
@@ -362,16 +359,13 @@ impl<'a> Parser<'a> {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
                 let hashed_message =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
-                let signature =
-                    inputs.split_off(inputs.len() - 64).try_into().expect("Expected 64 inputs");
-                let public_key_y =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
-                let public_key_x =
-                    inputs.split_off(inputs.len() - 32).try_into().expect("Expected 32 inputs");
+                    self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
+                let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
+                let public_key_y = self.try_extract_tail::<32, _>(&mut inputs, "public_key_y")?;
+                let public_key_x = self.try_extract_tail::<32, _>(&mut inputs, "public_key_x")?;
 
                 let outputs = self.parse_witness_vector()?;
-                assert_eq!(outputs.len(), 1);
+                self.expect_len(&outputs, 1, "EcdsaSecp256r1", true)?;
                 let output = outputs[0];
 
                 BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -384,8 +378,11 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::MultiScalarMul => todo!(),
             BlackBoxFunc::Keccakf1600 => {
-                let inputs = self.parse_blackbox_inputs()?.try_into().expect("Expected 25 inputs");
-                let outputs = self.parse_witness_vector()?.try_into().expect("Expected 25 inputs");
+                let inputs = self.parse_blackbox_inputs()?;
+                let inputs = self.try_vec_to_array::<25, _>(inputs, "Keccakf1600 inputs", false)?;
+                let outputs = self.parse_witness_vector()?;
+                let outputs =
+                    self.try_vec_to_array::<25, _>(outputs, "Keccakf1600 outputs", true)?;
 
                 BlackBoxFuncCall::Keccakf1600 { inputs, outputs }
             }
@@ -395,13 +392,11 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::EmbeddedCurveAdd => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
-                let input2 =
-                    inputs.split_off(inputs.len() - 3).try_into().expect("Expected 3 inputs");
-                let input1 =
-                    inputs.split_off(inputs.len() - 3).try_into().expect("Expected 3 inputs");
+                let input2 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input2")?;
+                let input1 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input1")?;
 
                 let outputs = self.parse_witness_vector()?;
-                assert_eq!(outputs.len(), 3);
+                self.expect_len(&outputs, 3, "EmbeddedCurveAdd", true)?;
 
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1,
@@ -418,18 +413,15 @@ impl<'a> Parser<'a> {
                 BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
             }
             BlackBoxFunc::Sha256Compression => {
-                let mut all_inputs = self.parse_blackbox_inputs()?;
+                let mut inputs = self.parse_blackbox_inputs()?;
 
-                let hash_values = all_inputs
-                    .split_off(all_inputs.len() - 8)
-                    .try_into()
-                    .expect("Expected 8 inputs");
-                let inputs = all_inputs
-                    .split_off(all_inputs.len() - 16)
-                    .try_into()
-                    .expect("Expected 16 inputs");
+                let hash_values = self.try_extract_tail::<8, _>(&mut inputs, "hash_values")?;
+                let inputs = self.try_extract_tail::<16, _>(&mut inputs, "inputs")?;
 
-                let outputs = self.parse_witness_vector()?.try_into().expect("Expected 8 inputs");
+                let outputs = self.parse_witness_vector()?;
+                let outputs =
+                    self.try_vec_to_array::<8, _>(outputs, "Sha256Compression outputs", true)?;
+
                 BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs }
             }
             BlackBoxFunc::BigIntAdd
@@ -842,6 +834,83 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn expect_len<T>(
+        &self,
+        items: &[T],
+        expected: usize,
+        name: &str,
+        is_output: bool,
+    ) -> Result<(), ParserError> {
+        if items.len() != expected {
+            if is_output {
+                Err(ParserError::IncorrectOutputLength {
+                    expected,
+                    found: items.len(),
+                    name: name.to_owned(),
+                    span: self.token.span(),
+                })
+            } else {
+                Err(ParserError::IncorrectInputLength {
+                    expected,
+                    found: items.len(),
+                    name: name.to_owned(),
+                    span: self.token.span(),
+                })
+            }
+        } else {
+            Ok(())
+        }
+    }
+
+    fn try_extract_tail<const N: usize, T: Clone>(
+        &self,
+        items: &mut Vec<T>,
+        name: &str,
+    ) -> Result<Box<[T; N]>, ParserError> {
+        if items.len() < N {
+            return Err(ParserError::IncorrectInputLength {
+                expected: N,
+                found: items.len(),
+                name: name.to_owned(),
+                span: self.token.span(),
+            });
+        }
+        let extracted = items.split_off(items.len() - N);
+        let len = extracted.len();
+        extracted.try_into().map_err(|_| ParserError::IncorrectInputLength {
+            expected: N,
+            found: len,
+            name: name.to_owned(),
+            span: self.token.span(),
+        })
+    }
+
+    fn try_vec_to_array<const N: usize, T: Clone>(
+        &self,
+        vec: Vec<T>,
+        name: &str,
+        is_output: bool,
+    ) -> Result<Box<[T; N]>, ParserError> {
+        let len = vec.len();
+        vec.try_into().map_err(|_| {
+            if is_output {
+                ParserError::IncorrectOutputLength {
+                    expected: N,
+                    found: len,
+                    name: name.to_owned(),
+                    span: self.token.span(),
+                }
+            } else {
+                ParserError::IncorrectInputLength {
+                    expected: N,
+                    found: len,
+                    name: name.to_owned(),
+                    span: self.token.span(),
+                }
+            }
+        })
+    }
+
     fn expected_identifier<T>(&mut self) -> ParseResult<T> {
         Err(ParserError::ExpectedIdentifier {
             found: self.token.token().clone(),
@@ -912,6 +981,10 @@ pub(crate) enum ParserError {
         "FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {max_bits}"
     )]
     InvalidInputBitSize { value: String, value_num_bits: u32, max_bits: u32, span: Span },
+    #[error("Expected {expected} inputs for {name}, found {found}")]
+    IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
+    #[error("Expected {expected} outputs for {name}, found {found}")]
+    IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
 }
 
 impl ParserError {
@@ -929,6 +1002,8 @@ impl ParserError {
             ExpectedBlackBoxFuncName { span, .. } => *span,
             IntegerLargerThanU32 { span, .. } => *span,
             InvalidInputBitSize { span, .. } => *span,
+            IncorrectInputLength { span, .. } => *span,
+            IncorrectOutputLength { span, .. } => *span,
         }
     }
 }
