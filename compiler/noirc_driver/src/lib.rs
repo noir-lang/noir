@@ -359,7 +359,6 @@ fn add_debug_source_to_file_manager(file_manager: &mut FileManager) {
 /// in the stdlib, getting LSP stuff for the stdlib, etc.).
 pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     let path_to_std_lib_file = Path::new(STD_CRATE_NAME).join("lib.nr");
-
     let std_file_id = context.file_manager.name_to_id(path_to_std_lib_file);
     let std_crate_id = std_file_id.map(|std_file_id| context.crate_graph.add_stdlib(std_file_id));
 
