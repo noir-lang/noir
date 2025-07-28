@@ -13,7 +13,7 @@ pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: 
         TraceEventsFileFormat::BinaryV0 |
         TraceEventsFileFormat::Binary => "trace.bin",
     });
-    match tracer.begin_writing_trace_events(&trace_path) {
+    match TraceWriter::begin_writing_trace_events(tracer, &trace_path) {
         Ok(_) => {}
         Err(err) => {
             panic!("Error: trace writer failed to begin writing trace events: {err}")
@@ -21,7 +21,7 @@ pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: 
     }
 
     let trace_path = Path::new(trace_dir).join("trace_metadata.json");
-    match tracer.begin_writing_trace_metadata(&trace_path) {
+    match TraceWriter::begin_writing_trace_metadata(tracer, &trace_path) {
         Ok(_) => {}
         Err(err) => {
             panic!("Error: trace writer failed to begin writing trace metadata: {err}")
@@ -29,7 +29,7 @@ pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: 
     }
 
     let trace_path = Path::new(trace_dir).join("trace_paths.json");
-    match tracer.begin_writing_trace_paths(&trace_path) {
+    match TraceWriter::begin_writing_trace_paths(tracer, &trace_path) {
         Ok(_) => {}
         Err(err) => {
             panic!("Error: trace writer failed to begin writing trace paths: {err}")
@@ -41,7 +41,7 @@ pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: 
 /// multiple JSON files.
 pub fn finish_trace(tracer: &mut dyn TraceWriter, trace_dir: &str) {
     let mut storing_errors = false;
-    match tracer.finish_writing_trace_events() {
+    match TraceWriter::finish_writing_trace_events(tracer) {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;
@@ -49,7 +49,7 @@ pub fn finish_trace(tracer: &mut dyn TraceWriter, trace_dir: &str) {
         }
     }
 
-    match tracer.finish_writing_trace_metadata() {
+    match TraceWriter::finish_writing_trace_metadata(tracer) {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;
@@ -57,7 +57,7 @@ pub fn finish_trace(tracer: &mut dyn TraceWriter, trace_dir: &str) {
         }
     }
 
-    match tracer.finish_writing_trace_paths() {
+    match TraceWriter::finish_writing_trace_paths(tracer) {
         Ok(_) => {}
         Err(err) => {
             storing_errors = true;
@@ -74,7 +74,7 @@ pub(crate) fn register_step(tracer: &mut dyn TraceWriter, location: &SourceLocat
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
-    tracer.register_step(path, line);
+    TraceWriter::register_step(tracer, path, line);
 }
 
 /// Registers all variables in the given frame for the last registered step. Each time a new step is
@@ -93,7 +93,7 @@ pub(crate) fn register_variables(tracer: &mut dyn TraceWriter, frame: &StackFram
 /// See `register_variables`.
 fn register_variable(tracer: &mut dyn TraceWriter, variable: &Variable) {
     let value_record = register_value(tracer, &variable.value, &variable.typ);
-    tracer.register_variable_with_full_value(&variable.name, value_record);
+    TraceWriter::register_variable_with_full_value(tracer, &variable.name, value_record);
 }
 
 /// Registers a value of a given type. Registers the type, if it's the first time it occurs.
@@ -105,7 +105,7 @@ fn register_value(
     match typ {
         PrintableType::Field => {
             if let PrintableValue::Field(field_value) = value {
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Int, "Field");
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, "Field");
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
                 // Note(stanm): panic here, because this means the compiler frontend is broken, which
@@ -123,7 +123,7 @@ fn register_value(
                     panic!("failed to generate Noir type name: {err}");
                 }
                 let type_id =
-                    tracer.ensure_type_id(runtime_tracing::TypeKind::Int, &noir_type_name);
+                    TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, &noir_type_name);
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
                 panic!(
@@ -139,7 +139,7 @@ fn register_value(
                     panic!("failed to generate Noir type name: {err}");
                 }
                 let type_id =
-                    tracer.ensure_type_id(runtime_tracing::TypeKind::Int, &noir_type_name);
+                    TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, &noir_type_name);
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
                 panic!(
@@ -150,7 +150,7 @@ fn register_value(
         }
         PrintableType::Boolean => {
             if let PrintableValue::Field(field_value) = value {
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Bool, "Bool");
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Bool, "Bool");
                 ValueRecord::Bool { b: field_value.to_i128() as i64 == 1, type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Bool", value)
@@ -163,7 +163,7 @@ fn register_value(
                 }
                 let element_values: Vec<ValueRecord> =
                     array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Slice, "&[..]");
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Slice, "&[..]");
                 ValueRecord::Sequence { elements: element_values, type_id, is_slice: true }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Slice", value)
@@ -176,7 +176,8 @@ fn register_value(
                 }
                 let element_values: Vec<ValueRecord> =
                     array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
-                let type_id = tracer.ensure_type_id(
+                let type_id = TraceWriter::ensure_type_id(
+                    tracer,
                     runtime_tracing::TypeKind::Seq,
                     &format!("Array<{length}, ..>"),
                 ); // TODO: more precise?
@@ -187,7 +188,7 @@ fn register_value(
         }
         PrintableType::String { length: _ } => {
             if let PrintableValue::String(s) = value {
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::String, "String");
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::String, "String");
                 ValueRecord::String { text: s.clone(), type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type String", value);
@@ -195,7 +196,7 @@ fn register_value(
         }
         PrintableType::Struct { name, fields } => {
             if let PrintableValue::Struct(struc) = value {
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Struct, name);
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Struct, name);
                 let mut field_values = vec![];
                 for (field_name, field_type) in fields {
                     let field_value = struc
@@ -209,7 +210,7 @@ fn register_value(
             }
         }
         PrintableType::Unit => {
-            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Raw, "()");
+            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Raw, "()");
             ValueRecord::Raw { r: "()".to_string(), type_id }
         }
         PrintableType::Tuple { types } => {
@@ -222,20 +223,20 @@ fn register_value(
                     .zip(types.iter())
                     .map(|e| register_value(tracer, e.0, e.1))
                     .collect();
-                let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Tuple, "(..)");
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Tuple, "(..)");
                 ValueRecord::Tuple { elements: element_values, type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Tuple", value)
             }
         }
         PrintableType::Reference { typ, mutable } => {
-            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::Ref, "&");
+            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Ref, "&");
             let v = register_value(tracer, value, typ);
             ValueRecord::Reference { dereferenced: Box::new(v), address: 0, mutable: *mutable, type_id }
         }
         PrintableType::Function { arguments: _, return_type: _, env: _, unconstrained } => {
             let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
-            let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::FunctionKind, type_name);
+            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::FunctionKind, type_name);
             ValueRecord::Raw { r: "fn".to_string(), type_id }
         }
         PrintableType::Enum { .. } => {
@@ -255,9 +256,9 @@ pub(crate) fn register_call(tracer: &mut dyn TraceWriter, location: &SourceLocat
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
-    let file_id = tracer.ensure_function_id(&frame.function_name, path, line);
+    let file_id = TraceWriter::ensure_function_id(tracer, &frame.function_name, path, line);
     let args = convert_params_to_args_vec(tracer, frame);
-    tracer.register_call(file_id, args);
+    TraceWriter::register_call(tracer, file_id, args);
 }
 
 /// Extracts the relevant information from the given `frame` to construct a vector of `ArgRecord`
@@ -267,7 +268,7 @@ fn convert_params_to_args_vec(tracer: &mut dyn TraceWriter, frame: &StackFrame) 
     for param_index in &frame.function_param_indexes {
         let variable = &frame.variables[*param_index];
         let value_record = register_value(tracer, &variable.value, &variable.typ);
-        result.push(tracer.arg(&variable.name, value_record));
+        result.push(TraceWriter::arg(tracer, &variable.name, value_record));
     }
     result
 }
@@ -279,18 +280,18 @@ fn convert_params_to_args_vec(tracer: &mut dyn TraceWriter, frame: &StackFrame) 
 pub(crate) fn register_return(tracer: &mut dyn TraceWriter, return_value: &Option<Variable>) {
     if let Some(return_value) = return_value {
         let value_record = register_value(tracer, &return_value.value, &return_value.typ);
-        tracer.register_return(value_record);
+        TraceWriter::register_return(tracer, value_record);
     } else {
-        let type_id = tracer.ensure_type_id(runtime_tracing::TypeKind::None, "()");
+        let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::None, "()");
 
-        tracer.register_return(runtime_tracing::ValueRecord::None { type_id });
+        TraceWriter::register_return(tracer, runtime_tracing::ValueRecord::None { type_id });
     }
 }
 
 pub(crate) fn register_print(tracer: &mut dyn TraceWriter, s: &str) {
-    tracer.register_special_event(EventLogKind::Write, s);
+    TraceWriter::register_special_event(tracer, EventLogKind::Write, s);
 }
 
 pub(crate) fn register_error(tracer: &mut dyn TraceWriter, s: &str) {
-    tracer.register_special_event(EventLogKind::Error, s);
+    TraceWriter::register_special_event(tracer, EventLogKind::Error, s);
 }

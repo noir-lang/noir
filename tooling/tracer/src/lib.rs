@@ -283,7 +283,7 @@ pub fn trace_circuit<B: BlackBoxFunctionSolver<FieldElement>>(
         return Ok(());
     }
 
-    let _ = tracer.ensure_type_id(TypeKind::None, "None");
+    let _ = TraceWriter::ensure_type_id(tracer, TypeKind::None, "None");
     loop {
         let source_locations = match tracing_context.step_debugger() {
             DebugStepResult::Finished => break,
