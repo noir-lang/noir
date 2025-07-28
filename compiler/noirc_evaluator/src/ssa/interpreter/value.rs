@@ -442,19 +442,24 @@ impl std::fmt::Display for ArrayValue {
         {
             const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
             let printable = self.elements.borrow().iter().all(|value| {
-                matches!(value, Value::Numeric(NumericValue::U8(byte)) 
-                  if *byte != FORM_FEED && 
-                    (byte.is_ascii_alphanumeric() 
-                      || byte.is_ascii_punctuation() 
+                matches!(value, Value::Numeric(NumericValue::U8(byte))
+                  if *byte != FORM_FEED &&
+                    (byte.is_ascii_alphanumeric()
+                      || byte.is_ascii_punctuation()
                       || byte.is_ascii_whitespace()))
             });
             if printable {
-                let bytes = self.elements.borrow().iter().map(|value| {
-                    let Value::Numeric(NumericValue::U8(byte)) = value else {
-                        panic!("Expected U8 value in array, found {value}");
-                    };
-                    *byte
-                }).collect::<Vec<_>>();
+                let bytes = self
+                    .elements
+                    .borrow()
+                    .iter()
+                    .map(|value| {
+                        let Value::Numeric(NumericValue::U8(byte)) = value else {
+                            panic!("Expected U8 value in array, found {value}");
+                        };
+                        *byte
+                    })
+                    .collect::<Vec<_>>();
                 let string = String::from_utf8(bytes).unwrap();
                 write!(f, "b{string:?}")?;
                 return Ok(());
