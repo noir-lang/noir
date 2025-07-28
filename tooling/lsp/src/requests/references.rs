@@ -116,7 +116,7 @@ mod references_tests {
 
         notifications::process_workspace_for_noir_document(
             &mut state,
-            one_lib.clone(),
+            &one_lib.to_file_path().unwrap(),
             output_diagnostics,
         )
         .unwrap();
