@@ -760,7 +760,7 @@ impl Elaborator<'_> {
                     (lhs, rhs) => {
                         let infix = Type::infix_expr(Box::new(lhs), op, Box::new(rhs));
                         Type::CheckedCast { from: Box::new(infix.clone()), to: Box::new(infix) }
-                            .canonicalize(&TypeBindings::default())
+                            .canonicalize()
                     }
                 }
             }
@@ -1116,11 +1116,10 @@ impl Elaborator<'_> {
         if let Type::Reference(element, _mut) = typ.follow_bindings() {
             let location = self.interner.id_location(object);
 
-            let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: UnaryOp::Dereference { implicitly_added: true },
-                rhs: object,
-                trait_method_id: None,
-            }));
+            let object = self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
+                UnaryOp::Dereference { implicitly_added: true },
+                object,
+            )));
             self.interner.push_expr_type(object, element.as_ref().clone());
             self.interner.push_expr_location(object, location);
 
@@ -1708,11 +1707,10 @@ impl Elaborator<'_> {
 
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
-            *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                operator: crate::ast::UnaryOp::Dereference { implicitly_added: true },
-                rhs: old_lhs,
-                trait_method_id: None,
-            }));
+            *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
+                crate::ast::UnaryOp::Dereference { implicitly_added: true },
+                old_lhs,
+            )));
             this.interner.push_expr_type(old_lhs, lhs_type);
             this.interner.push_expr_type(*access_lhs, element);
 
@@ -2186,12 +2184,9 @@ impl Elaborator<'_> {
 
                     // If that didn't work, then wrap the whole expression in an `&mut`
                     *object = new_object.unwrap_or_else(|| {
-                        let new_object =
-                            self.interner.push_expr(HirExpression::Prefix(HirPrefixExpression {
-                                operator: UnaryOp::Reference { mutable },
-                                rhs: *object,
-                                trait_method_id: None,
-                            }));
+                        let new_object = self.interner.push_expr(HirExpression::Prefix(
+                            HirPrefixExpression::new(UnaryOp::Reference { mutable }, *object),
+                        ));
                         self.interner.push_expr_type(new_object, new_type);
                         self.interner.push_expr_location(new_object, location);
                         new_object

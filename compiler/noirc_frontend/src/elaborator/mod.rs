@@ -929,6 +929,8 @@ impl<'context> Elaborator<'context> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         let is_entry_point = self.is_entry_point_function(func, in_contract);
+        let is_test_or_fuzz =
+            func.attributes().is_test_function() || func.attributes().is_fuzzing_harness();
 
         // Both the #[fold] and #[no_predicates] alter a function's inline type and code generation in similar ways.
         // In certain cases such as type checking (for which the following flag will be used) both attributes
@@ -993,12 +995,12 @@ impl<'context> Elaborator<'context> {
 
             self.check_if_type_is_valid_for_program_input(
                 &typ,
-                is_entry_point,
+                is_entry_point || is_test_or_fuzz,
                 has_inline_attribute,
                 type_location,
             );
 
-            if is_entry_point {
+            if is_entry_point || is_test_or_fuzz {
                 self.mark_type_as_used(&typ);
             }
 

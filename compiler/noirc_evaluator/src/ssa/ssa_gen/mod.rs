@@ -372,7 +372,12 @@ impl FunctionContext<'_> {
                 ))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -1073,6 +1078,17 @@ impl FunctionContext<'_> {
                 }
                 Intrinsic::SliceRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
+                }
+                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => {
+                    // If the slice was empty, ACIR would fail appropriately as we check memory block sizes,
+                    // but for Brillig we need to lay down an explicit check. By doing this in the SSA we
+                    // might be able to optimize this away later.
+                    if self.builder.current_function.runtime().is_brillig() {
+                        let zero = self
+                            .builder
+                            .numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                        self.codegen_access_check(zero, arguments[0]);
+                    }
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
