@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::ops::ControlFlow;
 use std::path::PathBuf;
+use std::str::FromStr as _;
 
 use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
@@ -10,7 +11,9 @@ use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileManager, FileMap};
 use fxhash::FxHashMap as HashMap;
-use noirc_driver::check_crate;
+use nargo::package::{Package, PackageType};
+use nargo::workspace::Workspace;
+use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING, check_crate};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 
@@ -118,21 +121,33 @@ pub(crate) fn process_workspace_for_noir_document(
     document_uri: Url,
     output_diagnostics: bool,
 ) -> Result<(), async_lsp::Error> {
-    let file_path = document_uri.to_file_path().map_err(|_| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-    })?;
+    let (workspace, workspace_file_manager) = if document_uri.scheme() == "noir-std" {
+        let workspace = fake_stdlib_workspace();
+        let package = workspace.members.first().unwrap();
 
-    let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-    })?;
+        let mut workspace_file_manager = workspace.new_file_manager();
+        workspace_file_manager
+            .add_file_with_source_canonical_path(&package.entry_path, String::new());
 
-    let mut workspace_file_manager = workspace.new_file_manager();
+        (workspace, workspace_file_manager)
+    } else {
+        let file_path = document_uri.to_file_path().map_err(|_| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+        })?;
 
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
+        let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
+            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
+        })?;
+
+        let mut workspace_file_manager = workspace.new_file_manager();
+        insert_all_files_for_workspace_into_file_manager(
+            state,
+            &workspace,
+            &mut workspace_file_manager,
+        );
+
+        (workspace, workspace_file_manager)
+    };
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
@@ -178,6 +193,27 @@ pub(crate) fn process_workspace_for_noir_document(
     );
 
     Ok(())
+}
+
+pub(crate) fn fake_stdlib_workspace() -> Workspace {
+    let assumed_package = Package {
+        version: None,
+        compiler_required_version: Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        compiler_required_unstable_features: Vec::new(),
+        root_dir: PathBuf::from_str("std").unwrap(),
+        package_type: PackageType::Binary,
+        entry_path: PathBuf::from_str("fake_entry_path.nr").unwrap(),
+        name: CrateName::from_str("fake_std").unwrap(),
+        dependencies: BTreeMap::new(),
+        expression_width: None,
+    };
+    Workspace {
+        root_dir: PathBuf::from_str("std").unwrap(),
+        members: vec![assumed_package],
+        selected_package_index: Some(0),
+        is_assumed: true,
+        target_dir: None,
+    }
 }
 
 fn publish_diagnostics(
