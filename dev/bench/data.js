@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753710287985,
+  "lastUpdate": 1753710425391,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2808,90 +2808,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7cf7a89ca9593893dffe5175a5a4bf55110fb00a",
-          "message": "chore: replace array operation on 0-len arrays with side effect assertion (#9050)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-07-16T18:04:45Z",
-          "tree_id": "134e97d81a1eb416db6d67648ef0aeb8689684e2",
-          "url": "https://github.com/noir-lang/noir/commit/7cf7a89ca9593893dffe5175a5a4bf55110fb00a"
-        },
-        "date": 1752691067576,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.928,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.154,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.662,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 20.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 204,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.684,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.896,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.814,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.982,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -5601,6 +5517,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.582,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2282832950b553ded6ab3924300d8ef3a2e625bf",
+          "message": "feat(acir): Parse ACIR memory and call opcodes (#9331)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-28T13:18:23Z",
+          "tree_id": "3f8dff691427bf1e3f0df293182db7c065d0c7aa",
+          "url": "https://github.com/noir-lang/noir/commit/2282832950b553ded6ab3924300d8ef3a2e625bf"
+        },
+        "date": 1753710408967,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.551,
             "unit": "s"
           }
         ]
