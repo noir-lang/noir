@@ -326,9 +326,7 @@
 <a href="#325" id="325">325</a>
 <a href="#326" id="326">326</a>
 <a href="#327" id="327">327</a>
-<a href="#328" id="328">328</a>
-<a href="#329" id="329">329</a>
-<a href="#330" id="330">330</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#328" id="328">328</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap},
     future::{<span class="self">self</span>, Future},
     ops::Range,
@@ -339,7 +337,7 @@
     CodeAction, CodeActionKind, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
     TextDocumentPositionParams, TextEdit, Url, WorkspaceEdit,
 };
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::{
     ParsedModule,
@@ -379,27 +377,25 @@
         TextDocumentPositionParams { text_document: params.text_document, position };
 
     <span class="kw">let </span>result = process_request(state, text_document_position_params, |args| {
-        <span class="kw">let </span>path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(<span class="kw-2">&amp;</span>path).and_then(|file_id| {
-            utils::range_to_byte_span(args.files, file_id, <span class="kw-2">&amp;</span>params.range).and_then(|byte_range| {
-                <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
-                <span class="kw">let </span>source = file.source();
-                <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        <span class="kw">let </span>file_id = args.location.file;
+        utils::range_to_byte_span(args.files, file_id, <span class="kw-2">&amp;</span>params.range).and_then(|byte_range| {
+            <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
+            <span class="kw">let </span>source = file.source();
+            <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>finder = CodeActionFinder::new(
-                    uri,
-                    args.files,
-                    file_id,
-                    source,
-                    byte_range,
-                    args.crate_id,
-                    args.def_maps,
-                    args.dependencies(),
-                    args.interner,
-                    args.usage_tracker,
-                );
-                finder.find(<span class="kw-2">&amp;</span>parsed_module)
-            })
+            <span class="kw">let </span><span class="kw-2">mut </span>finder = CodeActionFinder::new(
+                uri,
+                args.files,
+                file_id,
+                source,
+                byte_range,
+                args.crate_id,
+                args.def_maps,
+                args.dependencies(),
+                args.interner,
+                args.usage_tracker,
+            );
+            finder.find(<span class="kw-2">&amp;</span>parsed_module)
         })
     });
     future::ready(result)

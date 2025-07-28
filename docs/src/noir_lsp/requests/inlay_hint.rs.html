@@ -1071,9 +1071,7 @@
 <a href="#1070" id="1070">1070</a>
 <a href="#1071" id="1071">1071</a>
 <a href="#1072" id="1072">1072</a>
-<a href="#1073" id="1073">1073</a>
-<a href="#1074" id="1074">1074</a>
-<a href="#1075" id="1075">1075</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#1073" id="1073">1073</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types;
@@ -1081,7 +1079,7 @@
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
     TextDocumentPositionParams, TextEdit,
 };
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_errors::{Location, Span};
 <span class="kw">use </span>noirc_frontend::{
     <span class="self">self</span>, Kind, Type, TypeBinding, TypeVariable,
@@ -1111,20 +1109,18 @@
     <span class="kw">let </span>options = state.options.inlay_hints;
 
     <span class="kw">let </span>result = process_request(state, text_document_position_params, |args| {
-        <span class="kw">let </span>path = PathString::from_path(params.text_document.uri.to_file_path().unwrap());
-        args.files.get_file_id(<span class="kw-2">&amp;</span>path).map(|file_id| {
-            <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
-            <span class="kw">let </span>source = file.source();
-            <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        <span class="kw">let </span>file_id = args.location.file;
+        <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
+        <span class="kw">let </span>source = file.source();
+        <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            <span class="kw">let </span>span = utils::range_to_byte_span(args.files, file_id, <span class="kw-2">&amp;</span>params.range)
-                .map(|range| Span::from(range.start <span class="kw">as </span>u32..range.end <span class="kw">as </span>u32));
+        <span class="kw">let </span>span = utils::range_to_byte_span(args.files, file_id, <span class="kw-2">&amp;</span>params.range)
+            .map(|range| Span::from(range.start <span class="kw">as </span>u32..range.end <span class="kw">as </span>u32));
 
-            <span class="kw">let </span><span class="kw-2">mut </span>collector =
-                InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            parsed_module.accept(<span class="kw-2">&amp;mut </span>collector);
-            collector.inlay_hints
-        })
+        <span class="kw">let </span><span class="kw-2">mut </span>collector =
+            InlayHintCollector::new(args.files, file_id, args.interner, span, options);
+        parsed_module.accept(<span class="kw-2">&amp;mut </span>collector);
+        <span class="prelude-val">Some</span>(collector.inlay_hints)
     });
     future::ready(result)
 }

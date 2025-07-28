@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["on_std_source_code_request"]};

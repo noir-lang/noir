@@ -2047,15 +2047,7 @@
 <a href="#2046" id="2046">2046</a>
 <a href="#2047" id="2047">2047</a>
 <a href="#2048" id="2048">2048</a>
-<a href="#2049" id="2049">2049</a>
-<a href="#2050" id="2050">2050</a>
-<a href="#2051" id="2051">2051</a>
-<a href="#2052" id="2052">2052</a>
-<a href="#2053" id="2053">2053</a>
-<a href="#2054" id="2054">2054</a>
-<a href="#2055" id="2055">2055</a>
-<a href="#2056" id="2056">2056</a>
-<a href="#2057" id="2057">2057</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2049" id="2049">2049</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2070,7 +2062,7 @@
     trait_impl_method_completion_item,
 };
 <span class="kw">use </span>convert_case::{Case, Casing};
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>kinds::{FunctionCompletionKind, FunctionKind, RequestedItems};
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -2120,16 +2112,9 @@
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: CompletionParams,
 ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;CompletionResponse&gt;, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
-    <span class="kw">let </span>uri = params.text_document_position.clone().text_document.uri;
-
     <span class="kw">let </span>result = process_request(state, params.text_document_position.clone(), |args| {
-        <span class="kw">let </span>path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(<span class="kw-2">&amp;</span>path).and_then(|file_id| {
-            utils::position_to_byte_index(
-                args.files,
-                file_id,
-                <span class="kw-2">&amp;</span>params.text_document_position.position,
-            )
+        <span class="kw">let </span>file_id = args.location.file;
+        utils::position_to_byte_index(args.files, file_id, <span class="kw-2">&amp;</span>params.text_document_position.position)
             .and_then(|byte_index| {
                 <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
                 <span class="kw">let </span>source = file.source();
@@ -2149,7 +2134,6 @@
                 );
                 finder.find(<span class="kw-2">&amp;</span>parsed_module)
             })
-        })
     });
     future::ready(result)
 }

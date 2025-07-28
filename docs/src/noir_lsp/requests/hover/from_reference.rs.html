@@ -951,13 +951,7 @@
 <a href="#950" id="950">950</a>
 <a href="#951" id="951">951</a>
 <a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a>
-<a href="#954" id="954">954</a>
-<a href="#955" id="955">955</a>
-<a href="#956" id="956">956</a>
-<a href="#957" id="957">957</a>
-<a href="#958" id="958">958</a>
-<a href="#959" id="959">959</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
+<a href="#953" id="953">953</a></pre></div><pre class="rust"><code><span class="kw">use </span>async_lsp::lsp_types;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_frontend::NamedGeneric;
@@ -986,25 +980,19 @@
 };
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>hover_from_reference(
-    file_id: <span class="prelude-ty">Option</span>&lt;FileId&gt;,
+    file_id: FileId,
     position: Position,
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;Hover&gt; {
-    file_id
-        .and_then(|file_id| {
-            utils::position_to_byte_index(args.files, file_id, <span class="kw-2">&amp;</span>position).and_then(|byte_index| {
-                <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
-                <span class="kw">let </span>source = file.source();
-                <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    utils::position_to_byte_index(args.files, file_id, <span class="kw-2">&amp;</span>position)
+        .and_then(|byte_index| {
+            <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
+            <span class="kw">let </span>source = file.source();
+            <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                <span class="kw">let </span><span class="kw-2">mut </span>finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
-                finder.find(<span class="kw-2">&amp;</span>parsed_module)
-            })
+            <span class="kw">let </span><span class="kw-2">mut </span>finder =
+                AttributeReferenceFinder::new(file_id, byte_index, args.crate_id, args.def_maps);
+            finder.find(<span class="kw-2">&amp;</span>parsed_module)
         })
         .or_else(|| args.interner.reference_at_location(args.location))
         .and_then(|reference| {

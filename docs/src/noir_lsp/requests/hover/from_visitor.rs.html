@@ -121,8 +121,7 @@
 <a href="#120" id="120">120</a>
 <a href="#121" id="121">121</a>
 <a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
+<a href="#123" id="123">123</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::str::FromStr;
 
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position};
 <span class="kw">use </span>fm::{FileId, FileMap};
@@ -139,11 +138,10 @@
 };
 
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>hover_from_visitor(
-    file_id: <span class="prelude-ty">Option</span>&lt;FileId&gt;,
+    file_id: FileId,
     position: Position,
     args: <span class="kw-2">&amp;</span>ProcessRequestCallbackArgs,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;Hover&gt; {
-    <span class="kw">let </span>file_id = file_id<span class="question-mark">?</span>;
     <span class="kw">let </span>file = args.files.get_file(file_id)<span class="question-mark">?</span>;
     <span class="kw">let </span>source = file.source();
     <span class="kw">let </span>(parsed_module, _errors) = parse_program(source, file_id);

@@ -753,19 +753,14 @@
 <a href="#752" id="752">752</a>
 <a href="#753" id="753">753</a>
 <a href="#754" id="754">754</a>
-<a href="#755" id="755">755</a>
-<a href="#756" id="756">756</a>
-<a href="#757" id="757">757</a>
-<a href="#758" id="758">758</a>
-<a href="#759" id="759">759</a>
-<a href="#760" id="760">760</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#755" id="755">755</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
-<span class="kw">use </span>fm::{FileId, FileMap, PathString};
+<span class="kw">use </span>fm::{FileId, FileMap};
 <span class="kw">use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_frontend::ast::TraitBound;
 <span class="kw">use </span>noirc_frontend::{
@@ -785,25 +780,20 @@
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: DocumentSymbolParams,
 ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;DocumentSymbolResponse&gt;, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
-    <span class="kw">let </span><span class="prelude-val">Ok</span>(file_path) = params.text_document.uri.to_file_path() <span class="kw">else </span>{
-        <span class="kw">return </span>future::ready(<span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>));
-    };
-
     <span class="kw">let </span>text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: <span class="number">0</span>, character: <span class="number">0 </span>},
     };
 
     <span class="kw">let </span>result = process_request(state, text_document_position_params, |args| {
-        args.files.get_file_id(<span class="kw-2">&amp;</span>PathString::from_path(file_path)).map(|file_id| {
-            <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
-            <span class="kw">let </span>source = file.source();
-            <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        <span class="kw">let </span>file_id = args.location.file;
+        <span class="kw">let </span>file = args.files.get_file(file_id).unwrap();
+        <span class="kw">let </span>source = file.source();
+        <span class="kw">let </span>(parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            <span class="kw">let </span><span class="kw-2">mut </span>collector = DocumentSymbolCollector::new(file_id, args.files);
-            <span class="kw">let </span>symbols = collector.collect(<span class="kw-2">&amp;</span>parsed_module);
-            DocumentSymbolResponse::Nested(symbols)
-        })
+        <span class="kw">let </span><span class="kw-2">mut </span>collector = DocumentSymbolCollector::new(file_id, args.files);
+        <span class="kw">let </span>symbols = collector.collect(<span class="kw-2">&amp;</span>parsed_module);
+        <span class="prelude-val">Some</span>(DocumentSymbolResponse::Nested(symbols))
     });
 
     future::ready(result)

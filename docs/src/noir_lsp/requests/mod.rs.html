@@ -778,11 +778,31 @@
 <a href="#777" id="777">777</a>
 <a href="#778" id="778">778</a>
 <a href="#779" id="779">779</a>
-<a href="#780" id="780">780</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::{Path, PathBuf};
+<span class="kw">use </span>std::str::FromStr;
 <span class="kw">use </span>std::{collections::HashMap, future::Future};
 
-<span class="kw">use </span><span class="kw">crate</span>::notifications::process_workspace_for_noir_document;
+<span class="kw">use </span><span class="kw">crate</span>::notifications::fake_stdlib_workspace;
+<span class="kw">use </span><span class="kw">crate</span>::notifications::process_workspace;
 <span class="kw">use crate</span>::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 <span class="kw">use crate</span>::{
     resolve_workspace_for_source_path,
@@ -840,6 +860,7 @@
 <span class="kw">mod </span>references;
 <span class="kw">mod </span>rename;
 <span class="kw">mod </span>signature_help;
+<span class="kw">mod </span>std_source_code;
 <span class="kw">mod </span>test_run;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>workspace_symbol;
@@ -851,8 +872,9 @@
     goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
     hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
-    signature_help::on_signature_help_request, test_run::on_test_run_request,
-    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
+    signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
+    test_run::on_test_run_request, tests::on_tests_request,
+    workspace_symbol::on_workspace_symbol_request,
 };
 
 <span class="doccomment">/// LSP client will send initialization request after the server has started.
@@ -1224,8 +1246,13 @@
     <span class="kw">let </span>range = <span class="kw">crate</span>::byte_span_to_range(files, file_id, definition_span.into())<span class="question-mark">?</span>;
     <span class="kw">let </span>file_name = files.get_absolute_name(file_id).ok()<span class="question-mark">?</span>;
     <span class="kw">let </span>path = file_name.to_string();
-    <span class="kw">let </span>uri = Url::from_file_path(path).ok()<span class="question-mark">?</span>;
-    <span class="prelude-val">Some</span>(Location { uri, range })
+    <span class="kw">if let </span><span class="prelude-val">Ok</span>(uri) = Url::from_file_path(path.clone()) {
+        <span class="prelude-val">Some</span>(Location { uri, range })
+    } <span class="kw">else if </span>path.starts_with(<span class="string">"std/"</span>) {
+        <span class="prelude-val">Some</span>(Location { uri: Url::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"noir-std://{path}"</span>)).unwrap(), range })
+    } <span class="kw">else </span>{
+        <span class="prelude-val">None
+    </span>}
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>on_shutdown(
@@ -1263,16 +1290,25 @@
 <span class="kw">where
     </span>F: FnOnce(ProcessRequestCallbackArgs) -&gt; T,
 {
-    <span class="kw">let </span>file_path =
-        text_document_position_params.text_document.uri.to_file_path().map_err(|<span class="kw">_</span>| {
+    <span class="kw">let </span>uri = text_document_position_params.text_document.uri.clone();
+
+    <span class="kw">let </span>(file_path, workspace) = <span class="kw">if </span>uri.scheme() == <span class="string">"noir-std" </span>{
+        <span class="kw">let </span>workspace = fake_stdlib_workspace();
+        <span class="kw">let </span>file_path =
+            PathBuf::from_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"{}{}"</span>, uri.host().unwrap(), uri.path())).unwrap();
+        (file_path, workspace)
+    } <span class="kw">else </span>{
+        <span class="kw">let </span>file_path = uri.to_file_path().map_err(|<span class="kw">_</span>| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, <span class="string">"URI is not a valid file path"</span>)
         })<span class="question-mark">?</span>;
 
-    <span class="kw">let </span>workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+        <span class="kw">let </span>workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+        (file_path, workspace)
+    };
 
     <span class="comment">// First type-check the workspace if needed
     </span><span class="kw">if </span>state.workspaces_to_process.remove(<span class="kw-2">&amp;</span>workspace.root_dir) {
-        <span class="kw">let _ </span>= process_workspace_for_noir_document(state, <span class="kw-2">&amp;</span>workspace.root_dir, <span class="bool-val">false</span>);
+        <span class="kw">let _ </span>= process_workspace(state, <span class="kw-2">&amp;</span>workspace, <span class="bool-val">false</span>);
     }
 
     <span class="kw">let </span>package = <span class="kw">crate</span>::workspace_package_for_file(<span class="kw-2">&amp;</span>workspace, <span class="kw-2">&amp;</span>file_path).ok_or_else(|| {

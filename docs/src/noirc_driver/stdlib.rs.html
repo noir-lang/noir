@@ -36,7 +36,7 @@
 // This is needed because when we preload the file manager, it needs to know where
 // the source code for the stdlib is. The stdlib is treated special because it comes with
 // the compiler and is never included as a dependency like other user defined crates.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>stdlib_paths_with_source() -&gt; Vec&lt;(String, String)&gt; {
+</span><span class="kw">pub fn </span>stdlib_paths_with_source() -&gt; Vec&lt;(String, String)&gt; {
     StdLibAssets::iter()
         .map(|path| {
             <span class="kw">let </span>source = std::str::from_utf8(StdLibAssets::get(<span class="kw-2">&amp;</span>path).unwrap().data.as_ref())

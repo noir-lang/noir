@@ -220,10 +220,7 @@
 <a href="#219" id="219">219</a>
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
+<a href="#222" id="222">222</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future::{<span class="self">self</span>, Future};
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{Location, ReferenceParams};
@@ -253,6 +250,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>references_tests {
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::notifications::workspace_from_document_uri;
     <span class="kw">use </span><span class="kw">crate</span>::test_utils::{<span class="self">self</span>, search_in_file};
     <span class="kw">use </span><span class="kw">crate</span>::utils::get_cursor_line_and_column;
     <span class="kw">use crate</span>::{notifications, on_did_open_text_document};
@@ -338,13 +336,9 @@
 
         <span class="comment">// We call this to open the document, so that the entire workspace is analyzed
         </span><span class="kw">let </span>output_diagnostics = <span class="bool-val">true</span>;
+        <span class="kw">let </span>workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
 
-        notifications::process_workspace_for_noir_document(
-            <span class="kw-2">&amp;mut </span>state,
-            <span class="kw-2">&amp;</span>one_lib.to_file_path().unwrap(),
-            output_diagnostics,
-        )
-        .unwrap();
+        notifications::process_workspace(<span class="kw-2">&amp;mut </span>state, <span class="kw-2">&amp;</span>workspace, output_diagnostics).unwrap();
 
         <span class="kw">let </span>params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {

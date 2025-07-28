@@ -865,7 +865,8 @@
 <a href="#864" id="864">864</a>
 <a href="#865" id="865">865</a>
 <a href="#866" id="866">866</a>
-<a href="#867" id="867">867</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
@@ -908,6 +909,7 @@
 <span class="kw">pub use </span>debug::DebugFile;
 <span class="kw">pub use </span>noirc_frontend::graph::{CrateId, CrateName};
 <span class="kw">pub use </span>program::CompiledProgram;
+<span class="kw">pub use </span>stdlib::stdlib_paths_with_source;
 
 <span class="kw">const </span>STD_CRATE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"std"</span>;
 <span class="kw">const </span>DEBUG_CRATE_NAME: <span class="kw-2">&amp;</span>str = <span class="string">"__debug"</span>;
@@ -1203,7 +1205,7 @@
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    </span><span class="kw">let </span>stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    </span><span class="kw">let </span>stdlib_paths_with_source = stdlib_paths_with_source();
     <span class="kw">for </span>(path, source) <span class="kw">in </span>stdlib_paths_with_source {
         file_manager.add_file_with_source_canonical_path(Path::new(<span class="kw-2">&amp;</span>path), source);
     }

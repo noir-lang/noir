@@ -429,7 +429,12 @@
 <a href="#428" id="428">428</a>
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
-<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -508,7 +513,10 @@
 <span class="kw">use </span>types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 <span class="kw">use </span>with_file::parsed_module_with_file;
 
-<span class="kw">use crate</span>::{requests::on_expand_request, types::request::NargoExpand};
+<span class="kw">use crate</span>::{
+    requests::{on_expand_request, on_std_source_code_request},
+    types::request::{NargoExpand, NargoStdSourceCode},
+};
 
 <span class="attr">#[derive(Debug, Error)]
 </span><span class="kw">pub enum </span>LspError {
@@ -604,6 +612,7 @@
             .request::&lt;CodeActionRequest, <span class="kw">_</span>&gt;(on_code_action_request)
             .request::&lt;WorkspaceSymbolRequest, <span class="kw">_</span>&gt;(on_workspace_symbol_request)
             .request::&lt;NargoExpand, <span class="kw">_</span>&gt;(on_expand_request)
+            .request::&lt;NargoStdSourceCode, <span class="kw">_</span>&gt;(on_std_source_code_request)
             .notification::&lt;notification::Initialized&gt;(on_initialized)
             .notification::&lt;notification::DidChangeConfiguration&gt;(on_did_change_configuration)
             .notification::&lt;notification::DidOpenTextDocument&gt;(on_did_open_text_document)
@@ -855,8 +864,9 @@
 </span><span class="kw">pub fn </span>source_code_overrides(input_files: <span class="kw-2">&amp;</span>HashMap&lt;String, String&gt;) -&gt; HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>overrides: HashMap&lt;PathBuf, <span class="kw-2">&amp;</span>str&gt; = HashMap::new();
     <span class="kw">for </span>(path, source) <span class="kw">in </span>input_files {
-        <span class="kw">let </span>path = path.strip_prefix(<span class="string">"file://"</span>).unwrap();
-        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(path) = path.strip_prefix(<span class="string">"file://"</span>) {
+            overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        }
     }
     overrides
 }

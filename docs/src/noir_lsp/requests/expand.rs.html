@@ -24,7 +24,10 @@
 <a href="#23" id="23">23</a>
 <a href="#24" id="24">24</a>
 <a href="#25" id="25">25</a>
-<a href="#26" id="26">26</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future;
+<a href="#26" id="26">26</a>
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::future;
 
 <span class="kw">use </span>async_lsp::{ResponseError, lsp_types::TextDocumentPositionParams};
 <span class="kw">use </span>nargo_expand::get_expanded_crate;
@@ -39,13 +42,16 @@
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: NargoExpandParams,
 ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;NargoExpandResult, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
+    <span class="kw">let </span>is_stdlib = params.text_document.uri.scheme() == <span class="string">"noir-std"</span>;
+
     <span class="kw">let </span>text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document,
         position: params.position,
     };
 
     <span class="kw">let </span>result = process_request(state, text_document_position_params, |args| {
-        get_expanded_crate(args.crate_id, args.crate_graph, args.def_maps, args.interner)
+        <span class="kw">let </span>crate_id = <span class="kw">if </span>is_stdlib { <span class="kw-2">*</span>args.crate_graph.stdlib_crate_id() } <span class="kw">else </span>{ args.crate_id };
+        get_expanded_crate(crate_id, args.crate_graph, args.def_maps, args.interner)
     });
 
     future::ready(result)

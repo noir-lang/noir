@@ -517,7 +517,6 @@
 
 <span class="kw">use </span>async_lsp::ResponseError;
 <span class="kw">use </span>async_lsp::lsp_types::{Hover, HoverParams};
-<span class="kw">use </span>fm::PathString;
 <span class="kw">use </span>from_reference::hover_from_reference;
 <span class="kw">use </span>from_visitor::hover_from_visitor;
 
@@ -532,11 +531,9 @@
     state: <span class="kw-2">&amp;mut </span>LspState,
     params: HoverParams,
 ) -&gt; <span class="kw">impl </span>Future&lt;Output = <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Hover&gt;, ResponseError&gt;&gt; + <span class="kw">use</span>&lt;&gt; {
-    <span class="kw">let </span>uri = params.text_document_position_params.text_document.uri.clone();
     <span class="kw">let </span>position = params.text_document_position_params.position;
     <span class="kw">let </span>result = process_request(state, params.text_document_position_params, |args| {
-        <span class="kw">let </span>path = PathString::from_path(uri.to_file_path().unwrap());
-        <span class="kw">let </span>file_id = args.files.get_file_id(<span class="kw-2">&amp;</span>path);
+        <span class="kw">let </span>file_id = args.location.file;
         hover_from_reference(file_id, position, <span class="kw-2">&amp;</span>args)
             .or_else(|| hover_from_visitor(file_id, position, <span class="kw-2">&amp;</span>args))
     });
@@ -760,13 +757,16 @@
             .expect(<span class="string">"Could not resolve root path"</span>);
         <span class="kw">let </span>workspace_on_src_lib_path = workspace_on_src_lib_path.to_string_lossy();
 
-        assert_hover(
-            <span class="string">"workspace"</span>,
-            <span class="string">"two/src/lib.nr"</span>,
-            Position { line: <span class="number">51</span>, character: <span class="number">8 </span>},
-            <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"    let x: BoundedVec&lt;SubOneStruct, 3&gt;\n\nGo to [SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"</span>),
-        )
-        .<span class="kw">await</span>;
+        <span class="kw">let </span>hover_text =
+            get_hover_text(<span class="string">"workspace"</span>, <span class="string">"two/src/lib.nr"</span>, Position { line: <span class="number">51</span>, character: <span class="number">8 </span>})
+                .<span class="kw">await</span>;
+        <span class="macro">assert!</span>(hover_text.contains(<span class="string">"    let x: BoundedVec&lt;SubOneStruct, 3&gt;"</span>));
+        <span class="macro">assert!</span>(hover_text.contains(<span class="string">"Go to [BoundedVec](noir-std:"</span>));
+        <span class="macro">assert!</span>(
+            hover_text.contains(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                <span class="string">"[SubOneStruct](file://{workspace_on_src_lib_path}#L4,12-4,24)"
+            </span>))
+        );
     }
 
     <span class="attr">#[test]
