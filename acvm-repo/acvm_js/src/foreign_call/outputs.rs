@@ -2,6 +2,7 @@ use acvm::{
     FieldElement,
     brillig_vm::brillig::{ForeignCallParam, ForeignCallResult},
 };
+use js_sys;
 use wasm_bindgen::JsValue;
 
 use crate::js_witness_map::js_value_to_field_element;
