@@ -424,8 +424,10 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
+        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
