@@ -2,7 +2,6 @@ use std::future::{self, Future};
 
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{Hover, HoverParams};
-use fm::PathString;
 use from_reference::hover_from_reference;
 use from_visitor::hover_from_visitor;
 
@@ -17,11 +16,9 @@ pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
 ) -> impl Future<Output = Result<Option<Hover>, ResponseError>> + use<> {
-    let uri = params.text_document_position_params.text_document.uri.clone();
     let position = params.text_document_position_params.position;
     let result = process_request(state, params.text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        let file_id = args.files.get_file_id(&path);
+        let file_id = args.location.file;
         hover_from_reference(file_id, position, &args)
             .or_else(|| hover_from_visitor(file_id, position, &args))
     });
