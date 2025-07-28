@@ -861,7 +861,7 @@
         location: Location,
     },
     <span class="attr">#[error(<span class="string">"Evaluating `{op}` on `{lhs}`, `{rhs}` failed"</span>)]
-    </span>FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
+    </span>FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
     <span class="attr">#[error(<span class="string">"Type {typ:?} cannot be used in a {place:?}"</span>)]
     </span>TypeCannotBeUsed { typ: Type, place: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, location: Location },
     <span class="attr">#[error(<span class="string">"Expected type {expected_typ:?} is not the same as {expr_typ:?}"</span>)]
