@@ -302,6 +302,7 @@ impl Context {
                 // We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
                 if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
+                    dbg!(instruction.clone());
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
@@ -439,6 +440,7 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value, .. } = instruction {
+            dbg!(value);
             let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
                 return false;
             };
@@ -759,7 +761,7 @@ impl RcTracker {
                     RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
                 self.rcs_with_possible_pairs.entry(typ).or_default().push(dec_rc);
             }
-            Instruction::ArraySet { array, .. } => {
+            Instruction::ArraySet { array, value, .. } => {
                 let typ = function.dfg.type_of_value(*array);
                 // We mark all RCs that refer to arrays with a matching type as the one being set, as possibly mutated.
                 if let Some(dec_rcs) = self.rcs_with_possible_pairs.get_mut(&typ) {
@@ -768,6 +770,11 @@ impl RcTracker {
                     }
                 }
                 self.mutated_array_types.insert(typ);
+
+                let value_typ = function.dfg.type_of_value(*value);
+                if value_typ.is_array() {
+                    self.mutated_array_types.insert(value_typ);
+                }
             }
             Instruction::Store { value, .. } => {
                 // We are very conservative and say that any store of an array type means it has the potential to be mutated.
@@ -1648,5 +1655,70 @@ mod test {
             return
         }
         "#);
+    }
+
+    #[test]
+    fn do_not_remove_inc_rc_on_nested_constant_array() {
+        let src = "
+        brillig(inline) fn func_1 f0 {
+          b0(v0: [[Field; 1]; 1]):
+            v1 = allocate -> &mut [[Field; 1]; 1]
+            store v0 at v1
+            v3 = make_array [Field 2] : [Field; 1]
+            v4 = allocate -> &mut Field
+            store Field 0 at v4
+            jmp b1()
+          b1():
+            v6 = load v4 -> Field
+            v7 = eq v6, Field 2
+            jmpif v7 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v8 = load v4 -> Field
+            v10 = add v8, Field 1
+            store v10 at v4
+            v11 = allocate -> &mut Field
+            store Field 0 at v11
+            jmp b5()
+          b4():
+            v23 = load v1 -> [[Field; 1]; 1]
+            v24 = array_get v23, index u32 0 -> [Field; 1]
+            v25 = array_get v24, index u32 0 -> Field
+            return v25
+          b5():
+            v12 = load v11 -> Field
+            v13 = eq v12, Field 1
+            jmpif v13 then: b6, else: b7
+          b6():
+            jmp b8()
+          b7():
+            v14 = load v11 -> Field
+            v15 = add v14, Field 1
+            store v15 at v11
+            v16 = load v1 -> [[Field; 1]; 1]
+            v18 = array_get v16, index u32 0 -> [Field; 1]
+            v19 = array_set v18, index u32 0, value Field 1
+            v20 = array_set v16, index u32 0, value v19
+            store v20 at v1
+            jmp b9()
+          b8():
+            inc_rc v3
+            v21 = load v1 -> [[Field; 1]; 1]
+            v22 = array_set v21, index u32 0, value v3
+            store v22 at v1
+            jmp b10()
+          b9():
+            jmp b5()
+          b10():
+            jmp b1()
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination();
+
+        // If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
+        // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

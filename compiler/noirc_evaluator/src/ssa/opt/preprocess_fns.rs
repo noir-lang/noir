@@ -56,8 +56,11 @@ impl Ssa {
             let mut function = function.inlined(&self, &should_inline_call)?;
             // Help unrolling determine bounds.
             function.as_slice_optimization();
+            println!("Pre LICM:\n{}", function);
+
             // Prepare for unrolling
             function.loop_invariant_code_motion();
+            println!("Post LICM:\n{}", function);
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             let _ = function.unroll_loops_iteratively();
             // Reduce the number of redundant stores/loads after unrolling
@@ -73,6 +76,7 @@ impl Ssa {
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
         // Remove leftover instructions.
+        // Ok(ssa)
         Ok(ssa.dead_instruction_elimination_pre_flattening())
     }
 }
