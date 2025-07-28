@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753734779119,
+  "lastUpdate": 1753734783712,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8797651e4dcfe77cd46353188b0f60c2a1dce8b2",
-          "message": "fix(ssa): Change constraint message to \"multiply\" (#9230)",
-          "timestamp": "2025-07-17T14:05:56Z",
-          "tree_id": "b1161946aac795b821aa6c8ba9f4abaa663fd833",
-          "url": "https://github.com/noir-lang/noir/commit/8797651e4dcfe77cd46353188b0f60c2a1dce8b2"
-        },
-        "date": 1752764148923,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.17,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.2,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 208.87,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.09,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.63,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2599,6 +2515,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c0b92e68472ec05654cdcc1c1ad18e98ec651c4d",
+          "message": "fix: do u128 operations with u128, not i128 (#9345)",
+          "timestamp": "2025-07-28T20:04:11Z",
+          "tree_id": "6ddedec0ced5601d9c0e133ceea96884a1efb9fe",
+          "url": "https://github.com/noir-lang/noir/commit/c0b92e68472ec05654cdcc1c1ad18e98ec651c4d"
+        },
+        "date": 1753734766174,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.71,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.74,
             "unit": "MB"
           }
         ]
