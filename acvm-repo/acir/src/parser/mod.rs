@@ -861,43 +861,7 @@ impl<'a> Parser<'a> {
             Ok(())
         }
     }
-
-    fn expect_input_len<T>(
-        &self,
-        inputs: &[T],
-        expected: usize,
-        name: &str,
-    ) -> Result<(), ParserError> {
-        if inputs.len() != expected {
-            Err(ParserError::IncorrectInputLength {
-                expected,
-                found: inputs.len(),
-                name: name.to_owned(),
-                span: self.token.span(),
-            })
-        } else {
-            Ok(())
-        }
-    }
-
-    fn expect_output_len<T>(
-        &self,
-        outputs: &[T],
-        expected: usize,
-        name: &str,
-    ) -> Result<(), ParserError> {
-        if outputs.len() != expected {
-            Err(ParserError::IncorrectOutputLength {
-                expected,
-                found: outputs.len(),
-                name: name.to_owned(),
-                span: self.token.span(),
-            })
-        } else {
-            Ok(())
-        }
-    }
-
+    
     fn try_extract_tail<const N: usize, T: Clone>(
         &self,
         items: &mut Vec<T>,
