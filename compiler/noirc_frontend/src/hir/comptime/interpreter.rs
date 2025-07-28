@@ -43,7 +43,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{Closure, Value, unwrap_rc};
+use super::value::{Closure, StructFields, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
@@ -968,26 +968,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
-        let (fields, struct_type) = match self.evaluate(access.lhs)? {
-            Value::Struct(fields, typ) => (fields, typ),
-            Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Shared<Value>>, Vec<Type>) = fields
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, field)| {
-                        let field_type = field.borrow().get_type().into_owned();
-                        let key_val_pair = (Rc::new(i.to_string()), field);
-                        (key_val_pair, field_type)
-                    })
-                    .unzip();
-                (fields, Type::Tuple(field_types))
-            }
-            value => {
-                let location = self.elaborator.interner.expr_location(&id);
-                let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
-            }
-        };
+        let lhs = self.evaluate_no_dereference(access.lhs)?;
+        let (fields, struct_type) = self.get_fields(lhs, id)?;
 
         let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
@@ -1001,6 +983,30 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
         // automatically.
         Ok(Value::Pointer(field, true, false))
+    }
+
+    fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
+        match value {
+            Value::Struct(fields, typ) => Ok((fields, typ)),
+            Value::Tuple(fields) => {
+                let (fields, field_types): (HashMap<Rc<String>, Shared<Value>>, Vec<Type>) = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        let field_type = field.borrow().get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
+                    })
+                    .unzip();
+                Ok((fields, Type::Tuple(field_types)))
+            }
+            Value::Pointer(value, true, _) => self.get_fields(value.unwrap_or_clone(), id),
+            value => {
+                let location = self.elaborator.interner.expr_location(&id);
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
+            }
+        }
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
