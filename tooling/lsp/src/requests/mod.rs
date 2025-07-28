@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::{collections::HashMap, future::Future};
 
 use crate::notifications::fake_stdlib_workspace;
+use crate::notifications::process_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
@@ -506,6 +507,11 @@ where
         let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
         (file_path, workspace)
     };
+
+    // First type-check the workspace if needed
+    if state.workspaces_to_process.remove(&workspace.root_dir) {
+        let _ = process_workspace(state, &workspace, false);
+    }
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")

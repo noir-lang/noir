@@ -29,6 +29,7 @@ use nargo::{
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -93,12 +94,15 @@ pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
-    open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
+
+    /// Whenever a file in a workspace is changed we'll add it to this set.
+    workspaces_to_process: HashSet<PathBuf>,
+
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -115,6 +119,8 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
+    diagnostics: Vec<CustomDiagnostic>,
+    diagnostics_just_published: bool,
 }
 
 impl LspState {
@@ -131,7 +137,7 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            open_documents_count: 0,
+            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }
