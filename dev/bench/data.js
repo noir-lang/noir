@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753728129411,
+  "lastUpdate": 1753728894151,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14506,48 +14506,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "39a504c14ba855ab4eed7adf9b016ef07c48bc66",
-          "message": "chore(fuzz): Increase loop frequency in Brillig (#9228)",
-          "timestamp": "2025-07-17T11:16:28Z",
-          "tree_id": "959b6fdf2f946c4de4f33aaf9f17334bffdd7fb0",
-          "url": "https://github.com/noir-lang/noir/commit/39a504c14ba855ab4eed7adf9b016ef07c48bc66"
-        },
-        "date": 1752753528571,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248464,
-            "range": "± 317",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218743,
-            "range": "± 2643",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777390,
-            "range": "± 1418",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "87aeccf88b8a5f9808e06a3714283160017f43a7",
           "message": "feat: Add `compiler_unstable_features` to `Nargo.toml` (#9219)",
           "timestamp": "2025-07-17T12:29:07Z",
@@ -16589,6 +16547,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2822841,
             "range": "± 3279",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "21faf9648560b0f5943304833c44a2c5687f0d48",
+          "message": "fix: prevent invalid types in test/fuzz functions (#9343)",
+          "timestamp": "2025-07-28T18:28:59Z",
+          "tree_id": "ef7189439234db8ed7db1c85d780cadb13130988",
+          "url": "https://github.com/noir-lang/noir/commit/21faf9648560b0f5943304833c44a2c5687f0d48"
+        },
+        "date": 1753728877605,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 264408,
+            "range": "± 922",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 237951,
+            "range": "± 3455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2817676,
+            "range": "± 7140",
             "unit": "ns/iter"
           }
         ]
