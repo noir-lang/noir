@@ -73,7 +73,6 @@ impl Ssa {
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
         // Remove leftover instructions.
-        // Ok(ssa)
         Ok(ssa.dead_instruction_elimination_pre_flattening())
     }
 }

@@ -302,7 +302,6 @@ impl Context {
                 // We can't remove rc instructions if they're loaded from a reference
                 // since we'd have no way of knowing whether the reference is still used.
                 if Self::is_inc_dec_instruction_on_known_array(instruction, &function.dfg) {
-                    dbg!(instruction.clone());
                     self.rc_instructions.push((*instruction_id, block_id));
                 } else {
                     instruction.for_each_value(|value| {
@@ -440,7 +439,6 @@ impl Context {
     ) -> bool {
         use Instruction::*;
         if let IncrementRc { value } | DecrementRc { value, .. } = instruction {
-            dbg!(value);
             let Some(instruction) = dfg.get_local_or_global_instruction(*value) else {
                 return false;
             };
