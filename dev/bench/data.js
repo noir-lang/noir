@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753710429519,
+  "lastUpdate": 1753710431911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19610,90 +19610,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7cf7a89ca9593893dffe5175a5a4bf55110fb00a",
-          "message": "chore: replace array operation on 0-len arrays with side effect assertion (#9050)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-07-16T18:04:45Z",
-          "tree_id": "134e97d81a1eb416db6d67648ef0aeb8689684e2",
-          "url": "https://github.com/noir-lang/noir/commit/7cf7a89ca9593893dffe5175a5a4bf55110fb00a"
-        },
-        "date": 1752691068089,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 15080,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68865,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11347,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 261916,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 201205,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 70748,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1079444,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1080739,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1419,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3136,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 22169,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22393,6 +22309,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/46a0d1806cb3600c90abdf56187234b953815d45"
         },
         "date": 1753707890475,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2282832950b553ded6ab3924300d8ef3a2e625bf",
+          "message": "feat(acir): Parse ACIR memory and call opcodes (#9331)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-07-28T13:18:23Z",
+          "tree_id": "3f8dff691427bf1e3f0df293182db7c065d0c7aa",
+          "url": "https://github.com/noir-lang/noir/commit/2282832950b553ded6ab3924300d8ef3a2e625bf"
+        },
+        "date": 1753710409621,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
