@@ -463,7 +463,7 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             "execution_failure(nargo);",
-            &MatrixConfig::default(),
+            &MatrixConfig { vary_brillig: true, ..Default::default() },
         );
     }
     writeln!(test_file, "}}").unwrap();
