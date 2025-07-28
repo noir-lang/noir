@@ -73,7 +73,7 @@ expression: artifact
     "INIT CALLDATA 0 (id: 1, len: 5, witnesses: [_1, _2, _3, _4, _5])",
     "EXPR [ (1, _0) (-1, _7) 1 ]",
     "MEM (id: 1, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _8) 0 ]) ",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: [Simple(Witness(9))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 0 ]], outputs: [_9]",
     "BLACKBOX::RANGE [(_9, 32)] []",
     "EXPR [ (1, _8) (1, _9) (-1, _10) 0 ]",
     "BLACKBOX::RANGE [(_10, 32)] []",

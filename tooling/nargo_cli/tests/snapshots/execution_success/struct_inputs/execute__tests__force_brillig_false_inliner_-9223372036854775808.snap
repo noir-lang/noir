@@ -153,7 +153,7 @@ expression: artifact
     "EXPR [ (-1, _9) 0 ]",
     "EXPR [ (-1, _10) 1 ]",
     "EXPR [ (1, _8) -1 ]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0)), (-1, Witness(2))], q_c: 0 })], outputs: [Simple(Witness(26))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _2) 0 ]], outputs: [_26]",
     "EXPR [ (1, _0, _26) (-1, _2, _26) -1 ]",
     "EXPR [ (1, _3) -104 ]",
     "EXPR [ (1, _4) -101 ]",
