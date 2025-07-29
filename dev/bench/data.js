@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753735674427,
+  "lastUpdate": 1753796243287,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13791,48 +13791,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e81e3eb6ac8c4b101d13d16f8df199ee9e73d01",
-          "message": "chore(docs): Include list to hashing libraries at the top of the relevant docs page (#9239)",
-          "timestamp": "2025-07-17T17:02:07Z",
-          "tree_id": "e524faacb5f7ed3babb09c0e4a1d780346b7b218",
-          "url": "https://github.com/noir-lang/noir/commit/3e81e3eb6ac8c4b101d13d16f8df199ee9e73d01"
-        },
-        "date": 1752773371628,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259050,
-            "range": "± 1275",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227805,
-            "range": "± 1896",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795197,
-            "range": "± 8155",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15884,6 +15842,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2815168,
             "range": "± 848",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "38997a82cb1f962a27b0aa4e76e4f84136c13f98",
+          "message": "chore: try printing byte arrays as strings in the SSA interpreter (#9346)",
+          "timestamp": "2025-07-29T13:10:45Z",
+          "tree_id": "0eebdf05ff11e1ceeff00a8696e0334ffe235d10",
+          "url": "https://github.com/noir-lang/noir/commit/38997a82cb1f962a27b0aa4e76e4f84136c13f98"
+        },
+        "date": 1753796226924,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248896,
+            "range": "± 672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220637,
+            "range": "± 2470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789149,
+            "range": "± 4463",
             "unit": "ns/iter"
           }
         ]
